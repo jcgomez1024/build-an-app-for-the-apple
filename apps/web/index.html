@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elvi — Cocina Elvis Concierge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- Full-screen avatar canvas -->
+    <canvas id="avatar-canvas" aria-label="Elvi avatar"></canvas>
+
+    <!-- Top-left brand -->
+    <header class="topbar">
+      <p class="eyebrow">Cocina Elvis</p>
+      <h1 id="brand-title">Elvi</h1>
+    </header>
+
+    <!-- Top-right status -->
+    <div id="hero-status" class="status-pill">Connecting…</div>
+
+    <!-- Centered speech bubble above controls -->
+    <div class="speech-wrap">
+      <div class="speech-bubble">
+        <p id="assistant-reply" class="bubble-text">I am ready for your order.</p>
+        <p id="assistant-engine" class="bubble-engine">Waiting for session…</p>
+      </div>
+      <!-- Combo build tracker (hidden until active) -->
+      <div id="combo-tracker" class="combo-tracker is-hidden" aria-live="polite">
+        <div class="combo-tracker-header">
+          <span id="combo-tracker-name" class="combo-tracker-name"></span>
+          <span id="combo-tracker-progress" class="combo-tracker-progress"></span>
+        </div>
+        <ul id="combo-tracker-selections" class="combo-tracker-selections"></ul>
+        <div id="combo-tracker-ask" class="combo-tracker-ask is-hidden">
+          <span id="combo-tracker-step-label" class="combo-tracker-step-label"></span>
+          <ul id="combo-tracker-options" class="combo-tracker-options"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected item preview -->
+    <div id="selection-preview" class="selection-preview is-hidden" aria-live="polite">
+      <img id="selection-preview-image" class="selection-preview-image" alt="Selected menu item" />
+      <div class="selection-preview-copy">
+        <p class="selection-preview-label">Selected item</p>
+        <p id="selection-preview-name" class="selection-preview-name"></p>
+      </div>
+    </div>
+
+    <section id="selected-items-panel" class="selected-items-panel" aria-live="polite" aria-label="Selected items">
+      <h3 class="selected-items-title">Selected</h3>
+      <div id="selected-items-list" class="selected-items-list"></div>
+    </section>
+
+    <!-- Touch-first menu explorer -->
+    <section id="menu-explorer" class="menu-explorer" aria-label="Menu Explorer">
+      <div id="menu-sections" class="menu-sections" role="tablist" aria-label="Menu sections"></div>
+      <div id="menu-grid" class="menu-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- Bottom controls -->
+    <div class="bottom-bar">
+      <!-- Text input bar -->
+      <form id="prompt-form" class="prompt-bar">
+        <input
+          id="prompt-input"
+          type="text"
+          placeholder="Type your order…"
+          autocomplete="off"
+        />
+        <button type="submit" class="send-btn" aria-label="Send">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Lang pills · Mic · Cart -->
+      <div class="controls-row">
+        <div class="lang-group" role="group" aria-label="Language">
+          <button data-lang="auto" class="pill pill-active">AUTO</button>
+          <button data-lang="en" class="pill">EN</button>
+          <button data-lang="es" class="pill">ES</button>
+        </div>
+
+        <!-- Mic with halo rings -->
+        <div id="mic-wrap" class="mic-wrap">
+          <div class="halo halo-1"></div>
+          <div class="halo halo-2"></div>
+          <div class="halo halo-3"></div>
+          <button id="listen-button" class="mic-btn" aria-label="Start or stop listening">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Cart toggle -->
+        <button id="cart-toggle" class="cart-btn" aria-label="Open cart">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span id="cart-badge" class="cart-badge">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Cart drawer -->
+    <aside id="cart-drawer" class="cart-drawer" aria-hidden="true">
+      <div class="drawer-inner">
+        <div class="drawer-header">
+          <h2>Your Order</h2>
+          <button id="cart-close" class="drawer-close" aria-label="Close">✕</button>
+        </div>
+
+        <ul id="cart-list" class="cart-list"></ul>
+        <p class="cart-total">Total: <span id="cart-total">$0.00</span></p>
+
+        <form id="checkout-form" class="checkout-form">
+          <div class="field-row">
+            <label for="customer-name">Name</label>
+            <input id="customer-name" required placeholder="Your name" />
+          </div>
+          <div class="field-row">
+            <label for="customer-phone">Phone</label>
+            <input id="customer-phone" placeholder="+1 (555) 000-0000" />
+          </div>
+          <div class="field-row">
+            <label for="customer-email">Email</label>
+            <input id="customer-email" type="email" placeholder="you@example.com" />
+          </div>
+          <div class="field-row">
+            <label for="customer-address">Address (for delivery)</label>
+            <input id="customer-address" placeholder="Delivery address" />
+          </div>
+          <div class="field-row">
+            <label for="fulfillment">Fulfillment</label>
+            <select id="fulfillment">
+              <option value="PICKUP">Pickup</option>
+              <option value="DELIVERY">Delivery</option>
+            </select>
+          </div>
+          <button type="submit" class="checkout-button">Checkout with Square</button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Drawer backdrop -->
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+    <!-- Modifier picker -->
+    <div id="modifier-modal" class="modifier-modal is-hidden" aria-hidden="true">
+      <div id="modifier-sheet" class="modifier-sheet" role="dialog" aria-modal="true" aria-label="Customize item">
+        <div class="modifier-header">
+          <h3 id="modifier-title">Customize</h3>
+          <button id="modifier-close" class="drawer-close" aria-label="Close">✕</button>
+        </div>
+        <p id="modifier-subtitle" class="modifier-subtitle"></p>
+        <div id="modifier-groups" class="modifier-groups"></div>
+        <button id="modifier-add" class="checkout-button">Add to order</button>
+      </div>
+    </div>
+
+    <!-- Hidden stop button kept for JS wiring -->
+    <button id="stop-button" style="display:none" disabled></button>
+    <!-- Hidden hero-description kept for tenant branding JS -->
+    <span id="hero-description" style="display:none"></span>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
