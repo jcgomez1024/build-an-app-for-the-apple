@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Cocina Elvis",
+    "slug": "cocina-elvis",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cocinaelvis",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.cocinaelvis.voiceorder",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Cocina Elvis uses the microphone so customers can place food orders by voice.",
+        "NSSpeechRecognitionUsageDescription": "Cocina Elvis uses speech recognition to understand bilingual order commands."
+      }
+    },
+    "android": {
+      "package": "com.cocinaelvis.voiceorder",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "plugins": [
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Cocina Elvis uses the microphone so customers can place food orders by voice.",
+          "speechRecognitionPermission": "Cocina Elvis uses speech recognition to understand bilingual order commands."
+        }
+      ]
+    ]
+  }
+}

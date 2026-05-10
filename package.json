@@ -1,0 +1,14 @@
+{
+  "name": "cocina-elvis-voice-ordering",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/mobile",
+    "services/api"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace services/api run dev",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "typecheck": "npm --workspace services/api run typecheck && npm --workspace apps/mobile run typecheck"
+  }
+}

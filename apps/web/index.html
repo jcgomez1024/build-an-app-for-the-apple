@@ -45,12 +45,31 @@
       </div>
     </div>
 
+    <!-- Cinematic ingredient prop overlay (shown during build steps) -->
+    <div id="build-prop-overlay" class="build-prop-overlay is-hidden" aria-live="polite">
+      <div class="build-prop-card">
+        <div class="build-prop-step">
+          <span id="build-prop-step-num" class="build-prop-step-num">1</span>
+          <span class="build-prop-step-divider">/</span>
+          <span id="build-prop-step-total" class="build-prop-step-total">5</span>
+        </div>
+        <div class="build-prop-content">
+          <img id="build-prop-image" class="build-prop-image" alt="Ingredient" />
+          <div class="build-prop-text">
+            <p id="build-prop-label" class="build-prop-label">Tortilla</p>
+            <p id="build-prop-value" class="build-prop-value">Flour</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Selected item preview -->
     <div id="selection-preview" class="selection-preview is-hidden" aria-live="polite">
       <img id="selection-preview-image" class="selection-preview-image" alt="Selected menu item" />
       <div class="selection-preview-copy">
         <p class="selection-preview-label">Selected item</p>
         <p id="selection-preview-name" class="selection-preview-name"></p>
+        <p id="selection-preview-description" class="selection-preview-description"></p>
       </div>
     </div>
 

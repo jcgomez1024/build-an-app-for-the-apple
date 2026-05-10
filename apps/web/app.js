@@ -25,6 +25,8 @@ const state = {
   activeSection: "Most Popular",
   menuSections: [],
   modifierDraft: null,
+  modifierStepIndex: 0,
+  lastComboAnimationKey: "",
   autoListen: false,
   elviSpeaking: false,
   vadRunning: false,
@@ -79,6 +81,7 @@ const ui = {
   selectionPreview: document.getElementById("selection-preview"),
   selectionPreviewImage: document.getElementById("selection-preview-image"),
   selectionPreviewName: document.getElementById("selection-preview-name"),
+  selectionPreviewDescription: document.getElementById("selection-preview-description"),
   menuSections: document.getElementById("menu-sections"),
   menuGrid: document.getElementById("menu-grid"),
   modifierModal: document.getElementById("modifier-modal"),
@@ -308,6 +311,9 @@ function renderMenuExplorer() {
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "menu-card";
+    card.addEventListener("click", () => {
+      handleMenuItemSelected(item);
+    });
 
     const image = document.createElement("img");
     image.src = item.imageUrl || "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=640&q=70";
@@ -338,7 +344,11 @@ function renderMenuExplorer() {
     addBtn.className = "menu-add-btn";
     addBtn.type = "button";
     addBtn.textContent = "Customize";
-    addBtn.addEventListener("click", () => openModifierModal(item));
+    addBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleMenuItemSelected(item);
+      openModifierModal(item);
+    });
 
     row.appendChild(price);
     row.appendChild(addBtn);
@@ -347,6 +357,15 @@ function renderMenuExplorer() {
     body.appendChild(row);
     card.appendChild(body);
     ui.menuGrid.appendChild(card);
+  }
+}
+
+function handleMenuItemSelected(item) {
+  state.lastSelectedItem = item;
+  renderSelectedPreview(item);
+
+  if (elvi && typeof elvi.presentItemSelection === "function") {
+    void elvi.presentItemSelection();
   }
 }
 
@@ -366,11 +385,9 @@ function openModifierModal(item) {
     groups,
     selections: Object.fromEntries(groups.map((g) => [g.id, {}]))
   };
+  state.modifierStepIndex = 0;
 
   ui.modifierTitle.textContent = getEffectiveLanguage() === "es" ? `Personaliza ${item.nameEs}` : `Customize ${item.name}`;
-  ui.modifierSubtitle.textContent = getEffectiveLanguage() === "es"
-    ? "Elige tus opciones y cantidades antes de agregar al carrito."
-    : "Choose options and quantities before adding to cart.";
 
   renderModifierGroups();
   ui.modifierModal.classList.remove("is-hidden");
@@ -382,6 +399,8 @@ function closeModifierModal() {
   ui.modifierModal.classList.add("is-hidden");
   ui.modifierModal.setAttribute("aria-hidden", "true");
   state.modifierDraft = null;
+  state.modifierStepIndex = 0;
+  clearComboTracker();
 }
 
 function selectedModifierCount(groupId) {
@@ -412,94 +431,181 @@ function validateModifierDraft() {
   });
 }
 
+function isModifierGroupSatisfied(group) {
+  const min = Math.max(0, Number(group?.minSelections || 0));
+  if (!group) return false;
+  return selectedModifierCount(group.id) >= min;
+}
+
+function getModifierStepSelections(group) {
+  const selected = state.modifierDraft?.selections?.[group.id] || {};
+  const values = [];
+  for (const [option, qty] of Object.entries(selected)) {
+    const count = Math.max(1, Number(qty) || 1);
+    values.push(count > 1 ? `${count} x ${option}` : option);
+  }
+  return values;
+}
+
+function animateModifierBuildStep(group) {
+  if (!state.modifierDraft || !group) return;
+
+  const step = state.modifierStepIndex + 1;
+  const totalSteps = state.modifierDraft.groups.length;
+  const stepName = group.name || "";
+  const selections = toModifierLines().map((line) =>
+    line.quantity > 1 ? `${line.quantity} x ${line.option}` : line.option
+  );
+  const groupSelections = getModifierStepSelections(group);
+  const currentOption = groupSelections?.[0] || "";
+
+  renderComboTracker(
+    getEffectiveLanguage() === "es" ? state.modifierDraft.item.nameEs : state.modifierDraft.item.name,
+    step,
+    totalSteps,
+    selections,
+    stepName,
+    Array.isArray(group.options) ? group.options : []
+  );
+
+  if (elvi && typeof elvi.performBuildStep === "function") {
+    void elvi.performBuildStep({
+      step,
+      totalSteps,
+      stepName,
+      option: currentOption,
+      selections: groupSelections
+    });
+  }
+}
+
+function handleModifierStepAdvance() {
+  if (!state.modifierDraft || !ui.modifierAdd) return;
+
+  const groups = state.modifierDraft.groups;
+  const stepIndex = Math.max(0, Math.min(state.modifierStepIndex, groups.length - 1));
+  const currentGroup = groups[stepIndex];
+  if (!currentGroup || !isModifierGroupSatisfied(currentGroup)) {
+    return;
+  }
+
+  animateModifierBuildStep(currentGroup);
+
+  if (stepIndex < groups.length - 1) {
+    state.modifierStepIndex = stepIndex + 1;
+    renderModifierGroups();
+    return;
+  }
+
+  const modifierLines = toModifierLines();
+  addCartItem(state.modifierDraft.item, 1, modifierLines);
+  renderCart();
+  closeModifierModal();
+  pulseAvatarState("happy", 1000, "talking_neutral");
+}
+
 function renderModifierGroups() {
   if (!state.modifierDraft || !ui.modifierGroups || !ui.modifierAdd) return;
   ui.modifierGroups.innerHTML = "";
 
-  for (const group of state.modifierDraft.groups) {
-    const min = Math.max(0, Number(group.minSelections || 0));
-    const max = Math.max(min || 0, Number(group.maxSelections || 1));
-    const allowQuantities = Boolean(group.allowQuantities || max > 1);
-    const selected = state.modifierDraft.selections[group.id] || {};
-
-    const shell = document.createElement("section");
-    shell.className = "modifier-group";
-
-    const title = document.createElement("p");
-    title.className = "modifier-group-title";
-    title.textContent = group.name;
-
-    const limit = document.createElement("p");
-    limit.className = "modifier-group-limit";
-    limit.textContent = `Min ${min} · Max ${max}`;
-
-    shell.appendChild(title);
-    shell.appendChild(limit);
-
-    for (const option of group.options || []) {
-      const row = document.createElement("div");
-      row.className = "modifier-option-row";
-
-      const label = document.createElement("span");
-      label.className = "modifier-option-name";
-      label.textContent = option;
-
-      const controls = document.createElement("div");
-      controls.className = "modifier-stepper";
-
-      const dec = document.createElement("button");
-      dec.type = "button";
-      dec.textContent = "-";
-
-      const count = document.createElement("span");
-      const currentQty = Number(selected[option] || 0);
-      count.textContent = String(currentQty);
-
-      const inc = document.createElement("button");
-      inc.type = "button";
-      inc.textContent = "+";
-
-      dec.addEventListener("click", () => {
-        const next = Math.max(0, Number((state.modifierDraft.selections[group.id] || {})[option] || 0) - 1);
-        if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
-        if (next <= 0) {
-          delete state.modifierDraft.selections[group.id][option];
-        } else {
-          state.modifierDraft.selections[group.id][option] = next;
-        }
-        renderModifierGroups();
-      });
-
-      inc.addEventListener("click", () => {
-        const groupSelections = state.modifierDraft.selections[group.id] || {};
-        const distinctCount = Object.values(groupSelections).filter((v) => Number(v) > 0).length;
-        const current = Number(groupSelections[option] || 0);
-        const addingNewDistinct = current <= 0;
-        if (addingNewDistinct && distinctCount >= max) {
-          return;
-        }
-
-        if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
-        if (!allowQuantities) {
-          state.modifierDraft.selections[group.id] = { [option]: 1 };
-        } else {
-          state.modifierDraft.selections[group.id][option] = Math.min(9, current + 1);
-        }
-        renderModifierGroups();
-      });
-
-      controls.appendChild(dec);
-      controls.appendChild(count);
-      controls.appendChild(inc);
-      row.appendChild(label);
-      row.appendChild(controls);
-      shell.appendChild(row);
-    }
-
-    ui.modifierGroups.appendChild(shell);
+  const groups = state.modifierDraft.groups;
+  const stepIndex = Math.max(0, Math.min(state.modifierStepIndex, groups.length - 1));
+  const group = groups[stepIndex];
+  if (!group) {
+    ui.modifierAdd.disabled = true;
+    return;
   }
 
-  ui.modifierAdd.disabled = !validateModifierDraft();
+  const min = Math.max(0, Number(group.minSelections || 0));
+  const max = Math.max(min || 0, Number(group.maxSelections || 1));
+  const allowQuantities = Boolean(group.allowQuantities || max > 1);
+  const selected = state.modifierDraft.selections[group.id] || {};
+
+  ui.modifierSubtitle.textContent = getEffectiveLanguage() === "es"
+    ? `Paso ${stepIndex + 1} de ${groups.length}: ${group.name}`
+    : `Step ${stepIndex + 1} of ${groups.length}: ${group.name}`;
+
+  const shell = document.createElement("section");
+  shell.className = "modifier-group";
+
+  const title = document.createElement("p");
+  title.className = "modifier-group-title";
+  title.textContent = group.name;
+
+  const limit = document.createElement("p");
+  limit.className = "modifier-group-limit";
+  limit.textContent = `Min ${min} · Max ${max}`;
+
+  shell.appendChild(title);
+  shell.appendChild(limit);
+
+  for (const option of group.options || []) {
+    const row = document.createElement("div");
+    row.className = "modifier-option-row";
+
+    const label = document.createElement("span");
+    label.className = "modifier-option-name";
+    label.textContent = option;
+
+    const controls = document.createElement("div");
+    controls.className = "modifier-stepper";
+
+    const dec = document.createElement("button");
+    dec.type = "button";
+    dec.textContent = "-";
+
+    const count = document.createElement("span");
+    const currentQty = Number(selected[option] || 0);
+    count.textContent = String(currentQty);
+
+    const inc = document.createElement("button");
+    inc.type = "button";
+    inc.textContent = "+";
+
+    dec.addEventListener("click", () => {
+      const next = Math.max(0, Number((state.modifierDraft.selections[group.id] || {})[option] || 0) - 1);
+      if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
+      if (next <= 0) {
+        delete state.modifierDraft.selections[group.id][option];
+      } else {
+        state.modifierDraft.selections[group.id][option] = next;
+      }
+      renderModifierGroups();
+    });
+
+    inc.addEventListener("click", () => {
+      const groupSelections = state.modifierDraft.selections[group.id] || {};
+      const distinctCount = Object.values(groupSelections).filter((v) => Number(v) > 0).length;
+      const current = Number(groupSelections[option] || 0);
+      const addingNewDistinct = current <= 0;
+      if (addingNewDistinct && distinctCount >= max) {
+        return;
+      }
+
+      if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
+      if (!allowQuantities) {
+        state.modifierDraft.selections[group.id] = { [option]: 1 };
+      } else {
+        state.modifierDraft.selections[group.id][option] = Math.min(9, current + 1);
+      }
+      renderModifierGroups();
+    });
+
+    controls.appendChild(dec);
+    controls.appendChild(count);
+    controls.appendChild(inc);
+    row.appendChild(label);
+    row.appendChild(controls);
+    shell.appendChild(row);
+  }
+
+  ui.modifierGroups.appendChild(shell);
+
+  const isLastStep = stepIndex >= groups.length - 1;
+  ui.modifierAdd.textContent = isLastStep
+    ? (getEffectiveLanguage() === "es" ? "Agregar al carrito" : "Add to cart")
+    : (getEffectiveLanguage() === "es" ? "Siguiente paso" : "Next step");
+  ui.modifierAdd.disabled = !isModifierGroupSatisfied(group);
 }
 
 async function openRealtimeSession() {
@@ -1171,12 +1277,7 @@ function attachUiHandlers() {
     if (event.target === ui.modifierModal) closeModifierModal();
   });
   ui.modifierAdd?.addEventListener("click", () => {
-    if (!state.modifierDraft || !validateModifierDraft()) return;
-    const modifierLines = toModifierLines();
-    addCartItem(state.modifierDraft.item, 1, modifierLines);
-    renderCart();
-    closeModifierModal();
-    pulseAvatarState("happy", 1000, "talking_neutral");
+    handleModifierStepAdvance();
   });
 
   ui.promptForm.addEventListener("submit", (event) => {
@@ -1433,6 +1534,21 @@ function applyActions(actions) {
   let addedItem = false;
   for (const action of actions) {
     if (action.type === "combo_building") {
+      const buildKey = `${action.itemName || ""}|${action.step || 0}|${(action.selections || []).join("|")}`;
+      if (buildKey !== state.lastComboAnimationKey) {
+        state.lastComboAnimationKey = buildKey;
+        const step = action.step || 1;
+        const currentOption = (action.selections || [])[step - 1] || "";
+        if (elvi && typeof elvi.performBuildStep === "function") {
+          void elvi.performBuildStep({
+            step,
+            totalSteps: action.totalSteps || 1,
+            stepName: action.stepName || "",
+            option: currentOption,
+            selections: action.selections || []
+          });
+        }
+      }
       renderComboTracker(action.itemName, action.step, action.totalSteps, action.selections || [], action.stepName || "", action.stepOptions || []);
       continue;
     }
@@ -1457,6 +1573,7 @@ function applyActions(actions) {
 
       addCartItem(menuItem, Number(action.quantity) || 1, Array.isArray(action.modifiers) ? action.modifiers : []);
       addedItem = true;
+      state.lastComboAnimationKey = "";
       clearComboTracker();
       continue;
     }
@@ -1608,8 +1725,19 @@ function clearComboTracker() {
   document.getElementById("combo-tracker")?.classList.add("is-hidden");
 }
 
+function getPreviewDescription(item) {
+  const language = getEffectiveLanguage();
+  const raw = String(item?.description || "").trim();
+  if (raw) {
+    return raw;
+  }
+  return language === "es"
+    ? "Seleccionado en Cocina Elvis. Personalizalo y agregalo al carrito."
+    : "Selected at Cocina Elvis. Customize it and add it to your cart.";
+}
+
   function renderSelectedPreview(item) {
-    if (!ui.selectionPreview || !ui.selectionPreviewImage || !ui.selectionPreviewName) {
+    if (!ui.selectionPreview || !ui.selectionPreviewImage || !ui.selectionPreviewName || !ui.selectionPreviewDescription) {
       return;
     }
 
@@ -1620,6 +1748,7 @@ function clearComboTracker() {
 
     const label = getEffectiveLanguage() === "es" ? item.nameEs : item.name;
     ui.selectionPreviewName.textContent = label;
+    ui.selectionPreviewDescription.textContent = getPreviewDescription(item);
 
     if (item.imageUrl) {
       ui.selectionPreviewImage.src = item.imageUrl;

@@ -370,6 +370,7 @@ function buildMenuFromSquareCatalog(
         nameEs: fullName,
         aliases: buildAliases(fullName, object.item_data?.description, rawFullName),
         priceCents: variation.item_variation_data?.price_money?.amount || 0,
+        description: object.item_data?.description?.trim() || undefined,
         imageUrl: resolveItemImageUrl(object.item_data?.image_ids, imageUrlById),
         squareCatalogObjectId: object.id,
         squareVariationId: variation.id,

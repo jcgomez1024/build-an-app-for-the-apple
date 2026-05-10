@@ -1,0 +1,25 @@
+{
+  "name": "@cocina-elvis/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@react-native-voice/voice": "^3.2.4",
+    "expo": "^55.0.0",
+    "expo-speech": "^55.0.0",
+    "react": "19.2.0",
+    "react-native": "0.83.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@expo/ngrok": "^4.1.3",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.7.2"
+  }
+}
