@@ -1,7 +1,7 @@
 import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js?module";
 import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js?module";
 
-const MODEL_URL = "/avatar/elvis-avatar_Idle_11_withSkin.glb";
+const MODEL_URL = "/avatar/elvis-avatar_Idle_11_withSkin-Realistic.glb";
 
 const VISEME_TO_KEYS = {
   viseme_aa: ["aa", "a", "jawopen", "mouthopen", "vowel_a", "mouth_a"],

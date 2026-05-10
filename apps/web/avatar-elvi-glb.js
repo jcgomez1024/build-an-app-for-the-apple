@@ -2,20 +2,23 @@ import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js?mo
 import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js?module";
 import { clone as cloneSkinned } from "https://unpkg.com/three@0.177.0/examples/jsm/utils/SkeletonUtils.js?module";
 
-// Production-ready Realistic avatar models only (May 9, 2026)
+// Production-ready Realistic avatar models only
 const REALISTIC_IDLE_URL = "/avatar/elvis-avatar_Idle_11_withSkin-Realistic.glb";
 const REALISTIC_HAPPY_URL = "/avatar/elvis-avatar_Happy_jump_f_withSkin-Realistic.glb";
+const REALISTIC_TALKING_URL = "/avatar/elvis-avatar_Stand_and_Chat_withSkin-Realistic.glb";
+const REALISTIC_QUESTIONING_URL = "/avatar/elvis-avatar_Stand_Talking_Angry_withSkin-Realistic.glb";
+const REALISTIC_EXCITED_URL = "/avatar/elvis-avatar_Excited_Walk_F_withSkin-Realistic.glb";
 const KITCHEN_ENV_URL = "/avatar/elvis-kitchen_Cocina_Elvis_commercial_background.glb";
 
 const STATE_TO_GLB = {
   idle: REALISTIC_IDLE_URL,
   happy: REALISTIC_HAPPY_URL,
-  excited: REALISTIC_IDLE_URL,
+  excited: REALISTIC_EXCITED_URL,
   listening: REALISTIC_IDLE_URL,
-  questioning: REALISTIC_IDLE_URL,
-  talking_neutral: REALISTIC_IDLE_URL,
-  frustrated: REALISTIC_IDLE_URL,
-  error: REALISTIC_IDLE_URL
+  questioning: REALISTIC_QUESTIONING_URL,
+  talking_neutral: REALISTIC_TALKING_URL,
+  frustrated: REALISTIC_QUESTIONING_URL,
+  error: REALISTIC_QUESTIONING_URL
 };
 
 const TARGET_AVATAR_HEIGHT = 1.3608;
