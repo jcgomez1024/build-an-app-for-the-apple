@@ -2,9 +2,10 @@ import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js?mo
 import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js?module";
 import { clone as cloneSkinned } from "https://unpkg.com/three@0.177.0/examples/jsm/utils/SkeletonUtils.js?module";
 
+// Production-ready avatar models (updated May 9, 2026)
 const REALISTIC_MODEL_URL = "/avatar/elvis-avatar_Idle_11_withSkin-Realistic.glb";
 const TALKING_MODEL_URL = "/avatar/elvis-avatar_Stand_and_Chat_withSkin.glb";
-const HAPPY_MODEL_URL = "/avatar/elvis-avatar_Happy_jump_f_withSkin.glb";
+const HAPPY_MODEL_URL = "/avatar/elvis-avatar_Happy_jump_f_withSkin-Realistic.glb";
 const QUESTIONING_MODEL_URL = "/avatar/elvis-avatar_Stand_Talking_Angry_withSkin.glb";
 const EXCITED_MODEL_URL = "/avatar/elvis-avatar_Excited_Walk_F_withSkin.glb";
 const KITCHEN_ENV_URL = "/avatar/elvis-kitchen_Cocina_Elvis_commercial_background.glb";
