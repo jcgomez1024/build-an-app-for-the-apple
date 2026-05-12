@@ -9,8 +9,7 @@ const state = {
   menu: [],
   cart: [],
   lastSelectedItem: null,
-  language: "auto",
-  detectedLanguage: "en",
+  language: "en",
   fulfillment: "PICKUP",
   customer: {
     name: "",
@@ -126,54 +125,12 @@ function pulseAvatarState(stateName, durationMs, fallbackState = "idle") {
   }, durationMs);
 }
 
-function detectLanguageFromText(text) {
-  const sample = String(text || "").toLowerCase().trim();
-  if (!sample) {
-    return null;
-  }
-
-  const spanishHints = /\b(hola|quiero|me da|para llevar|con|sin|gracias|por favor|tacos?|bebida|orden|pedido|combo|salsa|queso|frijoles|arroz)\b/;
-  const englishHints = /\b(hi|hello|i want|for here|to go|with|without|please|thanks|order|combo|drink|cheese|beans|rice)\b/;
-  const hasSpanish = spanishHints.test(sample);
-  const hasEnglish = englishHints.test(sample);
-
-  if (hasSpanish && !hasEnglish) {
-    return "es";
-  }
-  if (hasEnglish && !hasSpanish) {
-    return "en";
-  }
-  return null;
-}
-
 function getEffectiveLanguage() {
-  if (state.language === "auto") {
-    return state.detectedLanguage === "es" ? "es" : "en";
-  }
   return state.language === "es" ? "es" : "en";
 }
 
-function maybeUpdateAutoLanguage(text) {
-  if (state.language !== "auto") {
-    return;
-  }
-
-  const detected = detectLanguageFromText(text);
-  if (!detected || detected === state.detectedLanguage) {
-    return;
-  }
-
-  state.detectedLanguage = detected;
-  renderMenuExplorer();
-  renderCart();
-  syncRealtimeOrderContext();
-}
-
 function setLanguageMode(mode) {
-  state.language = mode === "es" ? "es" : mode === "auto" ? "auto" : "en";
-  if (state.language !== "auto") {
-    state.detectedLanguage = state.language;
-  }
+  state.language = mode === "es" ? "es" : "en";
 
   ui.langPills.forEach((pill) => {
     pill.classList.toggle("pill-active", pill.dataset.lang === state.language);
@@ -742,7 +699,18 @@ async function openRealtimeSession() {
 function buildSessionUpdatePayload() {
   const orderSnapshot = buildOrderStateSnapshot();
   const menuKnowledge = state.menu
-    .map((item) => `${item.id}: ${item.name} / ${item.nameEs} ($${((item.priceCents || 0) / 100).toFixed(2)})`)
+    .map((item) => {
+      const price = `BASE $${((item.priceCents || 0) / 100).toFixed(2)}`;
+      const modifiers = (item.modifierGroups || [])
+        .map((group) => {
+          const min = Math.max(0, Number(group.minSelections || 0));
+          const max = Math.max(min, Number(group.maxSelections || group.options?.length || 1));
+          const options = (group.options || []).join("/");
+          return `${group.name}[groupId="${group.id}",min=${min},max=${max}]:${options}`;
+        })
+        .join(" | ");
+      return `${item.id}: ${item.name} / ${item.nameEs} (${price})${modifiers ? ` modifiers=[${modifiers}]` : ""}`;
+    })
     .join("; ");
 
   return {
@@ -763,9 +731,12 @@ function buildSessionUpdatePayload() {
         "For COMBO Tacos, require these build steps before add_item: (A) tortilla shell, (B) item #1 meat, (CD) item #2 meat, and (D) COMBO side. Treat other COMBO Tacos groups as optional. " +
         "If a customer later asks to add an optional COMBO Tacos modifier (for example DELUXE), update the existing COMBO Tacos line instead of saying it is unavailable. " +
         "For items with modifier groups, ask one concise combined question for missing required groups, then call add_item once they are fully selected. " +
+        "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices. " +
+        "Common phrases: steak taco means Taco with Bistec / Steak; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour. " +
+        "If the exact item id is uncertain, call add_item with itemQuery using the customer's phrase; the app will resolve the item and modifiers. " +
         "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'. " +
-        "Language mode may be AUTO. In AUTO mode, mirror the user's most recent language and switch fluidly between English and Spanish mid-conversation. " +
-        `Language mode=${state.language}; effective language=${getEffectiveLanguage()}. ` +
+        "Use only the selected UI language for replies. Do not auto-detect or switch languages from customer wording. " +
+        `Selected language=${getEffectiveLanguage()}. ` +
         `Current order state (authoritative): ${orderSnapshot}. Always treat this as the latest known order memory, especially after reconnect. ` +
         `ONLINE menu knowledge: ${menuKnowledge}`,
       turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 300, prefix_padding_ms: 250 },
@@ -806,11 +777,12 @@ function syncRealtimeOrderContext() {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.xaiSessionReady) {
     return;
   }
+  if (state.turnInFlight || state.elviSpeaking) {
+    return;
+  }
 
   const digest = JSON.stringify({
-    languageMode: state.language,
-    detectedLanguage: state.detectedLanguage,
-    effectiveLanguage: getEffectiveLanguage(),
+    language: getEffectiveLanguage(),
     fulfillment: state.fulfillment,
     cart: state.cart.map((line) => ({
       id: line.item.id,
@@ -857,7 +829,8 @@ function buildRealtimeToolsForClient() {
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID." },
+          itemId: { type: "string", description: "Exact menu item ID when known." },
+          itemQuery: { type: "string", description: "Customer phrase when exact item ID is uncertain, such as 'one steak taco'." },
           quantity: { type: "number", description: "Quantity to add." },
           modifiers: {
             type: "array",
@@ -872,8 +845,7 @@ function buildRealtimeToolsForClient() {
               required: ["groupId", "option"]
             }
           }
-        },
-        required: ["itemId"]
+        }
       }
     },
     {
@@ -1038,6 +1010,18 @@ async function handleToolCall(name, argsJson) {
   if (["add_item", "remove_item", "update_item", "set_fulfillment", "set_address", "set_customer", "checkout"].includes(name)) {
     let addItemMode = null;
     if (name === "add_item") {
+      const resolved = resolveAddItemToolArgs(args);
+      if (!resolved.ok) {
+        return {
+          output: {
+            ok: false,
+            reason: "unknown_menu_item",
+            message: resolved.message
+          }
+        };
+      }
+      Object.assign(args, resolved.args);
+
       const guard = validateAddItemToolArgs(args);
       if (!guard.ok) {
         return {
@@ -1114,7 +1098,7 @@ function normalizeToolModifiers(raw) {
       option: String(entry.option || "").trim(),
       quantity: Math.max(1, Number(entry.quantity) || 1)
     }))
-    .filter((entry) => entry.groupId && entry.option);
+    .filter((entry) => entry.option);
 }
 
 function normalizeOptionKey(text) {
@@ -1122,6 +1106,15 @@ function normalizeOptionKey(text) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function extractOptionCostCents(optionLabel) {
+  const text = String(optionLabel || "");
+  const match = text.match(/([+-]?)\s*\$\s*(\d+(?:\.\d{1,2})?)/);
+  if (!match) return 0;
+  const sign = match[1] === "-" ? -1 : 1;
+  const value = Math.round(Number(match[2]) * 100);
+  return Number.isFinite(value) ? sign * value : 0;
 }
 
 function findCanonicalOption(options, candidate) {
@@ -1143,6 +1136,219 @@ function findCanonicalOption(options, candidate) {
 
   const contains = options.find((opt) => normalizeOptionKey(opt).includes(key) || key.includes(normalizeOptionKey(opt)));
   return contains ? String(contains) : null;
+}
+
+function normalizeQueryText(text) {
+  return normalizeOptionKey(text)
+    .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|a|an|add|get|give|me|please|quiero|dame|orden|order|of)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSingleTacoCandidate(item) {
+  const haystack = normalizeQueryText(`${item?.id || ""} ${item?.name || ""} ${item?.nameEs || ""}`);
+  if (!haystack.includes("taco")) return false;
+  return !/(combo|fiesta|love box|hard shell|pack|meal|tacos|[0-9]+\s*x|trio|sampler)/.test(haystack);
+}
+
+function itemHasText(item, pattern) {
+  const values = [
+    item?.id,
+    item?.name,
+    item?.nameEs,
+    ...(Array.isArray(item?.aliases) ? item.aliases : [])
+  ];
+  const haystack = normalizeQueryText(values.join(" "));
+  return pattern.test(haystack);
+}
+
+function scoreMenuItemForQuery(item, query) {
+  const normalized = normalizeQueryText(query);
+  const values = [
+    item?.id,
+    item?.name,
+    item?.nameEs,
+    ...(Array.isArray(item?.aliases) ? item.aliases : [])
+  ];
+  const haystack = normalizeQueryText(values.join(" "));
+  if (!normalized || !haystack) return 0;
+  if (haystack === normalized) return 100;
+  if (haystack.includes(normalized)) return 80;
+  const words = normalized.split(" ").filter((word) => word.length > 2);
+  return words.reduce((score, word) => score + (haystack.includes(word) ? 8 : 0), 0);
+}
+
+function findPreferredSingleTacoItem(query) {
+  const normalized = normalizeQueryText(query);
+  const tacos = state.menu.filter(isSingleTacoCandidate);
+  if (!tacos.length) return null;
+
+  const tortillaKind = getTacoTortillaKindFromText(normalized);
+  if (tortillaKind) {
+    return findSingleTacoVariant(tortillaKind) || tacos[0];
+  }
+
+  return tacos.find((item) => itemHasText(item, /\b(st|taquero|street)\b/))
+    || tacos.find((item) => normalizeQueryText(item.name) === "taco")
+    || tacos[0];
+}
+
+function resolveMenuItemFromQuery(queryOrId) {
+  const raw = String(queryOrId || "").trim();
+  if (!raw) return null;
+
+  const exactId = state.menu.find((item) => item.id === raw);
+  if (exactId) return exactId;
+
+  const normalized = normalizeQueryText(raw);
+  if (/\btacos?\b/.test(normalized)) {
+    const singleTaco = findPreferredSingleTacoItem(normalized);
+    if (singleTaco) return singleTaco;
+  }
+
+  const scored = state.menu
+    .map((item) => ({ item, score: scoreMenuItemForQuery(item, normalized) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.item || null;
+}
+
+function findModifierGroup(item, matcher) {
+  const groups = Array.isArray(item?.modifierGroups) ? item.modifierGroups : [];
+  return groups.find((group) => matcher(normalizeQueryText(group.name || ""), group));
+}
+
+function inferOptionFromMap(group, query, entries) {
+  if (!group || !Array.isArray(group.options)) return null;
+  const normalized = normalizeQueryText(query);
+  for (const [pattern, optionHint] of entries) {
+    if (pattern.test(normalized)) {
+      const option = findCanonicalOption(group.options, optionHint);
+      if (option) {
+        return { groupId: group.id, groupName: group.name, option, quantity: 1 };
+      }
+    }
+  }
+  return null;
+}
+
+function inferModifiersFromQuery(item, query) {
+  const modifiers = [];
+  const meatGroup = findModifierGroup(item, (name) => /\b(meat|meats|carne|carnes)\b/.test(name));
+  const tortillaGroup = findModifierGroup(item, (name) => /\b(tortilla|shell)\b/.test(name));
+
+  const tortilla = inferOptionFromMap(tortillaGroup, query, [
+    [/\b(homemade|home made|handmade|hand made|comal|corn)\b/, "Taco Comal / Homemade"],
+    [/\b(flour|harina)\b/, "Taco Harina / Flour"],
+    [/\b(street|taquero|taquera)\b/, "Taco Taquero / Street Taco"]
+  ]);
+  if (tortilla) modifiers.push(tortilla);
+
+  const meat = inferOptionFromMap(meatGroup, query, [
+    [/\b(steak|bistec|beef|carne asada)\b/, "Bistec / Steak"],
+    [/\b(chicken|pollo)\b/, "Pollo / Chicken"],
+    [/\b(pork|pernil)\b/, "Pernil / Roasted Pork"],
+    [/\b(chorizo|sausage)\b/, "Chorizo / Mexican Sausage"],
+    [/\b(ground beef|picadillo|molida)\b/, "Picadillo / Ground Beef"],
+    [/\b(al pastor|pastor)\b/, "Al Pastor"],
+    [/\b(veggie|vegetarian|vegetales|vegetal)\b/, "Vegetales / Veggie"]
+  ]);
+  if (meat) modifiers.push(meat);
+
+  return modifiers;
+}
+
+function mergeResolvedModifiers(existing, inferred) {
+  return mergeModifiersByGroup(normalizeToolModifiers(existing), inferred || []);
+}
+
+function getTacoTortillaKindFromText(text) {
+  const normalized = normalizeQueryText(text);
+  if (/\b(homemade|home made|handmade|hand made|comal|corn|\(co\)|\bco\b)\b/.test(normalized)) return "co";
+  if (/\b(flour|harina|\(hr\)|\bhr\b)\b/.test(normalized)) return "hr";
+  if (/\b(street|taquero|taquera|\(st\)|\bst\b)\b/.test(normalized)) return "st";
+  return "";
+}
+
+function getTacoTortillaKindFromItem(item) {
+  return getTacoTortillaKindFromText(`${item?.id || ""} ${item?.name || ""} ${item?.nameEs || ""}`);
+}
+
+function getTacoTortillaKindFromModifiers(modifiers) {
+  for (const modifier of modifiers || []) {
+    const kind = getTacoTortillaKindFromText(`${modifier.groupName || ""} ${modifier.option || ""}`);
+    if (kind) return kind;
+  }
+  return "";
+}
+
+function findSingleTacoVariant(kind) {
+  if (!kind) return null;
+  return state.menu
+    .filter(isSingleTacoCandidate)
+    .find((item) => getTacoTortillaKindFromItem(item) === kind) || null;
+}
+
+function stripTortillaVariantModifiers(modifiers) {
+  return (modifiers || []).filter((modifier) => !getTacoTortillaKindFromText(`${modifier.groupName || ""} ${modifier.option || ""}`));
+}
+
+function normalizeTacoVariantSelection(item, modifiers, query) {
+  if (!isSingleTacoCandidate(item)) {
+    return { item, modifiers };
+  }
+
+  const requestedKind = getTacoTortillaKindFromText(query)
+    || getTacoTortillaKindFromModifiers(modifiers)
+    || getTacoTortillaKindFromItem(item);
+  const variant = findSingleTacoVariant(requestedKind);
+  if (!variant) {
+    return { item, modifiers };
+  }
+
+  return {
+    item: variant,
+    modifiers: stripTortillaVariantModifiers(modifiers)
+  };
+}
+
+function resolveAddItemToolArgs(args) {
+  const query = String(args.itemQuery || args.itemId || "").trim();
+  const resolvedItem = args.itemQuery
+    ? (resolveMenuItemFromQuery(query) || resolveMenuItemFromQuery(args.itemId))
+    : (resolveMenuItemFromQuery(args.itemId) || resolveMenuItemFromQuery(query));
+  if (!resolvedItem) {
+    return {
+      ok: false,
+      message: `Item not recognized: ${query || "unknown item"}.`
+    };
+  }
+
+  const inferred = inferModifiersFromQuery(resolvedItem, query);
+  const normalized = normalizeTacoVariantSelection(
+    resolvedItem,
+    mergeResolvedModifiers(args.modifiers, inferred),
+    query
+  );
+  return {
+    ok: true,
+    args: {
+      ...args,
+      itemId: normalized.item.id,
+      quantity: Number(args.quantity) || inferQuantityFromText(query) || 1,
+      modifiers: normalized.modifiers
+    }
+  };
+}
+
+function inferQuantityFromText(text) {
+  const normalized = normalizeQueryText(text);
+  const digit = normalized.match(/\b([1-9]|1[0-9]|20)\b/);
+  if (digit) return Number(digit[1]);
+  const wordMap = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  const match = String(text || "").toLowerCase().match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/);
+  return match ? wordMap[match[1]] : 0;
 }
 
 function isComboTacosItem(menuItem) {
@@ -1192,10 +1398,23 @@ function validateAddItemToolArgs(args) {
   const provided = providedRaw
     .map((selection) => {
       const group = groupsById.get(selection.groupId);
-      if (!group) return null;
-      const canonical = findCanonicalOption(group.options || [], selection.option);
-      if (!canonical) return null;
-      return { ...selection, option: canonical };
+      if (group) {
+        const canonical = findCanonicalOption(group.options || [], selection.option);
+        if (canonical) return { ...selection, groupId: group.id, groupName: group.name, option: canonical };
+      }
+
+      for (const fallbackGroup of groups) {
+        const canonical = findCanonicalOption(fallbackGroup.options || [], selection.option);
+        if (canonical) {
+          return {
+            ...selection,
+            groupId: fallbackGroup.id,
+            groupName: fallbackGroup.name,
+            option: canonical
+          };
+        }
+      }
+      return null;
     })
     .filter(Boolean);
 
@@ -1292,8 +1511,6 @@ function attachUiHandlers() {
       return;
     }
 
-    maybeUpdateAutoLanguage(text);
-
     if (!sendUserTurn(text)) {
       ui.status.textContent = "Please wait for Elvi to finish this turn.";
       return;
@@ -1325,7 +1542,19 @@ function attachUiHandlers() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cart: state.cart.map((line) => ({ id: line.item.id, quantity: line.quantity })),
+          cart: state.cart.map((line) => ({
+            id: line.item.id,
+            quantity: line.quantity,
+            unitPriceCents: getCartLineUnitPriceCents(line),
+            modifiers: Array.isArray(line.modifiers)
+              ? line.modifiers.map((modifier) => ({
+                  groupId: modifier.groupId,
+                  groupName: modifier.groupName,
+                  option: modifier.option,
+                  quantity: Math.max(1, Number(modifier.quantity) || 1)
+                }))
+              : []
+          })),
           fulfillment: state.fulfillment,
           customer: state.customer
         })
@@ -1460,7 +1689,6 @@ function startBrowserRecognition() {
         combined += `${event.results[i][0]?.transcript || ""} `;
       }
       state.localTranscript = combined.trim();
-      maybeUpdateAutoLanguage(state.localTranscript);
     };
 
     recognition.onerror = () => {
@@ -1509,7 +1737,6 @@ function sendUserTurn(text) {
   if (!text || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
     return false;
   }
-  maybeUpdateAutoLanguage(text);
   // Single-lane turn taking: only one active request/response at a time.
   if (state.turnInFlight || state.elviSpeaking) {
     return false;
@@ -1753,7 +1980,10 @@ function getPreviewDescription(item) {
 
     const label = getEffectiveLanguage() === "es" ? item.nameEs : item.name;
     ui.selectionPreviewName.textContent = label;
-    ui.selectionPreviewDescription.textContent = getPreviewDescription(item);
+    const selectedLine = state.cart.find((line) => line.item.id === item.id);
+    const price = selectedLine ? getCartLineUnitPriceCents(selectedLine) : Number(item.priceCents || 0);
+    const delta = Math.max(0, price - Number(item.priceCents || 0));
+    ui.selectionPreviewDescription.textContent = `${getPreviewDescription(item)} Price: ${centsToUsd(price)}${delta ? ` (${centsToUsd(Number(item.priceCents || 0))} + ${centsToUsd(delta)} modifiers)` : ""}.`;
 
     if (item.imageUrl) {
       ui.selectionPreviewImage.src = item.imageUrl;
@@ -1774,7 +2004,8 @@ function renderCart() {
   let total = 0;
 
   for (const line of state.cart) {
-    total += line.quantity * line.item.priceCents;
+    const lineTotalCents = getCartLineTotalCents(line);
+    total += lineTotalCents;
 
     const li = document.createElement("li");
     const name = getEffectiveLanguage() === "es" ? line.item.nameEs : line.item.name;
@@ -1796,14 +2027,18 @@ function renderCart() {
 
     const value = document.createElement("span");
     value.className = "cart-item-price";
-    value.textContent = centsToUsd(line.quantity * line.item.priceCents);
+    value.textContent = centsToUsd(lineTotalCents);
 
     if (Array.isArray(line.modifiers) && line.modifiers.length > 0) {
       const mods = document.createElement("div");
       mods.className = "cart-item-mods";
-      mods.textContent = line.modifiers
+      const modifierDelta = getModifierDeltaPerUnitCents(line);
+      const modifierText = line.modifiers
         .map((m) => (m.quantity > 1 ? `${m.quantity}x ${m.option}` : m.option))
         .join(", ");
+      mods.textContent = modifierDelta
+        ? `${modifierText} (${centsToUsd(line.item.priceCents || 0)} + ${centsToUsd(modifierDelta)})`
+        : modifierText;
       main.appendChild(mods);
     }
 
@@ -1846,7 +2081,7 @@ function renderSelectedItemsPanel() {
         chip.className = "selected-item-mod-chip";
         const qty = Number(m.quantity || 0);
         const group = m.groupName ? `${m.groupName}: ` : "";
-        chip.textContent = `${group}${qty > 1 ? `${qty}x ` : ""}${m.option}`;
+        chip.textContent = `${group}${qty > 1 ? `${qty}x ` : ""}${m.option}${getModifierUpchargeLabel(m)}`;
         mods.appendChild(chip);
       }
       body.appendChild(mods);
@@ -1854,7 +2089,7 @@ function renderSelectedItemsPanel() {
 
     const price = document.createElement("div");
     price.className = "selected-item-price";
-    price.textContent = centsToUsd((line.item.priceCents || 0) * (line.quantity || 1));
+    price.textContent = centsToUsd(getCartLineTotalCents(line));
 
     card.appendChild(thumb);
     card.appendChild(body);
@@ -1865,6 +2100,30 @@ function renderSelectedItemsPanel() {
 
 function centsToUsd(value) {
   return `$${(value / 100).toFixed(2)}`;
+}
+
+function getModifierDeltaPerUnitCents(line) {
+  const modifiers = Array.isArray(line?.modifiers) ? line.modifiers : [];
+  return modifiers.reduce((sum, modifier) => {
+    const qty = Math.max(1, Number(modifier?.quantity) || 1);
+    return sum + extractOptionCostCents(modifier?.option) * qty;
+  }, 0);
+}
+
+function getCartLineUnitPriceCents(line) {
+  return Math.max(0, Number(line?.item?.priceCents || 0) + getModifierDeltaPerUnitCents(line));
+}
+
+function getCartLineTotalCents(line) {
+  const qty = Math.max(1, Number(line?.quantity) || 1);
+  return getCartLineUnitPriceCents(line) * qty;
+}
+
+function getModifierUpchargeLabel(modifier) {
+  if (/\$\s*\d/.test(String(modifier?.option || ""))) return "";
+  const cents = extractOptionCostCents(modifier?.option);
+  if (!cents) return "";
+  return cents > 0 ? ` (+${centsToUsd(cents)})` : ` (${centsToUsd(cents)})`;
 }
 
 let _sharedAudioCtx      = null;

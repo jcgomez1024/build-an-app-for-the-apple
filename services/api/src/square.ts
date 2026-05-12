@@ -4,6 +4,13 @@ import { fallbackMenu, type MenuItem, type ModifierGroup } from "./menu.js";
 type CartItem = {
   id: string;
   quantity: number;
+  unitPriceCents?: number;
+  modifiers?: Array<{
+    groupId?: string;
+    groupName?: string;
+    option?: string;
+    quantity?: number;
+  }>;
 };
 
 type CheckoutRequest = {
@@ -39,6 +46,11 @@ function getSquareConfig(config?: Partial<SquareRuntimeConfig>): SquareRuntimeCo
 
 function getSquareBaseUrl(env: "sandbox" | "production") {
   return env === "production" ? "https://connect.squareup.com" : "https://connect.squareupsandbox.com";
+}
+
+function formatSignedUsdFromCents(cents: number) {
+  const sign = cents >= 0 ? "+" : "-";
+  return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
 }
 
 function squareHeaders(config: SquareRuntimeConfig) {
@@ -110,17 +122,30 @@ function buildLineItems(cart: CartItem[], menu: MenuItem[]) {
       throw new Error(`Unknown menu item: ${cartItem.id}`);
     }
 
+    const explicitUnitPrice = Math.max(0, Number(cartItem.unitPriceCents || 0));
+    const unitPriceCents = explicitUnitPrice || menuItem.priceCents;
+    const hasCustomPrice = unitPriceCents !== menuItem.priceCents;
+    const modifierNote = Array.isArray(cartItem.modifiers) && cartItem.modifiers.length
+      ? ` | Modifiers: ${cartItem.modifiers
+          .map((modifier) => {
+            const qty = Math.max(1, Number(modifier.quantity) || 1);
+            const option = String(modifier.option || "");
+            return qty > 1 ? `${qty}x ${option}` : option;
+          })
+          .join(", ")}`
+      : "";
+
     return {
       name: menuItem.name,
       quantity: String(Math.max(1, cartItem.quantity)),
-      catalog_object_id: menuItem.squareVariationId,
-      base_price_money: menuItem.squareVariationId
+      catalog_object_id: hasCustomPrice ? undefined : menuItem.squareVariationId,
+      base_price_money: !hasCustomPrice && menuItem.squareVariationId
         ? undefined
         : {
-            amount: menuItem.priceCents,
+            amount: unitPriceCents,
             currency: "USD"
           },
-      note: `${menuItem.nameEs} ordered by voice`
+      note: `${menuItem.nameEs} ordered by voice${modifierNote}`
     };
   });
 }
@@ -189,13 +214,21 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
         name?: string;
         modifiers?: Array<{
           id: string;
-          modifier_data?: { name?: string };
+          modifier_data?: {
+            name?: string;
+            price_money?: { amount?: number };
+          };
         }>;
+      };
+      modifier_data?: {
+        name?: string;
+        price_money?: { amount?: number };
       };
       item_data?: {
         name?: string;
         image_ids?: string[];
         categories?: Array<{ id?: string }>;
+        channels?: string[];
         modifier_list_info?: Array<{
           modifier_list_id: string;
           enabled?: boolean;
@@ -206,6 +239,7 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
         variations?: Array<{
           id: string;
           item_variation_data?: {
+            channels?: string[];
             price_money?: { amount?: number };
           };
         }>;
@@ -214,7 +248,7 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
   }>("/v2/catalog/search", {
     method: "POST",
     body: JSON.stringify({
-      object_types: ["ITEM", "CATEGORY", "IMAGE", "MODIFIER_LIST"],
+      object_types: ["ITEM", "CATEGORY", "IMAGE", "MODIFIER_LIST", "MODIFIER"],
       include_deleted_objects: false,
       include_related_objects: true
     })
@@ -247,17 +281,25 @@ function buildMenuFromSquareCatalog(
       name?: string;
       modifiers?: Array<{
         id: string;
-        modifier_data?: { name?: string };
+        modifier_data?: {
+          name?: string;
+          price_money?: { amount?: number };
+        };
       }>;
     };
-    item_data?: {
+    modifier_data?: {
       name?: string;
-      description?: string;
-      image_ids?: string[];
-      categories?: Array<{ id?: string }>;
-      modifier_list_info?: Array<{
-        modifier_list_id: string;
-        enabled?: boolean;
+      price_money?: { amount?: number };
+    };
+      item_data?: {
+        name?: string;
+        description?: string;
+        image_ids?: string[];
+        categories?: Array<{ id?: string }>;
+        channels?: string[];
+        modifier_list_info?: Array<{
+          modifier_list_id: string;
+          enabled?: boolean;
         min_selected_modifiers?: number;
         max_selected_modifiers?: number;
         allow_quantities?: boolean;
@@ -266,6 +308,7 @@ function buildMenuFromSquareCatalog(
         id: string;
         item_variation_data?: {
           name?: string;
+          channels?: string[];
           price_money?: { amount?: number };
         };
       }>;
@@ -298,13 +341,34 @@ function buildMenuFromSquareCatalog(
       .map((object) => [object.id, object.image_data?.url || ""])
   );
 
-  // Build modifier list map: id → { name, options }
+  const modifierById = new Map<string, { name: string; priceDeltaCents: number }>();
+  for (const object of objects) {
+    if (object.type !== "MODIFIER") continue;
+    const name = object.modifier_data?.name?.trim() || "";
+    if (!name) continue;
+    modifierById.set(object.id, {
+      name,
+      priceDeltaCents: Number(object.modifier_data?.price_money?.amount || 0)
+    });
+  }
+
+  // Build modifier list map: id → { name, options with Square price deltas }
   const modifierListById = new Map<string, { name: string; options: string[] }>();
   for (const object of objects) {
     if (object.type !== "MODIFIER_LIST") continue;
     const name = object.modifier_list_data?.name?.trim() || "";
     const options = (object.modifier_list_data?.modifiers || [])
-      .map((m) => m.modifier_data?.name?.trim() || "")
+      .map((m) => {
+        const embeddedName = m.modifier_data?.name?.trim() || "";
+        const referenced = modifierById.get(m.id);
+        const optionName = embeddedName || referenced?.name || "";
+        if (!optionName) return "";
+
+        const embeddedDelta = Number(m.modifier_data?.price_money?.amount || 0);
+        const referencedDelta = Number(referenced?.priceDeltaCents || 0);
+        const priceDelta = embeddedDelta || referencedDelta;
+        return priceDelta ? `${optionName} (${formatSignedUsdFromCents(priceDelta)})` : optionName;
+      })
       .filter(Boolean);
     if (name) {
       modifierListById.set(object.id, { name, options });
@@ -315,6 +379,7 @@ function buildMenuFromSquareCatalog(
     if (object.type !== "ITEM") continue;
     const itemName = object.item_data?.name?.trim();
     if (!itemName) continue;
+    if (/\bVOICE\s+ONLINE\b/i.test(itemName)) continue;
 
     const categoryIds = (object.item_data?.categories || []).map((entry) => entry.id).filter(Boolean);
     const categoryNames = categoryIds.map((id) => categoryNameById.get(id as string) || "");
@@ -355,6 +420,10 @@ function buildMenuFromSquareCatalog(
       : [{ id: `${object.id}-variation`, item_variation_data: {} }];
 
     for (const variation of variations) {
+      if (!isOnlineVariation(variation.item_variation_data)) {
+        continue;
+      }
+
       const variationName = variation.item_variation_data?.name?.trim();
       const rawFullName =
         variationName && variationName.toLowerCase() !== "regular"
@@ -388,6 +457,28 @@ function buildAliases(name: string, description?: string, rawName?: string) {
     .filter((value) => value.length > 0);
 
   const set = new Set(parts);
+  const normalizedName = normalizeName(`${name} ${rawName || ""}`);
+  if (/\btaco\b/.test(normalizedName) && !/\b(combo|fiesta|love box|hard shell|pack|meal|tacos|trio|sampler)\b/.test(normalizedName)) {
+    set.add("taco");
+    set.add("single taco");
+    set.add("one taco");
+    if (/\b(co|comal|homemade)\b/.test(normalizedName)) {
+      set.add("homemade taco");
+      set.add("handmade taco");
+      set.add("comal taco");
+      set.add("corn taco");
+    }
+    if (/\b(hr|harina|flour)\b/.test(normalizedName)) {
+      set.add("flour taco");
+      set.add("harina taco");
+    }
+    if (/\b(st|taquero|street)\b/.test(normalizedName)) {
+      set.add("street taco");
+      set.add("taquero taco");
+      set.add("steak taco");
+      set.add("bistec taco");
+    }
+  }
   return Array.from(set);
 }
 
@@ -401,8 +492,11 @@ function normalizeName(value: string) {
 }
 
 function isOnlineCategoryName(value: string) {
-  const normalized = value.trim().toUpperCase();
-  return normalized.includes("ONLINE");
+  return value.trim().toUpperCase() === "FOOD (ONLINE)";
+}
+
+function isOnlineVariation(variation?: { channels?: string[] }) {
+  return Array.isArray(variation?.channels) && variation.channels.length > 0;
 }
 
 function sanitizeDisplayName(value: string) {

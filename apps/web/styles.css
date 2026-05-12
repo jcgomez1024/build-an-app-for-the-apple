@@ -630,7 +630,7 @@ h1 {
 .lang-group { display: flex; gap: 6px; }
 
 .pill {
-  padding: 7px 14px;
+  padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid var(--gb);
   background: var(--glass);
@@ -639,6 +639,7 @@ h1 {
   font: inherit;
   font-size: 0.82rem;
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 0.15s;
 }

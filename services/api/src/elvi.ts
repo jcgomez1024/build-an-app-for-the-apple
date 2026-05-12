@@ -399,10 +399,15 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
     "For COMBO Tacos, require these build steps before add_item: (A) tortilla shell, (B) item #1 meat, (CD) item #2 meat, and (D) COMBO side. Treat other COMBO Tacos groups as optional.",
     "If the customer later asks to add an optional COMBO Tacos option such as DELUXE, keep it available and apply it to the existing COMBO Tacos item instead of saying it is unavailable.",
     "For items with required modifier groups, ask one concise combined question for missing required groups, then call add_item once selections are complete.",
+    "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices.",
+    "Common phrases: steak taco means Taco with Bistec / Steak; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour.",
+    "If the exact item id is uncertain, call add_item with itemQuery using the customer's phrase; the app will resolve the item and modifiers.",
     "Only discuss allergens when the customer asks or reports an allergy. Do not proactively bring up allergens.",
     "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'.",
     "Use exact item ids in tool calls. Quote exact prices from the menu. Never invent items, prices, or modifiers.",
-    language === "es" ? "Reply in Spanish unless the customer clearly switches to English." : "Reply in English unless the customer clearly switches to Spanish.",
+    language === "es"
+      ? "Reply in Spanish only. Do not auto-detect, switch languages, translate, or re-ask the same required question after the customer answers."
+      : "Reply in English only. Do not auto-detect, switch languages, translate, or re-ask the same required question after the customer answers.",
     `ONLINE menu knowledge:\n${menuSummary}`,
     historySummary ? `Recent conversation:\n${historySummary}` : ""
   ].filter(Boolean).join("\n\n");
@@ -419,7 +424,7 @@ function buildRealtimeMenuKnowledge(menu: MenuItem[]) {
               const min = Math.max(0, group.minSelections ?? 0);
               const max = Math.max(min, group.maxSelections ?? group.options.length);
               const quantityFlag = group.allowQuantities ? ",qty" : "";
-              return `${group.name}[${min}-${max}${quantityFlag}]:${group.options.join("/")}`;
+              return `${group.name}[groupId=${group.id},${min}-${max}${quantityFlag}]:${group.options.join("/")}`;
             })
             .join(" ; ")}`
         : "";
@@ -437,7 +442,8 @@ function buildRealtimeTools() {
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID." },
+          itemId: { type: "string", description: "Exact menu item ID when known." },
+          itemQuery: { type: "string", description: "Customer phrase when exact item ID is uncertain, such as 'one steak taco'." },
           quantity: { type: "number", description: "Quantity to add." },
           modifiers: {
             type: "array",
@@ -452,8 +458,7 @@ function buildRealtimeTools() {
               required: ["groupId", "option"]
             }
           }
-        },
-        required: ["itemId"]
+        }
       }
     },
     {
