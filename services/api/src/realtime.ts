@@ -615,12 +615,12 @@ function buildComboNeedMoreReply(group: ComboGroup, answer: ComboAnswer, languag
   const remaining = Math.max(group.minSelections - countSelectedOptions(answer), 0);
   if (language === "es") {
     return chosen
-      ? `Hasta ahora tengo ${chosen}. Elige ${remaining} más para ${cleanName}.`
-      : `Necesito al menos ${group.minSelections} opciones para ${cleanName}.`;
+      ? `${chosen}. Elige ${remaining} más para ${cleanName}.`
+      : `${cleanName}: elige ${group.minSelections}.`;
   }
   return chosen
-    ? `So far I have ${chosen}. Choose ${remaining} more for ${cleanName}.`
-    : `I need at least ${group.minSelections} choices for ${cleanName}.`;
+    ? `${chosen}. Choose ${remaining} more for ${cleanName}.`
+    : `${cleanName}: choose ${group.minSelections}.`;
 }
 
 function buildComboProgressReply(group: ComboGroup, answer: ComboAnswer, language: Language): string {
@@ -629,12 +629,12 @@ function buildComboProgressReply(group: ComboGroup, answer: ComboAnswer, languag
   const remaining = Math.max(group.maxSelections - countSelectedOptions(answer), 0);
   if (language === "es") {
     return remaining > 0
-      ? `Llevo ${chosen || "nada todavía"} para ${cleanName}. Puedes agregar ${remaining} más o di "listo" para continuar.`
-      : `Llevo ${chosen || "nada todavía"} para ${cleanName}. Ya llegaste al máximo; di "listo" para continuar o cambia algo.`;
+      ? `${cleanName}: ${chosen || "sin selección"}. Agrega ${remaining} más o di "listo".`
+      : `${cleanName}: ${chosen || "sin selección"}. Di "listo" o cambia algo.`;
   }
   return remaining > 0
-    ? `I have ${chosen || "nothing yet"} for ${cleanName}. You can add ${remaining} more or say "done" to continue.`
-    : `I have ${chosen || "nothing yet"} for ${cleanName}. You've reached the maximum; say "done" to continue or change one.`;
+    ? `${cleanName}: ${chosen || "none selected"}. Add ${remaining} more or say "done".`
+    : `${cleanName}: ${chosen || "none selected"}. Say "done" or change one.`;
 }
 
 function matchComboOption(transcript: string, options: string[]): string | null {
@@ -676,21 +676,21 @@ function buildComboQuestion(
 
   if (group.maxSelections > 1) {
     if (language === "es") {
-      return `Para ${cleanName} de tu ${itemName}, elige entre ${group.minSelections} y ${group.maxSelections} opciones. Di "listo" cuando termines.${currentText}`;
+      return `${cleanName}: elige ${group.minSelections}-${group.maxSelections}. Di "listo" al terminar.${currentText}`;
     }
-    return `For ${cleanName} on your ${itemName}, choose between ${group.minSelections} and ${group.maxSelections} options. Say "done" when you're finished.${currentText}`;
+    return `${cleanName}: choose ${group.minSelections}-${group.maxSelections}. Say "done" when finished.${currentText}`;
   }
 
   const isOptional = group.minSelections === 0 || /extra|deluxe/i.test(cleanName);
 
   if (language === "es") {
     return isOptional
-      ? `¿Deseas ${cleanName} con tu ${itemName}? Di "sin" para omitir.${currentText}`
-      : `¿Qué ${cleanName} deseas para tu ${itemName}?${currentText}`;
+      ? `${cleanName}: di opción o "sin".${currentText}`
+      : `${cleanName}: ¿cuál?${currentText}`;
   }
   return isOptional
-    ? `Would you like any ${cleanName} with your ${itemName}? Say "skip" to continue.${currentText}`
-    : `What ${cleanName} would you like for your ${itemName}?${currentText}`;
+    ? `${cleanName}: say option or "skip".${currentText}`
+    : `${cleanName}: which one?${currentText}`;
 }
 
 async function sendComboTurn(
@@ -774,8 +774,8 @@ async function advanceComboOrFinish(
     : (language === "es" ? "tus selecciones" : "your selections");
   const reply =
     language === "es"
-      ? `¡Perfecto! ${combo.itemName} agregado con ${summary}. ¿Algo más?`
-      : `Perfect! Added ${combo.itemName} with ${summary}. Anything else?`;
+      ? `Agregado: ${combo.itemName} con ${summary}.`
+      : `Added: ${combo.itemName} with ${summary}.`;
 
   const itemId = combo.itemId;
   session.pendingCombo = undefined;
@@ -876,8 +876,8 @@ async function processComboStep(
     const hasMore = currentGroup.options.length > 4;
     const reply =
       language === "es"
-        ? `Hmm, no entendí bien. Para ${cleanName}, tengo opciones como ${optionList}${hasMore ? ", entre otras" : ""}. ¿Cuál te gustaría?`
-        : `Hmm, I didn't quite catch that. For ${cleanName} I have options like ${optionList}${hasMore ? ", and more" : ""}. Which would you like?`;
+        ? `${cleanName}: ${optionList}${hasMore ? ", entre otras" : ""}. Elige una.`
+        : `${cleanName}: ${optionList}${hasMore ? ", and more" : ""}. Choose one.`;
     await sendComboTurn(socket, session, reply, language);
   } else {
     // Option found by matchComboOption but not yet applied — apply it now
@@ -913,8 +913,8 @@ async function processTurn(
       // Re-process as a normal turn so any new item in the transcript is handled
       const reply =
         language === "es"
-          ? `Claro, cancelé ${cancelledItem}. ¿Qué te gustaría pedir?`
-          : `Sure, I've cancelled ${cancelledItem}. What would you like instead?`;
+          ? `Cancelé ${cancelledItem}.`
+          : `Cancelled ${cancelledItem}.`;
       const tts = await pickTts(session.tenant, reply, language);
       const animation = tts.visemes?.length
         ? { visemes: tts.visemes, engine: "provider" }

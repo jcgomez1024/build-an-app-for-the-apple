@@ -118,7 +118,7 @@ async function chatWithRealtimeAgent(
         return;
       }
 
-      const reply = enforceOrderTakerReply(transcript.trim(), input.language, input.menu) || defaultReply(input.language, input.menu);
+      const reply = enforceOrderTakerReply(transcript.trim(), input.language) || defaultReply(input.language);
       resolve({
         language: input.language,
         reply,
@@ -234,7 +234,7 @@ async function chatWithRealtimeAudioAgent(
         return;
       }
 
-      const reply = enforceOrderTakerReply(transcript.trim(), input.language, input.menu) || defaultReply(input.language, input.menu);
+      const reply = enforceOrderTakerReply(transcript.trim(), input.language) || defaultReply(input.language);
       resolve({
         language: input.language,
         reply,
@@ -388,14 +388,17 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
     "You are Elvi, the live order taker for Cocina Elvis.",
     "If asked your name, answer exactly that your name is Elvi. Never say your name is Cocina Elvis.",
     "The customer is speaking to restaurant staff. Never speak as the customer or narrate internal reasoning.",
-    "Respond fast, naturally, and briefly enough for a phone order. Confirm items clearly and keep the line moving.",
+    "Default mode is quick order taking, not conversation. Do not greet, make small talk, upsell, explain the app, or ask personal/chatty questions.",
+    "Keep replies to 1 short sentence, usually under 10 words. After a successful order change, say only a brief confirmation like 'Added.' or 'Removed.'",
     "Use tools for every real order change: add_item, remove_item, update_item, set_fulfillment, set_address, set_customer, checkout.",
     "Sell only items from the ONLINE menu below. If something is not listed, say it is unavailable and offer the closest listed alternative.",
     "Know the menu thoroughly: use English names, Spanish names, aliases, prices, and modifier groups below to map what the customer says.",
-    "Ask only the next required question. Start with pickup or delivery unless it is already known. For delivery, collect the address before closing the order.",
+    "Ask a question only when it is required to complete the order: missing required modifiers, pickup/delivery at checkout, delivery address, name, or phone.",
+    "Collect pickup or delivery only when the customer starts checkout, says they are done, or mentions pickup/delivery. For delivery, collect the address before closing the order.",
+    "If the customer asks a menu, price, allergy, or other question, answer directly and briefly, then return to order taking.",
     "For COMBO Tacos, require these build steps before add_item: (A) tortilla shell, (B) item #1 meat, (CD) item #2 meat, and (D) COMBO side. Treat other COMBO Tacos groups as optional.",
     "If the customer later asks to add an optional COMBO Tacos option such as DELUXE, keep it available and apply it to the existing COMBO Tacos item instead of saying it is unavailable.",
-    "For items with required modifier groups, keep asking follow-up questions until required selections are complete before calling add_item.",
+    "For items with required modifier groups, ask one concise combined question for missing required groups, then call add_item once selections are complete.",
     "Only discuss allergens when the customer asks or reports an allergy. Do not proactively bring up allergens.",
     "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'.",
     "Use exact item ids in tool calls. Quote exact prices from the menu. Never invent items, prices, or modifiers.",
@@ -704,7 +707,7 @@ function handleCheckDeliveryZone(args: Record<string, unknown>) {
       available: true,
       in_zone: true,
       zip,
-      message: `Great news, we deliver to ZIP ${zip}.`
+      message: `Delivery available to ZIP ${zip}.`
     };
   }
 
@@ -766,28 +769,16 @@ function pcmBuffersToWavBase64(chunks: Buffer[], sampleRate: number) {
 }
 
 
-function menuOptionsText(language: Language, menu: MenuItem[]): string {
-  const names = menu
-    .slice(0, 5)
-    .map((item) => (language === "es" ? item.nameEs || item.name : item.name))
-    .filter(Boolean);
-  if (!names.length) return "";
-  return language === "es"
-    ? `Opciones populares: ${names.join(", ")}.`
-    : `Popular options include: ${names.join(", ")}.`;
-}
-
-function enforceOrderTakerReply(reply: string, language: Language, menu: MenuItem[]): string {
+function enforceOrderTakerReply(reply: string, language: Language): string {
   const text = (reply || "").trim();
-  if (!text) return defaultReply(language, menu);
+  if (!text) return defaultReply(language);
   const customerLike = /\b(i\s+(want|would like|wanna|am gonna|will)\s+order|can\s+i\s+get|i\s+need\s+a|me\s+gustaria\s+ordenar|quiero\s+ordenar|voy\s+a\s+ordenar|puedo\s+pedir)\b/i;
-  if (customerLike.test(text)) return defaultReply(language, menu);
+  if (customerLike.test(text)) return defaultReply(language);
   return text;
 }
 
-function defaultReply(language: Language, menu: MenuItem[] = []) {
-  const options = menuOptionsText(language, menu);
+function defaultReply(language: Language) {
   return language === "es"
-    ? `¡Hola! Soy Elvi. ¿Su orden es para recoger o entrega? ${options}`.trim()
-    : `Hey, this is Elvi at Cocina Elvis. Is this for pickup or delivery? ${options}`.trim();
+    ? "Listo."
+    : "Ready.";
 }

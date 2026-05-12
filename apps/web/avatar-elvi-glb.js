@@ -8,7 +8,6 @@ const REALISTIC_HAPPY_URL = "/avatar/elvis-avatar_Happy_jump_f_withSkin-Realisti
 const REALISTIC_TALKING_URL = "/avatar/elvis-avatar_Stand_and_Chat_withSkin-Realistic.glb";
 const REALISTIC_QUESTIONING_URL = "/avatar/elvis-avatar_Stand_Talking_Angry_withSkin-Realistic.glb";
 const REALISTIC_EXCITED_URL = "/avatar/elvis-avatar_Excited_Walk_F_withSkin-Realistic.glb";
-const KITCHEN_ENV_URL = "/avatar/elvis-kitchen_Cocina_Elvis_commercial_background.glb";
 
 const STATE_TO_GLB = {
   idle: REALISTIC_IDLE_URL,
@@ -119,7 +118,6 @@ export function mountElviAvatar(canvas) {
   let mountedGlbUrl = null;
   let pendingGlbUrl = null;
   let modelRoot    = null;
-  let environmentRoot = null;
   let mixer        = null;
   let activeAction = null;
   let headBone = null, neckBone = null, spineBone = null, jawBone = null;
@@ -146,34 +144,6 @@ export function mountElviAvatar(canvas) {
     loader.load(url, (gltf) => { glbCache.set(url, gltf); onReady(gltf); },
       undefined,
       (err) => { console.warn(`Failed to load GLB (${url}):`, err); loadingGlb = false; });
-  }
-
-  function mountKitchenEnvironment(gltf) {
-    if (environmentRoot) {
-      scene.remove(environmentRoot);
-      environmentRoot = null;
-    }
-
-    environmentRoot = gltf.scene.clone(true);
-    scene.add(environmentRoot);
-
-    const rawBox = new THREE.Box3().setFromObject(environmentRoot);
-    const rawSize = rawBox.getSize(new THREE.Vector3());
-    const span = Math.max(rawSize.x, rawSize.z, 0.001);
-    const scale = THREE.MathUtils.clamp(8.8 / span, 0.35, 2.6);
-    environmentRoot.scale.setScalar(scale);
-
-    const box = new THREE.Box3().setFromObject(environmentRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    environmentRoot.position.x -= center.x;
-    environmentRoot.position.y -= box.min.y;
-    environmentRoot.position.z -= center.z + 1.8;
-
-    environmentRoot.traverse((node) => {
-      if (!node.isMesh) return;
-      node.frustumCulled = false;
-      node.renderOrder = -1;
-    });
   }
 
   function pickClipForState(animations, stateName) {
@@ -298,13 +268,6 @@ export function mountElviAvatar(canvas) {
   }
 
   // Initial load
-  loadGlb(KITCHEN_ENV_URL, (gltf) => {
-    try {
-      mountKitchenEnvironment(gltf);
-    } catch (error) {
-      console.warn("Failed to mount kitchen environment:", error);
-    }
-  });
   requestModelSwap(STATE_TO_GLB["idle"]);
 
   function setState(newState) {
