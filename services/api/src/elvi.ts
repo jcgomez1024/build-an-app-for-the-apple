@@ -390,24 +390,36 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
     "The customer is speaking to restaurant staff. Never speak as the customer or narrate internal reasoning.",
     "Default mode is quick order taking, not conversation. Do not greet, make small talk, upsell, explain the app, or ask personal/chatty questions.",
     "Keep replies to 1 short sentence, usually under 10 words. After a successful order change, say only a brief confirmation like 'Added.' or 'Removed.'",
+    "Understand customer input in either English or Spanish, but every assistant reply must be only in the selected UI language. Do not mix languages in the same reply.",
+    "After any tool call, trust the tool output orderState as the latest cart. Never say the cart is empty when cartItemCount is greater than 0.",
+    "For questions like 'what is my current order' or 'what is in my cart', answer from the current order state only. If itemCount is greater than 0, list the cart briefly and never say empty.",
+    "If a tool output includes missingItems after adding split items, confirm what was added and ask only for the missing required choice on the remaining item.",
     "Use tools for every real order change: add_item, remove_item, update_item, set_fulfillment, set_address, set_customer, checkout.",
     "Sell only items from the ONLINE menu below. If something is not listed, say it is unavailable and offer the closest listed alternative.",
     "Know the menu thoroughly: use English names, Spanish names, aliases, prices, and modifier groups below to map what the customer says.",
     "Ask a question only when it is required to complete the order: missing required modifiers, pickup/delivery at checkout, delivery address, name, or phone.",
+    "If the cart is not empty, remember it. Never ask 'what would you like to order' as if starting over; refer to the current cart, ask 'Anything else?' only if needed, or proceed to checkout.",
+    "For remove or change requests, resolve phrases like 'last item', 'that', 'the current item', item numbers, or item names against the current cart and use remove_item or update_item.",
+    "When the customer says change/switch/make an existing item's tortilla, meat, quantity, or modifiers, call update_item on that cart item immediately. Never ask to add one now, and never claim it changed unless update_item succeeded.",
+    "For mixed quantities in one sentence, call add_item once with itemQuery as the full phrase, for example 'three tacos, two tripas, one chorizo'; the app will split them into separate cart lines.",
     "Collect pickup or delivery only when the customer starts checkout, says they are done, or mentions pickup/delivery. For delivery, collect the address before closing the order.",
     "If the customer asks a menu, price, allergy, or other question, answer directly and briefly, then return to order taking.",
     "For COMBO Tacos, require these build steps before add_item: (A) tortilla shell, (B) item #1 meat, (CD) item #2 meat, and (D) COMBO side. Treat other COMBO Tacos groups as optional.",
     "If the customer later asks to add an optional COMBO Tacos option such as DELUXE, keep it available and apply it to the existing COMBO Tacos item instead of saying it is unavailable.",
     "For items with required modifier groups, ask one concise combined question for missing required groups, then call add_item once selections are complete.",
     "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices.",
-    "Common phrases: steak taco means Taco with Bistec / Steak; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour.",
+    "For sub-dollar amounts in assistant replies, never write decimals like $0.75 or .75 dollars. Say 75 cents in English or 75 centavos in Spanish.",
+    "For vague Taco or Quesadilla orders, the app defaults tortilla to Comal / Homemade corn unless the customer asks for flour, street/taquero, or no tortilla default.",
+    "After adding a Taco or Quesadilla without deluxe and the customer did not say no deluxe, ask one short upgrade question: English 'Deluxe for 75 cents?' or Spanish '¿Deluxe por 75 centavos?'. If yes, update the last item with DELUXE; if no, continue without deluxe.",
+    "Common phrases: steak taco means Taco with Bistec / Steak; tripas taco means Taco with Tripa / Beef Tripe; duro taco means Taco with Duro / Pork Rinds; prensado taco means Taco with Prensado / Spicy Pork; with beans means Con Frijoles / With Beans; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour.",
+    "Quesadilla phrases work the same way: steak quesadilla means Quesadilla with Bistec / Steak; cheese quesadilla means Quesadilla with Solo Queso / Only Cheese; homemade quesadilla means Quesadilla Comal / Homemade; flour quesadilla means Quesadilla Harina / Flour; street quesadilla means Quesadilla Taquera / Street Quesadilla.",
     "If the exact item id is uncertain, call add_item with itemQuery using the customer's phrase; the app will resolve the item and modifiers.",
     "Only discuss allergens when the customer asks or reports an allergy. Do not proactively bring up allergens.",
     "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'.",
     "Use exact item ids in tool calls. Quote exact prices from the menu. Never invent items, prices, or modifiers.",
     language === "es"
-      ? "Reply in Spanish only. Do not auto-detect, switch languages, translate, or re-ask the same required question after the customer answers."
-      : "Reply in English only. Do not auto-detect, switch languages, translate, or re-ask the same required question after the customer answers.",
+      ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger o entrega?'. Never output English words except exact menu item names when unavoidable."
+      : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never output Spanish unless quoting an exact menu item name when unavoidable.",
     `ONLINE menu knowledge:\n${menuSummary}`,
     historySummary ? `Recent conversation:\n${historySummary}` : ""
   ].filter(Boolean).join("\n\n");
@@ -469,9 +481,9 @@ function buildRealtimeTools() {
         type: "object",
         properties: {
           itemId: { type: "string", description: "Exact menu item ID." },
+          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
           quantity: { type: "number", description: "Quantity to remove." }
-        },
-        required: ["itemId"]
+        }
       }
     },
     {
@@ -482,9 +494,22 @@ function buildRealtimeTools() {
         type: "object",
         properties: {
           itemId: { type: "string", description: "Exact menu item ID." },
-          quantity: { type: "number", description: "New quantity." }
-        },
-        required: ["itemId"]
+          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
+          quantity: { type: "number", description: "New quantity." },
+          modifiers: {
+            type: "array",
+            description: "Replacement modifier options when changing the current cart item.",
+            items: {
+              type: "object",
+              properties: {
+                groupId: { type: "string", description: "Modifier group id." },
+                option: { type: "string", description: "Selected option label." },
+                quantity: { type: "number", description: "Quantity for this option." }
+              },
+              required: ["groupId", "option"]
+            }
+          }
+        }
       }
     },
     {
@@ -775,11 +800,28 @@ function pcmBuffersToWavBase64(chunks: Buffer[], sampleRate: number) {
 
 
 function enforceOrderTakerReply(reply: string, language: Language): string {
-  const text = (reply || "").trim();
+  const text = formatCentsForSpeech((reply || "").trim(), language);
   if (!text) return defaultReply(language);
   const customerLike = /\b(i\s+(want|would like|wanna|am gonna|will)\s+order|can\s+i\s+get|i\s+need\s+a|me\s+gustaria\s+ordenar|quiero\s+ordenar|voy\s+a\s+ordenar|puedo\s+pedir)\b/i;
   if (customerLike.test(text)) return defaultReply(language);
   return text;
+}
+
+function formatCentsForSpeech(text: string, language: Language): string {
+  const centsWord = language === "es" ? "centavos" : "cents";
+  return String(text || "")
+    .replace(/\$0\.(\d{1,2})\b/g, (_, cents: string) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${value} ${centsWord}`;
+    })
+    .replace(/\b0\.(\d{1,2})\s*(?:dollars?|dolares|dólares)\b/gi, (_, cents: string) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${value} ${centsWord}`;
+    })
+    .replace(/(^|[^\d])\.(\d{1,2})\s*(?:dollars?|dolares|dólares)?\b/gi, (_match: string, prefix: string, cents: string) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${prefix}${value} ${centsWord}`;
+    });
 }
 
 function defaultReply(language: Language) {

@@ -238,6 +238,57 @@ app.post("/api/:tenant/xai/client-secret", async (req, res, next) => {
   }
 });
 
+app.post("/api/:tenant/xai/speech", async (req, res, next) => {
+  try {
+    const tenant = resolveTenant(req.params.tenant || req.headers.host);
+    const apiKey = tenant.xai.apiKey || process.env.XAI_API_KEY;
+    const text = String(req.body?.text || "").trim().slice(0, 400);
+    const language = req.body?.language === "es" ? "es" : "en";
+    const voice = language === "es"
+      ? (process.env.XAI_VOICE_ID_ES || process.env.XAI_VOICE_ID || "Eve")
+      : (process.env.XAI_VOICE_ID || "Eve");
+
+    if (!apiKey) {
+      throw new Error("XAI_API_KEY is not configured");
+    }
+    if (!text) {
+      throw new Error("text is required");
+    }
+
+    const response = await fetch("https://api.x.ai/v1/tts", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text,
+        voice_id: voice.toLowerCase(),
+        language
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`xAI speech failed (${response.status})`);
+    }
+
+    const audio = Buffer.from(await response.arrayBuffer());
+    if (!audio.length) {
+      throw new Error("xAI speech returned empty audio");
+    }
+
+    res.json({
+      ok: true,
+      engine: "xai",
+      voice,
+      mimeType: response.headers.get("content-type") || "audio/mpeg",
+      audioBase64: audio.toString("base64")
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/:tenant/tools/check_delivery_zone", (req, res, next) => {
   try {
     const address = String(req.body?.address || "").trim();

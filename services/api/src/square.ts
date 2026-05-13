@@ -479,6 +479,28 @@ function buildAliases(name: string, description?: string, rawName?: string) {
       set.add("bistec taco");
     }
   }
+  if (/\bquesadilla\b/.test(normalizedName) && !/\b(combo|fiesta|love box|pack|meal|dorada|fried|quesadillas|trio|sampler)\b/.test(normalizedName)) {
+    set.add("quesadilla");
+    set.add("single quesadilla");
+    set.add("one quesadilla");
+    set.add("cheese quesadilla");
+    if (/\b(co|comal|homemade)\b/.test(normalizedName)) {
+      set.add("homemade quesadilla");
+      set.add("handmade quesadilla");
+      set.add("comal quesadilla");
+      set.add("corn quesadilla");
+    }
+    if (/\b(hr|harina|flour)\b/.test(normalizedName)) {
+      set.add("flour quesadilla");
+      set.add("harina quesadilla");
+    }
+    if (/\b(st|taquera|street)\b/.test(normalizedName)) {
+      set.add("street quesadilla");
+      set.add("taquera quesadilla");
+      set.add("steak quesadilla");
+      set.add("bistec quesadilla");
+    }
+  }
   return Array.from(set);
 }
 

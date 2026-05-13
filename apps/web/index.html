@@ -28,7 +28,7 @@
     <!-- Centered speech bubble above controls -->
     <div class="speech-wrap">
       <div class="speech-bubble">
-        <p id="assistant-reply" class="bubble-text">Ready.</p>
+        <p id="assistant-reply" class="bubble-text">Please select your preferred language to continue. / Por favor selecciona tu idioma preferido para continuar.</p>
         <p id="assistant-engine" class="bubble-engine">Waiting for session…</p>
       </div>
       <!-- Combo build tracker (hidden until active) -->
@@ -63,18 +63,18 @@
       </div>
     </div>
 
-    <!-- Selected item preview -->
+    <!-- Selected item description -->
     <div id="selection-preview" class="selection-preview is-hidden" aria-live="polite">
       <img id="selection-preview-image" class="selection-preview-image" alt="Selected menu item" />
       <div class="selection-preview-copy">
-        <p class="selection-preview-label">Selected item</p>
+        <p class="selection-preview-label">Selected item description</p>
         <p id="selection-preview-name" class="selection-preview-name"></p>
         <p id="selection-preview-description" class="selection-preview-description"></p>
       </div>
     </div>
 
-    <section id="selected-items-panel" class="selected-items-panel" aria-live="polite" aria-label="Selected items">
-      <h3 class="selected-items-title">Selected</h3>
+    <section id="selected-items-panel" class="selected-items-panel" aria-live="polite" aria-label="Your order preview">
+      <h3 class="selected-items-title">Your order preview</h3>
       <div id="selected-items-list" class="selected-items-list"></div>
     </section>
 
@@ -91,7 +91,7 @@
         <input
           id="prompt-input"
           type="text"
-          placeholder="Type your order…"
+          placeholder="Select language first…"
           autocomplete="off"
         />
         <button type="submit" class="send-btn" aria-label="Send">
@@ -105,7 +105,7 @@
         <!-- Lang pills · Mic · Cart -->
         <div class="controls-row">
         <div class="lang-group" role="group" aria-label="Language">
-          <button data-lang="en" class="pill pill-active">EN (English)</button>
+          <button data-lang="en" class="pill">EN (English)</button>
           <button data-lang="es" class="pill">ES (Español)</button>
         </div>
 

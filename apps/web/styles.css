@@ -101,7 +101,7 @@ h1 {
   opacity: 0.50;
 }
 
-/* ── Selected item preview ─────────────────────────────────────────────── */
+/* ── Selected item description and order preview ───────────────────────── */
 .selection-preview {
   position: fixed;
   left: min(calc(50% + 250px), calc(100% - 390px));
@@ -120,6 +120,8 @@ h1 {
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
   transition: opacity 0.2s ease, transform 0.2s ease;
+  max-height: min(360px, 42dvh);
+  overflow: auto;
 }
 
 .selection-preview.is-hidden {
@@ -161,10 +163,12 @@ h1 {
 
 .selected-items-panel {
   position: fixed;
-  left: min(calc(50% + 250px), calc(100% - 410px));
-  top: clamp(318px, calc(29vh + 128px), 470px);
+  left: clamp(24px, calc(50% - 690px), 340px);
+  top: clamp(190px, 29vh, 330px);
   z-index: 24;
-  width: 380px;
+  width: 390px;
+  display: flex;
+  flex-direction: column;
   background: var(--glass);
   border: 1px solid var(--gb);
   border-radius: 16px;
@@ -172,7 +176,7 @@ h1 {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
-  max-height: 260px;
+  max-height: min(510px, calc(100dvh - 410px));
   overflow: hidden;
 }
 
@@ -187,8 +191,10 @@ h1 {
 .selected-items-list {
   display: grid;
   gap: 8px;
-  max-height: 180px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .selected-item-card {
@@ -1046,10 +1052,15 @@ input, select {
 }
 
 @media (max-width: 900px) {
-  .selection-preview,
-  .selected-items-panel {
+  .selection-preview {
     left: auto;
     right: 16px;
+    width: min(340px, 42vw);
+  }
+
+  .selected-items-panel {
+    left: 16px;
+    right: auto;
     width: min(340px, 42vw);
   }
 
@@ -1058,7 +1069,7 @@ input, select {
   }
 
   .selected-items-panel {
-    top: 304px;
+    top: 174px;
   }
 }
 
@@ -1091,10 +1102,11 @@ input, select {
   .selection-preview {
     left: 10px;
     right: 10px;
-    top: 272px;
+    top: 156px;
     bottom: auto;
     width: auto;
     transform: none;
+    max-height: 190px;
   }
   .selection-preview.is-hidden {
     transform: translateY(10px);
@@ -1102,10 +1114,10 @@ input, select {
   .selected-items-panel {
     left: 10px;
     right: 10px;
-    top: 112px;
+    top: 360px;
     bottom: auto;
     width: auto;
-    max-height: 140px;
+    max-height: 150px;
   }
   .selected-items-list {
     max-height: 92px;

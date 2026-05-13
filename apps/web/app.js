@@ -9,7 +9,7 @@ const state = {
   menu: [],
   cart: [],
   lastSelectedItem: null,
-  language: "en",
+  language: "",
   fulfillment: "PICKUP",
   customer: {
     name: "",
@@ -34,6 +34,7 @@ const state = {
   audioProcessor: null,
   audioSourceNode: null,
   audioSilentNode: null,
+  localTtsAudio: null,
   speechActive: false,
   prespeechChunks: [],
   lastSpeechAt: 0,
@@ -50,6 +51,9 @@ const state = {
   activeResponseId: "",
   activeReplyText: "",
   pendingActions: [],
+  lastUserText: "",
+  languagePromptLoopActive: false,
+  languagePromptTimers: [],
 };
 
 const ui = {
@@ -114,6 +118,10 @@ function setAvatarState(s) {
 
 let avatarPulseToken = 0;
 
+const LANGUAGE_PROMPT_EN = "Please select your preferred language to continue.";
+const LANGUAGE_PROMPT_ES = "Por favor selecciona tu idioma preferido para continuar.";
+const LANGUAGE_PROMPT_BILINGUAL = `${LANGUAGE_PROMPT_EN} / ${LANGUAGE_PROMPT_ES}`;
+
 function pulseAvatarState(stateName, durationMs, fallbackState = "idle") {
   const token = ++avatarPulseToken;
   setAvatarState(stateName);
@@ -129,13 +137,219 @@ function getEffectiveLanguage() {
   return state.language === "es" ? "es" : "en";
 }
 
+function hasSelectedLanguage() {
+  return state.language === "en" || state.language === "es";
+}
+
+function getLanguageIntro() {
+  return getEffectiveLanguage() === "es"
+    ? "Español seleccionado. Soy Elvi. Lista para tomar tu orden."
+    : "English selected. My name is Elvi. Ready to take your order.";
+}
+
+function clearLanguagePromptTimers() {
+  state.languagePromptTimers.forEach((timer) => window.clearTimeout(timer));
+  state.languagePromptTimers = [];
+}
+
+function queueLanguagePromptTimer(callback, delayMs) {
+  const timer = window.setTimeout(() => {
+    state.languagePromptTimers = state.languagePromptTimers.filter((id) => id !== timer);
+    callback();
+  }, delayMs);
+  state.languagePromptTimers.push(timer);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function speakBrowserText(text, lang) {
+  if (!("speechSynthesis" in window) || !text) {
+    return null;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+  window.speechSynthesis.speak(utterance);
+  return utterance;
+}
+
+function stopLocalTtsAudio() {
+  if (!state.localTtsAudio) {
+    return;
+  }
+
+  try {
+    state.localTtsAudio.pause();
+    state.localTtsAudio.currentTime = 0;
+  } catch {}
+  state.localTtsAudio = null;
+}
+
+async function speakLocalText(text, language = getEffectiveLanguage(), options = {}) {
+  const cleanText = formatCentsForSpeech(text, language).trim();
+  if (!cleanText) {
+    return;
+  }
+
+  if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
+    return;
+  }
+  stopCurrentAudio();
+
+  try {
+    const response = await fetch(`/api/${state.tenantSlug}/xai/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: cleanText, language })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.audioBase64) {
+      throw new Error(result.error || "xAI speech unavailable");
+    }
+
+    if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
+      return;
+    }
+    await playLocalAudioBase64(result.audioBase64, result.mimeType || "audio/mpeg");
+  } catch (error) {
+    console.warn("[TTS] xAI local speech fallback:", error);
+    speakBrowserText(cleanText, language === "es" ? "es-US" : "en-US");
+    await wait(Math.max(1800, cleanText.length * 55));
+  }
+}
+
+function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
+    state.localTtsAudio = audio;
+    state.elviSpeaking = true;
+    setAvatarState("talking_neutral");
+    audio.onended = () => {
+      if (state.localTtsAudio === audio) {
+        state.localTtsAudio = null;
+        state.elviSpeaking = false;
+        if (!state.turnInFlight) setAvatarState("idle");
+      }
+      resolve();
+    };
+    audio.onerror = () => {
+      if (state.localTtsAudio === audio) {
+        state.localTtsAudio = null;
+        state.elviSpeaking = false;
+        if (!state.turnInFlight) setAvatarState("idle");
+      }
+      reject(new Error("xAI local audio playback failed"));
+    };
+    audio.play().catch((error) => {
+      if (state.localTtsAudio === audio) {
+        state.localTtsAudio = null;
+        state.elviSpeaking = false;
+        if (!state.turnInFlight) setAvatarState("idle");
+      }
+      reject(error);
+    });
+  });
+}
+
+async function announceLanguagePromptLoop() {
+  if (!state.languagePromptLoopActive || hasSelectedLanguage()) {
+    return;
+  }
+
+  window.speechSynthesis?.cancel();
+  const shouldContinue = () => state.languagePromptLoopActive && !hasSelectedLanguage();
+  await speakLocalText(LANGUAGE_PROMPT_EN, "en", { shouldContinue });
+  if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
+  await wait(650);
+  if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
+  await speakLocalText(LANGUAGE_PROMPT_ES, "es", { shouldContinue });
+  if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
+  queueLanguagePromptTimer(announceLanguagePromptLoop, 2500);
+}
+
+function startLanguagePromptLoop() {
+  if (hasSelectedLanguage() || state.languagePromptLoopActive) {
+    return;
+  }
+
+  state.languagePromptLoopActive = true;
+  clearLanguagePromptTimers();
+  announceLanguagePromptLoop();
+}
+
+function stopLanguagePromptLoop() {
+  state.languagePromptLoopActive = false;
+  clearLanguagePromptTimers();
+  stopLocalTtsAudio();
+  window.speechSynthesis?.cancel();
+}
+
+function restartLanguagePromptLoop() {
+  if (hasSelectedLanguage()) {
+    return;
+  }
+
+  stopLanguagePromptLoop();
+  startLanguagePromptLoop();
+}
+
+function speakSelectedLanguageIntro() {
+  void speakLocalText(getLanguageIntro(), getEffectiveLanguage());
+}
+
+function formatCentsForSpeech(text, language = getEffectiveLanguage()) {
+  const centsWord = language === "es" ? "centavos" : "cents";
+  return String(text || "")
+    .replace(/\$0\.(\d{1,2})\b/g, (_, cents) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${value} ${centsWord}`;
+    })
+    .replace(/\b0\.(\d{1,2})\s*(?:dollars?|dolares|dólares)\b/gi, (_, cents) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${value} ${centsWord}`;
+    })
+    .replace(/(^|[^\d])\.(\d{1,2})\s*(?:dollars?|dolares|dólares)?\b/gi, (match, prefix, cents) => {
+      const value = Number(cents.padEnd(2, "0"));
+      return `${prefix}${value} ${centsWord}`;
+    });
+}
+
+function updateLanguageGate() {
+  const selected = hasSelectedLanguage();
+  if (ui.promptInput) {
+    ui.promptInput.disabled = !selected;
+    ui.promptInput.placeholder = selected
+      ? (getEffectiveLanguage() === "es" ? "Escribe tu orden..." : "Type your order...")
+      : "Select language first...";
+  }
+  if (ui.listenButton) {
+    ui.listenButton.disabled = !selected;
+    ui.listenButton.setAttribute("aria-disabled", selected ? "false" : "true");
+  }
+  if (!selected && ui.reply) {
+    ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+    startLanguagePromptLoop();
+  }
+}
+
 function setLanguageMode(mode) {
   state.language = mode === "es" ? "es" : "en";
+  stopLanguagePromptLoop();
 
   ui.langPills.forEach((pill) => {
     pill.classList.toggle("pill-active", pill.dataset.lang === state.language);
   });
 
+  ui.reply.textContent = getLanguageIntro();
+  speakSelectedLanguageIntro();
+  updateLanguageGate();
   renderMenuExplorer();
   renderCart();
   syncRealtimeOrderContext();
@@ -151,6 +365,7 @@ async function boot() {
     console.log("[BOOT] Starting application boot");
     attachUiHandlers();
     renderSelectedPreview(null);
+    updateLanguageGate();
     console.log("[BOOT] Loading tenant branding");
     await loadTenantBranding();
     console.log("[BOOT] Loading menu");
@@ -623,6 +838,7 @@ async function openRealtimeSession() {
       flushMicChunkBuffer();
       ui.status.textContent = "Connected";
       ui.engine.textContent = "";
+      syncRealtimeOrderContext();
       return;
     }
 
@@ -654,16 +870,23 @@ async function openRealtimeSession() {
 
     if ((payload.type === "response.output_audio_transcript.delta" || payload.type === "response.output_text.delta") && payload.delta) {
       state.activeReplyText += String(payload.delta || "");
-      ui.reply.textContent = state.activeReplyText;
+      ui.reply.textContent = formatCentsForSpeech(state.activeReplyText);
       setAvatarState(detectMood(state.activeReplyText));
       return;
     }
 
     if (payload.type === "response.function_call_arguments.done") {
       const result = await handleToolCall(payload.name, payload.arguments || "{}");
-      if (result.action) {
-        state.pendingActions.push(result.action);
-        applyActions([result.action]);
+      const actions = result.actions || (result.action ? [result.action] : []);
+      if (actions.length) {
+        state.pendingActions.push(...actions);
+        applyActions(actions);
+        result.output = {
+          ...(result.output || {}),
+          orderState: buildOrderStateSnapshot(),
+          cartItemCount: getCartItemCount(),
+          lastAdded: describeCartLine(state.cart[state.cart.length - 1])
+        };
       }
       sendWs({
         type: "conversation.item.create",
@@ -684,6 +907,7 @@ async function openRealtimeSession() {
       if (!state.elviSpeaking) {
         setAvatarState("idle");
       }
+      syncRealtimeOrderContext();
       return;
     }
 
@@ -723,7 +947,15 @@ function buildSessionUpdatePayload() {
         "The customer speaks to you as restaurant staff. Use tools for real actions and do not invent tool results. " +
         "Default mode is order taking, not conversation. Do not greet, make small talk, upsell, explain the app, or ask personal/chatty questions. " +
         "Keep replies to 1 short sentence, usually under 10 words. After a successful order change, say only a brief confirmation like 'Added.' or 'Removed.' " +
+        "Understand customer input in either English or Spanish, but every assistant reply must be only in the selected UI language. Do not mix languages in the same reply. " +
+        "After any tool call, trust the tool output orderState as the latest cart. Never say the cart is empty when cartItemCount is greater than 0. " +
+        "For questions like 'what is my current order' or 'what is in my cart', answer from Current order state only. If itemCount is greater than 0, list the cart briefly and never say empty. " +
+        "If a tool output includes missingItems after adding split items, confirm what was added and ask only for the missing required choice on the remaining item. " +
         "Ask a question only when it is required to complete the order, such as missing required modifiers, pickup/delivery at checkout, delivery address, name, or phone. " +
+        "If the cart is not empty, remember it. Never ask 'what would you like to order' as if starting over; instead refer to the current cart, ask 'Anything else?' only if needed, or proceed to checkout. " +
+        "For remove or change requests, resolve phrases like 'last item', 'that', 'the current item', item numbers, or item names against the current cart. Use remove_item or update_item. " +
+        "When the customer says change/switch/make an existing item's tortilla, meat, quantity, or modifiers, call update_item on that cart item immediately. Never ask to add one now, and never claim it changed unless update_item succeeded. " +
+        "For mixed quantities in one sentence, call add_item once with itemQuery as the full phrase, for example 'three tacos, two tripas, one chorizo'; the app will split them into separate cart lines. " +
         "If the customer asks a menu, price, allergy, or other question, answer directly and briefly, then return to order taking. " +
         "Collect pickup or delivery only when the customer starts checkout, says they are done, or mentions pickup/delivery. For delivery, collect the address before closing the order. " +
         "Avoid off-menu items. If unavailable, say it is unavailable and offer one closest menu item only if obvious. " +
@@ -732,10 +964,16 @@ function buildSessionUpdatePayload() {
         "If a customer later asks to add an optional COMBO Tacos modifier (for example DELUXE), update the existing COMBO Tacos line instead of saying it is unavailable. " +
         "For items with modifier groups, ask one concise combined question for missing required groups, then call add_item once they are fully selected. " +
         "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices. " +
-        "Common phrases: steak taco means Taco with Bistec / Steak; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour. " +
+        "For sub-dollar amounts in assistant replies, never write decimals like $0.75 or .75 dollars. Say 75 cents in English or 75 centavos in Spanish. " +
+        "For vague Taco or Quesadilla orders, the app defaults tortilla to Comal / Homemade corn unless the customer asks for flour, street/taquero, or no tortilla default. " +
+        "After adding a Taco or Quesadilla without deluxe and the customer did not say no deluxe, ask one short upgrade question: English 'Deluxe for 75 cents?' or Spanish '¿Deluxe por 75 centavos?'. If yes, update the last item with DELUXE; if no, continue without deluxe. " +
+        "Common phrases: steak taco means Taco with Bistec / Steak; tripas taco means Taco with Tripa / Beef Tripe; duro taco means Taco with Duro / Pork Rinds; prensado taco means Taco with Prensado / Spicy Pork; with beans means Con Frijoles / With Beans; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour. " +
+        "Quesadilla phrases work the same way: steak quesadilla means Quesadilla with Bistec / Steak; cheese quesadilla means Quesadilla with Solo Queso / Only Cheese; homemade quesadilla means Quesadilla Comal / Homemade; flour quesadilla means Quesadilla Harina / Flour; street quesadilla means Quesadilla Taquera / Street Quesadilla. " +
         "If the exact item id is uncertain, call add_item with itemQuery using the customer's phrase; the app will resolve the item and modifiers. " +
         "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'. " +
-        "Use only the selected UI language for replies. Do not auto-detect or switch languages from customer wording. " +
+        (getEffectiveLanguage() === "es"
+          ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger o entrega?'. Never output English words except exact menu item names when unavoidable. "
+          : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never output Spanish unless quoting an exact menu item name when unavoidable. ") +
         `Selected language=${getEffectiveLanguage()}. ` +
         `Current order state (authoritative): ${orderSnapshot}. Always treat this as the latest known order memory, especially after reconnect. ` +
         `ONLINE menu knowledge: ${menuKnowledge}`,
@@ -751,18 +989,13 @@ function buildSessionUpdatePayload() {
 }
 
 function buildOrderStateSnapshot() {
-  const lines = state.cart.map((line) => {
-    const base = `${line.quantity} x ${line.item.name}`;
-    if (!Array.isArray(line.modifiers) || !line.modifiers.length) {
-      return base;
-    }
-    const mods = line.modifiers
-      .map((mod) => `${mod.quantity > 1 ? `${mod.quantity} x ` : ""}${mod.option}`)
-      .join(", ");
-    return `${base} [${mods}]`;
+  const lines = state.cart.map((line, index) => {
+    return `#${index + 1} ${describeCartLine(line)}`;
   });
 
   const cartText = lines.length ? lines.join(" | ") : "cart empty";
+  const lastLine = state.cart[state.cart.length - 1];
+  const lastText = describeCartLine(lastLine) || "none";
   const knownCustomer = [];
   if (state.customer.name) knownCustomer.push(`name=${state.customer.name}`);
   if (state.customer.phone) knownCustomer.push(`phone=${state.customer.phone}`);
@@ -770,7 +1003,52 @@ function buildOrderStateSnapshot() {
   if (state.customer.address) knownCustomer.push(`address=${state.customer.address}`);
 
   const customerText = knownCustomer.length ? knownCustomer.join(", ") : "none";
-  return `fulfillment=${state.fulfillment}; cart=${cartText}; customer=${customerText}`;
+  return `fulfillment=${state.fulfillment}; itemCount=${getCartItemCount()}; cart=${cartText}; lastAdded=${lastText}; customer=${customerText}`;
+}
+
+function getCartItemCount() {
+  return state.cart.reduce((sum, line) => sum + line.quantity, 0);
+}
+
+function describeCartLine(line) {
+  if (!line?.item) return "";
+  const base = `${line.quantity} x ${line.item.name}`;
+  if (!Array.isArray(line.modifiers) || !line.modifiers.length) {
+    return base;
+  }
+  const mods = line.modifiers
+    .map((mod) => `${mod.quantity > 1 ? `${mod.quantity} x ` : ""}${mod.option}`)
+    .join(", ");
+  return `${base} [${mods}]`;
+}
+
+function isCurrentOrderQuestion(text) {
+  const normalized = normalizeOptionKey(text);
+  return /\b(what|whats|what s|show|read|tell)\b.*\b(order|cart)\b/.test(normalized)
+    || /\b(order|cart)\b.*\b(current|now|have|inside|in it)\b/.test(normalized)
+    || /\bque tengo\b.*\b(orden|carrito)\b/.test(normalized)
+    || /\bmi\b.*\b(orden|carrito)\b/.test(normalized);
+}
+
+function summarizeCurrentOrderForCustomer() {
+  if (!state.cart.length) {
+    return getEffectiveLanguage() === "es"
+      ? "Tu orden está vacía."
+      : "Your cart is empty.";
+  }
+
+  const lines = state.cart.map((line) => {
+    const name = getEffectiveLanguage() === "es" ? line.item.nameEs : line.item.name;
+    const modifiers = Array.isArray(line.modifiers) && line.modifiers.length
+      ? ` with ${line.modifiers.map((modifier) => stripModifierPriceText(modifier.option)).join(", ")}`
+      : "";
+    return `${line.quantity} ${name}${modifiers}`;
+  });
+  const total = state.cart.reduce((sum, line) => sum + getCartLineTotalCents(line), 0);
+  if (getEffectiveLanguage() === "es") {
+    return `Tu orden: ${lines.join("; ")}. Total ${centsToUsd(total)}.`;
+  }
+  return `Your order: ${lines.join("; ")}. Total ${centsToUsd(total)}.`;
 }
 
 function syncRealtimeOrderContext() {
@@ -855,10 +1133,10 @@ function buildRealtimeToolsForClient() {
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID." },
+          itemId: { type: "string", description: "Exact menu item ID when known." },
+          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
           quantity: { type: "number", description: "Quantity to remove." }
-        },
-        required: ["itemId"]
+        }
       }
     },
     {
@@ -868,10 +1146,23 @@ function buildRealtimeToolsForClient() {
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID." },
-          quantity: { type: "number", description: "Quantity." }
-        },
-        required: ["itemId", "quantity"]
+          itemId: { type: "string", description: "Exact menu item ID when known." },
+          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
+          quantity: { type: "number", description: "New quantity." },
+          modifiers: {
+            type: "array",
+            description: "Replacement modifier options when changing the current cart item.",
+            items: {
+              type: "object",
+              properties: {
+                groupId: { type: "string", description: "Modifier group id." },
+                option: { type: "string", description: "Selected option label exactly as listed." },
+                quantity: { type: "number", description: "Quantity for this modifier option." }
+              },
+              required: ["groupId", "option"]
+            }
+          }
+        }
       }
     },
     {
@@ -1010,6 +1301,21 @@ async function handleToolCall(name, argsJson) {
   if (["add_item", "remove_item", "update_item", "set_fulfillment", "set_address", "set_customer", "checkout"].includes(name)) {
     let addItemMode = null;
     if (name === "add_item") {
+      const multiResolved = resolveMultipleAddItemToolArgs(args);
+      if (multiResolved.ok) {
+        return {
+          actions: multiResolved.actions,
+          output: {
+            ok: true,
+            splitItems: multiResolved.actions.length,
+            missingItems: multiResolved.missingBaseItems || [],
+            message: multiResolved.missingBaseItems?.length
+              ? "Added resolved item lines. Ask for the missing required choices on the remaining item."
+              : "Added multiple item lines from one phrase."
+          }
+        };
+      }
+
       const resolved = resolveAddItemToolArgs(args);
       if (!resolved.ok) {
         return {
@@ -1038,6 +1344,18 @@ async function handleToolCall(name, argsJson) {
       if (Array.isArray(guard.canonicalModifiers)) {
         args.modifiers = guard.canonicalModifiers;
       }
+    } else if (name === "remove_item" || name === "update_item") {
+      const resolved = resolveCartMutationToolArgs(name, args);
+      if (!resolved.ok) {
+        return {
+          output: {
+            ok: false,
+            reason: "unknown_cart_item",
+            message: resolved.message
+          }
+        };
+      }
+      Object.assign(args, resolved.args);
     }
 
     const action = mapToolToAction(name, args);
@@ -1060,9 +1378,20 @@ function mapToolToAction(name, args) {
         modifiers: normalizeToolModifiers(args.modifiers)
       };
     case "remove_item":
-      return { type: "remove_item", itemId: String(args.itemId || ""), quantity: Number(args.quantity) || 1 };
+      return {
+        type: "remove_item",
+        itemId: String(args.itemId || ""),
+        cartIndex: Number.isInteger(args.cartIndex) ? args.cartIndex : undefined,
+        quantity: Number(args.quantity) || 1
+      };
     case "update_item":
-      return { type: "update_item", itemId: String(args.itemId || ""), quantity: Number(args.quantity) || 1 };
+      return {
+        type: "update_item",
+        itemId: String(args.itemId || ""),
+        cartIndex: Number.isInteger(args.cartIndex) ? args.cartIndex : undefined,
+        quantity: Number(args.quantity) || 1,
+        modifiers: normalizeToolModifiers(args.modifiers)
+      };
     case "set_fulfillment":
       return { type: "set_fulfillment", fulfillment: args.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP" };
     case "set_address":
@@ -1108,6 +1437,13 @@ function normalizeOptionKey(text) {
     .trim();
 }
 
+function normalizeLooseOptionKey(text) {
+  return normalizeOptionKey(text)
+    .split(" ")
+    .map((word) => (word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word))
+    .join(" ");
+}
+
 function extractOptionCostCents(optionLabel) {
   const text = String(optionLabel || "");
   const match = text.match(/([+-]?)\s*\$\s*(\d+(?:\.\d{1,2})?)/);
@@ -1134,8 +1470,15 @@ function findCanonicalOption(options, candidate) {
   const normalized = options.find((opt) => normalizeOptionKey(opt) === key);
   if (normalized) return String(normalized);
 
-  const contains = options.find((opt) => normalizeOptionKey(opt).includes(key) || key.includes(normalizeOptionKey(opt)));
-  return contains ? String(contains) : null;
+  const looseKey = normalizeLooseOptionKey(raw);
+  const loose = options.find((opt) => normalizeLooseOptionKey(opt) === looseKey);
+  if (loose) return String(loose);
+
+  const scored = options
+    .map((opt) => ({ option: String(opt), score: scoreModifierOptionMatch(opt, raw) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.option || null;
 }
 
 function normalizeQueryText(text) {
@@ -1145,10 +1488,84 @@ function normalizeQueryText(text) {
     .trim();
 }
 
+const MODIFIER_STOP_WORDS = new Set([
+  "x", "with", "con", "sin", "and", "or", "the", "only", "solo", "side", "extra",
+  "double", "add", "de", "del", "la", "el", "los", "las", "oz", "online", "option",
+  "options", "choice", "choices", "taco", "tacos", "quesadilla", "gordita", "burrito",
+  "torta", "combo", "meal", "plate", "platillo"
+]);
+
+function stripModifierPriceText(text) {
+  return String(text || "")
+    .replace(/\(\s*[+-]?\s*\$\s*\d+(?:\.\d{1,2})?\s*\)/g, " ")
+    .replace(/^\s*\*+\s*/, "")
+    .replace(/^\s*\d+\s*x\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function significantModifierTokens(text) {
+  return normalizeLooseOptionKey(stripModifierPriceText(text))
+    .split(" ")
+    .filter((token) => token.length > 2 && !MODIFIER_STOP_WORDS.has(token) && !/^\d+$/.test(token));
+}
+
+function buildModifierOptionAliases(option) {
+  const cleaned = stripModifierPriceText(option);
+  const aliases = new Set([
+    normalizeLooseOptionKey(cleaned),
+    normalizeLooseOptionKey(cleaned.replace(/\([^)]*\)/g, " "))
+  ]);
+
+  for (const part of cleaned.split(/\s*\/\s*|\s+-\s+|\s+or\s+|\s+y\s+|\s+and\s+/i)) {
+    const key = normalizeLooseOptionKey(part.replace(/\([^)]*\)/g, " "));
+    if (key) aliases.add(key);
+  }
+
+  const tokens = significantModifierTokens(cleaned);
+  for (const token of tokens) {
+    aliases.add(token);
+  }
+  for (let i = 0; i < tokens.length - 1; i += 1) {
+    aliases.add(`${tokens[i]} ${tokens[i + 1]}`);
+  }
+
+  return [...aliases].filter((alias) => alias.length > 2);
+}
+
+function scoreModifierOptionMatch(option, query) {
+  const queryKey = normalizeLooseOptionKey(query);
+  if (!queryKey) return 0;
+  const queryTokens = new Set(significantModifierTokens(query));
+  const aliases = buildModifierOptionAliases(option);
+  let best = 0;
+
+  for (const alias of aliases) {
+    if (!alias || MODIFIER_STOP_WORDS.has(alias)) continue;
+    if (queryKey === alias) best = Math.max(best, 140 + alias.length);
+    if (queryKey.includes(alias)) best = Math.max(best, 100 + alias.length);
+    if (alias.includes(queryKey) && queryKey.length > 3) best = Math.max(best, 80 + queryKey.length);
+  }
+
+  const optionTokens = significantModifierTokens(option);
+  const matchedTokens = optionTokens.filter((token) => queryTokens.has(token));
+  if (matchedTokens.length) {
+    best = Math.max(best, matchedTokens.length * 35 + Math.max(...matchedTokens.map((token) => token.length)));
+  }
+
+  return best;
+}
+
 function isSingleTacoCandidate(item) {
   const haystack = normalizeQueryText(`${item?.id || ""} ${item?.name || ""} ${item?.nameEs || ""}`);
   if (!haystack.includes("taco")) return false;
   return !/(combo|fiesta|love box|hard shell|pack|meal|tacos|[0-9]+\s*x|trio|sampler)/.test(haystack);
+}
+
+function isBaseQuesadillaCandidate(item) {
+  const haystack = normalizeQueryText(`${item?.id || ""} ${item?.name || ""} ${item?.nameEs || ""}`);
+  if (!haystack.includes("quesadilla")) return false;
+  return !/(combo|fiesta|love box|pack|meal|dorada|fried|quesadillas|[0-9]+\s*x|trio|sampler)/.test(haystack);
 }
 
 function itemHasText(item, pattern) {
@@ -1193,6 +1610,12 @@ function findPreferredSingleTacoItem(query) {
     || tacos[0];
 }
 
+function findPreferredQuesadillaItem() {
+  return state.menu.find((item) => normalizeQueryText(item.name) === "quesadilla")
+    || state.menu.find(isBaseQuesadillaCandidate)
+    || null;
+}
+
 function resolveMenuItemFromQuery(queryOrId) {
   const raw = String(queryOrId || "").trim();
   if (!raw) return null;
@@ -1204,6 +1627,10 @@ function resolveMenuItemFromQuery(queryOrId) {
   if (/\btacos?\b/.test(normalized)) {
     const singleTaco = findPreferredSingleTacoItem(normalized);
     if (singleTaco) return singleTaco;
+  }
+  if (/\bquesadillas?\b/.test(normalized) && !/\b(dorada|fried|frita|frito|combo|pack|platter)\b/.test(normalized)) {
+    const quesadilla = findPreferredQuesadillaItem();
+    if (quesadilla) return quesadilla;
   }
 
   const scored = state.menu
@@ -1237,30 +1664,330 @@ function inferModifiersFromQuery(item, query) {
   const modifiers = [];
   const meatGroup = findModifierGroup(item, (name) => /\b(meat|meats|carne|carnes)\b/.test(name));
   const tortillaGroup = findModifierGroup(item, (name) => /\b(tortilla|shell)\b/.test(name));
+  const withGroup = findModifierGroup(item, (name) => /\b(con|with)\b/.test(name));
+  const deluxeGroup = findModifierGroup(item, (name) => /\bdeluxe\b/.test(name));
 
   const tortilla = inferOptionFromMap(tortillaGroup, query, [
-    [/\b(homemade|home made|handmade|hand made|comal|corn)\b/, "Taco Comal / Homemade"],
-    [/\b(flour|harina)\b/, "Taco Harina / Flour"],
-    [/\b(street|taquero|taquera)\b/, "Taco Taquero / Street Taco"]
+    [/\b(homemade|home made|handmade|hand made|comal|corn)\b/, getTortillaOptionHint(item, "co")],
+    [/\b(flour|harina)\b/, getTortillaOptionHint(item, "hr")],
+    [/\b(street|taquero|taquera)\b/, getTortillaOptionHint(item, "st")]
   ]);
-  if (tortilla) modifiers.push(tortilla);
+  if (tortilla) {
+    modifiers.push(tortilla);
+  } else {
+    const defaultTortilla = getDefaultTortillaModifier(item, tortillaGroup, query);
+    if (defaultTortilla) modifiers.push(defaultTortilla);
+  }
 
   const meat = inferOptionFromMap(meatGroup, query, [
     [/\b(steak|bistec|beef|carne asada)\b/, "Bistec / Steak"],
     [/\b(chicken|pollo)\b/, "Pollo / Chicken"],
     [/\b(pork|pernil)\b/, "Pernil / Roasted Pork"],
     [/\b(chorizo|sausage)\b/, "Chorizo / Mexican Sausage"],
+    [/\b(tripa|tripas|tripe)\b/, "Tripa / Beef Tripe"],
+    [/\b(duro|duros|pork rinds?|chicharron|chicharrones)\b/, "Duro / Pork Rinds"],
+    [/\b(prensado|spicy pork)\b/, "Prensado / Spicy Pork"],
+    [/\b(cheese quesadilla|quesadilla cheese|quesadilla de queso|solo queso|only cheese|plain cheese|cheese only)\b/, "Solo Queso / Only Cheese"],
     [/\b(ground beef|picadillo|molida)\b/, "Picadillo / Ground Beef"],
     [/\b(al pastor|pastor)\b/, "Al Pastor"],
     [/\b(veggie|vegetarian|vegetales|vegetal)\b/, "Vegetales / Veggie"]
   ]);
   if (meat) modifiers.push(meat);
 
-  return modifiers;
+  const withModifier = inferOptionFromMap(withGroup, query, [
+    [/\b(with beans|con frijoles|frijoles|beans)\b/, "Con Frijoles / With Beans"],
+    [/\b(with rice|con arroz|arroz|rice)\b/, "Con Arroz / With Rice"],
+    [/\b(with cheese|con queso|queso fresco|fresh cheese)\b/, "Con Queso Fresco / With Cheese"],
+    [/\b(extra queso|extra cheese)\b/, "EXTRA QUESO / Cheese"]
+  ]);
+  if (withModifier) modifiers.push(withModifier);
+
+  const deluxe = inferOptionFromMap(deluxeGroup, query, [
+    [/\bdeluxe\b/, "DELUXE"]
+  ]);
+  if (deluxe && !customerDeclinesDeluxe(query)) modifiers.push(deluxe);
+
+  return mergeModifiersByGroup(modifiers, inferMenuModifierSelectionsFromQuery(item, query, modifiers));
+}
+
+function isTacoOrQuesadillaItem(item) {
+  return /\b(taco|quesadilla)\b/.test(normalizeQueryText(`${item?.name || ""} ${item?.nameEs || ""}`));
+}
+
+function customerDeclinesDeluxe(query) {
+  return /\b(no|not|without|sin)\s+(deluxe|de\s+lujo)\b|\b(deluxe|de\s+lujo)\s+(no|not)\b/.test(normalizeQueryText(query));
+}
+
+function getDefaultTortillaModifier(item, tortillaGroup, query) {
+  if (!tortillaGroup || !isTacoOrQuesadillaItem(item)) {
+    return null;
+  }
+
+  const normalized = normalizeQueryText(query);
+  if (!/\b(taco|tacos|quesadilla|quesadillas)\b/.test(normalized)) {
+    return null;
+  }
+
+  const option = findCanonicalOption(tortillaGroup.options || [], getTortillaOptionHint(item, "co"));
+  if (!option) {
+    return null;
+  }
+
+  return {
+    groupId: tortillaGroup.id,
+    groupName: tortillaGroup.name,
+    option,
+    quantity: 1
+  };
+}
+
+function isModifierGroupRequired(group) {
+  return Math.max(0, Number(group?.minSelections || 0)) > 0;
+}
+
+function inferMenuModifierSelectionsFromQuery(item, query, existingModifiers = []) {
+  const groups = Array.isArray(item?.modifierGroups) ? item.modifierGroups : [];
+  const selectedGroupIds = new Set((existingModifiers || []).map((modifier) => modifier.groupId));
+  const selections = [];
+
+  for (const group of groups) {
+    if (selectedGroupIds.has(group.id)) continue;
+    if (!isModifierGroupRequired(group)) continue;
+
+    const options = Array.isArray(group.options) ? group.options : [];
+    if (!options.length) continue;
+
+    const scored = options
+      .map((option) => ({ option: String(option), score: scoreModifierOptionMatch(option, query) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0];
+    if (!best) continue;
+
+    const secondScore = scored[1]?.score || 0;
+    const confident = best.score >= 100 || (best.score >= 45 && best.score >= secondScore + 12);
+    if (!confident) continue;
+
+    selections.push({
+      groupId: group.id,
+      groupName: group.name,
+      option: best.option,
+      quantity: 1
+    });
+  }
+
+  return selections;
 }
 
 function mergeResolvedModifiers(existing, inferred) {
   return mergeModifiersByGroup(normalizeToolModifiers(existing), inferred || []);
+}
+
+const QUANTITY_WORDS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  un: 1,
+  una: 1,
+  uno: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10
+};
+
+const COUNTED_MEAT_OPTIONS = [
+  { option: "Bistec / Steak", aliases: ["bistec", "steak", "carne asada"] },
+  { option: "Pollo / Chicken", aliases: ["pollo", "chicken"] },
+  { option: "Chorizo / Mexican Sausage", aliases: ["chorizo", "sausage"] },
+  { option: "Tripa / Beef Tripe", aliases: ["tripa", "tripas", "tripe"] },
+  { option: "Duro / Pork Rinds", aliases: ["duro", "duros", "pork rinds", "chicharron", "chicharrones"] },
+  { option: "Prensado / Spicy Pork", aliases: ["prensado", "spicy pork"] },
+  { option: "Pernil / Roasted Pork", aliases: ["pernil", "roasted pork"] },
+  { option: "Picadillo / Ground Beef", aliases: ["picadillo", "ground beef", "molida"] },
+  { option: "Al Pastor", aliases: ["al pastor", "pastor"] },
+  { option: "Vegetales / Veggie", aliases: ["vegetales", "veggie", "vegetarian"] },
+  { option: "Solo Queso / Only Cheese", aliases: ["solo queso", "only cheese", "cheese only", "queso"] }
+];
+
+function parseQuantityToken(token) {
+  const normalized = normalizeOptionKey(token);
+  const numeric = Number(normalized);
+  if (Number.isInteger(numeric) && numeric > 0 && numeric <= 20) {
+    return numeric;
+  }
+  return QUANTITY_WORDS[normalized] || 0;
+}
+
+function quantityPattern() {
+  return `(?:[1-9]|1[0-9]|20|${Object.keys(QUANTITY_WORDS).join("|")})`;
+}
+
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findCountedMeatRequests(query) {
+  const normalized = normalizeOptionKey(query);
+  const requests = [];
+  const seen = new Set();
+
+  for (const meat of COUNTED_MEAT_OPTIONS) {
+    for (const alias of meat.aliases) {
+      const aliasPattern = escapeRegExp(normalizeOptionKey(alias)).replace(/\s+/g, "\\s+");
+      const regex = new RegExp(`\\b(${quantityPattern()})\\s+(?:x\\s+)?(?:de\\s+)?${aliasPattern}\\b`, "gi");
+      let match;
+      while ((match = regex.exec(normalized))) {
+        const quantity = parseQuantityToken(match[1]);
+        if (!quantity) continue;
+        const key = `${meat.option}|${match.index}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        requests.push({
+          quantity,
+          option: meat.option,
+          alias,
+          index: match.index
+        });
+      }
+    }
+  }
+
+  return requests.sort((a, b) => a.index - b.index);
+}
+
+function getSharedModifierPhrase(query) {
+  const normalized = normalizeOptionKey(query);
+  const parts = [];
+  if (/\b(homemade|home made|handmade|hand made|comal|corn)\b/.test(normalized)) parts.push("comal");
+  if (/\b(flour|harina)\b/.test(normalized)) parts.push("flour");
+  if (/\b(street|taquero|taquera)\b/.test(normalized)) parts.push("street");
+  if (/\b(with beans|con frijoles|frijoles|beans)\b/.test(normalized)) parts.push("with beans");
+  if (/\b(with rice|con arroz|arroz|rice)\b/.test(normalized)) parts.push("with rice");
+  if (/\b(with cheese|con queso|queso fresco|fresh cheese)\b/.test(normalized)) parts.push("with cheese");
+  if (/\bdeluxe\b/.test(normalized) && !customerDeclinesDeluxe(normalized)) parts.push("deluxe");
+  return parts.join(" ");
+}
+
+function shouldPreferFullAddPhrase(args) {
+  const full = String(state.lastUserText || "").trim();
+  if (!full) return false;
+  const normalized = normalizeOptionKey(full);
+  const quantityMatches = normalized.match(new RegExp(`\\b${quantityPattern()}\\b`, "gi")) || [];
+  const namesOrderItem = /\b(taco|tacos|quesadilla|quesadillas)\b/.test(normalized);
+  const modelPhrase = String(args.itemQuery || args.itemId || "").trim();
+  return namesOrderItem && quantityMatches.length >= 2 && normalizeOptionKey(modelPhrase) !== normalized;
+}
+
+function getAddItemQuery(args) {
+  if (shouldPreferFullAddPhrase(args)) {
+    return state.lastUserText.trim();
+  }
+  return String(args.itemQuery || state.lastUserText || args.itemId || "").trim();
+}
+
+function findCountedBaseItemRequests(query) {
+  const normalized = normalizeOptionKey(query);
+  const requests = [];
+  const regex = new RegExp(`\\b(${quantityPattern()})\\s+(?:x\\s+)?(?:(?:comal|homemade|corn|flour|harina|street|taquero|taquera)\\s+)?(tacos?|quesadillas?)\\b`, "gi");
+  let match;
+  while ((match = regex.exec(normalized))) {
+    const quantity = parseQuantityToken(match[1]);
+    if (!quantity) continue;
+    requests.push({
+      quantity,
+      type: /^quesadilla/.test(match[2]) ? "quesadilla" : "taco",
+      index: match.index
+    });
+  }
+  return requests;
+}
+
+function resolveMultipleAddItemToolArgs(args) {
+  const customerPhrase = getAddItemQuery(args);
+  const query = customerPhrase || String(args.itemId || "").trim();
+  const normalized = normalizeQueryText(query);
+  const isTacoRequest = /\btacos?\b/.test(normalized);
+  const isQuesadillaRequest = /\bquesadillas?\b/.test(normalized) && !/\b(dorada|fried|frita|frito|combo|pack|platter)\b/.test(normalized);
+  if (!isTacoRequest && !isQuesadillaRequest) {
+    return { ok: false };
+  }
+
+  const countedMeats = findCountedMeatRequests(query);
+  const countedBaseItems = findCountedBaseItemRequests(query);
+  if (!shouldPreferFullAddPhrase(args) && countedMeats.length < 2) {
+    return { ok: false };
+  }
+
+  if (!countedMeats.length) {
+    return { ok: false };
+  }
+
+  const missingBaseItems = countedBaseItems.filter((base) => (
+    !countedMeats.some((meat) => Math.abs(meat.index - base.index) <= 24)
+  ));
+  const shared = getSharedModifierPhrase(query);
+  const actions = [];
+
+  for (const request of countedMeats) {
+    const nearestBase = countedBaseItems
+      .filter((base) => base.index >= request.index)
+      .sort((a, b) => a.index - b.index)[0];
+    const baseWord = nearestBase?.type || (isQuesadillaRequest && !isTacoRequest ? "quesadilla" : "taco");
+    const item = baseWord === "quesadilla" ? findPreferredQuesadillaItem() : findPreferredSingleTacoItem(normalized);
+    if (!item) {
+      return { ok: false };
+    }
+
+    const lineQuery = `${baseWord} ${request.alias} ${shared}`.trim();
+    const modifiers = inferModifiersFromQuery(item, lineQuery);
+    const normalizedSelection = normalizeTacoVariantSelection(item, modifiers, lineQuery);
+    const guard = validateAddItemToolArgs({
+      ...args,
+      itemId: normalizedSelection.item.id,
+      quantity: request.quantity,
+      modifiers: normalizedSelection.modifiers
+    });
+    if (!guard.ok) {
+      return { ok: false };
+    }
+    actions.push({
+      type: "add_item",
+      itemId: normalizedSelection.item.id,
+      quantity: request.quantity,
+      modifiers: Array.isArray(guard.canonicalModifiers) ? guard.canonicalModifiers : normalizedSelection.modifiers,
+      ...(guard.mode ? { mode: guard.mode } : {})
+    });
+  }
+
+  return actions.length
+    ? {
+      ok: true,
+      actions,
+      missingBaseItems
+    }
+    : { ok: false };
+}
+
+function getTortillaOptionHint(item, kind) {
+  const normalizedName = normalizeQueryText(`${item?.name || ""} ${item?.nameEs || ""}`);
+  const isQuesadilla = normalizedName.includes("quesadilla");
+  if (kind === "co") return isQuesadilla ? "Quesadilla Comal / Homemade" : "Taco Comal / Homemade";
+  if (kind === "hr") return isQuesadilla ? "Quesadilla Harina / Flour" : "Taco Harina / Flour";
+  if (kind === "st") return isQuesadilla ? "Quesadilla Taquera / Street Quesadilla" : "Taco Taquero / Street Taco";
+  return "";
 }
 
 function getTacoTortillaKindFromText(text) {
@@ -1314,10 +2041,14 @@ function normalizeTacoVariantSelection(item, modifiers, query) {
 }
 
 function resolveAddItemToolArgs(args) {
-  const query = String(args.itemQuery || args.itemId || "").trim();
-  const resolvedItem = args.itemQuery
-    ? (resolveMenuItemFromQuery(query) || resolveMenuItemFromQuery(args.itemId))
-    : (resolveMenuItemFromQuery(args.itemId) || resolveMenuItemFromQuery(query));
+  const customerPhrase = getAddItemQuery(args);
+  const query = customerPhrase || String(args.itemId || "").trim();
+  const phraseItem = resolveMenuItemFromQuery(customerPhrase);
+  const exactItem = resolveMenuItemFromQuery(args.itemId);
+  const phraseNamesBaseItem = /\b(tacos?|quesadillas?)\b/.test(normalizeQueryText(customerPhrase));
+  const resolvedItem = phraseNamesBaseItem
+    ? (phraseItem || exactItem)
+    : (exactItem || phraseItem || resolveMenuItemFromQuery(query));
   if (!resolvedItem) {
     return {
       ok: false,
@@ -1340,6 +2071,85 @@ function resolveAddItemToolArgs(args) {
       modifiers: normalized.modifiers
     }
   };
+}
+
+function cartLineSearchText(line, index) {
+  const modifiers = Array.isArray(line?.modifiers)
+    ? line.modifiers.map((modifier) => `${modifier.groupName || ""} ${modifier.option || ""}`).join(" ")
+    : "";
+  return normalizeQueryText(`#${index + 1} ${line?.item?.id || ""} ${line?.item?.name || ""} ${line?.item?.nameEs || ""} ${modifiers}`);
+}
+
+function resolveCartLineIndex(queryOrId) {
+  if (!state.cart.length) return -1;
+  const raw = String(queryOrId || "").trim();
+  const normalized = normalizeQueryText(raw);
+
+  if (!raw || /\b(last|latest|previous|that|current|it|this|ultimo|ultima|ese|esa)\b/.test(normalized)) {
+    return state.cart.length - 1;
+  }
+
+  const numberRef = raw.match(/#\s*(\d+)|\bitem\s+(\d+)\b|\bnumber\s+(\d+)\b/i);
+  if (numberRef) {
+    const index = Number(numberRef[1] || numberRef[2] || numberRef[3]) - 1;
+    if (index >= 0 && index < state.cart.length) return index;
+  }
+
+  const exactId = state.cart.findIndex((line) => line.item.id === raw);
+  if (exactId >= 0) return exactId;
+
+  const item = resolveMenuItemFromQuery(raw);
+  if (item) {
+    for (let index = state.cart.length - 1; index >= 0; index -= 1) {
+      if (state.cart[index].item.id === item.id) return index;
+    }
+  }
+
+  const scored = state.cart
+    .map((line, index) => {
+      const haystack = cartLineSearchText(line, index);
+      if (!normalized || !haystack) return { index, score: 0 };
+      if (haystack.includes(normalized)) return { index, score: 100 };
+      const words = normalized.split(" ").filter((word) => word.length > 2);
+      const score = words.reduce((sum, word) => sum + (haystack.includes(word) ? 10 : 0), 0);
+      return { index, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || b.index - a.index);
+
+  return scored[0]?.index ?? -1;
+}
+
+function resolveCartMutationToolArgs(name, args) {
+  const query = String(args.itemQuery || args.itemId || "").trim();
+  const cartIndex = resolveCartLineIndex(query);
+  if (cartIndex < 0 || !state.cart[cartIndex]) {
+    return {
+      ok: false,
+      message: state.cart.length
+        ? `Could not match cart item: ${query || "unspecified item"}.`
+        : "The cart is empty."
+    };
+  }
+
+  const line = state.cart[cartIndex];
+  const nextArgs = {
+    ...args,
+    itemId: line.item.id,
+    cartIndex
+  };
+
+  if (name === "update_item") {
+    const inferred = inferModifiersFromQuery(line.item, query);
+    const incoming = Array.isArray(args.modifiers) && args.modifiers.length
+      ? normalizeToolModifiers(args.modifiers)
+      : inferred;
+    if (incoming.length) {
+      nextArgs.modifiers = mergeModifiersByGroup(line.modifiers || [], incoming);
+    }
+  }
+
+  return { ok: true, args: nextArgs };
 }
 
 function inferQuantityFromText(text) {
@@ -1482,6 +2292,11 @@ function validateAddItemToolArgs(args) {
 function attachUiHandlers() {
   // Mic button: first tap activates adaptive (hands-free) mode; tap again to stop.
   ui.listenButton.addEventListener("click", () => {
+    if (!hasSelectedLanguage()) {
+      ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+      startLanguagePromptLoop();
+      return;
+    }
     if (state.vadRunning) {
       stopAdaptiveListen();
     } else {
@@ -1506,6 +2321,11 @@ function attachUiHandlers() {
 
   ui.promptForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!hasSelectedLanguage()) {
+      ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+      startLanguagePromptLoop();
+      return;
+    }
     const text = ui.promptInput.value.trim();
     if (!text) {
       return;
@@ -1523,6 +2343,18 @@ function attachUiHandlers() {
     pill.addEventListener("click", () => {
       setLanguageMode(pill.dataset.lang);
     });
+  });
+
+  window.addEventListener("pointerdown", () => {
+    if (!hasSelectedLanguage()) {
+      restartLanguagePromptLoop();
+    }
+  });
+
+  window.addEventListener("keydown", () => {
+    if (!hasSelectedLanguage()) {
+      restartLanguagePromptLoop();
+    }
   });
 
   ui.fulfillment.addEventListener("change", () => {
@@ -1737,11 +2569,25 @@ function sendUserTurn(text) {
   if (!text || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
     return false;
   }
+  if (!hasSelectedLanguage()) {
+    ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+    startLanguagePromptLoop();
+    return false;
+  }
   // Single-lane turn taking: only one active request/response at a time.
   if (state.turnInFlight || state.elviSpeaking) {
     return false;
   }
+  if (isCurrentOrderQuestion(text)) {
+    const reply = summarizeCurrentOrderForCustomer();
+    stopCurrentAudio();
+    ui.reply.textContent = formatCentsForSpeech(reply);
+    void speakLocalText(reply, getEffectiveLanguage());
+    pulseAvatarState("talking_neutral", 1200, "idle");
+    return true;
+  }
   state.turnInFlight = true;
+  state.lastUserText = text;
   sendWs({
     type: "conversation.item.create",
     item: {
@@ -1811,12 +2657,12 @@ function applyActions(actions) {
     }
 
     if (action.type === "remove_item") {
-      removeCartItem(action.itemId, Number(action.quantity) || 1);
+      removeCartItem(action.itemId, Number(action.quantity) || 1, action.cartIndex);
       continue;
     }
 
     if (action.type === "update_item") {
-      updateCartItem(action.itemId, Number(action.quantity) || 1);
+      updateCartItem(action.itemId, Number(action.quantity) || 1, action.cartIndex, action.modifiers);
       continue;
     }
 
@@ -1876,27 +2722,36 @@ function addCartItem(item, quantity, modifiers = []) {
   existing.quantity += quantity;
 }
 
-function removeCartItem(itemId, quantity) {
-  const existing = state.cart.find((line) => line.item.id === itemId);
+function removeCartItem(itemId, quantity, cartIndex) {
+  const index = Number.isInteger(cartIndex) && state.cart[cartIndex]?.item?.id === itemId
+    ? cartIndex
+    : state.cart.findIndex((line) => line.item.id === itemId);
+  const existing = index >= 0 ? state.cart[index] : null;
   if (!existing) {
     return;
   }
 
   existing.quantity -= Math.max(1, quantity);
   if (existing.quantity <= 0) {
-    state.cart = state.cart.filter((line) => line.item.id !== itemId);
+    state.cart.splice(index, 1);
   }
 
   if (state.lastSelectedItem?.id === itemId && !state.cart.some((line) => line.item.id === itemId)) {
-    state.lastSelectedItem = state.cart[0]?.item || null;
+    state.lastSelectedItem = state.cart[state.cart.length - 1]?.item || null;
   }
 }
 
-function updateCartItem(itemId, quantity) {
+function updateCartItem(itemId, quantity, cartIndex, modifiers) {
   const q = Math.max(1, quantity);
-  const existing = state.cart.find((line) => line.item.id === itemId);
+  const index = Number.isInteger(cartIndex) && state.cart[cartIndex]?.item?.id === itemId
+    ? cartIndex
+    : state.cart.findIndex((line) => line.item.id === itemId);
+  const existing = index >= 0 ? state.cart[index] : null;
   if (existing) {
     existing.quantity = q;
+    if (Array.isArray(modifiers) && modifiers.length) {
+      existing.modifiers = modifiers;
+    }
     state.lastSelectedItem = existing.item;
     return;
   }
@@ -2230,6 +3085,7 @@ async function queuePcmDeltaForPlayback(base64) {
 // ─── Adaptive / hands-free listening ─────────────────────────────────────
 
 function stopCurrentAudio() {
+  stopLocalTtsAudio();
   for (const src of _queuedSources) {
     try { src.stop(); } catch {}
   }
