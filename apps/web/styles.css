@@ -104,10 +104,10 @@ h1 {
 /* ── Selected item description and order preview ───────────────────────── */
 .selection-preview {
   position: fixed;
-  left: min(calc(50% + 250px), calc(100% - 390px));
-  top: clamp(190px, 29vh, 330px);
+  left: min(calc(50% + 390px), calc(100% - 380px));
+  top: clamp(188px, 29vh, 310px);
   z-index: 24;
-  width: 360px;
+  width: 340px;
   display: grid;
   grid-template-columns: 76px 1fr;
   gap: 12px;
@@ -120,7 +120,7 @@ h1 {
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
   transition: opacity 0.2s ease, transform 0.2s ease;
-  max-height: min(360px, 42dvh);
+  max-height: min(330px, 42dvh);
   overflow: auto;
 }
 
@@ -166,7 +166,7 @@ h1 {
   left: clamp(24px, calc(50% - 690px), 340px);
   top: clamp(190px, 29vh, 330px);
   z-index: 24;
-  width: 390px;
+  width: 370px;
   display: flex;
   flex-direction: column;
   background: var(--glass);
@@ -176,7 +176,7 @@ h1 {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
-  max-height: min(510px, calc(100dvh - 410px));
+  max-height: min(430px, calc(100dvh - 430px));
   overflow: hidden;
 }
 
@@ -199,7 +199,7 @@ h1 {
 
 .selected-item-card {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
   background: rgba(255, 255, 255, 0.75);
@@ -211,11 +211,16 @@ h1 {
 .selected-item-card.is-pending {
   background: rgba(226, 240, 255, 0.82);
   border-color: rgba(20, 113, 214, 0.42);
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.selected-item-card.is-pending .selected-item-price {
+  display: none;
 }
 
 .selected-item-thumb {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   object-fit: cover;
   border: 1px solid rgba(17, 20, 32, 0.12);
@@ -245,6 +250,9 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  max-height: 86px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .selected-item-mod-chip {
@@ -254,6 +262,12 @@ h1 {
   padding: 2px 7px;
   border: 1px solid rgba(20, 113, 214, 0.32);
   background: rgba(20, 113, 214, 0.12);
+}
+
+.selected-item-card.is-pending .selected-item-mod-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Menu explorer ─────────────────────────────────────────────────────── */
@@ -572,6 +586,7 @@ h1 {
   transition: background 0.15s, border-color 0.15s;
   text-align: left;
   white-space: normal;
+  outline-color: rgba(20, 113, 214, 0.68);
 }
 
 .combo-option-chip:hover {
@@ -584,7 +599,6 @@ h1 {
   background: rgba(20, 113, 214, 0.2);
   border-color: var(--accent);
   color: var(--ink);
-  cursor: default;
 }
 
 .combo-tracker-actions {
@@ -924,6 +938,14 @@ h2 {
 .cart-item-price {
   font-weight: 700;
   white-space: nowrap;
+}
+
+.cart-price-breakdown {
+  grid-column: 2 / -1;
+  margin-top: 3px;
+  font-size: 0.74rem;
+  color: rgba(17, 20, 32, 0.62);
+  line-height: 1.25;
 }
 
 .cart-total {

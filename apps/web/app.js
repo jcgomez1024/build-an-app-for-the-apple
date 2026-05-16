@@ -2682,15 +2682,12 @@ function sendOptionChip(btn) {
   const text = btn.textContent.trim();
   if (!text) return;
   if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) return;
-  // Visually mark as selected
-  const allChips = btn.closest("ul")?.querySelectorAll(".combo-option-chip");
-  allChips?.forEach((c) => c.classList.remove("selected"));
-  btn.classList.add("selected");
-  btn.disabled = true;
-  // Submit as a user text turn
   if (!sendUserTurn(text)) {
     return;
   }
+  const allChips = btn.closest("ul")?.querySelectorAll(".combo-option-chip");
+  allChips?.forEach((c) => c.classList.remove("selected"));
+  btn.classList.add("selected");
   pulseAvatarState("talking_neutral", 900, "idle");
 }
 
@@ -2705,6 +2702,10 @@ function sendUserTurn(text) {
     ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
     startLanguagePromptLoop();
     return false;
+  }
+  if (state.pendingComboState && state.elviSpeaking && !state.turnInFlight) {
+    stopCurrentAudio();
+    state.elviSpeaking = false;
   }
   // Single-lane turn taking: only one active request/response at a time.
   if (state.turnInFlight || state.elviSpeaking) {
@@ -3067,6 +3068,16 @@ function renderCart() {
     itemName.className = "cart-item-name";
     itemName.textContent = `${line.quantity} x ${name}`;
     main.appendChild(itemName);
+
+    const breakdown = document.createElement("div");
+    breakdown.className = "cart-price-breakdown";
+    const baseCents = Number(line.item.priceCents || 0);
+    const modifierDelta = getModifierDeltaPerUnitCents(line);
+    const unitCents = baseCents + modifierDelta;
+    breakdown.textContent = modifierDelta
+      ? `Base ${centsToUsd(baseCents)} + modifiers ${centsToUsd(modifierDelta)} = ${centsToUsd(unitCents)}${line.quantity > 1 ? ` each x ${line.quantity}` : ""}`
+      : `Base ${centsToUsd(baseCents)}${line.quantity > 1 ? ` each x ${line.quantity}` : ""}`;
+    main.appendChild(breakdown);
 
     const value = document.createElement("span");
     value.className = "cart-item-price";
