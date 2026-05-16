@@ -1,0 +1,89 @@
+{
+  "comboItems": [
+    {
+      "id": "combo-tacos",
+      "itemNamePattern": "\\bcombo\\s+tacos\\b",
+      "aliases": ["combo tacos", "taco combo", "combinacion tacos", "combo de tacos"],
+      "steps": [
+        { "key": "taco-shell", "label": "Taco shell", "kind": "itemOption", "groupNamePattern": "tortilla|shell", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-1-meat", "label": "First taco meat", "kind": "meat", "groupNamePattern": "item.*1.*carne|item.*1.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-meat", "label": "Second taco meat", "kind": "meat", "groupNamePattern": "item.*2.*carne|item.*2.*meat|\\bcd\\b", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "combo-side", "label": "Combo side", "kind": "side", "groupNamePattern": "combo\\s+sides|side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "regular-deluxe", "label": "Regular or deluxe", "kind": "regularDeluxe", "groupNamePattern": "deluxe", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    },
+    {
+      "id": "combo-quesadillas",
+      "itemNamePattern": "\\bcombo\\s+quesadillas\\b",
+      "aliases": ["combo quesadillas", "quesadilla combo", "combo de quesadillas"],
+      "steps": [
+        { "key": "quesadilla-shell", "label": "Quesadilla tortilla", "kind": "itemOption", "groupNamePattern": "tortilla|shell", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-1-meat", "label": "First quesadilla meat", "kind": "meat", "groupNamePattern": "item.*1.*carne|item.*1.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-meat", "label": "Second quesadilla meat", "kind": "meat", "groupNamePattern": "item.*2.*carne|item.*2.*meat|\\bcd\\b", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "combo-side", "label": "Combo side", "kind": "side", "groupNamePattern": "combo\\s+sides|side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "regular-deluxe", "label": "Regular or deluxe", "kind": "regularDeluxe", "groupNamePattern": "deluxe", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    },
+    {
+      "id": "combo-burrito",
+      "itemNamePattern": "\\bcombo\\s+burrito\\b",
+      "aliases": ["combo burrito", "burrito combo", "combo de burrito"],
+      "steps": [
+        { "key": "burrito-size", "label": "Burrito size", "kind": "itemOption", "groupNamePattern": "burrito.*size", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "burrito-options", "label": "Burrito options", "kind": "multi", "groupNamePattern": "burrito\\s+options", "required": true, "minSelections": 2, "maxSelections": 24 },
+        { "key": "burrito-meat", "label": "Burrito meat", "kind": "meat", "groupNamePattern": "burrito.*carne|burrito.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "burrito-side", "label": "Dip side", "kind": "side", "groupNamePattern": "burrito.*combo.*side|combo\\s+side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "deluxe", "label": "Deluxe", "kind": "extras", "groupNamePattern": "deluxe", "required": false, "minSelections": 0, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "\\bcb\\s+extras\\b|extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    },
+    {
+      "id": "combo-mix",
+      "itemNamePattern": "\\bcombo\\s+mix\\b",
+      "aliases": ["combo mix", "mix combo", "combo mixto"],
+      "steps": [
+        { "key": "item-1-option", "label": "First item", "kind": "itemOption", "groupNamePattern": "item.*1.*mix.*option", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-1-meat", "label": "First item meat", "kind": "meat", "groupNamePattern": "item.*1.*carne|item.*1.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-option", "label": "Second item", "kind": "itemOption", "groupNamePattern": "item.*2.*mix.*option", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-meat", "label": "Second item meat", "kind": "meat", "groupNamePattern": "item.*2.*carne|item.*2.*meat|\\bcd\\b", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "combo-side", "label": "Combo side", "kind": "side", "groupNamePattern": "combo\\s+sides|side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "regular-deluxe", "label": "Regular or deluxe", "kind": "regularDeluxe", "groupNamePattern": "deluxe", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    },
+    {
+      "id": "combo-gorditas",
+      "itemNamePattern": "\\bcombo\\s+gorditas\\b",
+      "aliases": ["combo gorditas", "gordita combo", "combo de gorditas"],
+      "steps": [
+        { "key": "gordita-option", "label": "Gordita option", "kind": "itemOption", "groupNamePattern": "gorditas?\\s+option", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-1-meat", "label": "First gordita meat", "kind": "meat", "groupNamePattern": "item.*1.*carne|item.*1.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-meat", "label": "Second gordita meat", "kind": "meat", "groupNamePattern": "item.*2.*carne|item.*2.*meat|\\bcd\\b", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "combo-side", "label": "Combo side", "kind": "side", "groupNamePattern": "combo\\s+sides|side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "regular-deluxe", "label": "Regular or deluxe", "kind": "regularDeluxe", "groupNamePattern": "deluxe", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    },
+    {
+      "id": "combo-tortas",
+      "itemNamePattern": "\\bcombo\\s+tortas\\b",
+      "aliases": ["combo tortas", "torta combo", "combo de tortas"],
+      "steps": [
+        { "key": "torta-option", "label": "Torta option", "kind": "itemOption", "groupNamePattern": "tortas?\\s+option", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-1-meat", "label": "First torta meat", "kind": "meat", "groupNamePattern": "item.*1.*carne|item.*1.*meat", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "item-2-meat", "label": "Second torta meat", "kind": "meat", "groupNamePattern": "item.*2.*carne|item.*2.*meat|\\bcd\\b", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "combo-side", "label": "Combo side", "kind": "side", "groupNamePattern": "combo\\s+sides|side", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "regular-deluxe", "label": "Regular or deluxe", "kind": "regularDeluxe", "groupNamePattern": "deluxe", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "salsa", "label": "Salsa", "kind": "salsa", "groupNamePattern": "salsa", "required": true, "minSelections": 1, "maxSelections": 1 },
+        { "key": "extras", "label": "Extras", "kind": "extras", "groupNamePattern": "extras", "required": false, "minSelections": 0, "maxSelections": 9 }
+      ]
+    }
+  ]
+}

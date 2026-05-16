@@ -1,6 +1,6 @@
 :root {
-  --accent:  #e2511d;
-  --accent2: #1471d6;
+  --accent:  #1471d6;
+  --accent2: #4aa3ff;
   --ink:     #111420;
   --glass:   rgba(255, 255, 255, 0.72);
   --gb:      rgba(255, 255, 255, 0.40);
@@ -208,6 +208,11 @@ h1 {
   padding: 7px;
 }
 
+.selected-item-card.is-pending {
+  background: rgba(226, 240, 255, 0.82);
+  border-color: rgba(20, 113, 214, 0.42);
+}
+
 .selected-item-thumb {
   width: 52px;
   height: 52px;
@@ -225,6 +230,14 @@ h1 {
 .selected-item-price {
   font-size: 0.79rem;
   font-weight: 700;
+}
+
+.selected-item-pending-step {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .selected-item-mods {
@@ -281,7 +294,7 @@ h1 {
 }
 
 .menu-section-pill.active {
-  background: linear-gradient(135deg, var(--accent), #f07b3c);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #fff;
   border-color: transparent;
 }
@@ -444,13 +457,19 @@ h1 {
 /* ── Combo build tracker ─────────────────────────────────────────────────── */
 .combo-tracker {
   margin-top: 10px;
-  background: rgba(226, 81, 29, 0.15);
-  border: 1px solid rgba(226, 81, 29, 0.4);
+  background: rgba(105, 174, 230, 0.28);
+  border: 1px solid rgba(20, 113, 214, 0.5);
   border-radius: 14px;
   padding: 10px 16px;
   backdrop-filter: blur(8px);
-  max-width: 420px;
+  color: var(--ink);
+  max-width: 520px;
+  max-height: min(390px, 36dvh);
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
 }
 
 .combo-tracker.is-hidden {
@@ -468,14 +487,14 @@ h1 {
 .combo-tracker-name {
   font-weight: 700;
   font-size: 0.85rem;
-  color: #e2511d;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .combo-tracker-progress {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(17, 20, 32, 0.68);
   font-variant-numeric: tabular-nums;
 }
 
@@ -489,21 +508,24 @@ h1 {
 }
 
 .combo-tracker-selections li {
-  background: rgba(226, 81, 29, 0.25);
+  background: rgba(20, 113, 214, 0.14);
+  border: 1px solid rgba(20, 113, 214, 0.22);
   border-radius: 8px;
   padding: 3px 10px;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
 }
 
 .combo-tracker-selections li.selection-done {
   background: rgba(40, 180, 100, 0.22);
   border: 1px solid rgba(40, 180, 100, 0.45);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
 }
 
 .combo-tracker-ask {
   margin-top: 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .combo-tracker-ask.is-hidden {
@@ -513,7 +535,7 @@ h1 {
 .combo-tracker-step-label {
   display: block;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(17, 20, 32, 0.66);
   margin-bottom: 5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -526,42 +548,88 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: clamp(160px, 24dvh, 300px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
 }
 
 .combo-tracker-options li {
-  flex: 0 0 auto;
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
 .combo-option-chip {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  width: 100%;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(20, 113, 214, 0.24);
   border-radius: 20px;
   padding: 4px 12px;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  white-space: nowrap;
+  text-align: left;
+  white-space: normal;
 }
 
 .combo-option-chip:hover {
-  background: rgba(226, 81, 29, 0.3);
-  border-color: rgba(226, 81, 29, 0.6);
+  background: rgba(214, 235, 255, 0.95);
+  border-color: rgba(20, 113, 214, 0.58);
 }
 
 .combo-option-chip.selected,
 .combo-option-chip:disabled {
-  background: rgba(226, 81, 29, 0.5);
-  border-color: #e2511d;
-  color: #fff;
+  background: rgba(20, 113, 214, 0.2);
+  border-color: var(--accent);
+  color: var(--ink);
   cursor: default;
 }
 
+.combo-tracker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.combo-nav-button {
+  border: 1px solid rgba(20, 113, 214, 0.28);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.combo-nav-primary {
+  background: rgba(20, 113, 214, 0.16);
+  border-color: rgba(20, 113, 214, 0.55);
+}
+
 .cart-item-mods {
-  margin-top: 2px;
+  grid-column: 2 / -1;
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cart-item-mod-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  background: rgba(20, 113, 214, 0.1);
+  border: 1px solid rgba(20, 113, 214, 0.22);
+  color: var(--ink);
+  padding: 3px 8px;
   font-size: 0.72rem;
-  opacity: 0.72;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 /* Menu explorer hidden per latest UX request */
@@ -617,7 +685,7 @@ h1 {
   height: 38px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, var(--accent), #f07030);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: white;
   cursor: pointer;
   display: grid;
@@ -675,7 +743,7 @@ h1 {
   pointer-events: none;
 }
 
-/* Listening — warm orange rings, slow */
+/* Listening rings */
 .mic-wrap.listening .halo-1 { animation: halo 2.4s ease-out infinite; }
 .mic-wrap.listening .halo-2 { animation: halo 2.4s ease-out infinite 0.80s; }
 .mic-wrap.listening .halo-3 { animation: halo 2.4s ease-out infinite 1.60s; }
@@ -698,12 +766,12 @@ h1 {
   height: 64px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(148deg, var(--accent), #f07030);
+  background: linear-gradient(148deg, var(--accent), var(--accent2));
   color: white;
   cursor: pointer;
   display: grid;
   place-items: center;
-  box-shadow: 0 4px 22px rgba(226, 81, 29, 0.48);
+  box-shadow: 0 4px 22px rgba(20, 113, 214, 0.42);
   transition: transform 0.18s, box-shadow 0.18s, background 0.25s;
 }
 .mic-btn:hover { transform: scale(1.10); }
@@ -766,7 +834,7 @@ h1 {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(430px, 94vw);
+  width: min(560px, 96vw);
   z-index: 60;
   transform: translateX(102%);
   transition: transform 0.34s cubic-bezier(0.32, 0, 0.08, 1);
@@ -820,9 +888,9 @@ h2 {
 }
 
 .cart-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 10px;
   font-size: 0.95rem;
   padding-bottom: 8px;
@@ -847,9 +915,10 @@ h2 {
 }
 
 .cart-item-name {
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .cart-item-price {
@@ -898,7 +967,7 @@ input, select {
   padding: 14px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(135deg, var(--accent), #f07030);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: white;
   font: inherit;
   font-weight: 700;
@@ -964,11 +1033,11 @@ input, select {
 }
 
 .build-prop-card {
-  background: linear-gradient(135deg, #fff9f2 0%, #ffebd5 100%);
-  border: 1px solid rgba(226, 81, 29, 0.20);
+  background: linear-gradient(135deg, #f5fbff 0%, #dfefff 100%);
+  border: 1px solid rgba(20, 113, 214, 0.20);
   border-radius: 16px;
   padding: 12px 14px;
-  box-shadow: 0 12px 40px rgba(226, 81, 29, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(20, 113, 214, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   min-width: 140px;

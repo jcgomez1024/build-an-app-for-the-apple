@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { fallbackMenu, type MenuItem, type ModifierGroup } from "./menu.js";
+import { fallbackMenu, type MenuItem, type ModifierGroup, type ModifierOption } from "./menu.js";
 
 type CartItem = {
   id: string;
@@ -9,6 +9,8 @@ type CartItem = {
     groupId?: string;
     groupName?: string;
     option?: string;
+    optionId?: string;
+    priceDeltaCents?: number;
     quantity?: number;
   }>;
 };
@@ -51,6 +53,22 @@ function getSquareBaseUrl(env: "sandbox" | "production") {
 function formatSignedUsdFromCents(cents: number) {
   const sign = cents >= 0 ? "+" : "-";
   return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
+}
+
+function optionName(option: string | ModifierOption) {
+  return typeof option === "object" && option !== null ? option.name : String(option || "");
+}
+
+function normalizeOptionKey(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\(\s*[+-]?\s*\$\s*\d+(?:\.\d{1,2})?\s*\)/g, " ")
+    .replace(/^\s*\d+\s*x\s+/i, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function squareHeaders(config: SquareRuntimeConfig) {
@@ -125,8 +143,19 @@ function buildLineItems(cart: CartItem[], menu: MenuItem[]) {
     const explicitUnitPrice = Math.max(0, Number(cartItem.unitPriceCents || 0));
     const unitPriceCents = explicitUnitPrice || menuItem.priceCents;
     const hasCustomPrice = unitPriceCents !== menuItem.priceCents;
-    const modifierNote = Array.isArray(cartItem.modifiers) && cartItem.modifiers.length
-      ? ` | Modifiers: ${cartItem.modifiers
+    const modifiers = Array.isArray(cartItem.modifiers) ? cartItem.modifiers : [];
+    const squareModifiers = modifiers
+      .map((modifier) => {
+        const optionId = String(modifier.optionId || findModifierOptionCatalogId(menuItem, modifier.groupId, modifier.option) || "").trim();
+        if (!optionId) return null;
+        return {
+          catalog_object_id: optionId,
+          quantity: String(Math.max(1, Number(modifier.quantity) || 1))
+        };
+      })
+      .filter((option): option is { catalog_object_id: string; quantity: string } => Boolean(option));
+    const modifierNote = modifiers.length
+      ? ` | Voice modifiers: ${modifiers
           .map((modifier) => {
             const qty = Math.max(1, Number(modifier.quantity) || 1);
             const option = String(modifier.option || "");
@@ -145,9 +174,38 @@ function buildLineItems(cart: CartItem[], menu: MenuItem[]) {
             amount: unitPriceCents,
             currency: "USD"
           },
+      modifiers: squareModifiers.length ? squareModifiers : undefined,
       note: `${menuItem.nameEs} ordered by voice${modifierNote}`
     };
   });
+}
+
+function findModifierOptionCatalogId(menuItem: MenuItem, groupId?: string, option?: string) {
+  const optionKey = normalizeOptionKey(String(option || ""));
+  if (!optionKey) return "";
+
+  const groups = Array.isArray(menuItem.modifierGroups) ? menuItem.modifierGroups : [];
+  const searchGroups = groupId
+    ? groups.filter((group) => group.id === groupId)
+    : groups;
+  for (const group of searchGroups) {
+    for (const candidate of group.options || []) {
+      if (typeof candidate !== "object" || !candidate?.id) continue;
+      if (normalizeOptionKey(optionName(candidate)) === optionKey) {
+        return candidate.id;
+      }
+    }
+  }
+  for (const group of groups) {
+    for (const candidate of group.options || []) {
+      if (typeof candidate !== "object" || !candidate?.id) continue;
+      const candidateKey = normalizeOptionKey(optionName(candidate));
+      if (candidateKey === optionKey || candidateKey.includes(optionKey) || optionKey.includes(candidateKey)) {
+        return candidate.id;
+      }
+    }
+  }
+  return "";
 }
 
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
@@ -319,13 +377,14 @@ function buildMenuFromSquareCatalog(
 
   function inferModifierRules(name: string, optionCount: number, rawMin?: number, rawMax?: number) {
     const cleanName = name.toLowerCase();
-    const looksMulti = /extra|extras|topping|toppings|salsa|ingredient|ingredients|add ons|add ons|addons|side|sides/.test(cleanName);
-    const minSelections = rawMin ?? (looksMulti ? 0 : 1);
-    const maxSelections = rawMax ?? (looksMulti ? Math.max(optionCount, Math.max(minSelections, 1)) : 1);
+    const looksMulti = /extra|extras|topping|toppings|salsa|ingredient|ingredients|add ons|addons|side|sides|\bcon\b|\bwith\b/.test(cleanName);
+    const cleanMin = Number.isFinite(Number(rawMin)) && Number(rawMin) > 0 ? Number(rawMin) : 0;
+    const inferredMax = looksMulti ? Math.max(optionCount, Math.max(cleanMin, 1)) : Math.max(1, cleanMin || 1);
+    const cleanMax = Number.isFinite(Number(rawMax)) && Number(rawMax) > 0 ? Number(rawMax) : inferredMax;
     return {
-      minSelections,
-      maxSelections: Math.max(minSelections, maxSelections),
-      allowQuantities: maxSelections > 1
+      minSelections: cleanMin,
+      maxSelections: Math.max(cleanMin, cleanMax),
+      allowQuantities: Math.max(cleanMin, cleanMax) > 1
     };
   }
 
@@ -353,23 +412,26 @@ function buildMenuFromSquareCatalog(
   }
 
   // Build modifier list map: id → { name, options with Square price deltas }
-  const modifierListById = new Map<string, { name: string; options: string[] }>();
+  const modifierListById = new Map<string, { name: string; options: ModifierOption[] }>();
   for (const object of objects) {
     if (object.type !== "MODIFIER_LIST") continue;
     const name = object.modifier_list_data?.name?.trim() || "";
     const options = (object.modifier_list_data?.modifiers || [])
-      .map((m) => {
+      .flatMap((m): ModifierOption[] => {
         const embeddedName = m.modifier_data?.name?.trim() || "";
         const referenced = modifierById.get(m.id);
         const optionName = embeddedName || referenced?.name || "";
-        if (!optionName) return "";
+        if (!optionName) return [];
 
         const embeddedDelta = Number(m.modifier_data?.price_money?.amount || 0);
         const referencedDelta = Number(referenced?.priceDeltaCents || 0);
         const priceDelta = embeddedDelta || referencedDelta;
-        return priceDelta ? `${optionName} (${formatSignedUsdFromCents(priceDelta)})` : optionName;
-      })
-      .filter(Boolean);
+        return [{
+          id: m.id,
+          name: priceDelta ? `${optionName} (${formatSignedUsdFromCents(priceDelta)})` : optionName,
+          priceDeltaCents: priceDelta
+        }];
+      });
     if (name) {
       modifierListById.set(object.id, { name, options });
     }

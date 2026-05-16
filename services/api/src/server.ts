@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import { chatWithElvi } from "./elvi.js";
 import { createCheckout, getMenu } from "./square.js";
+import { resolveMenuRequest } from "./menu-intelligence.js";
 import { attachRealtimeServer, createRealtimeSession } from "./realtime.js";
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 
@@ -121,6 +122,40 @@ app.get("/api/menu", async (req, res, next) => {
     const tenant = resolveDefaultTenant(req.headers.host);
     const items = await getMenu(buildSquareConfig(tenant));
     res.json({ items, tenant: tenant.slug });
+  } catch (error) {
+    next(error);
+  }
+});
+
+function buildResolverInput(body: unknown) {
+  const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  return {
+    text: typeof input.text === "string" ? input.text : "",
+    language: input.language === "es" ? "es" : "en",
+    actionHint: typeof input.actionHint === "string" ? input.actionHint : undefined,
+    toolArgs: input.toolArgs && typeof input.toolArgs === "object" ? input.toolArgs : undefined,
+    cart: Array.isArray(input.cart) ? input.cart : [],
+    comboState: input.comboState && typeof input.comboState === "object" ? input.comboState : undefined
+  };
+}
+
+app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
+  try {
+    const tenant = resolveTenant(req.params.tenant || req.headers.host);
+    const items = await getMenu(buildSquareConfig(tenant));
+    const result = resolveMenuRequest(items, buildResolverInput(req.body));
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/menu/resolve", async (req, res, next) => {
+  try {
+    const tenant = resolveDefaultTenant(req.headers.host);
+    const items = await getMenu(buildSquareConfig(tenant));
+    const result = resolveMenuRequest(items, buildResolverInput(req.body));
+    res.json(result);
   } catch (error) {
     next(error);
   }

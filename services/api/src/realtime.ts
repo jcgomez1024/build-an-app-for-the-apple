@@ -451,6 +451,12 @@ function cleanComboLabel(value: string): string {
     .trim();
 }
 
+function comboOptionLabel(value: unknown): string {
+  return value && typeof value === "object" && "name" in value
+    ? String((value as { name?: unknown }).name || "")
+    : String(value || "");
+}
+
 function inferComboMaxSelections(name: string, options: string[], explicitMax?: number): number {
   if (typeof explicitMax === "number" && explicitMax > 0) {
     return explicitMax;
@@ -963,11 +969,11 @@ async function processTurn(
           groups: menuItem!.modifierGroups!.map((group) => ({
             id: group.id,
             name: group.name,
-            options: group.options,
+            options: group.options.map(comboOptionLabel),
             minSelections: Math.max(0, group.minSelections ?? 1),
             maxSelections: Math.max(
               group.minSelections ?? 1,
-              inferComboMaxSelections(group.name, group.options, group.maxSelections)
+              inferComboMaxSelections(group.name, group.options.map(comboOptionLabel), group.maxSelections)
             ),
             allowQuantities: group.allowQuantities ?? false
           })),
@@ -1193,11 +1199,11 @@ export function attachRealtimeServer(server: HttpServer) {
                     groups: menuItem!.modifierGroups!.map((group) => ({
                       id: group.id,
                       name: group.name,
-                      options: group.options,
+                      options: group.options.map(comboOptionLabel),
                       minSelections: Math.max(0, group.minSelections ?? 1),
                       maxSelections: Math.max(
                         group.minSelections ?? 1,
-                        inferComboMaxSelections(group.name, group.options, group.maxSelections)
+                        inferComboMaxSelections(group.name, group.options.map(comboOptionLabel), group.maxSelections)
                       ),
                       allowQuantities: group.allowQuantities ?? false
                     })),

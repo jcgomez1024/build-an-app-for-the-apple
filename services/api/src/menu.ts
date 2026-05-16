@@ -1,7 +1,13 @@
+export type ModifierOption = {
+  id?: string;
+  name: string;
+  priceDeltaCents?: number;
+};
+
 export type ModifierGroup = {
   id: string;
   name: string;
-  options: string[];
+  options: Array<string | ModifierOption>;
   minSelections?: number;
   maxSelections?: number;
   allowQuantities?: boolean;

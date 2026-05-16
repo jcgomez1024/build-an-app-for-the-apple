@@ -25,6 +25,8 @@ const state = {
   menuSections: [],
   modifierDraft: null,
   modifierStepIndex: 0,
+  pendingComboState: null,
+  pendingComboPreview: null,
   lastComboAnimationKey: "",
   autoListen: false,
   elviSpeaking: false,
@@ -587,11 +589,28 @@ function toModifierLines() {
     const selected = state.modifierDraft.selections[group.id] || {};
     for (const [option, qty] of Object.entries(selected)) {
       if (qty > 0) {
-        lines.push({ groupId: group.id, groupName: group.name, option, quantity: qty });
+        const meta = findModifierOption(group, option);
+        lines.push({
+          groupId: group.id,
+          groupName: group.name,
+          option,
+          optionId: meta?.id,
+          priceDeltaCents: meta?.priceDeltaCents,
+          quantity: qty
+        });
       }
     }
   }
   return lines;
+}
+
+function optionDisplayName(option) {
+  return typeof option === "object" && option !== null ? String(option.name || "") : String(option || "");
+}
+
+function findModifierOption(group, optionName) {
+  const key = normalizeOptionKey(optionName);
+  return (group.options || []).find((option) => normalizeOptionKey(optionDisplayName(option)) === key);
 }
 
 function validateModifierDraft() {
@@ -637,7 +656,7 @@ function animateModifierBuildStep(group) {
     totalSteps,
     selections,
     stepName,
-    Array.isArray(group.options) ? group.options : []
+    Array.isArray(group.options) ? group.options.map(optionDisplayName) : []
   );
 
   if (elvi && typeof elvi.performBuildStep === "function") {
@@ -712,12 +731,14 @@ function renderModifierGroups() {
   shell.appendChild(limit);
 
   for (const option of group.options || []) {
+    const optionLabel = optionDisplayName(option);
+    if (!optionLabel) continue;
     const row = document.createElement("div");
     row.className = "modifier-option-row";
 
     const label = document.createElement("span");
     label.className = "modifier-option-name";
-    label.textContent = option;
+    label.textContent = optionLabel;
 
     const controls = document.createElement("div");
     controls.className = "modifier-stepper";
@@ -727,7 +748,7 @@ function renderModifierGroups() {
     dec.textContent = "-";
 
     const count = document.createElement("span");
-    const currentQty = Number(selected[option] || 0);
+    const currentQty = Number(selected[optionLabel] || 0);
     count.textContent = String(currentQty);
 
     const inc = document.createElement("button");
@@ -735,12 +756,12 @@ function renderModifierGroups() {
     inc.textContent = "+";
 
     dec.addEventListener("click", () => {
-      const next = Math.max(0, Number((state.modifierDraft.selections[group.id] || {})[option] || 0) - 1);
+      const next = Math.max(0, Number((state.modifierDraft.selections[group.id] || {})[optionLabel] || 0) - 1);
       if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
       if (next <= 0) {
-        delete state.modifierDraft.selections[group.id][option];
+        delete state.modifierDraft.selections[group.id][optionLabel];
       } else {
-        state.modifierDraft.selections[group.id][option] = next;
+        state.modifierDraft.selections[group.id][optionLabel] = next;
       }
       renderModifierGroups();
     });
@@ -748,7 +769,7 @@ function renderModifierGroups() {
     inc.addEventListener("click", () => {
       const groupSelections = state.modifierDraft.selections[group.id] || {};
       const distinctCount = Object.values(groupSelections).filter((v) => Number(v) > 0).length;
-      const current = Number(groupSelections[option] || 0);
+      const current = Number(groupSelections[optionLabel] || 0);
       const addingNewDistinct = current <= 0;
       if (addingNewDistinct && distinctCount >= max) {
         return;
@@ -756,9 +777,9 @@ function renderModifierGroups() {
 
       if (!state.modifierDraft.selections[group.id]) state.modifierDraft.selections[group.id] = {};
       if (!allowQuantities) {
-        state.modifierDraft.selections[group.id] = { [option]: 1 };
+        state.modifierDraft.selections[group.id] = { [optionLabel]: 1 };
       } else {
-        state.modifierDraft.selections[group.id][option] = Math.min(9, current + 1);
+        state.modifierDraft.selections[group.id][optionLabel] = Math.min(9, current + 1);
       }
       renderModifierGroups();
     });
@@ -922,20 +943,6 @@ async function openRealtimeSession() {
 
 function buildSessionUpdatePayload() {
   const orderSnapshot = buildOrderStateSnapshot();
-  const menuKnowledge = state.menu
-    .map((item) => {
-      const price = `BASE $${((item.priceCents || 0) / 100).toFixed(2)}`;
-      const modifiers = (item.modifierGroups || [])
-        .map((group) => {
-          const min = Math.max(0, Number(group.minSelections || 0));
-          const max = Math.max(min, Number(group.maxSelections || group.options?.length || 1));
-          const options = (group.options || []).join("/");
-          return `${group.name}[groupId="${group.id}",min=${min},max=${max}]:${options}`;
-        })
-        .join(" | ");
-      return `${item.id}: ${item.name} / ${item.nameEs} (${price})${modifiers ? ` modifiers=[${modifiers}]` : ""}`;
-    })
-    .join("; ");
 
   return {
     type: "session.update",
@@ -955,13 +962,15 @@ function buildSessionUpdatePayload() {
         "If the cart is not empty, remember it. Never ask 'what would you like to order' as if starting over; instead refer to the current cart, ask 'Anything else?' only if needed, or proceed to checkout. " +
         "For remove or change requests, resolve phrases like 'last item', 'that', 'the current item', item numbers, or item names against the current cart. Use remove_item or update_item. " +
         "When the customer says change/switch/make an existing item's tortilla, meat, quantity, or modifiers, call update_item on that cart item immediately. Never ask to add one now, and never claim it changed unless update_item succeeded. " +
-        "For mixed quantities in one sentence, call add_item once with itemQuery as the full phrase, for example 'three tacos, two tripas, one chorizo'; the app will split them into separate cart lines. " +
+        "For mixed quantities, modifiers, or combo builds, call add_item once with itemQuery as the full customer phrase. The app resolver will split items, choose modifiers, and return combo steps. " +
+        "When tool output includes comboStep, ask exactly comboStep.question and do not invent other combo questions. The next customer answer should call add_item with itemQuery as their exact answer. " +
+        "Do not read long option lists unless the tool question explicitly includes them. The screen shows available options. " +
         "If the customer asks a menu, price, allergy, or other question, answer directly and briefly, then return to order taking. " +
         "Collect pickup or delivery only when the customer starts checkout, says they are done, or mentions pickup/delivery. For delivery, collect the address before closing the order. " +
         "Avoid off-menu items. If unavailable, say it is unavailable and offer one closest menu item only if obvious. " +
         "Only discuss allergens or dietary restrictions when the customer asks or reports an allergy. Do not proactively ask about allergens. " +
-        "For COMBO Tacos, require these build steps before add_item: (A) tortilla shell, (B) item #1 meat, (CD) item #2 meat, and (D) COMBO side. Treat other COMBO Tacos groups as optional. " +
-        "If a customer later asks to add an optional COMBO Tacos modifier (for example DELUXE), update the existing COMBO Tacos line instead of saying it is unavailable. " +
+        "For combo orders, the resolver controls the build steps. Do not use local guesses for combo modifier order. " +
+        "Deluxe adds lettuce, pico de gallo, queso fresco, and sour cream. Never say deluxe includes drinks, chips, fries, or papas. " +
         "For items with modifier groups, ask one concise combined question for missing required groups, then call add_item once they are fully selected. " +
         "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices. " +
         "For sub-dollar amounts in assistant replies, never write decimals like $0.75 or .75 dollars. Say 75 cents in English or 75 centavos in Spanish. " +
@@ -976,7 +985,7 @@ function buildSessionUpdatePayload() {
           : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never output Spanish unless quoting an exact menu item name when unavoidable. ") +
         `Selected language=${getEffectiveLanguage()}. ` +
         `Current order state (authoritative): ${orderSnapshot}. Always treat this as the latest known order memory, especially after reconnect. ` +
-        `ONLINE menu knowledge: ${menuKnowledge}`,
+        `ONLINE menu item count=${state.menu.length}. Use tool itemQuery for exact menu and modifier resolution instead of memorizing item IDs.`,
       turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 300, prefix_padding_ms: 250 },
       tools: buildRealtimeToolsForClient(),
       input_audio_transcription: { model: "grok-2-audio" },
@@ -1276,6 +1285,117 @@ function flushMicChunkBuffer() {
   }
 }
 
+function buildResolverCartSnapshot() {
+  return state.cart.map((line, index) => ({
+    id: line.item.id,
+    itemId: line.item.id,
+    cartIndex: index,
+    quantity: line.quantity,
+    modifiers: Array.isArray(line.modifiers) ? line.modifiers : []
+  }));
+}
+
+function getResolverToolText(name, args) {
+  const explicit = String(args.itemQuery || args.query || "").trim();
+  if (explicit) return explicit;
+  if (name === "add_item" && args.itemId) {
+    const item = state.menu.find((candidate) => candidate.id === args.itemId);
+    return item?.name || String(args.itemId);
+  }
+  return state.lastUserText || String(args.itemId || "");
+}
+
+function comboBuildingActionFromResolver(result) {
+  if (!result?.comboStep) return null;
+  const selectedItem = result.selectedItem || {};
+  return {
+    type: "combo_building",
+    itemId: selectedItem.itemId || result.comboState?.itemId || "",
+    selectedItem,
+    itemName: result.comboStep.itemName || selectedItem.name || "",
+    step: result.comboStep.step || 1,
+    totalSteps: result.comboStep.totalSteps || 1,
+    stepName: result.comboStep.stepName || "",
+    stepOptions: Array.isArray(result.comboStep.options) ? result.comboStep.options : [],
+    selections: Array.isArray(result.comboStep.selections) ? result.comboStep.selections : []
+  };
+}
+
+async function resolveOrderToolWithMenuBrain(name, args) {
+  if (!["add_item", "remove_item", "update_item"].includes(name)) return null;
+
+  const text = getResolverToolText(name, args);
+  const response = await fetch(`/api/${state.tenantSlug}/menu/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      language: getEffectiveLanguage(),
+      actionHint: name,
+      toolArgs: args,
+      cart: buildResolverCartSnapshot(),
+      comboState: state.pendingComboState || undefined
+    })
+  });
+
+  const result = await response.json().catch(() => ({ ok: false, reason: "resolver_error" }));
+  if (!response.ok) {
+    return { output: { ok: false, reason: "resolver_error", message: result?.message || "Menu resolver failed." } };
+  }
+
+  const actionList = Array.isArray(result.actions) ? [...result.actions] : [];
+  const comboAction = comboBuildingActionFromResolver(result);
+  if (comboAction) {
+    actionList.unshift(comboAction);
+  }
+
+  if (result.comboState && result.comboStep) {
+    state.pendingComboState = result.comboState;
+  } else if (actionList.some((action) => action.type === "add_item")) {
+    state.pendingComboState = null;
+    state.pendingComboPreview = null;
+  }
+
+  if (!comboAction && !actionList.length && !state.pendingComboState && ["unknown_menu_item", "unknown_cart_item"].includes(result.reason)) {
+    return null;
+  }
+
+  return {
+    actions: actionList,
+    output: {
+      ...result,
+      actions: undefined
+    }
+  };
+}
+
+async function resolvePendingComboTurnLocally(text) {
+  state.turnInFlight = true;
+  state.lastUserText = text;
+  ui.status.textContent = "Processing…";
+  try {
+    const result = await resolveOrderToolWithMenuBrain("add_item", { itemQuery: text });
+    const actions = result?.actions || [];
+    if (actions.length) {
+      applyActions(actions);
+    }
+    const output = result?.output || {};
+    const fallback = getEffectiveLanguage() === "es" ? "Listo." : "Done.";
+    const reply = output.message || output.orderSummary || fallback;
+    ui.reply.textContent = formatCentsForSpeech(reply);
+    await speakLocalText(reply, getEffectiveLanguage());
+    pulseAvatarState(actions.some((action) => action.type === "add_item") ? "happy" : "questioning", 1200, "idle");
+    return true;
+  } catch (error) {
+    ui.status.textContent = error instanceof Error ? error.message : "Resolver error";
+    setAvatarState("frustrated");
+    return false;
+  } finally {
+    state.turnInFlight = false;
+    ui.status.textContent = "Connected";
+  }
+}
+
 async function handleToolCall(name, argsJson) {
   const args = safeJsonParse(argsJson || "{}");
   if (name === "check_delivery_zone") {
@@ -1299,6 +1419,11 @@ async function handleToolCall(name, argsJson) {
   }
 
   if (["add_item", "remove_item", "update_item", "set_fulfillment", "set_address", "set_customer", "checkout"].includes(name)) {
+    const menuBrain = await resolveOrderToolWithMenuBrain(name, args);
+    if (menuBrain) {
+      return menuBrain;
+    }
+
     let addItemMode = null;
     if (name === "add_item") {
       const multiResolved = resolveMultipleAddItemToolArgs(args);
@@ -1424,7 +1549,10 @@ function normalizeToolModifiers(raw) {
     .filter((entry) => entry && typeof entry === "object")
     .map((entry) => ({
       groupId: String(entry.groupId || "").trim(),
+      groupName: String(entry.groupName || "").trim(),
       option: String(entry.option || "").trim(),
+      optionId: String(entry.optionId || "").trim(),
+      priceDeltaCents: Number.isFinite(Number(entry.priceDeltaCents)) ? Number(entry.priceDeltaCents) : undefined,
       quantity: Math.max(1, Number(entry.quantity) || 1)
     }))
     .filter((entry) => entry.option);
@@ -2552,7 +2680,8 @@ function stopBrowserRecognition() {
 
 function sendOptionChip(btn) {
   const text = btn.textContent.trim();
-  if (!text || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  if (!text) return;
+  if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) return;
   // Visually mark as selected
   const allChips = btn.closest("ul")?.querySelectorAll(".combo-option-chip");
   allChips?.forEach((c) => c.classList.remove("selected"));
@@ -2566,7 +2695,10 @@ function sendOptionChip(btn) {
 }
 
 function sendUserTurn(text) {
-  if (!text || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+  if (!text) {
+    return false;
+  }
+  if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) {
     return false;
   }
   if (!hasSelectedLanguage()) {
@@ -2584,6 +2716,10 @@ function sendUserTurn(text) {
     ui.reply.textContent = formatCentsForSpeech(reply);
     void speakLocalText(reply, getEffectiveLanguage());
     pulseAvatarState("talking_neutral", 1200, "idle");
+    return true;
+  }
+  if (state.pendingComboState) {
+    void resolvePendingComboTurnLocally(text);
     return true;
   }
   state.turnInFlight = true;
@@ -2608,10 +2744,35 @@ function sendWs(payload) {
   state.ws.send(JSON.stringify(payload));
 }
 
+function findComboActionItem(action) {
+  const itemId = action.itemId || action.selectedItem?.itemId;
+  if (itemId) {
+    const item = state.menu.find((candidate) => candidate.id === itemId);
+    if (item) return item;
+  }
+  const name = normalizeOptionKey(action.itemName || action.selectedItem?.name || "");
+  if (!name) return null;
+  return state.menu.find((candidate) => normalizeOptionKey(candidate.name) === name)
+    || state.menu.find((candidate) => normalizeOptionKey(candidate.name).includes(name) || name.includes(normalizeOptionKey(candidate.name)))
+    || null;
+}
+
 function applyActions(actions) {
   let addedItem = false;
   for (const action of actions) {
     if (action.type === "combo_building") {
+      const comboItem = findComboActionItem(action);
+      if (comboItem) {
+        state.lastSelectedItem = comboItem;
+        state.pendingComboPreview = {
+          item: comboItem,
+          quantity: 1,
+          modifiers: (action.selections || []).map((label) => ({ option: String(label), quantity: 1 })),
+          step: action.step || 1,
+          totalSteps: action.totalSteps || 1,
+          stepName: action.stepName || ""
+        };
+      }
       const buildKey = `${action.itemName || ""}|${action.step || 0}|${(action.selections || []).join("|")}`;
       if (buildKey !== state.lastComboAnimationKey) {
         state.lastComboAnimationKey = buildKey;
@@ -2628,6 +2789,8 @@ function applyActions(actions) {
         }
       }
       renderComboTracker(action.itemName, action.step, action.totalSteps, action.selections || [], action.stepName || "", action.stepOptions || []);
+      renderSelectedPreview(comboItem || state.lastSelectedItem);
+      renderSelectedItemsPanel();
       continue;
     }
 
@@ -2651,6 +2814,8 @@ function applyActions(actions) {
 
       addCartItem(menuItem, Number(action.quantity) || 1, Array.isArray(action.modifiers) ? action.modifiers : []);
       addedItem = true;
+      state.pendingComboState = null;
+      state.pendingComboPreview = null;
       state.lastComboAnimationKey = "";
       clearComboTracker();
       continue;
@@ -2783,33 +2948,56 @@ function renderComboTracker(itemName, step, totalSteps, selections, stepName, st
   const askEl = document.getElementById("combo-tracker-ask");
   const stepLabelEl = document.getElementById("combo-tracker-step-label");
   const optionsEl = document.getElementById("combo-tracker-options");
+  const backEl = document.getElementById("combo-tracker-back");
+  const nextEl = document.getElementById("combo-tracker-next");
   if (!tracker || !nameEl || !progressEl || !listEl) return;
 
   nameEl.textContent = itemName;
   progressEl.textContent = `${step}/${totalSteps}`;
 
   // Confirmed selections — shown as small checkmarked pills
-  listEl.innerHTML = selections
-    .map((s) => `<li class="selection-done">\u2713 ${s}</li>`)
-    .join("");
+  listEl.textContent = "";
+  for (const selection of selections) {
+    const item = document.createElement("li");
+    item.className = "selection-done";
+    item.textContent = `✓ ${selection}`;
+    listEl.appendChild(item);
+  }
 
   // Current step options — shown as tappable chips
   if (askEl && stepLabelEl && optionsEl && stepOptions && stepOptions.length > 0) {
     stepLabelEl.textContent = stepName || "";
-    optionsEl.innerHTML = stepOptions
-      .slice(0, 10)
-      .map((o) => `<li><button class="combo-option-chip" onclick="sendOptionChip(this)">${o}</button></li>`)
-      .join("");
+    optionsEl.textContent = "";
+    for (const option of stepOptions) {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "combo-option-chip";
+      button.textContent = option;
+      button.addEventListener("click", () => sendOptionChip(button));
+      li.appendChild(button);
+      optionsEl.appendChild(li);
+    }
     askEl.classList.remove("is-hidden");
   } else if (askEl) {
     askEl.classList.add("is-hidden");
   }
+
+  if (backEl) backEl.textContent = getEffectiveLanguage() === "es" ? "Atrás" : "Back";
+  if (nextEl) nextEl.textContent = getEffectiveLanguage() === "es" ? "Siguiente" : "Next";
 
   tracker.classList.remove("is-hidden");
 }
 
 function clearComboTracker() {
   document.getElementById("combo-tracker")?.classList.add("is-hidden");
+}
+
+function sendComboNav(direction) {
+  const text = direction === "back"
+    ? (getEffectiveLanguage() === "es" ? "atrás" : "back")
+    : (getEffectiveLanguage() === "es" ? "siguiente" : "next");
+  sendUserTurn(text);
 }
 
 function getPreviewDescription(item) {
@@ -2887,13 +3075,13 @@ function renderCart() {
     if (Array.isArray(line.modifiers) && line.modifiers.length > 0) {
       const mods = document.createElement("div");
       mods.className = "cart-item-mods";
-      const modifierDelta = getModifierDeltaPerUnitCents(line);
-      const modifierText = line.modifiers
-        .map((m) => (m.quantity > 1 ? `${m.quantity}x ${m.option}` : m.option))
-        .join(", ");
-      mods.textContent = modifierDelta
-        ? `${modifierText} (${centsToUsd(line.item.priceCents || 0)} + ${centsToUsd(modifierDelta)})`
-        : modifierText;
+      for (const modifier of line.modifiers) {
+        const chip = document.createElement("span");
+        chip.className = "cart-item-mod-chip";
+        const qty = Number(modifier.quantity || 0);
+        chip.textContent = `${qty > 1 ? `${qty}x ` : ""}${stripModifierPriceText(modifier.option)}${getModifierUpchargeLabel(modifier)}`;
+        mods.appendChild(chip);
+      }
       main.appendChild(mods);
     }
 
@@ -2912,45 +3100,60 @@ function renderSelectedItemsPanel() {
   if (!ui.selectedItemsList) return;
   ui.selectedItemsList.innerHTML = "";
 
-  for (const line of state.cart.slice(-6).reverse()) {
-    const card = document.createElement("article");
-    card.className = "selected-item-card";
-
-    const thumb = document.createElement("img");
-    thumb.className = "selected-item-thumb";
-    thumb.alt = line.item.name;
-    thumb.src = line.item.imageUrl || "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=240&q=70";
-
-    const body = document.createElement("div");
-    const name = document.createElement("div");
-    name.className = "selected-item-name";
-    const label = getEffectiveLanguage() === "es" ? line.item.nameEs : line.item.name;
-    name.textContent = `${line.quantity} x ${label}`;
-    body.appendChild(name);
-
-    if (Array.isArray(line.modifiers) && line.modifiers.length > 0) {
-      const mods = document.createElement("div");
-      mods.className = "selected-item-mods";
-      for (const m of line.modifiers) {
-        const chip = document.createElement("span");
-        chip.className = "selected-item-mod-chip";
-        const qty = Number(m.quantity || 0);
-        const group = m.groupName ? `${m.groupName}: ` : "";
-        chip.textContent = `${group}${qty > 1 ? `${qty}x ` : ""}${m.option}${getModifierUpchargeLabel(m)}`;
-        mods.appendChild(chip);
-      }
-      body.appendChild(mods);
-    }
-
-    const price = document.createElement("div");
-    price.className = "selected-item-price";
-    price.textContent = centsToUsd(getCartLineTotalCents(line));
-
-    card.appendChild(thumb);
-    card.appendChild(body);
-    card.appendChild(price);
-    ui.selectedItemsList.appendChild(card);
+  if (state.pendingComboPreview?.item) {
+    ui.selectedItemsList.appendChild(createSelectedItemCard(state.pendingComboPreview, { pending: true }));
   }
+
+  for (const line of state.cart.slice(-6).reverse()) {
+    ui.selectedItemsList.appendChild(createSelectedItemCard(line));
+  }
+}
+
+function createSelectedItemCard(line, options = {}) {
+  const card = document.createElement("article");
+  card.className = `selected-item-card${options.pending ? " is-pending" : ""}`;
+
+  const thumb = document.createElement("img");
+  thumb.className = "selected-item-thumb";
+  thumb.alt = line.item.name;
+  thumb.src = line.item.imageUrl || "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=240&q=70";
+
+  const body = document.createElement("div");
+  const name = document.createElement("div");
+  name.className = "selected-item-name";
+  const label = getEffectiveLanguage() === "es" ? line.item.nameEs : line.item.name;
+  name.textContent = `${options.pending ? "Building: " : ""}${line.quantity} x ${label}`;
+  body.appendChild(name);
+
+  if (options.pending) {
+    const step = document.createElement("div");
+    step.className = "selected-item-pending-step";
+    step.textContent = `${line.stepName || "Combo"} ${line.step || 1}/${line.totalSteps || 1}`;
+    body.appendChild(step);
+  }
+
+  if (Array.isArray(line.modifiers) && line.modifiers.length > 0) {
+    const mods = document.createElement("div");
+    mods.className = "selected-item-mods";
+    for (const m of line.modifiers) {
+      const chip = document.createElement("span");
+      chip.className = "selected-item-mod-chip";
+      const qty = Number(m.quantity || 0);
+      const group = m.groupName && !options.pending ? `${m.groupName}: ` : "";
+      chip.textContent = `${group}${qty > 1 ? `${qty}x ` : ""}${m.option}${options.pending ? "" : getModifierUpchargeLabel(m)}`;
+      mods.appendChild(chip);
+    }
+    body.appendChild(mods);
+  }
+
+  const price = document.createElement("div");
+  price.className = "selected-item-price";
+  price.textContent = options.pending ? "…" : centsToUsd(getCartLineTotalCents(line));
+
+  card.appendChild(thumb);
+  card.appendChild(body);
+  card.appendChild(price);
+  return card;
 }
 
 function centsToUsd(value) {
@@ -3345,3 +3548,4 @@ function blobToBase64(blob) {
 }
 
 window.sendOptionChip = sendOptionChip;
+window.sendComboNav = sendComboNav;
