@@ -1344,6 +1344,14 @@ async function resolveOrderToolWithMenuBrain(name, args) {
   }
 
   const actionList = Array.isArray(result.actions) ? [...result.actions] : [];
+  const selectedItem = result.selectedItem && typeof result.selectedItem === "object" ? result.selectedItem : null;
+  if (selectedItem?.itemId) {
+    for (const action of actionList) {
+      if (action.type === "add_item" && action.itemId === selectedItem.itemId) {
+        action.selectedItem = selectedItem;
+      }
+    }
+  }
   const comboAction = comboBuildingActionFromResolver(result);
   if (comboAction) {
     actionList.unshift(comboAction);
@@ -2703,7 +2711,8 @@ function sendUserTurn(text) {
     startLanguagePromptLoop();
     return false;
   }
-  if (state.pendingComboState && state.elviSpeaking && !state.turnInFlight) {
+  const useLocalResolver = state.pendingComboState || shouldResolveStructuredBuildLocally(text);
+  if (useLocalResolver && state.elviSpeaking && !state.turnInFlight) {
     stopCurrentAudio();
     state.elviSpeaking = false;
   }
@@ -2719,7 +2728,7 @@ function sendUserTurn(text) {
     pulseAvatarState("talking_neutral", 1200, "idle");
     return true;
   }
-  if (state.pendingComboState) {
+  if (useLocalResolver) {
     void resolvePendingComboTurnLocally(text);
     return true;
   }
@@ -2735,6 +2744,14 @@ function sendUserTurn(text) {
   });
   sendWs({ type: "response.create" });
   return true;
+}
+
+function shouldResolveStructuredBuildLocally(text) {
+  const normalized = normalizeOptionKey(text);
+  if (!normalized) return false;
+  if (/\b(pack meal|pack meals|meal pack|meals pack|paquete|paquetes)\b/.test(normalized)) return true;
+  if (/\b(combo|combos|combinacion|combinaciones)\b/.test(normalized)) return true;
+  return new RegExp(`\\b${quantityPattern()}\\s+pack\\b`, "i").test(normalized);
 }
 
 function sendWs(payload) {
@@ -2755,7 +2772,25 @@ function findComboActionItem(action) {
   if (!name) return null;
   return state.menu.find((candidate) => normalizeOptionKey(candidate.name) === name)
     || state.menu.find((candidate) => normalizeOptionKey(candidate.name).includes(name) || name.includes(normalizeOptionKey(candidate.name)))
+    || menuItemFromResolverSelection(action.selectedItem, itemId)
     || null;
+}
+
+function menuItemFromResolverSelection(selectedItem, fallbackId = "") {
+  if (!selectedItem || typeof selectedItem !== "object") return null;
+  const id = String(selectedItem.itemId || fallbackId || "").trim();
+  const name = String(selectedItem.name || id).trim();
+  if (!id || !name) return null;
+  return {
+    id,
+    name,
+    nameEs: String(selectedItem.nameEs || selectedItem.name || name),
+    aliases: [],
+    priceCents: Math.max(0, Number(selectedItem.priceCents) || 0),
+    description: String(selectedItem.description || "").trim() || undefined,
+    imageUrl: String(selectedItem.imageUrl || "").trim() || undefined,
+    modifierGroups: Array.isArray(selectedItem.modifierGroups) ? selectedItem.modifierGroups : undefined
+  };
 }
 
 function applyActions(actions) {
@@ -2796,7 +2831,8 @@ function applyActions(actions) {
     }
 
     if (action.type === "add_item") {
-      const menuItem = state.menu.find((item) => item.id === action.itemId);
+      const menuItem = state.menu.find((item) => item.id === action.itemId)
+        || menuItemFromResolverSelection(action.selectedItem, action.itemId);
       if (!menuItem) {
         continue;
       }

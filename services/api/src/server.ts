@@ -5,8 +5,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
 import { chatWithElvi } from "./elvi.js";
-import { createCheckout, getMenu } from "./square.js";
+import { createCheckout, getFullMenu, getMenu } from "./square.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
+import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { attachRealtimeServer, createRealtimeSession } from "./realtime.js";
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 
@@ -142,8 +143,9 @@ function buildResolverInput(body: unknown) {
 app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
-    const items = await getMenu(buildSquareConfig(tenant));
-    const result = resolveMenuRequest(items, buildResolverInput(req.body));
+    const items = await getFullMenu(buildSquareConfig(tenant));
+    const input = buildResolverInput(req.body);
+    const result = resolvePackMealRequest(items, input) || resolveMenuRequest(items, input);
     res.json(result);
   } catch (error) {
     next(error);
@@ -153,8 +155,9 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
 app.post("/api/menu/resolve", async (req, res, next) => {
   try {
     const tenant = resolveDefaultTenant(req.headers.host);
-    const items = await getMenu(buildSquareConfig(tenant));
-    const result = resolveMenuRequest(items, buildResolverInput(req.body));
+    const items = await getFullMenu(buildSquareConfig(tenant));
+    const input = buildResolverInput(req.body);
+    const result = resolvePackMealRequest(items, input) || resolveMenuRequest(items, input);
     res.json(result);
   } catch (error) {
     next(error);

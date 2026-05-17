@@ -1,4 +1,6 @@
 import { nanoid } from "nanoid";
+import fs from "node:fs";
+import path from "node:path";
 import { fallbackMenu, type MenuItem, type ModifierGroup, type ModifierOption } from "./menu.js";
 
 type CartItem = {
@@ -219,7 +221,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   if (input.fulfillment === "DELIVERY" && !input.customer?.address) {
     throw new Error("Delivery address is required");
   }
-  const menu = await getMenu(runtime);
+  const menu = await getFullMenu(runtime);
 
   const response = await squareRequest<{
     payment_link: { id: string; url: string; order_id?: string };
@@ -252,7 +254,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   };
 }
 
-export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<MenuItem[]> {
+export async function getFullMenu(config?: Partial<SquareRuntimeConfig>): Promise<MenuItem[]> {
   const runtime = getSquareConfig(config);
   if (!runtime.accessToken || !runtime.locationId) {
     return fallbackMenu;
@@ -323,6 +325,202 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
   // When Square is configured, do not silently switch to hardcoded fallback
   // if there are no ONLINE items. Returning [] makes the issue explicit.
   return [];
+}
+
+export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<MenuItem[]> {
+  const runtime = getSquareConfig(config);
+  const fullMenu = await getFullMenu(runtime);
+  if (!runtime.accessToken || !runtime.locationId) {
+    return fullMenu;
+  }
+
+  return buildReviewedOnlineMenu(fullMenu);
+}
+
+type ReviewedMenuEntry = {
+  name: string;
+  matchers: RegExp[];
+};
+
+const DEFAULT_REVIEWED_ONLINE_NAMES = [
+  "COMBO Mix",
+  "COMBO Gorditas",
+  "COMBO Tortas",
+  "COMBO Burrito",
+  "COMBO Quesadillas",
+  "COMBO Tacos",
+  "8 Pack MEAL",
+  "7 Pack MEAL",
+  "6 Pack MEAL",
+  "5 Pack MEAL",
+  "4 Pack MEAL",
+  "3 Pack MEAL",
+  "(QD) Quesadilla Dorada",
+  "Birria de Chivo / Goat Birria",
+  "Queso Birrias",
+  "Pambazo Elvis",
+  "Tacos al Vapor / Steamed Tacos",
+  "Enchiladas",
+  "Large Fiesta Platter",
+  "Medium Fiesta Platter",
+  "Small Fiesta Platter",
+  "Rice / Beans Fiesta Pan",
+  "Tortillas",
+  "Fiesta Fajitas",
+  "Dips",
+  "Elvis Dip",
+  "Esquite Elvis",
+  "Sides",
+  "Extras",
+  "Coctel de Camarones / Shrimp Cocktail",
+  "Ceviche",
+  "Nachos Elvis",
+  "Tacos Dorados",
+  "Traditional Elvis Bowl",
+  "Burrito",
+  "Gordita",
+  "Torta",
+  "Quesadilla",
+  "Taco",
+  "Mole Tradicional Platillo",
+  "Fajitas Elvis",
+  "Platillo de Guisado",
+  "Chiles Rellenos / Stuffed Poblano Peppers",
+  "Sopesaso Elvis",
+  "Huarache Elvis",
+  "Pozole Rojo / Red Pozole",
+  "Chimichanga",
+  "Chilaquiles con Huevo"
+];
+
+function buildReviewedOnlineMenu(fullMenu: MenuItem[]) {
+  const entries = getReviewedOnlineEntries();
+  const usedIds = new Set<string>();
+
+  return entries.map((entry) => {
+    const matches = fullMenu.filter((item) => {
+      if (usedIds.has(item.id)) return false;
+      const text = normalizeName(`${item.name} ${item.nameEs}`);
+      return entry.matchers.some((matcher) => matcher.test(text));
+    });
+
+    for (const match of matches) {
+      usedIds.add(match.id);
+    }
+
+    return buildReviewedMenuItem(entry.name, matches);
+  });
+}
+
+function buildReviewedMenuItem(reviewedName: string, matches: MenuItem[]) {
+  const slug = normalizeName(reviewedName).replace(/\s+/g, "-") || "reviewed-online-item";
+  const primary = matches[0];
+  if (!primary) {
+    return {
+      id: `reviewed-${slug}`,
+      name: reviewedName,
+      nameEs: reviewedName,
+      aliases: [reviewedName, normalizeName(reviewedName)].filter(Boolean),
+      priceCents: 0,
+      description: `${reviewedName} from the reviewed Cocina Elvis ONLINE menu.`
+    };
+  }
+
+  const aliases = new Set<string>([
+    reviewedName,
+    normalizeName(reviewedName),
+    ...matches.flatMap((item) => [item.name, item.nameEs, ...(item.aliases || [])])
+  ].filter(Boolean));
+  const variantOptions = matches.length > 1
+    ? [{
+        id: `reviewed-${slug}-options`,
+        name: `${reviewedName} options`,
+        options: matches.map((item) => ({
+          id: item.id,
+          name: trimReviewedVariantName(reviewedName, item.name),
+          priceDeltaCents: item.priceCents - primary.priceCents
+        })),
+        minSelections: 0,
+        maxSelections: 1
+      }]
+    : [];
+
+  return {
+    ...primary,
+    name: reviewedName,
+    nameEs: reviewedName,
+    aliases: Array.from(aliases),
+    description: primary.description || `${reviewedName} from the reviewed Cocina Elvis ONLINE menu.`,
+    modifierGroups: variantOptions.length
+      ? [...variantOptions, ...(primary.modifierGroups || [])]
+      : primary.modifierGroups
+  };
+}
+
+function getReviewedOnlineEntries(): ReviewedMenuEntry[] {
+  return getReviewedOnlineNames().map((name) => ({
+    name,
+    matchers: buildReviewedNameMatchers(name)
+  }));
+}
+
+function getReviewedOnlineNames() {
+  const candidates = [
+    path.resolve(process.cwd(), "Menu Elvi Step by Step Build/Menu Items Online.rtf"),
+    path.resolve(process.cwd(), "../Menu Elvi Step by Step Build/Menu Items Online.rtf"),
+    path.resolve(process.cwd(), "../../Menu Elvi Step by Step Build/Menu Items Online.rtf")
+  ];
+  for (const reviewedFile of candidates) {
+    try {
+      const content = fs.readFileSync(reviewedFile, "utf8");
+      const names = Array.from(content.matchAll(/(?:^|\\|\n)\s*([^\\{}\n]+?)\s*\(ONLINE\)/g))
+        .map((match) => match[1]?.replace(/\\[a-z]+\d*\s*/gi, "").trim())
+        .filter((name): name is string => Boolean(name));
+      if (names.length > 0) {
+        return Array.from(new Set(names));
+      }
+    } catch {
+      // Try the next likely working directory.
+    }
+  }
+  return DEFAULT_REVIEWED_ONLINE_NAMES;
+}
+
+function buildReviewedNameMatchers(name: string) {
+  const normalized = normalizeName(name);
+  const exactPrefix = (value: string) => new RegExp(`^${escapeRegExp(value)}(?:\\b|$)`, "i");
+  const matchers: RegExp[] = [];
+
+  if (/^\d+\s+pack meal$/.test(normalized)) {
+    matchers.push(exactPrefix(normalized));
+  } else if (/^qd quesadilla dorada$/.test(normalized)) {
+    matchers.push(/^(qd )?quesadilla dorada\b/i);
+  } else if (normalized === "tacos dorados") {
+    matchers.push(/^tacos dorados\b/i);
+  } else if (normalized === "rice beans fiesta pan") {
+    matchers.push(/^rice beans fiesta pan\b/i);
+  } else if (normalized === "queso birrias") {
+    matchers.push(/^queso birrias?\b/i);
+  } else if (normalized === "chiles rellenos stuffed poblano peppers") {
+    matchers.push(/^chiles rellenos\b/i);
+  } else {
+    matchers.push(exactPrefix(normalized));
+  }
+
+  return matchers;
+}
+
+function trimReviewedVariantName(reviewedName: string, variantName: string) {
+  const reviewedKey = normalizeName(reviewedName);
+  const variantKey = normalizeName(variantName);
+  if (!variantKey.startsWith(reviewedKey)) {
+    return variantName;
+  }
+
+  const trimmed = variantName.slice(reviewedName.length)
+    .replace(/^\s*[-:/]?\s*/, "")
+    .trim();
+  return trimmed || variantName;
 }
 
 function buildMenuFromSquareCatalog(
@@ -573,6 +771,10 @@ function normalizeName(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function isOnlineCategoryName(value: string) {
