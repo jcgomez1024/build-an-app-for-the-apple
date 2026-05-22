@@ -6,6 +6,7 @@ import { chatWithElvi, chatWithElviAudio, type ConversationTurn } from "./elvi.j
 import { getMenu } from "./square.js";
 import type { MenuItem } from "./menu.js";
 import type { TenantConfig } from "./tenant.js";
+import { extractReplacementBuildText } from "./text-intents.js";
 
 type Language = "en" | "es";
 
@@ -912,33 +913,39 @@ async function processTurn(
   // If mid-combo, check for bail-out intent before routing to the combo step handler
   if (session.pendingCombo) {
     const normBailout = transcript.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").trim();
-    const isBailout = /\b(forget it|start over|cancel|never mind|nevermind|something else|different|olvida|cancelar|empieza de nuevo|otra cosa|otro)\b/.test(normBailout);
+    const isBailout = /\b(forget it|start over|cancel|never mind|nevermind|something else|different|instead|rather|olvida|cancelar|empieza de nuevo|otra cosa|otro|mejor|en vez)\b/.test(normBailout);
     if (isBailout) {
       const cancelledItem = session.pendingCombo.itemName;
+      const replacement = extractReplacementBuildText(normBailout);
       session.pendingCombo = undefined;
-      // Re-process as a normal turn so any new item in the transcript is handled
-      const reply =
-        language === "es"
-          ? `Cancelé ${cancelledItem}.`
-          : `Cancelled ${cancelledItem}.`;
-      const tts = await pickTts(session.tenant, reply, language);
-      const animation = tts.visemes?.length
-        ? { visemes: tts.visemes, engine: "provider" }
-        : await generateVisemes(session.tenant, reply, tts.audioBase64);
-      sendJson(socket, {
-        type: "assistant_turn",
-        reply,
-        language,
-        actions: [],
-        audioBase64: tts.audioBase64,
-        audioMimeType: tts.mimeType,
-        visemes: animation.visemes,
-        engines: { asr: asrEngine, chat: "combo", tts: tts.engine, animation: animation.engine }
-      });
+      if (replacement) {
+        transcript = replacement;
+      } else {
+        const reply =
+          language === "es"
+            ? `Cancelé ${cancelledItem}.`
+            : `Cancelled ${cancelledItem}.`;
+        const tts = await pickTts(session.tenant, reply, language);
+        const animation = tts.visemes?.length
+          ? { visemes: tts.visemes, engine: "provider" }
+          : await generateVisemes(session.tenant, reply, tts.audioBase64);
+        sendJson(socket, {
+          type: "assistant_turn",
+          reply,
+          language,
+          actions: [],
+          audioBase64: tts.audioBase64,
+          audioMimeType: tts.mimeType,
+          visemes: animation.visemes,
+          engines: { asr: asrEngine, chat: "combo", tts: tts.engine, animation: animation.engine }
+        });
+        return;
+      }
+    }
+    if (session.pendingCombo) {
+      await processComboStep(socket, session, transcript, language);
       return;
     }
-    await processComboStep(socket, session, transcript, language);
-    return;
   }
 
   const menu = await getSessionMenu(session);

@@ -56,6 +56,7 @@ const state = {
   lastUserText: "",
   languagePromptLoopActive: false,
   languagePromptTimers: [],
+  realtimeStarted: false,
 };
 
 const ui = {
@@ -98,6 +99,12 @@ const ui = {
   modifierAdd: document.getElementById("modifier-add"),
   selectedItemsList: document.getElementById("selected-items-list"),
 };
+
+// Hoisted early to avoid TDZ errors during boot() / language prompt loop
+let _sharedAudioCtx      = null;
+let _currentAudioSource  = null;
+let _queuedSources       = [];
+let _nextPlayTime        = 0;
 
 // ── Mount 3-D Elvi avatar ──────────────────────────────────────────────────
 const avatarCanvas = document.getElementById("avatar-canvas");
@@ -260,20 +267,45 @@ function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
   });
 }
 
+async function speakXAIOnly(text, lang) {
+  // Always use xAI TTS for the language prompt — never fall back to robotic browser voice
+  try {
+    const res = await fetch(`/api/${state.tenantSlug}/xai/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language: lang })
+    });
+    const data = await res.json();
+    if (res.ok && data.audioBase64) {
+      await playLocalAudioBase64(data.audioBase64, data.mimeType || "audio/mpeg");
+    }
+  } catch (err) {
+    console.warn("[LanguagePrompt] xAI speech failed, skipping (no robotic fallback)");
+  }
+}
+
 async function announceLanguagePromptLoop() {
   if (!state.languagePromptLoopActive || hasSelectedLanguage()) {
     return;
   }
 
-  window.speechSynthesis?.cancel();
+  if (!state.xaiSessionReady) {
+    queueLanguagePromptTimer(announceLanguagePromptLoop, 800);
+    return;
+  }
+
   const shouldContinue = () => state.languagePromptLoopActive && !hasSelectedLanguage();
-  await speakLocalText(LANGUAGE_PROMPT_EN, "en", { shouldContinue });
+
+  await speakXAIOnly(LANGUAGE_PROMPT_EN, "en");
   if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
-  await wait(650);
+
+  await wait(900);
+
   if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
-  await speakLocalText(LANGUAGE_PROMPT_ES, "es", { shouldContinue });
-  if (!state.languagePromptLoopActive || hasSelectedLanguage()) return;
-  queueLanguagePromptTimer(announceLanguagePromptLoop, 2500);
+  await speakXAIOnly(LANGUAGE_PROMPT_ES, "es");
+
+  // Repeat after ~5 seconds of inactivity
+  queueLanguagePromptTimer(announceLanguagePromptLoop, 5000);
 }
 
 function startLanguagePromptLoop() {
@@ -283,7 +315,9 @@ function startLanguagePromptLoop() {
 
   state.languagePromptLoopActive = true;
   clearLanguagePromptTimers();
-  announceLanguagePromptLoop();
+
+  // First gentle reminder after ~5 seconds of inactivity
+  queueLanguagePromptTimer(announceLanguagePromptLoop, 5000);
 }
 
 function stopLanguagePromptLoop() {
@@ -350,11 +384,33 @@ function setLanguageMode(mode) {
   });
 
   ui.reply.textContent = getLanguageIntro();
-  speakSelectedLanguageIntro();
   updateLanguageGate();
   renderMenuExplorer();
   renderCart();
   syncRealtimeOrderContext();
+
+  // Start xAI realtime voice only after language is confirmed
+  if (!state.realtimeStarted) {
+    state.realtimeStarted = true;
+    ui.status.textContent = "Starting voice agent…";
+    console.log("[BOOT] Language selected — starting xAI realtime session");
+    openRealtimeSession()
+      .then(() => {
+        // On success, the internal logic in openRealtimeSession will set "Connected"
+        // when the session.updated message arrives.
+      })
+      .catch((err) => {
+        ui.status.textContent = "Failed to start voice. Please refresh the page.";
+        console.error("[VOICE] Failed to start realtime after language selection:", err);
+      });
+  }
+
+  // Optional short welcome using proper xAI voice (after session is ready)
+  setTimeout(() => {
+    if (state.xaiSessionReady) {
+      speakSelectedLanguageIntro();
+    }
+  }, 800);
 }
 
 boot().catch((error) => {
@@ -375,10 +431,10 @@ async function boot() {
     console.log("[BOOT] Building menu sections");
     buildMenuSections();
     renderMenuExplorer();
-    console.log("[BOOT] Opening realtime session");
-    await openRealtimeSession();
-    console.log("[BOOT] Boot complete");
-    ui.status.textContent = "Connected";
+    console.log("[BOOT] Opening realtime session early (for language prompt)");
+    // Start session early so we can use proper xAI voice for the language selection prompt
+    openRealtimeSession().catch(() => {});
+    ui.status.textContent = "Select language to begin";
   } catch (err) {
     console.error("[BOOT] Error:", err);
     throw err;
@@ -917,6 +973,17 @@ async function openRealtimeSession() {
           output: JSON.stringify(result.output)
         }
       });
+
+      // Reactive build UI update using the new consistent helper
+      // Model is free to speak naturally; visuals stay beautiful
+      if (result.output?.comboStep || result.output?.buildProgress) {
+        const bp = normalizeBuildProgress(result.output);
+        if (bp) state.lastBuildProgress = bp;
+        updateBuildVisuals(result.output);
+        pulseAvatarState("questioning", 900, "idle");
+      }
+
+      // Let the model continue naturally (new behavior)
       sendWs({ type: "response.create" });
       return;
     }
@@ -928,6 +995,29 @@ async function openRealtimeSession() {
       if (!state.elviSpeaking) {
         setAvatarState("idle");
       }
+
+      // Guide step advancement: if the model has started talking about the next step in the guide, advance the visual
+      if (state.currentBuildGuide && state.currentGuideStep) {
+        const guide = state.currentBuildGuide;
+        const currentIdx = state.currentGuideStep - 1;
+
+        if (currentIdx + 1 < guide.steps.length) {
+          const nextStep = guide.steps[currentIdx + 1];
+          const lastReply = (state.activeReplyText || "").toLowerCase();
+          const nextTitle = nextStep.title.toLowerCase();
+
+          // Check if the model is now on the next step (common keywords or exact title)
+          const hasMovedOn = lastReply.includes(nextTitle) ||
+                             (nextTitle.includes("deluxe") && lastReply.includes("deluxe")) ||
+                             (nextTitle.includes("dip") && lastReply.includes("dip"));
+
+          if (hasMovedOn) {
+            state.currentGuideStep = state.currentGuideStep + 1;
+            updateBuildVisuals({});
+          }
+        }
+      }
+
       syncRealtimeOrderContext();
       return;
     }
@@ -941,51 +1031,101 @@ async function openRealtimeSession() {
   });
 }
 
+function getResilientElviInstructions(language) {
+  const langLock = language === "es"
+    ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas y naturales: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger o entrega?'. Nunca mezcles idiomas en una misma respuesta salvo nombres exactos del menú."
+    : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Keep replies short and natural: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never mix languages in one reply except exact menu item names.";
+
+  return (
+    "You are Elvi, the fast, confident, direct order taker at Cocina Elvis.\n\n" +
+    "Your only job is to take accurate orders. Speak like experienced restaurant staff — short, clear, warm but efficient. Never make small talk, never upsell, never explain the app or how to use it.\n\n" +
+    "Core principles:\n" +
+    "- The 'Current Order State' provided below is the single source of truth. Always trust it over your memory.\n" +
+    "- When the customer says something unclear, changes their mind, or goes off-script, acknowledge naturally in one short sentence and steer back to the current order or the next logical choice. Recovery must feel human.\n" +
+    "- Builds and combos (pack meals, etc.) are handled conversationally. You decide what question to ask next based on what has already been decided. You do NOT follow a rigid external script.\n" +
+    "- After any successful change, give a tiny confirmation ('Added.', 'Got the two asada.', 'Removed it.') then ask 'Anything else?' or move on.\n" +
+    "- Only ask for name, phone, address, or fulfillment when the customer is finishing or the order is otherwise complete.\n\n" +
+    "Tool usage:\n" +
+    "- Use the tools (add_to_order, update_order_item, remove_from_order, etc.) for every real change to the order.\n" +
+    "- When a customer refers to 'the last one', 'that taco', '#2', etc., use the exact reference they gave.\n" +
+    "- For complex builds, call the tool once you have a complete choice. You can ask one focused question at a time.\n\n" +
+    "Recovery style examples:\n" +
+    "- 'Sorry, did you want to change the last one or add something new?'\n" +
+    "- 'No problem — so the 4-pack with two chicken and two asada?'\n" +
+    "- 'Got it, let's clarify the second taco.'\n\n" +
+    "Language: Match the customer's selected language exactly. " + langLock + "\n\n" +
+    `Current order state (authoritative): ${buildOrderStateSnapshot()}. Use this as the latest truth, especially after reconnects or mid-build changes.` +
+    (state.currentBuildGuide
+      ? (() => {
+          const guide = state.currentBuildGuide;
+          const stepNum = state.currentGuideStep || 1;
+          const currentStep = guide.steps[stepNum - 1] || {};
+          const nextStep = guide.steps[stepNum] || null;
+          const isMulti = currentStep.selection_type === "multiple";
+
+          const orderSnapshot = buildOrderStateSnapshot();
+const selectedSoFar = orderSnapshot.includes(guide.display_name) 
+  ? "See the cart in the Current order state above (items added to this combo are visible there)."
+  : "none yet";
+
+          let guideContext = `
+CURRENT BUILD STATUS (this is the ONLY thing you should follow right now):
+You are building: ${guide.display_name}
+Current step: ${stepNum} of ${guide.steps.length} — "${currentStep.title}"
+Selection type: ${isMulti ? 'MULTIPLE selections allowed (min ' + (currentStep.min_selections || 1) + ')' : 'SINGLE selection only'}
+
+Already selected for this step: ${selectedSoFar}
+
+${nextStep ? `Next step after this one: "${nextStep.title}"` : 'This is the final step.'}
+
+${isMulti && selectedSoFar !== "none yet" 
+  ? "The detailed options for this step are shown on the screen. Do not re-list them. Just ask if the user wants anything else or if they are finished."
+  : (currentStep.options && currentStep.options.length > 0 
+      ? `Available options for this step: ${currentStep.options.map((o) => {
+          if (!o || typeof o !== "object") return String(o);
+          const name = o.name || String(o);
+          return o.price_note ? `${name} (${o.price_note})` : name;
+        }).join(", ")}`
+      : "")}
+
+CRITICAL INSTRUCTIONS FOR MULTI-SELECT STEP ${stepNum} (READ CAREFULLY AND OBEY — THIS IS THE HIGHEST PRIORITY RULE):
+- You are on a MULTI-SELECT step. The user picks from the options shown on screen.
+- The ONLY way to finish this step is when the user says one of these exact words: "siguiente", "next", "ya", "es todo", "nadamas", "listo", "done", "I'm done", "finished", "that is all".
+- **THE MOMENT** the user uses any of those words, you MUST:
+  - Immediately stop talking about the options list for this step.
+  - Never say "elige una opción", "las opciones están abajo", or anything similar again in the entire conversation.
+  - Move straight to the next step in the guide.
+- This rule is absolute. Even if the user adds one more item after saying the word, treat the step as finished. Do not go back.
+
+At the very start of this step (and again after the customer has selected a couple of options), you MUST clearly tell the customer:
+
+"When you are done selecting options, say 'next', 'siguiente', or anything similar so we can continue to the next step."
+
+If the user has not used a completion phrase yet, you can ask "Anything else?" but you must always include the sentence above.
+
+This rule overrides the entire guide for this step. You are forbidden from re-asking the options list once the user has signaled completion.
+`;
+
+          let note = "";
+          if (state.stepCompletionNote) {
+            note = `\n\nLATEST UPDATE FROM USER: ${state.stepCompletionNote}`;
+            delete state.stepCompletionNote;
+          }
+
+          return `\n\n${guideContext}${note}`;
+        })()
+      : "")
+  );
+}
+
 function buildSessionUpdatePayload() {
-  const orderSnapshot = buildOrderStateSnapshot();
+  const lang = getEffectiveLanguage();
 
   return {
     type: "session.update",
     session: {
-      voice: getEffectiveLanguage() === "es" ? (window.XAI_VOICE_ID_ES || "Eve") : (window.XAI_VOICE_ID || "Eve"),
-      instructions:
-        "You are Elvi, a fast, direct Cocina Elvis order taker. " +
-        "Your assistant name is Elvi. If asked your name, always say 'My name is Elvi.' Never say your name is Cocina Elvis. " +
-        "The customer speaks to you as restaurant staff. Use tools for real actions and do not invent tool results. " +
-        "Default mode is order taking, not conversation. Do not greet, make small talk, upsell, explain the app, or ask personal/chatty questions. " +
-        "Keep replies to 1 short sentence, usually under 10 words. After a successful order change, say only a brief confirmation like 'Added.' or 'Removed.' " +
-        "Understand customer input in either English or Spanish, but every assistant reply must be only in the selected UI language. Do not mix languages in the same reply. " +
-        "After any tool call, trust the tool output orderState as the latest cart. Never say the cart is empty when cartItemCount is greater than 0. " +
-        "For questions like 'what is my current order' or 'what is in my cart', answer from Current order state only. If itemCount is greater than 0, list the cart briefly and never say empty. " +
-        "If a tool output includes missingItems after adding split items, confirm what was added and ask only for the missing required choice on the remaining item. " +
-        "Ask a question only when it is required to complete the order, such as missing required modifiers, pickup/delivery at checkout, delivery address, name, or phone. " +
-        "If the cart is not empty, remember it. Never ask 'what would you like to order' as if starting over; instead refer to the current cart, ask 'Anything else?' only if needed, or proceed to checkout. " +
-        "For remove or change requests, resolve phrases like 'last item', 'that', 'the current item', item numbers, or item names against the current cart. Use remove_item or update_item. " +
-        "When the customer says change/switch/make an existing item's tortilla, meat, quantity, or modifiers, call update_item on that cart item immediately. Never ask to add one now, and never claim it changed unless update_item succeeded. " +
-        "For mixed quantities, modifiers, or combo builds, call add_item once with itemQuery as the full customer phrase. The app resolver will split items, choose modifiers, and return combo steps. " +
-        "When tool output includes comboStep, ask exactly comboStep.question and do not invent other combo questions. The next customer answer should call add_item with itemQuery as their exact answer. " +
-        "Do not read long option lists unless the tool question explicitly includes them. The screen shows available options. " +
-        "If the customer asks a menu, price, allergy, or other question, answer directly and briefly, then return to order taking. " +
-        "Collect pickup or delivery only when the customer starts checkout, says they are done, or mentions pickup/delivery. For delivery, collect the address before closing the order. " +
-        "Avoid off-menu items. If unavailable, say it is unavailable and offer one closest menu item only if obvious. " +
-        "Only discuss allergens or dietary restrictions when the customer asks or reports an allergy. Do not proactively ask about allergens. " +
-        "For combo orders, the resolver controls the build steps. Do not use local guesses for combo modifier order. " +
-        "Deluxe adds lettuce, pico de gallo, queso fresco, and sour cream. Never say deluxe includes drinks, chips, fries, or papas. " +
-        "For items with modifier groups, ask one concise combined question for missing required groups, then call add_item once they are fully selected. " +
-        "Modifier option labels may include Square price deltas like (+$1.00); include those deltas when quoting modified item prices. " +
-        "For sub-dollar amounts in assistant replies, never write decimals like $0.75 or .75 dollars. Say 75 cents in English or 75 centavos in Spanish. " +
-        "For vague Taco or Quesadilla orders, the app defaults tortilla to Comal / Homemade corn unless the customer asks for flour, street/taquero, or no tortilla default. " +
-        "After adding a Taco or Quesadilla without deluxe and the customer did not say no deluxe, ask one short upgrade question: English 'Deluxe for 75 cents?' or Spanish '¿Deluxe por 75 centavos?'. If yes, update the last item with DELUXE; if no, continue without deluxe. " +
-        "Common phrases: steak taco means Taco with Bistec / Steak; tripas taco means Taco with Tripa / Beef Tripe; duro taco means Taco with Duro / Pork Rinds; prensado taco means Taco with Prensado / Spicy Pork; with beans means Con Frijoles / With Beans; homemade taco means Taco Comal / Homemade; street taco means Taco Taquero / Street Taco; flour taco means Taco Harina / Flour. " +
-        "Quesadilla phrases work the same way: steak quesadilla means Quesadilla with Bistec / Steak; cheese quesadilla means Quesadilla with Solo Queso / Only Cheese; homemade quesadilla means Quesadilla Comal / Homemade; flour quesadilla means Quesadilla Harina / Flour; street quesadilla means Quesadilla Taquera / Street Quesadilla. " +
-        "If the exact item id is uncertain, call add_item with itemQuery using the customer's phrase; the app will resolve the item and modifiers. " +
-        "When closing or saying goodbye, say 'thanks for ordering at Cocina Elvis' — never say 'thanks for calling'. " +
-        (getEffectiveLanguage() === "es"
-          ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger o entrega?'. Never output English words except exact menu item names when unavoidable. "
-          : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never output Spanish unless quoting an exact menu item name when unavoidable. ") +
-        `Selected language=${getEffectiveLanguage()}. ` +
-        `Current order state (authoritative): ${orderSnapshot}. Always treat this as the latest known order memory, especially after reconnect. ` +
-        `ONLINE menu item count=${state.menu.length}. Use tool itemQuery for exact menu and modifier resolution instead of memorizing item IDs.`,
+      voice: lang === "es" ? (window.XAI_VOICE_ID_ES || "Eve") : (window.XAI_VOICE_ID || "Eve"),
+      instructions: getResilientElviInstructions(lang),
       turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 300, prefix_padding_ms: 250 },
       tools: buildRealtimeToolsForClient(),
       input_audio_transcription: { model: "grok-2-audio" },
@@ -1012,7 +1152,33 @@ function buildOrderStateSnapshot() {
   if (state.customer.address) knownCustomer.push(`address=${state.customer.address}`);
 
   const customerText = knownCustomer.length ? knownCustomer.join(", ") : "none";
-  return `fulfillment=${state.fulfillment}; itemCount=${getCartItemCount()}; cart=${cartText}; lastAdded=${lastText}; customer=${customerText}`;
+
+  // Build progress using the new consistent shape (preferred for model context)
+  let buildText = "none";
+  let buildJson = "";
+
+  const freshProgress = normalizeBuildProgress(state.lastBuildProgress || state.pendingComboState || state.modifierDraft);
+  if (freshProgress && freshProgress.active) {
+    buildText = `building ${freshProgress.itemName} step ${freshProgress.step}/${freshProgress.totalSteps} (${freshProgress.stepName || freshProgress.phase || ""})`;
+    const compact = {
+      item: freshProgress.itemName,
+      step: freshProgress.step,
+      total: freshProgress.totalSteps,
+      done: freshProgress.completedSelections || [],
+      options: freshProgress.currentOptions || []
+    };
+    buildJson = ` | buildProgress=${JSON.stringify(compact)}`;
+  } else if (state.pendingComboState) {
+    const p = state.pendingComboState;
+    buildText = `building ${p.itemName || "combo"} step ${p.step || "?"}/${p.totalSteps || "?"} (${p.stepName || ""})`;
+  } else if (state.modifierDraft) {
+    const m = state.modifierDraft;
+    const step = (state.modifierStepIndex || 0) + 1;
+    const total = (m.groups && m.groups.length) || 1;
+    buildText = `customizing ${m.item?.name || "item"} step ${step}/${total}`;
+  }
+
+  return `fulfillment=${state.fulfillment}; itemCount=${getCartItemCount()}; cart=${cartText}; lastAdded=${lastText}; customer=${customerText}; activeBuild=${buildText}${buildJson}`;
 }
 
 function getCartItemCount() {
@@ -1029,6 +1195,71 @@ function describeCartLine(line) {
     .map((mod) => `${mod.quantity > 1 ? `${mod.quantity} x ` : ""}${mod.option}`)
     .join(", ");
   return `${base} [${mods}]`;
+}
+
+function handleMultiSelectCompletion(text) {
+  if (!state.currentBuildGuide || !state.currentGuideStep) return false;
+
+  // Normalize: lowercase + remove accents for better Spanish/English matching
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  // Bilingual completion phrases (English + Spanish)
+  const donePhrases = [
+    // English
+    "that is all", "thats all", "that all",
+    "done", "im done", "i am done",
+    "finished", "im finished", "i am finished",
+    "no more", "no more options",
+    "thats it", "that is it",
+    "im good", "i am good",
+    "all set", "all done",
+    "next", "next step",
+    // Spanish
+    "nada mas", "nadamas", "no mas", "nomas",
+    "ya", "ya esta", "ya esta bien",
+    "listo", "ya termine", "termine",
+    "eso es todo", "es todo",
+    "ya no", "ya no mas",
+    "ya me", "ya con eso",
+    "siguiente", "siguiente paso", "next"
+  ];
+
+  const matched = donePhrases.some(phrase => normalized.includes(phrase));
+
+  if (matched) {
+    const step = state.currentBuildGuide.steps[state.currentGuideStep - 1];
+    const isSelectionStep = step && (
+      step.selection_type === "multiple" ||
+      step.title.toLowerCase().includes("option") ||
+      step.title.toLowerCase().includes("choice") ||
+      step.title.toLowerCase().includes("opcion")
+    );
+
+    // Special case: "siguiente" or "next" always advances the current guide step when a guide is active
+    const isNextWord = normalized.includes("siguiente") || normalized.includes("next");
+
+    if (isSelectionStep || isNextWord) {
+      const oldStepNum = state.currentGuideStep;
+      const stepObj = step || { title: "current step" };
+      state.currentGuideStep++;
+      state.stepCompletionNote = `User just completed step ${oldStepNum} by saying "${text}". Do not re-ask about the previous step. Now on step ${state.currentGuideStep}: "${state.currentBuildGuide.steps[state.currentGuideStep-1]?.title}".`;
+      updateBuildVisuals({});
+      syncRealtimeOrderContext();
+
+      // Force the model to generate a response for the new step right away.
+      // This makes typing "siguiente" advance the conversation the same way the button does.
+      if (state.ws && state.ws.readyState === WebSocket.OPEN && state.xaiSessionReady) {
+        sendWs({ type: "response.create" });
+      }
+
+      return true;
+    }
+  }
+  return false;
 }
 
 function isCurrentOrderQuestion(text) {
@@ -1108,98 +1339,96 @@ function detectMood(reply) {
 }
 
 function buildRealtimeToolsForClient() {
+  // New resilient tool set — model owns ordering + build flow
   return [
     {
       type: "function",
-      name: "add_item",
-      description: "Add a menu item to the order.",
+      name: "add_to_order",
+      description: "Add item(s) to the order. Accepts natural language (e.g. 'two deluxe steak tacos' or 'the 4-pack with chicken and asada'). Use for both simple items and starting/completing builds.",
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID when known." },
-          itemQuery: { type: "string", description: "Customer phrase when exact item ID is uncertain, such as 'one steak taco'." },
-          quantity: { type: "number", description: "Quantity to add." },
+          query: { type: "string", description: "Customer's exact words or clear description of what to add." },
+          quantity: { type: "number", description: "How many (default 1)" },
           modifiers: {
             type: "array",
-            description: "Selected modifier options by group. Required when item has required modifier groups.",
             items: {
               type: "object",
               properties: {
-                groupId: { type: "string", description: "Modifier group id." },
-                option: { type: "string", description: "Selected option label exactly as listed." },
-                quantity: { type: "number", description: "Quantity for this modifier option." }
-              },
-              required: ["groupId", "option"]
+                group: { type: "string" },
+                option: { type: "string" },
+                quantity: { type: "number" }
+              }
             }
           }
-        }
+        },
+        required: ["query"]
       }
     },
     {
       type: "function",
-      name: "remove_item",
-      description: "Remove a menu item from the order.",
+      name: "update_order_item",
+      description: "Change quantity or modifiers on an existing item in the cart. Use natural references the customer gave ('the last taco', 'that one', '#2', 'the chicken pack').",
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID when known." },
-          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
-          quantity: { type: "number", description: "Quantity to remove." }
-        }
+          reference: { type: "string", description: "How the customer referred to the item (last, that, the second one, #3, etc.)" },
+          quantity: { type: "number" },
+          change_modifiers: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                group: { type: "string" },
+                option: { type: "string" }
+              }
+            }
+          }
+        },
+        required: ["reference"]
       }
     },
     {
       type: "function",
-      name: "update_item",
-      description: "Update quantity for a menu item.",
+      name: "remove_from_order",
+      description: "Remove item(s) using natural customer references ('last one', 'the two tacos', '#1').",
       parameters: {
         type: "object",
         properties: {
-          itemId: { type: "string", description: "Exact menu item ID when known." },
-          itemQuery: { type: "string", description: "Cart reference or customer phrase, such as 'last item', 'the taco', or '#2'." },
-          quantity: { type: "number", description: "New quantity." },
-          modifiers: {
-            type: "array",
-            description: "Replacement modifier options when changing the current cart item.",
-            items: {
-              type: "object",
-              properties: {
-                groupId: { type: "string", description: "Modifier group id." },
-                option: { type: "string", description: "Selected option label exactly as listed." },
-                quantity: { type: "number", description: "Quantity for this modifier option." }
-              },
-              required: ["groupId", "option"]
-            }
-          }
-        }
+          reference: { type: "string" },
+          quantity: { type: "number" }
+        },
+        required: ["reference"]
       }
     },
     {
       type: "function",
       name: "set_fulfillment",
-      description: "Set fulfillment mode.",
+      description: "Set the order to pickup or delivery.",
       parameters: {
         type: "object",
         properties: {
-          fulfillment: { type: "string", enum: ["PICKUP", "DELIVERY"] }
+          type: { type: "string", enum: ["PICKUP", "DELIVERY"] }
         },
-        required: ["fulfillment"]
+        required: ["type"]
       }
     },
     {
       type: "function",
-      name: "set_address",
-      description: "Store delivery address.",
+      name: "set_delivery_address",
+      description: "Record the delivery address when the customer provides it.",
       parameters: {
         type: "object",
-        properties: { address: { type: "string" } },
+        properties: {
+          address: { type: "string" }
+        },
         required: ["address"]
       }
     },
     {
       type: "function",
-      name: "set_customer",
-      description: "Store customer details.",
+      name: "set_customer_info",
+      description: "Record name, phone, or email for the order.",
       parameters: {
         type: "object",
         properties: {
@@ -1211,49 +1440,19 @@ function buildRealtimeToolsForClient() {
     },
     {
       type: "function",
-      name: "checkout",
-      description: "Mark order ready for checkout.",
-      parameters: { type: "object", properties: {} }
+      name: "request_checkout",
+      description: "Customer wants to pay now. Only call after we have the required info (name/phone + fulfillment)."
     },
     {
       type: "function",
-      name: "check_delivery_zone",
-      description: "Check if a given address is within the Cocina Elvis delivery zone.",
+      name: "resolve_menu_item",
+      description: "Lightweight helper: fuzzy search the menu for a phrase and return best matches + their modifier groups. Use only when genuinely unsure about an item name.",
       parameters: {
         type: "object",
         properties: {
-          address: { type: "string", description: "Full street address including city, state, ZIP for delivery check." }
+          query: { type: "string" }
         },
-        required: ["address"]
-      }
-    },
-    {
-      type: "function",
-      name: "submit_order",
-      description: "Submit the confirmed order for processing. Returns final total, estimated prep time, and order ID.",
-      parameters: {
-        type: "object",
-        properties: {
-          order_type: { type: "string", enum: ["pickup", "delivery"] },
-          delivery_address: { type: "string" },
-          customer_name: { type: "string" },
-          phone: { type: "string" },
-          items: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                quantity: { type: "number" },
-                customizations: { type: "array", items: { type: "string" } },
-                price: { type: "number" }
-              }
-            }
-          },
-          subtotal: { type: "number" },
-          allergies: { type: "string" }
-        },
-        required: ["order_type", "customer_name", "phone", "items", "subtotal"]
+        required: ["query"]
       }
     }
   ];
@@ -1324,6 +1523,15 @@ function comboBuildingActionFromResolver(result) {
 async function resolveOrderToolWithMenuBrain(name, args) {
   if (!["add_item", "remove_item", "update_item"].includes(name)) return null;
 
+  // Lightweight approved menu guard for add_item (works with the server catalog)
+  if (name === "add_item" || name === "add_to_order") {
+    const query = (args.itemQuery || args.query || "").toLowerCase();
+    // If it looks like a completely unknown item and we have no guide, let backend refuse with nice message
+    if (query && !state.currentBuildGuide && query.length > 3) {
+      // The backend will return a clear refusal if not in Menu Items Online
+    }
+  }
+
   const text = getResolverToolText(name, args);
   const response = await fetch(`/api/${state.tenantSlug}/menu/resolve`, {
     method: "POST",
@@ -1352,16 +1560,45 @@ async function resolveOrderToolWithMenuBrain(name, args) {
       }
     }
   }
-  const comboAction = comboBuildingActionFromResolver(result);
-  if (comboAction) {
-    actionList.unshift(comboAction);
+  // Only use legacy comboStep data if no guide is provided (guide is the single source of truth)
+  if (!result.guide) {
+    const comboAction = comboBuildingActionFromResolver(result);
+    if (comboAction) {
+      actionList.unshift(comboAction);
+    }
   }
 
   if (result.comboState && result.comboStep) {
     state.pendingComboState = result.comboState;
+  } else if (result.reason === "build_cancelled") {
+    state.pendingComboState = null;
+    state.pendingComboPreview = null;
+    state.lastComboAnimationKey = "";
+    state.currentBuildGuide = null;
+    clearComboTracker();
+    renderSelectedItemsPanel();
+    renderSelectedPreview(state.lastSelectedItem);
   } else if (actionList.some((action) => action.type === "add_item")) {
     state.pendingComboState = null;
     state.pendingComboPreview = null;
+
+    // Do NOT clear the guide on add_item if we are on a multi-select step.
+    // Multi-select steps intentionally allow multiple adds before the user
+    // signals completion (with "siguiente", "ya", etc.). Clearing here was
+    // destroying the guide state and causing the options loop.
+    const currentStep = state.currentBuildGuide?.steps?.[(state.currentGuideStep || 1) - 1];
+    const isMultiSelectStep = currentStep && currentStep.selection_type === "multiple";
+
+    if (state.currentBuildGuide && !isMultiSelectStep) {
+      // Only clear for single-select steps (or when no guide is active)
+      state.currentBuildGuide = null;
+    }
+  }
+
+  if (result.guide) {
+    state.currentBuildGuide = result.guide;
+    state.currentGuideStep = 1;  // Start at first step of the guide
+    state.pendingComboState = null; // Prefer guide-driven flow over old resolver state
   }
 
   if (!comboAction && !actionList.length && !state.pendingComboState && ["unknown_menu_item", "unknown_cart_item"].includes(result.reason)) {
@@ -1378,6 +1615,11 @@ async function resolveOrderToolWithMenuBrain(name, args) {
 }
 
 async function resolvePendingComboTurnLocally(text) {
+  // If user said "that is all" on a multi-select guide step, advance immediately
+  if (handleMultiSelectCompletion(text)) {
+    return true;
+  }
+
   state.turnInFlight = true;
   state.lastUserText = text;
   ui.status.textContent = "Processing…";
@@ -1426,8 +1668,48 @@ async function handleToolCall(name, argsJson) {
     return { output };
   }
 
-  if (["add_item", "remove_item", "update_item", "set_fulfillment", "set_address", "set_customer", "checkout"].includes(name)) {
-    const menuBrain = await resolveOrderToolWithMenuBrain(name, args);
+  // Compatibility layer for new resilient tool names -> existing resolver logic
+  let normalizedName = name;
+  let normalizedArgs = { ...args };
+
+  if (name === "add_to_order") {
+    normalizedName = "add_item";
+    normalizedArgs = {
+      itemQuery: args.query,
+      quantity: args.quantity,
+      modifiers: args.modifiers
+    };
+  } else if (name === "update_order_item") {
+    normalizedName = "update_item";
+    normalizedArgs = {
+      itemQuery: args.reference,
+      quantity: args.quantity,
+      modifiers: args.change_modifiers
+    };
+  } else if (name === "remove_from_order") {
+    normalizedName = "remove_item";
+    normalizedArgs = {
+      itemQuery: args.reference,
+      quantity: args.quantity
+    };
+  } else if (name === "set_delivery_address") {
+    normalizedName = "set_address";
+    normalizedArgs = { address: args.address };
+  } else if (name === "set_customer_info") {
+    normalizedName = "set_customer";
+    normalizedArgs = args;
+  } else if (name === "request_checkout") {
+    normalizedName = "checkout";
+    normalizedArgs = {};
+  } else if (name === "resolve_menu_item") {
+    // Lightweight helper — for now delegate to the menu brain as a query
+    normalizedName = "add_item";
+    normalizedArgs = { itemQuery: args.query };
+  }
+
+  const oldToolNames = ["add_item", "remove_item", "update_item", "set_fulfillment", "set_address", "set_customer", "checkout"];
+  if (oldToolNames.includes(normalizedName)) {
+    const menuBrain = await resolveOrderToolWithMenuBrain(normalizedName, normalizedArgs);
     if (menuBrain) {
       return menuBrain;
     }
@@ -2467,6 +2749,12 @@ function attachUiHandlers() {
       return;
     }
 
+    // Check if user just finished a multi-select guided step (advances state + syncs model)
+    // We no longer suppress the turn here. We let the message go through so the model
+    // can see the exact phrase ("siguiente", "ya", etc.) in the conversation history.
+    // The strong prompt will tell the model what to do when it sees the phrase.
+    handleMultiSelectCompletion(text);
+
     if (!sendUserTurn(text)) {
       ui.status.textContent = "Please wait for Elvi to finish this turn.";
       return;
@@ -2703,6 +2991,12 @@ function sendUserTurn(text) {
   if (!text) {
     return false;
   }
+
+  // Universal handling for completion phrases on multi-select guide steps
+  // This makes voice, direct typing, and local resolve all behave the same
+  if (handleMultiSelectCompletion(text)) {
+    return true;
+  }
   if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) {
     return false;
   }
@@ -2749,9 +3043,10 @@ function sendUserTurn(text) {
 function shouldResolveStructuredBuildLocally(text) {
   const normalized = normalizeOptionKey(text);
   if (!normalized) return false;
-  if (/\b(pack meal|pack meals|meal pack|meals pack|paquete|paquetes)\b/.test(normalized)) return true;
+  if (/\b(pack meal|pack meals|meal pack|meal packs|meals pack|paquete|paquetes)\b/.test(normalized)) return true;
   if (/\b(combo|combos|combinacion|combinaciones)\b/.test(normalized)) return true;
-  return new RegExp(`\\b${quantityPattern()}\\s+pack\\b`, "i").test(normalized);
+  const quantity = quantityPattern();
+  return new RegExp(`\\b${quantity}\\s+(?:pack\\s+)?meals?\\b|\\b${quantity}\\s+meals?\\s+pack\\b|\\b${quantity}\\s+pack\\b`, "i").test(normalized);
 }
 
 function sendWs(payload) {
@@ -2978,6 +3273,22 @@ function updateCartItem(itemId, quantity, cartIndex, modifiers) {
   }
 
 function renderComboTracker(itemName, step, totalSteps, selections, stepName, stepOptions) {
+  // Inject subtle blink animation for the Next button (only once)
+  if (!document.getElementById("combo-blink-style")) {
+    const style = document.createElement("style");
+    style.id = "combo-blink-style";
+    style.textContent = `
+      .combo-nav-primary.blink {
+        animation: comboNextBlink 1.2s ease-in-out infinite;
+      }
+      @keyframes comboNextBlink {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 200, 50, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(255, 200, 50, 0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   const tracker = document.getElementById("combo-tracker");
   const nameEl = document.getElementById("combo-tracker-name");
   const progressEl = document.getElementById("combo-tracker-progress");
@@ -3021,16 +3332,152 @@ function renderComboTracker(itemName, step, totalSteps, selections, stepName, st
   }
 
   if (backEl) backEl.textContent = getEffectiveLanguage() === "es" ? "Atrás" : "Back";
-  if (nextEl) nextEl.textContent = getEffectiveLanguage() === "es" ? "Siguiente" : "Next";
+  if (nextEl) {
+    nextEl.textContent = getEffectiveLanguage() === "es" ? "Siguiente" : "Next";
+
+    // Subtle blink on Next button for multi-select guide steps
+    // (helps user notice they can finish and advance)
+    let shouldBlink = false;
+    if (state.currentBuildGuide && state.currentGuideStep) {
+      const guideStep = state.currentBuildGuide.steps[state.currentGuideStep - 1];
+      if (guideStep && guideStep.selection_type === "multiple") {
+        // Blink as soon as we're on a multi-select step in a guide (even before first selection)
+        // This makes the affordance obvious
+        shouldBlink = true;
+      }
+    }
+    if (shouldBlink) {
+      nextEl.classList.add("blink");
+    } else {
+      nextEl.classList.remove("blink");
+    }
+  }
 
   tracker.classList.remove("is-hidden");
 }
 
+// ── Consistent Build Progress Shape (used by new model-driven flow) ────────
+function normalizeBuildProgress(input) {
+  if (!input) return null;
+
+  // Support both old comboStep shape and new cleaner buildProgress shape
+  const raw = input.buildProgress || input.comboStep || input;
+
+  if (!raw || (!raw.step && !raw.active)) return null;
+
+  return {
+    active: raw.active !== false,
+    itemId: raw.itemId || raw.selectedItem?.itemId,
+    itemName: raw.itemName || raw.name || "",
+    step: Number(raw.step || 1),
+    totalSteps: Number(raw.totalSteps || raw.total || 1),
+    stepName: raw.stepName || raw.phase || "",
+    completedSelections: Array.isArray(raw.selections) ? raw.selections : 
+                         Array.isArray(raw.completed) ? raw.completed : [],
+    currentOptions: Array.isArray(raw.stepOptions) ? raw.stepOptions :
+                    Array.isArray(raw.options) ? raw.options : [],
+    phase: raw.phase || raw.stepName || ""
+  };
+}
+
+function updateBuildVisuals(progressInput) {
+  // When a guide is active, use the guide as the source of truth for the current step
+  if (state.currentBuildGuide && state.currentBuildGuide.steps && state.currentGuideStep) {
+    const guide = state.currentBuildGuide;
+    const stepIndex = Math.max(0, Math.min(state.currentGuideStep - 1, guide.steps.length - 1));
+    const guideStep = guide.steps[stepIndex];
+
+    if (guideStep) {
+      const tracker = document.getElementById("combo-tracker");
+      if (tracker) tracker.classList.remove("is-hidden");
+
+      const itemName = guide.display_name || "Combo";
+
+      renderComboTracker(
+        itemName,
+        state.currentGuideStep,
+        guide.steps.length,
+        [], // selections can be enhanced later
+        guideStep.title,
+        guideStep.options ? guideStep.options.map(o => o.name || o) : []
+      );
+
+      if (elvi && typeof elvi.performBuildStep === "function") {
+        void elvi.performBuildStep({
+          step: state.currentGuideStep,
+          totalSteps: guide.steps.length,
+          stepName: guideStep.title,
+          option: "",
+          selections: []
+        });
+      }
+      return;
+    }
+  }
+
+  // Fallback to old behavior when no guide is active
+  const p = normalizeBuildProgress(progressInput);
+  if (!p || !p.active) {
+    const tracker = document.getElementById("combo-tracker");
+    if (tracker) tracker.classList.add("is-hidden");
+    return;
+  }
+
+  let stepTitle = p.stepName;
+  let options = p.currentOptions || [];
+
+  if (state.currentBuildGuide && state.currentBuildGuide.steps) {
+    const guideStep = state.currentBuildGuide.steps.find((s) => s.step === p.step) || state.currentBuildGuide.steps[p.step - 1];
+    if (guideStep) {
+      stepTitle = guideStep.title || stepTitle;
+      if (guideStep.options && guideStep.options.length > 0) {
+        options = guideStep.options.map((o) => o.name || o);
+      }
+    }
+  }
+
+  renderComboTracker(
+    p.itemName,
+    p.step,
+    p.totalSteps,
+    p.completedSelections || [],
+    stepTitle,
+    options
+  );
+
+  if (elvi && typeof elvi.performBuildStep === "function") {
+    void elvi.performBuildStep({
+      step: p.step,
+      totalSteps: p.totalSteps,
+      stepName: stepTitle,
+      option: (p.completedSelections && p.completedSelections[0]) || "",
+      selections: p.completedSelections || []
+    });
+  }
+}
+
+// Legacy wrapper - will be removed once all call sites are migrated
 function clearComboTracker() {
   document.getElementById("combo-tracker")?.classList.add("is-hidden");
 }
 
 function sendComboNav(direction) {
+  // If a guide is active, prefer advancing the guide step for consistency across all combos
+  if (state.currentBuildGuide && state.currentGuideStep) {
+    if (direction === "next") {
+      state.currentGuideStep++;
+      updateBuildVisuals({});
+      syncRealtimeOrderContext();
+      return;
+    } else if (direction === "back" && state.currentGuideStep > 1) {
+      state.currentGuideStep--;
+      updateBuildVisuals({});
+      syncRealtimeOrderContext();
+      return;
+    }
+  }
+
+  // Fallback to old behavior
   const text = direction === "back"
     ? (getEffectiveLanguage() === "es" ? "atrás" : "back")
     : (getEffectiveLanguage() === "es" ? "siguiente" : "next");
@@ -3231,10 +3678,7 @@ function getModifierUpchargeLabel(modifier) {
   return cents > 0 ? ` (+${centsToUsd(cents)})` : ` (${centsToUsd(cents)})`;
 }
 
-let _sharedAudioCtx      = null;
-let _currentAudioSource  = null;  // playing BufferSourceNode — stored for interruption
-let _queuedSources       = [];
-let _nextPlayTime        = 0;
+// (audio variables hoisted earlier to prevent TDZ during boot)
 function getAudioContext() {
   if (!_sharedAudioCtx || _sharedAudioCtx.state === "closed") {
     _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();

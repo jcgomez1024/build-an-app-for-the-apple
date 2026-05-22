@@ -149,6 +149,7 @@ function buildLineItems(cart: CartItem[], menu: MenuItem[]) {
     const squareModifiers = modifiers
       .map((modifier) => {
         const optionId = String(modifier.optionId || findModifierOptionCatalogId(menuItem, modifier.groupId, modifier.option) || "").trim();
+        if (/^(reviewed-|__)/.test(optionId)) return null;
         if (!optionId) return null;
         return {
           catalog_object_id: optionId,
@@ -221,7 +222,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   if (input.fulfillment === "DELIVERY" && !input.customer?.address) {
     throw new Error("Delivery address is required");
   }
-  const menu = await getFullMenu(runtime);
+  const menu = await getMenu(runtime);
 
   const response = await squareRequest<{
     payment_link: { id: string; url: string; order_id?: string };
@@ -416,6 +417,9 @@ function buildReviewedMenuItem(reviewedName: string, matches: MenuItem[]) {
   const slug = normalizeName(reviewedName).replace(/\s+/g, "-") || "reviewed-online-item";
   const primary = matches[0];
   if (!primary) {
+    if (normalizeName(reviewedName) === "queso birrias") {
+      return buildReviewedQuesoBirriasItem();
+    }
     return {
       id: `reviewed-${slug}`,
       name: reviewedName,
@@ -454,6 +458,53 @@ function buildReviewedMenuItem(reviewedName: string, matches: MenuItem[]) {
     modifierGroups: variantOptions.length
       ? [...variantOptions, ...(primary.modifierGroups || [])]
       : primary.modifierGroups
+  };
+}
+
+function buildReviewedQuesoBirriasItem(): MenuItem {
+  return {
+    id: "reviewed-queso-birrias",
+    name: "Queso Birrias",
+    nameEs: "Queso Birrias",
+    aliases: ["Queso Birrias", "queso birrias", "queso birria", "quesabirria", "quesabirrias"],
+    priceCents: 1500,
+    description: "Three queso birrias with consome. Choose street, flour, or comal.",
+    modifierGroups: [
+      {
+        id: "reviewed-queso-birrias-options",
+        name: "Queso Birria options",
+        minSelections: 0,
+        maxSelections: 1,
+        options: [
+          {
+            id: "reviewed-queso-birrias-qst",
+            name: "(QST) 3 x Queso Birrias Taquera / Street con Consome / Broth",
+            priceDeltaCents: 0
+          },
+          {
+            id: "reviewed-queso-birrias-qhr",
+            name: "(QHR) 3 x Queso Birrias Harina / Flour con Consome / Broth",
+            priceDeltaCents: 300
+          },
+          {
+            id: "reviewed-queso-birrias-qco",
+            name: "(QCO) 3 x Queso Birrias Comal / Homemade con Consome / Broth",
+            priceDeltaCents: 500
+          }
+        ]
+      },
+      {
+        id: "reviewed-queso-birrias-salsa",
+        name: "Salsa Preferencia / Preference",
+        minSelections: 0,
+        maxSelections: 1,
+        options: [
+          { id: "reviewed-queso-birrias-salsa-mild-asada", name: "Mild Salsa Asada", priceDeltaCents: 0 },
+          { id: "reviewed-queso-birrias-salsa-medium-verde", name: "Medium Salsa Verde", priceDeltaCents: 0 },
+          { id: "reviewed-queso-birrias-salsa-hot-roja", name: "Hot Salsa Roja", priceDeltaCents: 0 }
+        ]
+      }
+    ]
   };
 }
 
@@ -500,7 +551,7 @@ function buildReviewedNameMatchers(name: string) {
   } else if (normalized === "rice beans fiesta pan") {
     matchers.push(/^rice beans fiesta pan\b/i);
   } else if (normalized === "queso birrias") {
-    matchers.push(/^queso birrias?\b/i);
+    matchers.push(/^(?:\([a-z0-9]+\)\s*)?(?:\d+\s*x\s*)?queso birrias?\b/i);
   } else if (normalized === "chiles rellenos stuffed poblano peppers") {
     matchers.push(/^chiles rellenos\b/i);
   } else {

@@ -1,0 +1,465 @@
+{
+  "version": "1.0",
+  "description": "Structured step-by-step build guides for Elvis Combos. These are injected into Elvi's instructions when a customer orders a guided combo item. Elvi must follow the steps in order, speaking naturally.",
+  "guides": {
+    "COMBO Mix": {
+      "display_name": "Combo Mix",
+      "price": 12.99,
+      "description": "The Combo Mix is a customizable combo that features a fresh mix of two items, including your choice of protein and a side.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Choose Item 1 option",
+          "instruction": "Ask the customer to choose one option for the first item. This is required.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Taco Taquero / Street Taco", "code": "TST" },
+            { "name": "Taco Harina / Flour", "code": "THR" },
+            { "name": "Taco Comal / Homemade", "code": "TCO" },
+            { "name": "Torta", "code": "TO" },
+            { "name": "Gordita", "code": "GD" },
+            { "name": "Quesadilla Taquera / Street Quesadilla", "code": "QST" },
+            { "name": "Quesadilla Harina / Flour", "code": "QHR" },
+            { "name": "Quesadilla Comal / Homemade", "code": "QCO" },
+            { "name": "Queso Torta", "code": "QTO" },
+            { "name": "Queso Gordita", "code": "QGD" }
+          ]
+        },
+        {
+          "step": 2,
+          "title": "Choose Item 1 meat / filling",
+          "instruction": "Ask the customer to choose one protein or filling for the first item. This is required.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Bistec / Steak" },
+            { "name": "Cabeza / Beef Head" },
+            { "name": "Carnitas / Pulled Pork" },
+            { "name": "Chorizo / Mexican Sausage" },
+            { "name": "Costilla / Beef Rib" },
+            { "name": "Pollo / Chicken" },
+            { "name": "Alpastor / Roasted Pork" },
+            { "name": "Buche / Pork Stomach" },
+            { "name": "Lengua / Beef Tongue" },
+            { "name": "Tripa / Beef Tripe" },
+            { "name": "Prensado / Spicy Pork" },
+            { "name": "Duro / Pork Rinds" },
+            { "name": "Deshebrada / Shredded Beef with Potatoes" },
+            { "name": "Picadillo / Ground Beef with Potatoes" },
+            { "name": "Nopales con Papas / Cacti with Potatoes" },
+            { "name": "Papas Con Rajas / Poblano with Potatoes" },
+            { "name": "Huevo con Chile / Spicy Egg" },
+            { "name": "Vegetales / Vegetarian" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "Arroz / Rice" },
+            { "name": "Queso Derretido / Melted Cheese" },
+            { "name": "Birria de Chivo / Goat Birria" }
+          ]
+        },
+        {
+          "step": 3,
+          "title": "Choose Item 2 option",
+          "instruction": "Ask the customer to choose one option for the second item. This is required.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Taco Taquero / Street Taco", "code": "TST" },
+            { "name": "Taco Harina / Flour", "code": "THR" },
+            { "name": "Taco Comal / Homemade", "code": "TCO" },
+            { "name": "Torta", "code": "TO" },
+            { "name": "Gordita", "code": "GD" },
+            { "name": "Quesadilla Taquera / Street Quesadilla", "code": "QST" },
+            { "name": "Quesadilla Harina / Flour", "code": "QHR" },
+            { "name": "Quesadilla Comal / Homemade", "code": "QCO" },
+            { "name": "Queso Torta", "code": "QTO" },
+            { "name": "Queso Gordita", "code": "QGD" }
+          ]
+        },
+        {
+          "step": 4,
+          "title": "Choose Item 2 meat / filling",
+          "instruction": "Ask the customer to choose one protein or filling for the second item. This is required.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Bistec / Steak" },
+            { "name": "Cabeza / Beef Head" },
+            { "name": "Carnitas / Pulled Pork" },
+            { "name": "Chorizo / Mexican Sausage" },
+            { "name": "Costilla / Beef Rib" },
+            { "name": "Pollo / Chicken" },
+            { "name": "Alpastor / Roasted Pork" },
+            { "name": "Buche / Pork Stomach" },
+            { "name": "Lengua / Beef Tongue" },
+            { "name": "Tripa / Beef Tripe" },
+            { "name": "Prensado / Spicy Pork" },
+            { "name": "Duro / Pork Rinds" },
+            { "name": "Deshebrada / Shredded Beef with Potatoes" },
+            { "name": "Picadillo / Ground Beef with Potatoes" },
+            { "name": "Nopales con Papas / Cacti with Potatoes" },
+            { "name": "Papas Con Rajas / Poblano with Potatoes" },
+            { "name": "Huevo con Chile / Spicy Egg" },
+            { "name": "Vegetales / Vegetarian" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "Arroz / Rice" },
+            { "name": "Queso Derretido / Melted Cheese" },
+            { "name": "Birria de Chivo / Goat Birria" }
+          ]
+        },
+        {
+          "step": 5,
+          "title": "Choose your side",
+          "instruction": "Ask the customer to choose one side option. This is required.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Arroz and Frijoles Refritos (Rice and Beans)" },
+            { "name": "Solo Arroz (Rice only)" },
+            { "name": "Solo Frijoles Refritos (Beans only)" }
+          ]
+        },
+        {
+          "step": 6,
+          "title": "Choose topping style",
+          "instruction": "Ask if they want Regular or Deluxe toppings.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Regular - Onion, cilantro, and lime on the side" },
+            { "name": "Deluxe - Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream" }
+          ]
+        },
+        {
+          "step": 7,
+          "title": "Choose salsa",
+          "instruction": "Ask the customer to choose one salsa.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Mild Salsa Asada" },
+            { "name": "Mild Salsa Tomato" },
+            { "name": "Medium Salsa Verde" },
+            { "name": "Hot Salsa Roja" }
+          ]
+        },
+        {
+          "step": 8,
+          "title": "Any extras?",
+          "instruction": "Offer optional extras. These are not required.",
+          "required": false,
+          "max_selections": null,
+          "options": [
+            { "name": "EXTRA SIDE Crema / Sour Cream" },
+            { "name": "EXTRA SIDE Queso Fresco / Fresco Cheese" },
+            { "name": "EXTRA Half Limon / Lime" },
+            { "name": "EXTRA Guacamole Salsa 2oz" },
+            { "name": "EXTRA Mild Salsa Asada 2oz" },
+            { "name": "EXTRA Mild Salsa Tomato 2oz" },
+            { "name": "EXTRA Medium Salsa Verde 2oz" },
+            { "name": "EXTRA Hot Salsa Roja 2oz" },
+            { "name": "EXTRA Cebolla y Chiles Asados" }
+          ]
+        }
+      ]
+    },
+
+    "COMBO Gorditas": {
+      "display_name": "Combo Gorditas",
+      "price": 11.99,
+      "description": "Two fresh thick handmade corn masa patties, crispy outside and soft inside, filled with choice of protein and traditional toppings plus a side. Can be upgraded to Queso Gorditas.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Choose Gordita type",
+          "instruction": "Ask if they want regular Gorditas or Queso Gorditas (upgrade).",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "2 x Gorditas", "price_note": "+$0.00" },
+            { "name": "2 x Queso Gorditas", "price_note": "+$1.00" }
+          ]
+        },
+        {
+          "step": 2,
+          "title": "Choose Item 1 meat for first Gordita",
+          "instruction": "Choose one protein for the first gordita.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Bistec / Steak" },
+            { "name": "Cabeza / Beef Head" },
+            { "name": "Carnitas / Pulled Pork" },
+            { "name": "Chorizo / Mexican Sausage" },
+            { "name": "Costilla / Beef Rib" },
+            { "name": "Pollo / Chicken" },
+            { "name": "Alpastor / Roasted Pork" },
+            { "name": "Buche / Pork Stomach" },
+            { "name": "Lengua / Beef Tongue" },
+            { "name": "Tripa / Beef Tripe" },
+            { "name": "Prensado / Spicy Pork" },
+            { "name": "Duro / Pork Rinds" },
+            { "name": "Deshebrada / Shredded Beef with Potatoes" },
+            { "name": "Picadillo / Ground Beef with Potatoes" },
+            { "name": "Nopales con Papas / Cacti with Potatoes" },
+            { "name": "Papas Con Rajas / Poblano with Potatoes" },
+            { "name": "Huevo con Chile / Spicy Egg" },
+            { "name": "Vegetales / Vegetarian" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "Arroz / Rice" },
+            { "name": "Queso Derretido / Melted Cheese" },
+            { "name": "Birria de Chivo / Goat Birria" }
+          ]
+        },
+        {
+          "step": 3,
+          "title": "Choose Item 2 meat for second Gordita",
+          "instruction": "Choose one protein for the second gordita.",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Bistec / Steak" },
+            { "name": "Cabeza / Beef Head" },
+            { "name": "Carnitas / Pulled Pork" },
+            { "name": "Chorizo / Mexican Sausage" },
+            { "name": "Costilla / Beef Rib" },
+            { "name": "Pollo / Chicken" },
+            { "name": "Alpastor / Roasted Pork" },
+            { "name": "Buche / Pork Stomach" },
+            { "name": "Lengua / Beef Tongue" },
+            { "name": "Tripa / Beef Tripe" },
+            { "name": "Prensado / Spicy Pork" },
+            { "name": "Duro / Pork Rinds" },
+            { "name": "Deshebrada / Shredded Beef with Potatoes" },
+            { "name": "Picadillo / Ground Beef with Potatoes" },
+            { "name": "Nopales con Papas / Cacti with Potatoes" },
+            { "name": "Papas Con Rajas / Poblano with Potatoes" },
+            { "name": "Huevo con Chile / Spicy Egg" },
+            { "name": "Vegetales / Vegetarian" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "Arroz / Rice" },
+            { "name": "Queso Derretido / Melted Cheese" },
+            { "name": "Birria de Chivo / Goat Birria" }
+          ]
+        }
+      ]
+    },
+
+    "COMBO Burrito": {
+      "display_name": "Combo Burrito",
+      "price": 11.99,
+      "description": "Fresh bolillo bread torta-style burrito with your choice of tortilla size, meat, options, deluxe toppings, a dip with chips, salsa, and optional extras.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Choose your Tortilla choice",
+          "instruction": "Ask the customer to choose their tortilla size. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Regular '10", "price_note": "+$0.00" },
+            { "name": "Grande '12", "price_note": "+$2.00" }
+          ]
+        },
+        {
+          "step": 2,
+          "title": "Choose your choice meat",
+          "instruction": "Ask the customer to choose exactly ONE meat option. Only one is allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Bistec / Steak" },
+            { "name": "Cabeza / Beef Head" },
+            { "name": "Carnitas / Pulled Pork" },
+            { "name": "Chorizo / Mexican Sausage" },
+            { "name": "Costilla / Beef Rib" },
+            { "name": "Pollo / Chicken" },
+            { "name": "Alpastor / Roasted Pork" },
+            { "name": "Buche / Pork Stomach" },
+            { "name": "Lengua / Beef Tongue" },
+            { "name": "Tripa / Beef Tripe" },
+            { "name": "Prensado / Spicy Pork" },
+            { "name": "Duro / Pork Rinds" },
+            { "name": "Deshebrada / Shredded Beef with Potatoes" },
+            { "name": "Picadillo / Ground Beef with Potatoes" },
+            { "name": "Nopales con Papas / Cacti with Potatoes" },
+            { "name": "Papas Con Rajas / Poblano with Potatoes" },
+            { "name": "Huevo con Chile / Spicy Egg" },
+            { "name": "Vegetales / Vegetarian" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "Arroz / Rice" },
+            { "name": "Chile Relleno De Queso / Cheese Chile Relleno" },
+            { "name": "Birria de Chivo / Goat Birria" }
+          ]
+        },
+        {
+          "step": 3,
+          "title": "Beans",
+          "instruction": "Ask the customer to choose for Beans. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Frijoles Refritos / Refried Beans" },
+            { "name": "DOUBLE Frijoles Refritos / Refried Beans" }
+          ]
+        },
+        {
+          "step": 4,
+          "title": "Rice",
+          "instruction": "Ask the customer to choose for Rice. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Arroz / Rice" },
+            { "name": "DOUBLE Arroz / Rice" }
+          ]
+        },
+        {
+          "step": 5,
+          "title": "Cheese",
+          "instruction": "Ask the customer to choose for Cheese. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Queso Fresco / Cheese" },
+            { "name": "DOUBLE Queso Fresco / Cheese" }
+          ]
+        },
+        {
+          "step": 6,
+          "title": "Crema",
+          "instruction": "Ask the customer to choose for Crema. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Crema / Sour Cream" },
+            { "name": "DOUBLE Crema / Sour Cream" }
+          ]
+        },
+        {
+          "step": 7,
+          "title": "Onion",
+          "instruction": "Ask the customer to choose for Onion. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Cebolla / Onion" },
+            { "name": "DOUBLE Cebolla / Onion" }
+          ]
+        },
+        {
+          "step": 8,
+          "title": "Cilantro",
+          "instruction": "Ask the customer to choose for Cilantro. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Cilantro" },
+            { "name": "DOUBLE Cilantro" }
+          ]
+        },
+        {
+          "step": 9,
+          "title": "Queso Dip",
+          "instruction": "Ask the customer to choose for Queso Dip. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Queso Dip" },
+            { "name": "DOUBLE Queso Dip" }
+          ]
+        },
+        {
+          "step": 10,
+          "title": "Guacamole Dip",
+          "instruction": "Ask the customer to choose for Guacamole Dip. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "None" },
+            { "name": "Guacamole Dip" },
+            { "name": "DOUBLE Guacamole Dip" }
+          ]
+        },
+        {
+          "step": 11,
+          "title": "Choose your Deluxe choice",
+          "instruction": "Ask the customer to choose Regular or Deluxe. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Regular - Onion, cilantro, and lime on the side" },
+            { "name": "Deluxe - Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream" }
+          ]
+        },
+        {
+          "step": 12,
+          "title": "Choose your Dip with Chips side",
+          "instruction": "Ask the customer to choose their dip with chips. They can upgrade the dip. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Pico de Gallo Dip with Chips Side", "price_note": "+$0.00" },
+            { "name": "Guacamole Dip with Chips Side", "price_note": "+$1.00" },
+            { "name": "Queso Dip with Chips Side", "price_note": "+$1.00" }
+          ]
+        },
+        {
+          "step": 13,
+          "title": "Choose your choice of Salsa",
+          "instruction": "Ask the customer to choose one salsa. Only one choice allowed. This is required.",
+          "selection_type": "single",
+          "required": true,
+          "max_selections": 1,
+          "options": [
+            { "name": "Mild Salsa Asada" },
+            { "name": "Mild Salsa Tomato" },
+            { "name": "Medium Salsa Verde" },
+            { "name": "Hot Salsa Roja" }
+          ]
+        },
+        {
+          "step": 14,
+          "title": "Choose your choice of Extras",
+          "instruction": "Offer optional extras. The customer can select multiple or none. This step is optional.",
+          "selection_type": "multiple",
+          "required": false,
+          "min_selections": 0,
+          "max_selections": null,
+          "options": [
+            { "name": "EXTRA SIDE Crema / Sour Cream" },
+            { "name": "EXTRA SIDE Queso Fresco / Fresco Cheese" },
+            { "name": "EXTRA Half Limon / Lime" },
+            { "name": "EXTRA Guacamole Salsa 2oz" },
+            { "name": "EXTRA Mild Salsa Asada 2oz" },
+            { "name": "EXTRA Mild Salsa Tomato 2oz" },
+            { "name": "EXTRA Medium Salsa Verde 2oz" },
+            { "name": "EXTRA Hot Salsa Roja 2oz" },
+            { "name": "EXTRA Cebolla y Chiles Asados" },
+            { "name": "QUESO DIP 5oz SIDE" },
+            { "name": "GUACAMOLE 5oz SIDE" }
+          ]
+        }
+      ]
+    }
+  }
+}

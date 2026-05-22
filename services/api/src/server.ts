@@ -7,8 +7,11 @@ import express from "express";
 import { chatWithElvi } from "./elvi.js";
 import { createCheckout, getFullMenu, getMenu } from "./square.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
+import { resolveEspecialRequest } from "./especial-resolver.js";
 import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { attachRealtimeServer, createRealtimeSession } from "./realtime.js";
+import { getComboGuide, isGuidedCombo, isApprovedItem, getApprovedMenuItems } from "./guides.js";
+import { extractReplacementBuildText } from "./text-intents.js";
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -140,12 +143,317 @@ function buildResolverInput(body: unknown) {
   };
 }
 
+function normalizeResolverText(text: string) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isBuildCancelIntent(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (!normalized) return false;
+  return /\b(never\s*mind|nevermind|forget\s+it|cancel|start\s+over|something\s+else|another\s+item|different\s+item|olvida|cancelar|cancela|empezar\s+de\s+nuevo|otra\s+cosa|otro\s+producto|otro\s+item)\b/.test(normalized);
+}
+
+function isBuildInterruptIntent(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (!normalized) return false;
+  return isBuildCancelIntent(normalized) || /\b(instead|rather|mejor|mejor\s+dame|mejor\s+quiero|en\s+vez|cambio\s+a)\b/.test(normalized);
+}
+
+function buildCancelledResult(language: string) {
+  const es = language === "es";
+  return {
+    ok: true,
+    reason: "build_cancelled",
+    message: es ? "Cancelado. ¿Qué quieres ordenar?" : "Cancelled. What would you like to order?",
+    actions: []
+  };
+}
+
+function resolverText(input: ReturnType<typeof buildResolverInput>) {
+  return input.text || String((input.toolArgs as Record<string, unknown> | undefined)?.itemQuery || "");
+}
+
+function isGenericComboRequest(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (!/\b(combo|combos|combinacion|combinaciones)\b/.test(normalized)) return false;
+  return !/\b(taco|tacos|quesadilla|quesadillas|burrito|mix|mixto|gordita|gorditas|torta|tortas)\b/.test(normalized);
+}
+
+function isGenericPackMealRequest(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (!/\b(pack\s+meals?|meals?\s+pack|paquete|paquetes)\b/.test(normalized)) return false;
+  return !/\b([3-8]|three|four|five|six|seven|eight|tres|cuatro|cinco|seis|siete|ocho)\b/.test(normalized);
+}
+
+function isComboSelectionState(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  const raw = value as Record<string, unknown>;
+  return raw.ruleId === "combo-selection" && raw.itemId === "combo-selection";
+}
+
+function isPackMealSelectionState(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  const raw = value as Record<string, unknown>;
+  return raw.ruleId === "pack-meal-selection" && raw.itemId === "pack-meal-selection";
+}
+
+function comboSelectionPhrase(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (/\b(burrito|burritos)\b/.test(normalized)) return "combo burrito";
+  if (/\b(mix|mixto)\b/.test(normalized)) return "combo mix";
+  if (/\b(gordita|gorditas)\b/.test(normalized)) return "combo gorditas";
+  if (/\b(torta|tortas)\b/.test(normalized)) return "combo tortas";
+  if (/\b(quesadilla|quesadillas)\b/.test(normalized)) return "combo quesadillas";
+  if (/\b(taco|tacos)\b/.test(normalized)) return "combo tacos";
+  return "";
+}
+
+function packMealSelectionPhrase(text: string) {
+  const normalized = normalizeResolverText(text);
+  const wordCounts: Record<string, number> = {
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    tres: 3,
+    cuatro: 4,
+    cinco: 5,
+    seis: 6,
+    siete: 7,
+    ocho: 8
+  };
+  const numeric = normalized.match(/\b([3-8])\b/);
+  if (numeric) return `${numeric[1]} pack meal`;
+  for (const [word, count] of Object.entries(wordCounts)) {
+    if (new RegExp(`\\b${word}\\b`).test(normalized)) return `${count} pack meal`;
+  }
+  return "";
+}
+
+function comboMenuItems(items: Awaited<ReturnType<typeof getFullMenu>>) {
+  const order = ["combo tacos", "combo quesadillas", "combo burrito", "combo mix", "combo gorditas", "combo tortas"];
+  return items
+    .filter((item) => normalizeResolverText(item.name).startsWith("combo "))
+    .sort((a, b) => {
+      const aIndex = order.indexOf(normalizeResolverText(a.name));
+      const bIndex = order.indexOf(normalizeResolverText(b.name));
+      return (aIndex < 0 ? 999 : aIndex) - (bIndex < 0 ? 999 : bIndex) || a.name.localeCompare(b.name);
+    });
+}
+
+function packMealMenuItems(items: Awaited<ReturnType<typeof getFullMenu>>) {
+  const seen = new Map<number, Awaited<ReturnType<typeof getFullMenu>>[number]>();
+  for (const item of items) {
+    const match = normalizeResolverText(item.name).match(/^([3-8])\s+pack\s+meal\b/);
+    if (!match) continue;
+    const count = Number(match[1]);
+    const current = seen.get(count);
+    if (!current || Number(item.priceCents) < Number(current.priceCents)) {
+      seen.set(count, item);
+    }
+  }
+  return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, item]) => item);
+}
+
+function formatCents(cents: unknown) {
+  const value = Math.max(0, Number(cents) || 0);
+  return `$${(value / 100).toFixed(2)}`;
+}
+
+function buildComboSelectionResult(items: Awaited<ReturnType<typeof getFullMenu>>, language: string) {
+  const es = language === "es";
+  const options = comboMenuItems(items).map((item) => `${item.name} - ${formatCents(item.priceCents)}`);
+  const question = es ? "¿Cuál combo quieres? Las opciones están abajo." : "Which combo would you like? Options are below.";
+  return {
+    ok: false,
+    reason: "combo_step_required",
+    message: question,
+    selectedItem: {
+      itemId: "combo-selection",
+      name: "Combos",
+      description: options.join(", ")
+    },
+    comboState: {
+      ruleId: "combo-selection",
+      itemId: "combo-selection",
+      itemName: "Combos",
+      selections: [],
+      virtualSelections: [],
+      awaitingStepKey: "combo-selection"
+    },
+    comboStep: {
+      itemName: "Combos",
+      step: 1,
+      totalSteps: 1,
+      stepKey: "combo-selection",
+      stepName: es ? "Elige combo" : "Choose combo",
+      question,
+      options,
+      selections: []
+    },
+    buildProgress: toBuildProgress({ itemName: "Combos", step: 1, totalSteps: 1, stepName: es ? "Elige combo" : "Choose combo", options }, null)
+  };
+}
+
+function buildPackMealSelectionResult(items: Awaited<ReturnType<typeof getFullMenu>>, language: string) {
+  const es = language === "es";
+  const options = packMealMenuItems(items).map((item) => {
+    const count = normalizeResolverText(item.name).match(/^([3-8])\s+pack\s+meal\b/)?.[1] || "";
+    return `${count} Pack MEAL - from ${formatCents(item.priceCents)}`;
+  });
+  const question = es ? "¿Cuál paquete quieres? Las opciones están abajo." : "Which meal pack would you like? Options are below.";
+  return {
+    ok: false,
+    reason: "combo_step_required",
+    message: question,
+    selectedItem: {
+      itemId: "pack-meal-selection",
+      name: "Meal Packs",
+      description: options.join(", ")
+    },
+    comboState: {
+      ruleId: "pack-meal-selection",
+      itemId: "pack-meal-selection",
+      itemName: "Meal Packs",
+      selections: [],
+      virtualSelections: [],
+      awaitingStepKey: "pack-meal-selection"
+    },
+    comboStep: {
+      itemName: "Meal Packs",
+      step: 1,
+      totalSteps: 1,
+      stepKey: "pack-meal-selection",
+      stepName: es ? "Elige paquete" : "Choose meal pack",
+      question,
+      options,
+      selections: []
+    },
+    buildProgress: toBuildProgress({ itemName: "Meal Packs", step: 1, totalSteps: 1, stepName: es ? "Elige paquete" : "Choose meal pack", options }, null)
+  };
+}
+
+function toBuildProgress(comboStep: any, comboState: any): any {
+  if (!comboStep && !comboState) return undefined;
+  const step = Number(comboStep?.step || comboState?.step || 1);
+  const total = Number(comboStep?.totalSteps || comboState?.totalSteps || 1);
+  return {
+    active: true,
+    itemId: comboStep?.itemId || comboState?.itemId,
+    itemName: comboStep?.itemName || comboState?.itemName || "Build",
+    step,
+    totalSteps: total,
+    stepName: comboStep?.stepName || comboState?.awaitingStepKey || "",
+    completedSelections: comboStep?.selections || comboState?.selections || [],
+    currentOptions: comboStep?.options || comboStep?.stepOptions || []
+  };
+}
+
+function withComboSelectionPhrase(input: ReturnType<typeof buildResolverInput>, phrase: string) {
+  return {
+    ...input,
+    text: phrase,
+    toolArgs: {
+      ...((input.toolArgs || {}) as Record<string, unknown>),
+      itemQuery: phrase
+    },
+    comboState: undefined
+  };
+}
+
+function withPackMealSelectionPhrase(input: ReturnType<typeof buildResolverInput>, phrase: string) {
+  return {
+    ...input,
+    text: phrase,
+    toolArgs: {
+      ...((input.toolArgs || {}) as Record<string, unknown>),
+      itemQuery: phrase
+    },
+    comboState: undefined
+  };
+}
+
+function withReplacementBuildText(input: ReturnType<typeof buildResolverInput>, replacement: string) {
+  return {
+    ...input,
+    text: replacement,
+    toolArgs: {
+      ...((input.toolArgs || {}) as Record<string, unknown>),
+      itemQuery: replacement
+    },
+    comboState: undefined
+  };
+}
+
 app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
     const items = await getFullMenu(buildSquareConfig(tenant));
-    const input = buildResolverInput(req.body);
-    const result = resolvePackMealRequest(items, input) || resolveMenuRequest(items, input);
+    let input = buildResolverInput(req.body);
+    const text = resolverText(input);
+    if (input.comboState && isBuildInterruptIntent(text)) {
+      const replacement = extractReplacementBuildText(text);
+      if (replacement) {
+        input = withReplacementBuildText(input, replacement);
+      } else if (isBuildCancelIntent(text)) {
+        res.json(buildCancelledResult(input.language));
+        return;
+      }
+    }
+    if (isComboSelectionState(input.comboState)) {
+      const phrase = comboSelectionPhrase(text);
+      if (!phrase) {
+        res.json(buildComboSelectionResult(items, input.language));
+        return;
+      }
+      input = withComboSelectionPhrase(input, phrase);
+    } else if (isPackMealSelectionState(input.comboState)) {
+      const phrase = packMealSelectionPhrase(text);
+      if (!phrase) {
+        res.json(buildPackMealSelectionResult(items, input.language));
+        return;
+      }
+      input = withPackMealSelectionPhrase(input, phrase);
+    } else if (isGenericComboRequest(text)) {
+      res.json(buildComboSelectionResult(items, input.language));
+      return;
+    } else if (isGenericPackMealRequest(text)) {
+      res.json(buildPackMealSelectionResult(items, input.language));
+      return;
+    }
+    const result = resolvePackMealRequest(items, input) || resolveEspecialRequest(items, input) || resolveMenuRequest(items, input);
+
+    // Attach combo guide if the resolved item is a guided combo (for model injection)
+    const anyResult = result as any;
+    if (anyResult && anyResult.selectedItem?.name) {
+      const guide = getComboGuide(anyResult.selectedItem.name);
+      if (guide) {
+        anyResult.guide = guide;
+        // When a guide is attached, suppress legacy comboStep data so the model
+        // only ever sees the question from the single source of truth (the guide).
+        delete anyResult.comboStep;
+        delete anyResult.comboState;
+      }
+
+      // Enforce approved menu (Menu Items Online)
+      if (!isApprovedItem(anyResult.selectedItem.name)) {
+        return res.json({
+          ok: false,
+          reason: "item_not_available",
+          message: `I'm sorry, ${anyResult.selectedItem.name} is not currently available. Would you like one of our combos, pack meals, or other items from the menu instead?`,
+          approved_items_sample: getApprovedMenuItems().slice(0, 8)
+        });
+      }
+    }
+
     res.json(result);
   } catch (error) {
     next(error);
@@ -156,8 +464,63 @@ app.post("/api/menu/resolve", async (req, res, next) => {
   try {
     const tenant = resolveDefaultTenant(req.headers.host);
     const items = await getFullMenu(buildSquareConfig(tenant));
-    const input = buildResolverInput(req.body);
-    const result = resolvePackMealRequest(items, input) || resolveMenuRequest(items, input);
+    let input = buildResolverInput(req.body);
+    const text = resolverText(input);
+    if (input.comboState && isBuildInterruptIntent(text)) {
+      const replacement = extractReplacementBuildText(text);
+      if (replacement) {
+        input = withReplacementBuildText(input, replacement);
+      } else if (isBuildCancelIntent(text)) {
+        res.json(buildCancelledResult(input.language));
+        return;
+      }
+    }
+    if (isComboSelectionState(input.comboState)) {
+      const phrase = comboSelectionPhrase(text);
+      if (!phrase) {
+        res.json(buildComboSelectionResult(items, input.language));
+        return;
+      }
+      input = withComboSelectionPhrase(input, phrase);
+    } else if (isPackMealSelectionState(input.comboState)) {
+      const phrase = packMealSelectionPhrase(text);
+      if (!phrase) {
+        res.json(buildPackMealSelectionResult(items, input.language));
+        return;
+      }
+      input = withPackMealSelectionPhrase(input, phrase);
+    } else if (isGenericComboRequest(text)) {
+      res.json(buildComboSelectionResult(items, input.language));
+      return;
+    } else if (isGenericPackMealRequest(text)) {
+      res.json(buildPackMealSelectionResult(items, input.language));
+      return;
+    }
+    const result = resolvePackMealRequest(items, input) || resolveEspecialRequest(items, input) || resolveMenuRequest(items, input);
+
+    // Attach combo guide if the resolved item is a guided combo (for model injection)
+    const anyResult = result as any;
+    if (anyResult && anyResult.selectedItem?.name) {
+      const guide = getComboGuide(anyResult.selectedItem.name);
+      if (guide) {
+        anyResult.guide = guide;
+        // When a guide is attached, suppress legacy comboStep data so the model
+        // only ever sees the question from the single source of truth (the guide).
+        delete anyResult.comboStep;
+        delete anyResult.comboState;
+      }
+
+      // Enforce approved menu (Menu Items Online)
+      if (!isApprovedItem(anyResult.selectedItem.name)) {
+        return res.json({
+          ok: false,
+          reason: "item_not_available",
+          message: `I'm sorry, ${anyResult.selectedItem.name} is not currently available. Would you like one of our combos, pack meals, or other items from the menu instead?`,
+          approved_items_sample: getApprovedMenuItems().slice(0, 8)
+        });
+      }
+    }
+
     res.json(result);
   } catch (error) {
     next(error);
