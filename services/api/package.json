@@ -13,7 +13,8 @@
     "build:pack-guides": "tsx scripts/pack-especial-guides.ts",
     "check:pack-guides": "tsx scripts/pack-especial-guides.ts --check",
     "sync:site-menu": "tsx scripts/site-menu-sync.ts",
-    "check:site-menu": "tsx scripts/check-site-menu.ts"
+    "check:site-menu": "tsx scripts/check-site-menu.ts",
+    "replay": "tsx --test test/replay/replay.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

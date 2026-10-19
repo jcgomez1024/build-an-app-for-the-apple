@@ -1,6 +1,7 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
+import { applySharedAliases } from "./aliases.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -146,7 +147,8 @@ export function cleanPhrase(text: string): string {
     if (n === t) break;
     t = n;
   }
-  return t.replace(/[,\s]*(?:please|por\s+favor)\b/giu, "").replace(/[.?!\s]+$/u, "").trim();
+  // aliases1: shared phone+app spoken aliases (data/aliases/aliases.json).
+  return applySharedAliases(t.replace(/[,\s]*(?:please|por\s+favor)\b/giu, "").replace(/[.?!\s]+$/u, "").trim(), "phone");
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup)\b/iu;
 const FOOD = /\b(?:tacos?|burritos?|quesadillas?|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
@@ -326,8 +328,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     if (isClosing(t.text)) { steps.push({ source: "caller-closing", heard: t.text }); continue; }
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
-    const bare = t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim()
-      .replace(/\bcampechanas?\b/giu, "bistec y chorizo").replace(/\b(?:o\s*mal|omal)\b/giu, "comal");
+    // aliases1: campechana / o mal now come from the shared list.
+    const bare = applySharedAliases(t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim(), "phone");
     if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto)$/iu.test(bare)) {
       steps.push({ source: "caller-ack", heard: t.text }); continue;
     }

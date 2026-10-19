@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "note": "Shared spoken-alias list for the phone (call-scoring.ts) and the customer app (text-intents.ts). Each rule: match = regex source (flags default 'giu'), to = replacement ($1 allowed), scope = phone/app, requires/forbids = regex the WHOLE phrase must / must not match. Add rules only after review; run `npm run replay` before going live.",
+  "aliases": [
+    { "id": "guarache", "match": "\\bguarache(s?)\\b", "to": "huarache$1", "scope": ["phone", "app"], "example": "quiero un guarache de prensado", "source": "phone call-scoring FOOD list + transcripts", "approved": "Carlos 2026-10-19" },
+    { "id": "sopesazo", "match": "\\bsopesazo(s?)\\b", "to": "sopesaso$1", "scope": ["phone", "app"], "example": "dame un sopesazo de bistec con chorizo", "source": "phone call-scoring FOOD list; Square name is Sopesaso Elvis", "approved": "Carlos 2026-10-19" },
+    { "id": "campechana", "match": "\\bcampechanas?\\b", "to": "bistec y chorizo", "scope": ["phone", "app"], "example": "una torta de campechana", "source": "fix23 (pre-turn.ts + call-scoring.ts)", "approved": "Carlos 2026-10-19" },
+    { "id": "omal", "match": "\\b(?:omal|cual\\s*comal)\\b", "to": "comal", "scope": ["phone", "app"], "example": "quesadillas de cualcomal", "source": "fix23 + transcripts", "approved": "Carlos 2026-10-19" },
+    { "id": "o-mal", "match": "\\bo\\s+mal\\b", "to": "comal", "scope": ["phone", "app"], "requires": "\\b(?:tacos?|quesadillas?|harina|flour|street|ma[ií]z|tortillas?)\\b|^[\\s¿¡.,!?]*o\\s+mal[\\s.,!?]*$", "example": "¿O mal?  (answer to comal or harina)", "source": "fix23 + transcripts", "approved": "Carlos 2026-10-19" },
+    { "id": "tepa-tripa", "match": "\\b(de|y|con)\\s+(?:tepa|tipa|trepa)s?\\b", "to": "$1 tripa", "scope": ["phone", "app"], "example": "una de chorizo, una de tepa y otra de buche", "source": "pre-turn.ts MEAT_EXTRA + transcripts", "approved": "Carlos 2026-10-19" },
+    { "id": "vista-bistec", "match": "\\bde\\s+vista(?:\\s+puebla)?\\b", "to": "de bistec", "scope": ["phone", "app"], "requires": "\\b(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|sopesasos?|huaraches?|pambazos?)\\b", "example": "dos quesadillas de vista Puebla", "source": "transcripts (STT mishearing)", "approved": "Carlos 2026-10-19" },
+    { "id": "chopack", "match": "\\bcho\\s*-?\\s*packs?\\b", "to": "8 pack", "scope": ["phone", "app"], "example": "un chopack de tacos", "source": "app sessions (STT of 'un eight pack')", "approved": "Carlos 2026-10-19" },
+    { "id": "con-todo", "match": "[,\\s]*\\bcon\\s+todo\\b", "to": "", "scope": ["phone", "app"], "requires": "\\b(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|sopesasos?|huaraches?|pambazos?|bistec|chorizo|alpastor|pastor|asada|pollo|carnitas)\\b", "forbids": "\\bcon\\s+todo\\s+(?:y|menos|pero|excepto|sin)\\b", "example": "un burrito grande de bistec con chorizo, con todo", "source": "transcripts ('with everything' = the default toppings)", "approved": "Carlos 2026-10-19" }
+  ]
+}

@@ -1,3 +1,4 @@
+import { applySharedAliases } from "./aliases.js";
 function normalizeIntentText(text: string): string {
   return String(text || "")
     .toLowerCase()
@@ -76,7 +77,8 @@ export function stripLeadFiller(text: string) {
 }
 
 export function normalizeSpokenCatalogAliases(text: string) {
-  return stripLeadFiller(String(text || ""))
+  // aliases1: shared phone+app spoken aliases (data/aliases/aliases.json) run first.
+  return applySharedAliases(stripLeadFiller(String(text || "")), "app")
     .replace(/\b(al|el)\s+pastor\b/gi, "alpastor")
     .replace(/(?<!\bal)(?<!\balpastor)\bpastor\b/gi, "alpastor")
     .replace(/\bcarne\s+asada\b/gi, "bistec")

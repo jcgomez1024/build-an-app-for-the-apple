@@ -1,0 +1,23 @@
+{"id":"guarache-es","fn":"app","input":"quiero un guarache de prensado","has":["huarache"],"not":["guarache"]}
+{"id":"guarache-phone","fn":"phone","input":"Quiero un guarache de prensado con duro, no lechuga","has":["huarache","no lechuga"]}
+{"id":"sopesazo-app","fn":"app","input":"dame un sopesazo de bistec con chorizo","has":["sopesaso","bistec","chorizo"]}
+{"id":"sopesazo-phone-nocrema","fn":"phone","input":"Dame un sopesazo de bistec con chorizo, no crema","has":["sopesaso","no crema"]}
+{"id":"campechana-torta","fn":"app","input":"una torta de campechana","has":["bistec y chorizo"],"not":["campechana"]}
+{"id":"campechana-bare-phone","fn":"phone","input":"Campechana.","eq":"bistec y chorizo"}
+{"id":"cualcomal","fn":"app","input":"tres quesadillas de cualcomal","has":["comal"],"not":["cual"]}
+{"id":"omal-one-word","fn":"phone","input":"omal","eq":"comal"}
+{"id":"o-mal-bare-answer","fn":"phone","input":"¿O mal?","eq":"comal"}
+{"id":"o-mal-with-tacos","fn":"app","input":"dos tacos de bistec o mal","has":["comal"]}
+{"id":"o-mal-no-food-untouched","fn":"app","input":"no se si esta bien o mal el pedido","not":["comal"]}
+{"id":"tepa-tripa","fn":"app","input":"una de chorizo, una de tepa y otra de buche","has":["tripa","buche"],"not":["tepa"]}
+{"id":"tipa-tripa-phone","fn":"phone","input":"dos tacos de harina de tipa","has":["tripa"]}
+{"id":"trepa-verb-untouched","fn":"app","input":"el gato trepa la pared","has":["trepa"]}
+{"id":"vista-puebla","fn":"app","input":"dos quesadillas de vista Puebla","has":["bistec"],"not":["vista","puebla"]}
+{"id":"vista-phone","fn":"phone","input":"dos quesadillas de vista","has":["bistec"]}
+{"id":"vista-no-food-untouched","fn":"app","input":"hay una vista de puebla bonita","has":["vista"]}
+{"id":"chopack","fn":"app","input":"un chopack de tacos","has":["8 pack"],"not":["cho"]}
+{"id":"chopack-phone","fn":"phone","input":"un cho pack de tacos de pastor","has":["8 pack"]}
+{"id":"con-todo-burrito","fn":"app","input":"un burrito grande de bistec con chorizo, con todo","has":["burrito","chorizo"],"not":["todo"]}
+{"id":"con-todo-phone","fn":"phone","input":"dos tacos de pastor con todo","not":["todo"],"has":["tacos"]}
+{"id":"con-todo-menos-kept","fn":"app","input":"tres tacos de bistec con todo menos cebolla","has":["con todo menos"]}
+{"id":"con-todo-no-food-kept","fn":"app","input":"gracias con todo","has":["con todo"]}

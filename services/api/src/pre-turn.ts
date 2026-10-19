@@ -8,6 +8,7 @@
 import type { MenuItem } from "./menu.js";
 import { pinnedMenu } from "./site-catalog.js";
 import { rbFormat } from "./readback.js";
+import { applySharedAliases } from "./aliases.js";
 
 const NUM: Record<string, number> = {
   uno: 1, one: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5,
@@ -131,7 +132,8 @@ const pendingEnchiladas = new Map<string, { rest: string; at: number }>();
 
 export function preTurn(key: string | undefined, text: string, menu: MenuItem[], language: string, opts: { hasComboState?: boolean } = {}): { reply?: string; text: string; replayed?: boolean; adds?: SplitAdd[] } {
   // fix23: kitchen shorthand + STT — campechana = bistec+chorizo; "o mal"/"omal" = comal.
-  text = String(text || "").replace(/\bcampechanas?\b/giu, "bistec y chorizo").replace(/\b(?:o\s*mal|omal)\b/giu, "comal");
+  // aliases1: campechana / o mal / guarache / tepa… come from the shared list (data/aliases/aliases.json).
+  text = applySharedAliases(String(text || ""), "app");
   // fix23: milanesas not on the Square/site menu — don't invent another platillo.
   if (/\bmilanesas?\b/iu.test(text) && !(menu || []).some((m) => /milanesa/i.test(String(m.name || "") + String(m.id || "")))) {
     const es = language !== "en";

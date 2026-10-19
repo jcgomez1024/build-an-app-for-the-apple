@@ -1,0 +1,20 @@
+{"id":"pastor","fn":"app","input":"8 tacos de pastor","has":["alpastor"]}
+{"id":"al-pastor","fn":"app","input":"tres de al pastor y tres de bistec","has":["alpastor","bistec"]}
+{"id":"asada-bistec","fn":"app","input":"4 tacos de asada","has":["bistec"],"not":["asada"]}
+{"id":"carne-asada","fn":"app","input":"un burrito de carne asada","has":["bistec"]}
+{"id":"salsa-asada-kept","fn":"app","input":"2 tacos de pastor con salsa asada","has":["salsa asada"]}
+{"id":"chicharron-verde","fn":"app","input":"una gordita de chicharron verde con salsa roja","has":["pork rinds"]}
+{"id":"chicharron-prensado","fn":"app","input":"un huarache de chicharron prensado","has":["prensado"]}
+{"id":"jarrito","fn":"app","input":"un jurrito de mango","has":["jarrito"]}
+{"id":"pambazo","fn":"app","input":"un pampazo de papa","has":["pambazo"]}
+{"id":"poyo","fn":"app","input":"burrito chico de poyo","has":["pollo"]}
+{"id":"choriso","fn":"app","input":"2 tacos de choriso","has":["chorizo"]}
+{"id":"carnita","fn":"app","input":"un burrito de carnita","has":["carnitas"]}
+{"id":"dearina","fn":"app","input":"dos tacos dearina de tripa","has":["de harina","tripa"]}
+{"id":"water","fn":"app","input":"a water please","has":["agua water bottle"]}
+{"id":"por-favor-stripped","fn":"app","input":"dos quesadillas de bistec por favor","not":["favor"]}
+{"id":"esquite","fn":"app","input":"an esquite","has":["esquite"]}
+{"id":"gorditas-singular","fn":"app","input":"dos gorditas de chorizo","has":["gordita "],"not":["gorditas"]}
+{"id":"mix-combo-en","fn":"app","input":"a mix combo, a steak taco and a chicken street taco","has":["combo","street"]}
+{"id":"phone-no-crema","fn":"phone","input":"no crema","eq":"no crema"}
+{"id":"phone-por-favor","fn":"phone","input":"dos tacos de bistec y dos tacos de chorizo, por favor","not":["favor"],"has":["chorizo"]}
