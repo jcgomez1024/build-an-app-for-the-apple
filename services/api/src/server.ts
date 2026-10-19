@@ -21,7 +21,7 @@ import { orderContextTurn, clearOrderContext, logTurn, pendingSummary } from "./
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
 import { registerTwilioRoutes } from "./twilio.js";
-import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE } from "./customer-guard.js";
+import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
@@ -37,16 +37,31 @@ dotenv.config({ path: path.resolve(__dirname, "../.env.custapp") });
 dotenv.config();
 
 const app = express();
-// lockdown1: anything arriving via a tunnel (Cloudflare headers / non-local Host) only reaches the phone system.
-// Localhost on this Mac stays unrestricted. Set PUBLIC_CUSTOMER_APP=1 to lift this later (order.cocinaelvis.app).
-export function viaPublic(req: { headers: Record<string, any> }) {
-  const host = String(req.headers.host || "").split(":")[0];
-  return !!(req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"]) || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
-}
-const PUBLIC_OK = /^\/(health\/?$|phone\.html$|vendor\/twilio-voice\.min\.js$|img\/logo-cocina-elvis\.png$|favicon\.ico$|api\/twilio\/|api\/phone\/)/;
+// order1: host-based public access. Localhost unrestricted; elvi host = phone only;
+// order host = password-gated customer app (no staff/phone routes); any other tunneled host = 404.
 app.use((req, res, next) => {
-  if (process.env.PUBLIC_CUSTOMER_APP === "1" || !viaPublic(req) || PUBLIC_OK.test(req.path)) return next();
-  res.status(404).type("text/plain").send("Not found");
+  const zone = accessZone(req);
+  if (zone === "local") return next();
+  if (zone === "phone") return PHONE_OK.test(req.path) ? next() : void res.status(404).type("text/plain").send("Not found");
+  if (zone !== "order" || ORDER_DENY.test(req.path)) return void res.status(404).type("text/plain").send("Not found");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  if (req.path === "/health") return next();
+  if (req.path === "/preview-login") {
+    if (req.method === "GET") return void res.type("html").send(loginPage());
+    if (req.method !== "POST") return void res.status(405).end();
+    const lim = hitLimit("preview-login", clientIp(req), 8, 15 * 60_000);
+    if (lim.limited) { res.setHeader("Retry-After", String(lim.retryAfterSec)); return void res.status(429).type("html").send(loginPage("Demasiados intentos. Espera unos minutos. / Too many tries, wait a few minutes.")); }
+    return express.urlencoded({ extended: false, limit: "2kb" })(req, res, () => {
+      const pw = String((req.body as any)?.password || "");
+      const cookie = passwordOk(pw) ? makePreviewCookie() : null;
+      if (!cookie) return void res.status(401).type("html").send(loginPage("Contraseña incorrecta / Wrong password"));
+      res.setHeader("Set-Cookie", cookie);
+      res.redirect(303, "/");
+    });
+  }
+  if (previewCookieOk(req)) return next();
+  if (req.path.startsWith("/api/")) return void res.status(401).json({ error: "Login required" });
+  res.status(401).type("html").send(loginPage());
 });
 const port = Number(process.env.PORT || 4000);
 

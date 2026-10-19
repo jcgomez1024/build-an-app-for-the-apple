@@ -3,7 +3,7 @@ import { logTurn, pendingSummary } from "./order-context.js";
 import { randomUUID } from "node:crypto";
 import { URL } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
-import { VOICE_SESSION_MAX_MS, clientIp, hitLimit } from "./customer-guard.js";
+import { VOICE_SESSION_MAX_MS, clientIp, hitLimit, accessZone, previewCookieOk } from "./customer-guard.js";
 import { chatWithElvi, chatWithElviAudio, type ConversationTurn } from "./elvi.js";
 import { getMenu, getFullMenu } from "./square.js";
 import type { MenuItem } from "./menu.js";
@@ -1103,10 +1103,9 @@ export function attachRealtimeServer(server: HttpServer) {
     if (url.pathname !== "/api/realtime") {
       return;
     }
-    // lockdown1: no customer realtime voice through the tunnel.
-    { const h = String(req.headers.host || "").split(":")[0];
-      if (process.env.PUBLIC_CUSTOMER_APP !== "1" && (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"] || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(h))) { socket.write("HTTP/1.1 404 Not Found\r\n\r\n"); socket.destroy(); return; } }
-
+    // order1: realtime voice only from localhost or the password-gated order host.
+    { const z = accessZone(req as any);
+      if (z !== "local" && !(z === "order" && previewCookieOk(req as any))) { socket.write("HTTP/1.1 404 Not Found\r\n\r\n"); socket.destroy(); return; } }
     // custapp1: per-IP limit on voice socket opens
     if (process.env.RATE_LIMITS_OFF !== "1" && hitLimit("voice-ws", clientIp(req as any), 10, 10 * 60_000).limited) { socket.write("HTTP/1.1 429 Too Many Requests\r\n\r\n"); socket.destroy(); return; }
     const sessionId = url.searchParams.get("sessionId") || "";
