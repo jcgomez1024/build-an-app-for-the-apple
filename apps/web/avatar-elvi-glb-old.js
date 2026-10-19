@@ -1,5 +1,6 @@
-import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js?module";
-import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js?module";
+// Backup file — uses the import map from index.html for a single Three.js instance
+import * as THREE from "three";
+import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js";
 
 const MODEL_URL = "/avatar/elvis-avatar_Idle_11_withSkin-Realistic.glb";
 

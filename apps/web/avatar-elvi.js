@@ -20,7 +20,8 @@
  *   elvi.queueVisemes([ { atMs, viseme, value }, … ]);
  */
 
-import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js";
+// Legacy file — uses the import map from index.html for a single Three.js instance
+import * as THREE from "three";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {

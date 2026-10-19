@@ -15,6 +15,12 @@ export async function createCheckout(input: {
   cart: CartLine[];
   fulfillment: Fulfillment;
   customer: Customer;
+  metadata?: {
+    language?: string;
+    source?: string;
+    transcriptSummary?: string;
+    cartSummary?: string;
+  };
 }): Promise<{ checkoutUrl: string; orderId?: string; paymentLinkId: string }> {
   const response = await fetch(`${apiBaseUrl}/api/orders/checkout`, {
     method: "POST",
@@ -22,7 +28,8 @@ export async function createCheckout(input: {
     body: JSON.stringify({
       cart: input.cart.map((line) => ({ id: line.item.id, quantity: line.quantity })),
       fulfillment: input.fulfillment,
-      customer: input.customer
+      customer: input.customer,
+      metadata: input.metadata
     })
   });
 

@@ -11,3 +11,23 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 .tools/
+
+# Elvi per-session turn logs (learning loop)
+services/api/data/logs/
+
+# Twilio call recordings (listen-only training)
+services/api/data/calls/
+
+# custapp1: never commit secrets, live data, or big binaries
+services/api/.env.twilio
+services/api/.env.*
+!services/api/.env.example
+*.pem
+*.key
+services/api/data/logs/
+services/api/data/calls/
+services/api/data/twilio-fallback-urls*.json
+*.log
+*.glb
+avatar/*.glb
+*.before-*

@@ -1,0 +1,1700 @@
+{
+  "version": "2.0",
+  "description": "Especial del Dia build guide generated from Menu Especial del Dia Items Online with Descriptions and Options.rtf. Optional salsa, agua, con/with options, and extras are only added when explicitly selected.",
+  "source": "cocinaelvis.com storefront + data/rules/especial-rules.csv",
+  "especialItems": [
+    {
+      "id": "especial-quesadilla-dorada",
+      "kind": "quesadilla-dorada",
+      "displayName": "(QD) Quesadilla Dorada",
+      "price": 5.5,
+      "description": "Our signature Quesadilla Dorada made with your choice of meat features a deep fried crispy golden crust with cheesy melted cheese inside.",
+      "itemNamePattern": "\\bquesadilla\\s+dorada\\b",
+      "aliases": [
+        "qd",
+        "quesadilla dorada",
+        "dorada",
+        "fried quesadilla",
+        "quesadilla frita"
+      ],
+      "steps": [
+        {
+          "key": "qd-option",
+          "label": "Quesadilla Dorada option",
+          "kind": "regular-deluxe",
+          "groupNamePattern": "quesadilla\\s+dorada.*choice|regular|deluxe",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe preparada.",
+          "options": [
+            {
+              "name": "REGULAR Dorada",
+              "aliases": [
+                "regular dorada"
+              ],
+              "websiteName": "(QD) REGULAR Dorada",
+              "price": 5.5,
+              "code": "QD"
+            },
+            {
+              "name": "DELUXE Preparada - Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream",
+              "aliases": [
+                "cheese",
+                "crema",
+                "deluxe",
+                "deluxe preparada lettuce pico de gallo fresco cheese and sour cream",
+                "fresco cheese",
+                "preparada",
+                "preparado",
+                "queso fresco",
+                "sour cream"
+              ],
+              "websiteName": "(QD) DELUXE Preparada",
+              "price": 6,
+              "code": "QD"
+            }
+          ],
+          "mode": "ask",
+          "website": {
+            "min": 1,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "qd-meat",
+          "label": "Quesadilla Dorada meat",
+          "kind": "meat",
+          "groupNamePattern": "quesadilla\\s+dorada.*meat|carne",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 2,
+          "selection_type": "multi",
+          "instruction": "Ask for up to two meat choices.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ],
+              "websiteName": "Bistec / Steak",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "beef head",
+                "cabeza"
+              ],
+              "websiteName": "Cabeza / Beef Head",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ],
+              "websiteName": "Carnitas / Pulled Pork",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ],
+              "websiteName": "Chorizo / Mexican Sausage",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "beef rib",
+                "costilla",
+                "rib"
+              ],
+              "websiteName": "Costilla / Beef Rib",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "chicken",
+                "pollo"
+              ],
+              "websiteName": "Pollo / Chicken",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "al pastor",
+                "alpastor",
+                "el pastor",
+                "pastor",
+                "roasted pork"
+              ],
+              "websiteName": "Alpastor / Roasted Pork",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ],
+              "websiteName": "Buche / Pork Stomach",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "beef tongue",
+                "lengua",
+                "tongue"
+              ],
+              "websiteName": "Lengua / Beef Tongue",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "beef tripe",
+                "tripa",
+                "tripe"
+              ],
+              "websiteName": "Tripa / Beef Tripe",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ],
+              "websiteName": "Prensado / Spicy Pork",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ],
+              "websiteName": "Duro / Pork Rinds",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef",
+                "shredded beef with potatoes"
+              ],
+              "websiteName": "Deshebrada / Shredded Beef with Potatoes",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "carne molida",
+                "ground beef",
+                "ground beef with potatoes",
+                "molida",
+                "picadillo"
+              ],
+              "websiteName": "Picadillo / Ground Beef with Potatoes",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "cacti potatoes",
+                "cacti with potatoes",
+                "cactus",
+                "cactus with potatoes",
+                "nopales",
+                "nopales con papas"
+              ],
+              "websiteName": "Nopales con Papas / Cacti with Potatoes",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "papas rajas",
+                "poblano with potatoes",
+                "rajas",
+                "rajas con papas",
+                "rajas papas"
+              ],
+              "websiteName": "Papas Con Rajas / Poblano with Potatoes",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "egg",
+                "huevo",
+                "huevo con chile",
+                "spicy egg"
+              ],
+              "websiteName": "Huevo con Chile / Spicy Egg",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ],
+              "websiteName": "Vegetales / Vegetarian",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "aliases": [
+                "bean",
+                "beans",
+                "frijol",
+                "frijoles",
+                "frijoles refritos",
+                "refried beans"
+              ],
+              "websiteName": "Frijoles Refritos / Refried Beans",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "aliases": [
+                "arroz",
+                "rice"
+              ],
+              "websiteName": "Arroz / Rice",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "melted cheese",
+                "queso derretido"
+              ],
+              "websiteName": " Queso Derretido / Melted Cheese",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria",
+                "birria de chivo",
+                "chivo",
+                "goat birria"
+              ],
+              "websiteName": "Birria de Chivo / Goat Birria",
+              "priceDeltaCents": 75
+            }
+          ],
+          "mode": "ask",
+          "website": {
+            "min": 1,
+            "max": 2,
+            "preselected": []
+          }
+        },
+        {
+          "key": "qd-with",
+          "label": "Con / With",
+          "kind": "multi",
+          "groupNamePattern": "con|with",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 4,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want any con/with additions. Only add options explicitly selected.",
+          "options": [
+            {
+              "name": "Con Frijoles / With Beans",
+              "aliases": [
+                "bean",
+                "beans",
+                "con frijoles",
+                "frijol",
+                "frijoles",
+                "frijoles refritos",
+                "with beans"
+              ],
+              "websiteName": "**Con Frijoles / With Beans",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "Con Arroz / With Rice",
+              "aliases": [
+                "arroz",
+                "con arroz",
+                "rice",
+                "with rice"
+              ],
+              "websiteName": "**Con Arroz / With Rice",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "Con Queso Fresco / With Cheese",
+              "aliases": [
+                "cheese",
+                "con queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "with cheese"
+              ],
+              "websiteName": "**Con Queso Fresco / With Cheese",
+              "priceDeltaCents": 50
+            },
+            {
+              "name": "EXTRA Queso Derretido / Melted Cheese",
+              "aliases": [
+                "extra queso derretido",
+                "melted cheese",
+                "queso derretido"
+              ],
+              "websiteName": "**EXTRA Queso Derretido / Melted Cheese",
+              "priceDeltaCents": 50
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 4,
+            "preselected": []
+          }
+        },
+        {
+          "key": "qd-salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which salsa they want, if any.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "asada",
+                "mild asada",
+                "mild salsa asada",
+                "salsa asada"
+              ],
+              "websiteName": "Mild Salsa Asada",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "mild tomato",
+                "salsa tomate",
+                "salsa tomato",
+                "tomate",
+                "tomato",
+                "tomato salsa"
+              ],
+              "websiteName": "Mild Salsa Tomato",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "medium verde",
+                "salsa verde",
+                "verde"
+              ],
+              "websiteName": "Medium Salsa Verde",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot roja",
+                "hot salsa roja",
+                "roja",
+                "salsa roja"
+              ],
+              "websiteName": "Hot Salsa Roja",
+              "priceDeltaCents": 0
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "especial-extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 10,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add extras explicitly selected; say done when finished.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "crema",
+                "extra side crema",
+                "sour cream"
+              ],
+              "websiteName": "***EXTRA SIDE Crema / Sour Cream",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "cheese",
+                "extra side queso fresco",
+                "fresco cheese",
+                "fresh cheese",
+                "queso fresco"
+              ],
+              "websiteName": "***EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "half lime",
+                "half limon",
+                "lime",
+                "media lima",
+                "medio limon"
+              ],
+              "websiteName": "***EXTRA Half Limon / Lime",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa",
+                "extra guacamole salsa 2oz",
+                "guacamole salsa"
+              ],
+              "websiteName": "***EXTRA Guacamole Salsa 2oz",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "asada",
+                "extra asada salsa",
+                "extra mild salsa asada 2oz",
+                "mild asada",
+                "salsa asada"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Asada 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra mild salsa tomato 2oz",
+                "extra salsa tomate",
+                "extra tomato salsa",
+                "salsa tomate",
+                "salsa tomato",
+                "tomate",
+                "tomato salsa"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Tomato 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra medium salsa verde 2oz",
+                "extra salsa verde",
+                "medium verde",
+                "salsa verde",
+                "verde"
+              ],
+              "websiteName": "***EXTRA Medium Salsa Verde 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra hot salsa roja 2oz",
+                "extra salsa roja",
+                "hot roja",
+                "roja",
+                "salsa roja"
+              ],
+              "websiteName": "***EXTRA Hot Salsa Roja 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "cebolla",
+                "cebolla y chiles asados",
+                "chiles asados",
+                "extra cebolla",
+                "extra cebolla y chiles asados",
+                "onion"
+              ],
+              "websiteName": "***EXTRA Cebolla y Chiles Asados",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "DELUXE ***APARTE / EVERTHING ON SIDE***",
+              "aliases": [
+                "deluxe",
+                "deluxe aparte",
+                "everthing on side",
+                "preparada",
+                "preparado"
+              ],
+              "websiteName": "DELUXE ***APARTE / EVERTHING ON SIDE***",
+              "priceDeltaCents": 150
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 10,
+            "preselected": []
+          }
+        }
+      ],
+      "summary": "Quesadilla dorada (frita) con tu carne; regular o deluxe preparada.",
+      "squareItemId": "DANMDMZDAJYSE6ERXUY5EKGZ"
+    },
+    {
+      "id": "especial-birria",
+      "kind": "birria",
+      "displayName": "Birria de Chivo / Goat Birria",
+      "priceRange": {
+        "min": 7,
+        "max": 20
+      },
+      "description": "Savor the authentic flavors of Mexico with our Birria de Chivo, a dish featuring tender, succulent goat meat that’s been slow-cooked in a rich, flavorful broth.",
+      "itemNamePattern": "\\bbirria\\s+de\\s+chivo\\b|\\bgoat\\s+birria\\b",
+      "aliases": [
+        "birria",
+        "birria de chivo",
+        "goat birria",
+        "consome",
+        "consomé",
+        "consome de birria"
+      ],
+      "steps": [
+        {
+          "key": "birria-option",
+          "label": "Birria option",
+          "kind": "itemOption",
+          "groupNamePattern": "birria.*option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which birria option they want.",
+          "options": [
+            {
+              "name": "1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal",
+              "price": 20,
+              "aliases": [
+                "1 lb of birria de chivo",
+                "broth",
+                "broth y tortillas de comal",
+                "comal",
+                "consome",
+                "consomé",
+                "goat con consome",
+                "homemade",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal"
+            },
+            {
+              "name": "1 lb of Birria de Chivo/Goat con SOLO/ONLY Tortillas de Comal",
+              "price": 19,
+              "aliases": [
+                "1 lb of birria de chivo",
+                "comal",
+                "goat con solo",
+                "homemade",
+                "only tortillas de comal",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "1 lb of Birria de Chivo/Goat con SOLO/ONLY Tortillas de Comal"
+            },
+            {
+              "name": "1 lb of Birria de Chivo/Goat con SOLO/ONLY Consome/Broth",
+              "price": 19,
+              "aliases": [
+                "1 lb of birria de chivo",
+                "broth",
+                "consome",
+                "consomé",
+                "goat con solo",
+                "only consome"
+              ],
+              "websiteName": "1 lb of Birria de Chivo/Goat con SOLO/ONLY Consome/Broth"
+            },
+            {
+              "name": "SOLO/ONLY 1 lb of Birria de Chivo/Goat",
+              "price": 18,
+              "aliases": [
+                "goat",
+                "only 1 lb of birria de chivo",
+                "solo"
+              ],
+              "websiteName": "SOLO/ONLY 1 lb of Birria de Chivo/Goat"
+            },
+            {
+              "name": "SOLO/ONLY 16oz de Consome/Broth de Birria— +$6.00",
+              "price": 7,
+              "aliases": [
+                "broth",
+                "broth de birria 6 00",
+                "consome",
+                "consomé",
+                "only 16oz de consome",
+                "solo"
+              ],
+              "websiteName": "SOLO/ONLY 16oz de Consome/Broth de Birria"
+            }
+          ],
+          "mode": "ask",
+          "website": {
+            "min": 1,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "especial-extras",
+          "label": "Birria extras",
+          "kind": "extras",
+          "groupNamePattern": "birria.*extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 4,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want birria extras. Only add extras explicitly selected; say done when finished.",
+          "options": [
+            {
+              "name": "EXTRA 6 x Comal / Homemade Tortilla",
+              "aliases": [
+                "comal",
+                "extra 6 x comal",
+                "homemade",
+                "homemade tortilla",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "***EXTRA 6 x Comal / Homemade Tortilla",
+              "priceDeltaCents": 700
+            },
+            {
+              "name": "EXTRA 12 x Comal / Homemade Tortilla",
+              "aliases": [
+                "comal",
+                "extra 12 x comal",
+                "homemade",
+                "homemade tortilla",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "***EXTRA 12 x Comal / Homemade Tortilla",
+              "priceDeltaCents": 1200
+            },
+            {
+              "name": "EXTRA 6 x Harina / Four Tortilla",
+              "aliases": [
+                "extra 6 x harina",
+                "flour",
+                "four tortilla",
+                "harina",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "***EXTRA 6 x Harina / Four Tortilla",
+              "priceDeltaCents": 600
+            },
+            {
+              "name": "EXTRA 12 x Harina / Flour Tortilla",
+              "aliases": [
+                "extra 12 x harina",
+                "flour",
+                "flour tortilla",
+                "harina",
+                "tortilla",
+                "tortillas"
+              ],
+              "websiteName": "***EXTRA 12 x Harina / Flour Tortilla",
+              "priceDeltaCents": 800
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 4,
+            "preselected": []
+          }
+        },
+        {
+          "key": "birria-agua",
+          "label": "Agua extra",
+          "kind": "agua",
+          "groupNamePattern": "agua",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask if they want one agua extra.",
+          "options": [
+            {
+              "name": "HORCHATA 32oz",
+              "aliases": [
+                "agua de horchata",
+                "horchata",
+                "horchata 32oz"
+              ],
+              "websiteName": "*** HORCHATA 32oz",
+              "priceDeltaCents": 500
+            },
+            {
+              "name": "JAMAICA 32oz",
+              "aliases": [
+                "agua de jamaica",
+                "jamaica",
+                "jamaica 32oz"
+              ],
+              "websiteName": "*** JAMAICA 32oz",
+              "priceDeltaCents": 500
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 1,
+            "preselected": []
+          }
+        }
+      ],
+      "summary": "Una libra de birria de chivo; con consomé y/o tortillas de comal.",
+      "squareItemId": "FHQSSETCM63AHGEW3YHJK2AG"
+    },
+    {
+      "id": "especial-queso-birrias",
+      "kind": "queso-birrias",
+      "displayName": "Queso Birrias",
+      "priceRange": {
+        "min": 15,
+        "max": 20
+      },
+      "description": "Our Delicious Queso Birrias are three quesadillas filled with melted cheese and goat birria protein, served golden, cheesy and a broth.",
+      "itemNamePattern": "\\bqueso\\s+birrias?\\b|\\bquesabirrias?\\b",
+      "aliases": [
+        "queso birria",
+        "queso birrias",
+        "quesabirria",
+        "quesabirrias"
+      ],
+      "steps": [
+        {
+          "key": "queso-birria-option",
+          "label": "Queso Birria option",
+          "kind": "itemOption",
+          "groupNamePattern": "queso\\s+birria.*option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which queso birria option they want.",
+          "options": [
+            {
+              "name": "3 x Queso Birrias Taquera / Street con Consome/Broth",
+              "code": "QST",
+              "price": 15,
+              "aliases": [
+                "broth",
+                "consome",
+                "consomé",
+                "qst",
+                "quesadilla taquera",
+                "queso birrias taquera",
+                "street",
+                "street con consome",
+                "street quesadilla",
+                "taquera",
+                "taquera quesadilla",
+                "taquero"
+              ],
+              "websiteName": "(QST) 3 x Queso Birrias Taquera / Street con Consome/Broth"
+            },
+            {
+              "name": "3 x Queso Birrias Harina / Flour con Consome/Broth",
+              "code": "QHR",
+              "price": 18,
+              "aliases": [
+                "broth",
+                "consome",
+                "consomé",
+                "flour",
+                "flour con consome",
+                "flour quesadilla",
+                "harina",
+                "harina quesadilla",
+                "qhr",
+                "quesadilla harina",
+                "queso birrias harina"
+              ],
+              "websiteName": "(QHR) 3 x Queso Birrias Harina / Flour con Consome/Broth"
+            },
+            {
+              "name": "3 x Queso Birrias Comal / Homemade con Consome/Broth",
+              "code": "QCO",
+              "price": 20,
+              "aliases": [
+                "broth",
+                "comal",
+                "comal quesadilla",
+                "consome",
+                "consomé",
+                "homemade",
+                "homemade con consome",
+                "homemade corn",
+                "homemade quesadilla",
+                "qco",
+                "quesadilla comal",
+                "queso birrias comal"
+              ],
+              "websiteName": "(QCO) 3 x Queso Birrias Comal / Homemade con Consome/Broth"
+            }
+          ],
+          "mode": "ask",
+          "website": {
+            "min": 1,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "queso-birria-salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which salsa they want, if any.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "asada",
+                "mild asada",
+                "mild salsa asada",
+                "salsa asada"
+              ],
+              "websiteName": "Mild Salsa Asada",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "mild tomato",
+                "salsa tomate",
+                "salsa tomato",
+                "tomate",
+                "tomato",
+                "tomato salsa"
+              ],
+              "websiteName": "Mild Salsa Tomato",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "medium verde",
+                "salsa verde",
+                "verde"
+              ],
+              "websiteName": "Medium Salsa Verde",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot roja",
+                "hot salsa roja",
+                "roja",
+                "salsa roja"
+              ],
+              "websiteName": "Hot Salsa Roja",
+              "priceDeltaCents": 0
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "especial-extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 10,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add extras explicitly selected; say done when finished.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "crema",
+                "extra side crema",
+                "sour cream"
+              ],
+              "websiteName": "***EXTRA SIDE Crema / Sour Cream",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "cheese",
+                "extra side queso fresco",
+                "fresco cheese",
+                "fresh cheese",
+                "queso fresco"
+              ],
+              "websiteName": "***EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "half lime",
+                "half limon",
+                "lime",
+                "media lima",
+                "medio limon"
+              ],
+              "websiteName": "***EXTRA Half Limon / Lime",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Full Limon / Lime",
+              "aliases": [
+                "extra full limon lime"
+              ],
+              "websiteName": "***EXTRA Full Limon / Lime",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 4oz",
+              "aliases": [
+                "extra guacamole salsa 4oz"
+              ],
+              "websiteName": "***EXTRA Guacamole Salsa 4oz",
+              "priceDeltaCents": 200
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 4oz",
+              "aliases": [
+                "extra mild salsa asada 4oz"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Asada 4oz",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 4oz",
+              "aliases": [
+                "extra mild salsa tomato 4oz"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Tomato 4oz",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 4oz",
+              "aliases": [
+                "extra medium salsa verde 4oz"
+              ],
+              "websiteName": "***EXTRA Medium Salsa Verde 4oz",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 4oz",
+              "aliases": [
+                "extra hot salsa roja 4oz"
+              ],
+              "websiteName": "***EXTRA Hot Salsa Roja 4oz",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "cebolla",
+                "cebolla y chiles asados",
+                "chiles asados",
+                "extra cebolla",
+                "extra cebolla y chiles asados",
+                "onion"
+              ],
+              "websiteName": "***EXTRA Cebolla y Chiles Asados",
+              "priceDeltaCents": 75
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 10,
+            "preselected": []
+          }
+        }
+      ],
+      "summary": "Tres queso birrias con consomé; taquera, harina o comal.",
+      "squareItemId": "74PV3BBXQVO3U67ZBASFNN3I"
+    },
+    {
+      "id": "especial-pambazo",
+      "kind": "pambazo",
+      "displayName": "Pambazo Elvis",
+      "price": 6,
+      "description": "Our signature Pambazo Elvis is a classic Mexican street-food favorite soft bolillo roll dipped in our savory guajillo chile sauce, then stuffed with your choice of meat,, lettuce, Pico de Gallo, queso fresco, and crema.",
+      "itemNamePattern": "\\bpambazo\\b",
+      "aliases": [
+        "pambazo",
+        "pambazo elvis"
+      ],
+      "steps": [
+        {
+          "key": "pambazo-meat",
+          "label": "Pambazo meat",
+          "kind": "meat",
+          "groupNamePattern": "pambazo.*meat|carne",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 2,
+          "selection_type": "multi",
+          "instruction": "Ask for up to two meat choices.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ],
+              "websiteName": "Bistec / Steak",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "beef head",
+                "cabeza"
+              ],
+              "websiteName": "Cabeza / Beef Head",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ],
+              "websiteName": "Carnitas / Pulled Pork",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ],
+              "websiteName": "Chorizo / Mexican Sausage",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "beef rib",
+                "costilla",
+                "rib"
+              ],
+              "websiteName": "Costilla / Beef Rib",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "chicken",
+                "pollo"
+              ],
+              "websiteName": "Pollo / Chicken",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "al pastor",
+                "alpastor",
+                "el pastor",
+                "pastor",
+                "roasted pork"
+              ],
+              "websiteName": "Alpastor / Roasted Pork",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ],
+              "websiteName": "Buche / Pork Stomach",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "beef tongue",
+                "lengua",
+                "tongue"
+              ],
+              "websiteName": "Lengua / Beef Tongue",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "beef tripe",
+                "tripa",
+                "tripe"
+              ],
+              "websiteName": "Tripas / Beef Tripe",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ],
+              "websiteName": "Prensado / Spicy Pork",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ],
+              "websiteName": "Duro / Pork Rinds",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef",
+                "shredded beef with potatoes"
+              ],
+              "websiteName": "Deshebrada / Shredded Beef",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "carne molida",
+                "ground beef",
+                "ground beef with potatoes",
+                "molida",
+                "picadillo"
+              ],
+              "websiteName": "Picadillo / Ground Beef",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "cacti potatoes",
+                "cacti with potatoes",
+                "cactus",
+                "cactus with potatoes",
+                "nopales",
+                "nopales con papas"
+              ],
+              "websiteName": "Nopales con Papas / Cacti with Potatoes",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "egg",
+                "huevo",
+                "huevo con chile",
+                "spicy egg"
+              ],
+              "websiteName": "Huevo con Chile / Spicy Egg",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ],
+              "websiteName": "Vegetales / Vegetarian",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "aliases": [
+                "bean",
+                "beans",
+                "frijol",
+                "frijoles",
+                "frijoles refritos",
+                "refried beans"
+              ],
+              "websiteName": "Frijoles Refritos / Refried Beans",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "aliases": [
+                "arroz",
+                "rice"
+              ],
+              "websiteName": "Arroz / Rice",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "melted cheese",
+                "queso derretido"
+              ],
+              "websiteName": "Queso Derretido / Melted Cheese",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria",
+                "birria de chivo",
+                "chivo",
+                "goat birria"
+              ],
+              "websiteName": "Birria de Chivo / Goat Birria",
+              "priceDeltaCents": 200
+            }
+          ],
+          "mode": "ask",
+          "website": {
+            "min": 1,
+            "max": 2,
+            "preselected": []
+          }
+        },
+        {
+          "key": "pambazo-options",
+          "label": "Pambazo options",
+          "kind": "multi",
+          "groupNamePattern": "pambazo.*options?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 14,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want any pambazo options. Only add options explicitly selected.",
+          "options": [
+            {
+              "name": "Frijoles / Pinto Beans",
+              "aliases": [
+                "frijoles pinto beans"
+              ],
+              "websiteName": "Frijoles / Pinto Beans",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Frijoles / Pinto Beans",
+              "aliases": [
+                "double frijoles pinto beans"
+              ],
+              "websiteName": "DOUBLE Frijoles / Pinto Beans",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "Lechuga / Lettuce",
+              "aliases": [
+                "lechuga lettuce"
+              ],
+              "websiteName": "Lechuga / Lettuce",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Lechuga / Lettuce",
+              "aliases": [
+                "double lechuga lettuce"
+              ],
+              "websiteName": "DOUBLE Lechuga / Lettuce",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "Pico de Gallo",
+              "aliases": [
+                "pico de gallo"
+              ],
+              "websiteName": "Pico de Gallo",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Pico de Gallo",
+              "aliases": [
+                "double pico de gallo"
+              ],
+              "websiteName": "DOUBLE Pico de Gallo",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "Crema / Sour Cream",
+              "aliases": [
+                "crema",
+                "sour cream"
+              ],
+              "websiteName": "Crema / Sour Cream",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Crema / Sour Cream",
+              "aliases": [
+                "crema",
+                "double crema",
+                "double sour cream",
+                "extra crema",
+                "extra sour cream",
+                "sour cream"
+              ],
+              "websiteName": "DOUBLE Crema / Sour Cream",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "Queso Fresco / Cheese",
+              "aliases": [
+                "cheese",
+                "fresco cheese",
+                "fresh cheese",
+                "queso",
+                "queso fresco"
+              ],
+              "websiteName": "Queso Fresco / Cheese",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Queso Fresco / Cheese",
+              "aliases": [
+                "cheese",
+                "doble queso",
+                "double cheese",
+                "double queso fresco",
+                "extra cheese",
+                "fresco cheese",
+                "fresh cheese",
+                "queso fresco"
+              ],
+              "websiteName": "DOUBLE Queso Fresco / Cheese",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "Queso Dip",
+              "aliases": [
+                "queso dip"
+              ],
+              "websiteName": "Queso Dip / Cheese Dip",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "DOUBLE Queso Dip",
+              "aliases": [
+                "double queso dip",
+                "extra queso dip",
+                "queso dip"
+              ],
+              "websiteName": "DOUBLE Queso Dip / Cheese Dip",
+              "priceDeltaCents": 150
+            },
+            {
+              "name": "Guacamole Dip",
+              "aliases": [
+                "guacamole",
+                "guacamole dip"
+              ],
+              "websiteName": "Guacamole Dip",
+              "priceDeltaCents": 200
+            },
+            {
+              "name": "DOUBLE Guacamole Dip",
+              "aliases": [
+                "double guacamole",
+                "double guacamole dip",
+                "extra guacamole",
+                "guacamole dip"
+              ],
+              "websiteName": "DOUBLE Guacamole Dip",
+              "priceDeltaCents": 400
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 14,
+            "preselected": []
+          }
+        },
+        {
+          "key": "pambazo-salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which salsa they want, if any.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "asada",
+                "mild asada",
+                "mild salsa asada",
+                "salsa asada"
+              ],
+              "websiteName": "Mild Salsa Asada",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "mild tomato",
+                "salsa tomate",
+                "salsa tomato",
+                "tomate",
+                "tomato",
+                "tomato salsa"
+              ],
+              "websiteName": "Mild Salsa Tomato",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "medium verde",
+                "salsa verde",
+                "verde"
+              ],
+              "websiteName": "Medium Salsa Verde",
+              "priceDeltaCents": 0
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot roja",
+                "hot salsa roja",
+                "roja",
+                "salsa roja"
+              ],
+              "websiteName": "Hot Salsa Roja",
+              "priceDeltaCents": 0
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 1,
+            "preselected": []
+          }
+        },
+        {
+          "key": "especial-extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 12,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add extras explicitly selected; say done when finished.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "crema",
+                "extra side crema",
+                "sour cream"
+              ],
+              "websiteName": "***EXTRA SIDE Crema / Sour Cream",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "cheese",
+                "extra side queso fresco",
+                "fresco cheese",
+                "fresh cheese",
+                "queso fresco"
+              ],
+              "websiteName": "***EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "half lime",
+                "half limon",
+                "lime",
+                "media lima",
+                "medio limon"
+              ],
+              "websiteName": "***EXTRA Half Limon / Lime",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Full Limon / Lime",
+              "aliases": [
+                "extra full limon lime"
+              ],
+              "websiteName": "***EXTRA Full Limon / Lime",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa",
+                "extra guacamole salsa 2oz",
+                "guacamole salsa"
+              ],
+              "websiteName": "***EXTRA Guacamole Salsa 2oz",
+              "priceDeltaCents": 100
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "asada",
+                "extra asada salsa",
+                "extra mild salsa asada 2oz",
+                "mild asada",
+                "salsa asada"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Asada 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomate 2oz",
+              "aliases": [
+                "extra mild salsa tomate 2oz"
+              ],
+              "websiteName": "***EXTRA Mild Salsa Tomate 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra medium salsa verde 2oz",
+                "extra salsa verde",
+                "medium verde",
+                "salsa verde",
+                "verde"
+              ],
+              "websiteName": "***EXTRA Medium Salsa Verde 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra hot salsa roja 2oz",
+                "extra salsa roja",
+                "hot roja",
+                "roja",
+                "salsa roja"
+              ],
+              "websiteName": "***EXTRA Hot Salsa Roja 2oz",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "cebolla",
+                "cebolla y chiles asados",
+                "chiles asados",
+                "extra cebolla",
+                "extra cebolla y chiles asados",
+                "onion"
+              ],
+              "websiteName": "***EXTRA Cebolla y Chiles Asados",
+              "priceDeltaCents": 75
+            },
+            {
+              "name": "EXTRA QUESO DIP 5oz SIDE",
+              "aliases": [
+                "extra queso dip 5oz side",
+                "queso dip"
+              ],
+              "websiteName": "***EXTRA QUESO DIP 5oz SIDE",
+              "priceDeltaCents": 400
+            },
+            {
+              "name": "EXTRA GUACAMOLE 5oz SIDE",
+              "aliases": [
+                "extra guacamole 5oz side"
+              ],
+              "websiteName": "***EXTRA GUACAMOLE 5oz SIDE",
+              "priceDeltaCents": 400
+            }
+          ],
+          "mode": "optional",
+          "website": {
+            "min": 0,
+            "max": 12,
+            "preselected": []
+          }
+        }
+      ],
+      "summary": "Pambazo con tu carne; los toppings solo si los pides.",
+      "squareItemId": "EI52SJEMYDGDIQHM6JFKVCMM"
+    }
+  ]
+}

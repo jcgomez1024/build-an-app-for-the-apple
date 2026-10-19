@@ -1,9 +1,10 @@
 import type { IncomingMessage, Server as HttpServer } from "node:http";
+import { logTurn, pendingSummary } from "./order-context.js";
 import { randomUUID } from "node:crypto";
 import { URL } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { chatWithElvi, chatWithElviAudio, type ConversationTurn } from "./elvi.js";
-import { getMenu } from "./square.js";
+import { getMenu, getFullMenu } from "./square.js";
 import type { MenuItem } from "./menu.js";
 import type { TenantConfig } from "./tenant.js";
 import { extractReplacementBuildText } from "./text-intents.js";
@@ -87,6 +88,29 @@ function pruneExpiredSessions() {
       sessions.delete(key);
     }
   }
+}
+
+// Voice uses the same catalog + website rules as chat and web: the full Square menu for the
+// resolvers / "added" check, and the site-approved menu for what can be sold.
+const resolverMenuCache = new WeakMap<RealtimeSession, { items: MenuItem[]; fetchedAt: number }>();
+async function getSessionResolverMenu(session: RealtimeSession): Promise<MenuItem[]> {
+  const hit = resolverMenuCache.get(session);
+  if (hit && Date.now() - hit.fetchedAt < MENU_CACHE_TTL_MS) return hit.items;
+  const items = await getFullMenu({
+    env: session.tenant.square.env,
+    accessToken: session.tenant.square.accessToken,
+    locationId: session.tenant.square.locationId,
+    apiVersion: session.tenant.square.apiVersion,
+    appPublicUrl: process.env.APP_PUBLIC_URL || "http://localhost:4000",
+    businessName: session.tenant.branding.displayName
+  }).catch(() => getSessionMenu(session));
+  resolverMenuCache.set(session, { items, fetchedAt: Date.now() });
+  return items;
+}
+
+/** The old voice-only combo builder runs only when the add carries no website-rule choices yet. */
+function needsVoiceComboBuild(action: any, menuItem: MenuItem | undefined) {
+  return (menuItem?.modifierGroups?.length ?? 0) >= 5 && !(Array.isArray(action?.modifiers) && action.modifiers.length);
 }
 
 async function getSessionMenu(session: RealtimeSession): Promise<MenuItem[]> {
@@ -955,7 +979,9 @@ async function processTurn(
       transcript,
       language,
       menu,
-      history: session.turns
+      history: session.turns,
+      resolverMenu: await getSessionResolverMenu(session),
+      sessionKey: session.sessionId
     },
     {
       apiKey: session.tenant.xai.apiKey,
@@ -968,7 +994,7 @@ async function processTurn(
   for (const action of elvi.actions) {
     if (action.type === "add_item") {
       const menuItem = menu.find((m) => m.id === action.itemId);
-      if ((menuItem?.modifierGroups?.length ?? 0) >= 5) {
+      if (needsVoiceComboBuild(action, menuItem)) {
         // Start guided combo build instead of adding immediately
         session.pendingCombo = {
           itemId: menuItem!.id,
@@ -1010,6 +1036,7 @@ async function processTurn(
   // Record this exchange in session history for multi-turn context
   session.turns.push({ role: "customer", text: transcript });
   session.turns.push({ role: "assistant", text: elvi.reply, rawJson: elvi.rawJson });
+  logTurn(session.sessionId, { channel: "voice-text", heard: transcript, pending: pendingSummary(session.sessionId), actions: (elvi.actions || []).filter((a: any) => a.type === "add_item").map((a: any) => `${a.quantity}x ${a.itemId}`), reply: elvi.reply });
 
   sendJson(socket, {
     type: "assistant_turn",
@@ -1075,6 +1102,9 @@ export function attachRealtimeServer(server: HttpServer) {
     if (url.pathname !== "/api/realtime") {
       return;
     }
+    // lockdown1: no customer realtime voice through the tunnel.
+    { const h = String(req.headers.host || "").split(":")[0];
+      if (process.env.PUBLIC_CUSTOMER_APP !== "1" && (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"] || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(h))) { socket.write("HTTP/1.1 404 Not Found\r\n\r\n"); socket.destroy(); return; } }
 
     const sessionId = url.searchParams.get("sessionId") || "";
     const session = sessions.get(sessionId);
@@ -1185,7 +1215,9 @@ export function attachRealtimeServer(server: HttpServer) {
                 audioChunks: pcmChunks,
                 language,
                 menu,
-                history: session.turns
+                history: session.turns,
+                resolverMenu: await getSessionResolverMenu(session),
+      sessionKey: session.sessionId
               },
               {
                 apiKey: session.tenant.xai.apiKey,
@@ -1199,7 +1231,7 @@ export function attachRealtimeServer(server: HttpServer) {
             for (const action of elvi.actions) {
               if (action.type === "add_item") {
                 const menuItem = menu.find((m) => m.id === action.itemId);
-                if ((menuItem?.modifierGroups?.length ?? 0) >= 5) {
+                if (needsVoiceComboBuild(action, menuItem)) {
                   session.pendingCombo = {
                     itemId: menuItem!.id,
                     itemName: menuItem!.name,
@@ -1225,10 +1257,14 @@ export function attachRealtimeServer(server: HttpServer) {
             }
 
             const animation = { visemes: buildFallbackVisemes(elvi.reply), engine: "fallback" as const };
+            // Keep what the caller said too, so a short answer ("carnitas") continues the dish.
+            const heardText = String((elvi as any).customerTranscript || "").trim();
+            if (heardText) session.turns.push({ role: "customer", text: heardText });
             session.turns.push({ role: "assistant", text: elvi.reply, rawJson: elvi.rawJson });
+            logTurn(session.sessionId, { channel: "voice-audio", heard: heardText, pending: pendingSummary(session.sessionId), actions: (elvi.actions || []).filter((a: any) => a.type === "add_item").map((a: any) => `${a.quantity}x ${a.itemId}`), reply: elvi.reply });
             sendJson(socket, {
               type: "assistant_turn",
-              transcript: "",
+              transcript: (elvi as any).customerTranscript || "",
               reply: elvi.reply,
               language: elvi.language,
               actions: elvi.actions,

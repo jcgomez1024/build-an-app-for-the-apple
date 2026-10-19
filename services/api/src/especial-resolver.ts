@@ -1,4 +1,10 @@
+import { meatFirst } from "./guides.js";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { MenuItem, ModifierGroup, ModifierOption } from "./menu.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type ResolverInput = {
   text?: string;
@@ -8,7 +14,7 @@ type ResolverInput = {
 };
 
 type EspecialKind = "quesadilla-dorada" | "birria" | "queso-birrias" | "pambazo";
-type EspecialStepKind = "item-option" | "multi" | "meat" | "regular-deluxe" | "salsa" | "extras";
+type EspecialStepKind = "item-option" | "multi" | "meat" | "regular-deluxe" | "salsa" | "extras" | "agua";
 
 type EspecialState = {
   ruleId: string;
@@ -18,6 +24,7 @@ type EspecialState = {
   selections: EspecialModifier[];
   awaitingStepKey?: string;
   offeredOptional?: boolean;
+  skippedOptionalStepKeys?: string[];
   pendingText?: string;
 };
 
@@ -35,8 +42,45 @@ type EspecialStep = {
   kind: EspecialStepKind;
   label: string;
   required: boolean;
+  mode?: string;
   min?: number;
   max?: number;
+  minSelections?: number;
+  maxSelections?: number | null;
+  groupNamePattern?: string;
+  instruction?: string;
+  options?: GuideOption[];
+};
+
+type GuideOption = {
+  name: string;
+  code?: string;
+  aliases?: string[];
+  price?: number;
+  price_note?: string;
+};
+
+type EspecialGuideItem = {
+  id?: string;
+  kind?: EspecialKind;
+  displayName?: string;
+  itemNamePattern?: string;
+  aliases?: string[];
+  steps?: Array<{
+    key?: string;
+    label?: string;
+    kind?: string;
+    groupNamePattern?: string;
+    required?: boolean;
+    minSelections?: number;
+    maxSelections?: number | null;
+    instruction?: string;
+    options?: GuideOption[];
+  }>;
+};
+
+type EspecialGuideData = {
+  especialItems?: EspecialGuideItem[];
 };
 
 const ESPECIAL_EXTRAS_STEP = "especial-extras";
@@ -63,12 +107,15 @@ const VIRTUAL_QUESO_BIRRIA_OPTIONS: ModifierOption[] = [
   }
 ];
 
-const RULES: Array<{
+type EspecialRule = {
   kind: EspecialKind;
   aliases: RegExp[];
   namePattern: RegExp;
   steps: EspecialStep[];
-}> = [
+  guide?: EspecialGuideItem;
+};
+
+const FALLBACK_RULES: EspecialRule[] = [
   {
     kind: "quesadilla-dorada",
     aliases: [/\b(qd|quesadilla\s+dorada|dorada|fried\s+quesadilla)\b/],
@@ -111,6 +158,83 @@ const RULES: Array<{
   }
 ];
 
+const ESPECIAL_GUIDE_PATH = path.resolve(__dirname, "../data/especial-guide.json");
+const RULES: EspecialRule[] = loadEspecialRules();
+
+function loadEspecialRules(): EspecialRule[] {
+  try {
+    const raw = fs.readFileSync(ESPECIAL_GUIDE_PATH, "utf8");
+    const data = JSON.parse(raw) as EspecialGuideData;
+    const rules: EspecialRule[] = (data.especialItems || [])
+      .map((guide): EspecialRule | null => {
+        const kind = guide.kind;
+        if (!kind) return null;
+        return {
+          kind,
+          aliases: (guide.aliases || []).map((alias) => phraseRegex(alias)),
+          namePattern: safeRegExp(guide.itemNamePattern || defaultNamePattern(kind)),
+          steps: meatFirst((guide.steps || []).map(normalizeGuideStep)),
+          guide
+        } satisfies EspecialRule;
+      })
+      .filter((rule): rule is EspecialRule => rule !== null);
+    return rules.length ? rules : FALLBACK_RULES;
+  } catch (error) {
+    console.warn("[especial-guide] failed to load especial-guide.json:", (error as Error).message);
+    return FALLBACK_RULES;
+  }
+}
+
+function normalizeGuideStep(step: NonNullable<EspecialGuideItem["steps"]>[number]): EspecialStep {
+  const kind = normalizeGuideStepKind(step.kind);
+  const minSelections = Math.max(0, Number(step.minSelections) || (step.required === false ? 0 : 1));
+  const maxSelections = step.maxSelections === null || step.maxSelections === undefined
+    ? null
+    : Math.max(minSelections, Number(step.maxSelections) || minSelections || 1);
+  return {
+    key: String(step.key || step.label || kind),
+    kind,
+    label: String(step.label || step.key || kind),
+    required: step.required !== false,
+    mode: (step as any).mode,
+    min: minSelections,
+    max: maxSelections === null ? undefined : maxSelections,
+    minSelections,
+    maxSelections,
+    groupNamePattern: step.groupNamePattern,
+    instruction: step.instruction,
+    options: Array.isArray(step.options) ? step.options : []
+  };
+}
+
+function normalizeGuideStepKind(kind: unknown): EspecialStepKind {
+  const value = String(kind || "").trim();
+  if (value === "itemOption") return "item-option";
+  if (value === "regular-deluxe" || value === "multi" || value === "meat" || value === "salsa" || value === "extras" || value === "agua") {
+    return value;
+  }
+  return "multi";
+}
+
+function phraseRegex(phrase: string) {
+  return new RegExp(`\\b${escapeRegex(normalizeText(phrase)).replace(/\s+/g, "\\s+")}\\b`);
+}
+
+function safeRegExp(pattern: string) {
+  try {
+    return new RegExp(pattern, "i");
+  } catch {
+    return /$a/;
+  }
+}
+
+function defaultNamePattern(kind: EspecialKind) {
+  if (kind === "quesadilla-dorada") return "\\bquesadilla\\s+dorada\\b";
+  if (kind === "queso-birrias") return "\\bqueso\\s+birrias?\\b|\\bquesabirrias?\\b";
+  if (kind === "birria") return "\\bbirria\\s+de\\s+chivo\\b|\\bgoat\\s+birria\\b";
+  return "\\bpambazo\\b";
+}
+
 export function resolveEspecialRequest(menu: MenuItem[], input: ResolverInput) {
   const text = getInputText(input);
   const language = getLanguage(input);
@@ -130,7 +254,8 @@ export function resolveEspecialRequest(menu: MenuItem[], input: ResolverInput) {
     itemId: item.id,
     itemName: item.name,
     kind: rule.kind,
-    selections: []
+    selections: [],
+    skippedOptionalStepKeys: []
   };
 
   const navigation = activeState ? navigationIntent(text) : null;
@@ -139,25 +264,41 @@ export function resolveEspecialRequest(menu: MenuItem[], input: ResolverInput) {
   }
 
   state.selections = normalizeModifiers(state.selections);
-  const focused = state.awaitingStepKey && state.awaitingStepKey !== ESPECIAL_EXTRAS_STEP
-    ? rule.steps.find((step) => step.key === state.awaitingStepKey)
+  const awaitingStep = state.awaitingStepKey
+    ? rule.steps.find((step) => step.key === state.awaitingStepKey) || (state.awaitingStepKey === ESPECIAL_EXTRAS_STEP ? extrasStep() : null)
     : null;
+  const focused = awaitingStep && awaitingStep.required ? awaitingStep : null;
   const effectiveText = mergeText(state.pendingText || "", text);
   if (navigation !== "next") {
-    const steps = focused ? [focused] : rule.steps.filter((step) => step.required);
+    const steps = awaitingStep && !awaitingStep.required ? [] : focused ? [focused] : rule.steps.filter((step) => step.required || (step.mode === "optional" && (step.kind !== "extras" || /\b(extra|adicional|additional|more|m[aá]s)\b/i.test(effectiveText))));
     applyTextToSteps(item, steps, state, effectiveText);
   }
 
-  if (state.awaitingStepKey === ESPECIAL_EXTRAS_STEP) {
+  if (awaitingStep && !awaitingStep.required) {
     if (textSkipsOptional(text) || navigation === "next") {
+      markOptionalStepComplete(state, awaitingStep);
+      const nextOptional = nextPendingOptionalStep(item, rule.steps, state);
+      if (nextOptional) {
+        state.awaitingStepKey = nextOptional.key;
+        return buildStepResult(item, state, nextOptional, language, true);
+      }
       return finishEspecial(item, state, language);
     }
-    const beforeExtras = state.selections.length;
-    applyTextToSteps(item, [extrasStep()], state, text);
-    if (state.selections.length > beforeExtras) {
-      return finishEspecial(item, state, language);
+    const beforeSelections = state.selections.length;
+    applyTextToSteps(item, [awaitingStep], state, text);
+    if (state.selections.length > beforeSelections) {
+      if (awaitingStep.maxSelections === 1 || awaitingStep.kind === "salsa" || awaitingStep.kind === "agua") {
+        markOptionalStepComplete(state, awaitingStep);
+        const nextOptional = nextPendingOptionalStep(item, rule.steps, state);
+        if (nextOptional) {
+          state.awaitingStepKey = nextOptional.key;
+          return buildStepResult(item, state, nextOptional, language, true);
+        }
+        return finishEspecial(item, state, language);
+      }
+      return buildStepResult(item, state, awaitingStep, language, true);
     }
-    return buildStepResult(item, state, extrasStep(), language, true);
+    return buildStepResult(item, state, awaitingStep, language, true);
   }
 
   const missing = firstMissingStep(item, rule.steps, state);
@@ -167,11 +308,11 @@ export function resolveEspecialRequest(menu: MenuItem[], input: ResolverInput) {
     return buildStepResult(item, state, missing, language, false);
   }
 
-  const extraGroup = findStepGroup(item, extrasStep());
-  if (extraGroup && !state.offeredOptional && !textSkipsOptional(text)) {
-    state.awaitingStepKey = ESPECIAL_EXTRAS_STEP;
+  const optionalStep = nextPendingOptionalStep(item, rule.steps, state);
+  if (optionalStep && !textSkipsOptional(text)) {
+    state.awaitingStepKey = optionalStep.key;
     state.offeredOptional = true;
-    return buildStepResult(item, state, extrasStep(), language, true);
+    return buildStepResult(item, state, optionalStep, language, true);
   }
 
   return finishEspecial(item, state, language);
@@ -192,7 +333,7 @@ function findEspecialItem(menu: MenuItem[], text: string) {
   for (const rule of RULES) {
     if (!rule.aliases.some((alias) => alias.test(normalized))) continue;
     const matches = menu.filter((candidate) => rule.namePattern.test(normalizeText(candidate.name)));
-    const item = buildEspecialVariationItem(rule.kind, matches);
+    const item = materializeGuideItem(buildEspecialVariationItem(rule.kind, matches), rule);
     if (item) return { item, rule };
   }
   return null;
@@ -200,9 +341,83 @@ function findEspecialItem(menu: MenuItem[], text: string) {
 
 function findEspecialStateItem(menu: MenuItem[], state: EspecialState | null, rule: (typeof RULES)[number]) {
   if (!state) return null;
-  return buildEspecialVariationItem(rule.kind, menu.filter((candidate) => rule.namePattern.test(normalizeText(candidate.name))))
+  return materializeGuideItem(buildEspecialVariationItem(rule.kind, menu.filter((candidate) => rule.namePattern.test(normalizeText(candidate.name)))), rule)
     || menu.find((candidate) => candidate.id === state.itemId)
     || null;
+}
+
+function materializeGuideItem(item: MenuItem | null, rule: EspecialRule): MenuItem | null {
+  if (!item) return null;
+  const guideSteps = rule.steps || [];
+  if (!guideSteps.length) return item;
+
+  const groups = [...(item.modifierGroups || [])];
+  for (const step of guideSteps) {
+    const existing = findStepGroup({ ...item, modifierGroups: groups }, step);
+    if (existing) {
+      if (step.kind === "item-option" && (existing.options || []).length <= 1 && (step.options || []).length > 1) {
+        existing.options = buildGuideGroup(rule, step).options;
+        existing.minSelections = step.required ? stepMin(step) : 0;
+        existing.maxSelections = step.maxSelections === null ? undefined : stepMaxFromGuide(step);
+        continue;
+      }
+      existing.options = mergeGuideAliases(existing.options || [], step.options || []);
+      continue;
+    }
+    if (!step.options?.length) continue;
+    groups.push(buildGuideGroup(rule, step));
+  }
+
+  return {
+    ...item,
+    modifierGroups: groups
+  };
+}
+
+function mergeGuideAliases(options: Array<string | ModifierOption>, guideOptions: GuideOption[]) {
+  return options.map((option) => {
+    const currentName = optionName(option);
+    const guide = bestGuideOptionForName(currentName, guideOptions);
+    if (!guide?.aliases?.length || typeof option !== "object") return option;
+    const existingAliases = Array.isArray((option as ModifierOption & { aliases?: string[] }).aliases)
+      ? (option as ModifierOption & { aliases?: string[] }).aliases || []
+      : [];
+    return {
+      ...option,
+      aliases: Array.from(new Set([...existingAliases, ...guide.aliases]))
+    } as ModifierOption & { aliases?: string[] };
+  });
+}
+
+function bestGuideOptionForName(name: string, guideOptions: GuideOption[]) {
+  const key = normalizeText(cleanOptionLabel(name));
+  if (!key) return null;
+  return guideOptions.find((option) => normalizeText(cleanOptionLabel(option.name)) === key)
+    || guideOptions.find((option) => {
+      const guideKey = normalizeText(cleanOptionLabel(option.name));
+      return guideKey && (guideKey.includes(key) || key.includes(guideKey));
+    })
+    || null;
+}
+
+function buildGuideGroup(rule: EspecialRule, step: EspecialStep): ModifierGroup {
+  return {
+    id: `__especial_${rule.kind}_${step.key}`,
+    name: step.label,
+    minSelections: step.required ? stepMin(step) : 0,
+    maxSelections: step.maxSelections === null ? undefined : stepMaxFromGuide(step),
+    options: (step.options || []).map((option, index) => ({
+      id: `__especial_${rule.kind}_${step.key}_${option.code || index}`,
+      name: option.code ? `(${option.code}) ${option.name}` : option.name,
+      priceDeltaCents: Number.isFinite(Number(option.price)) ? Math.round(Number(option.price) * 100) : undefined,
+      aliases: option.aliases || []
+    } as ModifierOption & { aliases?: string[] }))
+  };
+}
+
+function stepMaxFromGuide(step: EspecialStep) {
+  if (step.maxSelections === null) return undefined;
+  return Math.max(stepMin(step), Number(step.maxSelections) || Number(step.max) || 1);
 }
 
 function buildEspecialVariationItem(kind: EspecialKind, matches: MenuItem[]) {
@@ -347,6 +562,7 @@ function normalizeEspecialState(value: unknown): EspecialState | null {
     selections: normalizeModifiers(Array.isArray(raw.selections) ? raw.selections : []),
     awaitingStepKey: typeof raw.awaitingStepKey === "string" ? raw.awaitingStepKey : undefined,
     offeredOptional: Boolean(raw.offeredOptional),
+    skippedOptionalStepKeys: Array.isArray(raw.skippedOptionalStepKeys) ? raw.skippedOptionalStepKeys.map(String) : [],
     pendingText: typeof raw.pendingText === "string" ? raw.pendingText : undefined
   };
 }
@@ -394,11 +610,41 @@ function firstMissingStep(item: MenuItem, steps: EspecialStep[], state: Especial
   }) || null;
 }
 
+function nextPendingOptionalStep(item: MenuItem, steps: EspecialStep[], state: EspecialState) {
+  const skipped = new Set(state.skippedOptionalStepKeys || []);
+  return steps.find((step) => {
+    if (step.required || step.mode === "optional" || skipped.has(step.key)) return false;
+    const group = findStepGroup(item, step);
+    if (!group) return false;
+    if (step.maxSelections === 1 || step.kind === "salsa" || step.kind === "agua") {
+      return selectionsForGroup(state, group.id).length === 0;
+    }
+    return true;
+  }) || null;
+}
+
+function markOptionalStepComplete(state: EspecialState, step: EspecialStep) {
+  if (step.required) return;
+  state.skippedOptionalStepKeys = Array.from(new Set([...(state.skippedOptionalStepKeys || []), step.key]));
+  state.awaitingStepKey = undefined;
+  state.pendingText = undefined;
+}
+
 function findStepGroup(item: MenuItem, step: EspecialStep) {
   const groups = item.modifierGroups || [];
+  if (step.groupNamePattern) {
+    const pattern = safeRegExp(step.groupNamePattern);
+    const direct = groups.find((group) => pattern.test(normalizeText(group.name)));
+    if (direct) return direct;
+  }
   if (step.kind === "salsa") {
     return groups.find((group) => /\bsalsa\b/.test(normalizeText(group.name)))
       || groups.find((group) => group.options?.some((option) => /\bsalsa\b/.test(normalizeText(optionName(option)))))
+      || null;
+  }
+  if (step.kind === "agua") {
+    return groups.find((group) => /\bagua\b|\bdrink\b|\bbebida\b/.test(normalizeText(group.name)))
+      || groups.find((group) => group.options?.some((option) => /\b(horchata|jamaica|agua)\b/.test(normalizeText(optionName(option)))))
       || null;
   }
   if (step.kind === "meat") {
@@ -441,7 +687,7 @@ function findStepGroup(item: MenuItem, step: EspecialStep) {
 }
 
 function countMeatOptions(group: ModifierGroup) {
-  return (group.options || []).filter((option) => /bistec|steak|chorizo|pollo|chicken|buche|tripa|carnitas|lengua|birria/.test(normalizeText(optionName(option)))).length;
+  return (group.options || []).filter((option) => /bistec|steak|chorizo|pollo|chicken|buche|tripa|tepa|tipa|trepa|carnitas|lengua|birria/.test(normalizeText(optionName(option)))).length;
 }
 
 function levenshtein(a: string, b: string): number {
@@ -483,7 +729,7 @@ function findOptionMentions(options: Array<string | ModifierOption>, text: strin
       if (!optionAllowedForKind(name, query, kind)) return null;
       let best = -1;
       let score = 0;
-      const aliases = optionAliases(name, kind);
+      const aliases = optionAliases(name, kind, option);
       for (const alias of aliases) {
         const match = query.match(new RegExp(`\\b${escapeRegex(alias).replace(/\s+/g, "\\s+")}\\b`, "i"));
         if (match?.index !== undefined && (best < 0 || alias.length > score)) {
@@ -520,21 +766,38 @@ function optionAllowedForKind(name: string, query: string, kind: EspecialStepKin
       if (/\b(street|taquera|taquero)\b/.test(query)) return /\b(street|taquera|taquero)\b/.test(key);
     }
 
-    const asksBirria = /\b(birria|birria\s+de\s+chivo|goat\s+birria)\b/.test(query) && !asksQuesoBirria;
     const hasBirriaOption = /\bbirria\b/.test(key);
+    const specificBirriaChoice = /\b(consome|broth|tortillas?|comal|solo|only|16\s*oz|16oz|1\s*lb|libra|por\s+libra)\b/.test(query);
+    const asksBirria = (/\b(birria|birria\s+de\s+chivo|goat\s+birria)\b/.test(query) || (hasBirriaOption && specificBirriaChoice)) && !asksQuesoBirria;
     if (asksBirria && hasBirriaOption) {
-      const specificBirriaChoice = /\b(consome|broth|tortillas?|comal|solo|only|16\s*oz|16oz|1\s*lb|libra|por\s+libra)\b/.test(query);
       if (!specificBirriaChoice) return false;
+      const asksSolo = /\b(solo|only)\b/.test(query);
+      const asksConsome = /\b(consome|broth)\b/.test(query);
+      const asksTortillas = /\b(tortillas?|comal)\b/.test(query);
+      const optionSolo = /\b(solo|only)\b/.test(key);
+      const optionConsome = /\b(consome|broth)\b/.test(key);
+      const optionTortillas = /\b(tortillas?|comal)\b/.test(key);
+      const optionOnlyConsome = optionSolo && optionConsome && !optionTortillas;
+      const optionOnlyTortillas = optionSolo && optionTortillas && !optionConsome;
+      const optionOnlyBirria = optionSolo && !optionConsome && !optionTortillas;
+
+      if (!asksSolo && optionSolo) return false;
+      if (asksConsome && asksTortillas) return optionConsome && optionTortillas && !optionSolo;
+      if (asksSolo && asksConsome && !asksTortillas) return optionOnlyConsome;
+      if (asksSolo && asksTortillas && !asksConsome) return optionOnlyTortillas;
+      if (asksSolo && !asksConsome && !asksTortillas) return optionOnlyBirria;
+      if (asksConsome) return optionConsome && !optionOnlyTortillas;
+      if (asksTortillas) return optionTortillas && !optionOnlyConsome;
     }
   }
   if (kind === "meat") {
-    const hasProtein = /\b(bistec|steak|chorizo|pollo|chicken|buche|tripa|tripas|carnitas|lengua|prensado|duro|alpastor|pastor|cabeza|costilla|birria|picadillo|deshebrada|vegetales|vegetarian|huevo)\b/.test(query);
+    const hasProtein = /\b(bistec|steak|chorizo|campechana|pollo|chicken|buche|tripa|tripas|tepa|tipa|trepa|carnitas|lengua|prensado|duro|alpastor|pastor|cabeza|costilla|birria|picadillo|deshebrada|vegetales|vegetarian|huevo)\b/.test(query);
     const looksLikeToppingList = /\b(pambazo|beans|frijoles|lettuce|lechuga|pico|crema|sour|cream|queso fresco|cheese|queso dip|dip|cebolla|onion|cilantro)\b/.test(query);
     if (/\b(frijoles|beans|arroz|rice|queso|cheese)\b/.test(key) && (hasProtein || looksLikeToppingList)) {
       return false;
     }
   }
-  if (kind === "multi") {
+  if (kind === "multi" || kind === "extras") {
     if (/\bdouble\b/.test(key) && !/\b(double|doble)\b/.test(query)) return false;
     if (/\b(side|5oz)\b/.test(key) && !/\b(side|lado|aparte|5\s*oz|5oz)\b/.test(query)) return false;
     if (/\b(side|lado|aparte|5\s*oz|5oz)\b/.test(query) && /\bdip\b/.test(key) && !/\b(side|5oz)\b/.test(key)) return false;
@@ -543,8 +806,25 @@ function optionAllowedForKind(name: string, query: string, kind: EspecialStepKin
       !/\b(queso\s+fresco|fresco\s+cheese|fresh\s+cheese)\b/.test(query) &&
       /\b(queso\s+fresco|fresco\s+cheese)\b/.test(key)
     ) return false;
+    if (/\b(queso\s+fresco|fresco\s+cheese|fresh\s+cheese)\b/.test(query) && /\b(queso\s+derretido|melted\s+cheese|queso\s+dip|cheese\s+dip)\b/.test(key)) {
+      return false;
+    }
+    if (/\b(queso\s+derretido|melted\s+cheese)\b/.test(query) && /\b(queso\s+fresco|fresco\s+cheese|fresh\s+cheese|queso\s+dip|cheese\s+dip)\b/.test(key)) {
+      return false;
+    }
     if (/\bqueso\b/.test(query) && /\b(dip)\b/.test(key) && !/\bdip\b/.test(query)) return false;
     if (/\bguacamole\b/.test(key) && !/\bguacamole\b/.test(query)) return false;
+    if (/\bsalsa\b/.test(key)) {
+      const namesSpecificSalsa = /\b(asada|tomate|tomato|verde|roja|guacamole)\b/.test(query);
+      if (!namesSpecificSalsa) return false;
+      if (/\btomato\b|\btomate\b/.test(key) && !/\btomato\b|\btomate\b/.test(query)) return false;
+      if (/\basada\b/.test(key) && !/\basada\b/.test(query)) return false;
+      if (/\bverde\b/.test(key) && !/\bverde\b/.test(query)) return false;
+      if (/\broja\b/.test(key) && !/\broja\b|\bhot\b/.test(query)) return false;
+      if (/\bguacamole\b/.test(key) && !/\bguacamole\b/.test(query)) return false;
+    }
+    if (/\bhalf\b.*\b(limon|lime)\b/.test(key) && /\b(full|whole|completo)\b/.test(query)) return false;
+    if (/\bfull\b.*\b(limon|lime)\b/.test(key) && /\b(half|medio|media)\b/.test(query)) return false;
   }
   if (kind === "salsa") {
     if (/\bmild\b|\basada\b/.test(key) && /\btomato\b/.test(key) && !/\btomato\b|\btomate\b/.test(query)) return false;
@@ -553,7 +833,7 @@ function optionAllowedForKind(name: string, query: string, kind: EspecialStepKin
   return true;
 }
 
-function optionAliases(value: string, kind: EspecialStepKind) {
+function optionAliases(value: string, kind: EspecialStepKind, option?: string | ModifierOption) {
   const cleaned = cleanOptionLabel(value.replace(/\([^)]*\)/g, " "));
   const aliases = new Set<string>();
   const add = (...entries: string[]) => {
@@ -563,6 +843,9 @@ function optionAliases(value: string, kind: EspecialStepKind) {
     }
   };
   const key = normalizeText(cleaned);
+  if (option && typeof option === "object" && Array.isArray((option as ModifierOption & { aliases?: string[] }).aliases)) {
+    add(...((option as ModifierOption & { aliases?: string[] }).aliases || []));
+  }
   if (kind === "meat") {
     if (/bistec|steak/.test(key)) {
       add("bistec", "steak");
@@ -601,7 +884,8 @@ function optionAliases(value: string, kind: EspecialStepKind) {
       return Array.from(aliases).sort((a, b) => b.length - a.length);
     }
     if (/tripa|tripe/.test(key)) {
-      add("tripa", "tripas", "beef tripe");
+      // fix21: STT often hears tripa as tepa/tipa/trepa
+      add("tripa", "tripas", "beef tripe", "tepa", "tipa", "trepa");
       return Array.from(aliases).sort((a, b) => b.length - a.length);
     }
     if (/papas\s+con\s+rajas|poblano\s+with\s+potatoes/.test(key)) {
@@ -629,7 +913,7 @@ function optionAliases(value: string, kind: EspecialStepKind) {
       return Array.from(aliases).sort((a, b) => b.length - a.length);
     }
     if (/duro|pork\s+rinds/.test(key)) {
-      add("duro", "pork rinds", "chicharron", "chicharrón");
+      add("duro", "pork rinds", "chicharron duro", "chicharrón duro", "chicharron verde");
       return Array.from(aliases).sort((a, b) => b.length - a.length);
     }
     if (/vegetales|vegetarian/.test(key)) {
@@ -687,16 +971,18 @@ function selectionsForGroup(state: EspecialState, groupId: string) {
 }
 
 function stepMin(step: EspecialStep) {
-  return Math.max(0, Number(step.min) || (step.required ? 1 : 0));
+  return Math.max(0, Number(step.minSelections ?? step.min) || (step.required ? 1 : 0));
 }
 
 function stepMax(step: EspecialStep, group: ModifierGroup) {
   const square = Number(group.maxSelections);
   const squareMax = Number.isFinite(square) && square > 0 ? square : (group.options || []).length || 1;
+  if (step.maxSelections === null) return Math.max(stepMin(step), squareMax || 1);
+  const configuredMax = Number(step.maxSelections ?? step.max);
   if (step.kind === "multi" || step.kind === "extras") {
-    return Math.max(stepMin(step), Number(step.max) || squareMax || 1);
+    return Math.max(stepMin(step), configuredMax || squareMax || 1);
   }
-  return Math.max(stepMin(step), Math.min(Number(step.max) || squareMax, squareMax));
+  return Math.max(stepMin(step), Math.min(configuredMax || squareMax, squareMax));
 }
 
 function buildStepResult(item: MenuItem, state: EspecialState, step: EspecialStep, language: "en" | "es", optional: boolean) {
@@ -730,19 +1016,20 @@ function questionForStep(step: EspecialStep, language: "en" | "es") {
   const es = language === "es";
   if (step.kind === "meat") return es ? "¿Qué carne quieres?" : "Which meat would you like?";
   if (step.kind === "regular-deluxe") return es ? "¿Regular o deluxe?" : "Regular or deluxe?";
-  if (step.kind === "salsa") return es ? "¿Qué salsa prefieres?" : "Which salsa would you like?";
-  if (step.kind === "extras") return es ? "¿Extras? Di listo si no." : "Any extras? Say done for none.";
+  if (step.kind === "salsa") return es ? "¿Qué salsa prefieres? Di listo si no quieres salsa." : "Which salsa would you like? Say done for none.";
+  if (step.kind === "extras") return es ? "¿Eso es todo para extras? Di listo cuando termines." : "Is that all for extras? Say done when finished.";
+  if (step.kind === "agua") return es ? "¿Quieres agregar una agua? Di listo si no." : "Would you like to add an agua? Say done for none.";
   if (step.key === "qd-option") return es ? "¿Regular o deluxe?" : "Regular or deluxe?";
   if (step.key === "queso-birria-option") return es ? "Elige la opción de queso birria." : "Choose the queso birria option.";
   if (step.key.includes("birria")) return es ? "Elige la opción de birria." : "Choose the birria option.";
-  if (step.key.includes("pambazo")) return es ? "Elige las opciones del pambazo." : "Choose the pambazo options.";
+  if (step.key.includes("pambazo")) return es ? "Elige las opciones del pambazo. Di listo cuando termines." : "Choose the pambazo options. Say done when finished.";
+  if (step.key.includes("with") || /\bcon\b/i.test(step.label)) return es ? "¿Lo quieres con algo más? Di listo cuando termines." : "Any con/with options? Say done when finished.";
   return es ? "Elige una opción." : "Choose one option.";
 }
 
 function stepOptions(group: ModifierGroup, step: EspecialStep, optional: boolean) {
   const options = (group.options || []).map(optionName);
-  if (optional) return ["No extras", ...options];
-  if (step.kind === "salsa") return ["No salsa", ...options];
+  if (optional) return options;
   return options;
 }
 
@@ -804,9 +1091,8 @@ function resolveEspecialActionItem(item: MenuItem, state: EspecialState) {
     const optionGroup = optionStep ? findStepGroup(item, optionStep) : null;
     const selectedOption = optionGroup ? selectionsForGroup(state, optionGroup.id)[0] : null;
     if (optionGroup && selectedOption?.optionId) {
-      const isReviewedQuesoBirriaOption = state.kind === "queso-birrias"
-        && String(selectedOption.optionId).startsWith("reviewed-queso-birrias-");
-      itemId = isReviewedQuesoBirriaOption ? item.id : selectedOption.optionId;
+      const virtualOption = /^(reviewed-|__especial_)/.test(String(selectedOption.optionId || ""));
+      itemId = virtualOption ? item.id : selectedOption.optionId;
       const priceDeltaCents = Number(selectedOption.priceDeltaCents) || 0;
       selectedItem = {
         ...selectedItem,
@@ -815,7 +1101,7 @@ function resolveEspecialActionItem(item: MenuItem, state: EspecialState) {
         nameEs: `${item.nameEs || item.name} ${selectedOption.option || ""}`.trim(),
         priceCents: Math.max(0, (item.priceCents || 0) + priceDeltaCents)
       };
-      modifiers = isReviewedQuesoBirriaOption
+      modifiers = virtualOption
         ? state.selections
         : state.selections.filter((selection) => selection.groupId !== optionGroup.id);
     }
@@ -863,7 +1149,7 @@ function navigationIntent(text: string) {
 }
 
 function textSkipsOptional(text: string) {
-  return /\b(no|none|skip|listo|done|finish|finished|sin|ninguno|ninguna|no gracias|asi esta|ya)\b/.test(normalizeText(text));
+  return /\b(no|none|skip|listo|done|finish|finished|that s it|thats it|that s all|thats all|that is it|that is all|sin|ninguno|ninguna|no gracias|asi esta|asi es|eso es todo|es todo|ya)\b/.test(normalizeText(text));
 }
 
 function mergeText(...values: string[]) {

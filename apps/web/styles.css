@@ -17,13 +17,9 @@ body {
   background: #0f2a1d;
 }
 
-/* ── Full-screen canvas ──────────────────────────────────────────────────── */
-#avatar-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(ellipse at 50% 28%, #dff7df 0%, #9fd7a9 52%, #4f9463 100%);
+/* ── Background (avatar canvas removed) ───────────────────────────────── */
+body {
+  background: radial-gradient(ellipse at 50% 22%, #e7f8e8 0%, #a9dcb2 50%, #4f9463 100%) fixed;
 }
 
 /* ── Top-left brand ──────────────────────────────────────────────────────── */
@@ -77,6 +73,10 @@ h1 {
   z-index: 20;
   width: min(520px, 88vw);
   pointer-events: none;
+}
+
+.speech-wrap.is-building {
+  z-index: 30;
 }
 
 .speech-bubble {
@@ -490,6 +490,11 @@ h1 {
   display: none;
 }
 
+.combo-tracker.is-selection-menu {
+  max-height: min(640px, 70dvh);
+  padding: 12px 14px;
+}
+
 .combo-tracker-header {
   display: flex;
   justify-content: space-between;
@@ -541,6 +546,10 @@ h1 {
   color: var(--ink);
 }
 
+.combo-tracker.is-selection-menu .combo-tracker-selections {
+  display: none;
+}
+
 .combo-tracker-ask {
   margin-top: 8px;
   flex: 1 1 auto;
@@ -548,6 +557,10 @@ h1 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.combo-tracker.is-selection-menu .combo-tracker-ask {
+  overflow: visible;
 }
 
 .combo-tracker-ask.is-hidden {
@@ -562,6 +575,12 @@ h1 {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   flex: 0 0 auto;
+}
+
+.combo-tracker.is-selection-menu .combo-tracker-step-label {
+  color: rgba(17, 20, 32, 0.74);
+  font-size: 0.82rem;
+  margin-bottom: 8px;
 }
 
 .combo-tracker-options {
@@ -581,6 +600,15 @@ h1 {
   -webkit-overflow-scrolling: touch;
   padding-right: 4px;
   padding-bottom: 8px;
+}
+
+.combo-tracker.is-selection-menu .combo-tracker-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(390px, 44dvh);
 }
 
 .combo-tracker-options::-webkit-scrollbar,
@@ -606,6 +634,10 @@ h1 {
   min-width: 0;
 }
 
+.combo-tracker.is-selection-menu .combo-tracker-options li {
+  flex: none;
+}
+
 .combo-option-chip {
   width: 100%;
   background: rgba(255, 255, 255, 0.64);
@@ -619,6 +651,13 @@ h1 {
   text-align: left;
   white-space: normal;
   outline-color: rgba(20, 113, 214, 0.68);
+}
+
+.combo-tracker.is-selection-menu .combo-option-chip {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .combo-option-chip:hover {
@@ -639,6 +678,10 @@ h1 {
   gap: 8px;
   margin-top: 8px;
   flex: 0 0 auto;
+}
+
+.combo-tracker.is-selection-menu .combo-tracker-actions {
+  display: none;
 }
 
 .combo-nav-button {
@@ -1000,6 +1043,10 @@ h2 {
   gap: 4px;
 }
 
+.field-row.is-hidden {
+  display: none;
+}
+
 .field-row label {
   font-size: 0.75rem;
   font-weight: 600;
@@ -1248,4 +1295,85 @@ input, select {
   }
   h1 { font-size: 2rem; }
   .bottom-bar { padding-bottom: 20px; }
+}
+
+
+/* ── Elvi halo (replaces 3D avatar) ──────────────────────────────────────── */
+.elvi-halo {
+  --level: 0;
+  --c1: #4aa3ff; --c2: #ffffff;
+  position: fixed;
+  top: clamp(70px, 12dvh, 120px);
+  left: 50%;
+  width: clamp(120px, 34vw, 210px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+.elvi-halo > div { position: absolute; inset: 0; border-radius: 50%; }
+.halo-glow {
+  background: radial-gradient(circle, var(--c1) 0%, transparent 68%);
+  opacity: .55;
+  filter: blur(18px);
+  animation: haloBreathe 4s ease-in-out infinite;
+}
+.halo-ring {
+  border: 5px solid var(--c2);
+  box-shadow: 0 0 24px var(--c1), inset 0 0 24px var(--c1);
+  transform: scale(calc(.82 + var(--level) * .25));
+  transition: transform .08s linear, border-color .4s, box-shadow .4s;
+  animation: haloBreathe 4s ease-in-out infinite;
+}
+.halo-core {
+  inset: 30% !important;
+  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,0) 70%);
+  opacity: .7;
+}
+@keyframes haloBreathe { 0%,100% { opacity: .55; scale: .96; } 50% { opacity: .9; scale: 1.03; } }
+@keyframes haloSpin { to { rotate: 360deg; } }
+@keyframes haloSpeak { 0%,100% { scale: .95; } 25% { scale: 1.06; } 50% { scale: .99; } 75% { scale: 1.08; } }
+
+.elvi-halo[data-state="listening"] { --c1: #2fd47a; --c2: #e9fff2; }
+.elvi-halo[data-state="listening"] .halo-ring,
+.elvi-halo[data-state="listening"] .halo-glow { animation: none; opacity: calc(.6 + var(--level) * .4); }
+.elvi-halo[data-state="thinking"] { --c1: #b38cff; --c2: #f1e9ff; }
+.elvi-halo[data-state="thinking"] .halo-ring {
+  border-color: transparent; border-top-color: var(--c2); border-right-color: var(--c2);
+  animation: haloSpin 1s linear infinite;
+}
+.elvi-halo[data-state="speaking"] { --c1: #ffb238; --c2: #fff6e0; }
+.elvi-halo[data-state="speaking"] .halo-ring,
+.elvi-halo[data-state="speaking"] .halo-glow { animation: haloSpeak .9s ease-in-out infinite; }
+.elvi-halo[data-state="error"] { --c1: #ff5a5a; --c2: #ffe5e5; }
+@media (prefers-reduced-motion: reduce) { .elvi-halo * { animation: none !important; } }
+
+/* ── Step guide chips (combo tracker restyle) ───────────────────────────── */
+.combo-tracker-selections { display: flex; flex-wrap: wrap; gap: 6px; }
+.combo-tracker-selections .selection-done {
+  list-style: none; padding: 4px 10px; border-radius: 999px;
+  background: #e6f7ec; border: 1px solid #2fd47a; font-size: .8rem;
+}
+.combo-tracker-options button { min-height: 40px; }
+
+/* ── Sticky cart bar ─────────────────────────────────────────────────────── */
+.cart-bar {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  z-index: 26; width: min(520px, 92vw);
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border: 0; border-radius: 16px;
+  background: var(--accent); color: #fff; font: 700 1rem "Space Grotesk", sans-serif;
+  box-shadow: 0 8px 24px rgba(20,113,214,.4); cursor: pointer;
+}
+.cart-bar.is-empty { display: none; }
+.cart-bar-count { background: #fff; color: var(--accent); border-radius: 999px; min-width: 26px; padding: 2px 8px; }
+.cart-bar-label { flex: 1; text-align: left; }
+
+/* Keep the preview short: first lines of the description only */
+.selection-preview-description {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+@media (max-width: 600px) {
+  .elvi-halo { width: 84px; top: 88px; }
 }

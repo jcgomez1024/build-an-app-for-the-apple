@@ -1,0 +1,66 @@
+[
+  {
+    "callSid": "CA353fc0b89395c289d727f664317f443d",
+    "at": "2026-10-17T14:16:07.785Z",
+    "caller": "+14404139902",
+    "name": null,
+    "receiptCode": "443D",
+    "language": "es",
+    "phase": "final",
+    "fulfillment": "TO GO / LLEVAR",
+    "lines": [
+      {
+        "name": "Huarache Elvis",
+        "quantity": 1,
+        "choices": [
+          "Prensado / Spicy Pork",
+          "Duro / Pork Rinds"
+        ],
+        "flag": null
+      }
+    ],
+    "training": true,
+    "transcript": "Cliente [2.7s es]: Bueno,\nCliente [4.1s es]: me gustaría ponerlo en orden, por favor.\nCliente [8.4s es]: Quiero un guarache\nCliente [10.6s es]: de prensado\nCliente [12.5s es]: con duro,\nCliente [14.2s en]: no lechuga,\nCliente [16.8s es]: y sería todo.\nCliente [19.3s es]: Gracias."
+  },
+  {
+    "callSid": "CAe401359119b9b9c884418fee9b286535",
+    "at": "2026-10-17T14:07:34.751Z",
+    "caller": "+14404139902",
+    "name": null,
+    "receiptCode": "6535",
+    "language": "es",
+    "phase": "final",
+    "fulfillment": "TO GO / LLEVAR",
+    "lines": [
+      {
+        "name": "Quesadilla",
+        "quantity": 1,
+        "choices": [
+          "(QCO) Quesadilla Comal / Homemade",
+          "Chorizo / Mexican Sausage"
+        ],
+        "flag": null
+      },
+      {
+        "name": "Quesadilla",
+        "quantity": 1,
+        "choices": [
+          "(QCO) Quesadilla Comal / Homemade",
+          "Tripa / Beef Tripe"
+        ],
+        "flag": null
+      },
+      {
+        "name": "Quesadilla",
+        "quantity": 1,
+        "choices": [
+          "(QCO) Quesadilla Comal / Homemade",
+          "Buche / Pork Stomach"
+        ],
+        "flag": null
+      }
+    ],
+    "training": true,
+    "transcript": "Cliente [3.8s es]: Bueno,\nCliente [5.4s es]: me gustaría hacer una orden, porfa.\nCliente [8.9s es]: Este, quiero\nCliente [10.7s es]: tres quesadillas de comal,\nCliente [13.4s es]: una de chorizo, una de tepa y otra de buche,\nCliente [18.9s es]: y sería todo. Gracias."
+  }
+]

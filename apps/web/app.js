@@ -1,10 +1,26 @@
-import { mountElviAvatar } from "./avatar-elvi-glb.js";
+import { mountElviHalo } from "./halo.js?v=20261016-ui5";
+
+const APP_BUILD_VERSION = "extras-done-followup-20260530-006";
+window.__ELVI_BUILD_VERSION = APP_BUILD_VERSION;
+console.log("[ELVI] App build:", APP_BUILD_VERSION);
 
 // ── App state ─────────────────────────────────────────────────────────────
+function newOrderSessionId() {
+  try { return "web" + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : String(Date.now()) + Math.random().toString(36).slice(2)); } catch { return "web" + Date.now(); }
+}
+
 const state = {
   tenant: null,
   tenantSlug: resolveTenantSlug(),
+  runtimeConfig: {
+    fulfillmentModes: ["PICKUP"],
+    deliveryEnabled: false,
+    deliveryDisabledMessage: "Delivery by voice ordering is coming soon. Please use the regular online ordering site for delivery.",
+    voiceOrderSource: "cocinaelvis.com"
+  },
   sessionId: "",
+  // Order context lives on the server per order session, until checkout (fix7).
+  orderSessionId: newOrderSessionId(),
   ws: null,
   menu: [],
   cart: [],
@@ -39,10 +55,13 @@ const state = {
   localTtsAudio: null,
   speechActive: false,
   prespeechChunks: [],
+  turnAudioChunks: [],
   lastSpeechAt: 0,
   noiseFloor: 0.008,
   speechFrameCount: 0,
   silenceFrameCount: 0,
+  turnSpeechFrameCount: 0,
+  turnPeakRms: 0,
   speechStartedAt: 0,
   listenCooldownUntil: 0,
   xaiSessionReady: false,
@@ -57,6 +76,13 @@ const state = {
   languagePromptLoopActive: false,
   languagePromptTimers: [],
   realtimeStarted: false,
+  recognitionFinalTimer: null,
+  recognitionPaused: false,
+  voiceInputCooldownUntil: 0,
+  currentBuildGuide: null,
+  currentGuideStep: 0,
+  currentBuildItem: null,
+  currentBuildSelections: [],
 };
 
 const ui = {
@@ -98,6 +124,8 @@ const ui = {
   modifierGroups: document.getElementById("modifier-groups"),
   modifierAdd: document.getElementById("modifier-add"),
   selectedItemsList: document.getElementById("selected-items-list"),
+  comboBack: document.getElementById("combo-tracker-back"),
+  comboNext: document.getElementById("combo-tracker-next"),
 };
 
 // Hoisted early to avoid TDZ errors during boot() / language prompt loop
@@ -106,18 +134,19 @@ let _currentAudioSource  = null;
 let _queuedSources       = [];
 let _nextPlayTime        = 0;
 
-// ── Mount 3-D Elvi avatar ──────────────────────────────────────────────────
-const avatarCanvas = document.getElementById("avatar-canvas");
-console.log("[AVATAR] Canvas element found:", !!avatarCanvas);
-const elvi = mountElviAvatar(avatarCanvas);
-console.log("[AVATAR] Avatar mounted:", !!elvi);
+// ── Mount Elvi halo (replaces 3-D avatar) ──────────────────────────────────
+let elvi = null;
+try {
+  elvi = mountElviHalo(document.getElementById("elvi-halo"));
+} catch (error) {
+  console.warn("[HALO] Halo disabled; continuing with ordering UI:", error);
+}
 
 function setAvatarState(s) {
-  if (!elvi) {
-    console.error("[AVATAR] Avatar not initialized, cannot set state");
-    return;
+  if (elvi) {
+    elvi.setState(s);
+    if (s === "listening" && state.stream) elvi.attachStream?.(state.stream);
   }
-  elvi.setState(s);
   if (ui.micWrap) {
     ui.micWrap.classList.toggle("listening", s === "listening");
     ui.micWrap.classList.toggle("talking", s === "talking_neutral" || s === "happy" || s === "excited" || s === "questioning");
@@ -175,6 +204,27 @@ function wait(ms) {
   });
 }
 
+function markLocalTurnReady() {
+  state.turnInFlight = false;
+  ui.status.textContent = "Connected";
+}
+
+function isLocalBuildActive() {
+  return Boolean(state.currentBuildGuide || state.pendingComboState);
+}
+
+function cancelRealtimeResponseDuringLocalBuild() {
+  if (!isLocalBuildActive()) return false;
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    sendWs({ type: "response.cancel" });
+    sendWs({ type: "input_audio_buffer.clear" });
+  }
+  state.activeReplyText = "";
+  state.pendingActions = [];
+  state.turnInFlight = false;
+  return true;
+}
+
 function speakBrowserText(text, lang) {
   if (!("speechSynthesis" in window) || !text) {
     return null;
@@ -210,6 +260,7 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
   if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
     return;
   }
+  pauseBrowserRecognition();
   stopCurrentAudio();
 
   try {
@@ -231,6 +282,9 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
     console.warn("[TTS] xAI local speech fallback:", error);
     speakBrowserText(cleanText, language === "es" ? "es-US" : "en-US");
     await wait(Math.max(1800, cleanText.length * 55));
+  } finally {
+    state.voiceInputCooldownUntil = performance.now() + 650;
+    resumeBrowserRecognition();
   }
 }
 
@@ -357,6 +411,12 @@ function formatCentsForSpeech(text, language = getEffectiveLanguage()) {
     });
 }
 
+function interpolateReplyText(template, values = {}) {
+  return String(template || "").replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => (
+    values[key] === undefined || values[key] === null ? "" : String(values[key])
+  ));
+}
+
 function updateLanguageGate() {
   const selected = hasSelectedLanguage();
   if (ui.promptInput) {
@@ -421,11 +481,14 @@ boot().catch((error) => {
 async function boot() {
   try {
     console.log("[BOOT] Starting application boot");
+    if (ui.engine) ui.engine.textContent = `Build ${APP_BUILD_VERSION}`;
     attachUiHandlers();
     renderSelectedPreview(null);
     updateLanguageGate();
     console.log("[BOOT] Loading tenant branding");
     await loadTenantBranding();
+    console.log("[BOOT] Loading runtime config");
+    await loadRuntimeConfig();
     console.log("[BOOT] Loading menu");
     await loadMenu();
     console.log("[BOOT] Building menu sections");
@@ -475,6 +538,49 @@ async function loadTenantBranding() {
   ui.heroDesc.textContent =
     "Ask Elvi in English or Spanish. She listens, confirms your order, and sends it straight to checkout.";
   document.documentElement.style.setProperty("--accent", tenant.branding.accentColor || "#e2511d");
+}
+
+async function loadRuntimeConfig() {
+  try {
+    const response = await fetch("/api/config");
+    if (!response.ok) {
+      return;
+    }
+    const config = await response.json();
+    state.runtimeConfig = {
+      ...state.runtimeConfig,
+      ...config,
+      fulfillmentModes: Array.isArray(config.fulfillmentModes) && config.fulfillmentModes.length
+        ? config.fulfillmentModes
+        : ["PICKUP"],
+      deliveryEnabled: Boolean(config.deliveryEnabled)
+    };
+  } finally {
+    applyFulfillmentAvailability();
+  }
+}
+
+function isDeliveryEnabled() {
+  return Boolean(state.runtimeConfig.deliveryEnabled && state.runtimeConfig.fulfillmentModes.includes("DELIVERY"));
+}
+
+function deliveryDisabledMessage() {
+  return state.runtimeConfig.deliveryDisabledMessage || "Delivery by voice ordering is coming soon. Please use the regular online ordering site for delivery.";
+}
+
+function applyFulfillmentAvailability() {
+  if (!ui.fulfillment) return;
+  [...ui.fulfillment.options].forEach((option) => {
+    if (option.value === "DELIVERY") {
+      option.disabled = !isDeliveryEnabled();
+      option.hidden = !isDeliveryEnabled();
+    }
+  });
+  if (!state.runtimeConfig.fulfillmentModes.includes(state.fulfillment) || (state.fulfillment === "DELIVERY" && !isDeliveryEnabled())) {
+    state.fulfillment = "PICKUP";
+  }
+  ui.fulfillment.value = state.fulfillment;
+  ui.address?.closest(".field-row")?.classList.toggle("is-hidden", !isDeliveryEnabled());
 }
 
 async function loadMenu() {
@@ -615,6 +721,10 @@ function openModifierModal(item) {
     groups,
     selections: Object.fromEntries(groups.map((g) => [g.id, {}]))
   };
+  // fix16: the included mild Salsa Asada starts selected (tap another salsa to switch).
+  for (const { group, option } of includedSalsaDefaultsWeb(item)) {
+    state.modifierDraft.selections[group.id] = { [optionDisplayName(option)]: 1 };
+  }
   state.modifierStepIndex = 0;
 
   ui.modifierTitle.textContent = getEffectiveLanguage() === "es" ? `Personaliza ${item.nameEs}` : `Customize ${item.name}`;
@@ -914,13 +1024,16 @@ async function openRealtimeSession() {
       state.xaiSessionReady = true;
       flushMicChunkBuffer();
       ui.status.textContent = "Connected";
-      ui.engine.textContent = "";
+      if (!isLocalBuildActive()) ui.engine.textContent = "";
       syncRealtimeOrderContext();
       return;
     }
 
     if (payload.type === "response.created") {
-      state.turnInFlight = true;
+      if (cancelRealtimeResponseDuringLocalBuild()) {
+        return;
+      }
+      state.turnInFlight = true; setAvatarState("thinking");
       state.activeResponseId = payload.response?.id || "";
       state.activeReplyText = "";
       state.pendingActions = [];
@@ -929,32 +1042,53 @@ async function openRealtimeSession() {
     }
 
     if (payload.type === "input_audio_buffer.speech_started") {
-      stopCurrentAudio();
-      sendWs({ type: "response.cancel" });
+      beginRealtimeTurnCartCheck();
+      if (isLocalBuildActive()) return;
+      if (!state.autoListen || state.speechActive) {
+        stopCurrentAudio();
+        sendWs({ type: "response.cancel" });
+      }
       return;
     }
 
     if (payload.type === "input_audio_buffer.speech_stopped") {
-      sendWs({ type: "response.create" });
+      if (isLocalBuildActive()) return;
+      if (!state.autoListen) {
+        sendWs({ type: "response.create" });
+      }
       return;
     }
 
     if (payload.type === "response.output_audio.delta" && payload.delta) {
+      if (isLocalBuildActive()) return;
       console.log("[AUDIO] Received output_audio.delta, type:", typeof payload.delta, "length:", String(payload.delta).length);
       queuePcmDeltaForPlayback(payload.delta);
       return;
     }
 
     if ((payload.type === "response.output_audio_transcript.delta" || payload.type === "response.output_text.delta") && payload.delta) {
+      if (isLocalBuildActive()) return;
       state.activeReplyText += String(payload.delta || "");
       ui.reply.textContent = formatCentsForSpeech(state.activeReplyText);
       setAvatarState(detectMood(state.activeReplyText));
       return;
     }
 
+    if (/input_audio.*transcription.*(completed|done|final)/i.test(String(payload.type || "")) && payload.transcript) {
+      state.lastUserText = String(payload.transcript || "").trim();
+      return;
+    }
+
     if (payload.type === "response.function_call_arguments.done") {
+      if (cancelRealtimeResponseDuringLocalBuild()) {
+        return;
+      }
       const result = await handleToolCall(payload.name, payload.arguments || "{}");
       const actions = result.actions || (result.action ? [result.action] : []);
+      if (result.output?.ok === false && /unknown_menu_item|item_not_available/.test(String(result.output.reason || ""))) {
+        state.lastUnavailableMessage = String(state.lastUnavailableMessage || result.output.message || "");
+        result.output = { ...result.output, message: state.lastUnavailableMessage || result.output.message, instruction: "Nothing was added to the cart. Do not say added. Say the message." };
+      }
       if (actions.length) {
         state.pendingActions.push(...actions);
         applyActions(actions);
@@ -989,12 +1123,19 @@ async function openRealtimeSession() {
     }
 
     if (payload.type === "response.done") {
+      if (isLocalBuildActive()) {
+        state.turnInFlight = false;
+        ui.status.textContent = "Connected";
+        state.activeReplyText = "";
+        return;
+      }
       state.turnInFlight = false;
       ui.status.textContent = "Connected";
       ui.engine.textContent = "";
       if (!state.elviSpeaking) {
         setAvatarState("idle");
       }
+      correctFalseAddedClaim(state.activeReplyText);
 
       // Guide step advancement: if the model has started talking about the next step in the guide, advance the visual
       if (state.currentBuildGuide && state.currentGuideStep) {
@@ -1033,18 +1174,23 @@ async function openRealtimeSession() {
 
 function getResilientElviInstructions(language) {
   const langLock = language === "es"
-    ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas y naturales: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger o entrega?'. Nunca mezcles idiomas en una misma respuesta salvo nombres exactos del menú."
-    : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Keep replies short and natural: 'Added.', 'Removed.', 'Anything else?', 'Pickup or delivery?'. Never mix languages in one reply except exact menu item names.";
+    ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas y naturales: 'Agregado.', 'Quitado.', '¿Algo más?', '¿Para recoger?'. Nunca mezcles idiomas en una misma respuesta salvo nombres exactos del menú."
+    : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Keep replies short and natural: 'Added.', 'Removed.', 'Anything else?', 'Pickup?'. Never mix languages in one reply except exact menu item names.";
 
   return (
     "You are Elvi, the fast, confident, direct order taker at Cocina Elvis.\n\n" +
     "Your only job is to take accurate orders. Speak like experienced restaurant staff — short, clear, warm but efficient. Never make small talk, never upsell, never explain the app or how to use it.\n\n" +
     "Core principles:\n" +
     "- The 'Current Order State' provided below is the single source of truth. Always trust it over your memory.\n" +
+    "- Never invent menu items, pack sizes, combos, modifier names, fees, or delivery options. If the customer asks for 'another combo' or a vague combo, ask which real combo: COMBO Mix, COMBO Gorditas, COMBO Tortas, COMBO Burrito, COMBO Quesadillas, or COMBO Tacos.\n" +
+    "- When the current build is asking which combo, the next customer answer must be interpreted ONLY as one of those combo choices. 'Gordita' or 'gorditas' means COMBO Gorditas, never a fiesta platter or standalone gordita item.\n" +
+    "- Restaurant background noise is not an order. Ignore side conversations, kitchen noise, music, fragments, laughter, one-word unclear sounds, and anything not clearly directed at you as a customer order or correction.\n" +
+    "- Accuracy beats speed. If speech is noisy or unclear, do not guess. Ask one short clarification question before changing the order.\n" +
     "- When the customer says something unclear, changes their mind, or goes off-script, acknowledge naturally in one short sentence and steer back to the current order or the next logical choice. Recovery must feel human.\n" +
     "- Builds and combos (pack meals, etc.) are handled conversationally. You decide what question to ask next based on what has already been decided. You do NOT follow a rigid external script.\n" +
     "- After any successful change, give a tiny confirmation ('Added.', 'Got the two asada.', 'Removed it.') then ask 'Anything else?' or move on.\n" +
-    "- Only ask for name, phone, address, or fulfillment when the customer is finishing or the order is otherwise complete.\n\n" +
+    "- Only ask for name, phone, or pickup confirmation when the customer is finishing or the order is otherwise complete.\n" +
+    `- Voice ordering is pickup-only right now. If the customer asks for delivery, say exactly: "${deliveryDisabledMessage()}" and keep fulfillment as PICKUP.\n\n` +
     "Tool usage:\n" +
     "- Use the tools (add_to_order, update_order_item, remove_from_order, etc.) for every real change to the order.\n" +
     "- When a customer refers to 'the last one', 'that taco', '#2', etc., use the exact reference they gave.\n" +
@@ -1126,7 +1272,7 @@ function buildSessionUpdatePayload() {
     session: {
       voice: lang === "es" ? (window.XAI_VOICE_ID_ES || "Eve") : (window.XAI_VOICE_ID || "Eve"),
       instructions: getResilientElviInstructions(lang),
-      turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 300, prefix_padding_ms: 250 },
+      turn_detection: { type: "server_vad", threshold: 0.72, silence_duration_ms: 650, prefix_padding_ms: 180 },
       tools: buildRealtimeToolsForClient(),
       input_audio_transcription: { model: "grok-2-audio" },
       audio: {
@@ -1168,6 +1314,16 @@ function buildOrderStateSnapshot() {
       options: freshProgress.currentOptions || []
     };
     buildJson = ` | buildProgress=${JSON.stringify(compact)}`;
+  } else if (state.currentBuildGuide) {
+    const step = getCurrentGuideStep();
+    buildText = `building ${state.currentBuildGuide.display_name || "combo"} step ${state.currentGuideStep}/${state.currentBuildGuide.steps.length} (${step?.title || ""})`;
+    buildJson = ` | buildProgress=${JSON.stringify({
+      item: state.currentBuildGuide.display_name,
+      step: state.currentGuideStep,
+      total: state.currentBuildGuide.steps.length,
+      done: getGuideSelectionLabels(),
+      options: Array.isArray(step?.options) ? step.options.map((option) => guideOptionName(option)) : []
+    })}`;
   } else if (state.pendingComboState) {
     const p = state.pendingComboState;
     buildText = `building ${p.itemName || "combo"} step ${p.step || "?"}/${p.totalSteps || "?"} (${p.stepName || ""})`;
@@ -1181,8 +1337,212 @@ function buildOrderStateSnapshot() {
   return `fulfillment=${state.fulfillment}; itemCount=${getCartItemCount()}; cart=${cartText}; lastAdded=${lastText}; customer=${customerText}; activeBuild=${buildText}${buildJson}`;
 }
 
+/** "una horchata", "a pepsi", "jarrito de mango": drinks resolve locally like other simple adds. */
+function mentionsMenuDrink(text) {
+  const t = ` ${String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ")} `;
+  if (MENU_QUESTION_HINT.test(text)) return false;
+  return state.menu.some((item) => item.category === "drinks" && (item.aliases || []).some((alias) => alias.length > 3 && t.includes(` ${alias} `)));
+}
+
+function cartSignature() {
+  return JSON.stringify(state.cart.map((line) => [line.item?.id, line.quantity, (line.modifiers || []).map((m) => m.option)]));
+}
+
+/** Start of a customer turn on the live session: remember the cart so "added" can be checked. */
+function beginRealtimeTurnCartCheck() {
+  state.turnCartBaseline = cartSignature();
+  state.lastUnavailableMessage = "";
+}
+
+/**
+ * The live model sometimes says "Added." when nothing went in the cart (e.g. "one horchata").
+ * If it claims an add and the cart didn't change this turn, stop it and say what really happened.
+ */
+function correctFalseAddedClaim(replyText) {
+  const text = String(replyText || "");
+  if (!/\b(added|i added|agregu[eé]|agregad[oa]s?|lo agrego|ya est[aá])\b/i.test(text)) return false;
+  if (typeof state.turnCartBaseline !== "string" || cartSignature() !== state.turnCartBaseline) return false;
+  const es = getEffectiveLanguage() === "es";
+  const fix = state.lastUnavailableMessage || (es ? "Perdón, todavía no agregué nada. ¿Qué te gustaría?" : "Sorry, nothing was added yet. What would you like?");
+  stopCurrentAudio();
+  ui.reply.textContent = formatCentsForSpeech(fix);
+  state.lastUnavailableMessage = "";
+  void speakLocalText(fix, getEffectiveLanguage());
+  return true;
+}
+
 function getCartItemCount() {
   return state.cart.reduce((sum, line) => sum + line.quantity, 0);
+}
+
+/** Short read-back like chat: "Added: 8 Pack MEAL … (4 Alpastor, 4 Bistec). Anything else?" */
+// fix10 read-back: copy of services/api/src/readback.ts (keep in sync).
+const KIND_EN = { comal: "comal", harina: "flour", taquero: "street", taquera: "street", homemade: "comal" };
+
+function rbCleanOption(option) {
+  return String(option || "")
+    .replace(/\s*\(\+?\$[\d.]+\)/g, "")
+    .replace(/\*+/g, "")
+    .replace(/^\s*\([A-Za-z]{1,4}\)\s*/, "")
+    .replace(/^\s*\d+\s*x\s+/i, "")
+    .replace(/^\s*\([A-Za-z]{1,4}\)\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function rbOptionLabel(option, group, lang) {
+  const es = lang === "es";
+  const raw = rbCleanOption(option);
+  const low = raw.toLowerCase();
+  const g = String(group || "").toLowerCase();
+  if (/deluxe/.test(g) && /^regular\b/.test(low)) return "";
+  // fix16: included salsa — "salsa asada" / "mild asada salsa" (DOUBLE add-ons keep their name).
+  { const sm = /salsa/.test(g) ? raw.match(/^(mild|medium|hot)\s+salsa\s+(.+)$/i) : null; if (sm) return es ? `salsa ${sm[2].toLowerCase()}` : `${sm[1].toLowerCase()} ${sm[2].toLowerCase()} salsa`; }
+  if (/(arroz|rice).*(frijol|beans)/.test(low) && !/^solo|^only|grande/.test(low)) return es ? "arroz y frijoles" : "rice and beans";
+  if (/^solo arroz|only rice/.test(low)) return es ? "solo arroz" : "rice only";
+  if (/^solo frijol|only beans/.test(low)) return es ? "solo frijoles" : "beans only";
+  if (/grande\s*'?\s*12/.test(low)) return es ? "grande" : "large";
+  if (/(regular|elvis)\s*'?\s*10/.test(low)) return es ? "chico" : "small";
+  const parts = raw.split(" / ");
+  let label = (/^(no|sin)\b/i.test(raw) ? parts[0] : es ? parts[0] : (parts[1] || parts[0])).trim();
+  // ui3: "DOUBLE Crema / Sour Cream" → "double sour cream" in English too.
+  if (!es && /^\W*(double|doble)\s/i.test(parts[0]) && !/\b(double|doble)\b/i.test(label)) label = `double ${label}`;
+  // Item type in COMBO Mix: "Taco Comal" → "taco de comal" / "comal taco".
+  if (/item-\d-option|mix/.test(g)) {
+    const m = parts[0].match(/^(taco|quesadilla)\s+(comal|harina|taquer[oa])/i);
+    if (m) return es ? (/taquer/i.test(m[2]) ? `${m[1].toLowerCase()} ${m[2].toLowerCase()}` : `${m[1].toLowerCase()} de ${m[2].toLowerCase()}`) : `${KIND_EN[m[2].toLowerCase()] || m[2]} ${m[1].toLowerCase()}`;
+    return parts[0].toLowerCase();
+  }
+  // Tortilla / shell: drop the dish word ("Taco Comal" → "comal").
+  if (/tortilla|shell/.test(g)) {
+    const kind = parts[0].match(/\b(comal|harina|taquer[oa])\b/i)?.[1]?.toLowerCase();
+    if (kind) return es ? kind : (KIND_EN[kind] || kind);
+  }
+  if (/carne|meat/.test(g)) {
+    if (/alpastor/i.test(raw)) return es ? "pastor" : "al pastor";
+    if (/^bistec/i.test(raw)) return es ? "bistec" : "steak"; // fix24: say the modifier staff ring in (Bistec), not "asada" (sounds like salsa asada)
+    if (/^duro\b/i.test(raw)) return es ? "chicharrón duro" : "pork rinds";
+    if (/^prensado\b/i.test(raw)) return es ? "chicharrón prensado" : "spicy pork";
+  }
+  return label.toLowerCase();
+}
+
+function rbItemName(name, lang, alt) {
+  const es = lang === "es";
+  const n = String(/pack/i.test(String(name)) && alt ? `${name} ${alt}` : name || "").replace(/\s*\([A-Z]{1,4}\)\s*/g, " ").replace(/\s+/g, " ").trim();
+  const pack = n.match(/(\d+)\s*pack\b.*?\b\d+\s*x\s+(.+)$/i);
+  if (pack) {
+    const rest = pack[2].split(" / ")[0].trim();
+    const m = rest.match(/^(tacos|quesadillas|tortas|gorditas|queso tortas|queso gorditas)\s*(comal|harina|taquer[oa]s?)?/i);
+    const noun = (m?.[1] || rest).toLowerCase();
+    const kind = m?.[2]?.toLowerCase().replace(/s$/, "");
+    if (!kind) return `${pack[1]} ${noun}`;
+    return es ? `${pack[1]} ${noun} ${kind.startsWith("taquer") ? kind.replace(/s?$/, "s") : `de ${kind}`}` : `${pack[1]} ${KIND_EN[kind] || kind} ${noun}`;
+  }
+  const combo = n.match(/^combo\s+(\w+)/i);
+  if (combo) {
+    const noun = combo[1].toLowerCase();
+    if (noun === "mix") return es ? "Combo mix" : "Mix combo";
+    return es ? `Combo de ${noun}` : `${combo[1].charAt(0).toUpperCase()}${noun.slice(1)} combo`;
+  }
+  const parts = n.split(" / ");
+  // fix14: "Tacos Dorados Tacos Dorados" (name repeated in Square) → "Tacos Dorados".
+  return parts[0].trim().replace(/^(.+?)\s+\1$/i, "$1");
+}
+
+/** "8 tacos de comal" / "8 comal tacos" for one dish split by meat. */
+function rbSplitName(name, total, kind, lang) {
+  const noun = String(name || "").split(/[ /(]/).filter(Boolean)[0] || String(name || "");
+  const plural = total > 1 ? `${noun.toLowerCase()}${/[aeiou]$/i.test(noun) ? "s" : "es"}` : noun.toLowerCase();
+  return lang === "es" ? `${total} ${plural}${kind ? (/taquer/.test(kind) ? ` ${kind}s` : ` de ${kind}`) : ""}` : `${total} ${kind ? `${kind} ` : ""}${plural}`;
+}
+
+const isMeatGroup = (g) => /carne|meat/i.test(String(g || "")) && !/extra/i.test(String(g || ""));
+
+/** Same dish added once per meat (4 pastor + 4 asada, same tortilla) → one line. */
+function rbMergeSplit(lines, lang) {
+  const out = [];
+  const groups = new Map();
+  for (const line of lines) {
+    const meats = (line.mods || []).filter((m) => isMeatGroup(m.group));
+    const rest = (line.mods || []).filter((m) => !isMeatGroup(m.group));
+    const key = `${line.name}|${rest.map((m) => rbCleanOption(m.option)).sort().join(",")}`;
+    if (meats.length !== 1 || /combo|pack/i.test(String(line.name))) { out.push(line); continue; }
+    if (!groups.has(key)) { const g = { lines: [], rest }; groups.set(key, g); out.push(g); }
+    groups.get(key).lines.push(line);
+  }
+  return out.map((x) => {
+    if (!x.lines) return x;
+    if (x.lines.length === 1) return x.lines[0];
+    const total = x.lines.reduce((n, l) => n + (Number(l.quantity) || 1), 0);
+    const shell = x.rest.find((m) => /tortilla|shell/i.test(String(m.group || "")));
+    const kind = shell ? rbOptionLabel(shell.option, shell.group, lang) : "";
+    const meats = x.lines.map((l) => `${Number(l.quantity) || 1} ${rbOptionLabel(l.mods.find((m) => isMeatGroup(m.group)).option, "meat", lang)}`);
+    const others = x.rest.filter((m) => m !== shell).map((m) => rbOptionLabel(m.option, m.group, lang)).filter(Boolean);
+    return { text: `${rbSplitName(x.lines[0].name, total, kind, lang)}: ${[...meats, ...others].join(", ")}`, cents: x.lines.reduce((c, l) => c + (Number(l.cents) || 0), 0) };
+  });
+}
+
+/** lines: [{ name, quantity, mods: [{ option, group }], cents }] → one short read-back with the total. */
+function rbFormat(input, lang) {
+  const es = lang === "es";
+  const lines = rbMergeSplit(input, lang);
+  const and = es ? " y " : " and ";
+  const texts = lines.map((line) => {
+    if (line.text) return line.text;
+    const entries = [];
+    let meatEntry = null;
+    // COMBO Mix: pair each item with its meat ("taco comal de asada, gordita de chicharrón").
+    const itemNo = (g) => String(g || "").match(/item[- #]*(\d)/i)?.[1];
+    const mixKinds = {};
+    for (const m of line.mods || []) if (/mix|item-\d-option/i.test(String(m.group || ""))) mixKinds[itemNo(m.group) || "1"] = m;
+    const mixMeats = {};
+    for (const m of line.mods || []) if (/carne|meat/i.test(String(m.group || "")) && Object.keys(mixKinds).length) mixMeats[itemNo(m.group) || "1"] = m;
+    for (const n of Object.keys(mixKinds).sort()) {
+      const raw = rbCleanOption(mixKinds[n].option).split(" / ")[0];
+      const k = raw.match(/^(taco|quesadilla)\s+(comal|harina|taquer[oa])/i);
+      const meat = mixMeats[n] ? rbOptionLabel(mixMeats[n].option, "meat", lang) : "";
+      const dish = k ? k[1].toLowerCase() : raw.toLowerCase();
+      if (es) entries.push(`${dish}${k ? ` ${k[2].toLowerCase()}` : ""}${meat ? ` de ${meat}` : ""}`);
+      else entries.push(`${meat ? `${meat} ` : ""}${k ? `${KIND_EN[k[2].toLowerCase()]} ` : ""}${dish}`);
+    }
+    const shellFirst = [...(line.mods || [])].sort((a, b) => Number(!/tortilla|shell/i.test(String(a.group || ""))) - Number(!/tortilla|shell/i.test(String(b.group || ""))));
+    for (const m of shellFirst) {
+      if (Object.keys(mixKinds).length && (/mix|item-\d-option/i.test(String(m.group || "")) || /carne|meat/i.test(String(m.group || "")))) continue;
+      const label = rbOptionLabel(m.option, m.group, lang);
+      if (!label || label === rbItemName(line.name, lang).toLowerCase()) continue;
+      const isMeat = /carne|meat/i.test(String(m.group || "")) && !/extra/i.test(String(m.group || ""));
+      const q = Math.max(1, Number(m.quantity) || 1);
+      if (isMeat) {
+        if (!meatEntry) { meatEntry = { meats: new Map() }; entries.push(meatEntry); }
+        meatEntry.meats.set(label, (meatEntry.meats.get(label) || 0) + q);
+      } else if (!entries.includes(label)) entries.push(label);
+    }
+    const parts = entries.map((e) => {
+      if (typeof e === "string") return e;
+      const list = [...e.meats].map(([l, c]) => (c > 1 ? `${c} ${l}` : l));
+      const counted = [...e.meats.values()].some((c) => c > 1);
+      return counted ? list.join(", ") : list.length > 1 ? `${list.slice(0, -1).join(", ")}${and}${list[list.length - 1]}` : list[0];
+    });
+    const qty = Number(line.quantity) > 1 ? `${line.quantity} × ` : "";
+    const name = rbItemName(line.name, lang, line.alt);
+    return `${qty}${name}${parts.length ? `: ${parts.join(", ")}` : ""}`;
+  });
+  const cents = lines.reduce((s, l) => s + (Number(l.cents) || 0), 0);
+  const total = cents ? ` $${(cents / 100).toFixed(2)}.` : "";
+  return `${texts.join("; ")}.${total} ${es ? "¿Algo más?" : "Anything else?"}`;
+}
+
+function shortAddReadback(lines) {
+  const lang = getEffectiveLanguage() === "es" ? "es" : "en";
+  const rows = lines.filter((line) => line?.item).map((line) => ({
+    name: line.item.name,
+    alt: line.item.readbackName,
+    quantity: line.quantity,
+    mods: (line.modifiers || []).map((m) => ({ option: m.option, group: m.groupName || m.step, quantity: m.quantity })),
+    cents: getCartLineTotalCents(line) || 0
+  }));
+  return rows.length ? rbFormat(rows, lang) : "";
 }
 
 function describeCartLine(line) {
@@ -1231,30 +1591,37 @@ function handleMultiSelectCompletion(text) {
   const matched = donePhrases.some(phrase => normalized.includes(phrase));
 
   if (matched) {
-    const step = state.currentBuildGuide.steps[state.currentGuideStep - 1];
-    const isSelectionStep = step && (
-      step.selection_type === "multiple" ||
-      step.title.toLowerCase().includes("option") ||
-      step.title.toLowerCase().includes("choice") ||
-      step.title.toLowerCase().includes("opcion")
-    );
+      const step = state.currentBuildGuide.steps[state.currentGuideStep - 1];
+      // ui4: suggested/offered steps are answered in the guide turn (marks them done, or keeps the rest).
+      if (step && (step.mode === "suggest" || step.mode === "offer")) return false;
+      const stepTitle = String(step?.title || step?.label || "");
+      const isSelectionStep = step && (
+        step.selection_type === "multiple" ||
+        stepTitle.toLowerCase().includes("option") ||
+        stepTitle.toLowerCase().includes("choice") ||
+        stepTitle.toLowerCase().includes("opcion")
+      );
 
     // Special case: "siguiente" or "next" always advances the current guide step when a guide is active
     const isNextWord = normalized.includes("siguiente") || normalized.includes("next");
 
     if (isSelectionStep || isNextWord) {
       const oldStepNum = state.currentGuideStep;
-      const stepObj = step || { title: "current step" };
-      state.currentGuideStep++;
-      state.stepCompletionNote = `User just completed step ${oldStepNum} by saying "${text}". Do not re-ask about the previous step. Now on step ${state.currentGuideStep}: "${state.currentBuildGuide.steps[state.currentGuideStep-1]?.title}".`;
-      updateBuildVisuals({});
-      syncRealtimeOrderContext();
-
-      // Force the model to generate a response for the new step right away.
-      // This makes typing "siguiente" advance the conversation the same way the button does.
-      if (state.ws && state.ws.readyState === WebSocket.OPEN && state.xaiSessionReady) {
-        sendWs({ type: "response.create" });
+      const oldStep = state.currentBuildGuide.steps[oldStepNum - 1];
+      if (oldStep?.required !== false && !guideStepIsComplete(oldStep, oldStepNum - 1)) {
+        return false;
       }
+      if (!advanceGuideToNextRequiredStep()) {
+        void finishGuideBuildLocally();
+        return true;
+      }
+      state.stepCompletionNote = `User just completed step ${oldStepNum} by saying "${text}". Do not re-ask about the previous step. Now on step ${state.currentGuideStep}: "${state.currentBuildGuide.steps[state.currentGuideStep-1]?.title}".`;
+      updatePendingGuidePreview();
+      updateBuildVisuals({});
+      const reply = guideCurrentPrompt();
+      ui.reply.textContent = formatCentsForSpeech(reply);
+      markLocalTurnReady();
+      void speakLocalText(reply, getEffectiveLanguage());
 
       return true;
     }
@@ -1293,6 +1660,9 @@ function summarizeCurrentOrderForCustomer() {
 
 function syncRealtimeOrderContext() {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN || !state.xaiSessionReady) {
+    return;
+  }
+  if (isLocalBuildActive()) {
     return;
   }
   if (state.turnInFlight || state.elviSpeaking) {
@@ -1404,11 +1774,13 @@ function buildRealtimeToolsForClient() {
     {
       type: "function",
       name: "set_fulfillment",
-      description: "Set the order to pickup or delivery.",
+      description: isDeliveryEnabled()
+        ? "Set the order to pickup or delivery."
+        : "Set the order to pickup only. Delivery is disabled for voice ordering.",
       parameters: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["PICKUP", "DELIVERY"] }
+          type: { type: "string", enum: isDeliveryEnabled() ? ["PICKUP", "DELIVERY"] : ["PICKUP"] }
         },
         required: ["type"]
       }
@@ -1520,6 +1892,49 @@ function comboBuildingActionFromResolver(result) {
   };
 }
 
+function isPendingComboSelectionState() {
+  return state.pendingComboState?.ruleId === "combo-selection"
+    && state.pendingComboState?.itemId === "combo-selection";
+}
+
+function comboSelectionPhraseFromText(text) {
+  const normalized = normalizeOptionKey(text);
+  if (/\b(burrito|burritos)\b/.test(normalized)) return "combo burrito";
+  if (/\b(mix|mixto)\b/.test(normalized)) return "combo mix";
+  if (/\b(gordita|gorditas)\b/.test(normalized)) return "combo gorditas";
+  if (/\b(torta|tortas)\b/.test(normalized)) return "combo tortas";
+  if (/\b(quesadilla|quesadillas)\b/.test(normalized)) return "combo quesadillas";
+  if (/\b(taco|tacos)\b/.test(normalized)) return "combo tacos";
+  return "";
+}
+
+function comboSelectionReminderOutput() {
+  return {
+    ok: false,
+    reason: "combo_step_required",
+    message: getEffectiveLanguage() === "es"
+      ? "¿Cuál combo quieres? Elige Tacos, Quesadillas, Burrito, Mix, Gorditas o Tortas."
+      : "Which combo would you like? Choose Tacos, Quesadillas, Burrito, Mix, Gorditas, or Tortas.",
+    comboState: state.pendingComboState,
+    comboStep: {
+      itemName: "Combos",
+      step: 1,
+      totalSteps: 1,
+      stepKey: "combo-selection",
+      stepName: getEffectiveLanguage() === "es" ? "Elige combo" : "Choose combo",
+      options: [
+        "COMBO Tacos",
+        "COMBO Quesadillas",
+        "COMBO Burrito",
+        "COMBO Mix",
+        "COMBO Gorditas",
+        "COMBO Tortas"
+      ],
+      selections: []
+    }
+  };
+}
+
 async function resolveOrderToolWithMenuBrain(name, args) {
   if (!["add_item", "remove_item", "update_item"].includes(name)) return null;
 
@@ -1532,7 +1947,22 @@ async function resolveOrderToolWithMenuBrain(name, args) {
     }
   }
 
-  const text = getResolverToolText(name, args);
+  let text = getResolverToolText(name, args);
+  if (name === "add_item" && isPendingComboSelectionState()) {
+    const selectedCombo = comboSelectionPhraseFromText(`${state.lastUserText || ""} ${text || ""}`);
+    if (selectedCombo) {
+      text = selectedCombo;
+      args = {
+        ...args,
+        itemQuery: selectedCombo,
+        itemId: undefined,
+        modifiers: undefined,
+        quantity: 1
+      };
+    } else {
+      return { output: comboSelectionReminderOutput() };
+    }
+  }
   const response = await fetch(`/api/${state.tenantSlug}/menu/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1542,7 +1972,8 @@ async function resolveOrderToolWithMenuBrain(name, args) {
       actionHint: name,
       toolArgs: args,
       cart: buildResolverCartSnapshot(),
-      comboState: state.pendingComboState || undefined
+      comboState: state.pendingComboState || undefined,
+      orderSessionId: state.orderSessionId
     })
   });
 
@@ -1561,13 +1992,16 @@ async function resolveOrderToolWithMenuBrain(name, args) {
     }
   }
   // Only use legacy comboStep data if no guide is provided (guide is the single source of truth)
+  let comboAction = null;
   if (!result.guide) {
-    const comboAction = comboBuildingActionFromResolver(result);
+    comboAction = comboBuildingActionFromResolver(result);
     if (comboAction) {
       actionList.unshift(comboAction);
     }
   }
 
+  // Server-side order context (fix7): a dish is still open ("4 tacos 2 bistec" → which tortilla / the other 2?).
+  if ("orderContext" in result) state.orderContextPending = Boolean(result.orderContext);
   if (result.comboState && result.comboStep) {
     state.pendingComboState = result.comboState;
   } else if (result.reason === "build_cancelled") {
@@ -1575,6 +2009,9 @@ async function resolveOrderToolWithMenuBrain(name, args) {
     state.pendingComboPreview = null;
     state.lastComboAnimationKey = "";
     state.currentBuildGuide = null;
+    state.currentGuideStep = 0;
+    state.currentBuildItem = null;
+    state.currentBuildSelections = [];
     clearComboTracker();
     renderSelectedItemsPanel();
     renderSelectedPreview(state.lastSelectedItem);
@@ -1596,12 +2033,35 @@ async function resolveOrderToolWithMenuBrain(name, args) {
   }
 
   if (result.guide) {
+    const buildItem = resolveBuildItemFromSelection(selectedItem);
     state.currentBuildGuide = result.guide;
     state.currentGuideStep = 1;  // Start at first step of the guide
+    state.currentBuildItem = buildItem || selectedItem;
+    state.currentBuildSelections = [];
     state.pendingComboState = null; // Prefer guide-driven flow over old resolver state
+    // fix11: the server may have replayed the sentence (chicharrón answer, "8 tacos" → 8 pack).
+    prefillGuideSelectionsFromText(result.resolvedText || text);
+    advanceGuideToNextRequiredStep();
+    const doneItem = !getCurrentGuideStep() && resolveCurrentBuildItem();
+    if (doneItem) {
+      // fix10 least friction: everything was said in one sentence → add it now with the short read-back.
+      const modifiers = buildGuideModifiers();
+      addCartItem(doneItem, 1, modifiers);
+      result.message = shortAddReadback([{ item: doneItem, quantity: 1, modifiers }]) || doneItem.name;
+      clearCurrentGuideBuild();
+      state.lastSelectedItem = doneItem;
+      renderCart();
+      renderSelectedItemsPanel();
+    } else {
+      result.message = guideCurrentPrompt();
+      updatePendingGuidePreview();
+      updateBuildVisuals({});
+    }
   }
 
   if (!comboAction && !actionList.length && !state.pendingComboState && ["unknown_menu_item", "unknown_cart_item"].includes(result.reason)) {
+    // Keep the server's "not on the menu, closest drinks are…" reply for whoever answers next.
+    if (result.reason === "unknown_menu_item" && result.message) state.lastUnavailableMessage = String(result.message);
     return null;
   }
 
@@ -1620,35 +2080,71 @@ async function resolvePendingComboTurnLocally(text) {
     return true;
   }
 
-  state.turnInFlight = true;
+  state.turnInFlight = true; setAvatarState("thinking");
   state.lastUserText = text;
   ui.status.textContent = "Processing…";
+  let completed = false;
   try {
     const result = await resolveOrderToolWithMenuBrain("add_item", { itemQuery: text });
     const actions = result?.actions || [];
+    const cartBefore = state.cart.length;
     if (actions.length) {
       applyActions(actions);
     }
+    let addedLines = actions.some((action) => action.type === "add_item") ? state.cart.slice(cartBefore) : [];
+    // ui2: an add that merged into an existing cart line still gets the short read-back with price.
+    if (!addedLines.length) {
+      addedLines = actions.filter((a) => a.type === "add_item").map((a) => ({
+        item: state.menu.find((m) => m.id === a.itemId) || a.selectedItem,
+        quantity: Math.max(1, Number(a.quantity) || 1),
+        modifiers: Array.isArray(a.modifiers) ? a.modifiers : []
+      })).filter((line) => line.item && line.item.name);
+    }
+
+    // When the backend returned a guide (new single-source-of-truth path),
+    // make sure the visual tracker + current step options appear immediately.
+    // updateBuildVisuals detects state.currentBuildGuide and renders the first step.
+    updateBuildVisuals(result?.output || result || {});
+
     const output = result?.output || {};
-    const fallback = getEffectiveLanguage() === "es" ? "Listo." : "Done.";
-    const reply = output.message || output.orderSummary || fallback;
+    // No result means the item wasn't found: never say "Done" for that.
+    const notFound = state.lastUnavailableMessage || (getEffectiveLanguage() === "es" ? "Perdón, eso no está en el menú. ¿Qué más se te antoja?" : "Sorry, that isn't on our menu. What else sounds good?");
+    const fallback = !result || (!actions.length && output.ok === false && !output.message)
+      ? notFound
+      : (getEffectiveLanguage() === "es" ? "Listo." : "Done.");
+    if (!result) state.lastUnavailableMessage = "";
+    const reply = (addedLines.length && output.ok !== false && shortAddReadback(addedLines)) || output.message || output.orderSummary || fallback;
     ui.reply.textContent = formatCentsForSpeech(reply);
+    completed = true;
+    markLocalTurnReady();
     await speakLocalText(reply, getEffectiveLanguage());
     pulseAvatarState(actions.some((action) => action.type === "add_item") ? "happy" : "questioning", 1200, "idle");
     return true;
   } catch (error) {
+    console.error("[ORDER] Local resolver failed:", error);
     ui.status.textContent = error instanceof Error ? error.message : "Resolver error";
+    ui.reply.textContent = getEffectiveLanguage() === "es" ? "No pude agregar eso. Intenta otra vez." : "I could not add that. Please try again.";
     setAvatarState("frustrated");
     return false;
   } finally {
-    state.turnInFlight = false;
-    ui.status.textContent = "Connected";
+    if (!completed) state.turnInFlight = false;
+    if (completed) ui.status.textContent = "Connected";
   }
 }
 
 async function handleToolCall(name, argsJson) {
   const args = safeJsonParse(argsJson || "{}");
   if (name === "check_delivery_zone") {
+    if (!isDeliveryEnabled()) {
+      return {
+        output: {
+          ok: false,
+          in_zone: false,
+          delivery_enabled: false,
+          message: deliveryDisabledMessage()
+        }
+      };
+    }
     const response = await fetch(`/api/${state.tenantSlug}/tools/check_delivery_zone`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1693,6 +2189,12 @@ async function handleToolCall(name, argsJson) {
       quantity: args.quantity
     };
   } else if (name === "set_delivery_address") {
+    if (!isDeliveryEnabled()) {
+      return {
+        action: { type: "set_fulfillment", fulfillment: "PICKUP", message: deliveryDisabledMessage() },
+        output: { ok: false, delivery_enabled: false, message: deliveryDisabledMessage() }
+      };
+    }
     normalizedName = "set_address";
     normalizedArgs = { address: args.address };
   } else if (name === "set_customer_info") {
@@ -1808,6 +2310,9 @@ function mapToolToAction(name, args) {
         modifiers: normalizeToolModifiers(args.modifiers)
       };
     case "set_fulfillment":
+      if (args.fulfillment === "DELIVERY" && !isDeliveryEnabled()) {
+        return { type: "set_fulfillment", fulfillment: "PICKUP", message: deliveryDisabledMessage() };
+      }
       return { type: "set_fulfillment", fulfillment: args.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP" };
     case "set_address":
       return { type: "set_address", address: String(args.address || "") };
@@ -1851,6 +2356,9 @@ function normalizeToolModifiers(raw) {
 function normalizeOptionKey(text) {
   return String(text || "")
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bal\s+pastor\b/g, "alpastor")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
@@ -1876,27 +2384,34 @@ function findCanonicalOption(options, candidate) {
   const raw = String(candidate || "").trim();
   if (!raw) return null;
 
-  const exact = options.find((opt) => String(opt) === raw);
-  if (exact) return String(exact);
+  const exact = options.find((opt) => optionDisplayName(opt) === raw);
+  if (exact) return optionDisplayName(exact);
 
   const lower = raw.toLowerCase();
-  const ci = options.find((opt) => String(opt).toLowerCase() === lower);
-  if (ci) return String(ci);
+  const ci = options.find((opt) => optionDisplayName(opt).toLowerCase() === lower);
+  if (ci) return optionDisplayName(ci);
 
   const key = normalizeOptionKey(raw);
   if (!key) return null;
-  const normalized = options.find((opt) => normalizeOptionKey(opt) === key);
-  if (normalized) return String(normalized);
+  const normalized = options.find((opt) => normalizeOptionKey(optionDisplayName(opt)) === key);
+  if (normalized) return optionDisplayName(normalized);
 
   const looseKey = normalizeLooseOptionKey(raw);
-  const loose = options.find((opt) => normalizeLooseOptionKey(opt) === looseKey);
-  if (loose) return String(loose);
+  const loose = options.find((opt) => normalizeLooseOptionKey(optionDisplayName(opt)) === looseKey);
+  if (loose) return optionDisplayName(loose);
 
   const scored = options
-    .map((opt) => ({ option: String(opt), score: scoreModifierOptionMatch(opt, raw) }))
+    .map((opt) => ({ option: optionDisplayName(opt), score: scoreModifierOptionMatch(optionDisplayName(opt), raw) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score);
   return scored[0]?.option || null;
+}
+
+function findCanonicalModifierOption(options, candidate) {
+  const canonical = findCanonicalOption(options, candidate);
+  if (!canonical) return null;
+  const key = normalizeOptionKey(canonical);
+  return (options || []).find((option) => normalizeOptionKey(optionDisplayName(option)) === key) || null;
 }
 
 function normalizeQueryText(text) {
@@ -1930,8 +2445,10 @@ function significantModifierTokens(text) {
 
 function buildModifierOptionAliases(option) {
   const cleaned = stripModifierPriceText(option);
+  const cleanedKey = normalizeLooseOptionKey(cleaned);
+  const isMeltedCheeseOption = /\b(queso derretido|melted cheese)\b/.test(cleanedKey);
   const aliases = new Set([
-    normalizeLooseOptionKey(cleaned),
+    cleanedKey,
     normalizeLooseOptionKey(cleaned.replace(/\([^)]*\)/g, " "))
   ]);
 
@@ -1942,6 +2459,7 @@ function buildModifierOptionAliases(option) {
 
   const tokens = significantModifierTokens(cleaned);
   for (const token of tokens) {
+    if (isMeltedCheeseOption && /^(queso|cheese)$/.test(token)) continue;
     aliases.add(token);
   }
   for (let i = 0; i < tokens.length - 1; i += 1) {
@@ -2086,9 +2604,10 @@ function inferModifiersFromQuery(item, query) {
   const deluxeGroup = findModifierGroup(item, (name) => /\bdeluxe\b/.test(name));
 
   const tortilla = inferOptionFromMap(tortillaGroup, query, [
-    [/\b(homemade|home made|handmade|hand made|comal|corn)\b/, getTortillaOptionHint(item, "co")],
-    [/\b(flour|harina)\b/, getTortillaOptionHint(item, "hr")],
-    [/\b(street|taquero|taquera)\b/, getTortillaOptionHint(item, "st")]
+    // Street first: "street corn" / "de maíz" / "chiquito" = Street; Comal (upsell) only when asked by name.
+    [/\b(street|taquer[oa]s?|de ma[ií]z|chiquit[oa]s?|street corn)\b/, getTortillaOptionHint(item, "st")],
+    [/\b(homemade|home made|handmade|hand made|comal|hech[oa]s? a mano|tortillas? grandes?)\b/, getTortillaOptionHint(item, "co")],
+    [/\b(flour|harina)\b/, getTortillaOptionHint(item, "hr")]
   ]);
   if (tortilla) {
     modifiers.push(tortilla);
@@ -2113,7 +2632,7 @@ function inferModifiersFromQuery(item, query) {
   if (meat) modifiers.push(meat);
 
   const withModifier = inferOptionFromMap(withGroup, query, [
-    [/\b(with beans|con frijoles|frijoles|beans)\b/, "Con Frijoles / With Beans"],
+    [/\b(with beans|con frijol(?:es)?|frijol(?:es)?|beans)\b/, "Con Frijoles / With Beans"],
     [/\b(with rice|con arroz|arroz|rice)\b/, "Con Arroz / With Rice"],
     [/\b(with cheese|con queso|queso fresco|fresh cheese)\b/, "Con Queso Fresco / With Cheese"],
     [/\b(extra queso|extra cheese)\b/, "EXTRA QUESO / Cheese"]
@@ -2121,7 +2640,7 @@ function inferModifiersFromQuery(item, query) {
   if (withModifier) modifiers.push(withModifier);
 
   const deluxe = inferOptionFromMap(deluxeGroup, query, [
-    [/\bdeluxe\b/, "DELUXE"]
+    [/\b(deluxe|preparad[ao]|de lujo)\b/, "DELUXE"]
   ]);
   if (deluxe && !customerDeclinesDeluxe(query)) modifiers.push(deluxe);
 
@@ -2292,10 +2811,10 @@ function getSharedModifierPhrase(query) {
   if (/\b(homemade|home made|handmade|hand made|comal|corn)\b/.test(normalized)) parts.push("comal");
   if (/\b(flour|harina)\b/.test(normalized)) parts.push("flour");
   if (/\b(street|taquero|taquera)\b/.test(normalized)) parts.push("street");
-  if (/\b(with beans|con frijoles|frijoles|beans)\b/.test(normalized)) parts.push("with beans");
+  if (/\b(with beans|con frijol(?:es)?|frijol(?:es)?|beans)\b/.test(normalized)) parts.push("with beans");
   if (/\b(with rice|con arroz|arroz|rice)\b/.test(normalized)) parts.push("with rice");
   if (/\b(with cheese|con queso|queso fresco|fresh cheese)\b/.test(normalized)) parts.push("with cheese");
-  if (/\bdeluxe\b/.test(normalized) && !customerDeclinesDeluxe(normalized)) parts.push("deluxe");
+  if (/\b(deluxe|preparad[ao]|de lujo)\b/.test(normalized) && !customerDeclinesDeluxe(normalized)) parts.push("deluxe");
   return parts.join(" ");
 }
 
@@ -2727,6 +3246,7 @@ function attachUiHandlers() {
 
   // Cart drawer
   ui.cartToggle.addEventListener("click", openCart);
+  document.getElementById("cart-bar")?.addEventListener("click", openCart);
   ui.cartClose.addEventListener("click", closeCart);
   ui.drawerBackdrop.addEventListener("click", closeCart);
   ui.modifierClose?.addEventListener("click", closeModifierModal);
@@ -2736,9 +3256,16 @@ function attachUiHandlers() {
   ui.modifierAdd?.addEventListener("click", () => {
     handleModifierStepAdvance();
   });
+  ui.comboBack?.addEventListener("click", () => {
+    sendComboNav("back");
+  });
+  ui.comboNext?.addEventListener("click", () => {
+    sendComboNav("next");
+  });
 
   ui.promptForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    autoSelectLanguageFromText(ui.promptInput.value.trim());
     if (!hasSelectedLanguage()) {
       ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
       startLanguagePromptLoop();
@@ -2748,12 +3275,6 @@ function attachUiHandlers() {
     if (!text) {
       return;
     }
-
-    // Check if user just finished a multi-select guided step (advances state + syncs model)
-    // We no longer suppress the turn here. We let the message go through so the model
-    // can see the exact phrase ("siguiente", "ya", etc.) in the conversation history.
-    // The strong prompt will tell the model what to do when it sees the phrase.
-    handleMultiSelectCompletion(text);
 
     if (!sendUserTurn(text)) {
       ui.status.textContent = "Please wait for Elvi to finish this turn.";
@@ -2782,6 +3303,13 @@ function attachUiHandlers() {
   });
 
   ui.fulfillment.addEventListener("change", () => {
+    if (ui.fulfillment.value === "DELIVERY" && !isDeliveryEnabled()) {
+      state.fulfillment = "PICKUP";
+      ui.fulfillment.value = "PICKUP";
+      ui.reply.textContent = deliveryDisabledMessage();
+      syncRealtimeOrderContext();
+      return;
+    }
     state.fulfillment = ui.fulfillment.value === "DELIVERY" ? "DELIVERY" : "PICKUP";
     syncRealtimeOrderContext();
   });
@@ -2792,12 +3320,18 @@ function attachUiHandlers() {
     state.customer.phone = ui.phone.value.trim();
     state.customer.email = ui.email.value.trim();
     state.customer.address = ui.address.value.trim();
+    if (state.fulfillment === "DELIVERY" && !isDeliveryEnabled()) {
+      state.fulfillment = "PICKUP";
+      ui.fulfillment.value = "PICKUP";
+      ui.reply.textContent = deliveryDisabledMessage();
+    }
 
     try {
       const response = await fetch(`/api/${state.tenantSlug}/orders/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orderSessionId: state.orderSessionId,
           cart: state.cart.map((line) => ({
             id: line.item.id,
             quantity: line.quantity,
@@ -2812,7 +3346,13 @@ function attachUiHandlers() {
               : []
           })),
           fulfillment: state.fulfillment,
-          customer: state.customer
+          customer: state.customer,
+          metadata: {
+            language: getEffectiveLanguage(),
+            source: state.runtimeConfig.voiceOrderSource,
+            transcriptSummary: state.lastUserText,
+            cartSummary: describeCurrentOrderForSpeech()
+          }
         })
       });
 
@@ -2929,7 +3469,7 @@ function describeMicError(error) {
 
 function startBrowserRecognition() {
   const SpeechCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechCtor) {
+  if (!SpeechCtor || state.recognitionPaused || state.recognition) {
     return;
   }
 
@@ -2940,11 +3480,32 @@ function startBrowserRecognition() {
     recognition.continuous = true;
 
     recognition.onresult = (event) => {
-      let combined = "";
-      for (let i = 0; i < event.results.length; i += 1) {
-        combined += `${event.results[i][0]?.transcript || ""} `;
+      if (state.elviSpeaking || state.recognitionPaused || performance.now() < state.voiceInputCooldownUntil) {
+        return;
       }
-      state.localTranscript = combined.trim();
+      let combined = "";
+      let finalText = "";
+      for (let i = event.resultIndex || 0; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0]?.transcript || "";
+        combined += `${transcript} `;
+        if (event.results[i].isFinal) {
+          finalText += `${transcript} `;
+        }
+      }
+      const text = combined.trim();
+      if (text) state.localTranscript = text;
+      const finalPhrase = finalText.trim();
+      if (finalPhrase && !state.speechActive && canStartVoiceTurn(finalPhrase)) {
+        clearTimeout(state.recognitionFinalTimer);
+        state.recognitionFinalTimer = setTimeout(() => {
+          if (state.speechActive || !claimVoiceTurn(finalPhrase)) return;
+          state.localTranscript = finalPhrase;
+          state.turnAudioChunks = [];
+          ui.status.textContent = "Processing…";
+          setAvatarState("talking_neutral");
+          handleLocalVoiceTurnAfterRecognition(0);
+        }, 450);
+      }
     };
 
     recognition.onerror = () => {
@@ -2953,6 +3514,13 @@ function startBrowserRecognition() {
 
     recognition.onend = () => {
       state.recognition = null;
+      if (state.autoListen && state.vadRunning && !state.recognitionPaused) {
+        setTimeout(() => {
+          if (state.autoListen && state.vadRunning && !state.recognition && !state.recognitionPaused) {
+            startBrowserRecognition();
+          }
+        }, 250);
+      }
     };
 
     recognition.start();
@@ -2974,10 +3542,108 @@ function stopBrowserRecognition() {
   }
 }
 
+function pauseBrowserRecognition() {
+  state.recognitionPaused = true;
+  clearTimeout(state.recognitionFinalTimer);
+  state.recognitionFinalTimer = null;
+  state.localTranscript = "";
+  stopBrowserRecognition();
+}
+
+function resumeBrowserRecognition() {
+  state.recognitionPaused = false;
+  if (state.autoListen && state.vadRunning && !state.recognition && !state.elviSpeaking) {
+    startBrowserRecognition();
+  }
+}
+
+function canStartVoiceTurn(text = "") {
+  if (!state.vadRunning || state.turnInFlight || state.elviSpeaking || state.recognitionPaused) return false;
+  if (performance.now() < state.voiceInputCooldownUntil) return false;
+  return !text || isLikelyVoiceOrderCommand(text);
+}
+
+function claimVoiceTurn(text = "") {
+  if (!canStartVoiceTurn(text)) return false;
+  state.turnInFlight = true; setAvatarState("thinking");
+  state.voiceInputCooldownUntil = performance.now() + 900;
+  clearTimeout(state.recognitionFinalTimer);
+  state.recognitionFinalTimer = null;
+  return true;
+}
+
+function shouldUseLocalVoiceOrderingFlow() {
+  return Boolean(state.currentBuildGuide || state.pendingComboState);
+}
+
+async function transcribeTurnAudio() {
+  const audioChunks = Array.isArray(state.turnAudioChunks) ? state.turnAudioChunks.filter(Boolean).slice(-180) : [];
+  if (!audioChunks.length) return "";
+  try {
+    ui.status.textContent = "Transcribing…";
+    const response = await fetch(`/api/${state.tenantSlug}/xai/transcribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language: getEffectiveLanguage(), audioChunks })
+    });
+    const result = await response.json().catch(() => ({}));
+    const transcript = response.ok ? String(result.transcript || "").trim() : "";
+    if (transcript && ui.engine) ui.engine.textContent = `Heard: ${transcript}`;
+    if (!response.ok) console.warn("[VOICE] transcription response failed:", result);
+    return transcript;
+  } catch (error) {
+    console.warn("[VOICE] transcription fallback failed:", error);
+    return "";
+  }
+}
+
+function isLikelyVoiceOrderCommand(text) {
+  const normalized = normalizeOptionKey(text);
+  if (!normalized) return false;
+  if (shouldUseLocalVoiceOrderingFlow()) return true;
+  if (isCurrentOrderQuestion(text) || shouldResolveStructuredBuildLocally(text)) return true;
+  // Menu questions ("what's on the menu", "¿qué tienen?") are real turns, not noise.
+  if (MENU_QUESTION_HINT.test(String(text || ""))) return true;
+  return /\b(order|orden|ordenar|quiero|quisiera|dame|deme|pon|poner|add|get|give me|checkout|pagar|recoger|pickup|para llevar|togo|to go|taco|tacos|burrito|quesadilla|gordita|gorditas|torta|tortas|combo|combos|pack|packs|paquete|paquetes|agua|drink|bebida|salsa|extra)\b/.test(normalized);
+}
+
+function handleLocalVoiceTurnAfterRecognition(delayMs = 900) {
+  setTimeout(async () => {
+    let text = String(state.localTranscript || "").trim();
+    if (!text) {
+      text = await transcribeTurnAudio();
+    }
+    state.turnAudioChunks = [];
+    state.turnInFlight = false;
+    if (!text) {
+      const reply = getEffectiveLanguage() === "es"
+        ? "No alcancé a escuchar. Repítelo, por favor."
+        : "I did not catch that. Please say it again.";
+      ui.reply.textContent = reply;
+      ui.status.textContent = "Connected";
+      if (ui.engine) ui.engine.textContent = "No transcript";
+      void speakLocalText(reply, getEffectiveLanguage());
+      setAvatarState("idle");
+      return;
+    }
+    state.localTranscript = "";
+    if (ui.engine) ui.engine.textContent = `Heard: ${text}`;
+    if (!isLikelyVoiceOrderCommand(text)) {
+      ui.status.textContent = "Ready…";
+      if (ui.engine) ui.engine.textContent = `Ignored: ${text}`;
+      setAvatarState("idle");
+      return;
+    }
+    if (!sendUserTurn(text)) {
+      ui.status.textContent = "Please wait for Elvi to finish this turn.";
+    }
+  }, delayMs);
+}
+
 function sendOptionChip(btn) {
   const text = btn.textContent.trim();
   if (!text) return;
-  if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) return;
+  if (!state.currentBuildGuide && !state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) return;
   if (!sendUserTurn(text)) {
     return;
   }
@@ -2987,9 +3653,114 @@ function sendOptionChip(btn) {
   pulseAvatarState("talking_neutral", 900, "idle");
 }
 
-function sendUserTurn(text) {
+/** Chat-endpoint modifiers are {step, option}; the cart wants {groupId, groupName, option}. */
+function chatModifiersForCart(item, modifiers) {
+  const groups = Array.isArray(item?.modifierGroups) ? item.modifierGroups : [];
+  return (Array.isArray(modifiers) ? modifiers : []).map((mod) => {
+    for (const group of groups) {
+      const option = findCanonicalModifierOption(group.options || [], mod.option);
+      if (option) {
+        return { groupId: group.id, groupName: group.name, option: optionDisplayName(option), optionId: option.id, quantity: 1, priceDeltaCents: Number(option.priceDeltaCents) || undefined };
+      }
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+async function handleChatFallbackTurn(text) {
+  state.turnInFlight = true;
+  setAvatarState("thinking");
+  ui.status.textContent = "Processing…";
+  try {
+    state.chatFallbackHistory = Array.isArray(state.chatFallbackHistory) ? state.chatFallbackHistory : [];
+    const response = await fetch(`/api/${state.tenantSlug}/elvi/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: text, language: getEffectiveLanguage(), history: state.chatFallbackHistory.slice(-24), orderSessionId: state.orderSessionId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || `chat ${response.status}`);
+    // Never let a fallback turn check out; the customer confirms checkout in the cart.
+    const actions = (data.actions || []).filter((action) => action.type !== "checkout").map((action) => {
+      if (action.type !== "add_item" || !Array.isArray(action.modifiers)) return action;
+      const item = state.menu.find((candidate) => candidate.id === action.itemId);
+      return { ...action, modifiers: chatModifiersForCart(item, action.modifiers) };
+    });
+    if (actions.length) applyActions(actions);
+    state.chatFallbackHistory.push({ role: "customer", text }, { role: "assistant", text: String(data.reply || "") });
+    const reply = String(data.reply || "");
+    ui.reply.textContent = reply;
+    if (ui.engine) ui.engine.textContent = "Engine: chat (realtime not connected)";
+    renderCart();
+    markLocalTurnReady();
+    if (reply) await speakLocalText(reply, getEffectiveLanguage());
+  } catch (error) {
+    console.warn("[CHAT] fallback failed", error);
+    ui.reply.textContent = getEffectiveLanguage() === "es" ? "Perdón, no pude procesar eso. Intenta otra vez." : "Sorry, I couldn't process that. Please try again.";
+  } finally {
+    state.turnInFlight = false;
+    ui.status.textContent = "Connected";
+  }
+}
+
+// Loose check so only likely menu questions make the extra /menu/info call.
+const MENU_QUESTION_HINT = /\b(menu|men[uú]|carta|recommend|suggest|popular|what do you (have|got|sell)|what'?s good|what (combos|specials|drinks|meals|platters|sides|dips|seafood)|qu[eé] (tienen|tienes|hay|venden|me recomienda|recomiendas|combos|especiales|bebidas|paquetes|mariscos|platillos)|cu[aá]les|lo m[aá]s (pedido|popular|vendido)|recomienda)(?![a-z])/i;
+
+/** Answer menu questions without touching the order or the build in progress. */
+async function handleMenuQuestionTurn(text) {
+  state.turnInFlight = true;
+  let answered = false;
+  try {
+    const response = await fetch(`/api/${state.tenantSlug}/menu/info`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language: getEffectiveLanguage() })
+    });
+    const data = response.ok ? await response.json() : {};
+    if (data?.reply) {
+      answered = true;
+      // Mid-build: answer, then pick the order back up where it was.
+      const resume = state.currentBuildGuide
+        ? ` ${getEffectiveLanguage() === "es" ? "Seguimos con tu" : "Back to your"} ${state.currentBuildGuide.display_name}: ${guideCurrentPrompt()}`
+        : "";
+      // Don't ask "what would you like?" when we're about to resume the build question.
+      const answer = resume ? String(data.reply).replace(/\s*¿?[^.?¿]*\?\s*$/, "") : data.reply;
+      const reply = `${answer}${resume}`;
+      ui.reply.textContent = reply;
+      markLocalTurnReady();
+      await speakLocalText(reply, getEffectiveLanguage());
+    }
+  } catch (error) {
+    console.warn("[MENU] menu info failed", error);
+  } finally {
+    state.turnInFlight = false;
+  }
+  if (!answered) sendUserTurn(text, { skipMenuQuestion: true });
+}
+
+/** A real question or order before EN/ES was tapped picks the language from the words used. */
+function autoSelectLanguageFromText(text) {
+  if (hasSelectedLanguage() || !text) return false;
+  if (!MENU_QUESTION_HINT.test(text) && !isLikelyVoiceOrderCommand(text)) return false;
+  const spanish = /[¿¡ñáéíóú]|\b(que|tienen|tienes|quiero|hay|dame|menu|carta|para|por favor|recomienda|cuales|combo de|de pastor|con)\b/i.test(text)
+    && !/\b(what|the|do you|i want|please|have)\b/i.test(text);
+  setLanguageMode(spanish ? "es" : "en");
+  return true;
+}
+
+function sendUserTurn(text, options = {}) {
   if (!text) {
     return false;
+  }
+  autoSelectLanguageFromText(text);
+
+  if (!options.skipMenuQuestion && MENU_QUESTION_HINT.test(text) && hasSelectedLanguage() && !state.turnInFlight) {
+    if (state.elviSpeaking) {
+      stopCurrentAudio();
+      state.elviSpeaking = false;
+    }
+    void handleMenuQuestionTurn(text);
+    return true;
   }
 
   // Universal handling for completion phrases on multi-select guide steps
@@ -2997,23 +3768,63 @@ function sendUserTurn(text) {
   if (handleMultiSelectCompletion(text)) {
     return true;
   }
-  if (!state.pendingComboState && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) {
-    return false;
-  }
+
   if (!hasSelectedLanguage()) {
     ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
     startLanguagePromptLoop();
     return false;
   }
-  const useLocalResolver = state.pendingComboState || shouldResolveStructuredBuildLocally(text);
-  if (useLocalResolver && state.elviSpeaking && !state.turnInFlight) {
-    stopCurrentAudio();
-    state.elviSpeaking = false;
+
+  // ui4: "actually / mejor / cambia / solo arroz / sin frijoles" edits the most recent matching cart line.
+  if (!state.currentBuildGuide && !state.turnInFlight && tryCartCorrection(text)) return true;
+
+  if (state.currentBuildGuide) {
+    if (state.elviSpeaking && !state.turnInFlight) {
+      stopCurrentAudio();
+      state.elviSpeaking = false;
+    }
+    if (state.turnInFlight) {
+      return false;
+    }
+    void handleGuideTurnLocally(text);
+    return true;
   }
+
+  // Structured builds (combos, pack meals, guided items from combo-guide.json)
+  // are handled locally via /menu/resolve + local speech. They must work with
+  // typing even if the realtime voice WS is still connecting or closed.
+  // fix13: vague orders ("una orden", "un paquete", "8 meal pack", "un combo") get the server's one clarifying question.
+  const vagueOrder = /^\s*(quiero |dame |i want |i'd like )?(una?|an?|one)?\s*(orden|order|paquete|pack|combo|meal pack|\d+ meal( pack)?|chopac?k)\s*(please|por favor)?\s*[.!?]*$/i.test(String(text || "")) || /\b(flautas?|taquitos?)\b/i.test(String(text || ""));
+  const useLocalResolver = state.pendingComboState || state.orderContextPending || vagueOrder || shouldResolveStructuredBuildLocally(text) || mentionsMenuDrink(text);
+
+  if (useLocalResolver) {
+    // For new structured orders (combo/pack), allow the user to start via text
+    // even if the avatar is currently speaking (e.g. right after language selection).
+    if (state.elviSpeaking && !state.turnInFlight) {
+      stopCurrentAudio();
+      state.elviSpeaking = false;
+    }
+    if (state.turnInFlight) {
+      return false;
+    }
+    void resolvePendingComboTurnLocally(text);
+    return true;
+  }
+
+  // Realtime session still connecting (or closed): use the HTTP chat endpoint instead of dropping the turn.
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    if (state.turnInFlight) return false;
+    // Orders go through the same menu resolver the realtime tool uses; other talk goes to /elvi/chat.
+    if (isLikelyVoiceOrderCommand(text) && !isCurrentOrderQuestion(text)) void resolvePendingComboTurnLocally(text);
+    else void handleChatFallbackTurn(text);
+    return true;
+  }
+
   // Single-lane turn taking: only one active request/response at a time.
   if (state.turnInFlight || state.elviSpeaking) {
     return false;
   }
+
   if (isCurrentOrderQuestion(text)) {
     const reply = summarizeCurrentOrderForCustomer();
     stopCurrentAudio();
@@ -3022,12 +3833,10 @@ function sendUserTurn(text) {
     pulseAvatarState("talking_neutral", 1200, "idle");
     return true;
   }
-  if (useLocalResolver) {
-    void resolvePendingComboTurnLocally(text);
-    return true;
-  }
-  state.turnInFlight = true;
+
+  state.turnInFlight = true; setAvatarState("thinking");
   state.lastUserText = text;
+  beginRealtimeTurnCartCheck();
   sendWs({
     type: "conversation.item.create",
     item: {
@@ -3043,10 +3852,1485 @@ function sendUserTurn(text) {
 function shouldResolveStructuredBuildLocally(text) {
   const normalized = normalizeOptionKey(text);
   if (!normalized) return false;
-  if (/\b(pack meal|pack meals|meal pack|meal packs|meals pack|paquete|paquetes)\b/.test(normalized)) return true;
+
+  // Pack meals
+  if (isPackMealIntentText(normalized)) return true;
+
+  // Any guided combo (COMBO Burrito, COMBO Mix, etc.) or the word "combo"
   if (/\b(combo|combos|combinacion|combinaciones)\b/.test(normalized)) return true;
+
+  // Explicit support for the main guided items even without the word "combo"
+  // (e.g. user types "burrito" after seeing the menu). These will be corrected
+  // to the full guided "COMBO Burrito" version by the backend resolver.
+  if (/\b(burrito|mix|gordita|gorditas|torta|tortas|taco|tacos|quesadilla|quesadillas)\b/.test(normalized)) return true;
+  // Especiales and other guided food (website-rules guides): resolve locally too.
+  if (/\b(pambazo|pambazos|birria|birrias|dorada|doradas|esquite|esquites|elote|street corn|menudo|menudito|chiles? rellenos?|fiesta pan|fiesta platter|platter|charola|ceviche|coctel|cocktail|enchiladas?|al vapor|steamed|nachos|chilaquiles|mole|pozole|guisado|huarache|fajitas?|sopesaso|chimichanga|bowl|dips?|sides?|arroz|frijoles|rice|beans)\b/.test(normalized)) return true;
+
   const quantity = quantityPattern();
   return new RegExp(`\\b${quantity}\\s+(?:pack\\s+)?meals?\\b|\\b${quantity}\\s+meals?\\s+pack\\b|\\b${quantity}\\s+pack\\b`, "i").test(normalized);
+}
+
+function isPackMealIntentText(normalized) {
+  if (/\b(pack\s+meals?|meals?\s+pack|packs?|paquetes?)\b/.test(normalized)) return true;
+  if (/\bpaquetes?\s+(?:de\s+)?(?:comida|meal|meals)\b/.test(normalized)) return true;
+  if (/\bpack\s+(?:de\s+)?comida\b/.test(normalized)) return true;
+  return false;
+}
+
+function getCurrentGuideStep() {
+  if (!state.currentBuildGuide || !state.currentGuideStep) return null;
+  return state.currentBuildGuide.steps[state.currentGuideStep - 1] || null;
+}
+
+function getGuideSelectionLabels() {
+  return (state.currentBuildSelections || []).map((selection) => {
+    const prefix = selection.stepTitle ? `${selection.stepTitle}: ` : "";
+    return `${prefix}${selection.option}`;
+  });
+}
+
+function guideStepMinSelections(step) {
+  return Math.max(0, Number(step?.min_selections ?? step?.minSelections ?? (step?.required ? 1 : 0)) || 0);
+}
+
+function guideStepMaxSelections(step) {
+  const raw = step?.max_selections ?? step?.maxSelections;
+  if (raw === null || raw === undefined) return Infinity;
+  return Math.max(guideStepMinSelections(step), Number(raw) || 1);
+}
+
+function isGuideMultiStep(step) {
+  return step?.selection_type === "multiple" || guideStepMaxSelections(step) > 1;
+}
+
+function guideStepNumber(step, fallbackIndex) {
+  return Math.max(1, Number(step?.step) || fallbackIndex + 1);
+}
+
+function guideOptionAliases(option) {
+  if (!option || typeof option !== "object") return [];
+  return Array.isArray(option.aliases) ? option.aliases.map(String).filter(Boolean) : [];
+}
+
+function guideOptionValue(option) {
+  return option && typeof option === "object" ? String(option.value || "") : "";
+}
+
+function guideOptionFamily(option) {
+  return option && typeof option === "object" ? String(option.family || "") : "";
+}
+
+function hasOnlyIntent(text) {
+  return /\b(only|solo|solamente|nom[aá]s|nada m[aá]s|just those|plain|simple)\b/i.test(String(text || ""));
+}
+
+function hasSkipIntent(text) {
+  return /\b(next|continue|done|skip|none|no thanks|no salsa|without salsa|that(?:'|’)?s\s+(?:all|it)|that\s+is\s+(?:all|it)|all set|listo|siguiente|continuar|saltar|sin salsa|no gracias|asi esta|as[ií] esta|ya|eso es todo|es todo|eso ser[ií]a todo|ya es todo)\b/i.test(String(text || ""));
+}
+
+function guideExtrasAddedReply(optionName) {
+  return interpolateReplyText(
+    getEffectiveLanguage() === "es"
+      ? "Agregado {{optionName}}. ¿Eso es todo para extras? Di listo para completar."
+      : "Got {{optionName}}. Is that all for extras? Say done to complete.",
+    { optionName }
+  );
+}
+
+function hasGuideRemovalIntent(text) {
+  return /\b(remove|delete|take\s+off|take\s+out|cancel|undo|quita|quitar|quitale|qu[ií]tale|borra|borrar|elimina|eliminar|no\s+quiero|ya\s+no\s+quiero|sin)\b/i.test(String(text || ""));
+}
+
+function phraseAppears(text, phrase) {
+  const query = normalizeLooseOptionKey(text);
+  const key = normalizeLooseOptionKey(phrase);
+  if (!query || !key) return false;
+  const pattern = new RegExp(`(^|\\s)${escapeRegex(key).replace(/\s+/g, "\\s+")}(\\s|$)`, "i");
+  return pattern.test(query);
+}
+
+function escapeRegex(text) {
+  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasExplicitExtrasIntent(text) {
+  return /\b(extra|extras|side|2oz|5oz|cup|vasito|separate|separad[ao]s?|aparte|add extra|agrega extra|no extras?|sin extras?|no gracias|none|skip)\b/i.test(String(text || "")) ||
+    hasLimonIntent(text);
+}
+
+function hasGenericExtrasIntent(text) {
+  const query = normalizeLooseOptionKey(text);
+  if (!/\b(extra|extras|un extra|an extra|add extra|agrega extra|quiero extra)\b/i.test(query)) return false;
+  return !/\b(crema|sour cream|queso|cheese|limon|lime|guacamole|asada|tomato|tomate|verde|roja|hot|mild|medium|cebolla|onion|chiles?|5oz|2oz|cup|vasito|no extras?|sin extras?|no gracias|none)\b/i.test(query);
+}
+
+function hasGenericExtraSalsaIntent(text) {
+  const query = normalizeLooseOptionKey(text);
+  if (!/\b(extra|extras|add extra|agrega extra|quiero extra|dame extra)\b/i.test(query) || !/\bsalsa\b/i.test(query)) return false;
+  return !/\b(guacamole|asada|tomato|tomate|verde|roja|red|hot|mild|medium)\b/i.test(query);
+}
+
+function hasLimonIntent(text) {
+  return /\b(limon|lime|lemon)\b/i.test(normalizeLooseOptionKey(text));
+}
+
+function hasHalfLimonIntent(text) {
+  const query = normalizeLooseOptionKey(text);
+  return hasLimonIntent(text) && /\b(half|medio|media|mitad)\b/i.test(query);
+}
+
+function hasFullLimonIntent(text) {
+  const query = normalizeLooseOptionKey(text);
+  return hasLimonIntent(text) && /\b(full|whole|entero|entera|completo|completa)\b/i.test(query);
+}
+
+function guideOptionIsLimon(option) {
+  return /\b(limon|lime|lemon)\b/i.test(normalizeLooseOptionKey(guideOptionName(option)));
+}
+
+function guideOptionIsHalfLimon(option) {
+  const key = normalizeLooseOptionKey(guideOptionName(option));
+  return /\bhalf\b/i.test(key) && /\b(limon|lime|lemon)\b/i.test(key);
+}
+
+function guideOptionIsFullLimon(option) {
+  const key = normalizeLooseOptionKey(guideOptionName(option));
+  return /\bfull\b/i.test(key) && /\b(limon|lime|lemon)\b/i.test(key);
+}
+
+function guideStepHasHalfAndFullLimon(step) {
+  const options = Array.isArray(step?.options) ? step.options : [];
+  return options.some(guideOptionIsHalfLimon) && options.some(guideOptionIsFullLimon);
+}
+
+function shouldAskLimonSize(step, text) {
+  return step?.kind === "extras" &&
+    guideStepHasHalfAndFullLimon(step) &&
+    hasLimonIntent(text) &&
+    !hasHalfLimonIntent(text) &&
+    !hasFullLimonIntent(text);
+}
+
+function guideOptionMentionNegated(query, index) {
+  const before = query.slice(Math.max(0, index - 40), index).trim();
+  return /(?:^|\s)(?:no|sin|without|not)(?:\s+(?:quiero|deseo|want|extra|salsa|agua))*\s*$/.test(before);
+}
+
+function guideQueryHasPositiveTerm(query, terms) {
+  return terms.some((term) => {
+    const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
+    let match = null;
+    while ((match = regex.exec(query))) {
+      if (!guideOptionMentionNegated(query, match.index)) return true;
+    }
+    return false;
+  });
+}
+
+function guideOptionOnlyNegated(text, option) {
+  const query = normalizeLooseOptionKey(text);
+  if (!query) return false;
+  const aliases = new Set([
+    ...guideOptionAliases(option),
+    ...buildModifierOptionAliases(guideOptionName(option))
+  ]);
+  let hasNegated = false;
+  let hasPositive = false;
+  for (const alias of [...aliases].map(normalizeLooseOptionKey).sort((a, b) => b.length - a.length)) {
+    if (!alias || /^(extra|side|salsa|oz|2oz|4oz|5oz)$/.test(alias)) continue;
+    const regex = new RegExp(`\\b${escapeRegex(alias).replace(/\s+/g, "\\s+")}\\b`, "gi");
+    let match = null;
+    while ((match = regex.exec(query))) {
+      if (guideOptionMentionNegated(query, match.index)) {
+        hasNegated = true;
+      } else {
+        hasPositive = true;
+      }
+    }
+  }
+  return hasNegated && !hasPositive;
+}
+
+function guideOptionAllowedForText(step, option, text) {
+  const query = normalizeLooseOptionKey(text);
+  const nameKey = normalizeLooseOptionKey(guideOptionName(option));
+  const aliases = guideOptionAliases(option).map(normalizeLooseOptionKey).join(" ");
+  const haystack = `${nameKey} ${aliases}`;
+
+  if (step?.kind === "meat") {
+    const asksRajas = /\b(rajas|raja|papas\s+con\s+ra(?:j(?:a(?:s)?)?)?|rajas\s+con\s+papas|raja\s+con\s+papas|poblano)\b/i.test(query);
+    const asksNopales = /\b(nopal|nopales|cactus|cacti)\b/i.test(query);
+    if (asksRajas && !asksNopales) return /\brajas\b|\bpoblano\b/.test(haystack);
+    if (asksNopales && !asksRajas) return /\bnopales?\b|\bcactus\b|\bcacti\b/.test(haystack);
+  }
+
+  if (step?.kind === "extras") {
+    if (guideOptionValue(option) !== "none" && guideOptionOnlyNegated(query, option)) return false;
+
+    const asksQuesoFresco = /\b(queso\s+fresco|fresco\s+cheese|fresh\s+cheese)\b/i.test(query);
+    const asksQuesoDip = /\b(queso\s+dip|dip\s+de\s+queso|cheese\s+dip)\b/i.test(query);
+    if (asksQuesoFresco && !asksQuesoDip && /\bqueso\s+dip\b/i.test(nameKey)) return false;
+    if (asksQuesoDip && !asksQuesoFresco && /\bqueso\s+fresco\b|\bfresco\s+cheese\b/i.test(nameKey)) return false;
+
+    if (hasLimonIntent(query) && guideOptionIsLimon(option)) {
+      const wantsHalf = hasHalfLimonIntent(query);
+      const wantsFull = hasFullLimonIntent(query);
+      if (wantsHalf && !wantsFull) return guideOptionIsHalfLimon(option);
+      if (wantsFull && !wantsHalf) return guideOptionIsFullLimon(option);
+      if (guideStepHasHalfAndFullLimon(step)) return false;
+    }
+
+    const asksGuacamoleSalsa = guideQueryHasPositiveTerm(query, ["guacamole"]);
+    const asksAsadaSalsa = guideQueryHasPositiveTerm(query, ["asada", "mild"]);
+    const asksTomatoSalsa = guideQueryHasPositiveTerm(query, ["tomato", "tomate"]);
+    const asksVerdeSalsa = guideQueryHasPositiveTerm(query, ["verde", "medium"]);
+    const asksRojaSalsa = guideQueryHasPositiveTerm(query, ["roja", "red", "hot"]);
+    const salsaIntentCount = [asksGuacamoleSalsa, asksAsadaSalsa, asksTomatoSalsa, asksVerdeSalsa, asksRojaSalsa].filter(Boolean).length;
+    if (salsaIntentCount === 0 && /\bsalsa\b/i.test(query) && /\bsalsa\b/i.test(nameKey)) {
+      return false;
+    }
+    if (salsaIntentCount === 1) {
+      if (asksGuacamoleSalsa) return /\bguacamole\s+salsa\b/i.test(nameKey);
+      if (asksAsadaSalsa) return /\basada\b/i.test(nameKey) && /\bsalsa\b/i.test(nameKey);
+      if (asksTomatoSalsa) return /\btomato\b/i.test(nameKey) && /\bsalsa\b/i.test(nameKey);
+      if (asksVerdeSalsa) return /\bverde\b/i.test(nameKey) && /\bsalsa\b/i.test(nameKey);
+      if (asksRojaSalsa) return /\broja\b/i.test(nameKey) && /\bsalsa\b/i.test(nameKey);
+    }
+  }
+
+  if (step?.kind === "salsa" && guideOptionValue(option) !== "none" && guideOptionOnlyNegated(query, option)) {
+    return false;
+  }
+
+  return true;
+}
+
+function guideOptionScore(step, option, text, { initial = false } = {}) {
+  const raw = String(text || "");
+  const query = normalizeLooseOptionKey(raw);
+  if (!query) return 0;
+
+  if (!guideOptionAllowedForText(step, option, raw)) {
+    return 0;
+  }
+
+  const name = guideOptionName(option);
+  const nameKey = normalizeLooseOptionKey(name);
+  const aliases = guideOptionAliases(option);
+  const family = guideOptionFamily(option);
+  const value = guideOptionValue(option);
+  const haystacks = [name, ...aliases].filter(Boolean);
+
+  if (value === "none" && !haystacks.some((alias) => phraseAppears(raw, alias))) {
+    return 0;
+  }
+
+  if (value === "double" && !/\b(double|doble)\b/i.test(query) && !haystacks.some((alias) => phraseAppears(raw, alias))) {
+    return 0;
+  }
+
+	  if ((step?.key === "taco-shell" || step?.key === "quesadilla-shell") && !/\b(street|taquer[ao]|flour|harina|comal|homemade|corn|maiz|ma[ií]z)\b/i.test(query)) {
+	    return 0;
+	  }
+
+	  if (step?.key === "burrito-size" && /\b(grande|large|12|twelve)\b/i.test(query) && !/\b(grande|12)\b/i.test(nameKey)) {
+	    return 0;
+	  }
+
+	  if (step?.key === "burrito-options") {
+	    if (family === "queso-dip" && !/\b(queso\s+dip|dip\s+de\s+queso|cheese\s+dip|extra\s+queso\s+dip|double\s+queso\s+dip|doble\s+queso\s+dip)\b/i.test(query)) {
+	      return 0;
+	    }
+	    if ((family === "queso-dip" || family === "guacamole-dip") && !/\b(inside|inside\s+the\s+burrito|in\s+the\s+burrito|dentro|adentro)\b/i.test(query)) {
+	      return 0;
+	    }
+	    if (family === "cheese" && /\b(queso\s+dip|dip\s+de\s+queso)\b/i.test(query) && !/\b(cheese|queso\s+fresco)\b/i.test(query)) {
+	      return 0;
+	    }
+	    if ((family === "queso-dip" || family === "guacamole-dip") && /\b(chips?|side)\b/i.test(query)) {
+	      return 0;
+	    }
+	  }
+
+	  if (initial && /^2\s*x\s*(gorditas|tortas)$/i.test(name) && /\bcombo\b/i.test(query) && !/\b(regular|plain|no queso|without queso|sin queso)\b/i.test(query)) {
+	    return 0;
+	  }
+
+  if (step?.kind === "salsa" && value !== "none" && /\b(no salsa|without salsa|sin salsa)\b/i.test(query)) {
+    return 0;
+  }
+
+  let score = 0;
+  for (const alias of haystacks) {
+    if (phraseAppears(raw, alias)) {
+      score = Math.max(score, 140 + normalizeLooseOptionKey(alias).length);
+    }
+  }
+
+  if (family && value === "normal" && phraseAppears(raw, family.replace(/-/g, " "))) {
+    score = Math.max(score, 120);
+  }
+
+  if (nameKey && (query === nameKey || query.includes(nameKey) || nameKey.includes(query))) {
+    score = Math.max(score, query === nameKey ? 130 : 85);
+  }
+
+	  score = Math.max(score, scoreModifierOptionMatch(name, raw));
+
+	  if (step?.kind === "side") {
+	    if (/\b(queso\s+dip|dip\s+de\s+queso)\b/i.test(query) && /\bqueso\s+dip\b/i.test(nameKey)) score += 220;
+	    if (/\b((guacamole|guac)\s+dip|dip\s+de\s+guacamole)\b/i.test(query) && /\bguacamole\s+dip\b/i.test(nameKey)) score += 220;
+	    if (/\bpico\b/i.test(query) && /\bpico\b/i.test(nameKey)) score += 220;
+	    if (/\b(solo\s+frijol(?:e|es)?|frijol(?:e|es)?\s+solo|only\s+beans|beans\s+only)\b/i.test(query) && /\bsolo\s+frijol(?:e|es)?\b/i.test(nameKey)) score += 280;
+	    if (/\bsolo\s+arroz|arroz\s+solo|only\s+rice|rice\s+only\b/i.test(query) && /\bsolo\s+arroz\b/i.test(nameKey)) score += 280;
+	    if (/\b(arroz|rice)\b/i.test(query) && /\b(frijol|frijoles|beans?)\b/i.test(query) && /\barroz\b/i.test(nameKey) && /\bfrijoles\b/i.test(nameKey)) score += 280;
+	  }
+
+	  if (step?.kind === "meat") {
+	    if (/\b(rajas|raja|papas\s+con\s+ra(?:j(?:a(?:s)?)?)?|rajas\s+con\s+papas|raja\s+con\s+papas)\b/i.test(query) && /\brajas\b/i.test(nameKey)) score += 420;
+	    if (/\b(rajas|raja|papas\s+con\s+ra(?:j(?:a(?:s)?)?)?|rajas\s+con\s+papas|raja\s+con\s+papas)\b/i.test(query) && /\bnopales\b/i.test(nameKey) && !/\bnopales\b/i.test(query)) return 0;
+	    if (/\bnopales?\b/i.test(query) && /\bnopales\b/i.test(nameKey)) score += 300;
+	    if (/\b(papas\s+con\s+ra(?:j(?:a(?:s)?)?)?|rajas\s+con\s+papas|raja\s+con\s+papas)\b/i.test(query) && /\bpapas\s+con\s+rajas\b/i.test(nameKey)) score += 480;
+	  }
+
+	  if (step?.kind === "salsa") {
+	    if (guideQueryHasPositiveTerm(query, ["tomato", "tomate"]) && /\btomato\b/i.test(nameKey)) score += 280;
+	    if (guideQueryHasPositiveTerm(query, ["asada"]) && /\basada\b/i.test(nameKey)) score += 260;
+	    if (guideQueryHasPositiveTerm(query, ["verde"]) && /\bverde\b/i.test(nameKey)) score += 260;
+	    if (guideQueryHasPositiveTerm(query, ["roja", "red"]) && /\broja\b/i.test(nameKey)) score += 260;
+	    if (guideQueryHasPositiveTerm(query, ["hot"]) && /\bhot\b/i.test(nameKey)) score += 140;
+	    if (guideQueryHasPositiveTerm(query, ["medium"]) && /\bmedium\b/i.test(nameKey)) score += 140;
+	    if (guideQueryHasPositiveTerm(query, ["mild"]) && /\bmild\b/i.test(nameKey)) score += 90;
+	  }
+
+	  if (step?.key === "burrito-options" && family === "beans" && /\b(frijol|frijoles|beans?)\b/i.test(query)) {
+	    score += value === "double" && /\b(double|extra|doble)\b/i.test(query) ? 240 : 180;
+	  }
+
+	  if (step?.key === "regular-deluxe" && value === "normal" && /\b(deluxe|de\s+lujo|preparad[ao])\b/i.test(query)) {
+	    score += 260;
+	  }
+
+	  if (step?.kind === "extras") {
+	    if (hasLimonIntent(query) && guideOptionIsLimon(option)) {
+	      const wantsHalf = hasHalfLimonIntent(query);
+	      const wantsFull = hasFullLimonIntent(query);
+	      if (wantsHalf && guideOptionIsHalfLimon(option)) score += 420;
+	      if (wantsFull && guideOptionIsFullLimon(option)) score += 420;
+	      if (!wantsHalf && !wantsFull && !guideStepHasHalfAndFullLimon(step)) score += 260;
+	    }
+	    if (guideQueryHasPositiveTerm(query, ["guacamole"]) && /\bguacamole\s+salsa\b/i.test(nameKey)) score += 360;
+	    if (guideQueryHasPositiveTerm(query, ["asada"]) && /\basada\b/i.test(nameKey)) score += 320;
+	    if (guideQueryHasPositiveTerm(query, ["tomato", "tomate"]) && /\btomato\b/i.test(nameKey)) score += 320;
+	    if (guideQueryHasPositiveTerm(query, ["verde"]) && /\bverde\b/i.test(nameKey)) score += 320;
+	    if (guideQueryHasPositiveTerm(query, ["roja"]) && /\broja\b/i.test(nameKey)) score += 320;
+	  }
+
+	  if (step?.kind === "extras" && !hasExplicitExtrasIntent(raw)) {
+	    return 0;
+	  }
+
+  return score;
+}
+
+function findGuideOptions(step, text, matchOptions = {}) {
+  const stepOptions = Array.isArray(step?.options) ? step.options : [];
+  if (!stepOptions.length) return [];
+  if (step?.kind === "extras" && /\b(no\s+extras?|sin\s+extras?|without\s+extras?|no\s+thanks|no\s+gracias|none|skip|saltar)\b/i.test(String(text || ""))) {
+    const noneOption = stepOptions.find((option) => guideOptionValue(option) === "none" || /\bno\s+extras?\b/i.test(guideOptionName(option)));
+    return noneOption ? [noneOption] : [];
+  }
+  const max = isGuideMultiStep(step) ? guideStepMaxSelections(step) : 1;
+  const scored = stepOptions
+    .filter((option) => guideOptionAllowedForText(step, option, text))
+    .map((option) => ({
+      option,
+      family: guideOptionFamily(option),
+      score: guideOptionScore(step, option, text, matchOptions)
+    }))
+    .filter((entry) => entry.score >= 70)
+    .sort((a, b) => b.score - a.score);
+
+  const chosen = [];
+  const families = new Set();
+  for (const entry of scored) {
+    if (entry.family && families.has(entry.family)) continue;
+    chosen.push(entry.option);
+    if (entry.family) families.add(entry.family);
+    if (chosen.length >= max) break;
+  }
+
+  if (step?.supportsOnly && hasOnlyIntent(text)) {
+    const presentFamilies = new Set(chosen.map(guideOptionFamily).filter(Boolean));
+    const allFamilies = new Set(stepOptions.map(guideOptionFamily).filter(Boolean));
+    for (const family of allFamilies) {
+      if (presentFamilies.has(family)) continue;
+      const noneOption = stepOptions.find((option) => guideOptionFamily(option) === family && guideOptionValue(option) === "none");
+      if (noneOption) chosen.push(noneOption);
+    }
+  }
+
+  return chosen.slice(0, max === Infinity ? chosen.length : max);
+}
+
+function findGuideOption(step, text) {
+  return findGuideOptions(step, text)[0] || null;
+}
+
+function guideOptionName(option) {
+  return typeof option === "object" && option !== null ? String(option.name || "") : String(option || "");
+}
+
+function guideOptionPriceDeltaCents(option) {
+  if (!option || typeof option !== "object") return 0;
+  return extractOptionCostCents(option.price_note || option.name || "");
+}
+
+function guideOptionCode(option) {
+  return typeof option === "object" && option !== null ? String(option.code || "").trim() : "";
+}
+
+function guideSelectionMatches(selection, stepNumber, option) {
+  return selection.step === stepNumber &&
+    normalizeOptionKey(selection.option) === normalizeOptionKey(guideOptionName(option));
+}
+
+function addGuideSelection(stepIndex, step, option) {
+  const stepNumber = guideStepNumber(step, stepIndex);
+  const optionName = guideOptionName(option);
+  if (!optionName) return false;
+
+  const family = guideOptionFamily(option);
+  const isMulti = isGuideMultiStep(step);
+  const max = guideStepMaxSelections(step);
+  const existing = state.currentBuildSelections || [];
+  if (existing.some((selection) => guideSelectionMatches(selection, stepNumber, option))) {
+    // Re-tapping / re-saying an option that is already picked is fine: keep it, don't reject.
+    return true;
+  }
+
+  let nextSelections = existing;
+  if (!isMulti) {
+    nextSelections = existing.filter((selection) => selection.step !== stepNumber);
+  } else if (family) {
+    nextSelections = existing.filter((selection) => !(selection.step === stepNumber && selection.family === family));
+  }
+
+  const currentCount = nextSelections.filter((selection) => selection.step === stepNumber).length;
+  if (isMulti && max !== Infinity && currentCount >= max) return false;
+
+  state.currentBuildSelections = [
+    ...nextSelections,
+    {
+      step: stepNumber,
+      stepKey: String(step.key || ""),
+      stepKind: String(step.kind || ""),
+      stepTitle: step.title || `Step ${stepNumber}`,
+      option: optionName,
+      code: guideOptionCode(option),
+      family,
+      value: guideOptionValue(option),
+      priceDeltaCents: guideOptionPriceDeltaCents(option)
+    }
+  ];
+  return true;
+}
+
+function guideRemovalFamilyFromText(text) {
+  const query = normalizeLooseOptionKey(text);
+  if (/\b(queso\s+dip|dip\s+de\s+queso|cheese\s+dip)\b/i.test(query)) return "queso-dip";
+  if (/\b(guacamole\s+dip|dip\s+de\s+guacamole|guac\s+dip)\b/i.test(query)) return "guacamole-dip";
+  if (/\b(frijol|frijoles|beans?)\b/i.test(query)) return "beans";
+  if (/\b(arroz|rice)\b/i.test(query)) return "rice";
+  if (/\b(queso\s+fresco|cheese|queso)\b/i.test(query)) return "cheese";
+  if (/\b(crema|sour\s+cream)\b/i.test(query)) return "crema";
+  if (/\b(cebolla|onion)\b/i.test(query)) return "onion";
+  if (/\b(cilantro)\b/i.test(query)) return "cilantro";
+  if (/\b(salsa)\b/i.test(query)) return "salsa";
+  if (/\b(deluxe|de\s+lujo)\b/i.test(query)) return "deluxe";
+  return "";
+}
+
+function guideSelectionRemovalScore(selection, text) {
+  const query = normalizeLooseOptionKey(text);
+  const option = normalizeLooseOptionKey(selection?.option || "");
+  const family = String(selection?.family || "");
+  const wantedFamily = guideRemovalFamilyFromText(text);
+  if (wantedFamily && family === wantedFamily) return 200;
+  if (option && (query.includes(option) || option.includes(query))) return 120;
+  if (family && query.includes(family.replace(/-/g, " "))) return 100;
+  return 0;
+}
+
+function removeGuideSelectionsFromText(text) {
+  if (!state.currentBuildGuide || !hasGuideRemovalIntent(text)) return [];
+  const selections = Array.isArray(state.currentBuildSelections) ? state.currentBuildSelections : [];
+  if (!selections.length) return [];
+  const currentStep = getCurrentGuideStep();
+  const currentStepNumber = currentStep ? guideStepNumber(currentStep, Math.max(0, state.currentGuideStep - 1)) : 0;
+  const scored = selections
+    .map((selection, index) => ({
+      selection,
+      index,
+      score: guideSelectionRemovalScore(selection, text)
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      const currentBias = Number(b.selection.step === currentStepNumber) - Number(a.selection.step === currentStepNumber);
+      return currentBias || b.score - a.score;
+    });
+  if (!scored.length) return [];
+
+  const best = scored[0];
+  const removed = selections.filter((selection) => (
+    guideSelectionRemovalScore(selection, text) === best.score &&
+    (!best.selection.family || selection.family === best.selection.family)
+  ));
+  const removedSet = new Set(removed);
+  state.currentBuildSelections = selections.filter((selection) => !removedSet.has(selection));
+  return removed;
+}
+
+/** Which salsa options the caller named (by alias). Used so "verde hot" or "con salsa" asks instead of guessing. */
+function guideSalsasNamed(step, raw) {
+  const said = ` ${normalizeOptionKey(raw)} `;
+  return (step?.options || []).filter((option) =>
+    [...guideOptionAliases(option), option.label || ""].map(normalizeOptionKey).filter((a) => a.length >= 3)
+      .some((alias) => said.includes(` ${alias} `))
+  ).map(guideOptionName);
+}
+
+function applyGuideSelectionsForStep(stepIndex, text, matchOptions = {}) {
+  const step = state.currentBuildGuide?.steps?.[stepIndex];
+  if (!step) return [];
+  if (step.kind === "salsa" && !/\b(sin salsa|no salsa)\b/i.test(String(text || "")) && guideSalsasNamed(step, text).length !== 1) return [];
+  if (!step.required && hasSkipIntent(text)) return [];
+  const options = findGuideOptions(step, text, matchOptions);
+  const added = [];
+  for (const option of options) {
+    if (addGuideSelection(stepIndex, step, option)) {
+      added.push(option);
+    }
+  }
+  return added;
+}
+
+function isGuideMeatStep(step) {
+  return step?.kind === "meat" ||
+    /\bmeat\b/i.test(String(step?.key || "")) ||
+    /\bmeat\b/i.test(String(step?.title || ""));
+}
+
+function guideConsecutiveOpenMeatStepIndexesFrom(startIndex) {
+  const guide = state.currentBuildGuide;
+  if (!guide?.steps?.length) return [];
+  const indexes = [];
+  for (let index = startIndex; index < guide.steps.length; index += 1) {
+    const step = guide.steps[index];
+    if (!isGuideMeatStep(step)) break;
+    if (!guideStepIsComplete(step, index)) indexes.push(index);
+  }
+  return indexes;
+}
+
+function guideMeatOptionAliases(option) {
+  const name = guideOptionName(option);
+  const aliases = new Set([
+    name,
+    ...guideOptionAliases(option),
+    ...buildModifierOptionAliases(name)
+  ]);
+  const key = normalizeLooseOptionKey(name);
+  if (/\bcarnitas\b/.test(key)) aliases.add("carnita");
+  if (/\bbistec\b/.test(key)) aliases.add("bisteces");
+  if (/\balpastor\b/.test(key)) {
+    aliases.add("alpastor");
+    aliases.add("al pastor");
+    aliases.add("pastor");
+  }
+  return [...aliases]
+    .map(normalizeLooseOptionKey)
+    .filter((alias, index, all) => alias.length > 2 && all.indexOf(alias) === index)
+    .sort((a, b) => b.length - a.length);
+}
+
+function guideAliasPattern(alias) {
+  const pattern = escapeRegExp(alias).replace(/\s+/g, "\\s+");
+  if (/^[a-z0-9]+$/.test(alias) && alias.length > 3 && !alias.endsWith("s")) {
+    return `${pattern}(?:s|es)?`;
+  }
+  return pattern;
+}
+
+function findCountedGuideMeatMentions(step, text) {
+  const query = normalizeLooseOptionKey(text);
+  const quantity = quantityPattern();
+  const mentions = [];
+  const seen = new Map();
+  for (const option of step?.options || []) {
+    for (const alias of guideMeatOptionAliases(option)) {
+      const regex = new RegExp(`\\b(${quantity})\\s+(?:x\\s+)?(?:de\\s+)?${guideAliasPattern(alias)}\\b`, "gi");
+      let match;
+      while ((match = regex.exec(query))) {
+        const parsed = parseQuantityToken(match[1]);
+        if (!parsed) continue;
+        const entry = { option, quantity: parsed, index: match.index, score: alias.length };
+        const key = `${match.index}:${parsed}`;
+        const current = seen.get(key);
+        if (!current || entry.score > current.score) seen.set(key, entry);
+      }
+    }
+  }
+  mentions.push(...seen.values());
+  return mentions.sort((a, b) => a.index - b.index || b.score - a.score);
+}
+
+function findAllGuideMeatMention(step, text) {
+  const query = normalizeLooseOptionKey(text);
+  const allPattern = "\\b(?:all|both|every|todo|todos|todas|puro|pura|los\\s+dos|las\\s+dos)\\b";
+  return findGuideMeatMention(step, query, (aliasPattern) => (
+    new RegExp(`${allPattern}\\s+(?:de\\s+)?${aliasPattern}\\b|\\b${aliasPattern}\\s+${allPattern}`, "i")
+  ));
+}
+
+function findRemainingGuideMeatMention(step, text) {
+  const query = normalizeLooseOptionKey(text);
+  const restPattern = "(?:el\\s+)?resto|(?:los\\s+)?demas|lo\\s+demas|sobrantes?|remaining|remainder|(?:the\\s+)?rest";
+  return findGuideMeatMention(step, query, (aliasPattern) => (
+    new RegExp(`\\b(?:${restPattern})(?:\\s+(?:de|of))?\\s+${aliasPattern}\\b|\\b${aliasPattern}\\s+(?:para\\s+)?(?:${restPattern})\\b`, "i")
+  ));
+}
+
+function findGuideMeatMention(step, query, buildRegex) {
+  const matches = (step?.options || [])
+    .map((option) => {
+      let best = -1;
+      let score = 0;
+      for (const alias of guideMeatOptionAliases(option)) {
+        const match = query.match(buildRegex(guideAliasPattern(alias)));
+        if (match?.index !== undefined && (best < 0 || match.index < best || (match.index === best && alias.length > score))) {
+          best = match.index;
+          score = alias.length;
+        }
+      }
+      return best >= 0 ? { option, index: best, score } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index || b.score - a.score);
+  return matches[0] || null;
+}
+
+function guideSearchAliases(option) {
+  const name = guideOptionName(option);
+  const aliases = new Set([
+    name,
+    ...guideOptionAliases(option),
+    ...buildModifierOptionAliases(name)
+  ]);
+  return [...aliases]
+    .map(normalizeLooseOptionKey)
+    .filter((alias, index, all) => alias.length > 2 && all.indexOf(alias) === index)
+    .sort((a, b) => b.length - a.length);
+}
+
+function findGuideOptionMentionAfter(step, text, startIndex = 0, matchOptions = {}) {
+  const query = normalizeLooseOptionKey(text);
+  const matches = (step?.options || [])
+    .filter((option) => guideOptionAllowedForText(step, option, text))
+    .map((option) => {
+      let bestIndex = -1;
+      let bestScore = 0;
+      let bestLength = 0;
+      for (const alias of guideSearchAliases(option)) {
+        const regex = new RegExp(`(^|\\s)${guideAliasPattern(alias)}(\\s|$)`, "gi");
+        let match;
+        while ((match = regex.exec(query))) {
+          const index = match.index + (match[1] ? match[1].length : 0);
+          if (index < startIndex) continue;
+          const score = guideOptionScore(step, option, text, matchOptions) + alias.length;
+          if (bestIndex < 0 || index < bestIndex || (index === bestIndex && score > bestScore)) {
+            bestIndex = index;
+            bestScore = score;
+            bestLength = alias.length;
+          }
+        }
+      }
+      return bestIndex >= 0 ? { option, index: bestIndex, endIndex: bestIndex + bestLength, score: bestScore } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index || b.score - a.score);
+  return matches[0] || null;
+}
+
+function applyGuideMeatDistributionFromText(stepIndex, text) {
+  const step = state.currentBuildGuide?.steps?.[stepIndex];
+  if (!isGuideMeatStep(step)) return [];
+  const targetIndexes = guideConsecutiveOpenMeatStepIndexesFrom(stepIndex);
+  if (!targetIndexes.length) return [];
+
+  const added = [];
+  const applyToNextMeatSteps = (option, quantity) => {
+    let remaining = Math.max(1, Number(quantity) || 1);
+    for (const targetIndex of targetIndexes) {
+      if (remaining <= 0) break;
+      const targetStep = state.currentBuildGuide?.steps?.[targetIndex];
+      if (!targetStep || guideStepIsComplete(targetStep, targetIndex)) continue;
+      if (addGuideSelection(targetIndex, targetStep, option)) {
+        added.push(option);
+        remaining -= 1;
+      }
+    }
+  };
+
+  const allMatch = findAllGuideMeatMention(step, text);
+  if (allMatch) {
+    applyToNextMeatSteps(allMatch.option, targetIndexes.length);
+    return added;
+  }
+
+  const counted = findCountedGuideMeatMentions(step, text);
+  if (counted.length) {
+    for (const mention of counted) {
+      applyToNextMeatSteps(mention.option, mention.quantity);
+    }
+    const remaining = findRemainingGuideMeatMention(step, text);
+    if (remaining) applyToNextMeatSteps(remaining.option, targetIndexes.length);
+    return added;
+  }
+
+  // fix10: "pastor y asada" → one each, in order; one meat word fills one item unless "los dos / both".
+  const mentions = [];
+  let cursor = 0;
+  for (let guard = 0; guard < 8; guard += 1) {
+    const m = findGuideOptionMentionAfter(step, text, cursor, { initial: true });
+    if (!m) break;
+    cursor = m.endIndex;
+    if (!mentions.some((x) => x.option === m.option)) mentions.push(m);
+  }
+  if (mentions.length >= 2) {
+    for (const m of mentions) applyToNextMeatSteps(m.option, 1);
+    return added;
+  }
+  const remaining = findRemainingGuideMeatMention(step, text);
+  if (remaining) {
+    const both = /\b(both|los dos|las dos|ambos|ambas|todos|todas|all)\b/i.test(text);
+    applyToNextMeatSteps(remaining.option, both ? targetIndexes.length : 1);
+  }
+  return added;
+}
+
+function prefillComboMixSelectionsFromText(text) {
+  const guide = state.currentBuildGuide;
+  if (!guide || !/^COMBO Mix$/i.test(String(guide.display_name || ""))) {
+    return { added: [], nextIndex: 0 };
+  }
+  const added = [];
+  // fix10: "a steak taco and a chicken street taco" / "un taco de asada y una gordita de chicharron":
+  // each part names one item and its meat, in any order.
+  const loose = normalizeLooseOptionKey(text).replace(/\b(combo mix|mix combo|combo de mix)\b/, " ");
+  const segments = loose.split(/\s(?:and|y|plus|mas)\s/).filter((seg) => guide.steps[0] && findGuideOptionMentionAfter(guide.steps[0], seg, 0, { initial: true }));
+  if (segments.length && guide.steps.length >= 4) {
+    segments.slice(0, 2).forEach((seg, n) => {
+      const optIndex = n * 2;
+      const optStep = guide.steps[optIndex];
+      const meatStep = guide.steps[optIndex + 1];
+      const item = findGuideOptionMentionAfter(optStep, seg, 0, { initial: true });
+      if (item && !guideStepIsComplete(optStep, optIndex) && addGuideSelection(optIndex, optStep, item.option)) added.push(item.option);
+      const meat = meatStep && findGuideOptionMentionAfter(meatStep, seg, 0, { initial: true });
+      if (meat && !guideStepIsComplete(meatStep, optIndex + 1) && addGuideSelection(optIndex + 1, meatStep, meat.option)) added.push(meat.option);
+    });
+    const next = guide.steps.findIndex((step, index) => !guideStepIsComplete(step, index));
+    return { added, nextIndex: next >= 0 ? Math.min(next, 4) : guide.steps.length };
+  }
+  let cursor = Math.max(0, normalizeLooseOptionKey(text).indexOf("combo mix"));
+  for (const index of [0, 1, 2, 3]) {
+    const step = guide.steps[index];
+    if (!step || guideStepIsComplete(step, index)) continue;
+    const match = findGuideOptionMentionAfter(step, text, cursor, { initial: true });
+    if (!match) break;
+    if (addGuideSelection(index, step, match.option)) {
+      added.push(match.option);
+      cursor = match.endIndex;
+    }
+  }
+  const nextIncomplete = guide.steps.findIndex((step, index) => !guideStepIsComplete(step, index));
+  return {
+    added,
+    nextIndex: nextIncomplete >= 0 ? nextIncomplete : guide.steps.length
+  };
+}
+
+function applyMentionedOptionalGuideSelections(text, matchOptions = {}) {
+  const guide = state.currentBuildGuide;
+  if (!guide?.steps?.length || hasSkipIntent(text)) return [];
+  const raw = String(text || "");
+  const added = [];
+  guide.steps.forEach((step, index) => {
+    if (step.required !== false) return;
+    // "asada" alone means carne asada, so a salsa needs a salsa word ("salsa asada", "verde", "roja", "mild"...).
+    if (step.kind === "salsa" && !/\b(salsa|verde|roja|mild|medium|hot|picante|no salsa|sin salsa)\b/i.test(raw)) return;
+    if (step.kind === "salsa") {
+      // Salsa is optional like the website: add it only when one salsa is named.
+      // "con salsa" or two different salsas -> make the step a question for this build.
+      if (/\b(sin salsa|no salsa)\b/i.test(raw)) return;
+      const distinct = guideSalsasNamed(step, raw);
+      if (distinct.length !== 1) {
+        if (/\bsalsas?\b/i.test(raw)) { step.required = true; step.min_selections = 1; }
+        return;
+      }
+    }
+    if (step.kind === "extras" && !hasExplicitExtrasIntent(raw)) return;
+    // "pico" / "con todo" are not Deluxe; Deluxe needs its own word.
+    if (step.kind === "regularDeluxe" && !/\b(deluxe|de lujo|preparad[oa]s?)\b/i.test(raw)) return;
+    added.push(...applyGuideSelectionsForStep(index, text, matchOptions));
+  });
+  return added;
+}
+
+function guideStepIsComplete(step, index) {
+  // ui4: suggested (preselect) and offered (optional) steps are asked too, in website order;
+  // done once the customer picked something or answered ("sí", "no", "así está bien").
+  if (step && (step.mode === "suggest" || step.mode === "offer")) {
+    const n = guideStepNumber(step, index);
+    return (state.currentBuildSelections || []).some((sel) => sel.step === n) || Boolean(state.currentBuildGuide?._resolved?.has(n));
+  }
+  if (!step || step.required === false) return true;
+  const stepNumber = guideStepNumber(step, index);
+  const required = guideStepMinSelections(step);
+  if (required <= 0) return true;
+  const count = (state.currentBuildSelections || []).filter((selection) => selection.step === stepNumber).length;
+  return count >= required;
+}
+
+function advanceGuideToNextRequiredStep() {
+  const guide = state.currentBuildGuide;
+  if (!guide?.steps?.length) return false;
+  const index = guide.steps.findIndex((step, i) => !guideStepIsComplete(step, i));
+  if (index >= 0) {
+    state.currentGuideStep = index + 1;
+    return true;
+  }
+  state.currentGuideStep = guide.steps.length + 1;
+  return false;
+}
+
+function guideCurrentPrompt() {
+  const step = getCurrentGuideStep();
+  if (!step) {
+    return getEffectiveLanguage() === "es"
+      ? `${guideReadbackText()}. ¿Lo agrego, o cambias algo?`
+      : `${guideReadbackText()}. Add it, or change something?`;
+  }
+  return guideCustomerPrompt(step);
+}
+
+function guideCustomerPrompt(step) {
+  const lang = getEffectiveLanguage();
+  { const ask = step && step[lang === "es" ? "ask_es" : "ask_en"]; if (ask) return ask; }
+  const title = String(step?.title || step?.label || "").trim();
+  const key = String(step?.key || "").trim();
+  const lowerTitle = title.toLowerCase();
+
+  if (lang === "es") {
+    if (key === "item-1-option") return "¿Qué es el primero: taco, quesadilla, torta o gordita?";
+    if (key === "item-2-option") return "¿Y el segundo: taco, quesadilla, torta o gordita?";
+    if (/first .*meat|first .*carne/i.test(title) || /^item-1-meat$/.test(key)) return "¿Qué carne para el primero?";
+    if (/second .*meat|second .*carne/i.test(title) || /^item-2-meat$/.test(key)) return "¿Qué carne para el segundo?";
+    if (key === "burrito-meat") return "¿Qué carne o relleno para el burrito?";
+    if (key === "burrito-size") return "¿Regular de 10 pulgadas o grande de 12?";
+    if (key === "burrito-options") return "¿Qué lleva adentro? Puedes decir con todo: frijoles, arroz, queso, crema, cebolla y cilantro.";
+    if (key === "burrito-side") return "¿Qué dip con los chips: pico de gallo, guacamole o queso (+$1)?";
+    if (key === "regular-deluxe") return "¿Regular o deluxe?";
+    if (key === "salsa") return "¿Qué salsa prefieres, o sin salsa?";
+    if (key === "extras") return "¿Algún extra, o sin extras?";
+    if (/side/.test(lowerTitle)) return "¿Qué acompañamiento quieres?";
+    if (/tortilla/.test(lowerTitle)) return "¿Qué tortilla prefieres?";
+    if (/option|item/.test(lowerTitle)) return "¿Cuál opción quieres?";
+    return title ? `Elige ${title}.` : "Elige una opción.";
+  }
+
+  if (key === "item-1-option") return "What's the first item: taco, quesadilla, torta or gordita?";
+  if (key === "item-2-option") return "And the second: taco, quesadilla, torta or gordita?";
+  if (/first .*meat/i.test(title) || /^item-1-meat$/.test(key)) return "What meat for the first one?";
+  if (/second .*meat/i.test(title) || /^item-2-meat$/.test(key)) return "What meat for the second one?";
+  if (key === "burrito-meat") return "What meat or filling for the burrito?";
+  if (key === "burrito-size") return "Regular 10 inch or grande 12 inch?";
+  if (key === "burrito-options") return "What goes inside? You can say everything: beans, rice, cheese, sour cream, onion and cilantro.";
+  if (key === "burrito-side") return "Which dip with chips?";
+  if (key === "regular-deluxe") return "Regular or deluxe?";
+  if (key === "salsa") return "Which salsa, or no salsa?";
+  if (key === "extras") return "Any extras, or no extras?";
+  if (/side/.test(lowerTitle)) return "Which side would you like?";
+  if (/tortilla/.test(lowerTitle)) return "Which tortilla style?";
+  if (/option|item/.test(lowerTitle)) return "Which option would you like?";
+  return title ? `Choose ${title}.` : "Choose an option.";
+}
+
+function prefillGuideSelectionsFromText(text, opts = {}) {
+  if (isMixGuide()) text = normalizeMixItemsText(text);
+  const guide = state.currentBuildGuide;
+  if (!guide?.steps?.length) return [];
+  const added = [];
+  const mixPrefill = prefillComboMixSelectionsFromText(text);
+  added.push(...mixPrefill.added);
+  for (let index = mixPrefill.nextIndex; index < guide.steps.length; index += 1) {
+    const step = guide.steps[index];
+    if (step.required === false) continue; // default/optional steps are filled by mention below
+    if (isGuideMeatStep(step)) {
+      added.push(...applyGuideMeatDistributionFromText(index, text));
+      // After an answer, the same words don't fill the next meat too ("pastor" = one taco), fix9.
+      if (!guideStepIsComplete(step, index) && !opts.afterAnswer) {
+        added.push(...applyGuideSelectionsForStep(index, text, { initial: true }));
+      }
+      if (!guideStepIsComplete(step, index)) break;
+      continue;
+    }
+    added.push(...applyGuideSelectionsForStep(index, text, { initial: true }));
+    if (!guideStepIsComplete(step, index)) break;
+  }
+  added.push(...applyMentionedOptionalGuideSelections(text, { initial: true }));
+  advanceGuideToNextRequiredStep();
+  return added;
+}
+
+function resolveBuildItemFromSelection(selected) {
+  if (!selected || typeof selected !== "object") return null;
+  const id = String(selected.itemId || selected.id || "").trim();
+  if (id) {
+    const item = state.menu.find((candidate) => candidate.id === id);
+    if (item) return item;
+  }
+
+  const guideName = state.currentBuildGuide?.display_name || selected.name || "";
+  const guideKey = normalizeOptionKey(guideName);
+  return state.menu.find((item) => normalizeOptionKey(item.name) === guideKey)
+    || state.menu.find((item) => normalizeOptionKey(item.name).includes(guideKey) || guideKey.includes(normalizeOptionKey(item.name)))
+    || menuItemFromResolverSelection(selected, id);
+}
+
+function resolveCurrentBuildItem() {
+  return resolveBuildItemFromSelection(state.currentBuildItem || {});
+}
+
+function findGuideModifierGroup(item, selection) {
+  const groups = Array.isArray(item?.modifierGroups) ? item.modifierGroups : [];
+  const stepKey = String(selection?.stepKey || "").toLowerCase();
+  const stepKind = String(selection?.stepKind || "").toLowerCase();
+  const title = normalizeOptionKey(selection?.stepTitle || "");
+  const hasName = (group, pattern) => pattern.test(normalizeOptionKey(group.name || ""));
+
+  const byKey = groups.find((group) => {
+    if (stepKey === "taco-shell" || stepKey === "quesadilla-shell") return hasName(group, /\b(tortilla|shell)\b/);
+    if (stepKey === "item-1-option") return hasName(group, /\bitem\s*1\b.*\b(option|mix)\b/);
+    if (stepKey === "item-2-option") return hasName(group, /\bitem\s*2\b.*\b(option|mix)\b/);
+    if (stepKey.includes("gordita-option")) return hasName(group, /\bgorditas?\b.*\boption\b/);
+    if (stepKey.includes("torta-option")) return hasName(group, /\btortas?\b.*\boption\b/);
+    if (stepKey.includes("size")) return hasName(group, /\b(burrito.*size|size)\b/);
+    if (stepKey === "item-1-meat") return hasName(group, /\bitem\s*1\b.*\b(carne|meat)\b/);
+    if (stepKey === "item-2-meat") return hasName(group, /\b(item\s*2|cd)\b.*\b(carne|meat)\b/);
+    if (stepKey.includes("meat")) return hasName(group, /\b(burrito.*(carne|meat)|(carne|meat))\b/);
+    if (stepKey.includes("burrito-options")) return hasName(group, /\bburrito\s+options\b/);
+    if (stepKey.includes("deluxe")) return hasName(group, /\bdeluxe\b/);
+    if (stepKey.includes("side")) return hasName(group, /\b(burrito.*combo.*side|combo.*side|side)\b/);
+    if (stepKey.includes("salsa")) return hasName(group, /\bsalsa\b/);
+    if (stepKey.includes("extras")) return hasName(group, /\b(cb\s+extras|extras)\b/);
+    return false;
+  });
+  if (byKey) return byKey;
+
+  const byKind = groups.find((group) => {
+    if (stepKind === "meat") return hasName(group, /\b(carne|meat)\b/);
+    if (stepKind === "side") return hasName(group, /\b(side|combo\s+side)\b/);
+    if (stepKind === "salsa") return hasName(group, /\bsalsa\b/);
+    if (stepKind === "extras") return hasName(group, /\b(cb\s+extras|extras)\b/);
+    return false;
+  });
+  if (byKind) return byKind;
+
+  return groups.find((group) => {
+    const groupName = normalizeOptionKey(group.name || "");
+    return groupName && (groupName.includes(title) || title.includes(groupName));
+  }) || null;
+}
+
+function findGuideCanonicalOption(group, selection) {
+  const options = group?.options || [];
+  const code = String(selection?.code || "").trim().toLowerCase();
+  if (code) {
+    const byCode = options.find((option) => new RegExp(`(^|[^a-z0-9])${escapeRegex(code)}([^a-z0-9]|$)`, "i").test(optionDisplayName(option)));
+    if (byCode) return byCode;
+  }
+  return findCanonicalModifierOption(options, selection?.option);
+}
+
+function shouldSkipGuideSelection(selection) {
+  const option = String(selection?.option || "");
+  if (selection?.value === "none") return true;
+  return /\b(no salsa|no extras|regular\s*-)\b/i.test(option);
+}
+
+function guideDefaultSelections() {
+  const guide = state.currentBuildGuide;
+  if (!guide?.steps?.length) return [];
+  const picked = new Set((state.currentBuildSelections || []).map((selection) => selection.step));
+  const out = [];
+  guide.steps.forEach((step, index) => {
+    if (!step?.default || (step.mode !== "default" && step.mode !== "suggest")) return;
+    const stepNumber = guideStepNumber(step, index);
+    if (picked.has(stepNumber)) return;
+    const option = (step.options || []).find((candidate) => guideOptionName(candidate) === step.default) || { name: step.default };
+    out.push({
+      step: stepNumber,
+      stepKey: String(step.key || ""),
+      stepKind: String(step.kind || ""),
+      stepTitle: step.title || `Step ${stepNumber}`,
+      option: guideOptionName(option),
+      label: step.defaultLabel || option.label || guideOptionName(option),
+      code: guideOptionCode(option),
+      family: guideOptionFamily(option),
+      value: step.defaultSendsModifier === false ? "none" : guideOptionValue(option),
+      priceDeltaCents: guideOptionPriceDeltaCents(option),
+      isDefault: true
+    });
+  });
+  return out;
+}
+
+function guideSelectionLabel(selection) {
+  const guide = state.currentBuildGuide;
+  const step = guide?.steps?.find((candidate, index) => guideStepNumber(candidate, index) === selection.step);
+  const option = (step?.options || []).find((candidate) => guideOptionName(candidate) === selection.option);
+  const label = String(selection.label || option?.label || selection.option || "").replace(/\s*\(\+?\$[\d.]+\)\s*/g, " ").trim();
+  const parts = label.split(" / ");
+  return (getEffectiveLanguage() === "es" ? parts[0] : (parts[1] || parts[0])).trim();
+}
+
+/** Short spoken/visible read-back of everything picked plus the defaults that will be used. */
+function guideReadbackText() {
+  const guide = state.currentBuildGuide;
+  if (!guide) return "";
+  const all = [...(state.currentBuildSelections || []), ...guideDefaultSelections()]
+    .sort((a, b) => a.step - b.step);
+  const parts = all.map(guideSelectionLabel).filter(Boolean);
+  const item = resolveCurrentBuildItem();
+  const extraCents = buildGuideModifiers().reduce((sum, mod) => sum + (Number(mod.priceDeltaCents) || 0), 0);
+  const total = item ? ` — $${((Number(item.priceCents || 0) + extraCents) / 100).toFixed(2)}` : "";
+  if (item) {
+    // fix10: same short labels as the add read-back, without "¿Algo más?".
+    const mods = buildGuideModifiers();
+    const short = rbFormat([{ name: item.name, alt: item.readbackName, quantity: 1, mods: mods.map((m) => ({ option: m.option, group: m.groupName, quantity: m.quantity })), cents: Number(item.priceCents || 0) + extraCents }], getEffectiveLanguage() === "es" ? "es" : "en");
+    return short.replace(/\.\s*(¿Algo más\?|Anything else\?)$/, "");
+  }
+  return `${guide.display_name}: ${parts.join(", ")}${total}`;
+}
+
+/**
+ * fix16 (Carlos): included-salsa groups ("Salsa Preferencia / Preference", "Salsa Options") default to the
+ * free mild Salsa Asada — same rule as services/api/src/site-catalog.ts includedSalsaDefaults().
+ */
+function includedSalsaDefaultsWeb(item) {
+  const out = [];
+  for (const group of item?.modifierGroups || []) {
+    const name = String(group?.name || "");
+    if (/^\W*(\(\w+\)\s*)?(extra|add)\b|\b\d\s*oz\b/i.test(name)) continue;
+    if (!/\bsalsa\b.*\b(preferencia|preference|options)\b/i.test(name)) continue;
+    const option = (group.options || []).find((o) => optionDisplayName(o).replace(/\s*\(\+?\$[\d.]+\)\s*$/, "").trim().toLowerCase() === "mild salsa asada" && !Number(o?.priceDeltaCents || 0));
+    if (option) out.push({ group, option });
+  }
+  return out;
+}
+
+function withGuideSalsaDefault(item, mods) {
+  const raw = state.currentBuildSelections || [];
+  if (raw.some((sel) => /\b(no|sin)\s+salsa\b/i.test(String(sel?.option || sel?.label || "")))) return mods;
+  const out = [...mods];
+  for (const { group, option } of includedSalsaDefaultsWeb(item)) {
+    if (out.some((m) => m.groupId === group.id || m.groupName === group.name)) continue;
+    out.push({ groupId: group.id, groupName: group.name, option: optionDisplayName(option), optionId: option?.id, isDefault: true, quantity: 1, priceDeltaCents: 0 });
+  }
+  return out;
+}
+
+function buildGuideModifiers() {
+  const item = resolveCurrentBuildItem();
+  return withGuideSalsaDefault(item, buildGuideModifiersRaw(item));
+}
+
+function buildGuideModifiersRaw(item) {
+  return [...(state.currentBuildSelections || []), ...guideDefaultSelections()]
+    .filter((selection) => !shouldSkipGuideSelection(selection))
+    .map((selection) => {
+      const group = findGuideModifierGroup(item, selection);
+      const optionMeta = group ? findGuideCanonicalOption(group, selection) : null;
+      const canonicalOption = optionMeta ? optionDisplayName(optionMeta) : findCanonicalOption(group?.options || [], selection.option);
+      if (group && canonicalOption) {
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          option: canonicalOption,
+          optionId: optionMeta?.id,
+          ...(selection.isDefault ? { isDefault: true } : {}),
+          quantity: 1,
+          priceDeltaCents: Number.isFinite(Number(optionMeta?.priceDeltaCents))
+            ? Number(optionMeta.priceDeltaCents)
+            : (selection.priceDeltaCents || undefined)
+        };
+      }
+      return {
+        groupId: `guide-step-${selection.step}`,
+        groupName: selection.stepTitle,
+        option: selection.option,
+        quantity: 1,
+        priceDeltaCents: selection.priceDeltaCents || undefined
+      };
+    });
+}
+
+function updatePendingGuidePreview() {
+  const item = resolveCurrentBuildItem();
+  if (!item || !state.currentBuildGuide) return;
+  const step = getCurrentGuideStep();
+  state.pendingComboPreview = {
+    item,
+    quantity: 1,
+    modifiers: buildGuideModifiers(),
+    step: state.currentGuideStep || 1,
+    totalSteps: state.currentBuildGuide.steps?.length || 1,
+    stepName: step?.title || "Combo"
+  };
+  renderSelectedPreview(item);
+  renderSelectedItemsPanel();
+}
+
+function clearCurrentGuideBuild() {
+  state.currentBuildGuide = null;
+  state.currentGuideStep = 0;
+  state.currentBuildItem = null;
+  state.currentBuildSelections = [];
+  state.pendingComboPreview = null;
+  state.lastComboAnimationKey = "";
+  state.stepCompletionNote = "";
+  clearComboTracker();
+}
+
+async function finishGuideBuildLocally() {
+  const item = resolveCurrentBuildItem();
+  if (!item) {
+    const reply = getEffectiveLanguage() === "es" ? "No pude encontrar ese combo en el menú." : "I could not find that combo on the menu.";
+    ui.reply.textContent = reply;
+    markLocalTurnReady();
+    await speakLocalText(reply, getEffectiveLanguage());
+    return false;
+  }
+
+  const modifiers = buildGuideModifiers();
+  addCartItem(item, 1, modifiers);
+  const reply = shortAddReadback([{ item, quantity: 1, modifiers }]) || item.name;
+  clearCurrentGuideBuild();
+  state.lastSelectedItem = item;
+  renderCart();
+  renderSelectedPreview(item);
+  renderSelectedItemsPanel();
+  ui.reply.textContent = formatCentsForSpeech(reply);
+  markLocalTurnReady();
+  await speakLocalText(reply, getEffectiveLanguage());
+  pulseAvatarState("happy", 1200, "idle");
+  return true;
+}
+
+// COMBO Mix (fix10): a bare "taco"/"quesadilla" is Comal (usual default); "de maíz"/street → Street; harina → Flour.
+function normalizeMixItemsText(text) {
+  const words = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean);
+  const SHELL = /^(comal|homemade|harina|flour|taquer[oa]s?|street|maiz|corn)$/;
+  const out = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (/^(tacos?|quesadillas?)$/.test(w) && !SHELL.test(words[i - 1] || "") && !SHELL.test(words[i + 1] || "")) {
+      const stop = words.slice(i + 1, i + 5).findIndex((x) => /^(y|and|e|un|una|uno|a|an|one|plus|mas)$/.test(x));
+      const near = words.slice(i + 1, stop < 0 ? i + 5 : i + 1 + stop).join(" ");
+      const kind = /\b(de maiz|street|taquer)/.test(near) ? (w.startsWith("q") ? "taquera" : "taquero") : /\b(harina|flour)\b/.test(near) ? "harina" : "comal";
+      out.push(w, kind);
+      continue;
+    }
+    out.push(w);
+  }
+  return out.join(" ");
+}
+
+function isMixGuide() {
+  return /\bmix\b/i.test(String(state.currentBuildGuide?.display_name || ""));
+}
+
+// fix11: chicharrón is Duro (chile verde, "pork rinds") or Prensado (chile rojo, "spicy pork").
+function normalizeChicharronText(text) {
+  return String(text || "")
+    .replace(/\bchicharr[oó]n(es)?\s+(del\s+|de\s+)?duros?\b/gi, "pork rinds")
+    .replace(/\bchicharr[oó]n(es)?\s+(en\s+)?(chile\s+)?verdes?\b/gi, "pork rinds")
+    .replace(/\bchicharr[oó]n(es)?\s+prensados?\b/gi, "prensado")
+    .replace(/\bchicharr[oó]n(es)?\s+(en\s+)?(chile\s+)?roj[oa]s?\b/gi, "prensado")
+    .replace(/\bdel\s+duro\b/gi, "de pork rinds");
+}
+
+function chicharronAnswer(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\b(duros?|verdes?|pork rinds?|rinds|green)\b/.test(t)) return "pork rinds";
+  if (/\b(prensados?|roj[oa]s?|spicy|red)\b/.test(t)) return "prensado";
+  return "";
+}
+
+/** Returns the text to use, or null after asking the chicharrón question. */
+function guideChicharronText(text) {
+  if (state.chicharronPendingText) {
+    const pick = chicharronAnswer(text);
+    const original = state.chicharronPendingText;
+    state.chicharronPendingText = "";
+    if (pick) return original.replace(/\bchicharr[oó]n(es)?\b/gi, pick);
+  }
+  const t = normalizeChicharronText(text);
+  if (!/\bchicharr[oó]n(es)?\b/i.test(t)) return t;
+  const names = (state.currentBuildGuide?.steps || []).flatMap((st) => (st.options || []).map((o) => String(o.name || "")));
+  const duro = names.some((n) => /duro/i.test(n));
+  const prensado = names.some((n) => /prensado/i.test(n));
+  if (duro && !prensado) return t.replace(/\bchicharr[oó]n(es)?\b/gi, "pork rinds");
+  if (prensado && !duro) return t.replace(/\bchicharr[oó]n(es)?\b/gi, "prensado");
+  state.chicharronPendingText = t;
+  return null;
+}
+
+async function handleGuideTurnLocally(text) {
+  const chText = guideChicharronText(text);
+  if (chText === null) {
+    const reply = getEffectiveLanguage() === "es" ? "¿Chicharrón del duro en chile verde o prensado en chile rojo?" : "Chicharrón: duro (pork rinds in green chile) or prensado (spicy pork in red chile)?";
+    ui.reply.textContent = reply;
+    markLocalTurnReady();
+    await speakLocalText(reply, getEffectiveLanguage());
+    return true;
+  }
+  text = chText;
+  if (isMixGuide()) text = normalizeMixItemsText(text);
+  state.turnInFlight = true; setAvatarState("thinking");
+  state.lastUserText = text;
+  ui.status.textContent = "Processing…";
+  let completed = false;
+  try {
+    const step = getCurrentGuideStep();
+    if (!step) {
+      const result = await finishGuideBuildLocally();
+      completed = true;
+      return result;
+    }
+
+    // ui4: "sí / está bien / no / sin extras" answers a suggested/offered step; "así está bien" keeps the
+    // suggestions for every remaining step. Naming options still works (handled below).
+    {
+      const plainAns = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
+      const skipRest = /\b(asi esta bien|asi nomas|asi como viene|lo demas (normal|asi|como siempre)|todo lo demas (normal|igual)|eso es todo|that'?s it|that is it|that'?s all|everything else (normal|as usual|regular)|rest as usual|nothing else)\b/.test(plainAns);
+      const accept = /^(si|ok|okay|okey|yes|yeah|yep|sure|claro|esta bien|perfecto|correcto|normal|como siempre|as usual|asi|no|no gracias|nada|ninguno|nope|no thanks|sin extras|sin nada|ya|listo|nada mas|no mas|nomas|ya esta|done|next|siguiente)( (gracias|thanks|please|por favor))?$/.test(plainAns);
+      const isAsk = (st) => st && (st.mode === "suggest" || st.mode === "offer");
+      const guide = state.currentBuildGuide;
+      if ((skipRest || (accept && isAsk(step))) && guide) {
+        guide._resolved = guide._resolved || new Set();
+        if (step.mode === "suggest" && step.kind !== "regularDeluxe" && /^(no|nope)$/.test(plainAns) && !skipRest) {
+          // "no" to a suggestion = not that one: offer the other choices.
+          const others = (step.options || []).filter((o) => guideOptionName(o) !== step.default).map((o) => rbOptionLabel(guideOptionName(o), String(step.key || ""), getEffectiveLanguage() === "es" ? "es" : "en") || guideOptionName(o));
+          const reply = getEffectiveLanguage() === "es" ? `¿Entonces ${others.join(" o ")}?` : `Then ${others.join(" or ")}?`;
+          ui.reply.textContent = formatCentsForSpeech(reply);
+          completed = true; markLocalTurnReady(); await speakLocalText(reply, getEffectiveLanguage());
+          return true;
+        }
+        const steps = guide.steps || [];
+        const from = Math.max(0, state.currentGuideStep - 1);
+        steps.forEach((st, i) => { if (isAsk(st) && (i === from || (skipRest && i >= from))) guide._resolved.add(guideStepNumber(st, i)); });
+        if (!advanceGuideToNextRequiredStep()) {
+          const result = await finishGuideBuildLocally();
+          completed = true;
+          return result;
+        }
+        updatePendingGuidePreview();
+        updateBuildVisuals({});
+        const reply = `${getEffectiveLanguage() === "es" ? "Listo." : "Got it."} ${guideCustomerPrompt(getCurrentGuideStep())}`;
+        ui.reply.textContent = formatCentsForSpeech(reply);
+        completed = true; markLocalTurnReady(); await speakLocalText(reply, getEffectiveLanguage());
+        pulseAvatarState("questioning", 1000, "idle");
+        return true;
+      }
+    }
+
+    const removedOptions = removeGuideSelectionsFromText(text);
+    if (removedOptions.length) {
+      updatePendingGuidePreview();
+      updateBuildVisuals({});
+      const removedNames = removedOptions.map((selection) => selection.option).join(", ");
+      const reply = `${interpolateReplyText(
+        getEffectiveLanguage() === "es"
+          ? "Quité {{optionName}}."
+          : "Removed {{optionName}}.",
+        { optionName: removedNames }
+      )} ${guideCurrentPrompt()}`;
+      ui.reply.textContent = formatCentsForSpeech(reply);
+      completed = true;
+      markLocalTurnReady();
+      await speakLocalText(reply, getEffectiveLanguage());
+      pulseAvatarState("questioning", 1000, "idle");
+      return true;
+    }
+
+    const optionalAdded = applyMentionedOptionalGuideSelections(text);
+    const stepIndex = Math.max(0, state.currentGuideStep - 1);
+    let addedOptions = isGuideMeatStep(step)
+      ? applyGuideMeatDistributionFromText(stepIndex, text)
+      : [];
+    if (!addedOptions.length) {
+      addedOptions = applyGuideSelectionsForStep(stepIndex, text);
+    }
+	    if (!addedOptions.length) {
+	      if (shouldAskLimonSize(step, text)) {
+	        updatePendingGuidePreview();
+	        updateBuildVisuals({});
+	        const reply = getEffectiveLanguage() === "es"
+	          ? "¿Quieres medio limón o limón entero?"
+	          : "Would you like half lime or full lime?";
+	        ui.reply.textContent = formatCentsForSpeech(reply);
+	        completed = true;
+	        markLocalTurnReady();
+	        await speakLocalText(reply, getEffectiveLanguage());
+	        pulseAvatarState("questioning", 1000, "idle");
+	        return true;
+	      }
+
+	      if (step.kind === "extras" && (hasGenericExtraSalsaIntent(text) || hasGenericExtrasIntent(text))) {
+	        updatePendingGuidePreview();
+	        updateBuildVisuals({});
+	        const reply = hasGenericExtraSalsaIntent(text)
+	          ? getEffectiveLanguage() === "es"
+	            ? "Claro, ¿cuál salsa extra quieres?"
+	            : "Sure, which extra salsa would you like?"
+	          : getEffectiveLanguage() === "es"
+	            ? "Claro, ¿cuál extra quieres?"
+	            : "Sure, which extra would you like?";
+	        ui.reply.textContent = formatCentsForSpeech(reply);
+	        completed = true;
+	        markLocalTurnReady();
+	        await speakLocalText(reply, getEffectiveLanguage());
+	        pulseAvatarState("questioning", 1000, "idle");
+	        return true;
+	      }
+
+	      if (hasGuideRemovalIntent(text)) {
+	        updatePendingGuidePreview();
+	        updateBuildVisuals({});
+	        const reply = getEffectiveLanguage() === "es"
+	          ? `Está bien, no lo incluyo. ${guideCurrentPrompt()}`
+	          : `Okay, I will leave it off. ${guideCurrentPrompt()}`;
+	        ui.reply.textContent = formatCentsForSpeech(reply);
+	        completed = true;
+	        markLocalTurnReady();
+	        await speakLocalText(reply, getEffectiveLanguage());
+	        pulseAvatarState("questioning", 1000, "idle");
+	        return true;
+	      }
+
+	      if (hasSkipIntent(text) && /\b(salsa|extras?|extra|side|2oz|5oz|cup|vasito|lim[eó]n|limon|no thanks|no gracias|skip|saltar)\b/i.test(text)) {
+	        updatePendingGuidePreview();
+	        updateBuildVisuals({});
+	        const reply = guideCurrentPrompt();
+	        ui.reply.textContent = formatCentsForSpeech(reply);
+	        completed = true;
+	        markLocalTurnReady();
+	        await speakLocalText(reply, getEffectiveLanguage());
+	        pulseAvatarState("questioning", 1000, "idle");
+	        return true;
+	      }
+
+	      if (optionalAdded.length) {
+	        updatePendingGuidePreview();
+	        updateBuildVisuals({});
+        const addedNames = optionalAdded.map(guideOptionName).join(", ");
+        // fix10: a change to a defaulted step ("de comal") → "Listo: comal. <current question>".
+        const shortNames = optionalAdded.map((o) => rbOptionLabel(guideOptionName(o), "", getEffectiveLanguage() === "es" ? "es" : "en")).filter(Boolean).join(", ") || addedNames;
+        const reply = step?.kind === "extras"
+          ? guideExtrasAddedReply(addedNames)
+          : `${getEffectiveLanguage() === "es" ? "Listo" : "Got it"}: ${shortNames}. ${guideCurrentPrompt()}`;
+        ui.reply.textContent = formatCentsForSpeech(reply);
+        completed = true;
+        markLocalTurnReady();
+        await speakLocalText(reply, getEffectiveLanguage());
+        pulseAvatarState("happy", 1000, "idle");
+        return true;
+      }
+
+      const reply = getEffectiveLanguage() === "es" ? "No vi esa opción aquí. Elige una de las opciones mostradas." : "I do not see that option here. Please choose one of the options shown.";
+      ui.reply.textContent = reply;
+      updateBuildVisuals({});
+      completed = true;
+      markLocalTurnReady();
+      await speakLocalText(reply, getEffectiveLanguage());
+      pulseAvatarState("questioning", 1200, "idle");
+      return false;
+    }
+
+    if (!isGuideMultiStep(step)) {
+      // Callers answer several steps at once ("de harina, uno de asada y uno de pollo"):
+      // fill every later required step the same sentence already answers.
+      const more = prefillGuideSelectionsFromText(text, { afterAnswer: true });
+      addedOptions = [...addedOptions, ...more.filter((option) => !addedOptions.includes(option))];
+    }
+    // fix10: short spoken label ("comal", "asada"), not "Taco Comal / Homemade".
+    const optionNames = addedOptions.map((option) => rbOptionLabel(guideOptionName(option) || option?.label, String(step?.key || step?.title || ""), getEffectiveLanguage() === "es" ? "es" : "en") || (option && option.label) || guideOptionName(option)).join(", ");
+    const isMulti = isGuideMultiStep(step);
+    const pickedNone = addedOptions.some((option) => guideOptionValue(option) === "none");
+    const saidEverything = /\b(con todo|todo|everything|with everything|eso es todo|nada mas|that'?s it)\b/i.test(text);
+    const shouldAdvance = !isMulti || pickedNone || saidEverything || hasOnlyIntent(text) || hasSkipIntent(text);
+    if (isMulti && !shouldAdvance) {
+      updatePendingGuidePreview();
+      updateBuildVisuals({});
+      const reply = step?.kind === "extras"
+        ? guideExtrasAddedReply(optionNames)
+        : interpolateReplyText(
+            getEffectiveLanguage() === "es"
+              ? "Agregado {{optionName}}. ¿Algo más para este paso? Di siguiente cuando termines."
+              : "Got {{optionName}}. Anything else for this step, or say next.",
+            { optionName: optionNames }
+          );
+      ui.reply.textContent = formatCentsForSpeech(reply);
+      completed = true;
+      markLocalTurnReady();
+      await speakLocalText(reply, getEffectiveLanguage());
+      pulseAvatarState("happy", 1000, "idle");
+      return true;
+    }
+
+    if (!advanceGuideToNextRequiredStep()) {
+      const result = await finishGuideBuildLocally();
+      completed = true;
+      return result;
+    }
+
+    updatePendingGuidePreview();
+    updateBuildVisuals({});
+    const next = getCurrentGuideStep();
+    const nextPrompt = guideCustomerPrompt(next);
+    const reply = interpolateReplyText(
+      getEffectiveLanguage() === "es" ? "Listo: {{optionName}}. {{nextPrompt}}" : "Got it: {{optionName}}. {{nextPrompt}}",
+      { optionName: optionNames, nextPrompt }
+    );
+    ui.reply.textContent = formatCentsForSpeech(reply);
+    completed = true;
+    markLocalTurnReady();
+    await speakLocalText(reply, getEffectiveLanguage());
+    pulseAvatarState("questioning", 1000, "idle");
+    syncRealtimeOrderContext();
+    return true;
+  } catch (error) {
+    console.error("[ORDER] Guide turn failed:", error);
+    ui.status.textContent = error instanceof Error ? error.message : "Build error";
+    ui.reply.textContent = getEffectiveLanguage() === "es" ? "No pude actualizar esa selección. Intenta otra vez." : "I could not update that choice. Please try again.";
+    setAvatarState("frustrated");
+    return false;
+  } finally {
+    if (!completed) state.turnInFlight = false;
+    if (completed) ui.status.textContent = "Connected";
+  }
 }
 
 function sendWs(payload) {
@@ -3088,17 +5372,35 @@ function menuItemFromResolverSelection(selectedItem, fallbackId = "") {
   };
 }
 
+function mergeResolverSelectedItem(catalogItem, selectedItem, fallbackId = "") {
+  const resolverItem = menuItemFromResolverSelection(selectedItem, fallbackId);
+  if (!resolverItem) return catalogItem || null;
+  return {
+    ...(catalogItem || {}),
+    ...resolverItem,
+    aliases: catalogItem?.aliases || resolverItem.aliases || [],
+    description: resolverItem.description || catalogItem?.description,
+    imageUrl: resolverItem.imageUrl || catalogItem?.imageUrl,
+    modifierGroups: catalogItem?.modifierGroups || resolverItem.modifierGroups
+  };
+}
+
 function applyActions(actions) {
   let addedItem = false;
   for (const action of actions) {
     if (action.type === "combo_building") {
       const comboItem = findComboActionItem(action);
       if (comboItem) {
+        const selections = Array.isArray(action.selections) ? action.selections : [];
+        const stepOptions = Array.isArray(action.stepOptions) ? action.stepOptions : [];
+        const isChoiceMenu = stepOptions.length > 0 && selections.length === 0 && Number(action.totalSteps || 1) === 1;
         state.lastSelectedItem = comboItem;
         state.pendingComboPreview = {
           item: comboItem,
           quantity: 1,
-          modifiers: (action.selections || []).map((label) => ({ option: String(label), quantity: 1 })),
+          modifiers: isChoiceMenu
+            ? stepOptions.map((label) => ({ option: String(label), quantity: 1 }))
+            : selections.map((label) => ({ option: String(label), quantity: 1 })),
           step: action.step || 1,
           totalSteps: action.totalSteps || 1,
           stepName: action.stepName || ""
@@ -3126,8 +5428,8 @@ function applyActions(actions) {
     }
 
     if (action.type === "add_item") {
-      const menuItem = state.menu.find((item) => item.id === action.itemId)
-        || menuItemFromResolverSelection(action.selectedItem, action.itemId);
+      const catalogItem = state.menu.find((item) => item.id === action.itemId);
+      const menuItem = mergeResolverSelectedItem(catalogItem, action.selectedItem, action.itemId);
       if (!menuItem) {
         continue;
       }
@@ -3159,17 +5461,29 @@ function applyActions(actions) {
     }
 
     if (action.type === "update_item") {
-      updateCartItem(action.itemId, Number(action.quantity) || 1, action.cartIndex, action.modifiers);
+      // ui4: a correction edits the MOST RECENT line of that item.
+      const lastIndex = action.correction ? state.cart.map((l) => l.item.id).lastIndexOf(action.itemId) : -1;
+      updateCartItem(action.itemId, Number(action.quantity) || (lastIndex >= 0 ? state.cart[lastIndex].quantity : 1), lastIndex >= 0 ? lastIndex : action.cartIndex, action.modifiers);
       continue;
     }
 
     if (action.type === "set_fulfillment") {
-      state.fulfillment = action.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP";
+      if (action.fulfillment === "DELIVERY" && !isDeliveryEnabled()) {
+        state.fulfillment = "PICKUP";
+        ui.reply.textContent = deliveryDisabledMessage();
+      } else {
+        state.fulfillment = action.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP";
+        if (action.message) ui.reply.textContent = action.message;
+      }
       ui.fulfillment.value = state.fulfillment;
       continue;
     }
 
     if (action.type === "set_address" && action.address) {
+      if (!isDeliveryEnabled()) {
+        ui.reply.textContent = deliveryDisabledMessage();
+        continue;
+      }
       state.customer.address = action.address;
       ui.address.value = action.address;
       continue;
@@ -3300,12 +5614,18 @@ function renderComboTracker(itemName, step, totalSteps, selections, stepName, st
   const nextEl = document.getElementById("combo-tracker-next");
   if (!tracker || !nameEl || !progressEl || !listEl) return;
 
+  const selectionList = Array.isArray(selections) ? selections : [];
+  const optionList = Array.isArray(stepOptions) ? stepOptions : [];
+  const isChoiceMenu = optionList.length > 0 && selectionList.length === 0 && Number(totalSteps || 1) === 1;
+
   nameEl.textContent = itemName;
   progressEl.textContent = `${step}/${totalSteps}`;
+  tracker.classList.toggle("is-selection-menu", isChoiceMenu);
+  tracker.closest(".speech-wrap")?.classList.add("is-building");
 
   // Confirmed selections — shown as small checkmarked pills
   listEl.textContent = "";
-  for (const selection of selections) {
+  for (const selection of selectionList) {
     const item = document.createElement("li");
     item.className = "selection-done";
     item.textContent = `✓ ${selection}`;
@@ -3313,10 +5633,10 @@ function renderComboTracker(itemName, step, totalSteps, selections, stepName, st
   }
 
   // Current step options — shown as tappable chips
-  if (askEl && stepLabelEl && optionsEl && stepOptions && stepOptions.length > 0) {
+  if (askEl && stepLabelEl && optionsEl && optionList.length > 0) {
     stepLabelEl.textContent = stepName || "";
     optionsEl.textContent = "";
-    for (const option of stepOptions) {
+    for (const option of optionList) {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
@@ -3328,6 +5648,7 @@ function renderComboTracker(itemName, step, totalSteps, selections, stepName, st
     }
     askEl.classList.remove("is-hidden");
   } else if (askEl) {
+    if (optionsEl) optionsEl.textContent = "";
     askEl.classList.add("is-hidden");
   }
 
@@ -3372,9 +5693,11 @@ function normalizeBuildProgress(input) {
     step: Number(raw.step || 1),
     totalSteps: Number(raw.totalSteps || raw.total || 1),
     stepName: raw.stepName || raw.phase || "",
-    completedSelections: Array.isArray(raw.selections) ? raw.selections : 
+    completedSelections: Array.isArray(raw.completedSelections) ? raw.completedSelections :
+                         Array.isArray(raw.selections) ? raw.selections :
                          Array.isArray(raw.completed) ? raw.completed : [],
-    currentOptions: Array.isArray(raw.stepOptions) ? raw.stepOptions :
+    currentOptions: Array.isArray(raw.currentOptions) ? raw.currentOptions :
+                    Array.isArray(raw.stepOptions) ? raw.stepOptions :
                     Array.isArray(raw.options) ? raw.options : [],
     phase: raw.phase || raw.stepName || ""
   };
@@ -3397,7 +5720,7 @@ function updateBuildVisuals(progressInput) {
         itemName,
         state.currentGuideStep,
         guide.steps.length,
-        [], // selections can be enhanced later
+        getGuideSelectionLabels(),
         guideStep.title,
         guideStep.options ? guideStep.options.map(o => o.name || o) : []
       );
@@ -3408,7 +5731,7 @@ function updateBuildVisuals(progressInput) {
           totalSteps: guide.steps.length,
           stepName: guideStep.title,
           option: "",
-          selections: []
+          selections: getGuideSelectionLabels()
         });
       }
       return;
@@ -3419,7 +5742,11 @@ function updateBuildVisuals(progressInput) {
   const p = normalizeBuildProgress(progressInput);
   if (!p || !p.active) {
     const tracker = document.getElementById("combo-tracker");
-    if (tracker) tracker.classList.add("is-hidden");
+    if (tracker) {
+      tracker.classList.add("is-hidden");
+      tracker.classList.remove("is-selection-menu");
+      tracker.closest(".speech-wrap")?.classList.remove("is-building");
+    }
     return;
   }
 
@@ -3458,19 +5785,27 @@ function updateBuildVisuals(progressInput) {
 
 // Legacy wrapper - will be removed once all call sites are migrated
 function clearComboTracker() {
-  document.getElementById("combo-tracker")?.classList.add("is-hidden");
+  const tracker = document.getElementById("combo-tracker");
+  tracker?.classList.add("is-hidden");
+  tracker?.classList.remove("is-selection-menu");
+  tracker?.closest(".speech-wrap")?.classList.remove("is-building");
 }
 
 function sendComboNav(direction) {
   // If a guide is active, prefer advancing the guide step for consistency across all combos
   if (state.currentBuildGuide && state.currentGuideStep) {
     if (direction === "next") {
-      state.currentGuideStep++;
+      if (!advanceGuideToNextRequiredStep()) {
+        void finishGuideBuildLocally();
+        return;
+      }
+      updatePendingGuidePreview();
       updateBuildVisuals({});
       syncRealtimeOrderContext();
       return;
     } else if (direction === "back" && state.currentGuideStep > 1) {
       state.currentGuideStep--;
+      updatePendingGuidePreview();
       updateBuildVisuals({});
       syncRealtimeOrderContext();
       return;
@@ -3510,6 +5845,13 @@ function getPreviewDescription(item) {
     const selectedLine = state.cart.find((line) => line.item.id === item.id);
     const price = selectedLine ? getCartLineUnitPriceCents(selectedLine) : Number(item.priceCents || 0);
     const delta = Math.max(0, price - Number(item.priceCents || 0));
+    if (state.currentBuildGuide && typeof guideReadbackText === "function") {
+      // During a guided build show what will be ordered, including defaults, not Square's long description.
+      ui.selectionPreviewDescription.textContent = guideReadbackText();
+      if (item.imageUrl) { ui.selectionPreviewImage.src = item.imageUrl; ui.selectionPreviewImage.style.display = "block"; }
+      ui.selectionPreview.classList.remove("is-hidden");
+      return;
+    }
     ui.selectionPreviewDescription.textContent = `${getPreviewDescription(item)} Price: ${centsToUsd(price)}${delta ? ` (${centsToUsd(Number(item.priceCents || 0))} + ${centsToUsd(delta)} modifiers)` : ""}.`;
 
     if (item.imageUrl) {
@@ -3585,9 +5927,22 @@ function renderCart() {
   }
 
   ui.cartTotal.textContent = centsToUsd(total);
+  updateCartBar(itemCount, total);
   renderSelectedPreview(state.lastSelectedItem);
   renderSelectedItemsPanel();
   syncRealtimeOrderContext();
+}
+
+function updateCartBar(count, totalCents) {
+  const bar = document.getElementById("cart-bar");
+  if (!bar) return;
+  const es = getEffectiveLanguage() === "es";
+  document.getElementById("cart-bar-count").textContent = String(count);
+  document.getElementById("cart-bar-total").textContent = centsToUsd(totalCents);
+  document.getElementById("cart-bar-label").textContent = es ? "Ver orden y pagar" : "Review order & checkout";
+  bar.classList.toggle("is-empty", count === 0);
+  const previewLabel = document.querySelector(".selection-preview-label");
+  if (previewLabel) previewLabel.textContent = es ? "Preparando" : "Now building";
 }
 
 function renderSelectedItemsPanel() {
@@ -3805,8 +6160,14 @@ function startAdaptiveListen() {
   state.noiseFloor = 0.008;
   state.speechFrameCount = 0;
   state.silenceFrameCount = 0;
+  state.turnSpeechFrameCount = 0;
+  state.turnPeakRms = 0;
   state.speechStartedAt = 0;
   state.listenCooldownUntil = 0;
+  state.voiceInputCooldownUntil = 0;
+  state.recognitionPaused = false;
+  state.localTranscript = "";
+  startBrowserRecognition();
   ui.listenButton.classList.add("adaptive-active");
   ui.status.textContent = "Ready…";
 
@@ -3836,8 +6197,18 @@ function startAdaptiveListen() {
     state.audioSilentNode = silentNode;
 
     processor.onaudioprocess = (event) => {
-      if (!state.vadRunning || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+      if (!state.vadRunning) return;
       if (state.turnInFlight) return;
+      if (state.elviSpeaking || state.recognitionPaused || performance.now() < state.voiceInputCooldownUntil) {
+        state.speechActive = false;
+        state.speechFrameCount = 0;
+        state.silenceFrameCount = 0;
+        state.turnSpeechFrameCount = 0;
+        state.turnPeakRms = 0;
+        state.prespeechChunks = [];
+        state.turnAudioChunks = [];
+        return;
+      }
 
       const input = event.inputBuffer.getChannelData(0);
       const pcm16 = convertFloat32ToPcm16(input, captureContext.sampleRate, 24000);
@@ -3846,12 +6217,12 @@ function startAdaptiveListen() {
       const rms = calculateRms(input);
       const chunkBase64 = pcm16ToBase64(pcm16);
       const now = performance.now();
-      const startThreshold = Math.max(0.02, state.noiseFloor * 2.6);
-      const sustainThreshold = Math.max(0.014, state.noiseFloor * 1.9);
+      const startThreshold = Math.max(0.016, state.noiseFloor * 2.15);
+      const sustainThreshold = Math.max(0.010, state.noiseFloor * 1.55);
 
       if (!state.speechActive) {
         // Update ambient baseline only while not in speech.
-        state.noiseFloor = Math.min(0.03, state.noiseFloor * 0.92 + rms * 0.08);
+        state.noiseFloor = Math.min(0.024, state.noiseFloor * 0.96 + rms * 0.04);
       }
 
       if (now < state.listenCooldownUntil) {
@@ -3860,7 +6231,7 @@ function startAdaptiveListen() {
 
       if (!state.speechActive) {
         state.prespeechChunks.push(chunkBase64);
-        if (state.prespeechChunks.length > 3) {
+        if (state.prespeechChunks.length > 5) {
           state.prespeechChunks.shift();
         }
       }
@@ -3871,55 +6242,69 @@ function startAdaptiveListen() {
         state.speechFrameCount = Math.max(0, state.speechFrameCount - 1);
       }
 
-      if (state.speechActive && rms < sustainThreshold) {
+      const hasSpeechEnergy = rms >= sustainThreshold;
+
+      if (state.speechActive && !hasSpeechEnergy) {
         state.silenceFrameCount += 1;
       } else if (state.speechActive) {
         state.silenceFrameCount = 0;
       }
 
       if (state.speechActive || state.speechFrameCount >= 3) {
-        state.lastSpeechAt = now;
         if (!state.speechActive) {
           if (state.elviSpeaking) {
             stopCurrentAudio();
           }
           state.speechActive = true;
           state.speechStartedAt = now;
+          state.lastSpeechAt = now;
           state.silenceFrameCount = 0;
+          state.turnSpeechFrameCount = 0;
+          state.turnPeakRms = rms;
+          state.localTranscript = "";
+          state.turnAudioChunks = [...state.prespeechChunks];
           ui.status.textContent = "Listening…";
           setAvatarState("listening");
-          for (const buffered of state.prespeechChunks) {
-            if (state.xaiSessionReady) {
-              sendWs({ type: "input_audio_buffer.append", audio: buffered });
-            } else {
-              state.micChunkBuffer.push(buffered);
-            }
-          }
           state.prespeechChunks = [];
         }
-        if (state.xaiSessionReady) {
-          sendWs({ type: "input_audio_buffer.append", audio: chunkBase64 });
-        } else {
-          state.micChunkBuffer.push(chunkBase64);
+        if (hasSpeechEnergy) {
+          state.lastSpeechAt = now;
+          state.turnSpeechFrameCount += 1;
         }
-        if (state.micChunkBuffer.length > 240) {
-          state.micChunkBuffer = state.micChunkBuffer.slice(-240);
+        state.turnPeakRms = Math.max(state.turnPeakRms || 0, rms);
+        state.turnAudioChunks.push(chunkBase64);
+        if (state.turnAudioChunks.length > 220) {
+          state.turnAudioChunks = state.turnAudioChunks.slice(-220);
+        }
+
+        const isSilentTail = state.speechActive && state.silenceFrameCount >= 6 && now - state.lastSpeechAt > 520;
+        const maxTurnReached = state.speechActive && now - state.speechStartedAt > 6500;
+        if (isSilentTail || maxTurnReached) {
+          const durationMs = now - state.speechStartedAt;
+          const enoughSpeech = durationMs >= 360 && state.turnSpeechFrameCount >= 3 && state.turnPeakRms >= startThreshold * 0.82;
+          state.speechActive = false;
+          state.speechFrameCount = 0;
+          state.silenceFrameCount = 0;
+          state.turnSpeechFrameCount = 0;
+          state.turnPeakRms = 0;
+          state.prespeechChunks = [];
+          state.listenCooldownUntil = now + (enoughSpeech ? 850 : 350);
+          if (!enoughSpeech) {
+            ui.status.textContent = "Ready…";
+            setAvatarState("idle");
+            return;
+          }
+          if (!claimVoiceTurn()) {
+            return;
+          }
+          ui.status.textContent = "Processing…";
+          setAvatarState("talking_neutral");
+          sendWs({ type: "response.cancel" });
+          sendWs({ type: "input_audio_buffer.clear" });
+          state.micChunkBuffer = [];
+          handleLocalVoiceTurnAfterRecognition();
         }
         return;
-      }
-
-      const isSilentTail = state.speechActive && state.silenceFrameCount >= 3 && now - state.lastSpeechAt > 260;
-      const maxTurnReached = state.speechActive && now - state.speechStartedAt > 7000;
-      if (isSilentTail || maxTurnReached) {
-        state.speechActive = false;
-        state.speechFrameCount = 0;
-        state.silenceFrameCount = 0;
-        state.turnInFlight = true;
-        state.prespeechChunks = [];
-        state.listenCooldownUntil = now + 500;
-        sendWs({ type: "response.create" });
-        ui.status.textContent = "Processing…";
-        setAvatarState("talking_neutral");
       }
     };
   }).catch((error) => {
@@ -3932,10 +6317,16 @@ function startAdaptiveListen() {
 function stopAdaptiveListen() {
   state.vadRunning = false;
   state.autoListen = false;
+  stopBrowserRecognition();
+  clearTimeout(state.recognitionFinalTimer);
+  state.recognitionFinalTimer = null;
   state.speechActive = false;
   state.prespeechChunks = [];
+  state.turnAudioChunks = [];
   state.speechFrameCount = 0;
   state.silenceFrameCount = 0;
+  state.turnSpeechFrameCount = 0;
+  state.turnPeakRms = 0;
   state.speechStartedAt = 0;
   state.listenCooldownUntil = 0;
 
@@ -4040,3 +6431,100 @@ function blobToBase64(blob) {
 
 window.sendOptionChip = sendOptionChip;
 window.sendComboNav = sendComboNav;
+
+
+// ui1 (2026-10-16): bridge for the photo menu (apps/web/ui1.js). Taps, chat and voice share this cart;
+// every cart render and every applied action is announced so the photo screens update live.
+window.elviBridge = {
+  state,
+  addCartItem,
+  removeCartItem,
+  renderCart: () => renderCart(),
+  lineTotal: (line) => getCartLineTotalCents(line),
+  readback: (lines) => shortAddReadback(lines),
+  lang: () => getEffectiveLanguage(),
+};
+{
+  const baseRenderCart = renderCart;
+  renderCart = function (...args) {
+    const out = baseRenderCart.apply(this, args);
+    window.dispatchEvent(new CustomEvent("elvi:cart"));
+    return out;
+  };
+  const baseApplyActions = applyActions;
+  applyActions = function (actions, ...rest) {
+    const out = baseApplyActions.call(this, actions, ...rest);
+    try { window.dispatchEvent(new CustomEvent("elvi:actions", { detail: { actions: Array.isArray(actions) ? actions : [] } })); } catch {}
+    return out;
+  };
+}
+
+
+/* ui4: corrections ("actually make it only rice", "mejor de harina", "sin frijoles") edit the most recent
+   cart line that has a matching choice, instead of starting a new item. */
+const UI4_STRONG = /\b(actually|instead|make it|change|switch|mejor|cambia(lo|la|r|le)?|en vez|en lugar|que sea)\b/;
+const UI4_SOFT = /\b(solo|only|just|sin|without)\b/;
+function ui4Plain(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
+function ui4CorrectionText(text) {
+  return ui4Plain(text)
+    .replace(/\b(sin|no|without)\s+(los\s+)?(frijoles|beans)\b/g, "solo arroz")
+    .replace(/\b(sin|no|without)\s+(el\s+)?(arroz|rice)\b/g, "solo frijoles")
+    .replace(/\b(only|just)\s+rice\b/g, "solo arroz").replace(/\b(only|just)\s+beans\b/g, "solo frijoles");
+}
+function ui4OptionPhrases(name) {
+  const raw = String(name || "").replace(/\s*\(\+?\$[\d.]+\)\s*/g, " ").replace(/^\(\w+\)\s*/, "").replace(/^\d+\s*x\s+/i, "").replace(/\*+/g, "").trim();
+  const out = new Set([ui4Plain(raw)]);
+  raw.split(" / ").forEach((p) => out.add(ui4Plain(p)));
+  out.add(ui4Plain(raw.replace(/\s+-\s+[^/]*$/, "")));
+  out.add(ui4Plain(raw.split(" / ")[0].replace(/\s+-\s+\S+$/, "")));
+  return [...out].filter((p) => p.length >= 4);
+}
+function tryCartCorrection(text) {
+  if (!state.cart.length) return false;
+  const t = ui4CorrectionText(text);
+  if (!UI4_STRONG.test(t) && !(UI4_SOFT.test(t) && t.split(" ").length <= 4)) return false;
+  for (let li = state.cart.length - 1; li >= 0; li -= 1) {
+    const line = state.cart[li];
+    const groups = (line.item?.modifierGroups || []);
+    const mods = Array.isArray(line.modifiers) ? line.modifiers : [];
+    const modOf = (g) => mods.findIndex((m) => m.groupId === g.id || m.groupName === g.name || m.step === g.name || (g.options || []).some((o) => (o.name || o) === m.option));
+    const changes = [];
+    for (const g of groups) {
+      if ((g.maxSelections ?? 1) !== 1) continue;
+      // Two identical meat groups ("Item #1 / #2 meat"): which one is ambiguous, leave it to the conversation.
+      if (groups.filter((x) => (x.options || []).length === (g.options || []).length && x.name !== g.name && /carne|meat/i.test(x.name)).length && /carne|meat/i.test(g.name)) continue;
+      let best = null; let bestLen = 0;
+      for (const o of g.options || []) {
+        for (const ph of ui4OptionPhrases(o.name || o)) {
+          if (new RegExp(`(^|\\s)${ph.replace(/\s+/g, "\\s+")}(\\s|$)`).test(t) && ph.length > bestLen) { best = o; bestLen = ph.length; }
+        }
+      }
+      if (!best) continue;
+      const at = modOf(g);
+      const cur = at >= 0 ? mods[at] : null;
+      if (cur && cur.option === (best.name || best)) continue;
+      changes.push({ g, o: best, at });
+    }
+    if (!changes.length) continue;
+    const next = [...mods];
+    for (const { g, o, at } of changes) {
+      const name = o.name || o;
+      const priceDeltaCents = Number(o.priceDeltaCents || 0);
+      const repl = at >= 0
+        ? { ...next[at], option: name, ...("optionId" in next[at] ? { optionId: o.id } : {}), ...("priceDeltaCents" in next[at] ? { priceDeltaCents } : {}) }
+        : { groupId: g.id, groupName: g.name, option: name, optionId: o.id, priceDeltaCents, quantity: 1 };
+      if (at >= 0) next[at] = repl; else next.push(repl);
+    }
+    line.modifiers = next;
+    state.lastSelectedItem = line.item;
+    renderCart();
+    const es = getEffectiveLanguage() === "es";
+    const reply = `${es ? "Cambiado." : "Changed."} ${shortAddReadback([line])}`;
+    ui.reply.textContent = formatCentsForSpeech(reply);
+    try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "customer", text }, { role: "assistant", text: reply }); } catch {}
+    markLocalTurnReady();
+    void speakLocalText(reply, getEffectiveLanguage());
+    return true;
+  }
+  return false;
+}

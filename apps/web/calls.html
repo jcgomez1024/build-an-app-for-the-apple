@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Call Accuracy · Cocina Elvis</title>
+<link rel="icon" type="image/png" href="./img/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{--ink:#1d1d1f;--mut:#6b6b70;--bg:#f6f4ef;--card:#fff;--line:#e6e2d9;--ok:#1a8c3a;--okbg:#e5f6ea;--warn:#b26a00;--warnbg:#fff4dc;--bad:#c62828;--badbg:#fdeaea;--acc:#1471d6}
+  *{box-sizing:border-box}body{margin:0;font-family:"Space Grotesk",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{display:flex;align-items:center;gap:12px;padding:14px 22px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  header img{width:42px;height:42px}header h1{font-family:Syne,sans-serif;font-size:22px;margin:0}header .sp{flex:1}
+  select,button{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+  main{max-width:1200px;margin:0 auto;padding:18px;display:grid;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.kpi b{display:block;font-size:28px;font-family:Syne,sans-serif}.kpi span{color:var(--mut);font-size:13px}
+  h2{font-size:16px;margin:0 0 10px}
+  .chart{display:flex;align-items:flex-end;gap:6px;height:150px;position:relative;border-bottom:1px solid var(--line);padding-top:8px}
+  .chart .goal{position:absolute;left:0;right:0;border-top:2px dashed var(--ok);font-size:11px;color:var(--ok)}
+  .bar{flex:1;min-width:14px;max-width:46px;border-radius:6px 6px 0 0;background:var(--acc);position:relative}
+  .bar small{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mut);white-space:nowrap}
+  .bar i{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:10px;font-style:normal}
+  .tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button.on{background:var(--ink);color:#fff}
+  .layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
+  .list{display:grid;gap:8px;max-height:72vh;overflow:auto}
+  .call{border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 8px;background:#fff}
+  .call.on{outline:2px solid var(--acc)}.call .t{font-weight:700}.call .m{color:var(--mut);font-size:12px}
+  .badge{align-self:center;grid-row:span 2;font-weight:700;border-radius:999px;padding:4px 10px;font-size:13px}
+  .b-ok{background:var(--okbg);color:var(--ok)}.b-warn{background:var(--warnbg);color:var(--warn)}.b-bad{background:var(--badbg);color:var(--bad)}.b-na{background:#eee;color:var(--mut)}
+  .turns{display:grid;gap:6px;max-height:300px;overflow:auto}
+  .turn{padding:6px 10px;border-radius:10px;max-width:85%;font-size:14px}.turn.caller{background:#eef4ff;justify-self:start}.turn.staff{background:#f1efe9;justify-self:end}
+  .turn b{font-size:11px;color:var(--mut);display:block}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--mut)}
+  tr.miss td{background:var(--badbg)}tr.partial td{background:var(--warnbg)}.ch{color:var(--mut);font-size:12px}
+  .misses{margin:10px 0 0;padding-left:18px;color:var(--bad)}.empty{color:var(--mut);padding:20px;text-align:center}
+  .note{font-size:12px;color:var(--mut)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;background:#efe6ff;color:#5b2bb5;margin-left:6px;vertical-align:middle}
+  .filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}.filters button.on{background:var(--ink);color:#fff}
+  .exp textarea{width:100%;min-height:70px;font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px}
+  .exp .row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.exp .ask{color:var(--warn);font-size:13px;margin-top:6px}
+  @media (max-width:820px){.layout,.cmp{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><img src="./img/logo-cocina-elvis.png" alt="" /><h1>Call Accuracy</h1><span class="sp"></span>
+  <select id="days"><option value="7">7 días</option><option value="30" selected>30 días</option><option value="90">90 días</option></select>
+  <button id="reload">Actualizar</button></header>
+<main>
+  <section class="kpis">
+    <div class="card kpi"><b id="k-avg">–</b><span>Precisión con clientes (meta 95%) · <i id="k-scored">0</i> calificadas</span></div>
+    <div class="card kpi"><b id="k-train">–</b><span>Precisión en entrenamiento · <i id="k-tscored">0</i> calificadas</span></div>
+    <div class="card kpi"><b id="k-calls">–</b><span>Llamadas grabadas</span></div>
+    <div class="card kpi"><b id="k-missed">–</b><span>No contestadas</span></div>
+  </section>
+  <section class="card"><div class="tabs"><button data-p="daily" class="on">Diario</button><button data-p="weekly">Semanal</button></div>
+    <div class="chart" id="chart"></div><div class="note" style="margin-top:22px" id="sqnote"></div></section>
+  <section class="layout">
+    <div class="card"><h2>Llamadas</h2><div class="filters" id="filters"><button data-f="all" class="on">Todas</button><button data-f="customer">Clientes</button><button data-f="training">Entrenamiento</button></div><div class="list" id="list"></div></div>
+    <div class="card" id="detail"><div class="empty">Elige una llamada.</div></div>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const money = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
+const fmtTime = (iso) => new Date(iso).toLocaleString("es-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const badge = (s) => s === null ? `<span class="badge b-na">sin ticket</span>` : `<span class="badge ${s >= 95 ? "b-ok" : s >= 80 ? "b-warn" : "b-bad"}">${s}%</span>`;
+const lastDigits = (p) => (p ? "•••" + String(p).replace(/\D/g, "").slice(-4) : "");
+let data = null, period = "daily", current = null, filter = "all", draft = null;
+const tagHtml = (c) => c.source === "training" ? `<span class="tag">Entrenamiento</span>` : "";
+const shown = () => data.calls.map((c, i) => ({ c, i })).filter(({ c }) => filter === "all" || (filter === "training" ? c.source === "training" : c.source !== "training"));
+const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null); return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
+
+function chart() {
+  const rows = ((filter === "training" ? data?.trainingTrend : data?.trend)?.[period] || []).slice(-14);
+  const el = $("#chart");
+  if (!rows.length) { el.innerHTML = `<div class="empty" style="width:100%">Todavía no hay llamadas ${filter === "training" ? "de entrenamiento" : "de clientes"} calificadas.</div>`; return; }
+  el.innerHTML = `<div class="goal" style="bottom:${95 * 1.4}px">95%</div>` + rows.map((r) =>
+    `<div class="bar" style="height:${Math.max(4, r.avg * 1.4)}px;background:${r.avg >= 95 ? "var(--ok)" : r.avg >= 80 ? "var(--warn)" : "var(--bad)"}"><i>${r.avg}%</i><small>${esc(r.period.replace(/^wk /, "sem "))} (${r.calls})</small></div>`).join("");
+}
+
+function list() {
+  const calls = shown();
+  $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
+    <div class="call ${current === i ? "on" : ""}" data-i="${i}">
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · ticket " + money(c.ticket.totalCents) : ""}</div>
+    </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
+  document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
+}
+
+function linesTable(lines, pairs, side) {
+  if (!lines?.length) return `<div class="empty">${side === "ticket" ? "Sin ticket de Square en la ventana de tiempo." : "Elvi no armó orden."}</div>`;
+  return `<table><tr><th>Cant.</th><th>Artículo</th><th>Precio</th></tr>${lines.map((l) => {
+    const p = pairs.find((x) => x[side] && x[side].name === l.name && x[side].totalCents === l.totalCents && JSON.stringify(x[side].choices) === JSON.stringify(l.choices));
+    const cls = !pairs.length ? "" : !p || p.points === 0 ? "miss" : p.points < 100 ? "partial" : "";
+    return `<tr class="${cls}"><td>${l.quantity}</td><td>${esc(l.name)}<div class="ch">${esc(l.choices.join(", "))}</div></td><td>${money(l.totalCents)}</td></tr>`;
+  }).join("")}<tr><td></td><td><b>Total</b></td><td><b>${money(lines.reduce((a, l) => a + l.totalCents, 0))}</b></td></tr></table>`;
+}
+
+function detail() {
+  const c = data.calls[current];
+  if (!c) return;
+  $("#detail").innerHTML = `
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
+    <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ticket ${esc(c.ticket.id.slice(-6))} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
+    ${c.hasAudio ? `<audio controls preload="none" style="width:100%;margin:10px 0" src="/api/calls/${encodeURIComponent(c.recordingSid)}/audio"></audio>` : ""}
+    ${c.error ? `<div class="misses">Error al procesar: ${esc(c.error)}</div>` : ""}
+    <h2 style="margin-top:8px">Conversación</h2>
+    <div class="turns">${c.turns.length ? c.turns.map((t) => `<div class="turn ${t.speaker}"><b>${t.speaker === "caller" ? "Cliente" : "Staff"} · ${Number(t.start).toFixed(1)}s</b>${esc(t.text)}</div>`).join("") : `<div class="empty">Sin transcripción.</div>`}</div>
+    <div class="cmp" style="margin-top:14px">
+      <div><h2>Orden de Elvi</h2>${linesTable(c.elvi, c.pairs, "elvi")}</div>
+      <div><h2>${c.ticket?.matchedBy === "manual" ? "Orden esperada (a mano)" : "Ticket de Square"}</h2>${linesTable(c.ticket?.lines, c.pairs, "ticket")}</div>
+    </div>
+    ${c.source === "training" && (!c.ticket || c.ticket.matchedBy === "manual") && c.turns.length ? `
+    <div class="exp" style="margin-top:14px"><h2>Orden esperada</h2>
+      <div class="note">Sin ticket de Square: escribe lo que se pidió (una línea por artículo) para calificar a Elvi.</div>
+      <textarea id="exp-text" placeholder="2 tacos de bistec de comal&#10;2 tacos de chorizo de comal">${esc(draft?.sid === c.callSid ? draft.text : c.expected?.text || "")}</textarea>
+      <div class="row"><button id="exp-prev">Vista previa</button><button id="exp-save">Guardar y calificar</button>${c.expected ? `<button id="exp-clear">Borrar</button>` : ""}</div>
+      <div id="exp-out">${draft?.sid === c.callSid ? draft.html : ""}</div>
+    </div>` : ""}
+    ${c.misses.length ? `<ul class="misses">${c.misses.map((m) => `<li>${esc(m.detail)}</li>`).join("")}</ul>` : c.score !== null ? `<div class="note" style="color:var(--ok);margin-top:8px">✓ Coincide con el ticket.</div>` : ""}`;
+}
+
+async function expected(save, clear) {
+  const c = data.calls[current];
+  const text = $("#exp-text")?.value || "";
+  draft = { sid: c.callSid, text, html: `<div class="note">Procesando…</div>` };
+  $("#exp-out").innerHTML = draft.html;
+  const r = await fetch(`/api/calls/${encodeURIComponent(c.callSid)}/expected`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clear ? { clear: true } : { text, save }) });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) { draft.html = `<div class="ask">${esc(out.error || "Error")}</div>`; $("#exp-out").innerHTML = draft.html; return; }
+  if (clear || out.saved) { draft = null; await load(); return; }
+  draft.html = (out.lines?.length ? linesTable(out.lines, [], "ticket") : `<div class="ask">No se entendió ningún artículo.</div>`) + (out.open ? `<div class="ask">Falta: ${esc(out.open)}</div>` : "");
+  $("#exp-out").innerHTML = draft.html;
+}
+
+async function load() {
+  const r = await fetch(`/api/calls/accuracy?days=${$("#days").value}`);
+  data = await r.json();
+  if (!r.ok) { $("#list").innerHTML = `<div class="empty">${esc(data.error || "Error")}</div>`; return; }
+  const cust = avgOf(data.calls.filter((c) => c.source !== "training")), tr = avgOf(data.calls.filter((c) => c.source === "training"));
+  $("#k-avg").textContent = cust.avg === null ? "–" : cust.avg + "%"; $("#k-scored").textContent = cust.n;
+  $("#k-train").textContent = tr.avg === null ? "–" : tr.avg + "%"; $("#k-tscored").textContent = tr.n;
+  $("#k-calls").textContent = data.calls.filter((c) => c.turns.length).length;
+  $("#k-missed").textContent = data.calls.filter((c) => c.answered === false).length;
+  $("#sqnote").textContent = data.squareError ? `Square: ${data.squareError}` : `Tickets de Square revisados: ${data.ordersSearched} (solo lectura). Se empareja por teléfono y hora (2 min antes a 45 min después de la llamada).`;
+  if (current === null && data.calls.length) current = 0;
+  chart(); list(); detail();
+}
+document.addEventListener("click", (e) => {
+  if (e.target.id === "exp-prev") expected(false);
+  if (e.target.id === "exp-save") expected(true);
+  if (e.target.id === "exp-clear") expected(false, true);
+});
+document.querySelectorAll("#filters button").forEach((b) => b.onclick = () => {
+  filter = b.dataset.f; document.querySelectorAll("#filters button").forEach((x) => x.classList.toggle("on", x === b));
+  const first = shown()[0]; current = first ? first.i : null; chart(); list(); if (current !== null) detail(); else $("#detail").innerHTML = `<div class="empty">Sin llamadas.</div>`;
+});
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { period = b.dataset.p; document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b)); chart(); });
+$("#reload").onclick = load; $("#days").onchange = () => { current = null; load(); };
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,4226 @@
+{
+  "version": "3.1",
+  "description": "Canonical combo build guide generated from Menu Combo Items Online with Descriptions and Options.rtf. Optional salsa and extras are only added when explicitly selected.",
+  "comboItems": [
+    {
+      "id": "combo-mix",
+      "displayName": "COMBO Mix",
+      "price": 12.99,
+      "description": "The Combo Mix is a customizable combo that features a fresh mix of two items, including your choice of protein and a side.",
+      "itemNamePattern": "\\bcombo\\s+mix\\b",
+      "aliases": [
+        "combo mix",
+        "mix combo",
+        "combo mixto",
+        "mixto"
+      ],
+      "steps": [
+        {
+          "key": "item-1-option",
+          "label": "First item",
+          "kind": "itemOption",
+          "groupNamePattern": "item.*1.*option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which first item they want.",
+          "options": [
+            {
+              "name": "1 x Taco Taquero / Street Taco",
+              "code": "TST",
+              "aliases": [
+                "tst",
+                "street",
+                "street taco",
+                "taquero",
+                "taquera",
+                "tacos taqueros"
+              ]
+            },
+            {
+              "name": "1 x Taco Harina / Flour",
+              "code": "THR",
+              "aliases": [
+                "thr",
+                "flour",
+                "harina",
+                "flour tacos",
+                "tacos harina"
+              ]
+            },
+            {
+              "name": "1 x Taco Comal / Homemade",
+              "code": "TCO",
+              "aliases": [
+                "tco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "corn tacos",
+                "tacos comal"
+              ]
+            },
+            {
+              "name": "1 x Torta",
+              "code": "TO",
+              "aliases": [
+                "to",
+                "tortas",
+                "torta"
+              ]
+            },
+            {
+              "name": "1 x Gordita",
+              "code": "GD",
+              "aliases": [
+                "gd",
+                "gorditas",
+                "gordita"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Taquera / Street Quesadilla",
+              "code": "QST",
+              "aliases": [
+                "qst",
+                "street quesadilla",
+                "quesadilla taquera",
+                "taquera quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Harina / Flour",
+              "code": "QHR",
+              "aliases": [
+                "qhr",
+                "flour",
+                "harina",
+                "quesadilla harina",
+                "harina quesadilla",
+                "flour quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Comal / Homemade",
+              "code": "QCO",
+              "aliases": [
+                "qco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "quesadilla comal",
+                "comal quesadilla",
+                "homemade quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Queso Torta",
+              "code": "QTO",
+              "aliases": [
+                "qto",
+                "queso tortas",
+                "queso torta"
+              ]
+            },
+            {
+              "name": "1 x Queso Gordita",
+              "code": "QGD",
+              "aliases": [
+                "qgd",
+                "queso gorditas",
+                "queso gordita"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-1-meat",
+          "label": "First item meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*1.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the first item meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-option",
+          "label": "Second item",
+          "kind": "itemOption",
+          "groupNamePattern": "item.*2.*option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which second item they want.",
+          "options": [
+            {
+              "name": "1 x Taco Taquero / Street Taco",
+              "code": "TST",
+              "aliases": [
+                "tst",
+                "street",
+                "street taco",
+                "taquero",
+                "taquera",
+                "tacos taqueros"
+              ]
+            },
+            {
+              "name": "1 x Taco Harina / Flour",
+              "code": "THR",
+              "aliases": [
+                "thr",
+                "flour",
+                "harina",
+                "flour tacos",
+                "tacos harina"
+              ]
+            },
+            {
+              "name": "1 x Taco Comal / Homemade",
+              "code": "TCO",
+              "aliases": [
+                "tco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "corn tacos",
+                "tacos comal"
+              ]
+            },
+            {
+              "name": "1 x Torta",
+              "code": "TO",
+              "aliases": [
+                "to",
+                "tortas",
+                "torta"
+              ]
+            },
+            {
+              "name": "1 x Gordita",
+              "code": "GD",
+              "aliases": [
+                "gd",
+                "gorditas",
+                "gordita"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Taquera / Street Quesadilla",
+              "code": "QST",
+              "aliases": [
+                "qst",
+                "street quesadilla",
+                "quesadilla taquera",
+                "taquera quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Harina / Flour",
+              "code": "QHR",
+              "aliases": [
+                "qhr",
+                "flour",
+                "harina",
+                "quesadilla harina",
+                "harina quesadilla",
+                "flour quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Quesadilla Comal / Homemade",
+              "code": "QCO",
+              "aliases": [
+                "qco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "quesadilla comal",
+                "comal quesadilla",
+                "homemade quesadilla"
+              ]
+            },
+            {
+              "name": "1 x Queso Torta",
+              "code": "QTO",
+              "aliases": [
+                "qto",
+                "queso tortas",
+                "queso torta"
+              ]
+            },
+            {
+              "name": "1 x Queso Gordita",
+              "code": "QGD",
+              "aliases": [
+                "qgd",
+                "queso gorditas",
+                "queso gordita"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-meat",
+          "label": "Second item meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*2.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the second item meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "combo-side",
+          "label": "Combo side",
+          "kind": "side",
+          "groupNamePattern": "combo.*side|choice.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which side they want.",
+          "options": [
+            {
+              "name": "Arroz - Rice and Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "arroz y frijoles",
+                "frijoles y arroz",
+                "rice and beans"
+              ]
+            },
+            {
+              "name": "Solo Arroz - Rice",
+              "aliases": [
+                "solo arroz",
+                "only rice",
+                "rice only"
+              ]
+            },
+            {
+              "name": "Solo Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "solo frijol",
+                "solo frijoles",
+                "only beans",
+                "beans only",
+                "solo beans"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo-gorditas",
+      "displayName": "COMBO Gorditas",
+      "price": 11.99,
+      "description": "The Combo Gorditas is two fresh thick, handmade corn masa patties are crispy on the outside and soft inside, filled with your choice of protein and traditional toppings and a side.",
+      "itemNamePattern": "\\bcombo\\s+gorditas\\b",
+      "aliases": [
+        "combo gorditas",
+        "gorditas combo",
+        "combo de gorditas",
+        "gordita combo"
+      ],
+      "steps": [
+        {
+          "key": "gordita-option",
+          "label": "Gordita option",
+          "kind": "itemOption",
+          "groupNamePattern": "choice.*option|option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask if they want regular Gorditas or Queso Gorditas.",
+          "options": [
+            {
+              "name": "2 x Gorditas",
+              "code": "GD",
+              "price_note": "+$0.00",
+              "aliases": [
+                "gd",
+                "gorditas",
+                "gordita"
+              ]
+            },
+            {
+              "name": "2 x Queso Gorditas",
+              "code": "QGD",
+              "price_note": "+$1.00",
+              "aliases": [
+                "qgd",
+                "queso gorditas",
+                "queso gordita"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-1-meat",
+          "label": "First gordita meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*1.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the first gordita meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-meat",
+          "label": "Second gordita meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*2.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the second gordita meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "combo-side",
+          "label": "Combo side",
+          "kind": "side",
+          "groupNamePattern": "combo.*side|choice.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which side they want.",
+          "options": [
+            {
+              "name": "Arroz - Rice and Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "arroz y frijoles",
+                "frijoles y arroz",
+                "rice and beans"
+              ]
+            },
+            {
+              "name": "SOLO Arroz - Rice",
+              "aliases": [
+                "solo arroz",
+                "only rice",
+                "rice only"
+              ]
+            },
+            {
+              "name": "SOLO Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "solo frijol",
+                "solo frijoles",
+                "only beans",
+                "beans only",
+                "solo beans"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo-tortas",
+      "displayName": "COMBO Tortas",
+      "price": 11.99,
+      "description": "The Combo Tortas is two tortas fresh bolillo bread, Each torta is packed with your choice of meat, and classic toppings, flavorful sandwich. and a side.",
+      "itemNamePattern": "\\bcombo\\s+tortas\\b",
+      "aliases": [
+        "combo tortas",
+        "tortas combo",
+        "combo de tortas",
+        "torta combo"
+      ],
+      "steps": [
+        {
+          "key": "torta-option",
+          "label": "Torta option",
+          "kind": "itemOption",
+          "groupNamePattern": "choice.*option|option",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask if they want regular Tortas or Queso Tortas.",
+          "options": [
+            {
+              "name": "2 x Tortas",
+              "code": "TO",
+              "price_note": "+$0.00",
+              "aliases": [
+                "to",
+                "tortas",
+                "torta"
+              ]
+            },
+            {
+              "name": "2 x Queso Tortas",
+              "code": "QTO",
+              "price_note": "+$1.00",
+              "aliases": [
+                "qto",
+                "queso tortas",
+                "queso torta"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-1-meat",
+          "label": "First torta meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*1.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the first torta meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-meat",
+          "label": "Second torta meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*2.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the second torta meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "combo-side",
+          "label": "Combo side",
+          "kind": "side",
+          "groupNamePattern": "combo.*side|choice.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which side they want.",
+          "options": [
+            {
+              "name": "Arroz - Rice and Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "arroz y frijoles",
+                "frijoles y arroz",
+                "rice and beans"
+              ]
+            },
+            {
+              "name": "SOLO Arroz - Rice",
+              "aliases": [
+                "solo arroz",
+                "only rice",
+                "rice only"
+              ]
+            },
+            {
+              "name": "SOLO Frijoles Refritos - Refried Beans",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "solo frijol",
+                "solo frijoles",
+                "only beans",
+                "beans only",
+                "solo beans"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo-burrito",
+      "displayName": "COMBO Burrito",
+      "price": 10.99,
+      "description": "The Combo Burrito is one burrito filled with your choice of meat, rice, refried beans, sour cream, cheese and classic toppings, wrapped in a warm flour tortilla and a Dip with Chips side.",
+      "itemNamePattern": "\\bcombo\\s+burrito\\b",
+      "aliases": [
+        "combo burrito",
+        "burrito combo",
+        "combo de burrito"
+      ],
+      "steps": [
+        {
+          "key": "burrito-size",
+          "label": "Burrito size",
+          "kind": "itemOption",
+          "groupNamePattern": "tortilla|size|grande",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask what size burrito they want.",
+          "options": [
+            {
+              "name": "Regular '10",
+              "price_note": "+$0.00",
+              "aliases": [
+                "regular",
+                "10 inch",
+                "ten inch"
+              ]
+            },
+            {
+              "name": "Grande '12",
+              "price_note": "+$2.00",
+              "aliases": [
+                "grande",
+                "large",
+                "12 inch",
+                "twelve inch"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "burrito-meat",
+          "label": "Burrito meat",
+          "kind": "meat",
+          "groupNamePattern": "carne|meat|filling",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask what meat they want inside the burrito.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Chile Relleno De Queso / Cheese Chile Relleno",
+              "aliases": [
+                "chile relleno"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "burrito-options",
+          "label": "Burrito options",
+          "kind": "multi",
+          "groupNamePattern": "burrito.*options|choice.*options",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 16,
+          "selection_type": "multiple",
+          "instruction": "Ask what they want inside the burrito.",
+          "options": [
+            {
+              "name": "Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "DOUBLE Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "double",
+              "aliases": [
+                "double beans",
+                "extra beans",
+                "doble frijoles",
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans"
+              ]
+            },
+            {
+              "name": "Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "DOUBLE Arroz / Rice",
+              "family": "rice",
+              "value": "double",
+              "aliases": [
+                "double rice",
+                "extra rice",
+                "doble arroz"
+              ]
+            },
+            {
+              "name": "Queso Fresco / Cheese",
+              "family": "cheese",
+              "value": "normal",
+              "aliases": [
+                "cheese",
+                "queso fresco",
+                "queso",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "DOUBLE Queso Fresco / Cheese",
+              "family": "cheese",
+              "value": "double",
+              "aliases": [
+                "double cheese",
+                "extra cheese",
+                "doble queso",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "Crema / Sour Cream",
+              "family": "crema",
+              "value": "normal",
+              "aliases": [
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "DOUBLE Crema / Sour Cream",
+              "family": "crema",
+              "value": "double",
+              "aliases": [
+                "double sour cream",
+                "extra sour cream",
+                "double crema",
+                "extra crema"
+              ]
+            },
+            {
+              "name": "Cebolla / Onion",
+              "family": "onion",
+              "value": "normal",
+              "aliases": [
+                "onion",
+                "cebolla"
+              ]
+            },
+            {
+              "name": "DOUBLE Cebolla / Onion",
+              "family": "onion",
+              "value": "double",
+              "aliases": [
+                "double onion",
+                "extra onion",
+                "doble cebolla"
+              ]
+            },
+            {
+              "name": "Cilantro",
+              "family": "cilantro",
+              "value": "normal",
+              "aliases": [
+                "cilantro"
+              ]
+            },
+            {
+              "name": "DOUBLE Cilantro",
+              "family": "cilantro",
+              "value": "double",
+              "aliases": [
+                "double cilantro",
+                "extra cilantro"
+              ]
+            },
+            {
+              "name": "Queso Dip",
+              "family": "queso-dip",
+              "value": "normal",
+              "aliases": [
+                "queso dip"
+              ]
+            },
+            {
+              "name": "DOUBLE Queso Dip",
+              "family": "queso-dip",
+              "value": "double",
+              "aliases": [
+                "double queso dip",
+                "extra queso dip",
+                "queso dip"
+              ]
+            },
+            {
+              "name": "Guacamole Dip",
+              "family": "guacamole-dip",
+              "value": "normal",
+              "aliases": [
+                "guacamole",
+                "guacamole dip"
+              ]
+            },
+            {
+              "name": "DOUBLE Guacamole Dip",
+              "family": "guacamole-dip",
+              "value": "double",
+              "aliases": [
+                "double guacamole",
+                "extra guacamole",
+                "guacamole dip"
+              ]
+            }
+          ],
+          "supportsOnly": true
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "burrito-side",
+          "label": "Dip with chips side",
+          "kind": "side",
+          "groupNamePattern": "dip.*chips|chips.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which dip with chips side they want.",
+          "options": [
+            {
+              "name": "Pico de Gallo Dip with Chips Side",
+              "price_note": "+$0.00",
+              "aliases": [
+                "pico",
+                "pico de gallo",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "de lujo"
+              ]
+            },
+            {
+              "name": "Guacamole Dip with Chips Side",
+              "price_note": "+$1.00",
+              "aliases": [
+                "guacamole",
+                "guac",
+                "guacamole dip"
+              ]
+            },
+            {
+              "name": "Queso Dip with Chips Side",
+              "price_note": "+$1.00",
+              "aliases": [
+                "queso",
+                "queso dip"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            },
+            {
+              "name": "EXTRA QUESO DIP 5oz SIDE",
+              "aliases": [
+                "queso dip"
+              ]
+            },
+            {
+              "name": "EXTRA GUACAMOLE 5oz SIDE"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo-quesadillas",
+      "displayName": "COMBO Quesadillas",
+      "price": 10.99,
+      "description": "The Combo Quesadillas is two quesadillas filled with melted cheese and your choice of protein, served golden, cheesy and a side.",
+      "itemNamePattern": "\\bcombo\\s+quesadillas\\b",
+      "aliases": [
+        "combo quesadillas",
+        "quesadilla combo",
+        "quesadillas combo",
+        "combo de quesadillas"
+      ],
+      "steps": [
+        {
+          "key": "quesadilla-shell",
+          "label": "Quesadilla tortilla",
+          "kind": "itemOption",
+          "groupNamePattern": "tortilla|shell|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which tortilla style they want for the quesadilla combo.",
+          "options": [
+            {
+              "name": "2 x Quesadillas Taquera / Street Quesadilla",
+              "code": "QST",
+              "price_note": "+$0.00",
+              "aliases": [
+                "qst",
+                "street quesadilla",
+                "quesadilla taquera",
+                "taquera quesadilla"
+              ]
+            },
+            {
+              "name": "2 x Quesadillas Harina / Flour",
+              "code": "QHR",
+              "price_note": "+$1.00",
+              "aliases": [
+                "qhr",
+                "flour",
+                "harina",
+                "quesadilla harina",
+                "harina quesadilla",
+                "flour quesadilla"
+              ]
+            },
+            {
+              "name": "2 x Quesadillas Comal / Homemade",
+              "code": "QCO",
+              "price_note": "+$2.00",
+              "aliases": [
+                "qco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "quesadilla comal",
+                "comal quesadilla",
+                "homemade quesadilla"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-1-meat",
+          "label": "First quesadilla meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*1.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the first quesadilla meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-meat",
+          "label": "Second quesadilla meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*2.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the second quesadilla meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "combo-side",
+          "label": "Combo side",
+          "kind": "side",
+          "groupNamePattern": "combo.*side|choice.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which side they want.",
+          "options": [
+            {
+              "name": "Arroz - Rice and Frijoles Refritos - Refried Beans side",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "arroz y frijoles",
+                "frijoles y arroz",
+                "rice and beans"
+              ]
+            },
+            {
+              "name": "SOLO Arroz - Rice side",
+              "aliases": [
+                "solo arroz",
+                "only rice",
+                "rice only"
+              ]
+            },
+            {
+              "name": "SOLO Frijoles Refritos - Refried Beans side",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "solo frijol",
+                "solo frijoles",
+                "only beans",
+                "beans only",
+                "solo beans"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo-tacos",
+      "displayName": "COMBO Tacos",
+      "price": 9.99,
+      "description": "The Combo Tacos is two tacos made fresh to order with your choice of meat and a side.",
+      "itemNamePattern": "\\bcombo\\s+tacos\\b",
+      "aliases": [
+        "combo tacos",
+        "taco combo",
+        "tacos combo",
+        "combo de tacos"
+      ],
+      "steps": [
+        {
+          "key": "taco-shell",
+          "label": "Taco tortilla",
+          "kind": "itemOption",
+          "groupNamePattern": "tortilla|shell|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which tortilla style they want for the taco combo.",
+          "options": [
+            {
+              "name": "2 x Tacos Taquero / Street Taco",
+              "code": "TST",
+              "price_note": "+$0.00",
+              "aliases": [
+                "tst",
+                "street",
+                "street taco",
+                "taquero",
+                "taquera",
+                "tacos taqueros"
+              ]
+            },
+            {
+              "name": "2 x Tacos Harina / Flour",
+              "code": "THR",
+              "price_note": "+$1.00",
+              "aliases": [
+                "thr",
+                "flour",
+                "harina",
+                "flour tacos",
+                "tacos harina"
+              ]
+            },
+            {
+              "name": "2 x Tacos Comal / Homemade",
+              "code": "TCO",
+              "price_note": "+$2.00",
+              "aliases": [
+                "tco",
+                "comal",
+                "homemade",
+                "homemade corn",
+                "corn tacos",
+                "tacos comal"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-1-meat",
+          "label": "First taco meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*1.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the first taco meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "item-2-meat",
+          "label": "Second taco meat",
+          "kind": "meat",
+          "groupNamePattern": "item.*2.*(carne|meat|filling)",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask for the second taco meat.",
+          "options": [
+            {
+              "name": "1 x Bistec / Steak",
+              "aliases": [
+                "bistec",
+                "steak"
+              ]
+            },
+            {
+              "name": "1 x Cabeza / Beef Head",
+              "aliases": [
+                "cabeza",
+                "beef head"
+              ]
+            },
+            {
+              "name": "1 x Carnitas / Pulled Pork",
+              "aliases": [
+                "carnitas",
+                "pulled pork"
+              ]
+            },
+            {
+              "name": "1 x Chorizo / Mexican Sausage",
+              "aliases": [
+                "chorizo",
+                "mexican sausage",
+                "sausage"
+              ]
+            },
+            {
+              "name": "1 x Costilla / Beef Rib",
+              "aliases": [
+                "costilla",
+                "beef rib",
+                "rib"
+              ]
+            },
+            {
+              "name": "1 x Pollo / Chicken",
+              "aliases": [
+                "pollo",
+                "chicken"
+              ]
+            },
+            {
+              "name": "1 x Alpastor / Roasted Pork",
+              "aliases": [
+                "alpastor",
+                "roasted pork",
+                "al pastor",
+                "pastor"
+              ]
+            },
+            {
+              "name": "1 x Buche / Pork Stomach",
+              "aliases": [
+                "buche",
+                "pork stomach"
+              ]
+            },
+            {
+              "name": "1 x Lengua / Beef Tongue",
+              "aliases": [
+                "lengua",
+                "beef tongue",
+                "tongue"
+              ]
+            },
+            {
+              "name": "1 x Tripa / Beef Tripe",
+              "aliases": [
+                "tripa",
+                "beef tripe",
+                "tripe"
+              ]
+            },
+            {
+              "name": "1 x Prensado / Spicy Pork",
+              "aliases": [
+                "prensado",
+                "spicy pork"
+              ]
+            },
+            {
+              "name": "1 x Duro / Pork Rinds",
+              "aliases": [
+                "duro",
+                "pork rinds"
+              ]
+            },
+            {
+              "name": "1 x Deshebrada / Shredded Beef with Potatoes",
+              "aliases": [
+                "deshebrada",
+                "shredded beef with potatoes",
+                "shredded beef"
+              ]
+            },
+            {
+              "name": "1 x Picadillo / Ground Beef with Potatoes",
+              "aliases": [
+                "picadillo",
+                "ground beef with potatoes",
+                "ground beef",
+                "carne molida",
+                "molida"
+              ]
+            },
+            {
+              "name": "1 x Nopales con Papas / Cacti with Potatoes",
+              "aliases": [
+                "nopales con papas",
+                "cacti with potatoes",
+                "nopales",
+                "cactus with potatoes"
+              ]
+            },
+            {
+              "name": "1 x Papas Con Rajas / Poblano with Potatoes",
+              "aliases": [
+                "papas con rajas",
+                "poblano with potatoes",
+                "rajas con papas",
+                "rajas",
+                "papas rajas"
+              ]
+            },
+            {
+              "name": "1 x Huevo con Chile / Spicy Egg",
+              "aliases": [
+                "huevo con chile",
+                "spicy egg",
+                "huevo",
+                "egg"
+              ]
+            },
+            {
+              "name": "1 x Vegetales / Vegetarian",
+              "aliases": [
+                "vegetales",
+                "vegetarian",
+                "veggie"
+              ]
+            },
+            {
+              "name": "1 x Frijoles Refritos / Refried Beans",
+              "family": "beans",
+              "value": "normal",
+              "aliases": [
+                "frijoles refritos",
+                "refried beans",
+                "frijol",
+                "frijoles",
+                "beans"
+              ]
+            },
+            {
+              "name": "1 x Arroz / Rice",
+              "family": "rice",
+              "value": "normal",
+              "aliases": [
+                "arroz",
+                "rice"
+              ]
+            },
+            {
+              "name": "1 x Queso Derretido / Melted Cheese",
+              "aliases": [
+                "queso derretido",
+                "melted cheese"
+              ]
+            },
+            {
+              "name": "1 x Birria de Chivo / Goat Birria",
+              "aliases": [
+                "birria de chivo",
+                "goat birria",
+                "birria",
+                "chivo"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "combo-side",
+          "label": "Combo side",
+          "kind": "side",
+          "groupNamePattern": "combo.*side|choice.*side|side",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask which side they want.",
+          "options": [
+            {
+              "name": "Arroz - Rice and Frijoles Refritos - Refried Beans side",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "arroz y frijoles",
+                "frijoles y arroz",
+                "rice and beans"
+              ]
+            },
+            {
+              "name": "SOLO Arroz - Rice side",
+              "aliases": [
+                "solo arroz",
+                "only rice",
+                "rice only"
+              ]
+            },
+            {
+              "name": "SOLO Frijoles Refritos - Refried Beans side",
+              "aliases": [
+                "frijoles",
+                "frijol",
+                "frijoles refritos",
+                "refried beans",
+                "beans",
+                "solo frijol",
+                "solo frijoles",
+                "only beans",
+                "beans only",
+                "solo beans"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "regular-deluxe",
+          "label": "Regular or deluxe",
+          "kind": "regularDeluxe",
+          "groupNamePattern": "deluxe|regular|choice",
+          "required": true,
+          "minSelections": 1,
+          "maxSelections": 1,
+          "selection_type": "single",
+          "instruction": "Ask whether they want regular or deluxe toppings.",
+          "options": [
+            {
+              "name": "Onion, cilantro, and lime on the side (on Regular)",
+              "aliases": [
+                "onion cilantro",
+                "lime on the side",
+                "regular",
+                "normal",
+                "onion cilantro lime",
+                "cebolla cilantro limon"
+              ]
+            },
+            {
+              "name": "Lettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)",
+              "aliases": [
+                "lettuce pico de gallo fresco cheese",
+                "sour cream",
+                "deluxe",
+                "preparada",
+                "preparado",
+                "lechuga pico queso crema",
+                "de lujo",
+                "queso fresco",
+                "fresco cheese",
+                "fresh cheese"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "salsa",
+          "label": "Salsa",
+          "kind": "salsa",
+          "groupNamePattern": "salsa",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": 1,
+          "selection_type": "optional_single",
+          "instruction": "Ask which salsa they prefer.",
+          "options": [
+            {
+              "name": "Mild Salsa Asada",
+              "aliases": [
+                "mild salsa asada",
+                "asada",
+                "salsa asada",
+                "mild asada"
+              ]
+            },
+            {
+              "name": "Mild Salsa Tomato",
+              "aliases": [
+                "mild salsa tomato",
+                "tomato",
+                "tomate",
+                "salsa tomato",
+                "salsa tomate",
+                "mild tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "Medium Salsa Verde",
+              "aliases": [
+                "medium salsa verde",
+                "verde",
+                "salsa verde",
+                "medium verde"
+              ]
+            },
+            {
+              "name": "Hot Salsa Roja",
+              "aliases": [
+                "hot salsa roja",
+                "roja",
+                "salsa roja",
+                "hot roja"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "extras",
+          "label": "Extras",
+          "kind": "extras",
+          "groupNamePattern": "extras?",
+          "required": false,
+          "minSelections": 0,
+          "maxSelections": null,
+          "selection_type": "optional_multi",
+          "instruction": "Ask if they want extras. Only add explicitly selected extras.",
+          "options": [
+            {
+              "name": "EXTRA SIDE Crema / Sour Cream",
+              "aliases": [
+                "extra side crema",
+                "sour cream",
+                "crema"
+              ]
+            },
+            {
+              "name": "EXTRA SIDE Queso Fresco / Fresco Cheese",
+              "aliases": [
+                "extra side queso fresco",
+                "fresco cheese",
+                "queso fresco",
+                "fresh cheese"
+              ]
+            },
+            {
+              "name": "EXTRA Half Limon / Lime",
+              "aliases": [
+                "extra half limon",
+                "lime",
+                "half limon",
+                "half lime",
+                "medio limon"
+              ]
+            },
+            {
+              "name": "EXTRA Guacamole Salsa 2oz",
+              "aliases": [
+                "extra guacamole salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Asada 2oz",
+              "aliases": [
+                "extra asada salsa",
+                "asada",
+                "salsa asada"
+              ]
+            },
+            {
+              "name": "EXTRA Mild Salsa Tomato 2oz",
+              "aliases": [
+                "extra tomato salsa",
+                "extra salsa tomate",
+                "tomate",
+                "salsa tomate",
+                "salsa tomato",
+                "tomato salsa"
+              ]
+            },
+            {
+              "name": "EXTRA Medium Salsa Verde 2oz",
+              "aliases": [
+                "extra salsa verde",
+                "verde",
+                "salsa verde"
+              ]
+            },
+            {
+              "name": "EXTRA Hot Salsa Roja 2oz",
+              "aliases": [
+                "extra salsa roja",
+                "roja",
+                "salsa roja"
+              ]
+            },
+            {
+              "name": "EXTRA Cebolla y Chiles Asados",
+              "aliases": [
+                "extra cebolla",
+                "chiles asados",
+                "cebolla y chiles asados",
+                "cebolla"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

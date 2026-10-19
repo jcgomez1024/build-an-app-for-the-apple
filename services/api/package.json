@@ -7,7 +7,13 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:guides": "tsx scripts/build-guides.ts",
+    "check:guides": "tsx scripts/check-guides.ts",
+    "build:pack-guides": "tsx scripts/pack-especial-guides.ts",
+    "check:pack-guides": "tsx scripts/pack-especial-guides.ts --check",
+    "sync:site-menu": "tsx scripts/site-menu-sync.ts",
+    "check:site-menu": "tsx scripts/check-site-menu.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

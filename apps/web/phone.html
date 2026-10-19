@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Teléfono · Cocina Elvis</title>
+<link rel="icon" href="img/logo-cocina-elvis.png">
+<style>
+  :root { --red:#c8102e; --green:#178a3e; --amber:#e8a317; --ink:#1d1d1f; --muted:#6b6b70; --bg:#f5f2ec; --card:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { display:flex; align-items:center; gap:12px; padding:12px 18px; background:#fff; border-bottom:1px solid #e6e1d8; position:sticky; top:0; z-index:2; }
+  header img { height:40px; }
+  header h1 { font-size:20px; margin:0; flex:1; }
+  .pill { padding:6px 12px; border-radius:999px; font-weight:700; font-size:14px; background:#eee; color:var(--muted); }
+  .pill.on { background:#dff3e6; color:var(--green); } .pill.off { background:#fde3e6; color:var(--red); }
+  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:16px; }
+  .card { background:var(--card); border-radius:18px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { margin:0 0 10px; font-size:17px; display:flex; justify-content:space-between; align-items:center; }
+  .count { background:var(--red); color:#fff; border-radius:999px; padding:2px 10px; font-size:14px; }
+  .count.zero { background:#ddd; color:#555; }
+  .caller { display:flex; align-items:center; gap:12px; padding:10px; border-radius:12px; background:#faf8f4; margin-top:8px; }
+  .caller .who { flex:1; min-width:0; }
+  .caller b { font-size:18px; display:block; }
+  .caller small { color:var(--muted); font-size:14px; }
+  .badge { font-size:12px; font-weight:700; padding:2px 8px; border-radius:6px; background:#efe7ff; color:#5b2bbf; margin-left:6px; vertical-align:middle; }
+  .badge.lang { background:#e7f0ff; color:#1f4fbf; }
+  button { font:inherit; font-weight:700; border:0; border-radius:14px; padding:14px 18px; cursor:pointer; font-size:17px; }
+  button:disabled { opacity:.45; cursor:default; }
+  .answer { background:var(--green); color:#fff; min-width:130px; }
+  .hold { background:var(--amber); color:#222; } .hang { background:var(--red); color:#fff; } .mute { background:#e9e9ee; color:#222; }
+  .mute.on { background:#222; color:#fff; }
+  .ringing .answer { animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { transform:scale(1.06); box-shadow:0 0 0 8px rgba(23,138,62,.18); } }
+  #activeCard { border:3px solid var(--green); display:none; }
+  #activeCard .big { font-size:28px; font-weight:800; }
+  #activeCard .num { font-size:20px; color:var(--muted); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .actions button { flex:1; min-width:120px; }
+  .empty { color:var(--muted); padding:8px 2px; }
+  .vm { border-top:1px solid #eee; padding:10px 0; }
+  .vm p { margin:6px 0; }
+  .vm .order { font-size:14px; background:#f3fbf5; border-radius:8px; padding:6px 8px; }
+  #login { max-width:380px; margin:60px auto; text-align:center; }
+  #login input { font-size:28px; letter-spacing:8px; text-align:center; width:100%; padding:12px; border-radius:12px; border:1px solid #ccc; margin:12px 0; }
+  #login button { width:100%; background:var(--red); color:#fff; }
+  .err { color:var(--red); min-height:22px; }
+  #app { display:none; }
+
+  /* calllog1: call log (every incoming call) */
+  .left-col { display:grid; gap:16px; align-content:start; min-width:0; }
+  .cl-head { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  .cl-filters { display:flex; gap:6px; }
+  .cl-filters button { padding:6px 12px; font-size:14px; border-radius:999px; background:#efece6; color:#333; }
+  .cl-filters button.on { background:var(--red); color:#fff; }
+  .cl-sum { color:var(--muted); font-size:14px; margin:6px 0 4px; font-weight:600; }
+  .cl-day { font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 0 4px; }
+  .cl-row { display:grid; grid-template-columns:78px 1fr auto; gap:4px 10px; align-items:center; padding:9px 10px; border-radius:12px; background:#faf8f4; margin-top:6px; border-left:4px solid transparent; }
+  .cl-row.missed { background:#fff3f4; border-left-color:var(--red); }
+  .cl-row.rejected { opacity:.6; }
+  .cl-time { font-weight:800; font-size:15px; white-space:nowrap; }
+  .cl-who b { font-size:16px; }
+  .cl-who small, .cl-meta { color:var(--muted); font-size:13px; }
+  .cl-line { font-size:11px; font-weight:800; padding:1px 7px; border-radius:6px; background:#e7f0ff; color:#1f4fbf; margin-left:6px; vertical-align:middle; }
+  .cl-out { font-size:14px; font-weight:700; }
+  .cl-out.ok { color:var(--green); } .cl-out.bad { color:var(--red); } .cl-out.vm { color:#9a5b00; } .cl-out.na { color:var(--muted); }
+  .cl-acts { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+  .cl-acts button, .cl-acts a { padding:6px 10px; font-size:13px; border-radius:10px; background:#e9e9ee; color:#222; text-decoration:none; font-weight:700; }
+  .cl-acts a.call { background:var(--green); color:#fff; }
+  .tag-test { font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px; background:#efe7ff; color:#5b2bbf; margin-left:6px; vertical-align:middle; }
+
+  /* Elvi kitchen ticket (Square thermal style) */
+  .ticket-wrap { display:grid; grid-template-columns: 1fr minmax(260px, 300px); gap:16px; align-items:start; }
+  @media (max-width:820px) { .ticket-wrap { grid-template-columns: 1fr; } }
+  .ticket-panel { background:#2a2a2e; border-radius:18px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .ticket-panel h2 { color:#f5f2ec; margin:0 0 10px; font-size:17px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .ticket-panel .hint { color:#a8a8ae; font-size:12px; font-weight:500; margin:0 0 10px; }
+  .ticket-paper {
+    background:#fff; color:#111; width:100%; max-width:280px; margin:0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size:12px; line-height:1.35; padding:14px 12px 22px;
+    box-shadow:0 4px 18px rgba(0,0,0,.35); border-radius:2px;
+  }
+  .ticket-paper .top-name { font-size:22px; font-weight:800; text-align:left; margin:0; letter-spacing:-0.02em; }
+  .ticket-paper .source { font-size:12px; font-weight:500; margin:2px 0 6px; color:#222; }
+  .ticket-paper .phone { font-size:12px; margin:4px 0 0; color:#222; }
+  .ticket-paper .rule { border:0; border-top:1px solid #111; margin:6px 0; }
+  .ticket-paper .dt { display:flex; justify-content:space-between; gap:8px; font-size:11px; }
+  .ticket-paper .fulfill { text-align:center; font-weight:700; letter-spacing:0.02em; margin:4px 0; font-size:12px; text-transform:none; }
+  .ticket-paper .ready { text-align:center; font-size:11px; margin:2px 0 4px; }
+  .ticket-paper .deliver { font-size:11px; margin:6px 0; }
+  .ticket-paper .deliver b { display:block; margin-bottom:2px; }
+  .ticket-paper .item { margin:10px 0 4px; }
+  .ticket-paper .item-head { font-size:14px; font-weight:800; }
+  .ticket-paper .mod { padding-left:14px; font-size:11px; color:#222; font-weight:400; }
+  .ticket-paper .note { padding-left:14px; font-size:11px; font-style:italic; color:#222; }
+  .ticket-paper .flag { margin-top:4px; padding:3px 6px; background:#fff3cd; border:1px solid #e8a317; border-radius:4px; font-size:10px; font-weight:700; color:#6a4a00; }
+  .ticket-paper .foot { font-size:11px; margin-top:4px; }
+  .ticket-paper .phase { font-size:10px; color:#666; margin-top:4px; }
+  .ticket-paper .listening { color:#178a3e; font-weight:700; }
+  .ticket-empty { color:#a8a8ae; text-align:center; padding:24px 8px; font-size:13px; }
+  .last-tickets { margin-top:12px; }
+  .last-tickets button {
+    display:block; width:100%; text-align:left; background:#3a3a40; color:#f5f2ec;
+    border:0; border-radius:10px; padding:8px 10px; margin-top:6px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .last-tickets button:hover, .last-tickets button.on { background:#c8102e; color:#fff; }
+  .last-tickets button small { display:block; font-weight:500; opacity:.85; font-size:11px; margin-top:2px; }
+  #activeCard .ticket-inline { margin-top:14px; }
+
+</style>
+</head>
+<body>
+<header>
+  <img src="img/logo-cocina-elvis.png" alt="Cocina Elvis">
+  <h1>Teléfono del mostrador</h1>
+  <span id="status" class="pill">Desconectado</span>
+</header>
+
+<div id="login" class="card">
+  <h2 style="justify-content:center">Entrar</h2>
+  <p>Escriba el PIN del teléfono. En esta Mac no hace falta: solo toque Entrar.</p>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN">
+  <button id="go">Entrar</button>
+  <p class="err" id="loginErr"></p>
+</div>
+
+<main id="app">
+  <div class="ticket-wrap">
+    <div class="left-col">
+    <section class="card" id="activeCard">
+      <h2>En llamada <span id="activeTimer">0:00</span></h2>
+      <div class="big" id="activeName">—</div>
+      <div class="num" id="activeNum"></div>
+      <div class="actions">
+        <button class="mute" id="btnMute">Silenciar</button>
+        <button class="hold" id="btnHold">En espera</button>
+        <button class="hang" id="btnHang">Colgar</button>
+      </div>
+      <div class="ticket-inline" id="activeTicketSlot"></div>
+    </section>
+    <section class="card" id="callLog">
+      <div class="cl-head"><h2 style="margin:0">Llamadas</h2>
+        <div class="cl-filters"><button data-range="today" class="on">Hoy</button><button data-range="yesterday">Ayer</button><button data-range="7d">7 días</button></div></div>
+      <div class="cl-sum" id="clSum">—</div>
+      <div id="clRows"><div class="empty">Cargando…</div></div>
+    </section>
+    </div>
+    <aside class="ticket-panel" id="ticketPanel">
+      <h2>Ticket Elvi <span id="ticketPhaseLabel" style="font-size:12px;font-weight:600;color:#a8a8ae"></span></h2>
+      <p class="hint" id="ticketHint">Estilo ticket Square (POS). Tras colgar, Elvi llena el ticket desde la grabación (~30s). Live aún no activo.</p>
+      <div id="ticketView"><div class="ticket-empty">Sin ticket todavía.</div></div>
+      <div class="last-tickets">
+        <h2 style="font-size:14px;margin-top:14px">Últimos tickets</h2>
+        <div id="lastTickets"><div class="ticket-empty" style="padding:8px">Ninguno.</div></div>
+      </div>
+    </aside>
+  </div>
+  <div class="grid" id="lines"></div>
+  <section class="card"><h2>En espera (pausadas) <span class="count zero" id="heldCount">0</span></h2><div id="held"><div class="empty">Ninguna.</div></div></section>
+  <section class="card"><h2>Buzón de voz</h2><div id="vms"><div class="empty">Sin mensajes.</div></div></section>
+  <p class="err" id="appErr"></p>
+</main>
+
+<script src="vendor/twilio-voice.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const fmt = (p) => { const d = String(p || "").replace(/\D/g, "").slice(-10); return d.length === 10 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : (p || "Número privado"); };
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+let pin = localStorage.getItem("elviPhonePin") || "";
+let device = null, call = null, callInfo = null, muted = false, ready = false, state = null, startedAt = 0, audioCtx = null, ringTimer = null, wakeLock = null;
+let selectedTicketSid = null;
+// fix26: browser phone health — token refreshed on a timer (not only tokenWillExpire, which can be missed after a
+// night idle), "Reconectando…" while the device can't place calls, and failed taps reported to the server log.
+let tokenAt = 0, deviceOk = true, refreshing = null;
+function report(kind, e, extra = {}) {
+  api("/api/phone/client-event", { method: "POST", body: JSON.stringify({ kind, code: e?.code, message: e?.message || String(e || ""), ...extra }) }).catch(() => {});
+}
+async function refreshToken(why = "timer") {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try { const t = await getToken(); device?.updateToken(t); tokenAt = Date.now(); deviceOk = true; }
+    catch (e) { deviceOk = false; report("token_refresh_failed", e, { why }); }
+    finally { refreshing = null; if (state) render(); }
+  })();
+  return refreshing;
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "content-type": "application/json", "x-phone-pin": pin, ...(opts.headers || {}) } });
+  const j = r.headers.get("content-type")?.includes("json") ? await r.json() : {};
+  if (!r.ok) throw new Error(j.error || `Error ${r.status}`);
+  return j;
+}
+async function getToken() { return (await api("/api/phone/token", { method: "POST", body: JSON.stringify({ pin }) })).token; }
+
+const NO_MIC = "No hay micrófono conectado. Conecte audífonos con micrófono o una cámara web.";
+let noMic = false;
+// mic1: never let a mic problem block sign-in. Clear stale saved device ids, retry plain {audio:true}, detect "no mic at all".
+async function checkMic() {
+  noMic = false;
+  for (const k of Object.keys(localStorage)) if (/device|mic|audioinput/i.test(k)) localStorage.removeItem(k);
+  const tryGet = async () => (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach((t) => t.stop());
+  try { await tryGet(); return; } catch (e) {
+    const name = e?.name || "";
+    if (/NotAllowed|Security/.test(name) || /Permission/i.test(e?.message || "")) throw new Error("Permita el micrófono para contestar llamadas.");
+    let inputs = [];
+    try { inputs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput"); } catch {}
+    if (inputs.length && /Overconstrained|Constraint|NotReadable|Abort/i.test(name + " " + (e?.message || ""))) { try { await tryGet(); return; } catch {} }
+    noMic = true; report("no_mic", e, { inputs: inputs.length });
+    setTimeout(() => { $("loginErr").textContent = NO_MIC; try { showErr(new Error(NO_MIC)); } catch {} }, 0);
+  }
+}
+navigator.mediaDevices?.addEventListener?.("devicechange", async () => { if (noMic && ready) { try { await checkMic(); if (!noMic) { $("loginErr").textContent = ""; } } catch {} if (state) render(); } });
+$("go").onclick = async () => {
+  $("loginErr").textContent = "";
+  pin = $("pin").value.trim() || pin;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+    await checkMic();
+    const token = await getToken();
+    if (pin) localStorage.setItem("elviPhonePin", pin);
+    device = new Twilio.Device(token, { closeProtection: "Hay una llamada activa. ¿Salir?", codecPreferences: ["opus", "pcmu"], logLevel: "warn" });
+    tokenAt = Date.now(); deviceOk = true;
+    device.on("tokenWillExpire", () => refreshToken("willExpire"));
+    device.on("error", (e) => {
+      report("device_error", e);
+      // 20101/20104/31205: token invalid/expired → get a fresh one right away.
+      if ([20101, 20104, 31204, 31205].includes(Number(e?.code))) { deviceOk = false; refreshToken("expired"); }
+      showErr(e);
+    });
+    setInterval(() => { if (Date.now() - tokenAt > 45 * 60 * 1000) refreshToken("age"); }, 60 * 1000);
+    window.addEventListener("online", () => refreshToken("online"));
+    window.addEventListener("offline", () => { deviceOk = false; if (state) render(); });
+    ready = true;
+    $("login").style.display = "none"; $("app").style.display = "grid";
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+    poll(); setInterval(poll, 2000); setInterval(tick, 1000);
+    loadCalls(); setInterval(loadCalls, 15000);
+  } catch (e) { $("loginErr").textContent = e.message.includes("Permission") ? "Permita el micrófono para contestar llamadas." : e.message; }
+};
+$("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") $("go").click(); });
+if (pin) $("pin").value = pin;
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && ready) {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+    if (Date.now() - tokenAt > 30 * 60 * 1000) refreshToken("visible");
+    poll(); // re-assert presence right after the Mac/API wakes or the tab returns
+  }
+});
+
+
+function ticketDateParts(iso) {
+  try {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" });
+    const time = d.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", second: "2-digit" });
+    return { date, time };
+  } catch { return { date: "—", time: "" }; }
+}
+function renderTicketPaper(t) {
+  if (!t) return '<div class="ticket-empty">Sin ticket todavía.</div>';
+  const title = t.name ? esc(t.name) : ("Receipt #" + esc(t.receiptCode || "XXXX"));
+  const { date, time } = ticketDateParts(t.at);
+  const source = t.source || "Elvi Phone";
+  const phone = t.phoneDisplay || "";
+  const items = (t.lines || []).map((l) => {
+    const mods = (l.choices || []).map((c) => `<div class="mod">${esc(c)}</div>`).join("");
+    const notes = (l.notes || []).map((n) => `<div class="note">${esc(n)}</div>`).join("");
+    const flag = l.flag ? `<div class="flag">${esc(l.flag)}</div>` : "";
+    return `<div class="item"><div class="item-head">${esc(l.quantity)} × ${esc(l.name)}</div>${mods}${notes}${flag}</div>`;
+  }).join("") || (t.phase === "listening"
+    ? '<div class="ticket-empty" style="padding:12px 0">Elvi escuchará al colgar…</div>'
+    : '<div class="ticket-empty" style="padding:12px 0">Sin artículos.</div>');
+  const fulfill = esc(t.fulfillment || "TO GO / LLEVAR");
+  const ready = t.readyTime ? `<div class="ready">${esc(t.readyTime)}</div>` : "";
+  let deliver = "";
+  if (t.deliverTo && (t.deliverTo.address || t.deliverTo.phone)) {
+    deliver = `<div class="deliver"><b>Deliver to:</b>${esc(t.deliverTo.name || t.name || "")}<br>${esc(t.deliverTo.address || "")}<br>${esc(t.deliverTo.phone || phone)}${t.deliverTo.notes ? `<div class="note">${esc(t.deliverTo.notes)}</div>` : ""}</div>`;
+  } else if (phone) {
+    deliver = `<div class="phone">${esc(phone)}</div>`;
+  }
+  const foot = `<hr class="rule"><div class="foot">Receipt: #${esc(t.receiptCode || "XXXX")}</div>`;
+  const phase = t.phase === "listening"
+    ? '<div class="phase listening">Elvi escuchando… (live aún no activo)</div>'
+    : '<div class="phase">Final · desde grabación</div>';
+  return `<div class="ticket-paper"><div class="top-name">${title}</div><div class="source">${esc(source)}</div><hr class="rule"><div class="dt"><span>${esc(date)}</span><span>${esc(time)}</span></div><hr class="rule"><div class="fulfill">${fulfill}</div>${ready}<hr class="rule">${deliver}${items}${foot}${phase}</div>`;
+}
+function pickTicket() {
+  if (!state) return null;
+  if (selectedTicketSid) {
+    const hit = (state.tickets || []).find((x) => x.callSid === selectedTicketSid);
+    if (hit) return hit;
+  }
+  if (state.activeTicket) return state.activeTicket;
+  return (state.tickets || [])[0] || null;
+}
+function renderTickets() {
+  const t = pickTicket();
+  const phaseEl = $("ticketPhaseLabel");
+  if (phaseEl) phaseEl.textContent = t ? (t.phase === "final" ? "Final" : "En llamada") : "";
+  setHtml("ticketView", renderTicketPaper(t));
+  const list = state?.tickets || [];
+  setHtml("lastTickets", list.length ? list.map((x) => {
+    const label = x.name || ("Receipt #" + x.receiptCode);
+    const summary = (x.lines || []).filter((l) => l.kind !== "divider").map((l) => `${l.quantity}× ${l.name}`).slice(0, 3).join(", ") || "(vacío)";
+    const on = (selectedTicketSid || (state.activeTicket && state.activeTicket.callSid) || (list[0] && list[0].callSid)) === x.callSid ? " on" : "";
+    return `<button type="button" data-ticket="${esc(x.callSid)}" class="${on}"><b>${esc(label)}</b><small>${esc(summary)}</small></button>`;
+  }).join("") : '<div class="ticket-empty" style="padding:8px">Ninguno.</div>');
+  // Mirror under active call when bridged
+  const slot = $("activeTicketSlot");
+  if (slot) {
+    if (call && (state.activeTicket || t)) {
+      const live = state.activeTicket || t;
+      slot.innerHTML = renderTicketPaper(live);
+    } else if (!call) {
+      slot.innerHTML = "";
+    }
+  }
+}
+
+function showErr(e) { $("appErr").textContent = e?.message || String(e); setTimeout(() => ($("appErr").textContent = ""), 8000); }
+
+async function poll() {
+  try {
+    state = await api(`/api/phone/state?ready=${ready ? 1 : 0}`);
+    render();
+  } catch (e) { $("status").className = "pill off"; $("status").textContent = "Sin conexión"; }
+}
+
+function callerRow(c, button) {
+  const name = c.name ? esc(c.name) : "Cliente";
+  return `<div class="caller"><div class="who"><b>${name}${c.training ? '<span class="badge">Entrenamiento</span>' : ""}<span class="badge lang">${c.language === "en" ? "EN" : "ES"}</span></b>
+    <small>${esc(fmt(c.from))} · espera ${mmss(c.waitingSec)}</small></div>${button || ""}</div>`;
+}
+
+// One tap handler for the whole page, so a re-render (every 2 s) never swallows a tap.
+document.addEventListener("pointerup", (ev) => {
+  const q = ev.target.closest?.("[data-queue]"); if (q && !q.disabled) { ev.preventDefault(); return answer(q.dataset.queue); }
+  const v = ev.target.closest?.("[data-vm]"); if (v) playVm(v.dataset.vm, v);
+  const tk = ev.target.closest?.("[data-ticket]"); if (tk) { selectedTicketSid = tk.dataset.ticket; renderTickets(); $("ticketPanel")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+  const rg = ev.target.closest?.("[data-range]"); if (rg) { callRange = rg.dataset.range; document.querySelectorAll("[data-range]").forEach((b) => b.classList.toggle("on", b.dataset.range === callRange)); loadCalls(); }
+});
+const setHtml = (id, html) => { const el = $(id); if (el.innerHTML !== html) el.innerHTML = html; };
+function render() {
+  const busy = !!call;
+  const reconnecting = !busy && (!deviceOk || !navigator.onLine);
+  $("status").className = "pill " + (state.online && !reconnecting ? "on" : "off");
+  $("status").textContent = busy ? "En llamada" : reconnecting ? "Reconectando…" : state.online ? (noMic ? "Listo · SIN MICRÓFONO (conecte audífonos)" : "Listo · ambas líneas") : "Desconectado — pulse Entrar de nuevo";
+  setHtml("lines", state.lines.map((l) => {
+    const n = l.waiting.length;
+    const rows = l.waiting.map((c) => callerRow(c, `<button class="answer" ${busy ? "disabled" : ""} data-queue="${esc(l.queue)}">Contestar · ${mmss(c.waitingSec)}</button>`)).join("");
+    return `<section class="card ${n && !busy ? "ringing" : ""}"><h2>${esc(l.label)} <span class="count ${n ? "" : "zero"}">${n}</span></h2>${rows || '<div class="empty">Sin llamadas.</div>'}</section>`;
+  }).join(""));
+  $("heldCount").textContent = state.held.length; $("heldCount").className = "count " + (state.held.length ? "" : "zero");
+  setHtml("held", state.held.map((c) => callerRow(c, `<button class="answer" ${busy ? "disabled" : ""} data-queue="${esc(c.queue)}">Retomar</button>`)).join("") || '<div class="empty">Ninguna.</div>');
+  setHtml("vms", state.voicemails.map((v) => `<div class="vm"><b>${esc(v.name || "Cliente")}</b> · ${esc(fmt(v.from))} ${v.training ? '<span class="badge">Entrenamiento</span>' : ""}
+      <small> · ${new Date(v.at).toLocaleString("es-MX", { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${v.durationSec}s</small>
+      <p>${esc(v.transcript || "(sin palabras)")}</p>
+      ${v.order.length ? `<div class="order">Elvi sugiere: ${v.order.map((o) => `${o.quantity} × ${esc(o.name)}${o.choices.length ? " (" + o.choices.map(esc).join(", ") + ")" : ""}`).join("; ")}</div>` : ""}
+      <button class="mute" data-vm="${esc(v.recordingSid)}" style="margin-top:6px;padding:8px 14px;font-size:15px">▶ Escuchar</button></div>`).join("") || '<div class="empty">Sin mensajes.</div>');
+  const anyWaiting = state.lines.some((l) => l.waiting.length) || state.held.length;
+  if (anyWaiting && !busy) startRing(); else stopRing();
+  if (anyWaiting && !busy) {
+    const maxW = state.maxWaitSec || 150;
+    $("appErr").textContent = `Llamada en espera — pulse Contestar (buzón a los ${maxW}s si nadie contesta)`;
+  } else if ($("appErr").textContent.includes("Llamada en espera")) {
+    $("appErr").textContent = "";
+  }
+  renderTickets();
+}
+
+let answering = false;
+// contestar1: every tap is logged server-side; a stuck call/answering flag is cleared; connect() is time-boxed
+// (a hung Device used to swallow the tap silently) and on timeout the Device is rebuilt with a fresh token, once.
+function withTimeout(p, ms, what) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(what + " timeout"), { code: "TIMEOUT" })), ms))]); }
+async function rebuildDevice() {
+  try { device?.destroy(); } catch {}
+  const token = await getToken();
+  device = new Twilio.Device(token, { closeProtection: "Hay una llamada activa. ¿Salir?", codecPreferences: ["opus", "pcmu"], logLevel: "warn" });
+  device.on("tokenWillExpire", () => refreshToken("willExpire"));
+  device.on("error", (e) => { report("device_error", e); showErr(e); });
+  tokenAt = Date.now(); deviceOk = true;
+}
+async function answer(queue) {
+  report("tap", null, { queue, message: `call=${!!call} device=${!!device} answering=${answering} deviceOk=${deviceOk} state=${device?.state || ""}` });
+  if (call && $("activeCard").style.display !== "block") call = null; // stale call object with no active card
+  if (noMic) { await checkMic().catch(() => {}); if (noMic) { showErr(new Error(NO_MIC)); return; } }
+  if (call || !device || answering) { report("tap_ignored", null, { queue, message: `call=${!!call} device=${!!device} answering=${answering}` }); if (!device) showErr(new Error("Teléfono no listo — pulse Entrar.")); return; }
+  answering = true; setTimeout(() => (answering = false), 20000);
+  stopRing();
+  const c = [...state.lines.flatMap((l) => l.waiting.map((w) => ({ ...w, queue: l.queue }))), ...state.held].find((x) => x.queue === queue || x.callSid && queue.endsWith(x.callSid));
+  callInfo = c || null;
+  try {
+    // fix26: never tap with a stale token — refresh first if it is old or the device reported a problem.
+    if (!deviceOk || Date.now() - tokenAt > 3 * 3600 * 1000) await refreshToken("before-answer");
+    try { call = await withTimeout(device.connect({ params: { queue } }), 8000, "connect"); }
+    catch (e1) {
+      report("connect_failed", e1, { queue });
+      await rebuildDevice();
+      call = await withTimeout(device.connect({ params: { queue } }), 8000, "connect-retry");
+    }
+    report("connect_ok", null, { queue });
+    startedAt = Date.now(); muted = false;
+    $("activeCard").style.display = "block";
+    $("activeName").textContent = c?.name || "Cliente";
+    $("activeNum").textContent = c ? fmt(c.from) : "";
+    $("btnMute").className = "mute"; $("btnMute").textContent = "Silenciar";
+    // If Dial never bridges (timeout), free Contestar again and keep polling so the waiter reappears.
+    const watchdog = setTimeout(() => {
+      if (call && $("activeCard").style.display === "block" && Date.now() - startedAt > 32000) {
+        try { call.disconnect(); } catch {}
+        showErr(new Error("No se conectó a tiempo — intente Contestar de nuevo."));
+        endCall();
+      }
+    }, 33000);
+    call.on("accept", () => { startedAt = Date.now(); });
+    const clear = () => clearTimeout(watchdog);
+    call.on("disconnect", () => { clear(); endCall(); });
+    call.on("cancel", () => { clear(); endCall(); });
+    call.on("reject", () => { clear(); endCall(); });
+    call.on("error", (e) => { clear(); report("call_error", e, { queue }); showErr(e); endCall(); });
+    render();
+  } catch (e) { report("answer_failed", e, { queue }); showErr(e); endCall(); }
+}
+function endCall() { call = null; callInfo = null; $("activeCard").style.display = "none"; answering = false; poll(); }
+$("btnHang").onclick = () => call?.disconnect();
+$("btnMute").onclick = () => { if (!call) return; muted = !muted; call.mute(muted); $("btnMute").className = "mute" + (muted ? " on" : ""); $("btnMute").textContent = muted ? "Activar micrófono" : "Silenciar"; };
+$("btnHold").onclick = async () => {
+  if (!call) return;
+  const sid = call.parameters?.CallSid;
+  try { await api("/api/phone/hold", { method: "POST", body: JSON.stringify({ agentCallSid: sid }) }); } catch (e) { showErr(e); }
+};
+function tick() { if (call) $("activeTimer").textContent = mmss(Math.round((Date.now() - startedAt) / 1000)); }
+
+async function playVm(sid, btn) {
+  try {
+    const r = await fetch(`/api/phone/voicemail/${sid}`, { headers: { "x-phone-pin": pin } });
+    if (!r.ok) throw new Error("No se pudo abrir el mensaje.");
+    const a = new Audio(URL.createObjectURL(await r.blob())); a.play(); btn.textContent = "▶ Reproduciendo…"; a.onended = () => (btn.textContent = "▶ Escuchar");
+  } catch (e) { showErr(e); }
+}
+
+// calllog1: every incoming call, grouped by day (today first).
+let callRange = "today", lastCallsJson = "";
+const RANGE_LABEL = { today: "Hoy", yesterday: "Ayer", "7d": "7 días" };
+function dayLabel(day) {
+  const fmtDay = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const today = fmtDay(new Date()), yest = fmtDay(new Date(Date.now() - 86400000));
+  const pretty = new Date(day + "T12:00:00").toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  return day === today ? `Hoy · ${pretty}` : day === yest ? `Ayer · ${pretty}` : pretty;
+}
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function callSummary(s) {
+  const parts = [plural(s.total, "llamada", "llamadas"), plural(s.answered, "contestada", "contestadas"), `${s.voicemail} buzón`, `${s.hungup} ${s.hungup === 1 ? "colgó" : "colgaron"}`];
+  if (s.rejected) parts.push(plural(s.rejected, "rechazada", "rechazadas"));
+  if (s.inProgress) parts.push(`${s.inProgress} en curso`);
+  return `${RANGE_LABEL[callRange]}: ${parts.join(" · ")}`;
+}
+function callRow(r) {
+  const cls = r.outcome === "counter" || r.outcome === "desk" ? "ok" : r.outcome === "hungup" ? "bad" : r.outcome === "voicemail" ? "vm" : "na";
+  const who = r.name ? esc(r.name) : esc(r.numberDisplay);
+  const dur = r.durationSec != null && r.durationSec > 0 ? ` · ${mmss(r.durationSec)}` : "";
+  const acts = [
+    r.recordingSid ? `<button data-vm="${esc(r.recordingSid)}">▶ ${r.recordingKind === "voicemail" ? "Buzón" : "Grabación"}</button>` : "",
+    r.hasTicket ? `<button data-ticket="${esc(r.callSid)}">Ticket</button>` : "",
+    r.missed && r.number ? `<a class="call" href="tel:${esc(r.number)}">Llamar</a>` : "",
+  ].join("");
+  return `<div class="cl-row ${r.missed ? "missed" : ""} ${r.outcome === "rejected" ? "rejected" : ""}">
+    <div class="cl-time">${esc(r.time)}</div>
+    <div class="cl-who"><b>${who}</b>${r.training ? '<span class="tag-test">prueba</span>' : ""}${r.line ? `<span class="cl-line">${esc(r.line)}</span>` : ""}
+      <div class="cl-meta">${r.name ? esc(r.numberDisplay) + " · " : ""}<span class="cl-out ${cls}">${esc(r.outcomeLabel)}</span>${dur}</div></div>
+    <div class="cl-acts">${acts}</div></div>`;
+}
+function renderCalls(j) {
+  $("clSum").textContent = callSummary(j.summary);
+  if (!j.rows.length) { setHtml("clRows", '<div class="empty">Sin llamadas.</div>'); return; }
+  const byDay = new Map();
+  for (const r of j.rows) { if (!byDay.has(r.day)) byDay.set(r.day, []); byDay.get(r.day).push(r); }
+  setHtml("clRows", [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([day, rows]) =>
+    `<div class="cl-day">${esc(dayLabel(day))} · ${rows.length}</div>${rows.map(callRow).join("")}`).join(""));
+}
+async function loadCalls() {
+  try {
+    const j = await api(`/api/phone/calls?range=${callRange}`);
+    const s = JSON.stringify(j);
+    if (s !== lastCallsJson) { lastCallsJson = s; renderCalls(j); }
+  } catch (e) { setHtml("clRows", `<div class="empty">No se pudo cargar: ${esc(e.message)}</div>`); }
+}
+
+// Ring: two short tones every 3 s while someone is waiting and nobody is on a call here.
+function ringOnce() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  for (const [start, f] of [[0, 880], [0.25, 660], [0.6, 880], [0.85, 660]]) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + start); g.gain.exponentialRampToValueAtTime(0.3, t + start + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + start + 0.22);
+    o.connect(g).connect(audioCtx.destination); o.start(t + start); o.stop(t + start + 0.25);
+  }
+}
+function startRing() { if (ringTimer) return; ringOnce(); ringTimer = setInterval(ringOnce, 3000); }
+function stopRing() { clearInterval(ringTimer); ringTimer = null; }
+</script>
+</body>
+</html>

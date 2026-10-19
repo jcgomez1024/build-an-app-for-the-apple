@@ -3,7 +3,7 @@ import type { Language } from "./types";
 export const copy = {
   en: {
     title: "Cocina Elvis",
-    subtitle: "Voice ordering for pickup or delivery",
+    subtitle: "Voice ordering for pickup",
     listen: "Listen",
     stop: "Stop",
     checkout: "Checkout",
@@ -18,14 +18,16 @@ export const copy = {
     emailPlaceholder: "Email",
     addressPlaceholder: "Delivery address",
     prompt:
-      "Say: add two steak tacos, delivery, my address is 123 Main Street, checkout.",
+      "Say: add two steak tacos for pickup, my name is Carlos, checkout.",
     ready: "I'm ready. Tell me your order.",
     added: "Added",
-    noMatch: "I did not catch a menu item. Please try again."
+    noMatch: "I did not catch a menu item. Please try again.",
+    deliveryDisabled:
+      "Delivery by voice ordering is coming soon. Please use the regular online ordering site for delivery."
   },
   es: {
     title: "Cocina Elvis",
-    subtitle: "Pedidos por voz para recoger o entrega",
+    subtitle: "Pedidos por voz para recoger",
     listen: "Escuchar",
     stop: "Parar",
     checkout: "Pagar",
@@ -40,9 +42,11 @@ export const copy = {
     emailPlaceholder: "Email",
     addressPlaceholder: "Direccion de entrega",
     prompt:
-      "Di: agrega dos tacos de carne, entrega, mi direccion es 123 Main Street, pagar.",
+      "Di: agrega dos tacos de carne para recoger, mi nombre es Carlos, pagar.",
     ready: "Estoy lista. Dime tu pedido.",
     added: "Agregado",
-    noMatch: "No encontre un plato del menu. Intentalo otra vez."
+    noMatch: "No encontre un plato del menu. Intentalo otra vez.",
+    deliveryDisabled:
+      "Delivery by voice ordering is coming soon. Please use the regular online ordering site for delivery."
   }
 } satisfies Record<Language, Record<string, string>>;

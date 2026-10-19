@@ -1,0 +1,2 @@
+group_pattern,default_option,notes
+"\bsalsa\b.*\b(preferencia|preference|options)\b","Mild Salsa Asada","fix16 (Carlos): the included mild Salsa Asada is preselected silently and read back; Verde (medium) / Roja (hot) / Tomato only when the customer asks. Never the 2oz/4oz cups or DOUBLE add-ons."

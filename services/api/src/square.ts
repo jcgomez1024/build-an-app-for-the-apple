@@ -1,7 +1,9 @@
+import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
 import path from "node:path";
 import { fallbackMenu, type MenuItem, type ModifierGroup, type ModifierOption } from "./menu.js";
+import { assertFulfillmentAllowed, getLaunchConfig } from "./launch-config.js";
 
 type CartItem = {
   id: string;
@@ -25,6 +27,12 @@ type CheckoutRequest = {
     phone?: string;
     email?: string;
     address?: string;
+  };
+  metadata?: {
+    language?: string;
+    transcriptSummary?: string;
+    cartSummary?: string;
+    source?: string;
   };
 };
 
@@ -183,6 +191,36 @@ function buildLineItems(cart: CartItem[], menu: MenuItem[]) {
   });
 }
 
+function cleanNote(value: unknown, maxLength = 450) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function buildVoiceOrderNote(input: CheckoutRequest, menu: MenuItem[]) {
+  const config = getLaunchConfig();
+  const language = cleanNote(input.metadata?.language || "unknown", 24);
+  const source = cleanNote(input.metadata?.source || config.voiceOrderSource, 80);
+  const cartSummary = cleanNote(
+    input.metadata?.cartSummary ||
+      input.cart
+        .map((line) => {
+          const menuItem = menu.find((item) => item.id === line.id);
+          return `${Math.max(1, Number(line.quantity) || 1)} x ${menuItem?.name || line.id}`;
+        })
+        .join("; ")
+  );
+  const transcriptSummary = cleanNote(input.metadata?.transcriptSummary, 350);
+  return [
+    "Voice order",
+    `Source: ${source}`,
+    `Language: ${language}`,
+    cartSummary ? `Cart: ${cartSummary}` : "",
+    transcriptSummary ? `Transcript summary: ${transcriptSummary}` : ""
+  ].filter(Boolean).join(" | ");
+}
+
 function findModifierOptionCatalogId(menuItem: MenuItem, groupId?: string, option?: string) {
   const optionKey = normalizeOptionKey(String(option || ""));
   if (!optionKey) return "";
@@ -219,10 +257,12 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   if (!input.cart?.length) {
     throw new Error("Cart is empty");
   }
+  assertFulfillmentAllowed(input.fulfillment);
   if (input.fulfillment === "DELIVERY" && !input.customer?.address) {
     throw new Error("Delivery address is required");
   }
   const menu = await getMenu(runtime);
+  const voiceOrderNote = buildVoiceOrderNote(input, menu);
 
   const response = await squareRequest<{
     payment_link: { id: string; url: string; order_id?: string };
@@ -235,7 +275,12 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
         location_id: runtime.locationId,
         reference_id: `voice-${nanoid(10)}`,
         line_items: buildLineItems(input.cart, menu),
-        fulfillments: [buildFulfillment(input)]
+        fulfillments: [buildFulfillment(input)],
+        metadata: {
+          source: "voice_order",
+          voice_order_source: cleanNote(input.metadata?.source || getLaunchConfig().voiceOrderSource, 60),
+          voice_language: cleanNote(input.metadata?.language || "unknown", 20)
+        }
       },
       checkout_options: {
         redirect_url: `${runtime.appPublicUrl}/checkout/success`,
@@ -244,7 +289,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
       pre_populated_data: {
         buyer_email: input.customer.email
       },
-      payment_note: `${runtime.businessName} ${input.fulfillment.toLowerCase()} voice order`
+      payment_note: `${runtime.businessName} ${input.fulfillment.toLowerCase()} voice order | ${voiceOrderNote}`.slice(0, 500)
     })
   }, runtime);
 
@@ -318,7 +363,8 @@ export async function getFullMenu(config?: Partial<SquareRuntimeConfig>): Promis
     return { objects: [] };
   });
 
-  const squareMenu = buildMenuFromSquareCatalog(catalog.objects || []);
+  const squareMenu = buildMenuFromSquareCatalog(catalog.objects || []).map(withCallerWords)
+    .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
   if (squareMenu.length > 0) {
     return squareMenu;
   }
@@ -335,7 +381,38 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
     return fullMenu;
   }
 
-  return buildReviewedOnlineMenu(fullMenu);
+  // Reviewed food list + the website's online drinks, one item per drink option (own Square variation).
+  const reviewed = buildReviewedOnlineMenu(fullMenu.filter((item) => item.category !== "drinks"));
+  const drinks = fullMenu.filter((item) => item.category === "drinks");
+  // Every other item the website sells (matched by Square item ID, not name), e.g. Menudo.
+  const covered = new Set([...reviewed, ...drinks].map((item) => item.squareCatalogObjectId).filter(Boolean));
+  const siteExtras: MenuItem[] = [];
+  for (const product of loadSiteCatalog()?.products || []) {
+    if (covered.has(product.squareId)) continue;
+    const matches = fullMenu.filter((item) => item.squareCatalogObjectId === product.squareId && item.category !== "drinks");
+    if (!matches.length) continue;
+    covered.add(product.squareId);
+    siteExtras.push(buildReviewedMenuItem(product.name, matches));
+  }
+  return [...reviewed, ...siteExtras, ...drinks].map((item) => withCallerWords(applySiteGroupRules(item)))
+    .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
+}
+
+/** Caller words from data/rules/site-items-rules.csv (square_item_id, callers_say "a; b; c"). */
+let callerWordsCache: Map<string, string[]> | null = null;
+function withCallerWords(item: MenuItem): MenuItem {
+  if (!callerWordsCache) {
+    callerWordsCache = new Map();
+    try {
+      const rows = fs.readFileSync(path.resolve(path.dirname(new URL(import.meta.url).pathname), "../data/rules/site-items-rules.csv"), "utf8").split(/\r?\n/).slice(1);
+      for (const row of rows) {
+        const [id, , words] = row.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        if (id && words) callerWordsCache.set(id, words.split(";").map((w) => w.trim().toLowerCase()).filter(Boolean));
+      }
+    } catch { /* optional file */ }
+  }
+  const words = item.squareCatalogObjectId ? callerWordsCache.get(item.squareCatalogObjectId) : undefined;
+  return words?.length ? { ...item, aliases: Array.from(new Set([...(item.aliases || []), ...words])) } : item;
 }
 
 type ReviewedMenuEntry = {
@@ -456,7 +533,11 @@ function buildReviewedMenuItem(reviewedName: string, matches: MenuItem[]) {
     aliases: Array.from(aliases),
     description: primary.description || `${reviewedName} from the reviewed Cocina Elvis ONLINE menu.`,
     modifierGroups: variantOptions.length
-      ? [...variantOptions, ...(primary.modifierGroups || [])]
+      ? [
+          // Website order: the size/option picker first, then the item's groups.
+          ...variantOptions,
+          ...(primary.modifierGroups || [])
+        ]
       : primary.modifierGroups
   };
 }
@@ -586,11 +667,15 @@ function buildMenuFromSquareCatalog(
     };
     modifier_list_data?: {
       name?: string;
+      selection_type?: string;
+      min_selected_modifiers?: number;
+      max_selected_modifiers?: number;
       modifiers?: Array<{
         id: string;
         modifier_data?: {
           name?: string;
           price_money?: { amount?: number };
+          on_by_default?: boolean;
         };
       }>;
     };
@@ -609,7 +694,8 @@ function buildMenuFromSquareCatalog(
           enabled?: boolean;
         min_selected_modifiers?: number;
         max_selected_modifiers?: number;
-        allow_quantities?: boolean;
+        allow_quantities?: boolean | string;
+        modifier_overrides?: Array<{ modifier_id: string; on_by_default?: boolean; on_by_default_override?: string }>;
       }>;
       variations?: Array<{
         id: string;
@@ -623,6 +709,19 @@ function buildMenuFromSquareCatalog(
   }>
 ): MenuItem[] {
   const result: MenuItem[] = [];
+
+  function effectiveModifierRules(
+    ml: { options: ModifierOption[]; selectionType?: string; listMin?: number; listMax?: number },
+    itemMin?: number,
+    itemMax?: number
+  ) {
+    const count = ml.options.length;
+    const has = (v?: number) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+    const min = has(itemMin) ? Number(itemMin) : has(ml.listMin) ? Number(ml.listMin) : 0;
+    let max = has(itemMax) ? Number(itemMax) : has(ml.listMax) ? Number(ml.listMax) : (ml.selectionType === "SINGLE" ? 1 : 0);
+    if (max === 0) max = count; // 0 = unlimited
+    return { minSelections: Math.min(min, count), maxSelections: Math.max(Math.min(min, count), Math.min(max, count)) };
+  }
 
   function inferModifierRules(name: string, optionCount: number, rawMin?: number, rawMax?: number) {
     const cleanName = name.toLowerCase();
@@ -661,7 +760,7 @@ function buildMenuFromSquareCatalog(
   }
 
   // Build modifier list map: id → { name, options with Square price deltas }
-  const modifierListById = new Map<string, { name: string; options: ModifierOption[] }>();
+  const modifierListById = new Map<string, { name: string; options: ModifierOption[]; selectionType?: string; listMin?: number; listMax?: number; defaultIds: string[] }>();
   for (const object of objects) {
     if (object.type !== "MODIFIER_LIST") continue;
     const name = object.modifier_list_data?.name?.trim() || "";
@@ -682,7 +781,15 @@ function buildMenuFromSquareCatalog(
         }];
       });
     if (name) {
-      modifierListById.set(object.id, { name, options });
+      const data = object.modifier_list_data || {};
+      modifierListById.set(object.id, {
+        name,
+        options,
+        selectionType: data.selection_type,
+        listMin: data.min_selected_modifiers,
+        listMax: data.max_selected_modifiers,
+        defaultIds: (data.modifiers || []).filter((m) => m.modifier_data?.on_by_default).map((m) => m.id)
+      });
     }
   }
 
@@ -696,7 +803,10 @@ function buildMenuFromSquareCatalog(
     const categoryNames = categoryIds.map((id) => categoryNameById.get(id as string) || "");
 
     const hasOnlineCategory = categoryNames.some((name) => isOnlineCategoryName(name));
-    if (!hasOnlineCategory) {
+    // Drinks: the website sells the "(ONLINE)" items from BEBIDAS / DRINKS (Aguas Frescas, Pepsi, Jarrito...).
+    const isOnlineDrink = /\(\s*online\s*\)/i.test(itemName) && categoryNames.some((name) => isOnlineDrinkCategoryName(name));
+    // Anything the website sells (by Square item ID) is allowed, e.g. Rice / Beans Fiesta Pan.
+    if (!hasOnlineCategory && !isOnlineDrink && !siteSellsSquareItem(object.id)) {
       continue;
     }
 
@@ -705,22 +815,31 @@ function buildMenuFromSquareCatalog(
       .filter((info) => info.enabled !== false && modifierListById.has(info.modifier_list_id))
       .map((info) => {
         const ml = modifierListById.get(info.modifier_list_id)!;
-        const rules = inferModifierRules(
-          ml.name,
-          ml.options.length,
-          info.min_selected_modifiers,
-          info.max_selected_modifiers
-        );
+        // Same rules Square Online uses: item-level min/max of -1 (or missing) inherit the
+        // modifier list's own min/max; if the list has none, SINGLE = pick 0-1, MULTIPLE = 0-any.
+        // A max of 0 means "no limit".
+        const rules = effectiveModifierRules(ml, info.min_selected_modifiers, info.max_selected_modifiers);
+        const overrides = new Map((info.modifier_overrides || []).map((o) => [o.modifier_id, o]));
+        const defaultOptions = ml.options
+          .filter((option) => {
+            const o = option.id ? overrides.get(option.id) : undefined;
+            if (o?.on_by_default_override === "YES") return true;
+            if (o?.on_by_default_override === "NO") return false;
+            return Boolean(option.id && ml.defaultIds.includes(option.id));
+          })
+          .map((option) => option.name);
         return {
           id: info.modifier_list_id,
           name: ml.name,
           options: ml.options,
           minSelections: rules.minSelections,
           maxSelections: rules.maxSelections,
-          allowQuantities: info.allow_quantities ?? rules.allowQuantities
+          ...(defaultOptions.length ? { defaultOptions } : {}),
+          allowQuantities: typeof info.allow_quantities === "boolean" ? info.allow_quantities : false
         };
       })
       .sort((a, b) => {
+        // The website's (A), (B), (C)… order (applySiteGroupRules then applies the storefront's exact order).
         const prefixA = a.name.match(/^\(([A-Z]+)\)/i)?.[1]?.toUpperCase() || "Z";
         const prefixB = b.name.match(/^\(([A-Z]+)\)/i)?.[1]?.toUpperCase() || "Z";
         return prefixA.localeCompare(prefixB);
@@ -754,7 +873,16 @@ function buildMenuFromSquareCatalog(
         imageUrl: resolveItemImageUrl(object.item_data?.image_ids, imageUrlById),
         squareCatalogObjectId: object.id,
         squareVariationId: variation.id,
-        modifierGroups: modifierGroups.length > 0 ? modifierGroups : undefined
+        modifierGroups: modifierGroups.length > 0 ? modifierGroups : undefined,
+        ...(isOnlineDrink && !hasOnlineCategory
+          ? {
+              category: "drinks" as const,
+              id: `sq-drink-${normalizeName(drinkDisplayName(fullName, variationName || "")).replace(/\s+/g, "-")}-${variation.id.slice(0, 6)}`,
+              name: drinkDisplayName(fullName, variationName || ""),
+              nameEs: drinkDisplayName(fullName, variationName || ""),
+              aliases: [normalizeName(drinkDisplayName(fullName, variationName || "")), ...drinkAliases(fullName, variationName || "")]
+            }
+          : {})
       });
     }
   }
@@ -828,6 +956,44 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** "Coca Cola / Pepsi Pepsi" -> "Pepsi"; "Aguas Frescas Orchata 32oz" -> "Agua Fresca Horchata 32oz". */
+function drinkDisplayName(fullName: string, variationName: string) {
+  const v = sanitizeDisplayName(variationName);
+  if (/aguas?\s+frescas?/i.test(fullName)) return `Agua Fresca ${v.replace(/\bOrchata\b/i, "Horchata")}`;
+  if (/^jarrito/i.test(fullName)) return `Jarrito ${v}`;
+  return v || fullName;
+}
+
+function isOnlineDrinkCategoryName(value: string) {
+  const v = value.trim().toUpperCase();
+  return v === "BEVERAGE (ONLINE)" || v === "BEBIDAS / DRINKS";
+}
+
+/** What callers say for each drink variation ("una horchata", "a pepsi", "jarrito de mango"). */
+function drinkAliases(fullName: string, variationName: string) {
+  const v = normalizeName(variationName);
+  const n = normalizeName(fullName);
+  const out = new Set<string>();
+  const add = (...xs: string[]) => xs.forEach((x) => out.add(normalizeName(x)));
+  if (/\baguas? frescas?\b/.test(n)) {
+    const flavor = v.replace(/\b\d+\s*oz\b/g, "").trim();
+    const spoken = flavor.replace(/\borchata\b/g, "horchata");
+    for (const f of new Set([flavor, spoken])) {
+      add(f, `${f}s`, `agua de ${f}`, `agua fresca ${f}`, `agua fresca de ${f}`, `${f} grande`, `${f} large`, `large ${f}`);
+    }
+  } else if (/\bjarrito\b/.test(n)) {
+    for (const f of variationName.split("/").map((x) => x.trim()).filter(Boolean)) add(`jarrito ${f}`, `jarrito de ${f}`, `jarritos ${f}`, `${f} jarrito`);
+  } else if (/\bmineral\b/.test(v)) {
+    add("mineral water", "agua mineral", "sparkling water", "topo chico", "mineral");
+  } else if (/\bagua\b|\bwater\b/.test(v)) {
+    add("water", "a water", "waters", "water bottle", "bottle of water", "bottled water", "agua", "botella de agua", "water bottle");
+  } else {
+    add(v, `${v}s`);
+    if (/\bcoca cola\b/.test(v)) add(v.replace("coca cola", "coke"), v.replace("coca cola", "coca"));
+  }
+  return Array.from(out).filter((x) => x.length > 2);
+}
+
 function isOnlineCategoryName(value: string) {
   return value.trim().toUpperCase() === "FOOD (ONLINE)";
 }
@@ -858,4 +1024,38 @@ function resolveItemImageUrl(imageIds: string[] | undefined, imageUrlById: Map<s
   }
 
   return undefined;
+}
+
+/** Read-only: orders created in a time window at this location (Square Orders Search, no writes). */
+export async function searchOrdersReadOnly(startAt: string, endAt: string, config?: Partial<SquareRuntimeConfig>): Promise<any[]> {
+  const cfg = getSquareConfig(config);
+  if (!cfg.locationId) throw new Error("Missing SQUARE_LOCATION_ID");
+  const out: any[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page += 1) {
+    const body: any = {
+      location_ids: [cfg.locationId],
+      limit: 100,
+      return_entries: false,
+      query: { filter: { date_time_filter: { created_at: { start_at: startAt, end_at: endAt } } }, sort: { sort_field: "CREATED_AT", sort_order: "ASC" } },
+      ...(cursor ? { cursor } : {})
+    };
+    const r = await squareRequest<{ orders?: any[]; cursor?: string }>("/v2/orders/search", { method: "POST", body: JSON.stringify(body) }, cfg);
+    out.push(...(r.orders || []));
+    if (!r.cursor) break;
+    cursor = r.cursor;
+  }
+  return out;
+}
+
+/** Read-only: the given name on the Square customer with this phone (Customers Search). */
+export async function findCustomerGivenNameReadOnly(phoneE164: string, config?: Partial<SquareRuntimeConfig>, signal?: AbortSignal): Promise<string | null> {
+  const cfg = getSquareConfig(config);
+  const r = await squareRequest<{ customers?: Array<{ given_name?: string; nickname?: string }> }>(
+    "/v2/customers/search",
+    { method: "POST", body: JSON.stringify({ limit: 1, query: { filter: { phone_number: { exact: phoneE164 } } } }), signal },
+    cfg
+  );
+  const c = r.customers?.[0];
+  return (c?.given_name || c?.nickname || "").trim() || null;
 }

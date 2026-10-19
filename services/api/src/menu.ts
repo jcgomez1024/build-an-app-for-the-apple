@@ -11,6 +11,8 @@ export type ModifierGroup = {
   minSelections?: number;
   maxSelections?: number;
   allowQuantities?: boolean;
+  /** Options Square Online preselects (on_by_default). */
+  defaultOptions?: string[];
 };
 
 export type MenuItem = {
@@ -22,8 +24,13 @@ export type MenuItem = {
   description?: string;
   imageUrl?: string;
   squareCatalogObjectId?: string;
+  /** Short website-style name for read-backs ("Pambazo Elvis", "Ceviche de Camarón"). */
+  readbackName?: string;
+  readbackNameEs?: string;
   squareVariationId?: string;
   modifierGroups?: ModifierGroup[];
+  /** Menu section, e.g. "drinks" for the website's BEBIDAS / DRINKS items. */
+  category?: "drinks";
 };
 
 export const fallbackMenu: MenuItem[] = [

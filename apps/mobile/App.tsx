@@ -135,11 +135,16 @@ export default function App() {
         continue;
       }
       if (action.type === "set_fulfillment") {
-        nextFulfillment = action.fulfillment;
+        if (action.fulfillment === "DELIVERY") {
+          nextFulfillment = "PICKUP";
+          setElviMessage(copy[languageRef.current].deliveryDisabled);
+        } else {
+          nextFulfillment = action.fulfillment;
+        }
         continue;
       }
       if (action.type === "set_address") {
-        nextCustomer = { ...nextCustomer, address: action.address };
+        setElviMessage(copy[languageRef.current].deliveryDisabled);
         continue;
       }
       if (action.type === "set_customer") {
@@ -219,8 +224,8 @@ export default function App() {
       Alert.alert(activeCopy.order, activeCopy.empty);
       return;
     }
-    if (checkoutFulfillment === "DELIVERY" && !checkoutCustomer.address) {
-      Alert.alert(activeCopy.delivery, activeCopy.addressPlaceholder);
+    if (checkoutFulfillment === "DELIVERY") {
+      Alert.alert(activeCopy.delivery, activeCopy.deliveryDisabled);
       return;
     }
 
@@ -229,7 +234,15 @@ export default function App() {
       const result = await createCheckout({
         cart: checkoutCart,
         fulfillment: checkoutFulfillment,
-        customer: checkoutCustomer
+        customer: checkoutCustomer,
+        metadata: {
+          language: languageRef.current,
+          source: "cocinaelvis.com",
+          transcriptSummary: transcript,
+          cartSummary: checkoutCart
+            .map((line) => `${line.quantity} x ${languageRef.current === "es" ? line.item.nameEs : line.item.name}`)
+            .join("; ")
+        }
       });
       await Linking.openURL(result.checkoutUrl);
     } catch (error) {
@@ -313,7 +326,7 @@ export default function App() {
         </View>
 
         <View style={styles.segment}>
-          {(["PICKUP", "DELIVERY"] as Fulfillment[]).map((option) => (
+          {(["PICKUP"] as Fulfillment[]).map((option) => (
             <TouchableOpacity
               key={option}
               onPress={() => setFulfillment(option)}
@@ -382,14 +395,6 @@ export default function App() {
             keyboardType="email-address"
             style={styles.input}
           />
-          {fulfillment === "DELIVERY" && (
-            <TextInput
-              placeholder={t.addressPlaceholder}
-              value={customer.address}
-              onChangeText={(address) => setCustomer((current) => ({ ...current, address }))}
-              style={styles.input}
-            />
-          )}
         </View>
 
         <TouchableOpacity disabled={checkingOut} onPress={() => checkout()} style={styles.checkout}>

@@ -1,4 +1,17 @@
 import type { MenuItem, ModifierGroup, ModifierOption } from "./menu.js";
+import { readFileSync } from "node:fs";
+
+// Website rules (data/rules/pack-rules.csv -> pack-meal-guide.json): steps with mode "optional"
+// are never asked; they are applied only when the caller mentions them.
+const PACK_OPTIONAL_MODES: Record<string, string> = (() => {
+  try {
+    const guide = JSON.parse(readFileSync(new URL("../data/pack-meal-guide.json", import.meta.url), "utf8"));
+    const out: Record<string, string> = {};
+    for (const item of guide.packMealItems || []) for (const step of item.steps || []) out[step.key] = step.mode;
+    return out;
+  } catch { return {}; }
+})();
+const packStepIsOptional = (key: string) => (PACK_OPTIONAL_MODES[key] || "optional") === "optional";
 
 type ResolverInput = {
   text?: string;
@@ -18,6 +31,9 @@ type PackState = {
   pendingText?: string;
   pendingShell?: PackShell;
   itemTypeShell?: PackShell;
+  /** Meat-first: meats are being collected before the pack option (tortilla / item type) is chosen. */
+  variantPending?: boolean;
+  optionalText?: string;
 };
 
 type PackModifier = {
@@ -35,6 +51,7 @@ const PACK_DELUXE_STEP = "pack-meal-deluxe";
 const PACK_SALSA_STEP = "pack-meal-salsa";
 const PACK_AGUA_STEP = "pack-meal-agua";
 const PACK_EXTRAS_STEP = "pack-meal-extras";
+const PACK_REGULAR_TOPPINGS_LABEL = "Regular - Onion, cilantro, and lime on the side";
 type PackShell = "street" | "flour" | "comal";
 type PackItemType = "tacos" | "quesadillas";
 const QUANTITY_WORDS: Record<string, number> = {
@@ -91,6 +108,10 @@ export function resolvePackMealRequest(menu: MenuItem[], input: ResolverInput) {
   }
 
   let variant = findPackVariant(packItems, text);
+  // Meat-first answer to the option question ("street", "flour"): read it with the dish words said earlier ("tacos").
+  if (!variant && state.variantPending && state.awaitingStepKey === PACK_OPTION_STEP && state.optionalText) {
+    variant = findPackVariant(packItems, `${text} ${state.optionalText.replace(/\b(street|harina|flour|comal|homemade|taquer[oa]s?)\b/gi, "")}`);
+  }
   if (!variant && state.awaitingStepKey === PACK_ITEM_TYPE_STEP && state.pendingShell) {
     const type = findPackItemTypeIntent(text);
     if (type) {
@@ -108,12 +129,39 @@ export function resolvePackMealRequest(menu: MenuItem[], input: ResolverInput) {
       ...state,
       itemId: variant.id,
       itemName: variant.name,
-      virtualSelections: [cleanPackVariantName(variant.name, count)],
+      virtualSelections: [packVariantDisplayLabel(variant, count)],
       awaitingStepKey: undefined,
-      pendingText: undefined,
+      pendingText: state.variantPending ? state.optionalText : undefined,
       pendingShell: undefined,
-      itemTypeShell
+      itemTypeShell,
+      variantPending: false,
+      optionalText: undefined
     };
+  }
+
+  // Website order (fix7): the pack option (tortilla / item type) is asked before the meats, so the
+  // meat-first branch below is off.
+  const PACK_MEAT_FIRST = false;
+  const choosingOption = state.awaitingStepKey === PACK_OPTION_STEP || state.awaitingStepKey === PACK_ITEM_TYPE_STEP;
+  if (PACK_MEAT_FIRST && !variant && !choosingOption && (state.variantPending || !hasResolvedPackVariant(selectedItem || packItems[0], text, Boolean(activeState)))) {
+    const provisional = selectedItem || packItems[0];
+    state.selections = normalizePackModifiers(state.selections);
+    if (!state.variantPending) state.pendingShell = findAmbiguousPackShellIntent(text) || undefined;
+    applyPackMeatText(provisional, state, text);
+    state.variantPending = true;
+    state.itemId = provisional.id;
+    state.optionalText = mergePendingText(state.optionalText || "", text);
+    const missingMeat = firstMissingMeatGroup(provisional, state);
+    if (missingMeat) {
+      state.awaitingStepKey = `item-${missingMeat.index + 1}-meat`;
+      return buildPackMeatStep(provisional, count, state, missingMeat.group, missingMeat.index, getLanguage(input));
+    }
+    const shell = state.pendingShell;
+    state.awaitingStepKey = shell ? PACK_ITEM_TYPE_STEP : PACK_OPTION_STEP;
+    if (shell) {
+      return buildPackItemTypeStep(packItems, count, state, getLanguage(input));
+    }
+    return buildPackOptionStep(packItems, count, state, getLanguage(input));
   }
 
   const ambiguousShell = !variant ? findAmbiguousPackShellIntent(text) : null;
@@ -122,12 +170,12 @@ export function resolvePackMealRequest(menu: MenuItem[], input: ResolverInput) {
       ...state,
       itemId: packItems[0].id,
       itemName: `${count} Pack MEAL`,
-      awaitingStepKey: PACK_ITEM_TYPE_STEP,
-      pendingShell: ambiguousShell,
+      awaitingStepKey: PACK_OPTION_STEP,
+      pendingShell: undefined,
       pendingText: mergePendingText(pendingText, stripPackShellIntentText(text, ambiguousShell)),
-      virtualSelections: [packShellLabel(ambiguousShell)]
+      virtualSelections: []
     };
-    return buildPackItemTypeStep(packItems, count, state, getLanguage(input));
+    return buildPackOptionStep(packItems, count, state, getLanguage(input));
   }
 
   if (!selectedItem || state.awaitingStepKey === PACK_OPTION_STEP || (!variant && !hasResolvedPackVariant(selectedItem, text, Boolean(activeState)))) {
@@ -153,11 +201,12 @@ export function resolvePackMealRequest(menu: MenuItem[], input: ResolverInput) {
     return buildPackExtrasStepOrNext(selectedItem, count, state, getLanguage(input));
   }
   if (state.awaitingStepKey === PACK_EXTRAS_STEP) {
+    const shouldAskLimonSize = packExtrasNeedsLimonSize(selectedItem, text);
     applyPackOptionalText(selectedItem, state, text, "extras");
-    if (packTextSkipsOptional(text) || packNavigationIntent(text) === "next") {
+    if (packTextSkipsOptional(text, "extras") || packNavigationIntent(text) === "next") {
       return finishPackMeal(selectedItem, count, state, getLanguage(input));
     }
-    return buildPackExtrasStepOrNext(selectedItem, count, state, getLanguage(input));
+    return buildPackExtrasStepOrNext(selectedItem, count, state, getLanguage(input), shouldAskLimonSize);
   }
 
   applyPackMeatText(selectedItem, state, meatText);
@@ -168,6 +217,13 @@ export function resolvePackMealRequest(menu: MenuItem[], input: ResolverInput) {
     return buildPackMeatStep(selectedItem, count, state, missing.group, missing.index, getLanguage(input));
   }
 
+  if ([PACK_DELUXE_STEP, PACK_SALSA_STEP, PACK_AGUA_STEP, PACK_EXTRAS_STEP].every(packStepIsOptional)) {
+    const heard = mergePendingText(pendingText, text);
+    for (const kind of ["deluxe", "salsa", "agua", "extras"] as const) {
+      if (!packTextSkipsOptional(heard, kind)) applyPackOptionalText(selectedItem, state, heard, kind);
+    }
+    return finishPackMeal(selectedItem, count, state, getLanguage(input));
+  }
   return buildPackDeluxeStepOrNext(selectedItem, count, state, getLanguage(input));
 }
 
@@ -197,7 +253,9 @@ function normalizePackState(value: unknown): PackState | null {
     offeredOptional: Boolean(raw.offeredOptional),
     pendingText: typeof raw.pendingText === "string" ? raw.pendingText : undefined,
     pendingShell: isPackShell(raw.pendingShell) ? raw.pendingShell : undefined,
-    itemTypeShell: isPackShell(raw.itemTypeShell) ? raw.itemTypeShell : undefined
+    itemTypeShell: isPackShell(raw.itemTypeShell) ? raw.itemTypeShell : undefined,
+    variantPending: Boolean(raw.variantPending),
+    optionalText: typeof raw.optionalText === "string" ? raw.optionalText : undefined
   };
 }
 
@@ -212,25 +270,121 @@ function isPackShell(value: unknown): value is PackShell {
 function packNavigationIntent(text: string) {
   const normalized = normalizeText(text);
   if (/^(back|previous|go back|previous step|atras|anterior|regresar|volver)$/.test(normalized)) return "back";
+  if (packDoneIntent(text)) return "next";
   if (/^(next|continue|done|listo|siguiente|adelante|seguir|continuar)$/.test(normalized)) return "next";
   return null;
 }
 
-function packTextSkipsOptional(text: string) {
-  return /\b(no|none|skip|regular|listo|done|finish|finished|sin|ninguno|ninguna|no gracias|asi esta|ya)\b/.test(normalizeText(text));
+function packDoneIntent(text: string) {
+  const query = normalizeText(text);
+  if (!query) return false;
+  return /^(that s all|thats all|that is all|that s it|thats it|that is it|all set|eso es todo|es todo|eso seria todo|ya es todo)$/.test(query);
+}
+
+function packTextSkipsOptional(text: string, kind: "deluxe" | "salsa" | "agua" | "extras" = "extras") {
+  const query = normalizeText(text);
+  if (!query) return false;
+  if (packDoneIntent(text)) return true;
+  if (/^(no|none|skip|sin|ninguno|ninguna|no gracias|asi esta|ya)$/.test(query)) return true;
+
+  if (kind === "deluxe") {
+    return /\b(regular|normal)\b/.test(query) ||
+      /\b(no|sin|without|not)\s+(deluxe|de\s+lujo|preparad[ao])\b/.test(query) ||
+      /\b(deluxe|de\s+lujo|preparad[ao])\s+(no|not)\b/.test(query);
+  }
+
+  if (kind === "salsa") {
+    const namesSpecificSalsa = /\b(asada|tomate|tomato|verde|roja|red|hot|mild|medium)\b/.test(query);
+    return !namesSpecificSalsa && (
+      /^(no|sin|without)\s+salsa$/.test(query) ||
+      /\b(no quiero|no deseo|sin|without)\s+salsa\b/.test(query)
+    );
+  }
+
+  if (kind === "agua") {
+    const namesAguaChoice = /\b(horchata|jamaica)\b/.test(query);
+    return !namesAguaChoice && (
+      /^(no|sin|without)\s+(agua|agua fresca|bebida|drink)$/.test(query) ||
+      /\b(no quiero|no deseo|sin|without)\s+(agua|agua fresca|bebida|drink)\b/.test(query)
+    );
+  }
+
+  const namesSpecificExtra = /\b(crema|sour cream|queso|cheese|limon|lime|guacamole|asada|tomate|tomato|verde|roja|hot|mild|medium|cebolla|onion|chiles?)\b/.test(query);
+  return !namesSpecificExtra && (
+    /^(no|sin|without)\s+extras?$/.test(query) ||
+    /\b(no quiero|no deseo|sin|without)\s+extras?\b/.test(query)
+  );
 }
 
 function stripPackVariantSelectionText(text: string, variant: MenuItem, count: number) {
+  const normalized = normalizeText(text);
   const optionTokens = new Set(
     normalizeText(cleanPackVariantName(variant.name, count))
       .split(" ")
       .filter(Boolean)
   );
-  const ignored = new Set(["x", "pack", "meal", "meals", "paquete", "paquetes", "de", String(count)]);
-  return normalizeText(text)
-    .split(" ")
-    .filter((token) => token && !ignored.has(token) && !optionTokens.has(token))
+  const ignored = new Set([
+    "x",
+    "pack",
+    "meal",
+    "meals",
+    "paquete",
+    "paquetes",
+    "de",
+    "with",
+    "con",
+    "the",
+    "a",
+    "an",
+    "el",
+    "la",
+    "los",
+    "las",
+    "quiero",
+    "dame",
+    "give",
+    "me",
+    "please",
+    "por",
+    "favor",
+    String(count),
+    ...quantityWordsForCount(count)
+  ]);
+  const tokens = normalized.split(" ").filter(Boolean);
+  return tokens
+    .filter((token, index) => (
+      token &&
+      !ignored.has(token) &&
+      !optionTokens.has(token) &&
+      !isPackVariantDescriptorToken(token, tokens, index, variant, count)
+    ))
     .join(" ");
+}
+
+function quantityWordsForCount(count: number) {
+  return Object.entries(QUANTITY_WORDS)
+    .filter(([, value]) => value === count)
+    .map(([word]) => word);
+}
+
+function isPackVariantDescriptorToken(token: string, tokens: string[], index: number, variant: MenuItem, count: number) {
+  if (token !== "cheese" && token !== "queso") return false;
+  if (hasExplicitMeatQuantityPrefix(tokens, index, count)) return false;
+  const code = packVariantCode(variant);
+  if (code === "qgd" || code === "qto") return true;
+  if (code !== "qst" && code !== "qhr" && code !== "qco") return false;
+  return tokens.some((candidate, candidateIndex) => (
+    Math.abs(candidateIndex - index) <= 3 &&
+    /^(quesadilla|quesadillas|flour|harina|street|taquero|taquera|comal|homemade|handmade|corn|maiz)$/.test(candidate)
+  ));
+}
+
+function hasExplicitMeatQuantityPrefix(tokens: string[], index: number, packCount: number) {
+  const previous = tokens[index - 1] || "";
+  const beforePrevious = tokens[index - 2] || "";
+  if (/^(all|every|todo|todos|todas|puro|pura)$/.test(previous)) return true;
+  const quantity = parseQuantity(previous);
+  return quantity > 0 && quantity !== packCount && !/^(pack|meal|paquete)$/.test(beforePrevious);
 }
 
 function stripPackShellIntentText(text: string, shell: PackShell) {
@@ -262,11 +416,11 @@ function packCountFromRule(ruleId: string) {
 
 function inferPackCount(text: string) {
   const normalized = normalizeText(text);
-  const numeric = normalized.match(/\b([3-8])\s+(?:pack\s+)?meals?\b|\b([3-8])\s+pack\b|\bpaquete(?:\s+de)?\s+([3-8])\b|\b([3-8])\s+paquete\b/);
-  if (numeric) return Number(numeric[1] || numeric[2] || numeric[3] || numeric[4]);
+  const numeric = normalized.match(/\b([3-8])\s+(?:pack\s+)?meals?\b|\b([3-8])\s+pack\b|\b(?:meal\s+pack|meals\s+pack|pack)(?:\s+(?:of|de))?\s+([3-8])\b|\bpaquete(?:\s+de)?\s+([3-8])\b|\b([3-8])\s+paquete\b/);
+  if (numeric) return Number(numeric[1] || numeric[2] || numeric[3] || numeric[4] || numeric[5]);
   const words = Object.entries(QUANTITY_WORDS).filter(([, value]) => value >= 3 && value <= 8);
   for (const [word, value] of words) {
-    if (new RegExp(`\\b${word}\\s+(?:pack\\s+)?meals?\\b|\\b${word}\\s+pack\\b|\\bpaquete(?:\\s+de)?\\s+${word}\\b|\\b${word}\\s+paquete\\b`).test(normalized)) {
+    if (new RegExp(`\\b${word}\\s+(?:pack\\s+)?meals?\\b|\\b${word}\\s+pack\\b|\\b(?:meal\\s+pack|meals\\s+pack|pack)(?:\\s+(?:of|de))?\\s+${word}\\b|\\bpaquete(?:\\s+de)?\\s+${word}\\b|\\b${word}\\s+paquete\\b`).test(normalized)) {
       return value;
     }
   }
@@ -282,9 +436,13 @@ function findPackItems(menu: MenuItem[], count: number) {
 
 function packVariantSort(item: MenuItem) {
   const order = ["tst", "thr", "tco", "to", "gd", "qst", "qhr", "qco", "qto", "qgd"];
-  const code = normalizeText(item.name).match(/\b(tst|thr|tco|to|gd|qst|qhr|qco|qto|qgd)\b/)?.[1] || "";
+  const code = packVariantCode(item);
   const index = order.indexOf(code);
   return index >= 0 ? index : 999;
+}
+
+function packVariantCode(item: MenuItem) {
+  return normalizeText(item.name).match(/\b(tst|thr|tco|to|gd|qst|qhr|qco|qto|qgd)\b/)?.[1] || "";
 }
 
 function hasResolvedPackVariant(item: MenuItem, text: string, fromExistingState: boolean) {
@@ -295,6 +453,12 @@ function hasResolvedPackVariant(item: MenuItem, text: string, fromExistingState:
 function findPackVariant(packItems: MenuItem[], text: string) {
   const query = normalizeText(text);
   if (!query) return null;
+  if (/\b(queso|cheese)\s+(?:to|tor|tort|torta|tortas)\b/.test(query)) {
+    return findVariantCode(packItems, "qto");
+  }
+  if (/\b(queso|cheese)\s+(?:gd|gor|gord|gordita|gorditas)\b/.test(query)) {
+    return findVariantCode(packItems, "qgd");
+  }
   const direct = query.match(/\b(tst|thr|tco|to|gd|qst|qhr|qco|qto|qgd)\b/);
   if (direct) return packItems.find((item) => normalizeText(item.name).includes(` ${direct[1]} `)) || null;
 
@@ -305,7 +469,7 @@ function findPackVariant(packItems: MenuItem[], text: string) {
   const wantsTaco = /\b(taco|tacos)\b/.test(query);
   const wantsComal = /\b(comal|homemade|handmade|corn|maiz|maíz)\b/.test(query);
   const wantsFlour = /\b(flour|harina)\b/.test(query);
-  const wantsStreet = /\b(street|taquero|taquera)\b/.test(query);
+  const wantsStreet = /\b(street|taquero|taqueros|taquera|taqueras)\b/.test(query);
 
   if (wantsQueso && wantsTorta) return findVariantCode(packItems, "qto");
   if (wantsQueso && wantsGordita) return findVariantCode(packItems, "qgd");
@@ -365,10 +529,21 @@ function packShellTokens(shell: PackShell) {
   return ["comal", "homemade", "handmade", "corn", "maiz"];
 }
 
+function packKindsFromItems(items: MenuItem[]) {
+  const order = ["tacos", "quesadillas", "tortas", "gorditas"];
+  const have = new Set(items.map((m) => String(m.readbackName || m.name).replace(/^\s*\d+\s*x\s+/i, "").toLowerCase().match(/^(tacos|quesadillas|tortas|gorditas)\b/)?.[1]).filter(Boolean) as string[]);
+  return order.filter((k) => have.has(k));
+}
+
+function listOr(list: string[], or: string) {
+  return list.length > 1 ? `${list.slice(0, -1).join(", ")}${or}${list[list.length - 1]}` : list[0] || "tacos";
+}
+
 function buildPackOptionStep(packItems: MenuItem[], count: number, state: PackState, language: "en" | "es") {
+  const kinds = packKindsFromItems(packItems);
   const question = language === "es"
-    ? `Elige el tipo para el paquete de ${count}: taquero, harina, comal, tortas, gorditas, queso tortas o queso gorditas.`
-    : `Choose the ${count} pack type: street, flour, comal, tortas, gorditas, queso tortas, or queso gorditas.`;
+    ? `¿De ${listOr(kinds, " o ")}?`
+    : `${listOr(kinds, " or ").replace(/^./, (c) => c.toUpperCase())}?`;
   return {
     ok: false,
     reason: "combo_step_required",
@@ -390,19 +565,38 @@ function buildPackOptionStep(packItems: MenuItem[], count: number, state: PackSt
 
 function packOptionStepLabels(packItems: MenuItem[]) {
   const labels: string[] = [];
-  const add = (label: string, codePattern: RegExp) => {
-    if (packItems.some((item) => codePattern.test(normalizeText(item.name)))) {
-      labels.push(label);
-    }
+  const add = (code: string) => {
+    const item = findVariantCode(packItems, code);
+    if (!item) return;
+    const count = packCountFromRule(`pack-meal-${normalizeText(item.name).match(/^([3-8])\s+pack\s+meal\b/)?.[1] || ""}`);
+    if (count) labels.push(packVariantDisplayLabel(item, count));
   };
-  add("Street / Taquero", /\b(tst|qst)\b/);
-  add("Harina / Flour", /\b(thr|qhr)\b/);
-  add("Comal / Homemade", /\b(tco|qco)\b/);
-  add("Tortas", /\bto\b/);
-  add("Gorditas", /\bgd\b/);
-  add("Queso Tortas", /\bqto\b/);
-  add("Queso Gorditas", /\bqgd\b/);
+  add("tst");
+  add("thr");
+  add("tco");
+  add("to");
+  add("gd");
+  add("qst");
+  add("qhr");
+  add("qco");
+  add("qto");
+  add("qgd");
   return labels;
+}
+
+function packVariantDisplayLabel(item: MenuItem, count: number) {
+  const code = packVariantCode(item).toUpperCase();
+  if (code === "TST") return `(TST) ${count} x Tacos Taquero / Street Taco`;
+  if (code === "THR") return `(THR) ${count} x Tacos Harina / Flour`;
+  if (code === "TCO") return `(TCO) ${count} x Tacos Comal / Homemade`;
+  if (code === "TO") return `(TO) ${count} x Tortas`;
+  if (code === "GD") return `(GD) ${count} x Gorditas`;
+  if (code === "QST") return `(QST) ${count} x Quesadillas Taquera / Street Quesadilla`;
+  if (code === "QHR") return `(QHR) ${count} x Quesadillas Harina / Flour`;
+  if (code === "QCO") return `(QCO) ${count} x Quesadillas Comal / Homemade`;
+  if (code === "QTO") return `(QTO) ${count} x Queso Tortas`;
+  if (code === "QGD") return `(QGD) ${count} x Queso Gorditas`;
+  return cleanPackVariantName(item.name, count);
 }
 
 function buildPackItemTypeStep(packItems: MenuItem[], count: number, state: PackState, language: "en" | "es") {
@@ -559,7 +753,7 @@ function rewindPackMealStep(packItems: MenuItem[], count: number, state: PackSta
 }
 
 function applyPackOptionalText(item: MenuItem, state: PackState, text: string, kind: "deluxe" | "salsa" | "agua" | "extras") {
-  if (packTextSkipsOptional(text) || packNavigationIntent(text) === "next") return;
+  if (packTextSkipsOptional(text, kind) || packNavigationIntent(text) === "next") return;
   const group = getPackOptionalGroup(item, kind);
   if (!group) return;
   if (kind !== "extras") {
@@ -568,8 +762,8 @@ function applyPackOptionalText(item: MenuItem, state: PackState, text: string, k
   const query = normalizeText(text);
   if (!query) return;
   let matches = findAllPackOptionMentions(group.options || [], query);
-  if (kind === "salsa") {
-    matches = matches.filter((match) => packSalsaOptionCompatible(optionName(match.option), query));
+  if (kind === "salsa" || kind === "extras") {
+    matches = matches.filter((match) => packSpecificOptionCompatible(optionName(match.option), query));
   }
   if (!matches.length && kind === "deluxe" && /\b(deluxe|de lujo|preparad[ao])\b/.test(query) && group.options?.[0]) {
     matches.push({ option: group.options[0], index: 0, score: optionName(group.options[0]).length });
@@ -583,14 +777,55 @@ function applyPackOptionalText(item: MenuItem, state: PackState, text: string, k
   }
 }
 
-function packSalsaOptionCompatible(option: string, query: string) {
+function packSpecificOptionCompatible(option: string, query: string) {
   const key = normalizeText(option);
-  if (!/\bsalsa\b/.test(key)) return true;
-  if (/\bverde|medium\b/.test(query)) return /\bverde|medium\b/.test(key);
-  if (/\broja|hot\b/.test(query)) return /\broja|hot\b/.test(key);
-  if (/\btomate|tomato\b/.test(query)) return /\btomato|tomate\b/.test(key);
-  if (/\basada|mild\b/.test(query)) return /\basada|mild\b/.test(key) && !/\btomato|tomate\b/.test(key);
+  if (/\bsalsa\b/.test(key)) {
+    const wantsVerde = packQueryHasPositiveTerm(query, ["verde", "medium"]);
+    const wantsTomato = packQueryHasPositiveTerm(query, ["tomate", "tomato"]);
+    const wantsRoja = packQueryHasPositiveTerm(query, ["roja", "red", "hot"]);
+    const wantsAsada = packQueryHasPositiveTerm(query, ["asada", "mild"]);
+    if (wantsVerde) return /\bverde|medium\b/.test(key);
+    if (wantsTomato) return /\btomato|tomate\b/.test(key);
+    if (wantsRoja) return /\broja|hot\b/.test(key);
+    if (wantsAsada) return /\basada|mild\b/.test(key) && !/\btomato|tomate\b/.test(key);
+    if (/\bsalsa\b/.test(query)) return false;
+  }
+  if (/\b(limon|lime)\b/.test(key)) {
+    const wantsFull = /\b(full|whole|complete|entero|entera|completo|completa)\b/.test(query);
+    const wantsHalf = /\b(half|medio|media|mitad)\b/.test(query);
+    if (wantsFull && !wantsHalf) return /\bfull\b/.test(key);
+    if (wantsHalf && !wantsFull) return /\bhalf\b/.test(key);
+    if (/\b(limon|lime)\b/.test(query)) return false;
+  }
   return true;
+}
+
+function packQueryHasPositiveTerm(query: string, terms: string[]) {
+  return terms.some((term) => {
+    const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "gi");
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(query))) {
+      if (!packOptionMentionNegated(query, match.index)) return true;
+    }
+    return false;
+  });
+}
+
+function packExtrasNeedsLimonSize(item: MenuItem, text: string) {
+  const query = normalizeText(text);
+  if (!/\b(limon|lime|lemon)\b/.test(query)) return false;
+  if (/\b(half|medio|media|mitad|full|whole|complete|entero|entera|completo|completa)\b/.test(query)) return false;
+  const group = getPackOptionalGroup(item, "extras");
+  const options = group?.options || [];
+  const hasHalf = options.some((option) => {
+    const key = normalizeText(optionName(option));
+    return /\bhalf\b/.test(key) && /\b(limon|lime|lemon)\b/.test(key);
+  });
+  const hasFull = options.some((option) => {
+    const key = normalizeText(optionName(option));
+    return /\bfull\b/.test(key) && /\b(limon|lime|lemon)\b/.test(key);
+  });
+  return hasHalf && hasFull;
 }
 
 function findAllPackOptionMentions(options: Array<string | ModifierOption>, query: string) {
@@ -602,6 +837,7 @@ function findAllPackOptionMentions(options: Array<string | ModifierOption>, quer
       for (const alias of aliases) {
         const aliasPattern = escapeRegex(alias).replace(/\s+/g, "\\s+");
         const match = query.match(new RegExp(`\\b${aliasPattern}\\b`, "i"));
+        if (match?.index !== undefined && packOptionMentionNegated(query, match.index)) continue;
         if (match?.index !== undefined && (best < 0 || alias.length > bestLength || (alias.length === bestLength && match.index < best))) {
           best = match.index;
           bestLength = alias.length;
@@ -611,6 +847,11 @@ function findAllPackOptionMentions(options: Array<string | ModifierOption>, quer
     })
     .filter((entry): entry is { option: string | ModifierOption; index: number; score: number } => Boolean(entry))
     .sort((a, b) => a.index - b.index || b.score - a.score);
+}
+
+function packOptionMentionNegated(query: string, index: number) {
+  const before = query.slice(Math.max(0, index - 40), index).trim();
+  return /(?:^|\s)(?:no|sin|without|not)(?:\s+(?:quiero|deseo|want|extra|salsa|agua))*\s*$/.test(before);
 }
 
 function applyPackMeatText(item: MenuItem, state: PackState, text: string) {
@@ -640,6 +881,16 @@ function applyPackMeatText(item: MenuItem, state: PackState, text: string) {
     for (const mention of counted) {
       applyToNextGroups(mention.option, mention.quantity);
     }
+    const remaining = findRemainingPackMeatMention(groups[0].group.options, query);
+    if (remaining) {
+      applyToNextGroups(remaining.option, groups.length);
+    }
+    return;
+  }
+
+  const remaining = findRemainingPackMeatMention(groups[0].group.options, query);
+  if (remaining) {
+    applyToNextGroups(remaining.option, groups.length);
     return;
   }
 
@@ -660,7 +911,7 @@ function findPackOptionMention(options: Array<string | ModifierOption>, query: s
       let best = -1;
       let score = 0;
       for (const alias of aliases) {
-        const aliasPattern = escapeRegex(alias).replace(/\s+/g, "\\s+");
+        const aliasPattern = optionAliasPattern(alias);
         const pattern = requireAll
           ? new RegExp(`${allPattern}\\s+(?:de\\s+)?${aliasPattern}\\b|\\b${aliasPattern}\\s+${allPattern}`, "i")
           : new RegExp(`\\b${aliasPattern}\\b`, "i");
@@ -683,7 +934,7 @@ function findCountedPackMeatMentions(options: Array<string | ModifierOption>, qu
   const seen = new Map<string, { option: string | ModifierOption; quantity: number; index: number; score: number }>();
   for (const option of options) {
     for (const alias of optionAliases(optionName(option))) {
-      const aliasPattern = escapeRegex(alias).replace(/\s+/g, "\\s+");
+      const aliasPattern = optionAliasPattern(alias);
       const regex = new RegExp(`\\b(${quantity})\\s+(?:x\\s+)?(?:de\\s+)?${aliasPattern}(?:\\s+(?:meat|carne|carnes))?\\b`, "gi");
       let match: RegExpExecArray | null;
       while ((match = regex.exec(query))) {
@@ -701,6 +952,28 @@ function findCountedPackMeatMentions(options: Array<string | ModifierOption>, qu
   }
   mentions.push(...seen.values());
   return mentions.sort((a, b) => a.index - b.index || b.score - a.score);
+}
+
+function findRemainingPackMeatMention(options: Array<string | ModifierOption>, query: string) {
+  const restPattern = "(?:el\\s+)?resto|(?:los\\s+)?demas|lo\\s+demas|sobrantes?|remaining|remainder|(?:the\\s+)?rest";
+  const matches = options
+    .map((option) => {
+      let best = -1;
+      let score = 0;
+      for (const alias of optionAliases(optionName(option))) {
+        const aliasPattern = optionAliasPattern(alias);
+        const regex = new RegExp(`\\b(?:${restPattern})(?:\\s+(?:de|of))?\\s+${aliasPattern}\\b|\\b${aliasPattern}\\s+(?:para\\s+)?(?:${restPattern})\\b`, "i");
+        const match = query.match(regex);
+        if (match?.index !== undefined && (best < 0 || match.index < best || (match.index === best && alias.length > score))) {
+          best = match.index;
+          score = alias.length;
+        }
+      }
+      return best >= 0 ? { option, index: best, score } : null;
+    })
+    .filter((entry): entry is { option: string | ModifierOption; index: number; score: number } => Boolean(entry))
+    .sort((a, b) => a.index - b.index || b.score - a.score);
+  return matches[0] || null;
 }
 
 function firstMissingMeatGroup(item: MenuItem, state: PackState) {
@@ -741,7 +1014,7 @@ function buildPackDeluxeStepOrNext(item: MenuItem, count: number, state: PackSta
   if (!group) return buildPackSalsaStepOrNext(item, count, state, language);
   state.awaitingStepKey = PACK_DELUXE_STEP;
   const question = language === "es" ? "¿Regular o deluxe?" : "Regular or deluxe?";
-  return buildPackOptionalStep(item, count, state, group, question, PACK_DELUXE_STEP, "Regular or deluxe", ["Regular", ...(group.options || []).map(optionName)], language);
+  return buildPackOptionalStep(item, count, state, group, question, PACK_DELUXE_STEP, "Regular or deluxe", [PACK_REGULAR_TOPPINGS_LABEL, ...(group.options || []).map(optionName)], language);
 }
 
 function buildPackSalsaStepOrNext(item: MenuItem, count: number, state: PackState, language: "en" | "es") {
@@ -760,12 +1033,28 @@ function buildPackAguaStepOrNext(item: MenuItem, count: number, state: PackState
   return buildPackOptionalStep(item, count, state, group, question, PACK_AGUA_STEP, "Agua extra", ["No agua extra", ...(group.options || []).map(optionName)], language);
 }
 
-function buildPackExtrasStepOrNext(item: MenuItem, count: number, state: PackState, language: "en" | "es") {
+function buildPackExtrasStepOrNext(item: MenuItem, count: number, state: PackState, language: "en" | "es", askLimonSize = false) {
   const group = getPackOptionalGroup(item, "extras");
   if (!group) return finishPackMeal(item, count, state, language);
   state.awaitingStepKey = PACK_EXTRAS_STEP;
-  const question = language === "es" ? "¿Extras? Di listo si no." : "Any extras? Say done for none.";
+  const question = askLimonSize
+    ? language === "es"
+      ? "¿Quieres medio limón o limón entero?"
+      : "Would you like half lime or full lime?"
+    : packHasExtrasSelection(item, state)
+      ? language === "es"
+        ? "¿Eso es todo para extras? Di listo para completar."
+        : "Is that all for extras? Say done to complete."
+      : language === "es" ? "¿Extras? Di listo si no." : "Any extras? Say done for none.";
   return buildPackOptionalStep(item, count, state, group, question, PACK_EXTRAS_STEP, "Extras", ["No extras", ...(group.options || []).map(optionName)], language);
+}
+
+function packHasExtrasSelection(item: MenuItem, state: PackState) {
+  const group = getPackOptionalGroup(item, "extras");
+  if (!group) return false;
+  return state.selections.some((selection) =>
+    selection.groupId === group.id && !/^no\s+extras?$/i.test(String(selection.option || "").trim())
+  );
 }
 
 function buildPackOptionalStep(item: MenuItem, count: number, state: PackState, _group: ModifierGroup, question: string, stepKey: string, stepName: string, options: string[], _language: "en" | "es") {
@@ -789,9 +1078,19 @@ function buildPackOptionalStep(item: MenuItem, count: number, state: PackState, 
 }
 
 function buildPackMeatStep(item: MenuItem, count: number, state: PackState, group: ModifierGroup, index: number, language: "en" | "es") {
+  // fix13: one natural question for the whole pack (or the rest of it).
+  const kindName = String(item.readbackName || item.name).match(/\b(tacos|quesadillas|tortas|gorditas)\b/i)?.[1]?.toLowerCase() || "tacos";
+  const fem = /quesadillas|tortas|gorditas/.test(kindName);
+  const left = Math.max(1, count - index);
+  const a = Math.ceil(count / 2), b = count - Math.ceil(count / 2);
+  const enKind: Record<string, string> = { tacos: "tacos", quesadillas: "quesadillas", tortas: "tortas", gorditas: "gorditas" };
   const question = language === "es"
-    ? `Carne ${index + 1}: elige una. Puedes decir "todos bistec" o "dos bistec y tres chorizo".`
-    : `Item ${index + 1} meat: choose one. You can say "all steak" or "two steak and three chorizo".`;
+    ? (index === 0
+      ? `¿De qué carne ${fem ? "las" : "los"} ${count} ${kindName}? Puedes mezclar, por ejemplo ${a} pastor y ${b} asada.`
+      : `¿Y ${fem ? "las otras" : "los otros"} ${left} ${kindName}, de qué carne?`)
+    : (index === 0
+      ? `What meat for the ${count} ${enKind[kindName]}? You can mix, for example ${a} al pastor and ${b} steak.`
+      : `And the other ${left} ${enKind[kindName]}, what meat?`);
   const totalSteps = packTotalSteps(count, state);
   const stepOffset = packOptionalStepOffset(state);
   return {
@@ -880,14 +1179,18 @@ function optionAliases(value: string) {
   const cleanedKey = normalizeText(cleaned);
   const aliases = new Set<string>();
   const genericTokens = new Set(["beef", "pork", "meat", "carne", "carnes", "extra", "side", "chips", "chip", "with", "oz", "double"]);
+  const isMeltedCheeseOption = /\b(queso derretido|melted cheese)\b/.test(cleanedKey);
   const isAmbiguousPotatoOption = /\b(papas con rajas|poblano with potatoes|nopales con papas|cacti with potatoes)\b/.test(cleanedKey);
+  const isSalsaOption = /\bsalsa\b/.test(cleanedKey);
   const ambiguousPotatoTokens = new Set(["papas", "potato", "potatoes"]);
   const add = (entry: string) => {
     const normalized = normalizeText(entry);
     if (
       normalized.length > 2 &&
       !genericTokens.has(normalized) &&
-      !(isAmbiguousPotatoOption && ambiguousPotatoTokens.has(normalized))
+      !(isMeltedCheeseOption && /^(queso|cheese)$/.test(normalized)) &&
+      !(isAmbiguousPotatoOption && ambiguousPotatoTokens.has(normalized)) &&
+      !(isSalsaOption && normalized === "salsa")
     ) {
       aliases.add(normalized);
     }
@@ -903,6 +1206,17 @@ function optionAliases(value: string) {
     add("cactus with potatoes");
     add("cacti with potatoes");
   }
+  if (/\bsalsa tomato\b/.test(cleanedKey)) {
+    add("tomate");
+    add("salsa tomate");
+    add("tomato salsa");
+  }
+  if (/\bcarnitas\b/.test(cleanedKey)) {
+    add("carnita");
+  }
+  if (/\bbistec\b/.test(cleanedKey)) {
+    add("bisteces");
+  }
   for (const part of cleaned.split(/\s*\/\s*|\s+-\s+|\s+or\s+|\s+y\s+|\s+and\s+/i)) {
     add(part);
   }
@@ -910,6 +1224,14 @@ function optionAliases(value: string) {
     add(token);
   }
   return Array.from(aliases).sort((a, b) => b.length - a.length);
+}
+
+function optionAliasPattern(alias: string) {
+  const pattern = escapeRegex(alias).replace(/\s+/g, "\\s+");
+  if (/^[a-z0-9]+$/.test(alias) && alias.length > 3 && !alias.endsWith("s")) {
+    return `${pattern}(?:s|es)?`;
+  }
+  return pattern;
 }
 
 function parseQuantity(value: string) {
@@ -924,6 +1246,7 @@ function normalizeText(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bal\s+pastor\b/g, "alpastor")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();

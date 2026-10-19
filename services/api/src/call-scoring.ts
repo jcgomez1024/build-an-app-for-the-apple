@@ -1,0 +1,373 @@
+// Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
+// transcribe each track with word timestamps, interleave into turns, and replay the caller
+// turns through Elvi's order context one at a time (shadow session, never checkout).
+export type Speaker = "caller" | "staff";
+export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
+type Word = { text: string; start: number; end: number };
+
+/** Split a 16-bit PCM WAV into one mono WAV per channel. */
+export function splitWavChannels(buf: Buffer): Buffer[] {
+  if (buf.toString("ascii", 0, 4) !== "RIFF") throw new Error("not a WAV file");
+  let off = 12, fmt: { ch: number; rate: number; bits: number } | null = null, data: Buffer | null = null;
+  while (off + 8 <= buf.length) {
+    const id = buf.toString("ascii", off, off + 4), size = buf.readUInt32LE(off + 4), body = off + 8;
+    if (id === "fmt ") fmt = { ch: buf.readUInt16LE(body + 2), rate: buf.readUInt32LE(body + 4), bits: buf.readUInt16LE(body + 14) };
+    if (id === "data") data = buf.subarray(body, Math.min(buf.length, body + size));
+    off = body + size + (size % 2);
+  }
+  if (!fmt || !data) throw new Error("bad WAV");
+  if (fmt.bits !== 16) throw new Error(`unsupported WAV bits ${fmt.bits}`);
+  const frames = Math.floor(data.length / (2 * fmt.ch));
+  return Array.from({ length: fmt.ch }, (_, c) => {
+    const pcm = Buffer.alloc(frames * 2);
+    for (let i = 0; i < frames; i++) pcm.writeInt16LE(data!.readInt16LE((i * fmt!.ch + c) * 2), i * 2);
+    const h = Buffer.alloc(44);
+    h.write("RIFF", 0); h.writeUInt32LE(36 + pcm.length, 4); h.write("WAVEfmt ", 8); h.writeUInt32LE(16, 16);
+    h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(fmt!.rate, 24); h.writeUInt32LE(fmt!.rate * 2, 28);
+    h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(pcm.length, 40);
+    return Buffer.concat([h, pcm]);
+  });
+}
+
+/** Seconds of real speech energy (20 ms frames above an RMS floor). Echo/line noise stays near 0. */
+function activeSeconds(wav: Buffer, rate = 8000, floor = 900) {
+  const frame = Math.max(1, Math.round(rate * 0.02));
+  let active = 0;
+  for (let i = 44; i + frame * 2 <= wav.length; i += frame * 2) {
+    let sum = 0;
+    for (let j = 0; j < frame; j += 1) { const v = wav.readInt16LE(i + j * 2); sum += v * v; }
+    if (Math.sqrt(sum / frame) > floor) active += 1;
+  }
+  return active * 0.02;
+}
+
+function peak(wav: Buffer) {
+  let m = 0;
+  for (let i = 44; i + 1 < wav.length; i += 2) m = Math.max(m, Math.abs(wav.readInt16LE(i)));
+  return m;
+}
+
+export async function sttWords(wav: Buffer): Promise<{ words: Word[]; language: string; text: string }> {
+  const form = new FormData();
+  form.append("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "track.wav");
+  const r = await fetch("https://api.x.ai/v1/stt", { method: "POST", headers: { Authorization: `Bearer ${process.env.XAI_API_KEY}` }, body: form });
+  const body = (await r.json().catch(() => ({}))) as any;
+  if (!r.ok) throw new Error(`xAI STT ${r.status}: ${body?.error?.message || ""}`);
+  return { words: Array.isArray(body.words) ? body.words : [], language: String(body.language || ""), text: String(body.text || "") };
+}
+
+const ES = /\b(quiero|quisiera|de|con|sin|por favor|gracias|una?|dos|tres|cuatro|cinco|mejor|solo|nada|más|para|recoger|sí|bueno|orden|también|así|está|bien|lleva|frijoles|arroz)\b|[ñáéíóú¿¡]/gi;
+const EN = /\b(i|i'd|can|get|want|would|like|the|with|without|and|please|thanks|thank|you|actually|make|it|only|just|one|two|three|four|for|pickup|that's|all|yes|no|order)\b/gi;
+export function detectLanguage(text: string, fallback: "es" | "en" = "es"): "es" | "en" {
+  const es = (text.match(ES) || []).length, en = (text.match(EN) || []).length;
+  return es === en ? fallback : es > en ? "es" : "en";
+}
+
+/** Group words into utterances: a new one starts after a pause of `gap` seconds. */
+function utterances(words: Word[], speaker: Speaker, fallback: "es" | "en", gap = 0.9): CallTurn[] {
+  const out: CallTurn[] = [];
+  for (const w of words) {
+    const last = out[out.length - 1];
+    if (last && w.start - last.end <= gap) { last.text += " " + w.text; last.end = w.end; }
+    else out.push({ speaker, start: w.start, end: w.end, text: w.text, language: fallback });
+  }
+  for (const t of out) t.language = detectLanguage(t.text, fallback);
+  return out;
+}
+
+export async function transcribeDualChannel(wav: Buffer, opts: { callerChannel?: 1 | 2 } = {}): Promise<CallTurn[]> {
+  // Ring-through calls: channel 1 = caller. Counter-phone (queue) calls may put the counter on channel 1: callerChannel = 2.
+  const [ch1, ch2] = splitWavChannels(wav);
+  const [caller, staff] = opts.callerChannel === 2 ? [ch2, ch1] : [ch1, ch2];
+  const tracks: Array<[Speaker, Buffer | undefined]> = [["caller", caller], ["staff", staff]];
+  const turns: CallTurn[] = [];
+  for (const [speaker, track] of tracks) {
+    if (!track || peak(track) < 200) continue; // silent track
+    // Staff leg with no real speech (only a faint echo of the caller) is skipped; STT invents words from echo.
+    if (speaker === "staff" && activeSeconds(track, track.readUInt32LE(24)) < 0.5) continue;
+    const { words, language } = await sttWords(track);
+    turns.push(...utterances(words, speaker, language === "en" ? "en" : "es"));
+  }
+  // The staff whisper ("Llamada de María.") may land at the start of the staff track; it isn't conversation.
+  return dropEcho(turns.sort((a, b) => a.start - b.start)).filter((t, i) => !(t.speaker === "staff" && t.start < 6 && /^\s*llamada de [\p{L}'’-]+[.!]?\s*$/iu.test(t.text)));
+}
+
+const wordsOf = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ ]+/g, " ").split(/\s+/).filter(Boolean);
+/**
+ * The staff leg often carries a faint echo of the caller (same words, same time). A staff utterance whose words
+ * mostly repeat caller speech at the same moment (overlapping in time) is echo, not staff talking.
+ */
+export function dropEcho(turns: CallTurn[]): CallTurn[] {
+  const caller = turns.filter((t) => t.speaker === "caller");
+  return turns.filter((t) => {
+    if (t.speaker !== "staff") return true;
+    const near = caller.filter((c) => c.start <= t.end + 0.4 && c.end >= t.start - 0.4).flatMap((c) => wordsOf(c.text));
+    const w = wordsOf(t.text);
+    if (!w.length || !near.length) return !!w.length;
+    const set = new Set(near);
+    return w.filter((x) => set.has(x)).length / w.length < 0.6;
+  });
+}
+
+const QTY = "(?:un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)";
+/** "tres tacos de pastor y un burrito de asada con frijoles" -> two item phrases. "con arroz y frijoles" stays whole. */
+export function splitItems(text: string): string[] {
+  // Drop a trailing "sería todo / thanks" so it stays with the order phrase for meat-list splits (fix21).
+  let stripped = text.trim();
+  // Peel trailing closings (possibly stacked: "…, y sería todo. Gracias").
+  for (let i = 0; i < 3; i++) {
+    const next = stripped.replace(/[,.\s]+(?:y\s+)?(?:ser[ií]a\s+todo|es\s+todo|eso\s+es\s+todo|nada\s+m[aá]s|that'?s\s+(?:all|it|everything)|gracias|thanks?|thank\s+you)\.?\s*$/iu, "").trim();
+    if (next === stripped) break;
+    stripped = next;
+  }
+  if (!stripped) stripped = text;
+  const parts = stripped.split(new RegExp(`\\s*(?:,|;|\\by\\b|\\band\\b|\\btambién\\b|\\balso\\b|\\bplus\\b)\\s+(?=(?:(?:me\\s+)?(?:das|da|pones|give me|get me|add)\\s+)?${QTY}\\s+\\p{L})`, "giu"));
+  // fix21: "una de chorizo, una de tepa y otra de buche" continues the same dish — rejoin those pieces.
+  const out: string[] = [];
+  for (const raw of parts) {
+    const piece = raw.trim();
+    if (!piece) continue;
+    if (out.length && /^(?:una?|uno|otra?|otro|another|one)\s+de\s+[\p{L}]/iu.test(piece)) {
+      out[out.length - 1] = `${out[out.length - 1]}, ${piece}`;
+      continue;
+    }
+    out.push(piece);
+  }
+  return out;
+}
+
+const LEAD = /^(?:(?:hola|hi|hello|hey|oye|sí|si|yes|okay|ok|bueno)\b[,.!]?\s*|no[,.!]\s+|(?:buenas\s+(?:tardes|noches)|buenos\s+días|good\s+(?:morning|afternoon|evening))[,.!]?\s*|(?:quiero|quisiera|dame|me\s+(?:das|da|pones|puedes\s+dar|regalas)|can\s+i\s+(?:get|have)|could\s+i\s+(?:get|have)|i(?:'d|\s+would)\s+like|i\s+want|let\s+me\s+get|i'll\s+have)\s+)/iu;
+// fix20: bare "no" is NOT filler — "no crema" / "no, mejor tres" must keep the "no". Only "no," / "no!" as a discourse tag is stripped.
+/** Phone filler the menu resolver doesn't need: "Hola, buenas tardes. Quiero tres tacos..." -> "tres tacos...". */
+export function cleanPhrase(text: string): string {
+  let t = text.trim().replace(/^[.,!¡¿\s]+/, "");
+  for (let i = 0; i < 6; i++) {
+    const n = t.replace(/^[^.!?]*\b(?:buenas\s+(?:tardes|noches)|buenos\s+días|good\s+(?:morning|afternoon|evening))\b[.!?,]\s*/iu, "").replace(LEAD, "").replace(/^[.,!¡¿\s]+/, "");
+    if (n === t) break;
+    t = n;
+  }
+  return t.replace(/[,\s]*(?:please|por\s+favor)\b/giu, "").replace(/[.?!\s]+$/u, "").trim();
+}
+const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|quesadillas?|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+/** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
+export const isClosing = (t: string) => {
+  let s = t.trim();
+  if (!s || FOOD.test(s)) return false;
+  const body = s.replace(/^(?:bueno|ok(?:ay)?|listo|perfecto|sale|alright|great|sí|si|yes)[,.!]?\s+/iu, "").trim();
+  if (body && body !== s && body.length > 8) s = body;
+  return CLOSING.test(s) && !FOOD.test(s);
+};
+
+/**
+ * ticket5: NO BEBIDA / NO DRINK is the kitchen's container divider. A caller asking to pack/plate food separately
+ * ("en diferentes recipientes", "separado", "en dos órdenes", "in separate containers", "split it") gets
+ * N containers on the ticket. A condiment on the side ("la salsa aparte") is NOT a split, and "y aparte una
+ * horchata" (aparte = also, followed by food) is not either.
+ */
+export type ContainerSplit = { parts: number; phrase: string; rest: string };
+export type ContainerPlan = { breaks: number[]; splits: Array<{ parts: number; from: number; to: number | null }>; phrases: string[] };
+const SPLIT_N: Record<string, number> = { dos: 2, two: 2, "2": 2, tres: 3, three: 3, "3": 3, cuatro: 4, four: 4, "4": 4 };
+const CONTAINER = String.raw`(?:recipientes?|contenedores?|containers?|platos?|platitos?|cajas?|cajitas?|boxes|box|bolsas?|bags?|charolas?|plates?|to-?go\s+boxes|empaques?)`;
+const NWORD = String.raw`(?:dos|tres|cuatro|2|3|4|two|three|four)`;
+const SPLIT_PATTERNS: RegExp[] = [
+  // en diferentes recipientes / en dos contenedores / in separate containers / in two boxes
+  new RegExp(String.raw`\b(?:en|in|into)\s+(?:(?:sus|unos|unas|their|its)\s+)?(${NWORD}|diferentes|distint[oa]s|separad[oa]s|otr[oa]s?|vari[oa]s|individuales|different|separate|individual|own)\s+${CONTAINER}(?:\s+(?:separad[oa]s|diferentes|aparte))?`, "iu"),
+  // en dos órdenes / dos órdenes separadas / two separate orders / split into two orders
+  new RegExp(String.raw`\b(?:en|in|into)\s+(${NWORD})\s+(?:[oó]rdenes|orders)\b`, "iu"),
+  new RegExp(String.raw`\b(${NWORD})\s+(?:[oó]rdenes|orders)\s+(?:separad[oa]s|aparte|diferentes|distint[oa]s)`, "iu"),
+  new RegExp(String.raw`\b(${NWORD})\s+(?:separate|different)\s+(?:orders|${CONTAINER})`, "iu"),
+  new RegExp(String.raw`\b(?:separate|different)\s+${CONTAINER}`, "iu"),
+  // split it / split them in two / divídelas en dos
+  new RegExp(String.raw`\bsplit\s+(?:it|them|that|those|the\s+order|this|it\s+up|them\s+up|in|into)(?:\s+(?:in|into)\s+(${NWORD}))?`, "iu"),
+  new RegExp(String.raw`\b(?:div[ií]d\w*|separ[ae]\w*|reparte\w*|partel[oa]s?)\s+(?:en|in)\s+(${NWORD})\b`, "iu"),
+  // por separado / separadas / separately / packed separately
+  new RegExp(String.raw`\b(?:por\s+separado|separad[oa]s?|separately)\b`, "iu"),
+  // empacadas aparte / por aparte / en otro recipiente aparte / "y las otras tres aparte" (aparte at the end)
+  new RegExp(String.raw`\b(?:por|empacad[oa]s?|empaquetad[oa]s?|puest[oa]s?|servid[oa]s?|platead[oa]s?|emplatad[oa]s?|p[oó]n\w*|ech\w*)\s+aparte\b`, "iu"),
+  new RegExp(String.raw`\baparte\s*[.!?]*\s*$`, "iu"),
+];
+// "tres y tres" / "3 and 3" / "mitad y mitad" right after a split request: just how to divide, never a new dish.
+const SPLIT_SHARES = new RegExp(String.raw`^[¿¡\s]*(?:(?:${NWORD}|una?|uno|one|seis|six|cinco|five)(?:\s+(?:y|e|and|,)\s+|\s*,\s*)(?:${NWORD}|una?|uno|one|seis|six|cinco|five)(?:(?:\s+(?:y|e|and)\s+|\s*,\s*)(?:${NWORD}|una?|uno|one))?|(?:la\s+)?mitad\s+y\s+(?:la\s+)?mitad|half\s+and\s+half)\s*[.!?]*\s*$`, "iu");
+const SIDE_ITEM = /\b(salsas?|crema|sour\s*cream|lim[oó]n(?:es)?|limes?|cebollas?|cilantro|chiles?|jalape[nñ]os?|rabanos?|r[aá]banos?|aderezo|dressing|sauce|queso|cheese|guacamole|pico)\b[^.,;]{0,24}\b(aparte|por\s+separado|separad[oa]s?|on\s+the\s+side|separate(?:ly)?)\b/iu;
+const SIDE_ITEM2 = /\b(aparte|por\s+separado|separad[oa]s?|on\s+the\s+side|separate(?:ly)?)\b[^.,;]{0,12}\b(?:la|el|las|los|the)?\s*(salsas?|crema|sour\s*cream|lim[oó]n(?:es)?|limes?|cebollas?|cilantro|aderezo|dressing|sauce|guacamole)\b/iu;
+export function detectContainerSplit(text: string, opts: { afterSplit?: boolean } = {}): ContainerSplit | null {
+  const t = String(text || "");
+  if (!t.trim()) return null;
+  if (SIDE_ITEM.test(t) || SIDE_ITEM2.test(t)) return null;
+  // fix24: "una y una" / "tres y tres" is only a split when a split request came first (else it answers a question).
+  if (SPLIT_SHARES.test(t)) {
+    if (!opts.afterSplit) return null;
+    const n = (t.match(/\b(?:y|e|and)\b|,/giu) || []).length + 1;
+    return { parts: Math.max(2, Math.min(4, n)), phrase: t.trim(), rest: "" };
+  }
+  for (const re of SPLIT_PATTERNS) {
+    const m = t.match(re);
+    if (!m) continue;
+    // "y aparte una horchata": aparte = also, followed by a dish → not a container split.
+    if (/^aparte\b/i.test(m[0].trim()) && FOOD.test(t.slice((m.index || 0) + m[0].length))) continue;
+    const n = (m.slice(1).find((g) => g && SPLIT_N[g.toLowerCase()] != null) || "").toLowerCase();
+    const rest = (t.slice(0, m.index || 0) + " " + t.slice((m.index || 0) + m[0].length)).replace(/\s+/g, " ").replace(/\s+([,.!?])/g, "$1").replace(/[,\s]+$/u, "").trim();
+    return { parts: SPLIT_N[n] || 2, phrase: m[0].trim(), rest };
+  }
+  return null;
+}
+
+/** Staff-style removal notes ("no crema"); twilio.ts uses the same list for the kitchen ticket. */
+export const REMOVAL_NOTES: Array<{ re: RegExp; note: string }> = [
+  { re: /lechuga|lettuce/i, note: "no lechuga" },
+  { re: /crema|sour\s*cream/i, note: "no crema" },
+  { re: /cebolla|onion/i, note: "no cebolla" },
+  { re: /cilantro/i, note: "no cilantro" },
+  { re: /pico/i, note: "no pico" },
+  { re: /queso\s*fresco|fresco\s*cheese/i, note: "no queso fresco" },
+  { re: /frijoles?|beans/i, note: "no frijoles" },
+  { re: /arroz|rice/i, note: "no arroz" },
+];
+export function removalNotesIn(text: string): string[] {
+  const out: string[] = [];
+  for (const { re, note } of REMOVAL_NOTES) {
+    const hit = new RegExp(String.raw`\b(?:no|sin|without|hold(?:\s+the)?)\s+(?:(?:el|la|los|las|the|de)\s+)?(?:${re.source})\b`, "i").test(String(text || ""));
+    if (hit && !out.includes(note)) out.push(note);
+  }
+  return out;
+}
+const lineHasDeluxe = (l: any) => (l?.modifiers || []).some((m: any) => /\bDELUXE\b/i.test(String(m?.option || "")) && !/^\s*regular\b/i.test(String(m?.option || "")));
+
+type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[] };
+export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => Promise<any>;
+
+/** Replay caller turns through Elvi; apply her actions to a shadow cart. */
+export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
+  const cart: Line[] = [];
+  const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
+  const steps: any[] = [];
+  let lastTouched: Line | null = null;
+  const touchedNow: Line[] = [];
+  const apply = (actions: any[] = []) => {
+    for (const a of actions) {
+      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback }; cart.push(l); lastTouched = l; touchedNow.push(l); }
+      else if (a.type === "update_item") {
+        const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
+        if (i >= 0) { cart[i] = { ...cart[i], quantity: a.quantity ?? cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
+      } else if (a.type === "remove_item") {
+        const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
+        if (i >= 0) cart.splice(i, 1);
+      }
+    }
+  };
+  // fix24: a removal ("no crema") belongs to the dish it was said with, else to the last dish touched. Two Deluxe
+  // dishes and no way to tell which → ambiguous (the ticket flags it for staff instead of guessing).
+  const ambiguousRemovals: string[] = [];
+  const attributeRemovals = (text: string, wasLast: Line | null) => {
+    const notes = removalNotesIn(text);
+    if (!notes.length) return;
+    // Said with a dish ("un sopesazo deluxe sin crema") → that dish. A bare "sin crema" later → see below.
+    const fresh = FOOD.test(text) ? [...new Set(touchedNow)].filter((l) => cart.includes(l)) : [];
+    let targets: Line[] = fresh;
+    if (targets.length > 1) {
+      const deluxe = targets.filter(lineHasDeluxe);
+      targets = deluxe.length === 1 ? deluxe : deluxe.length > 1 ? [] : targets;
+      if (!targets.length) { for (const n of notes) if (!ambiguousRemovals.includes(n)) ambiguousRemovals.push(n); return; }
+    }
+    if (!targets.length) {
+      if (cart.filter(lineHasDeluxe).length > 1) { for (const n of notes) if (!ambiguousRemovals.includes(n)) ambiguousRemovals.push(n); return; }
+      const only = cart.filter(lineHasDeluxe);
+      targets = only.length === 1 ? only : wasLast && cart.includes(wasLast) ? [wasLast] : cart.length ? [cart[cart.length - 1]] : [];
+    }
+    for (const l of targets) l.elviNotes = [...new Set([...(l.elviNotes || []), ...notes])];
+  };
+  const say = async (text: string, language: "es" | "en", source: string) => {
+    const r = await run(text, language, history.slice(-24));
+    history.push({ role: "customer", text }, { role: "assistant", text: String(r?.reply || "") });
+    const wasLast = lastTouched;
+    touchedNow.length = 0;
+    apply((r?.actions || []).filter((a: any) => a.type !== "checkout"));
+    if (source !== "auto") attributeRemovals(text, wasLast);
+    steps.push({ source, heard: text, language, reply: r?.reply, actions: (r?.actions || []).map((a: any) => a.type) });
+    return r;
+  };
+  let last: any = null;
+  let autoAccepted = false;
+  const containers: ContainerPlan = { breaks: [], splits: [], phrases: [] };
+  let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
+  const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
+  const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
+  // Phone staff fill in the details; accept Elvi's suggested choices for whatever is still open.
+  const acceptOpen = async (lang: "es" | "en") => {
+    for (let i = 0; i < 4 && asking(last); i++) {
+      const prev = String(last.reply || "");
+      last = await say(lang === "es" ? "así está bien" : "that's fine", lang, "auto");
+      autoAccepted = true;
+      if (String(last.reply || "") === prev) break;
+    }
+  };
+  // A caller's pauses mid-sentence ("¿Me puedes tomar dos … tacos de … bistec") split one request into fragments.
+  // Join consecutive caller utterances until staff speaks, then split by item.
+  const merged: CallTurn[] = [];
+  for (const t of turns) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.speaker === "caller" && t.speaker === "caller" && !isClosing(t.text) && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
+      prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
+    } else merged.push({ ...t });
+  }
+  turns = merged;
+  for (const t of turns) {
+    if (t.speaker !== "caller") { steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null; continue; }
+    if (staffAskedSplit) {
+      const asked = staffAskedSplit;
+      staffAskedSplit = null;
+      if (/^[¿¡\s]*(s[ií]|yes|yeah|yep|claro|ok(?:ay)?|por\s+favor|please|aj[aá]|eso|exacto|correcto|sure)(?![\p{L}\p{N}])/iu.test(t.text) && !/^[¿¡\s]*s[ií][,.\s]+no(?![\p{L}])/iu.test(t.text)) {
+        containers.splits.push({ parts: asked.parts, from: 0, to: null });
+        containers.phrases.push(`staff: ${asked.phrase} → ${t.text.trim()}`);
+        steps.push({ source: "caller-split", heard: t.text, parts: asked.parts });
+        if (!FOOD.test(t.text)) continue;
+      }
+    }
+    if (isClosing(t.text)) { steps.push({ source: "caller-closing", heard: t.text }); continue; }
+    // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
+    const bare = t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim()
+      .replace(/\bcampechanas?\b/giu, "bistec y chorizo").replace(/\b(?:o\s*mal|omal)\b/giu, "comal");
+    if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto)$/iu.test(bare)) {
+      steps.push({ source: "caller-ack", heard: t.text }); continue;
+    }
+    if (cart.length && /^(comal|harina|flour|homemade|ma[ií]z|corn|campechana|bistec|chorizo|asada|pastor|al\s*pastor|bistec y chorizo)$/iu.test(bare)) {
+      steps.push({ source: "caller-clarify", heard: t.text }); continue;
+    }
+    for (const raw of splitItems(cleanPhrase(t.text))) {
+      let piece = cleanPhrase(raw);
+      if (!piece) continue;
+      // ticket5: container split ("en diferentes recipientes", "separado", "split it") → NO BEBIDA dividers on the ticket.
+      const sp = detectContainerSplit(piece, { afterSplit: containers.phrases.length > 0 });
+      let splitFrom = -1;
+      if (sp) {
+        containers.phrases.push(sp.phrase);
+        const restHasFood = FOOD.test(sp.rest);
+        if (!restHasFood) {
+          // No new dish: applies to what was already ordered. Don't send it to Elvi (she'd treat "dos" as a quantity).
+          // Applied at ticket time to whatever food is in the cart (Elvi may still be settling a question).
+          if (!containers.splits.some((x) => x.from === 0 && x.to == null && x.parts === sp.parts)) containers.splits.push({ parts: sp.parts, from: 0, to: null });
+          steps.push({ source: "caller-split", heard: piece, parts: sp.parts });
+          continue;
+        }
+        splitFrom = cart.length;
+        piece = cleanPhrase(sp.rest) || piece;
+      }
+      const prev = last ? String(last.reply || "") : "";
+      last = await say(piece, t.language, "caller");
+      if (sp && splitFrom >= 0) {
+        const added = cart.length > splitFrom;
+        // "y aparte/por separado tres tacos" after earlier food → new container starts with the new dish.
+        if (added && splitFrom > 0 && /aparte|separad|separate|otr[oa]\s|another/iu.test(sp.phrase) && !/\b(?:dos|tres|cuatro|two|three|four|[234])\b/iu.test(sp.phrase)) containers.breaks.push(splitFrom);
+        else containers.splits.push({ parts: sp.parts, from: added ? splitFrom : Math.max(0, cart.length - 1), to: added ? cart.length : null });
+      }
+      // Elvi was stuck on an earlier question and ignored this turn: settle it, then retry the turn.
+      if (prev && asking(last) && String(last.reply || "") === prev) {
+        await acceptOpen(t.language);
+        last = await say(piece, t.language, "caller-retry");
+      }
+    }
+  }
+  await acceptOpen(lang0());
+  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true };
+}

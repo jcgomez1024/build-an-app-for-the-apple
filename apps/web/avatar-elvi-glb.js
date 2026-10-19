@@ -1,6 +1,7 @@
-import * as THREE from "https://unpkg.com/three@0.177.0/build/three.module.js?module";
-import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js?module";
-import { clone as cloneSkinned } from "https://unpkg.com/three@0.177.0/examples/jsm/utils/SkeletonUtils.js?module";
+// Single shared Three.js instance via import map (prevents "Multiple instances of Three.js" warning)
+import * as THREE from "three";
+import { GLTFLoader } from "https://unpkg.com/three@0.177.0/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "https://unpkg.com/three@0.177.0/examples/jsm/utils/SkeletonUtils.js";
 
 // Production-ready Realistic avatar models only
 const REALISTIC_IDLE_URL = "/avatar/elvis-avatar_Idle_11_withSkin-Realistic.glb";

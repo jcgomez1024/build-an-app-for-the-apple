@@ -4,15 +4,29 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
-import { chatWithElvi } from "./elvi.js";
+import { chatWithElvi, transcribeElviAudio, quantityCorrection, recordLastAdd } from "./elvi.js";
 import { createCheckout, getFullMenu, getMenu } from "./square.js";
+import { rbFormat } from "./readback.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
 import { resolveEspecialRequest } from "./especial-resolver.js";
 import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { attachRealtimeServer, createRealtimeSession } from "./realtime.js";
+import { loadSiteCatalog, itemAvailability, unavailableNowReply, siteSellsSquareItem, completeWithSiteDefaults, dropUnaskedExtras, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, salsaAsk, withoutSalsaWords, salsaAnswerWords, pickVariation, variationQuestion, followUpStep, withoutSkuWords } from "./site-catalog.js";
+import { unavailableItemReply, answerMenuQuestion, requiredChoiceQuestion } from "./menu-info.js";
+import { normalizeSpokenCatalogAliases } from "./text-intents.js";
 import { getComboGuide, isGuidedCombo, isApprovedItem, getApprovedMenuItems } from "./guides.js";
 import { extractReplacementBuildText } from "./text-intents.js";
+import { preTurn } from "./pre-turn.js";
+import { orderContextTurn, clearOrderContext, logTurn, pendingSummary } from "./order-context.js";
 import { listPublicTenants, resolveTenant } from "./tenant.js";
+import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
+import { registerTwilioRoutes } from "./twilio.js";
+import fs from "node:fs";
+import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { planCallerName, saveCallerName } from "./caller-memory.js";
+import { onCallerNameSaved } from "./twilio.js";
+import { shadowOrderFromTurns } from "./call-scoring.js";
+import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +34,20 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 const app = express();
+// lockdown1: anything arriving via a tunnel (Cloudflare headers / non-local Host) only reaches the phone system.
+// Localhost on this Mac stays unrestricted. Set PUBLIC_CUSTOMER_APP=1 to lift this later (order.cocinaelvis.app).
+export function viaPublic(req: { headers: Record<string, any> }) {
+  const host = String(req.headers.host || "").split(":")[0];
+  return !!(req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"]) || !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
+}
+const PUBLIC_OK = /^\/(health\/?$|phone\.html$|vendor\/twilio-voice\.min\.js$|img\/logo-cocina-elvis\.png$|favicon\.ico$|api\/twilio\/|api\/phone\/)/;
+app.use((req, res, next) => {
+  if (process.env.PUBLIC_CUSTOMER_APP === "1" || !viaPublic(req) || PUBLIC_OK.test(req.path)) return next();
+  res.status(404).type("text/plain").send("Not found");
+});
 const port = Number(process.env.PORT || 4000);
+
+type Language = "en" | "es";
 
 function resolveDefaultTenant(host: string | undefined) {
   return resolveTenant(host);
@@ -100,6 +127,50 @@ function submitOrderPreview(input: Record<string, unknown>) {
   };
 }
 
+async function synthesizeSpeech(tenant: ReturnType<typeof resolveTenant>, text: string, language: Language) {
+  const apiKey = tenant.xai.apiKey || process.env.XAI_API_KEY;
+  const voice = language === "es"
+    ? (process.env.XAI_VOICE_ID_ES || process.env.XAI_VOICE_ID || "Eve")
+    : (process.env.XAI_VOICE_ID || "Eve");
+
+  if (!apiKey) {
+    throw new Error("XAI_API_KEY is not configured");
+  }
+  if (!text.trim()) {
+    throw new Error("text is required");
+  }
+
+  const response = await fetch("https://api.x.ai/v1/tts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      text: text.trim().slice(0, 400),
+      voice_id: voice.toLowerCase(),
+      language
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`xAI speech failed (${response.status})`);
+  }
+
+  const audio = Buffer.from(await response.arrayBuffer());
+  if (!audio.length) {
+    throw new Error("xAI speech returned empty audio");
+  }
+
+  return {
+    ok: true,
+    engine: "xai",
+    voice,
+    mimeType: response.headers.get("content-type") || "audio/mpeg",
+    audioBase64: audio.toString("base64")
+  };
+}
+
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
@@ -111,11 +182,44 @@ app.get("/api/tenants", (_req, res) => {
   res.json({ tenants: listPublicTenants() });
 });
 
+app.get("/api/config", (_req, res) => {
+  res.json(publicLaunchConfig());
+});
+
 app.get("/api/:tenant/menu", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
     const items = await getMenu(buildSquareConfig(tenant));
     res.json({ items, tenant: tenant.slug });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ui1: the website's categories (site order) with the menu item ids in each and whether they sell right now.
+app.get("/api/:tenant/ui/catalog", async (req, res, next) => {
+  try {
+    const tenant = resolveTenant(req.params.tenant || req.headers.host);
+    const items = await getMenu(buildSquareConfig(tenant));
+    const cat = loadSiteCatalog();
+    // ui5: website order — categories as the feed lists them, items by the category's preferred order,
+    // plus the site's "Most popular" row (top 4 by popularity) first. Closed/timed ones are kept (shown greyed).
+    const ordered = (c: any, list: any[]) => {
+      const order: string[] = c.productOrder || [];
+      const at = (p: any) => { const i = order.indexOf(String(p.siteProductId)); return i < 0 ? 999 : i; };
+      return [...list].sort((a, b) => at(a) - at(b));
+    };
+    const popular = { name: "MOST POPULAR", popular: true, customTimes: false, productOrder: [] as string[] };
+    const popularProducts = [...(cat?.products || [])].sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 4);
+    const categories = [popular, ...(cat?.categories || [])].map((c: any) => {
+      const products = c.popular ? popularProducts : ordered(c, (cat?.products || []).filter((p) => p.categories.includes(c.name)));
+      const ids = products.flatMap((p) => items.filter((m: any) => m.squareCatalogObjectId === p.squareId).map((m: any) => ({ id: m.id, product: p.name })));
+      const first = ids[0] && items.find((m: any) => m.id === ids[0].id);
+      const a = first ? itemAvailability((first as any).squareCatalogObjectId) : { available: true };
+      return { name: c.name, ...(c.popular ? { popular: true } : {}), customTimes: c.customTimes, available: c.popular ? true : a.available, today: (a as any).today || "", window: (a as any).window || null,
+        items: ids.map((x: any) => { const m: any = items.find((it: any) => it.id === x.id); const ia: any = c.popular ? itemAvailability(m?.squareCatalogObjectId) : a; return { ...x, available: ia.available, window: ia.window || null }; }) };
+    }).filter((c) => c.items.length);
+    res.json({ categories, store: { timezone: cat?.store?.timezone, prepMinutes: cat?.store?.prepMinutes } });
   } catch (error) {
     next(error);
   }
@@ -133,15 +237,29 @@ app.get("/api/menu", async (req, res, next) => {
 
 function buildResolverInput(body: unknown) {
   const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const toolArgs = input.toolArgs && typeof input.toolArgs === "object"
+    ? normalizeResolverToolArgs(input.toolArgs as Record<string, unknown>)
+    : undefined;
   return {
-    text: typeof input.text === "string" ? input.text : "",
-    language: input.language === "es" ? "es" : "en",
+    text: typeof input.text === "string" ? normalizeSpokenCatalogAliases(input.text) : "",
+    language: (input.language === "es" ? "es" : "en") as Language,
     actionHint: typeof input.actionHint === "string" ? input.actionHint : undefined,
-    toolArgs: input.toolArgs && typeof input.toolArgs === "object" ? input.toolArgs : undefined,
+    toolArgs,
     cart: Array.isArray(input.cart) ? input.cart : [],
     comboState: input.comboState && typeof input.comboState === "object" ? input.comboState : undefined
   };
 }
+
+function normalizeResolverToolArgs(toolArgs: Record<string, unknown>) {
+  const normalized = { ...toolArgs };
+  for (const key of ["itemQuery", "itemId"]) {
+    if (typeof normalized[key] === "string") {
+      normalized[key] = normalizeSpokenCatalogAliases(normalized[key] as string);
+    }
+  }
+  return normalized;
+}
+
 
 function normalizeResolverText(text: string) {
   return String(text || "")
@@ -187,8 +305,44 @@ function isGenericComboRequest(text: string) {
 
 function isGenericPackMealRequest(text: string) {
   const normalized = normalizeResolverText(text);
-  if (!/\b(pack\s+meals?|meals?\s+pack|paquete|paquetes)\b/.test(normalized)) return false;
+  if (!isPackMealIntentText(normalized)) return false;
   return !/\b([3-8]|three|four|five|six|seven|eight|tres|cuatro|cinco|seis|siete|ocho)\b/.test(normalized);
+}
+
+function isPackMealIntentText(normalized: string) {
+  return /\b(pack\s+meals?|meals?\s+pack|packs?|paquetes?)\b/.test(normalized) ||
+    /\bpaquetes?\s+(?:de\s+)?(?:comida|meal|meals)\b/.test(normalized) ||
+    /\bpack\s+(?:de\s+)?comida\b/.test(normalized);
+}
+
+function unsupportedPackMealRequest(text: string) {
+  const normalized = normalizeResolverText(text);
+  if (!/\b(pack|packs|paquete|paquetes)\b/.test(normalized)) return false;
+  const unsupportedCount = "(?:1|2|9|1[0-9]|20|two|nine|ten|dos|nueve|diez)";
+  return new RegExp(
+    `\\b${unsupportedCount}\\s+(?:pack\\s+)?meals?\\b`
+    + `|\\b${unsupportedCount}\\s+packs?\\b`
+    + `|\\b(?:meal\\s+pack|meals\\s+pack|pack|packs)(?:\\s+(?:of|de))?\\s+${unsupportedCount}\\b`
+    + `|\\bpaquetes?(?:\\s+de)?\\s+${unsupportedCount}\\b`
+    + `|\\b${unsupportedCount}\\s+paquetes?\\b`
+  ).test(normalized);
+}
+
+function buildUnsupportedPackMealResult(items: Awaited<ReturnType<typeof getFullMenu>>, language: string) {
+  const es = language === "es";
+  const options = packMealMenuItems(items).map((item) => {
+    const count = normalizeResolverText(item.name).match(/^([3-8])\s+pack\s+meal\b/)?.[1] || "";
+    return `${count} Pack MEAL`;
+  });
+  return {
+    ok: false,
+    reason: "unknown_menu_item",
+    message: es
+      ? `No tenemos ese tamaño de paquete. Opciones disponibles: ${options.join(", ")}.`
+      : `That pack size is not on the menu. Available pack meals are: ${options.join(", ")}.`,
+    selectedItem: null,
+    actions: []
+  };
 }
 
 function isComboSelectionState(value: unknown) {
@@ -211,6 +365,27 @@ function comboSelectionPhrase(text: string) {
   if (/\b(torta|tortas)\b/.test(normalized)) return "combo tortas";
   if (/\b(quesadilla|quesadillas)\b/.test(normalized)) return "combo quesadillas";
   if (/\b(taco|tacos)\b/.test(normalized)) return "combo tacos";
+  return "";
+}
+
+function comboSelectionPhraseFromInput(
+  input: ReturnType<typeof buildResolverInput>,
+  items: Awaited<ReturnType<typeof getFullMenu>>
+) {
+  const args = (input.toolArgs || {}) as Record<string, unknown>;
+  const candidates = [
+    resolverText(input),
+    typeof args.itemQuery === "string" ? args.itemQuery : "",
+    typeof args.query === "string" ? args.query : "",
+    typeof args.itemId === "string"
+      ? items.find((item) => item.id === args.itemId)?.name || args.itemId
+      : ""
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const phrase = comboSelectionPhrase(String(candidate));
+    if (phrase) return phrase;
+  }
   return "";
 }
 
@@ -263,6 +438,14 @@ function packMealMenuItems(items: Awaited<ReturnType<typeof getFullMenu>>) {
   return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, item]) => item);
 }
 
+function buildGuideStartMessage(guide: NonNullable<ReturnType<typeof getComboGuide>>, language: Language = "en") {
+  const first = guide.steps?.find((step) => step.mode === "ask" || (step.mode === undefined && step.required)) || guide.steps?.[0];
+  const prompt = first?.title || "Let's build it step by step.";
+  return language === "es"
+    ? `Empezando ${guide.display_name}. ${prompt}.`
+    : `Starting ${guide.display_name}. ${prompt}.`;
+}
+
 function formatCents(cents: unknown) {
   const value = Math.max(0, Number(cents) || 0);
   return `$${(value / 100).toFixed(2)}`;
@@ -271,7 +454,7 @@ function formatCents(cents: unknown) {
 function buildComboSelectionResult(items: Awaited<ReturnType<typeof getFullMenu>>, language: string) {
   const es = language === "es";
   const options = comboMenuItems(items).map((item) => `${item.name} - ${formatCents(item.priceCents)}`);
-  const question = es ? "¿Cuál combo quieres? Las opciones están abajo." : "Which combo would you like? Options are below.";
+  const question = es ? "¿Qué combo: tacos, quesadillas, burrito, mix, gorditas o tortas?" : "Which combo: tacos, quesadillas, burrito, mix, gorditas or tortas?";
   return {
     ok: false,
     reason: "combo_step_required",
@@ -393,28 +576,167 @@ function withReplacementBuildText(input: ReturnType<typeof buildResolverInput>, 
   };
 }
 
-app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
+/** fix11: the web menu lists one variation per pack, so send the exact item (8 Pack · Tacos Comal). */
+function contextSelectedItem(items: any[], itemId?: string) {
+  const it = itemId && items.find((m: any) => m.id === itemId);
+  return it ? { itemId: it.id, name: it.name, priceCents: it.priceCents, readbackName: it.readbackName, modifierGroups: it.modifierGroups } : undefined;
+}
+
+/** Order session id sent by the web app (orderSessionId); the voice socket uses its own session id. */
+function orderSessionKey(body: any): string | undefined {
+  const k = String(body?.orderSessionId || "").trim();
+  return /^[a-zA-Z0-9_-]{6,64}$/.test(k) ? k : undefined;
+}
+
+// Background turn log (data/logs/sessions/*.jsonl, gitignored): heard text, result, pending dish, actions.
+app.use(["/api/menu/resolve", "/api/:tenant/menu/resolve", "/api/elvi/chat", "/api/:tenant/elvi/chat"], (req, res, nextFn) => {
+  const key = orderSessionKey(req.body);
+  if (key) {
+    const json = res.json.bind(res);
+    (res as any).json = (body: any) => {
+      if (res.locals.resolvedText && body && typeof body === "object" && !body.resolvedText) {
+        body.resolvedText = res.locals.resolvedText;
+        if (!("orderContext" in body)) body.orderContext = pendingSummary(key) || null;
+      }
+      logTurn(key, {
+        channel: req.path.includes("resolve") ? "web-resolve" : "chat",
+        heard: req.body?.text || req.body?.transcript || "",
+        interpretation: body?.reason || (body?.ok ? "ok" : undefined),
+        pending: pendingSummary(key),
+        actions: (body?.actions || []).filter((a: any) => a?.type === "add_item").map((a: any) => `${a.quantity || 1}x ${a.itemId} [${(a.modifiers || []).map((m: any) => m.option).join(", ")}]`),
+        reply: body?.message || body?.reply || ""
+      });
+      return json(body);
+    };
+  }
+  nextFn();
+});
+
+// fix16 (Carlos): included mild Salsa Asada by default on every resolver add (web + voice on the web app).
+// Menu items come from res.locals.menuItems (set by both resolve routes).
+// fix17: registered after the turn log, so the log records the actions with the salsa default.
+const salsaPending = new Map<string, { text: string; at: number }>();
+const SALSA_QUESTION = (es: boolean) => es ? "¿Qué salsa: asada o tomate (mild), verde (medium) o roja (hot)?" : "Which salsa: asada or tomato (mild), verde (medium), or roja (hot)?";
+function setResolverText(body: any, text: string) {
+  if ("transcript" in body) { body.transcript = text; return; }
+  body.text = text;
+  body.toolArgs = { ...(body.toolArgs || {}), itemQuery: text };
+}
+// fix19: quantity corrections ("no, mejor tres") on the web/voice resolver path, same rule as chat.
+app.use(["/api/menu/resolve", "/api/:tenant/menu/resolve"], async (req, res, nextFn) => {
+  const body = req.body || {};
+  const key = orderSessionKey(body);
+  if (!key) return nextFn();
   try {
-    const tenant = resolveTenant(req.params.tenant || req.headers.host);
-    const items = await getFullMenu(buildSquareConfig(tenant));
-    let input = buildResolverInput(req.body);
-    const text = resolverText(input);
-    if (input.comboState && isBuildInterruptIntent(text)) {
-      const replacement = extractReplacementBuildText(text);
-      if (replacement) {
-        input = withReplacementBuildText(input, replacement);
-      } else if (isBuildCancelIntent(text)) {
-        res.json(buildCancelledResult(input.language));
+    const text = String(body.text || body.toolArgs?.itemQuery || "");
+    if (!body.comboState && text) {
+      const tenant = resolveTenant(String((req.params as any).tenant || req.headers.host || ""));
+      const menu = await getFullMenu(buildSquareConfig(tenant));
+      const fixed = quantityCorrection({ sessionKey: key, transcript: text, language: body.language === "es" ? "es" : "en", menu });
+      if (fixed) {
+        recordLastAdd(key, fixed.actions);
+        res.json({ ok: true, actions: fixed.actions, message: fixed.reply, orderContext: { correction: true } });
         return;
       }
     }
+  } catch { /* fall through to the normal resolver */ }
+  const json = res.json.bind(res);
+  (res as any).json = (out: any) => { try { if (out?.ok !== false) recordLastAdd(key, out?.actions); } catch {} return json(out); };
+  nextFn();
+});
+
+app.use(["/api/menu/resolve", "/api/:tenant/menu/resolve", "/api/elvi/chat", "/api/:tenant/elvi/chat"], (req, res, nextFn) => {
+  // fix17: conflicting salsas ("verde hot") ask once, like the guided combos; the answer finishes the dish.
+  const body = req.body || {};
+  const isChat = String(req.originalUrl || "").includes("/elvi/chat");
+  const said = String((isChat ? body.transcript : body.text || body.toolArgs?.itemQuery) || "");
+  const sKey = orderSessionKey(body) || "";
+  const es = body.language === "es";
+  const waiting = sKey ? salsaPending.get(sKey) : undefined;
+  if (waiting && Date.now() - waiting.at < 15 * 60 * 1000) {
+    salsaPending.delete(sKey);
+    const words = salsaAnswerWords(said);
+    if (words !== null) setResolverText(body, `${waiting.text} ${words}`.trim());
+  } else if (!body.comboState && (body.actionHint || "add_item") === "add_item" && salsaAsk(said).kind === "conflict") {
+    const dish = withoutSalsaWords(said);
+    if (dish && dish !== said) {
+      if (sKey) salsaPending.set(sKey, { text: dish, at: Date.now() });
+      res.json(isChat
+        ? { language: es ? "es" : "en", engine: "rules", reply: SALSA_QUESTION(es), actions: [] }
+        : { ok: false, reason: "clarify", message: SALSA_QUESTION(es), orderContext: { clarify: true, salsa: true } });
+      return;
+    }
+  }
+  if (isChat) { nextFn(); return; } // chat adds get the salsa default in elvi.ts
+  const json = res.json.bind(res);
+  (res as any).json = (body: any) => {
+    try {
+      const items: any[] = res.locals.menuItems || [];
+      if (body && Array.isArray(body.actions) && items.length) {
+        const said = [req.body?.comboState?.said, res.locals.resolvedText || req.body?.text || req.body?.toolArgs?.itemQuery || ""].filter(Boolean).join(" ");
+        const next = withDefaultSalsa(fixToppingNegations(fixNamedMeats(fixBurritoFillings(body.actions, items, said, "resolver"), items, said, "resolver"), items, said, "resolver"), items, said, "resolver");
+        if (JSON.stringify(next) !== JSON.stringify(body.actions)) {
+          body.actions = next;
+          const lang = req.body?.language === "es" ? "es" : "en";
+          if (typeof body.message === "string" && /(¿Algo más\?|Anything else\?)\s*$/.test(body.message)) {
+            body.message = rbFormat(next.filter((a: any) => a?.type === "add_item").map((a: any) => {
+              const it = items.find((m: any) => m.id === a.itemId);
+              const q = Number(a.quantity) || 1;
+              return { name: it?.name || "", alt: it?.readbackName, quantity: q, mods: (a.modifiers || []).map((m: any) => ({ option: m.option, group: m.groupName || m.step, quantity: m.quantity })), cents: ((it?.priceCents || 0) + (a.modifiers || []).reduce((c: number, m: any) => c + (Number(m.priceDeltaCents) || 0) * (Number(m.quantity) || 1), 0)) * q };
+            }), lang);
+          }
+        }
+      }
+    } catch { /* never block the reply */ }
+    return json(body);
+  };
+  nextFn();
+});
+
+
+app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
+  try {
+    const tenant = resolveTenant(req.params.tenant || req.headers.host);
+	    const items = await getFullMenu(buildSquareConfig(tenant));
+	    res.locals.menuItems = items;
+	    let input = buildResolverInput(req.body);
+	    let text = resolverText(input);
+	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
+	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
+	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }
+	    if (pre.reply) { res.json({ ok: false, reason: "clarify", message: pre.reply, orderContext: { clarify: true } }); return; }
+	    if (pre.text !== text) {
+	      text = pre.text;
+	      input = { ...input, text, toolArgs: { ...((input.toolArgs || {}) as Record<string, unknown>), itemQuery: text } } as any;
+	      res.locals.resolvedText = text;
+	    }
+	    // Persistent order context: a pending dish ("4 tacos 2 bistec") gets this answer first.
+	    const ctxTurn = orderContextTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en");
+	    if (ctxTurn) {
+	      res.json(ctxTurn.adds.length
+	        ? { ok: true, message: ctxTurn.reply, actions: ctxTurn.adds.map((a) => ({ type: "add_item", ...a, modifiers: a.modifiers.map((m) => ({ ...m, quantity: 1 })) })), orderContext: pendingSummary(orderSessionKey(req.body)), selectedItem: contextSelectedItem(items as any, ctxTurn.adds[0]?.itemId) }
+	        : { ok: false, reason: "order_context", message: ctxTurn.reply, orderContext: pendingSummary(orderSessionKey(req.body)) });
+	      return;
+	    }
+	    if (input.comboState && isBuildInterruptIntent(text)) {
+	      const replacement = extractReplacementBuildText(text);
+	      if (replacement) {
+	        input = withReplacementBuildText(input, replacement);
+	        text = resolverText(input);
+	      } else if (isBuildCancelIntent(text)) {
+	        res.json(buildCancelledResult(input.language));
+	        return;
+	      }
+	    }
+
     if (isComboSelectionState(input.comboState)) {
-      const phrase = comboSelectionPhrase(text);
+      const phrase = comboSelectionPhraseFromInput(input, items);
       if (!phrase) {
         res.json(buildComboSelectionResult(items, input.language));
         return;
       }
       input = withComboSelectionPhrase(input, phrase);
+      text = resolverText(input);
     } else if (isPackMealSelectionState(input.comboState)) {
       const phrase = packMealSelectionPhrase(text);
       if (!phrase) {
@@ -422,29 +744,86 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
         return;
       }
       input = withPackMealSelectionPhrase(input, phrase);
-    } else if (isGenericComboRequest(text)) {
-      res.json(buildComboSelectionResult(items, input.language));
-      return;
-    } else if (isGenericPackMealRequest(text)) {
-      res.json(buildPackMealSelectionResult(items, input.language));
+      text = resolverText(input);
+    }
+
+    // === Root-cause guard: consult the single source of truth (combo-guide.json) first ===
+    // If the current context matches any guided combo (fuzzy name match), we must never
+    // emit the legacy hardcoded "elige una opción / las opciones están abajo" (or English)
+    // from buildComboSelectionResult / buildPackMealSelectionResult. Those paths are bypassed.
+    const cs = (input.comboState || {}) as Record<string, any>;
+    const candidateNames = [
+      text,
+      cs.itemName,
+      cs.ruleId,
+      cs.itemId,
+      cs.originalItemName
+    ].filter(Boolean) as string[];
+    const hasGuide = candidateNames.some((name) => getComboGuide(name) !== null);
+
+    if (unsupportedPackMealRequest(text)) {
+      res.json(buildUnsupportedPackMealResult(items, input.language));
       return;
     }
-    const result = resolvePackMealRequest(items, input) || resolveEspecialRequest(items, input) || resolveMenuRequest(items, input);
 
-    // Attach combo guide if the resolved item is a guided combo (for model injection)
-    const anyResult = result as any;
-    if (anyResult && anyResult.selectedItem?.name) {
-      const guide = getComboGuide(anyResult.selectedItem.name);
-      if (guide) {
-        anyResult.guide = guide;
-        // When a guide is attached, suppress legacy comboStep data so the model
-        // only ever sees the question from the single source of truth (the guide).
+    if (!hasGuide) {
+      if (isGenericComboRequest(text)) {
+	        res.json(buildComboSelectionResult(items, input.language));
+	        return;
+	      } else if (isGenericPackMealRequest(text)) {
+	        res.json(buildPackMealSelectionResult(items, input.language));
+	        return;
+	      }
+    }
+    // When hasGuide is true we skip the legacy early returns entirely. The normal resolver
+    // runs, the guide is attached below, and any stray legacy fields are stripped.
+
+    // Web follow-up to "Gordita: Bistec, Cabeza…?": answer it for that dish (same rule as chat / voice).
+    const follow: any = (input as any).comboState?.ruleId === "site-followup" ? (input as any).comboState : null;
+    let pinned = pinnedMenu(text, items as any) as typeof items;
+    let resolveInput: any = input;
+    let followResult: any = null;
+    let followChosen: any[] = [];
+    if (follow) {
+      const dish = (items as any[]).filter((m: any) => m.squareCatalogObjectId === follow.squareId);
+      const startsOver = pinned.length < items.length && !pinned.some((m: any) => m.squareCatalogObjectId === follow.squareId);
+      if (dish.length && !startsOver) {
+        const run = (t: string) => {
+          const inp: any = { ...input, text: t, transcript: t, toolArgs: { ...((input as any).toolArgs || {}), itemQuery: t }, comboState: undefined };
+          const list = pickVariation(t, dish as any) as any;
+          if ((dish as any[]).length > 1) { const q = withoutSkuWords(t, list, dish as any); inp.text = q; inp.transcript = q; inp.toolArgs = { ...(inp.toolArgs || {}), itemQuery: q }; }
+          return completeWithSiteDefaults(resolveEspecialRequest(list, inp) || resolveMenuRequest(list, inp), items as any, t);
+        };
+        const step = followUpStep(run, String(follow.said || ""), Array.isArray(follow.chosen) ? follow.chosen : [], text, items as any, (input as any).language || "en");
+        followResult = step.result;
+        followChosen = step.chosen;
+        resolveInput = { ...input, text: step.said, transcript: step.said, comboState: undefined };
+      }
+    }
+    let result: any = followResult || resolvePackMealRequest(pinned, resolveInput) || resolveEspecialRequest(pinned, resolveInput) || resolveMenuRequest(pinned, resolveInput);
+    const saidSoFar = String(resolveInput.text || text);
+
+	    // Attach combo guide if the resolved item is a guided combo (for model injection)
+	    const anyResult = result as any;
+	    if (anyResult && anyResult.selectedItem?.name) {
+	      const guide = getComboGuide(anyResult.selectedItem.name);
+	      if (guide) {
+	        anyResult.guide = guide;
+        // When a guide is attached, suppress EVERY legacy combo/pack FSM artifact
+        // so the model and UI only ever see questions defined in combo-guide.json.
         delete anyResult.comboStep;
         delete anyResult.comboState;
+        delete anyResult.awaitingStepKey;
+        delete anyResult.stepKey;
+	        anyResult.message = buildGuideStartMessage(guide, input.language);
+        if (anyResult.comboState && typeof anyResult.comboState === "object") {
+          delete anyResult.comboState.awaitingStepKey;
+          delete anyResult.comboState.stepKey;
+        }
       }
 
       // Enforce approved menu (Menu Items Online)
-      if (!isApprovedItem(anyResult.selectedItem.name)) {
+      if (!isApprovedItem(anyResult.selectedItem.name) && !siteSellsSquareItem((items as any[]).find((it: any) => it.id === anyResult.selectedItem.itemId)?.squareCatalogObjectId) && !items.some((it: any) => it.category === "drinks" && (it.id === anyResult.selectedItem.itemId || it.name === anyResult.selectedItem.name))) {
         return res.json({
           ok: false,
           reason: "item_not_available",
@@ -454,6 +833,80 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
       }
     }
 
+    // === Second-chance guide forcing for any "combo" utterance ===
+    // Even if the downstream resolver picked a plain "Burrito" instead of "COMBO Burrito",
+    // when the original customer text contains the word "combo", we consult the single source
+    // of truth and force the guided path + canonical name. This is the root fix so that
+    // "i want a burrito combo" (typed or spoken) always starts the exact step-by-step from combo-guide.json
+    // and includes the chips/dip choice (step 12).
+	    const anyRes2 = result as any;
+	    if (anyRes2 && /\bcombo\b/i.test(text)) {
+	      const guideFromText = getComboGuide(text);
+	      if (guideFromText) {
+        anyRes2.guide = guideFromText;
+
+        // Try to promote the selectedItem to the real catalog "COMBO ..." entry if possible
+        const targetName = guideFromText.display_name || "COMBO Burrito";
+        const base = targetName.toLowerCase().replace(/^combo\s+/, "");
+        const betterItem: any = items.find((it: any) => {
+          const n = (it?.name || "").toLowerCase();
+          return n.includes("combo") && (n.includes(base) || n.includes(targetName.toLowerCase()));
+        }) || items.find((it: any) => (it?.name || "").toLowerCase().includes(base) && (it?.name || "").toLowerCase().includes("combo"));
+
+        if (betterItem) {
+          anyRes2.selectedItem = {
+            ...(anyRes2.selectedItem || {}),
+            itemId: betterItem.id || betterItem.itemId || anyRes2.selectedItem?.itemId,
+            name: betterItem.name,
+            priceCents: betterItem.priceCents ?? anyRes2.selectedItem?.priceCents
+          };
+        } else if (anyRes2.selectedItem) {
+          // At minimum canonicalize the name so the model and tracker use "Combo Burrito"
+          anyRes2.selectedItem.name = targetName;
+        }
+
+        // Give the local text path and the model a useful starting message (first step instruction)
+	        anyRes2.message = buildGuideStartMessage(guideFromText, input.language);
+        // fix10: the guide builds it (COMBO Mix asks both items) — drop a half-built add of the same combo.
+        if (Array.isArray(anyRes2.actions) && anyRes2.selectedItem?.itemId) {
+          const kept = anyRes2.actions.filter((a: any) => !(a?.type === "add_item" && a.itemId === anyRes2.selectedItem.itemId));
+          if (kept.length !== anyRes2.actions.length) { anyRes2.actions = kept; if (!kept.length) anyRes2.ok = false; }
+        }
+
+        // Strip any legacy junk again
+        delete anyRes2.comboStep;
+        delete anyRes2.comboState;
+        delete anyRes2.awaitingStepKey;
+        delete anyRes2.stepKey;
+      }
+    }
+
+    if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") {
+      (result as any).message = await unavailableItemReply(text, input.language, items as any);
+      (result as any).instruction = "Nothing was added to the cart. Do not say added. Say this message.";
+    }
+    {
+      const r: any = result;
+      const add = (r?.actions || []).find((a: any) => a?.type === "add_item");
+      const pickedId = add?.itemId || r?.selectedItem?.itemId;
+      const it: any = pickedId && (items as any[]).find((m: any) => m.id === pickedId);
+      const blocked = it ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null;
+      if (blocked) {
+        r.ok = false; r.reason = "outside_website_hours"; r.actions = []; r.message = blocked;
+        r.instruction = "Nothing was added to the cart. Do not say added. Say this message.";
+      }
+    }
+    result = completeWithSiteDefaults(result, items as any, saidSoFar) as any;
+    result = variationQuestion(result, items as any, saidSoFar, input.language);
+    if (Array.isArray((result as any)?.actions)) (result as any).actions = rescoreSingleChoices(dropUnaskedExtras((result as any).actions, text), items as any, text);
+    if ((result as any)?.ok === false && (result as any).reason === "missing_required_modifiers") {
+      (result as any).message = requiredChoiceQuestion(result as any, input.language, items as any);
+      const picked: any = (items as any[]).find((m: any) => m.id === (result as any).selectedItem?.itemId);
+      if (picked?.squareCatalogObjectId) {
+        (result as any).comboState = { ruleId: "site-followup", squareId: picked.squareCatalogObjectId, said: saidSoFar, chosen: followChosen };
+        (result as any).comboStep = { key: "site-required", question: (result as any).message };
+      }
+    }
     res.json(result);
   } catch (error) {
     next(error);
@@ -462,26 +915,47 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
 
 app.post("/api/menu/resolve", async (req, res, next) => {
   try {
-    const tenant = resolveDefaultTenant(req.headers.host);
-    const items = await getFullMenu(buildSquareConfig(tenant));
-    let input = buildResolverInput(req.body);
-    const text = resolverText(input);
-    if (input.comboState && isBuildInterruptIntent(text)) {
-      const replacement = extractReplacementBuildText(text);
-      if (replacement) {
-        input = withReplacementBuildText(input, replacement);
-      } else if (isBuildCancelIntent(text)) {
-        res.json(buildCancelledResult(input.language));
-        return;
-      }
-    }
+	    const tenant = resolveDefaultTenant(req.headers.host);
+	    const items = await getFullMenu(buildSquareConfig(tenant));
+	    res.locals.menuItems = items;
+	    let input = buildResolverInput(req.body);
+	    let text = resolverText(input);
+	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
+	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
+	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }
+	    if (pre.reply) { res.json({ ok: false, reason: "clarify", message: pre.reply, orderContext: { clarify: true } }); return; }
+	    if (pre.text !== text) {
+	      text = pre.text;
+	      input = { ...input, text, toolArgs: { ...((input.toolArgs || {}) as Record<string, unknown>), itemQuery: text } } as any;
+	      res.locals.resolvedText = text;
+	    }
+	    // Persistent order context: a pending dish ("4 tacos 2 bistec") gets this answer first.
+	    const ctxTurn = orderContextTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en");
+	    if (ctxTurn) {
+	      res.json(ctxTurn.adds.length
+	        ? { ok: true, message: ctxTurn.reply, actions: ctxTurn.adds.map((a) => ({ type: "add_item", ...a, modifiers: a.modifiers.map((m) => ({ ...m, quantity: 1 })) })), orderContext: pendingSummary(orderSessionKey(req.body)), selectedItem: contextSelectedItem(items as any, ctxTurn.adds[0]?.itemId) }
+	        : { ok: false, reason: "order_context", message: ctxTurn.reply, orderContext: pendingSummary(orderSessionKey(req.body)) });
+	      return;
+	    }
+	    if (input.comboState && isBuildInterruptIntent(text)) {
+	      const replacement = extractReplacementBuildText(text);
+	      if (replacement) {
+	        input = withReplacementBuildText(input, replacement);
+	        text = resolverText(input);
+	      } else if (isBuildCancelIntent(text)) {
+	        res.json(buildCancelledResult(input.language));
+	        return;
+	      }
+	    }
+
     if (isComboSelectionState(input.comboState)) {
-      const phrase = comboSelectionPhrase(text);
+      const phrase = comboSelectionPhraseFromInput(input, items);
       if (!phrase) {
         res.json(buildComboSelectionResult(items, input.language));
         return;
       }
       input = withComboSelectionPhrase(input, phrase);
+      text = resolverText(input);
     } else if (isPackMealSelectionState(input.comboState)) {
       const phrase = packMealSelectionPhrase(text);
       if (!phrase) {
@@ -489,29 +963,86 @@ app.post("/api/menu/resolve", async (req, res, next) => {
         return;
       }
       input = withPackMealSelectionPhrase(input, phrase);
-    } else if (isGenericComboRequest(text)) {
-      res.json(buildComboSelectionResult(items, input.language));
-      return;
-    } else if (isGenericPackMealRequest(text)) {
-      res.json(buildPackMealSelectionResult(items, input.language));
+      text = resolverText(input);
+    }
+
+    // === Root-cause guard: consult the single source of truth (combo-guide.json) first ===
+    // If the current context matches any guided combo (fuzzy name match), we must never
+    // emit the legacy hardcoded "elige una opción / las opciones están abajo" (or English)
+    // from buildComboSelectionResult / buildPackMealSelectionResult. Those paths are bypassed.
+    const cs = (input.comboState || {}) as Record<string, any>;
+    const candidateNames = [
+      text,
+      cs.itemName,
+      cs.ruleId,
+      cs.itemId,
+      cs.originalItemName
+    ].filter(Boolean) as string[];
+    const hasGuide = candidateNames.some((name) => getComboGuide(name) !== null);
+
+    if (unsupportedPackMealRequest(text)) {
+      res.json(buildUnsupportedPackMealResult(items, input.language));
       return;
     }
-    const result = resolvePackMealRequest(items, input) || resolveEspecialRequest(items, input) || resolveMenuRequest(items, input);
 
-    // Attach combo guide if the resolved item is a guided combo (for model injection)
-    const anyResult = result as any;
-    if (anyResult && anyResult.selectedItem?.name) {
-      const guide = getComboGuide(anyResult.selectedItem.name);
-      if (guide) {
-        anyResult.guide = guide;
-        // When a guide is attached, suppress legacy comboStep data so the model
-        // only ever sees the question from the single source of truth (the guide).
+    if (!hasGuide) {
+      if (isGenericComboRequest(text)) {
+	        res.json(buildComboSelectionResult(items, input.language));
+	        return;
+	      } else if (isGenericPackMealRequest(text)) {
+	        res.json(buildPackMealSelectionResult(items, input.language));
+	        return;
+	      }
+    }
+    // When hasGuide is true we skip the legacy early returns entirely. The normal resolver
+    // runs, the guide is attached below, and any stray legacy fields are stripped.
+
+    // Web follow-up to "Gordita: Bistec, Cabeza…?": answer it for that dish (same rule as chat / voice).
+    const follow: any = (input as any).comboState?.ruleId === "site-followup" ? (input as any).comboState : null;
+    let pinned = pinnedMenu(text, items as any) as typeof items;
+    let resolveInput: any = input;
+    let followResult: any = null;
+    let followChosen: any[] = [];
+    if (follow) {
+      const dish = (items as any[]).filter((m: any) => m.squareCatalogObjectId === follow.squareId);
+      const startsOver = pinned.length < items.length && !pinned.some((m: any) => m.squareCatalogObjectId === follow.squareId);
+      if (dish.length && !startsOver) {
+        const run = (t: string) => {
+          const inp: any = { ...input, text: t, transcript: t, toolArgs: { ...((input as any).toolArgs || {}), itemQuery: t }, comboState: undefined };
+          const list = pickVariation(t, dish as any) as any;
+          if ((dish as any[]).length > 1) { const q = withoutSkuWords(t, list, dish as any); inp.text = q; inp.transcript = q; inp.toolArgs = { ...(inp.toolArgs || {}), itemQuery: q }; }
+          return completeWithSiteDefaults(resolveEspecialRequest(list, inp) || resolveMenuRequest(list, inp), items as any, t);
+        };
+        const step = followUpStep(run, String(follow.said || ""), Array.isArray(follow.chosen) ? follow.chosen : [], text, items as any, (input as any).language || "en");
+        followResult = step.result;
+        followChosen = step.chosen;
+        resolveInput = { ...input, text: step.said, transcript: step.said, comboState: undefined };
+      }
+    }
+    let result: any = followResult || resolvePackMealRequest(pinned, resolveInput) || resolveEspecialRequest(pinned, resolveInput) || resolveMenuRequest(pinned, resolveInput);
+    const saidSoFar = String(resolveInput.text || text);
+
+	    // Attach combo guide if the resolved item is a guided combo (for model injection)
+	    const anyResult = result as any;
+	    if (anyResult && anyResult.selectedItem?.name) {
+	      const guide = getComboGuide(anyResult.selectedItem.name);
+	      if (guide) {
+	        anyResult.guide = guide;
+        // When a guide is attached, suppress EVERY legacy combo/pack FSM artifact
+        // so the model and UI only ever see questions defined in combo-guide.json.
         delete anyResult.comboStep;
         delete anyResult.comboState;
+        delete anyResult.awaitingStepKey;
+        delete anyResult.stepKey;
+	        anyResult.message = buildGuideStartMessage(guide, input.language);
+        if (anyResult.comboState && typeof anyResult.comboState === "object") {
+          delete anyResult.comboState.awaitingStepKey;
+          delete anyResult.comboState.stepKey;
+        }
       }
 
       // Enforce approved menu (Menu Items Online)
-      if (!isApprovedItem(anyResult.selectedItem.name)) {
+      if (!isApprovedItem(anyResult.selectedItem.name) && !siteSellsSquareItem((items as any[]).find((it: any) => it.id === anyResult.selectedItem.itemId)?.squareCatalogObjectId) && !items.some((it: any) => it.category === "drinks" && (it.id === anyResult.selectedItem.itemId || it.name === anyResult.selectedItem.name))) {
         return res.json({
           ok: false,
           reason: "item_not_available",
@@ -521,6 +1052,80 @@ app.post("/api/menu/resolve", async (req, res, next) => {
       }
     }
 
+    // === Second-chance guide forcing for any "combo" utterance ===
+    // Even if the downstream resolver picked a plain "Burrito" instead of "COMBO Burrito",
+    // when the original customer text contains the word "combo", we consult the single source
+    // of truth and force the guided path + canonical name. This is the root fix so that
+    // "i want a burrito combo" (typed or spoken) always starts the exact step-by-step from combo-guide.json
+    // and includes the chips/dip choice (step 12).
+	    const anyRes2 = result as any;
+	    if (anyRes2 && /\bcombo\b/i.test(text)) {
+	      const guideFromText = getComboGuide(text);
+	      if (guideFromText) {
+        anyRes2.guide = guideFromText;
+
+        // Try to promote the selectedItem to the real catalog "COMBO ..." entry if possible
+        const targetName = guideFromText.display_name || "COMBO Burrito";
+        const base = targetName.toLowerCase().replace(/^combo\s+/, "");
+        const betterItem: any = items.find((it: any) => {
+          const n = (it?.name || "").toLowerCase();
+          return n.includes("combo") && (n.includes(base) || n.includes(targetName.toLowerCase()));
+        }) || items.find((it: any) => (it?.name || "").toLowerCase().includes(base) && (it?.name || "").toLowerCase().includes("combo"));
+
+        if (betterItem) {
+          anyRes2.selectedItem = {
+            ...(anyRes2.selectedItem || {}),
+            itemId: betterItem.id || betterItem.itemId || anyRes2.selectedItem?.itemId,
+            name: betterItem.name,
+            priceCents: betterItem.priceCents ?? anyRes2.selectedItem?.priceCents
+          };
+        } else if (anyRes2.selectedItem) {
+          // At minimum canonicalize the name so the model and tracker use "Combo Burrito"
+          anyRes2.selectedItem.name = targetName;
+        }
+
+        // Give the local text path and the model a useful starting message (first step instruction)
+	        anyRes2.message = buildGuideStartMessage(guideFromText, input.language);
+        // fix10: the guide builds it (COMBO Mix asks both items) — drop a half-built add of the same combo.
+        if (Array.isArray(anyRes2.actions) && anyRes2.selectedItem?.itemId) {
+          const kept = anyRes2.actions.filter((a: any) => !(a?.type === "add_item" && a.itemId === anyRes2.selectedItem.itemId));
+          if (kept.length !== anyRes2.actions.length) { anyRes2.actions = kept; if (!kept.length) anyRes2.ok = false; }
+        }
+
+        // Strip any legacy junk again
+        delete anyRes2.comboStep;
+        delete anyRes2.comboState;
+        delete anyRes2.awaitingStepKey;
+        delete anyRes2.stepKey;
+      }
+    }
+
+    if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") {
+      (result as any).message = await unavailableItemReply(text, input.language, items as any);
+      (result as any).instruction = "Nothing was added to the cart. Do not say added. Say this message.";
+    }
+    {
+      const r: any = result;
+      const add = (r?.actions || []).find((a: any) => a?.type === "add_item");
+      const pickedId = add?.itemId || r?.selectedItem?.itemId;
+      const it: any = pickedId && (items as any[]).find((m: any) => m.id === pickedId);
+      const blocked = it ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null;
+      if (blocked) {
+        r.ok = false; r.reason = "outside_website_hours"; r.actions = []; r.message = blocked;
+        r.instruction = "Nothing was added to the cart. Do not say added. Say this message.";
+      }
+    }
+    result = completeWithSiteDefaults(result, items as any, saidSoFar) as any;
+    result = variationQuestion(result, items as any, saidSoFar, input.language);
+    if (Array.isArray((result as any)?.actions)) (result as any).actions = rescoreSingleChoices(dropUnaskedExtras((result as any).actions, text), items as any, text);
+    if ((result as any)?.ok === false && (result as any).reason === "missing_required_modifiers") {
+      (result as any).message = requiredChoiceQuestion(result as any, input.language, items as any);
+      const picked: any = (items as any[]).find((m: any) => m.id === (result as any).selectedItem?.itemId);
+      if (picked?.squareCatalogObjectId) {
+        (result as any).comboState = { ruleId: "site-followup", squareId: picked.squareCatalogObjectId, said: saidSoFar, chosen: followChosen };
+        (result as any).comboStep = { key: "site-required", question: (result as any).message };
+      }
+    }
     res.json(result);
   } catch (error) {
     next(error);
@@ -531,6 +1136,7 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
     const result = await createCheckout(req.body, buildSquareConfig(tenant));
+    clearOrderContext(orderSessionKey(req.body), "submitted");
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -541,6 +1147,7 @@ app.post("/api/orders/checkout", async (req, res, next) => {
   try {
     const tenant = resolveDefaultTenant(req.headers.host);
     const result = await createCheckout(req.body, buildSquareConfig(tenant));
+    clearOrderContext(orderSessionKey(req.body), "submitted");
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -557,8 +1164,15 @@ app.post("/api/:tenant/elvi/chat", async (req, res, next) => {
     }
 
     const menu = await getMenu(buildSquareConfig(tenant));
+    const history = Array.isArray(req.body?.history)
+      ? (req.body.history as any[])
+          .filter((turn) => turn && (turn.role === "customer" || turn.role === "assistant") && typeof turn.text === "string")
+          .slice(-24) // ui4: a combo asked step by step needs the turn that named it
+          .map((turn) => ({ role: turn.role as "customer" | "assistant", text: String(turn.text).slice(0, 500) }))
+      : undefined;
+    const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
     const result = await chatWithElvi(
-      { transcript, language, menu },
+      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body) },
       {
         apiKey: tenant.xai.apiKey,
         baseUrl: tenant.xai.baseUrl,
@@ -566,6 +1180,18 @@ app.post("/api/:tenant/elvi/chat", async (req, res, next) => {
       }
     );
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Short spoken answer for menu questions ("what's on the menu", "qué combos tienen").
+// Returns { reply: null } when the text isn't a menu question.
+app.post(["/api/menu/info", "/api/:tenant/menu/info"], async (req, res, next) => {
+  try {
+    const text = String(req.body?.text || "").slice(0, 300);
+    const language = req.body?.language === "es" ? "es" : "en";
+    res.json({ reply: text ? await answerMenuQuestion(text, language) : null });
   } catch (error) {
     next(error);
   }
@@ -581,8 +1207,15 @@ app.post("/api/elvi/chat", async (req, res, next) => {
     }
 
     const menu = await getMenu(buildSquareConfig(tenant));
+    const history = Array.isArray(req.body?.history)
+      ? (req.body.history as any[])
+          .filter((turn) => turn && (turn.role === "customer" || turn.role === "assistant") && typeof turn.text === "string")
+          .slice(-24) // ui4: a combo asked step by step needs the turn that named it
+          .map((turn) => ({ role: turn.role as "customer" | "assistant", text: String(turn.text).slice(0, 500) }))
+      : undefined;
+    const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
     const result = await chatWithElvi(
-      { transcript, language, menu },
+      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body) },
       {
         apiKey: tenant.xai.apiKey,
         baseUrl: tenant.xai.baseUrl,
@@ -642,49 +1275,29 @@ app.post("/api/:tenant/xai/client-secret", async (req, res, next) => {
 app.post("/api/:tenant/xai/speech", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
-    const apiKey = tenant.xai.apiKey || process.env.XAI_API_KEY;
     const text = String(req.body?.text || "").trim().slice(0, 400);
     const language = req.body?.language === "es" ? "es" : "en";
-    const voice = language === "es"
-      ? (process.env.XAI_VOICE_ID_ES || process.env.XAI_VOICE_ID || "Eve")
-      : (process.env.XAI_VOICE_ID || "Eve");
+    res.json(await synthesizeSpeech(tenant, text, language));
+  } catch (error) {
+    next(error);
+  }
+});
 
-    if (!apiKey) {
-      throw new Error("XAI_API_KEY is not configured");
-    }
-    if (!text) {
-      throw new Error("text is required");
-    }
-
-    const response = await fetch("https://api.x.ai/v1/tts", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        text,
-        voice_id: voice.toLowerCase(),
-        language
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`xAI speech failed (${response.status})`);
-    }
-
-    const audio = Buffer.from(await response.arrayBuffer());
-    if (!audio.length) {
-      throw new Error("xAI speech returned empty audio");
-    }
-
-    res.json({
-      ok: true,
-      engine: "xai",
-      voice,
-      mimeType: response.headers.get("content-type") || "audio/mpeg",
-      audioBase64: audio.toString("base64")
-    });
+app.post("/api/:tenant/xai/transcribe", async (req, res, next) => {
+  try {
+    const tenant = resolveTenant(req.params.tenant || req.headers.host);
+    const language = req.body?.language === "es" ? "es" : "en";
+    const audioChunks = Array.isArray(req.body?.audioChunks)
+      ? req.body.audioChunks.map((chunk: unknown) => String(chunk || "")).filter(Boolean).slice(-180)
+      : [];
+    res.json(await transcribeElviAudio(
+      { audioChunks, language },
+      {
+        apiKey: tenant.xai.apiKey,
+        baseUrl: tenant.xai.baseUrl,
+        model: tenant.xai.model
+      }
+    ));
   } catch (error) {
     next(error);
   }
@@ -692,6 +1305,16 @@ app.post("/api/:tenant/xai/speech", async (req, res, next) => {
 
 app.post("/api/:tenant/tools/check_delivery_zone", (req, res, next) => {
   try {
+    const launchConfig = getLaunchConfig();
+    if (!launchConfig.deliveryEnabled) {
+      res.json({
+        ok: false,
+        in_zone: false,
+        delivery_enabled: false,
+        message: launchConfig.deliveryDisabledMessage
+      });
+      return;
+    }
     const address = String(req.body?.address || "").trim();
     if (!address) {
       throw new Error("address is required");
@@ -722,6 +1345,122 @@ app.post("/api/realtime/session", (req, res) => {
   });
 });
 
+// Listen-only phone training (shadow order only; never checkout).
+const shadowTurn = (sessionKey: string) => async (transcript: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => {
+  const tenant = resolveTenant(undefined);
+  const menu = await getMenu(buildSquareConfig(tenant));
+  const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
+  return chatWithElvi(
+    { transcript: transcript.slice(0, 1000), language, menu, history, resolverMenu, sessionKey } as any,
+    { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model }
+  );
+};
+registerTwilioRoutes(app, shadowTurn, (e164, signal) => findCustomerGivenNameReadOnly(e164, buildSquareConfig(resolveTenant(undefined)), signal),
+  async (cart) => elviLines(cart, await getFullMenu(buildSquareConfig(resolveTenant(undefined)))));
+
+// Call Accuracy (staff-only): recordings and caller numbers never leave this Mac through the public tunnel.
+function localOnly(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const host = String(req.headers.host || "").split(":")[0];
+  const viaTunnel = req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"];
+  if (!viaTunnel && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host)) return next();
+  res.status(403).json({ error: "Call Accuracy is only available on this computer (localhost)." });
+}
+let ordersCache: { key: string; at: number; orders: any[] } | null = null;
+// names1: learn caller names from Square tickets (read-only Orders Search). Same phone + call window only.
+export async function learnTicketNames(opts: { dry?: boolean; days?: number } = {}) {
+  const calls = loadCalls(opts.days ?? 1).filter((c) => c.caller);
+  if (!calls.length) return [];
+  const cfg = buildSquareConfig(resolveTenant(undefined));
+  const startAt = new Date(Math.min(...calls.map((c) => Date.parse(c.at))) - 5 * 60000).toISOString();
+  const endAt = new Date(Math.max(...calls.map((c) => Date.parse(c.at))) + 90 * 60000).toISOString();
+  const orders = await searchOrdersReadOnly(startAt, endAt, cfg);
+  const out: Array<{ callSid: string; at: string; caller: string; ticketName?: string; orderId?: string; action: string; saved?: string }> = [];
+  for (const c of calls) {
+    const m = nameMatchForCall(c, orders);
+    if (!m) { out.push({ callSid: c.callSid, at: c.at, caller: c.caller, action: "no-phone-matched-ticket" }); continue; }
+    const plan = planCallerName(c.caller, m.name, "ticket");
+    let saved: string | undefined;
+    if (!opts.dry && plan.save) { const s = saveCallerName(c.caller, m.name, "ticket"); if (s) { saved = s; onCallerNameSaved(c.caller, s, "ticket"); } }
+    out.push({ callSid: c.callSid, at: c.at, caller: c.caller, ticketName: m.name, orderId: m.orderId, action: plan.save ? (opts.dry ? `would-save "${plan.name}"` : "saved") : plan.reason, saved });
+  }
+  return { ordersSearched: orders.length, rows: out };
+}
+if (process.env.ELVI_NAMES_TIMER !== "0") setInterval(() => { learnTicketNames().catch(() => {}); }, 10 * 60 * 1000).unref?.();
+app.get("/api/calls/names", localOnly, async (req, res, next) => {
+  try { res.json(await learnTicketNames({ dry: req.query.dry !== "0", days: Math.min(30, Number(req.query.days) || 1) })); } catch (e) { next(e); }
+});
+app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
+  try {
+    const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
+    const tenant = resolveTenant(undefined);
+    const cfg = buildSquareConfig(tenant);
+    const menu = await getFullMenu(cfg);
+    const calls = loadCalls(days);
+    const expected = loadExpected();
+    let orders: any[] = [];
+    let squareError: string | undefined;
+    if (calls.length) {
+      const startAt = new Date(Math.min(...calls.map((c) => Date.parse(c.at))) - 5 * 60000).toISOString();
+      const endAt = new Date(Math.max(...calls.map((c) => Date.parse(c.at))) + 90 * 60000).toISOString();
+      const key = `${startAt}|${endAt}`;
+      if (ordersCache && ordersCache.key === key && Date.now() - ordersCache.at < 3 * 60000) orders = ordersCache.orders;
+      else {
+        try { orders = await searchOrdersReadOnly(startAt, endAt, cfg); ordersCache = { key, at: Date.now(), orders }; }
+        catch (e) { squareError = e instanceof Error ? e.message.slice(0, 200) : String(e); }
+      }
+    }
+    const rows = calls.map((c) => {
+      const elvi = elviLines(c.elviCart || [], menu);
+      const m = c.recordingSid ? matchTicket(c, elvi, orders) : null;
+      // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
+      const exp = !m ? expected[c.callSid] : undefined;
+      const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
+      const scored = m || exp ? scoreOrder(elvi, ticket) : null;
+      return {
+        callSid: c.callSid, at: c.at, caller: c.caller, language: c.language || null, answered: c.answered ?? null, dialStatus: c.dialStatus || null,
+        talkSec: c.talkSec || 0, hasAudio: !!(c.recordingSid && fs.existsSync(`${callsDir}/${c.recordingSid}.wav`)), recordingSid: c.recordingSid || null,
+        turns: c.turns || [], error: c.error || null,
+        elvi, elviTotalCents: elvi.reduce((a, l) => a + l.totalCents, 0),
+        source: c.source,
+        expected: exp ? { text: exp.text, savedAt: exp.savedAt } : null,
+        ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
+        score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : []
+      };
+    });
+    const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
+    res.json({ calls: rows, trend: trend(customer), trainingTrend: trend(training), squareError: squareError || null, ordersSearched: orders.length });
+  } catch (error) { next(error); }
+});
+// Training: type the expected order ("2 tacos de bistec de comal, 2 de chorizo"); preview with Elvi's resolver, then save.
+app.post("/api/calls/:sid/expected", localOnly, async (req, res, next) => {
+  try {
+    const sid = String(req.params.sid || "");
+    if (!/^CA[0-9a-f]{32}$/.test(sid)) return res.status(400).json({ error: "bad call id" });
+    if (req.body?.clear) { saveExpected(sid, null); return res.json({ ok: true }); }
+    const text = String(req.body?.text || "").trim().slice(0, 800);
+    if (!text) return res.status(400).json({ error: "Escribe la orden esperada." });
+    const language = /\b(the|and|with|steak|chicken|beans|rice)\b/i.test(text) ? "en" : "es";
+    // One line per item; a staff marker between lines keeps the scorer from joining them into one sentence.
+    const turns = text.split(/\n+/).map((t) => t.trim()).filter(Boolean).flatMap((t, i) => [
+      ...(i ? [{ speaker: "staff" as const, start: i - 0.5, end: i - 0.4, text: "(siguiente)", language }] : []),
+      { speaker: "caller" as const, start: i, end: i + 0.5, text: t, language }
+    ]);
+    const r = await shadowOrderFromTurns(turns as any, shadowTurn(`expected-${sid.slice(-12)}-${Date.now()}`));
+    const menu = await getFullMenu(buildSquareConfig(resolveTenant(undefined)));
+    const lines = elviLines(r.cart, menu);
+    if (req.body?.save && r.cart.length) saveExpected(sid, { text, cart: r.cart, savedAt: new Date().toISOString() });
+    res.json({ ok: true, saved: !!(req.body?.save && r.cart.length), lines, open: (() => { const last: any = r.steps.filter((s: any) => s.reply).slice(-1)[0]; return last && /\?\s*$/.test(String(last.reply)) && !/algo más|anything else/i.test(String(last.reply)) ? last.reply : null; })() });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/calls/:sid/audio", localOnly, (req, res) => {
+  const sid = String(req.params.sid || "");
+  if (!/^RE[0-9a-f]{32}$/.test(sid)) return res.status(400).end();
+  const file = `${callsDir}/${sid}.wav`;
+  if (!fs.existsSync(file)) return res.status(404).end();
+  res.type("audio/wav").sendFile(file);
+});
+
 app.post("/api/square/webhooks", (req, res) => {
   console.log("Square webhook", JSON.stringify(req.body));
   res.sendStatus(200);
@@ -740,12 +1479,21 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 const webRoot = path.resolve(__dirname, "../../../apps/web");
 const avatarRoot = path.resolve(__dirname, "../../../avatar");
 app.use("/avatar", express.static(avatarRoot));
-app.use(express.static(webRoot));
+app.use(express.static(webRoot, {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    if (/\.(?:html|js|css)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    }
+  }
+}));
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/health")) {
     return next();
   }
 
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   return res.sendFile(path.join(webRoot, "index.html"));
 });
 
@@ -755,3 +1503,4 @@ attachRealtimeServer(server);
 server.listen(port, () => {
   console.log(`Cocina Elvis API listening on http://localhost:${port}`);
 });
+

@@ -3,18 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Elvi — Cocina Elvis Concierge</title>
+    <title>Elvi · Cocina Elvis</title>
+    <script>
+      if (window.location.protocol === "file:") {
+        window.location.replace("http://localhost:4000/");
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20261016-ui5" />
+    <link rel="stylesheet" href="./ui1.css?v=20261016-ui5" />
+    <link rel="icon" type="image/png" href="./img/favicon.png" />
+    <link rel="apple-touch-icon" href="./img/logo-cocina-elvis.png" />
   </head>
   <body>
-    <!-- Full-screen avatar canvas -->
-    <canvas id="avatar-canvas" aria-label="Elvi avatar"></canvas>
+    <!-- Elvi halo (replaces 3D avatar) -->
+    <div id="elvi-halo" class="elvi-halo" data-state="idle" role="img" aria-label="Elvi">
+      <div class="halo-glow"></div>
+      <div class="halo-ring"></div>
+      <div class="halo-core"></div>
+    </div>
 
     <!-- Top-left brand -->
     <header class="topbar">
@@ -43,8 +55,8 @@
           <ul id="combo-tracker-options" class="combo-tracker-options"></ul>
         </div>
         <div class="combo-tracker-actions">
-          <button id="combo-tracker-back" type="button" class="combo-nav-button" onclick="sendComboNav('back')">Back</button>
-          <button id="combo-tracker-next" type="button" class="combo-nav-button combo-nav-primary" onclick="sendComboNav('next')">Next</button>
+          <button id="combo-tracker-back" type="button" class="combo-nav-button">Back</button>
+          <button id="combo-tracker-next" type="button" class="combo-nav-button combo-nav-primary">Next</button>
         </div>
       </div>
     </div>
@@ -71,7 +83,7 @@
     <div id="selection-preview" class="selection-preview is-hidden" aria-live="polite">
       <img id="selection-preview-image" class="selection-preview-image" alt="Selected menu item" />
       <div class="selection-preview-copy">
-        <p class="selection-preview-label">Selected item description</p>
+        <p class="selection-preview-label">Now building</p>
         <p id="selection-preview-name" class="selection-preview-name"></p>
         <p id="selection-preview-description" class="selection-preview-description"></p>
       </div>
@@ -139,6 +151,13 @@
       </div>
     </div>
 
+    <!-- Sticky cart summary -->
+    <button id="cart-bar" type="button" class="cart-bar is-empty" aria-label="Review order">
+      <span id="cart-bar-count" class="cart-bar-count">0</span>
+      <span id="cart-bar-label" class="cart-bar-label">Review order</span>
+      <span id="cart-bar-total" class="cart-bar-total">$0.00</span>
+    </button>
+
     <!-- Cart drawer -->
     <aside id="cart-drawer" class="cart-drawer" aria-hidden="true">
       <div class="drawer-inner">
@@ -200,6 +219,7 @@
     <!-- Hidden hero-description kept for tenant branding JS -->
     <span id="hero-description" style="display:none"></span>
 
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="./app.js?v=20261016-ui5"></script>
+    <script type="module" src="./ui1.js?v=20261016-ui5"></script>
   </body>
 </html>
