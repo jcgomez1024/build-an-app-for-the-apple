@@ -21,6 +21,7 @@ import { orderContextTurn, clearOrderContext, logTurn, pendingSummary } from "./
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
 import { registerTwilioRoutes } from "./twilio.js";
+import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE } from "./customer-guard.js";
 import fs from "node:fs";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
@@ -31,6 +32,8 @@ import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// custapp1: customer-app launch flags live here (not in .env)
+dotenv.config({ path: path.resolve(__dirname, "../.env.custapp") });
 dotenv.config();
 
 const app = express();
@@ -173,6 +176,11 @@ async function synthesizeSpeech(tenant: ReturnType<typeof resolveTenant>, text: 
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+// custapp1: per-IP rate limits on customer ordering routes (phone system routes are not limited)
+app.use(["/api/orders/checkout", "/api/:tenant/orders/checkout"], rateLimit("checkout", 5, 10 * 60_000));
+app.use(["/api/realtime/session", "/api/:tenant/realtime/session", "/api/:tenant/xai/client-secret"], rateLimit("voice-token", 10, 10 * 60_000));
+app.use(["/api/:tenant/xai/speech", "/api/:tenant/xai/transcribe"], rateLimit("voice-media", 120, 10 * 60_000));
+app.use(["/api/menu/resolve", "/api/:tenant/menu/resolve", "/api/elvi/chat", "/api/:tenant/elvi/chat", "/api/menu/info", "/api/:tenant/menu/info", "/api/:tenant/tools/submit_order", "/api/:tenant/tools/check_delivery_zone"], rateLimit("order", 120, 10 * 60_000));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "cocina-elvis-api" });
@@ -1135,7 +1143,9 @@ app.post("/api/menu/resolve", async (req, res, next) => {
 app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
-    const result = await createCheckout(req.body, buildSquareConfig(tenant));
+    const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
+    if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
+    const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
     res.status(201).json(result);
   } catch (error) {
@@ -1146,7 +1156,9 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
 app.post("/api/orders/checkout", async (req, res, next) => {
   try {
     const tenant = resolveDefaultTenant(req.headers.host);
-    const result = await createCheckout(req.body, buildSquareConfig(tenant));
+    const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
+    if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
+    const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
     res.status(201).json(result);
   } catch (error) {
