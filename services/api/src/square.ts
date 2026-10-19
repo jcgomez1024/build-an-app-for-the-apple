@@ -261,8 +261,17 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   if (input.fulfillment === "DELIVERY" && !input.customer?.address) {
     throw new Error("Delivery address is required");
   }
-  const menu = await getMenu(runtime);
+  // sandbox1: the sandbox account has no catalog, so read the real menu (read-only) and send
+  // ad-hoc line items (name + price, no production catalog IDs) to the sandbox.
+  const sandbox = runtime.env === "sandbox";
+  const menu = sandbox ? await getMenu() : await getMenu(runtime);
   const voiceOrderNote = buildVoiceOrderNote(input, menu);
+  const lineItems = buildLineItems(input.cart, menu).map((li) => {
+    if (!sandbox) return li;
+    const mi = menu.find((m) => m.name === li.name);
+    const amount = li.base_price_money?.amount ?? mi?.priceCents ?? 0;
+    return { name: `[TEST] ${li.name}`, quantity: li.quantity, base_price_money: { amount, currency: "USD" }, note: li.note };
+  });
 
   const response = await squareRequest<{
     payment_link: { id: string; url: string; order_id?: string };
@@ -274,7 +283,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
       order: {
         location_id: runtime.locationId,
         reference_id: `voice-${nanoid(10)}`,
-        line_items: buildLineItems(input.cart, menu),
+        line_items: lineItems,
         fulfillments: [buildFulfillment(input)],
         metadata: {
           source: "voice_order",
