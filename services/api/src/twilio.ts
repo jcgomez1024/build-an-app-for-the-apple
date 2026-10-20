@@ -997,6 +997,10 @@ export function ringNumbers(): string[] {
  *  invalid numbers, our own Twilio lines, the ring phones and the forwarded main lines are never passed. Once Twilio
  *  refuses it on a REST call, stop trying until the API restarts (so every ring isn't placed twice). */
 let passCallerIdRefused: { code?: number; message: string; at: number } | null = null;
+/** cleanup1: caller ID for staff ring legs = the Twilio line that received the call (never the customer's number). */
+export function ringCallerId(receivedOn: string): string {
+  return phoneLines().find((l) => d10(l.number) === d10(receivedOn))?.number || phoneLines()[0]?.number || "";
+}
 export function passCallerId(from: string): string {
   if (process.env.TWILIO_PASS_CALLER_ID === "0" || passCallerIdRefused) return "";
   const f = String(from || "").trim();
@@ -1077,9 +1081,11 @@ async function startRings(base: string, cust: Entry) {
   if (ringStarting.has(cust.callSid) || (ringing.get(cust.callSid)?.size || 0) > 0) return;
   ringStarting.add(cust.callSid);
   try {
-    const twilioLine = phoneLines().find((l) => d10(l.number) === d10(cust.line))?.number || phoneLines()[0]?.number || "";
+    const twilioLine = ringCallerId(cust.line);
     // callerid1: show the real caller on the desk/iPhone (TWILIO_PASS_CALLER_ID=1). Falls back to the Twilio line.
-    const passed = passCallerId(cust.from);
+    // cleanup1: never use the customer's number as the REST caller ID (Twilio 21210, not verified). The ring leg shows the
+    // Twilio line that received the call; the whisper still tells staff the caller's name/number.
+    const passed = "";
     const legs = ringing.get(cust.callSid) || new Map<string, string>();
     ringing.set(cust.callSid, legs);
     await Promise.all(nums.map(async (to) => {

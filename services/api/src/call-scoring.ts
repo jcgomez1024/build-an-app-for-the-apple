@@ -283,7 +283,18 @@ export function mergeMods(old: any[], add: any[]): any[] {
   for (const m of add) if (!out.some((o) => String(o.option) === String(m.option))) out.push(m);
   return out;
 }
+/** cleanup1: an info-only call — the caller only asks questions (ingredients, dietary, hours, prices) and never asks to
+ *  order. No shadow order for those ("are your beans vegetarian?" must not become a burrito). */
+const ASKS_TO_ORDER = /\b(?:i(?:'d| would)?\s+(?:like|want|wanna|need|get|take|have)|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|give\s+me|(?:to\s+)?(?:place|make)\s+an?\s+order|order|para\s+(?:hacer|ordenar|llevar)|(?:me\s+)?(?:da|das|dé|puede|podría|pone|pones|regala)s?\s+(?:un|una|dos|tres|cuatro|\d)|quiero|quisiera|me\s+gustar[ií]a|ordenar|pedido|pedir|dame|deme|mándame|for\s+(?:pickup|delivery)|to\s+go)\b/iu;
+const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|l[aá]cteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|hours?|horario|open|abiertos?|cierran|close|price|precio|cu[aá]nto\s+cuesta|how\s+much)\b/iu;
+export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text);
+  if (!caller.length) return false;
+  const all = caller.join(" ");
+  return !caller.some((t) => ASKS_TO_ORDER.test(t)) && INFO_Q.test(all) && /\?|^\s*(?:are|is|do|does|can|what|which|how|tienen|es|son|lleva|hay)\b/imu.test(all);
+}
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
+  if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
   const cart: Line[] = [];
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
   const steps: any[] = [];
