@@ -1,7 +1,15 @@
 // unusual1: non-order calls for the Elvi Auditor → UNUSUAL_CALL {category, urgent, question, summary es/en}.
 // Rules only (transcript). No phone numbers/addresses in the output.
 export type UnusualCategory = "question_dietary" | "complaint" | "catering_large" | "wrong_number_spam" | "reservation_other";
-export type Unusual = { category: UnusualCategory; urgent: boolean; question: string | null; summary_es: string; summary_en: string };
+export type Unusual = { category: UnusualCategory; urgent: boolean; question: string | null; summary_es: string; summary_en: string; answers?: FaqAnswer[] };
+// faq1: Carlos's answers (data/faq.json) — recorded on question calls and quoted in the UNUSUAL_CALL summary.
+import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
+export type FaqAnswer = { id: string; es: string; en: string };
+const FAQ_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/faq.json");
+let faqCache: Array<FaqAnswer & { re: RegExp }> | null = null;
+function faq() { if (!faqCache) { try { faqCache = JSON.parse(fs.readFileSync(FAQ_FILE, "utf8")).entries.map((e: any) => ({ id: e.id, es: e.es, en: e.en, re: new RegExp(e.match, "i") })); } catch { faqCache = []; } } return faqCache!; }
+/** FAQ answers for a question text (accent-insensitive). */
+export const faqAnswers = (text: string): FaqAnswer[] => faq().filter((e) => e.re.test(norm(text))).map(({ id, es, en }) => ({ id, es, en }));
 type T = { speaker: string; text: string };
 const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 /** Strip phone numbers and street addresses from quoted caller text. */
@@ -37,6 +45,10 @@ export function classifyCall(turns: T[], hasOrder: boolean): Unusual | null {
   if (CATERING.test(all)) return { category: "catering_large", urgent: false, question: q, summary_es: `Pedido grande / catering.${quote(q)}`, summary_en: `Large order / catering inquiry.${quote(q)}` };
   if (hasOrder) return null;
   if (RESERVATION.test(all)) return { category: "reservation_other", urgent: false, question: q, summary_es: `Otra consulta (reservación/trabajo/otro).${quote(q)}`, summary_en: `Other inquiry (reservation/job/other).${quote(q)}` };
-  if (q && DIETARY_Q.test(all)) return { category: "question_dietary", urgent: false, question: q, summary_es: `Pregunta del cliente, sin pedido.${quote(q)}`, summary_en: `Customer question, no order.${quote(q)}` };
+  if (q && DIETARY_Q.test(all)) {
+    const answers = faqAnswers(caller.filter((t) => DIETARY_Q.test(norm(t.text)) || /\?/.test(t.text)).map((t) => t.text).join(" "));
+    const a = (l: "es" | "en") => (answers.length ? ` ${l === "es" ? "Respuesta" : "Answer"}: ${answers.map((x) => x[l]).join(" ")}` : "");
+    return { category: "question_dietary", urgent: false, question: q, answers, summary_es: `Pregunta del cliente, sin pedido.${quote(q)}${a("es")}`, summary_en: `Customer question, no order.${quote(q)}${a("en")}` };
+  }
   return null;
 }

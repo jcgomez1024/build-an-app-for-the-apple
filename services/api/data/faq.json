@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "source": "Carlos 2026-10-20",
+  "note": "Answers Elvi may give / the auditor records for question calls. Live answering comes later.",
+  "entries": [
+    {
+      "id": "frijoles-manteca",
+      "topic": "beans",
+      "match": "\\b(frijol(?:es|itos)?|beans?|refried)\\b",
+      "es": "Nuestros frijoles refritos no llevan manteca; son aptos para vegetarianos.",
+      "en": "Our refried beans have no lard, so they're vegetarian-friendly."
+    },
+    {
+      "id": "arroz-caldo-pollo",
+      "topic": "rice",
+      "match": "\\b(arroz|rice)\\b",
+      "es": "Nuestro arroz mexicano se hace con consomé de pollo, así que no es vegetariano ni vegano.",
+      "en": "Our Mexican rice is made with chicken bouillon, so it isn't vegetarian or vegan."
+    }
+  ]
+}

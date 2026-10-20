@@ -1566,6 +1566,8 @@ function defaultReply(language: Language) {
  */
 function withSalsaDefault(result: ElviResponse, heard: string, menu: MenuItem[], language: Language): ElviResponse {
   if (!result?.actions?.length) return result;
+  result = withoutNameTurnAdds(result, heard, language);
+  if (!result?.actions?.length) return result;
   const actions = withConAddons(withConTodo(withDefaultSalsa(fixToppingNegations(fixNamedMeats(fixBurritoFillings(result.actions as any[], menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi"), menu, heard), menu, heard) as ElviAction[]; // sopesaso1: con todo; rice1/addons1: Con/With paid add-ons
   if (JSON.stringify(actions) === JSON.stringify(result.actions)) return result;
   const reply = String(result.reply || "");
@@ -1573,6 +1575,20 @@ function withSalsaDefault(result: ElviResponse, heard: string, menu: MenuItem[],
   return isReadback
     ? { ...result, actions, reply: addReadback(actions, menu, language), audioBase64: undefined, audioMimeType: undefined }
     : { ...result, actions };
+}
+
+/** nameturn1: on the name turn ("Uriel. Sí, está bien") the model sometimes re-adds an earlier item merged with
+ *  another item's meat (2 × Torta bistec + prensado). A set_customer turn that names no food can't add/change items. */
+const FOOD_WORD = /\b(?:tacos?|tortas?|quesadillas?|gorditas?|burritos?|sopes?|sopesasos?|huaraches?|doradas?|nachos|birrias?|pambazos?|enchiladas?|tamales?|aguas?|horchata|jamaica|refrescos?|sodas?|bistec|steak|asada|pastor|chorizo|pollo|chicken|prensado|chicharron|carnitas|suadero|lengua|cabeza|tripa|barbacoa|arroz|rice|frijol(?:es)?|beans|queso|cheese|crema|salsa|combos?|meal|platillos?|extra|mas|more|otr[oa]s?|another|add|agrega)\b/;
+export function withoutNameTurnAdds(result: ElviResponse, heard: string, language: Language): ElviResponse {
+  const acts = (result?.actions || []) as any[];
+  if (!acts.some((a) => a?.type === "set_customer") || !acts.some((a) => a?.type === "add_item" || a?.type === "update_item")) return result;
+  const said = String(heard || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (FOOD_WORD.test(said)) return result;
+  const actions = acts.filter((a) => a?.type !== "add_item" && a?.type !== "update_item") as ElviAction[];
+  const c: any = acts.find((a) => a?.type === "set_customer");
+  const name = cleanFirstName(c?.name || c?.customer?.name || "") || "";
+  return { ...result, actions, reply: name ? nameAckText(language as any, name) : String(result.reply || ""), audioBase64: undefined, audioMimeType: undefined };
 }
 
 /** fix18: the last line Elvi added per order session, for quantity corrections ("no, mejor tres"). */
