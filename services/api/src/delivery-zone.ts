@@ -1,4 +1,4 @@
-// delivery1/delivery2/fees1: delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder
+// delivery1/delivery2/fees1/fees2 (distance-only tiers, no city rule): delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder
 // (no key) incl. the incorporated place (city) — ZIP alone is not enough (44077 also covers Painesville Twp).
 // Cached in data/logs/geocode-cache.json (gitignored: addresses are personal data). On any doubt → needsConfirm.
 import fs from "node:fs";

@@ -1,5 +1,5 @@
 {
-  "note": "fees1 (2026-10-20, from Carlos's Square Online screenshots): City of Painesville (Census incorporated place) = flat $5 all-in, ETA 40 min (staff rule). Outside Painesville city = the website fee: Square straight-line distance tiers from 101 W Walnut Ave (0-4 mi $2.99, 4-10 mi $6.99; Square's 10-15 mi $8.99 tier is unreachable because the delivery radius is 10 mi) + $1.00 service fee per delivery order. >10 mi = out of area. Unknown city / geocode failure -> CONFIRMAR ZONA. $10 food minimum before fees.",
+  "note": "fees2 (2026-10-20, Carlos): phone delivery fee depends only on straight-line (haversine) distance from 101 W Walnut Ave, not city. 0-4.0 mi flat $5 (ETA 40), >4-10 mi flat $8 (ETA 50), >10 mi out of range. No service fee on phone orders. CONFIRMAR ZONA only when geocode fails/ambiguous. $10 food minimum. (Website/Square Online uses its own tiers + $1 service fee; see websiteReference.)",
   "origin": {
     "label": "Cocina Elvis, 101 W Walnut Ave, Painesville, OH 44077",
     "lat": 41.715615285933,
@@ -9,30 +9,17 @@
   "zones": [
     {
       "id": "near",
-      "label": "Painesville · $5",
+      "label": "0-4 mi · $5",
       "feeCents": 500,
       "etaMinutes": 40,
-      "requirePlace": "Painesville city",
-      "maxMiles": 10,
-      "feeConfirmed": true
+      "maxMiles": 4
     },
     {
-      "id": "web4",
-      "label": "Website 0-4 mi",
-      "feeCents": 299,
+      "id": "far",
+      "label": "4-10 mi · $8",
+      "feeCents": 800,
       "etaMinutes": 50,
-      "maxMiles": 4,
-      "feeConfirmed": true,
-      "serviceFee": true
-    },
-    {
-      "id": "web10",
-      "label": "Website 4-10 mi",
-      "feeCents": 699,
-      "etaMinutes": 50,
-      "maxMiles": 10,
-      "feeConfirmed": true,
-      "serviceFee": true
+      "maxMiles": 10
     }
   ],
   "maxMiles": 10,
@@ -53,5 +40,5 @@
     "distance": "straight line",
     "courier_time": "20-25 min"
   },
-  "serviceFeeCents": 100
+  "serviceFeeCents": 0
 }
