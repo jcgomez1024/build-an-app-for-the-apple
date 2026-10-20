@@ -111,3 +111,24 @@ export async function quoteDeliveryAddress(address: string, fetcher: typeof fetc
   }
 }
 export { addressKey };
+
+// appdelivery1: customer-app delivery = website fees (data/delivery.json "app"). Same geocode/distance as phone.
+export type AppDeliveryConfig = { enabled?: boolean; maxMiles: number; subtotalMinimumCents: number; serviceFeeCents: number; prepMinutes: number; driveMinutes: number;
+  tiers: Array<{ id: string; label: string; feeCents: number; maxMiles: number }>; squareFeeVariations?: Record<string, string>; squareServiceFeeVariation?: string | null };
+export function loadAppDelivery(file: any = loadDeliveryConfig()): AppDeliveryConfig | null { return (file as any)?.app || null; }
+const m2 = (c: number) => `$${(c / 100).toFixed(2)}`;
+/** Pure: app quote for a distance. feeCents = delivery + service (total); deliveryCents / serviceCents split. */
+export function appQuoteFor(miles: number, app: AppDeliveryConfig): Quote {
+  const mi = Math.round(miles * 10) / 10, minimumCents = app.subtotalMinimumCents;
+  const tier = [...app.tiers].sort((a, b) => a.maxMiles - b.maxMiles).find((t) => miles <= t.maxMiles);
+  if (miles > app.maxMiles || !tier) return { ok: false, needsConfirm: false, reason: "out_of_range", miles: mi, minimumCents,
+    message: { es: `Lo sentimos, esa dirección está fuera de nuestra área de entrega (${mi} millas; entregamos hasta ${app.maxMiles} millas). ¿Lo quiere para recoger?`, en: `Sorry, that address is outside our delivery area (${mi} miles; we deliver up to ${app.maxMiles} miles). Would you like pickup instead?` } };
+  const eta = app.prepMinutes + app.driveMinutes, svc = app.serviceFeeCents, total = tier.feeCents + svc;
+  return { ok: true, needsConfirm: false, miles: mi, zone: tier.id, zoneLabel: tier.label, feeCents: total, deliveryCents: tier.feeCents, serviceCents: svc, etaMinutes: eta, minimumCents, feeConfirmed: true,
+    breakdown: `Envío ${m2(tier.feeCents)} + servicio ${m2(svc)} = ${m2(total)}`,
+    message: { es: `Entrega: ${m2(tier.feeCents)} + ${m2(svc)} de servicio (${mi} millas). Llega en unos ${eta} minutos. Mínimo para entrega: ${m2(minimumCents)} en comida.`,
+      en: `Delivery: ${m2(tier.feeCents)} + ${m2(svc)} service fee (${mi} miles). About ${eta} minutes. Delivery minimum: ${m2(minimumCents)} of food.` } };
+}
+const toApp = (q: Quote | null, app: AppDeliveryConfig | null): Quote | null => (!q || !app ? q : typeof q.miles === "number" ? { ...appQuoteFor(q.miles, app), matched: q.matched, place: q.place, city: q.city } : q);
+export const cachedAppQuote = (address: string) => toApp(cachedQuote(address), loadAppDelivery());
+export async function quoteAppAddress(address: string, fetcher: typeof fetch = fetch): Promise<Quote> { return toApp(await quoteDeliveryAddress(address, fetcher), loadAppDelivery())!; }

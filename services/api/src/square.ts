@@ -1,6 +1,6 @@
 import { addressesIn } from "./delivery.js";
 import { cleanFullName } from "./caller-memory.js";
-import { quoteDeliveryAddress, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
+import { quoteDeliveryAddress, quoteAppAddress, loadAppDelivery, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
@@ -278,6 +278,24 @@ export function deliveryFeeLineItem(feeCents: number, file: { squareFeeVariation
   if (!id) throw new CatalogOnlyError(`No Square "Delivery Fee" variation for $${(feeCents / 100).toFixed(2)}; staff must confirm the delivery fee.`);
   return { catalog_object_id: id, quantity: "1" };
 }
+/** appdelivery1: customer-app order (anything not an internal phone order). */
+export const isAppOrder = (input: any) => input?.__internalPhone !== true; // set only by the server for localhost phone orders
+/** Production delivery lines: phone = "Delivery Fee" $5/$8 variation; app = website tier variation + $1 service fee variation.
+ *  Missing catalog variation → CatalogOnlyError (no custom amounts), naming exactly what Carlos must add in Square. */
+export function deliveryLines(input: any, q: Quote, file: any = loadDeliveryFile()): any[] {
+  if (!isAppOrder(input)) return [deliveryFeeLineItem(Number(q.feeCents), file)];
+  const app = file?.app || {}, d = Number(q.deliveryCents ?? q.feeCents), svc = Number(q.serviceCents ?? 0);
+  const fee = app.squareFeeVariations?.[String(d)], sv = app.squareServiceFeeVariation;
+  const missing = [...(!fee ? [`a "Delivery Fee" variation priced $${(d / 100).toFixed(2)}`] : []), ...(svc && !sv ? [`a service-fee item/variation priced $${(svc / 100).toFixed(2)}`] : [])];
+  if (missing.length) throw new CatalogOnlyError(`App delivery can't be charged yet: Square catalog is missing ${missing.join(" and ")}. Staff must enter this order.`);
+  return [{ catalog_object_id: fee, quantity: "1" }, ...(svc ? [{ catalog_object_id: sv, quantity: "1" }] : [])];
+}
+/** Sandbox (no catalog): delivery fee and service fee as two service charges. */
+export function sandboxDeliveryCharges(q: Quote) {
+  const ch = (name: string, amount: number) => ({ name, amount_money: { amount, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false });
+  const d = Number(q.deliveryCents ?? q.feeCents), svc = Number(q.serviceCents ?? 0);
+  return [ch(`Delivery fee (${q.zoneLabel})`, d), ...(svc ? [ch("Service fee", svc)] : [])];
+}
 function loadDeliveryFile() { try { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); } catch { return {}; } }
 
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
@@ -295,7 +313,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   // delivery1: zone/fee from data/delivery.json (geocoded). If the zone can't be confirmed, don't take payment — staff confirm.
   let deliveryQuote: Quote | undefined;
   if (input.fulfillment === "DELIVERY") {
-    deliveryQuote = await quoteDeliveryAddress(input.customer.address || "");
+    deliveryQuote = isAppOrder(input) ? await quoteAppAddress(input.customer.address || "") : await quoteDeliveryAddress(input.customer.address || ""); // appdelivery1
     if (!deliveryQuote.ok) throw new Error(deliveryQuote.reason === "out_of_range" ? deliveryQuote.message.en : "We couldn't confirm the delivery zone for that address. Please call us so staff can confirm the delivery fee.");
     (input as any).deliveryQuote = deliveryQuote;
   }
@@ -305,14 +323,14 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   const menu = sandbox ? await getMenu() : await getMenu(runtime);
   // delivery2: $10 delivery minimum on the food subtotal (before the delivery fee).
   if (input.fulfillment === "DELIVERY") {
-    const subtotal = cartSubtotalCents(input.cart, menu), min = deliveryMinimumCents();
+    const subtotal = cartSubtotalCents(input.cart, menu), min = isAppOrder(input) ? (loadAppDelivery()?.subtotalMinimumCents ?? 1000) : deliveryMinimumCents();
     if (subtotal < min) throw new Error(`Delivery minimum is $${(min / 100).toFixed(2)} before the delivery fee (this order is $${(subtotal / 100).toFixed(2)}). Add more items or choose pickup.`);
   }
   const voiceOrderNote = buildVoiceOrderNote(input, menu);
   // catalog1: production = catalog variations only, delivery fee as the catalog "Delivery Fee" item; otherwise refuse (staff).
   if (!sandbox) {
     const prod: any[] = buildLineItems(input.cart, menu);
-    if (deliveryQuote?.ok) prod.push(deliveryFeeLineItem(Number(deliveryQuote.feeCents)));
+    if (deliveryQuote?.ok) prod.push(...deliveryLines(input, deliveryQuote));
     assertCatalogOnly(prod);
   }
   const lineItems = buildLineItems(input.cart, menu).map((li) => {
@@ -334,9 +352,9 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
         reference_id: `voice-${nanoid(10)}`,
         // ordername1: the customer's name on the order (POS ticket) — same as the fulfillment recipient display name.
         ...(orderDisplayName(input) ? { ticket_name: orderDisplayName(input)!.slice(0, 30) } : {}),
-        line_items: sandbox || !deliveryQuote?.ok ? lineItems : assertCatalogOnly([...lineItems, deliveryFeeLineItem(Number(deliveryQuote.feeCents))]),
+        line_items: sandbox || !deliveryQuote?.ok ? lineItems : assertCatalogOnly([...lineItems, ...deliveryLines(input, deliveryQuote)]),
         fulfillments: [buildFulfillment(input)],
-        ...(sandbox && deliveryQuote?.ok ? { service_charges: [{ name: `Delivery fee (${deliveryQuote.zoneLabel})`, amount_money: { amount: deliveryQuote.feeCents, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false }] } : {}),
+        ...(sandbox && deliveryQuote?.ok ? { service_charges: sandboxDeliveryCharges(deliveryQuote) } : {}),
         metadata: {
           source: "voice_order",
           voice_order_source: cleanNote(input.metadata?.source || getLaunchConfig().voiceOrderSource, 60),

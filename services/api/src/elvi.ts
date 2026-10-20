@@ -10,7 +10,7 @@ import { enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, u
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
 import { deliveryDialogRules } from "./delivery.js";
-import { cachedQuote, quoteDeliveryAddress } from "./delivery-zone.js";
+import { cachedAppQuote as cachedQuote, quoteAppAddress as quoteDeliveryAddress } from "./delivery-zone.js"; // appdelivery1: app tools quote website fees
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
 import { preTurn, answerPick as chicharronAnswerPick } from "./pre-turn.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
@@ -36,6 +36,7 @@ export type ConversationTurn = {
 };
 
 type ElviRequest = {
+  channel?: "app" | "phone"; // appdelivery1/appsopes1
   transcript: string;
   language: Language;
   menu: MenuItem[];
@@ -1692,6 +1693,15 @@ export function phoneOrderNameTurn(input: ElviRequest, lastReply: string, DONE: 
   return null;
 }
 
+/** appsopes1 (Carlos): the customer app sells only the 10" Sopesaso Elvis. "Sopes chicos/chiquitos/small" → ask, don't ring 2 × 10". Phone unchanged. */
+const SMALL_SOPE_ASK = /\b(?:sopes?|sopecitos?|sopesasos?)\s+(?:chic[oa]s?|chiquit[oa]s?|peque[nñ][oa]s?|small|mini)\b|\b(?:chic[oa]s?|chiquit[oa]s?|peque[nñ][oa]s?|small|mini)\s+(?:sopes?|sopesasos?)\b|\bsopecitos?\b/iu;
+export function appSmallSopeReply(input: { transcript?: string; language?: string; channel?: string } & Record<string, any>): ElviResponse | null {
+  if (input?.channel !== "app" || !SMALL_SOPE_ASK.test(String(input.transcript || ""))) return null;
+  const es = input.language !== "en";
+  return { language: (es ? "es" : "en") as any, engine: "xai", actions: [], reply: es
+    ? "En línea solo tenemos el Sopesaso Elvis de 10 pulgadas. ¿Lo quieres de 10 pulgadas, o prefieres llamarnos para los sopes chicos?"
+    : "Online we only have the 10-inch Sopesaso Elvis. Would you like the 10-inch, or would you rather call us for the small sopes?" } as ElviResponse;
+}
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
   // fix18: "así está bien" / "es todo" / "that's all" after "¿Algo más?" closes the order. The model re-added the
   // last dish for these ("está" also matched Platillo de Guisado), so answer here with no cart change (never checkout).
@@ -1703,6 +1713,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
     const es = input.language === "es";
     return { language: input.language, engine: "xai", reply: es ? "¡Perfecto! Revisa tu orden y cuando estés listo, pasa a pagar." : "Perfect! Review your order and check out when you're ready.", actions: [] } as ElviResponse;
   }
+  const small = appSmallSopeReply(input);
+  if (small) return small;
   const fixed = quantityCorrection(input);
   if (fixed) { recordLastAdd(input.sessionKey, fixed.actions); return fixed; }
   const topping = toppingCorrection(input);

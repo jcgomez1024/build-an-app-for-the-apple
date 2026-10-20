@@ -27,7 +27,7 @@ import { registerTwilioRoutes, phoneAuth } from "./twilio.js";
 import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
-import { quoteDeliveryAddress } from "./delivery-zone.js";
+import { quoteDeliveryAddress, quoteAppAddress } from "./delivery-zone.js";
 import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
 import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
 import { auditorFindingsByCall } from "./auditor.js";
@@ -1177,6 +1177,7 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
     const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
+    markInternalPhone(req);
     const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
     rememberPhoneOrderName(req);
@@ -1185,6 +1186,14 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
     next(error);
   }
 });
+
+/** appdelivery1: phone fees only for internal (localhost, no tunnel headers) phone orders; a web body can't claim them. */
+function markInternalPhone(req: express.Request) {
+  const b = req.body || {}; delete b.__internalPhone;
+  const host = String(req.headers.host || "").split(":")[0];
+  const internal = !(req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"]) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
+  if (internal && b.metadata?.source === "phone") b.__internalPhone = true;
+}
 
 /** ordername1: an Elvi phone order (internal, localhost only — never a web body) saves its name as Elvi-heard. */
 function rememberPhoneOrderName(req: express.Request) {
@@ -1200,6 +1209,7 @@ app.post("/api/orders/checkout", async (req, res, next) => {
     const tenant = resolveDefaultTenant(req.headers.host);
     const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
+    markInternalPhone(req);
     const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
     rememberPhoneOrderName(req);
@@ -1227,7 +1237,7 @@ app.post("/api/:tenant/elvi/chat", async (req, res, next) => {
       : undefined;
     const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
     const result = await chatWithElvi(
-      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body) },
+      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body), channel: "app" } as any,
       {
         apiKey: tenant.xai.apiKey,
         baseUrl: tenant.xai.baseUrl,
@@ -1270,7 +1280,7 @@ app.post("/api/elvi/chat", async (req, res, next) => {
       : undefined;
     const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
     const result = await chatWithElvi(
-      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body) },
+      { transcript, language, menu, history, resolverMenu, sessionKey: orderSessionKey(req.body), channel: "app" } as any,
       {
         apiKey: tenant.xai.apiKey,
         baseUrl: tenant.xai.baseUrl,
@@ -1375,7 +1385,7 @@ app.post("/api/:tenant/tools/check_delivery_zone", async (req, res, next) => {
       throw new Error("address is required");
     }
     // delivery1: geocoded distance zones (data/delivery.json); a failed lookup asks to confirm instead of guessing.
-    const q = await quoteDeliveryAddress(address);
+    const q = await quoteAppAddress(address); // appdelivery1: website fees for the customer app
     const lang = String(req.body?.language || "es") === "en" ? "en" : "es";
     res.json({ ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, zone: q.zone || null,
       fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, delivery_cents: q.deliveryCents ?? null, service_cents: q.serviceCents ?? null, breakdown: q.breakdown ?? null, minimum_subtotal_cents: q.minimumCents ?? 1000, message: q.message[lang] });

@@ -982,6 +982,7 @@ async function processTurn(
       menu,
       history: session.turns,
       resolverMenu: await getSessionResolverMenu(session),
+      channel: "app",
       sessionKey: session.sessionId
     },
     {

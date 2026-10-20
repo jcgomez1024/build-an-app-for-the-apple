@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 export type FulfillmentMode = "PICKUP" | "DELIVERY";
 
 const DELIVERY_DISABLED_MESSAGE =
@@ -16,10 +19,15 @@ function parseFulfillmentModes(value: string | undefined): FulfillmentMode[] {
   return modes.length ? Array.from(new Set(modes)) : ["PICKUP"];
 }
 
+// appdelivery1: with DELIVERY_ENABLED / FULFILLMENT_MODES unset, data/delivery.json "app.enabled" turns on app delivery.
+function appDeliveryFlag(): boolean {
+  try { return !!JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/delivery.json"), "utf8"))?.app?.enabled; } catch { return false; }
+}
 export function getLaunchConfig() {
-  const fulfillmentModes = parseFulfillmentModes(process.env.FULFILLMENT_MODES);
+  const fileOn = appDeliveryFlag();
+  const fulfillmentModes = parseFulfillmentModes(process.env.FULFILLMENT_MODES || (fileOn ? "PICKUP,DELIVERY" : undefined));
   const deliveryEnabled =
-    parseBoolean(process.env.DELIVERY_ENABLED, false) && fulfillmentModes.includes("DELIVERY");
+    parseBoolean(process.env.DELIVERY_ENABLED, fileOn) && fulfillmentModes.includes("DELIVERY");
 
   return {
     fulfillmentModes: deliveryEnabled ? fulfillmentModes : fulfillmentModes.filter((mode) => mode !== "DELIVERY"),

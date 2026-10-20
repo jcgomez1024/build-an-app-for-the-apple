@@ -45,5 +45,32 @@
     "500": "UVVEBGR56Z52F2JL44V3V2CW",
     "800": "G43MX6TMJ5LICU6RDC7TRXP6",
     "_note": "catalog1: production Square item 'Delivery Fee' (5POTD5DCZ23CYGK32YVQGDS3) variations Delivery 1 $5 / Delivery 2 $8, verified read-only 2026-10-20"
+  },
+  "app": {
+    "_note": "appdelivery1 (Carlos 2026-10-20): the customer app uses the WEBSITE fees (Square Online settings): straight-line 0-4 mi $2.99, >4-10 mi $6.99, >10 mi out of range (website radius 10 mi; its 10-15 mi $8.99 tier is unused), + $1.00 service fee, $10 food minimum. ETA = 20 min prep + ~20 min drive. Phone orders keep the flat zones above.",
+    "enabled": true,
+    "maxMiles": 10,
+    "subtotalMinimumCents": 1000,
+    "serviceFeeCents": 100,
+    "prepMinutes": 20,
+    "driveMinutes": 20,
+    "tiers": [
+      {
+        "id": "app-near",
+        "label": "0-4 mi · $2.99",
+        "feeCents": 299,
+        "maxMiles": 4
+      },
+      {
+        "id": "app-far",
+        "label": "4-10 mi · $6.99",
+        "feeCents": 699,
+        "maxMiles": 10
+      }
+    ],
+    "squareFeeVariations": {
+      "_note": "Square catalog variation ids for 299 / 699 (Delivery Fee item) and the $1 service fee. None exist yet (checked read-only 2026-10-20) → production app delivery checkout refuses until Carlos adds them."
+    },
+    "squareServiceFeeVariation": null
   }
 }
