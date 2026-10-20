@@ -271,7 +271,9 @@ const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, 
 export const spokenCount = (phrase: string) => { const w = String(phrase || "").trim().split(/\s+/)[0]?.toLowerCase() || ""; return /^\d+$/.test(w) ? Number(w) : COUNT[w] || 0; };
 export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
 
-type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[] };
+type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[]; posSize?: "small" };
+/** sopesize1: caller said small ("chico(s)" after shared aliases: chiquito, pequeño, small) for a sopesaso. */
+export const SMALL_SOPE = /\b(?:chic[oa]s?)\b/iu;
 export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => Promise<any>;
 
 /** Replay caller turns through Elvi; apply her actions to a shadow cart. */
@@ -339,6 +341,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], a.modifiers || []) }] : [];
     });
     apply(acts);
+    // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
+    if (SMALL_SOPE.test(applySharedAliases(text, "phone"))) for (const l of touchedNow) if (/sopes[ae]so/i.test(l.itemId)) l.posSize = "small";
     const added = acts.filter((a: any) => a.type === "add_item");
     if (added.length) lastAdded = cart[cart.length - 1] || null;
     if (source !== "auto") attributeRemovals(text, wasLast);

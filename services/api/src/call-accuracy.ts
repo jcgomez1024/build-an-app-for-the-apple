@@ -85,7 +85,7 @@ export function elviLines(cart: any[] = [], menu: MenuItem[]): Line[] {
       }
     }
     const q = Number(l.quantity) || 1;
-    return { itemId: l.itemId, baseName: item?.name, variationId: item?.squareVariationId, name: item?.readbackName || item?.name || l.itemId, quantity: q, choices, unitCents: unit, totalCents: unit * q };
+    return { itemId: l.itemId, ...(l.posSize ? { posSize: l.posSize } : {}), baseName: item?.name, variationId: item?.squareVariationId, name: item?.readbackName || item?.name || l.itemId, quantity: q, choices, unitCents: unit, totalCents: unit * q };
   });
 }
 

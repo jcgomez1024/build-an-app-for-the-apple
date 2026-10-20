@@ -3,7 +3,8 @@
 // toppings group counts. Included toppings are part of the dish in Elvi's cart, the score and the auditor.
 const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 export const HOUSE_STANDARD: Array<{ item: RegExp; toppings: string[] }> = [
-  { item: /\bsopes(?:aso|azo)?s?\s+elvis\b|\bsopes(?:aso|azo)\b/i, toppings: ["Frijoles / Pinto Beans", "Lechuga / Lettuce", "Crema / Sour Cream", "Queso Fresco / Fresco Cheese"] },
+  { item: /\bsopes(?:aso|azo)?s?\s+elvis\b|\bsopes(?:aso|azo)\b|\b[hg]uaraches?\b/i, // sopesize1: huarache = same (Carlos)
+    toppings: ["Frijoles / Pinto Beans", "Lechuga / Lettuce", "Crema / Sour Cream", "Queso Fresco / Fresco Cheese"] },
 ];
 const TOPPING_GROUP = /topping/i;
 type Group = { name: string; options?: Array<{ name: string; priceDeltaCents?: number; priceCents?: number; preselected?: boolean } | string> };

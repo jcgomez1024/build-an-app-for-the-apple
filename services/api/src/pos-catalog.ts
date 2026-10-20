@@ -76,4 +76,19 @@ export function toPosLine(l: Line, cat: PosCatalog | null): Line {
   const q = Number(l.quantity) || 1;
   return { ...l, baseName: pos.name, variationId: pv.id, name: isRegular(pv.name) ? pos.name : `${pos.name} · ${pv.name}`, choices: [...(isRegular(pv.name) ? [] : [pv.name]), ...posChoices], unitCents: unit, totalCents: unit * q };
 }
-export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.map((l) => toPosLine(l, cat));
+/** sopesize1: small sopes → 1 small = "Sope Elvis", 2 small = "2 x Sopes Elvis" (n small = ⌊n/2⌋ pairs + 1 single). */
+export function smallSopeLines(l: Line, cat: PosCatalog | null): Line[] | null {
+  if ((l as any).posSize !== "small" || !cat || !l.variationId) return null;
+  const big = toPosLine(l, cat);
+  const pos = cat.items.find((i) => i.name === (big as any).baseName);
+  const one = pos?.variations.find((v) => /^sope elvis$/i.test(v.name.trim())), two = pos?.variations.find((v) => /^2\s*x\s*sopes/i.test(v.name.trim()));
+  if (!pos || !one || !two) return null;
+  const extra = (big.unitCents || 0) - (pos.variations.find((v) => v.id === (big as any).variationId)?.priceCents || 0); // meat/topping upcharges
+  const rest = (big.choices || []).filter((c) => !pos.variations.some((v) => norm(v.name) === norm(c)));
+  const n = Number(l.quantity) || 1, out: Line[] = [];
+  const mk = (v: Var, q: number): Line => ({ ...big, variationId: v.id, name: `${pos.name} · ${v.name}`, quantity: q, choices: [v.name, ...rest], unitCents: v.priceCents + extra, totalCents: (v.priceCents + extra) * q });
+  if (n >= 2) out.push(mk(two, Math.floor(n / 2)));
+  if (n % 2) out.push(mk(one, 1));
+  return out;
+}
+export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.flatMap((l) => smallSopeLines(l, cat) || [toPosLine(l, cat)]);

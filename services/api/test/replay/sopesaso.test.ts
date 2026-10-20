@@ -71,3 +71,39 @@ test("sopesaso1: listen-only name — staff addresses the caller by name; vocati
   assert.equal(nameFromStaffVocative([{ speaker: "staff", text: "Gracias, joven." }, { speaker: "staff", text: "Sí, Okey." }]), null);
   assert.equal(nameFromStaffVocative([{ speaker: "caller", text: "gracias, Lima." }]), null); // caller speech never counts
 });
+
+// sopesize1 (Carlos): huarache "con todo" = sopesaso toppings; sopesaso default 10”, "chico(s)" → small POS sizes.
+import { applySharedAliases } from "../../src/aliases.ts";
+import { toPosLines } from "../../src/pos-catalog.ts";
+
+test("sopesize1: huarache 'con todo' = frijoles, lechuga, crema, queso fresco (Elvi + included in score)", () => {
+  assert.deepEqual(standardToppings("Huarache Elvis"), STD);
+  const hmenu = [{ ...menu[0], id: "hua", name: "Huarache Elvis" }];
+  const [a]: any = withConTodo([{ type: "add_item", itemId: "hua", modifiers: [] }], hmenu, "con todo");
+  assert.deepEqual(a.modifiers.map((m: any) => m.option), STD);
+  assert.deepEqual(withIncludedToppings({ name: "Huarache Elvis", choices: ["Bistec / Steak"] }).choices, ["Bistec / Steak", ...STD]);
+});
+
+test("sopesize1: shared aliases — sope/sopes → sopesaso; chiquito/pequeño/small → chico", () => {
+  assert.equal(applySharedAliases("un sope de bistec", "phone"), "un sopesaso de bistec");
+  assert.equal(applySharedAliases("dos sopes", "app"), "dos sopesasos");
+  assert.equal(applySharedAliases("dos sopes chiquitos", "phone"), "dos sopesasos chicos");
+  assert.equal(applySharedAliases("un sope pequeño", "phone"), "un sopesaso chico");
+  assert.equal(applySharedAliases("two small sopes", "phone"), "two chico sopesasos");
+  assert.equal(applySharedAliases("un sopesote de asada", "phone"), "un sopesaso de asada");
+  assert.equal(applySharedAliases("una sopa chiquita", "phone"), "una sopa chiquita"); // only around sopes
+});
+
+test("sopesize1: POS size — default 10” (even 'un sope'/'dos sopes'); small: 1 = Sope Elvis $8, 2 = 2 x Sopes Elvis $15", async () => {
+  const line = (quantity: number, small = false): any => ({ name: "Sopesaso Elvis", quantity, variationId: "SOR", choices: ["Bistec / Steak"], totalCents: 1499 * quantity, ...(small ? { posSize: "small" } : {}) });
+  assert.deepEqual(toPosLines([line(2)], cat).map((l: any) => [l.name, l.quantity, l.totalCents]), [["Sopesaso Elvis · Sopesaso Elvis 10”", 2, 3000]]);
+  assert.deepEqual(toPosLines([line(1, true)], cat).map((l: any) => [l.name, l.quantity, l.totalCents]), [["Sopesaso Elvis · Sope Elvis", 1, 800]]);
+  assert.deepEqual(toPosLines([line(2, true)], cat).map((l: any) => [l.name, l.quantity, l.totalCents]), [["Sopesaso Elvis · 2 x Sopes Elvis", 1, 1500]]);
+  assert.deepEqual(toPosLines([line(3, true)], cat).map((l: any) => [l.name, l.quantity, l.totalCents]), [["Sopesaso Elvis · 2 x Sopes Elvis", 1, 1500], ["Sopesaso Elvis · Sope Elvis", 1, 800]]);
+  // Shadow order marks small only when the caller said it.
+  const run = async () => ({ reply: "Sopesaso Elvis. ¿Algo más?", actions: [{ type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [] }] });
+  const said = async (text: string) => (await shadowOrderFromTurns([{ speaker: "caller", text, start: 1, end: 2, language: "es" }] as any, run as any) as any).cart[0].posSize;
+  assert.equal(await said("dos sopes de bistec"), undefined);
+  assert.equal(await said("dos sopes chiquitos de bistec"), "small");
+  assert.equal(await said("two small sopes"), "small");
+});

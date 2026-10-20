@@ -27,6 +27,56 @@
       "approved": "Carlos 2026-10-19"
     },
     {
+      "id": "sope-small",
+      "match": "\\b(?:chiquit|pequeñ|pequen)([oa])(s?)\\b",
+      "to": "chic$1$2",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\bsop(?:es?|es[ae]sos?|es[ae]zos?)\\b",
+      "example": "dos sopes chiquitos",
+      "source": "sopesize1: small sopes = Sope Elvis / 2 x Sopes Elvis",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "sope-small-en",
+      "match": "\\bsmall\\b",
+      "to": "chico",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\bsop(?:es?|es[ae]sos?|es[ae]zos?)\\b",
+      "example": "two small sopes",
+      "source": "sopesize1",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "sope",
+      "match": "\\bsope(s?)\\b",
+      "to": "sopesaso$1",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "un sope de bistec / dos sopes chicos",
+      "source": "sopesize1: Square item Sopesaso Elvis (default size 10”; 'chico' = small POS sizes)",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "sope-grande",
+      "match": "\\b(?:sopesote|sopezaso|sopesas|sopesaso\\s+grande)(s?)\\b",
+      "to": "sopesaso$1",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "un sopesote de asada",
+      "source": "sopesize1",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
       "id": "campechana",
       "match": "\\bcampechanas?\\b",
       "to": "bistec y chorizo",
