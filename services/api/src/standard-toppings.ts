@@ -55,3 +55,27 @@ export function withIncludedToppings<L extends { name: string; baseName?: string
   const anyTopping = ch.some((c) => std.some((t) => norm(t) === norm(c)) || /^double\b/i.test(norm(c)));
   return anyTopping ? l : { ...l, choices: [...ch, ...std] };
 }
+
+// rice1: "con arroz" / "with rice" / "arrocito" / "<meat> and rice" on an item that has the "(C) Con / With" add-on
+// "**Con Arroz / With Rice" (+$0.50 in Square) = that add-on, not "Arroz / Rice" as a filling. Rice stays a filling
+// only when it's the sole filling ("quesadilla de arroz", "solo arroz").
+const plainOpt = (s: string) => norm(String(s || "").replace(/\(\+?\$[^)]*\)/g, "").replace(/\*+/g, ""));
+const RICE_SAID = /\b(?:con\s+arroz|with\s+rice|and\s+rice|y\s+arroz|con\s+arrocito|arrocito|plus\s+rice|add\s+rice)\b/;
+const RICE_ONLY = /\b(?:solo\s+(?:de\s+)?arroz|only\s+rice|just\s+rice|(?:quesadillas?|tacos?|gorditas?|tortas?)\s+de\s+arroz)\b/;
+export function withRiceAddon<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
+  const said = norm(text);
+  if (!Array.isArray(actions) || !RICE_SAID.test(said) || RICE_ONLY.test(said)) return actions;
+  return actions.map((a: any) => {
+    if (a?.type !== "add_item" && a?.type !== "update_item") return a;
+    const item = (menu || []).find((m: any) => m.id === a.itemId);
+    let addon: any = null, group: any = null;
+    for (const g of item?.modifierGroups || []) for (const o of g.options || []) { const n = typeof o === "string" ? o : o.name; if (/^con arroz \/ with rice$/.test(plainOpt(n))) { addon = typeof o === "string" ? { name: o } : o; group = g; } }
+    if (!addon) return a;
+    const mods = [...(a.modifiers || [])];
+    const isRiceFilling = (m: any) => /^(?:arroz \/ rice|1 x arroz \/ rice)$/.test(plainOpt(m.option));
+    const otherFilling = mods.some((m) => !isRiceFilling(m) && m.option !== addon.name && !/salsa|tortilla|comal|harina|maiz|corn|flour|homemade|regular|deluxe|dorada/i.test(plainOpt(m.option)) && !/con \/ with|salsa|topping/i.test(String(m.step || m.groupName || "")));
+    const kept = otherFilling ? mods.filter((m) => !isRiceFilling(m)) : mods;
+    if (!kept.some((m) => m.option === addon.name)) kept.push(a.type === "add_item" && a.modifiers?.[0]?.groupId ? { groupId: group.id, groupName: group.name, option: addon.name, optionId: addon.id, priceDeltaCents: Number(addon.priceDeltaCents || 0), quantity: 1 } : { step: group.name, option: addon.name });
+    return { ...a, modifiers: kept };
+  });
+}

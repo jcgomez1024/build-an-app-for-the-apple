@@ -1,6 +1,7 @@
 // auditor1: "Elvi Auditor" — per completed call, compare the Square ticket with what was said and with Elvi's
 // listen-only order; flag staff/ticket anomalies (pings) and Elvi misses (fix candidates). Private queue:
 // data/auditor/findings.jsonl (gitignored). Summaries never include phone numbers or addresses.
+import { classifyCall } from "./call-classify.js";
 import { isStandardTopping } from "./standard-toppings.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,11 +11,11 @@ import { norm } from "./call-accuracy.js";
 
 export const AUDITOR_DIR = process.env.ELVI_AUDITOR_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/auditor");
 export const FINDINGS_FILE = path.join(AUDITOR_DIR, "findings.jsonl");
-export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS";
-export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG"];
-export type Flag = { type: FlagType; detail: string; es: string; en: string };
+export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS" | "UNUSUAL_CALL";
+export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG", "UNUSUAL_CALL"];
+export type Flag = { type: FlagType; detail: string; es: string; en: string; category?: string; urgent?: boolean; question?: string | null };
 export type Finding = { id: string; callSid: string; callAt: string; score: number | null; flags: Flag[]; summary_es: string; summary_en: string;
-  customerName?: string | null; ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; retired?: string; retiredAt?: string; createdAt: string; receipt?: string | null };
+  customerName?: string | null; category?: string; urgent?: boolean; question?: string | null; ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; retired?: string; retiredAt?: string; createdAt: string; receipt?: string | null };
 
 const money = (c: number) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 const IGNORE = /\bmild salsa asada\b|^regular$/;
@@ -37,6 +38,9 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   const elviFood = (r.elvi || []).filter((l: any) => !isFee(l));
   const delivery = r.elviFulfillment === "DELIVERY" || r.fulfillment?.elvi?.fulfillment === "DELIVERY";
   const endedMs = Date.parse(r.at) + ((r.recordingSec || r.talkSec || 0) * 1000);
+  // unusual1: non-order calls (question/dietary, complaint, catering, wrong number/spam, other) — a "Revisar" ping.
+  const u = classifyCall(r.turns || [], elviFood.length > 0);
+  if (u) flags.push({ type: "UNUSUAL_CALL", detail: `${u.category}${u.urgent ? " (urgent)" : ""}${u.question ? `: ${u.question}` : ""}`, es: u.summary_es, en: u.summary_en, category: u.category, urgent: u.urgent, question: u.question } as Flag);
   if (!r.ticket) {
     if (!elviFood.length) return { flags, final: nowMs - endedMs > 60 * 60_000 };
     if (nowMs - endedMs < 45 * 60_000) return { flags, final: false }; // staff may still be ringing it in
@@ -61,7 +65,7 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     }
     if (e && !t) {
       if (custom.some((c: any) => Math.abs(c.totalCents - e.totalCents) <= 1)) continue; // rung as the custom amount
-      if (said(staff, e.baseName || e.name)) add("STAFF_MISSING", `said on call, not rung: ${e.quantity} × ${e.name}`, `Se pidió ${e.quantity} × ${e.name} en la llamada, pero no está en el ticket.`, `${e.quantity} × ${e.name} was ordered on the call but isn't on the ticket.`);
+      if (said(all, e.baseName || e.name)) add("STAFF_MISSING", `said on call, not rung: ${e.quantity} × ${e.name}`, `Se pidió ${e.quantity} × ${e.name} en la llamada, pero no está en el ticket.`, `${e.quantity} × ${e.name} was ordered on the call but isn't on the ticket.`);
       else add("ELVI_MISS", `Elvi added ${e.quantity} × ${e.name}`, `Elvi agregó ${e.quantity} × ${e.name} que no está en el ticket.`, `Elvi added ${e.quantity} × ${e.name}, not on the ticket.`);
       continue;
     }
@@ -74,7 +78,8 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
       else add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
     }
     for (const c of eOnly) {
-      if (said(staff, c)) add("STAFF_MISSING", `${t.name}: ${c} said, not rung`, `${t.name}: se dijo «${c}» pero no está en el ticket.`, `${t.name}: "${c}" was said but isn't on the ticket.`);
+      // rice1: Elvi is listen-only — a choice the caller (or staff) said that isn't on the ticket is a staff miss.
+      if (said(all, c)) add("STAFF_MISSING", `${t.name}: ${c} said, not rung`, `${t.name}: se dijo «${c}» pero no está en el ticket.`, `${t.name}: "${c}" was said but isn't on the ticket.`);
       else add("ELVI_MISS", `${t.name}: Elvi added ${c}`, `${t.name}: Elvi agregó «${c}».`, `${t.name}: Elvi added "${c}".`);
     }
     if (e.quantity !== t.quantity) add("ELVI_MISS", `${t.name}: qty ticket ${t.quantity}, Elvi ${e.quantity}`, `${t.name}: cantidad ticket ${t.quantity}, Elvi ${e.quantity}.`, `${t.name}: quantity ticket ${t.quantity}, Elvi ${e.quantity}.`);
@@ -116,7 +121,8 @@ export function recordFinding(row: any, flags: Flag[], file = FINDINGS_FILE, now
   for (const p of prev) p.superseded = true;
   const ping = flags.some((f) => PING_TYPES.includes(f.type));
   const f: Finding = { id, callSid: row.callSid, callAt: row.at, score: row.score ?? null, flags, summary_es: summarize(flags, "es"), summary_en: summarize(flags, "en"),
-    customerName: row.customerName || null, // sopesaso1: first name heard on the call (or saved)
+    customerName: row.customerName || null,
+    ...(() => { const u: any = flags.find((x) => x.type === "UNUSUAL_CALL"); return u ? { category: u.category, urgent: !!u.urgent, question: u.question || null } : {}; })(), // unusual1 // sopesaso1: first name heard on the call (or saved)
     ping, fixCandidate: flags.some((x) => x.type === "ELVI_MISS"), notified: !ping, createdAt: now.toISOString(), receipt: row.ticket?.receiptNumber || null };
   all.push(f); writeFindings(all, file);
   return f;

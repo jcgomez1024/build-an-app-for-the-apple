@@ -330,6 +330,18 @@
       "example": "dos quesadillas doradas deluxe",
       "source": "companion of quesadillas-doradas",
       "approved": "Carlos 2026-10-20 (fix request)"
+    },
+    {
+      "id": "arrocito",
+      "match": "\\barrocito(s?)\\b",
+      "to": "arroz",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "de bistec con arrocito",
+      "source": "rice1: Con Arroz / With Rice add-on",
+      "approved": "Carlos 2026-10-20"
     }
   ]
 }
