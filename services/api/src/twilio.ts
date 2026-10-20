@@ -233,17 +233,112 @@ export function etWeekday(at: Date = new Date()): number {
   const d = at.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" });
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(d);
 }
-export function closedNow(from: string, at: Date = new Date()): boolean {
-  if (process.env.TWILIO_CLOSED_ENABLED !== "1") return false;
-  const days = String(process.env.TWILIO_CLOSED_DAYS ?? "1").split(",").map((x) => Number(x.trim())).filter((x) => x >= 0 && x <= 6);
-  if (!days.includes(etWeekday(at))) return false;
+/** Minutes since midnight in America/New_York. */
+export function etMinutes(at: Date = new Date()): number {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at);
+  const n = (t: string) => Number(p.find((x) => x.type === t)?.value || 0);
+  return (n("hour") % 24) * 60 + n("minute");
+}
+const closedDaysEnv = () => String(process.env.TWILIO_CLOSED_DAYS ?? "1").split(",").map((x) => Number(x.trim())).filter((x) => x >= 0 && x <= 6);
+const closedBypassed = (from: string) => {
   const bypass = String(process.env.TWILIO_CLOSED_BYPASS || "").split(",").map(d10).filter(Boolean);
-  return !(d10(from) && bypass.includes(d10(from)));
+  return !!(d10(from) && bypass.includes(d10(from)));
+};
+
+// ---- afterhours1: before opening / after closing (same voice + style as the Monday message), then hang up. ----
+// Hours = the website's store pickup hours (data/site-catalog.json → store.pickupHours, America/New_York).
+// Phone opens at the EARLIER of the site's open time and TWILIO_PHONE_OPEN (default 10:00, per Carlos's
+// "abrimos a las diez" — online pickup starts later). Closes at the site close + TWILIO_CLOSE_GRACE_MIN (default 5).
+// TWILIO_AFTERHOURS=0 turns this part off (Monday message stays). Override hours: TWILIO_PHONE_HOURS_JSON.
+export type DayHours = { open: number; close: number } | null; // minutes since midnight, ET
+const WD_KEYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const hm = (s: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };
+let siteHoursCache: { mtime: number; hours: Record<string, Array<{ open: string; close: string }>> | null } = { mtime: -1, hours: null };
+function siteStoreHours(): Record<string, Array<{ open: string; close: string }>> | null {
+  if (process.env.TWILIO_PHONE_HOURS_JSON) { try { return JSON.parse(process.env.TWILIO_PHONE_HOURS_JSON); } catch { return null; } }
+  const f = path.join(apiRoot, "data/site-catalog.json");
+  try {
+    const st = fs.statSync(f);
+    if (st.mtimeMs !== siteHoursCache.mtime) siteHoursCache = { mtime: st.mtimeMs, hours: JSON.parse(fs.readFileSync(f, "utf8"))?.store?.pickupHours || null };
+  } catch { return siteHoursCache.hours; }
+  return siteHoursCache.hours;
+}
+/** Phone hours for one weekday (0=Sun), or null when closed all day / unknown. */
+export function phoneHours(wd: number, hours = siteStoreHours()): DayHours {
+  if (closedDaysEnv().includes(wd)) return null;
+  const list = hours ? hours[WD_KEYS[wd]] : undefined;
+  if (!list || !list.length) return null;
+  const opens = list.map((w) => hm(w.open)).filter(Number.isFinite), closes = list.map((w) => hm(w.close)).filter(Number.isFinite);
+  if (!opens.length || !closes.length) return null;
+  const early = hm(process.env.TWILIO_PHONE_OPEN || "10:00");
+  const open = Number.isFinite(early) ? Math.min(Math.min(...opens), early) : Math.min(...opens);
+  return { open, close: Math.max(...closes) };
+}
+const ES_HOURS = ["doce", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once"];
+const ES_DAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const EN_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function esTime(min: number) {
+  const h = Math.floor(min / 60), m = min % 60, h12 = h % 12;
+  const part = h < 12 ? "de la mañana" : h < 19 ? "de la tarde" : "de la noche";
+  const mins = m === 0 ? "" : m === 30 ? " y media" : m === 15 ? " y cuarto" : ` y ${m}`;
+  return `${h12 === 1 ? "la" : "las"} ${ES_HOURS[h12]}${mins} ${part}`;
+}
+function enTime(min: number) {
+  const h = Math.floor(min / 60), m = min % 60, h12 = h % 12 || 12;
+  return `${h12}${m ? ":" + String(m).padStart(2, "0") : ""} ${h < 12 ? "AM" : "PM"}`;
+}
+export type ClosedState = { kind: "day" | "before" | "after"; when: "today" | "tomorrow" | number; openMin: number; variant: string };
+/** null = open (ring as usual). "day" = the closed-day (Monday) message; before/after = hours message. */
+export function closedState(from: string, at: Date = new Date()): ClosedState | null {
+  if (process.env.TWILIO_CLOSED_ENABLED !== "1" || closedBypassed(from)) return null;
+  const wd = etWeekday(at), now = etMinutes(at);
+  if (closedDaysEnv().includes(wd)) return { kind: "day", when: (wd + 1) % 7, openMin: 600, variant: "day" };
+  if (process.env.TWILIO_AFTERHOURS === "0") return null;
+  const hours = siteStoreHours();
+  const today = phoneHours(wd, hours);
+  if (!hours) return null; // no hours config → never block calls
+  const grace = Math.max(0, Number(process.env.TWILIO_CLOSE_GRACE_MIN ?? "5") || 0);
+  if (today && now < today.open) return { kind: "before", when: "today", openMin: today.open, variant: `before-today-${today.open}` };
+  if (today && now < today.close + grace) return null;
+  for (let i = 1; i <= 7; i++) {
+    const d = (wd + i) % 7, h = phoneHours(d, hours);
+    if (!h) continue;
+    const when = i === 1 ? "tomorrow" : d;
+    return { kind: "after", when, openMin: h.open, variant: `after-${i === 1 ? "tomorrow" : WD_KEYS[d].toLowerCase()}-${h.open}` };
+  }
+  return null;
+}
+export function closedNow(from: string, at: Date = new Date()): boolean {
+  return closedState(from, at) !== null;
+}
+export function closedText(lang: Lang, s: ClosedState): string {
+  if (s.kind === "day") return CLOSED_TEXT[lang];
+  const whenEs = s.when === "today" ? "hoy" : s.when === "tomorrow" ? "mañana" : `el ${ES_DAYS[s.when]}`;
+  const whenEn = s.when === "today" ? "today" : s.when === "tomorrow" ? "tomorrow" : EN_DAYS[s.when];
+  if (lang === "es") return s.kind === "before"
+    ? `Gracias por llamar a Cocina Elvis. Lo sentimos, todavía no abrimos. Abrimos ${whenEs} a ${esTime(s.openMin)}. ¡Hasta luego!`
+    : `Gracias por llamar a Cocina Elvis. Lo sentimos, ya cerramos por hoy. Abrimos ${whenEs} a ${esTime(s.openMin)}. ¡Hasta luego!`;
+  return s.kind === "before"
+    ? `Thanks for calling Cocina Elvis. Sorry, we're not open yet. We open ${whenEn} at ${enTime(s.openMin)}. See you then!`
+    : `Thanks for calling Cocina Elvis. Sorry, we're now closed for the day. We open ${whenEn} at ${enTime(s.openMin)}. See you then!`;
+}
+/** Clip key: Monday keeps closed-es/closed-en; hours clips are closed-<lang>-<variant> (tempo-eligible: "closed-"). */
+export const closedStateKey = (lang: Lang, s: ClosedState) => (s.kind === "day" ? closedKey(lang) : `closed-${lang}-${s.variant}`);
+/** Every hours clip the current schedule can need (for pre-generation and the Twilio fallback assets). */
+export function allClosedStates(): ClosedState[] {
+  const out = new Map<string, ClosedState>();
+  const base = Date.UTC(2026, 9, 18, 16, 0); // a Sunday, noon ET — walk a week in 5-min steps
+  for (let t = 0; t < 7 * 24 * 60; t += 5) {
+    const s = closedState("", new Date(base + t * 60000));
+    if (s && s.kind !== "day") out.set(s.variant, s);
+  }
+  return [...out.values()];
 }
 /** Known language → that clip only; new caller → Spanish then English. Always ends with Hangup. */
-export function closedTwiml(base: string, lang?: Lang): string {
+export function closedTwiml(base: string, lang?: Lang, state?: ClosedState | null): string {
   const order: Lang[] = lang ? [lang] : ["es", "en"];
-  return `${order.map((l) => playOrSay(base, l, CLOSED_TEXT[l], closedKey(l))).join("")}<Hangup/>`;
+  const s: ClosedState = state || { kind: "day", when: 2, openMin: 600, variant: "day" };
+  return `${order.map((l) => playOrSay(base, l, closedText(l, s), closedStateKey(l, s))).join("")}<Hangup/>`;
 }
 
 /** intro2 (Carlos, Oct 18): short notices. v2 cache keys so the old long clips (kept on disk) are never served. */
@@ -1074,13 +1169,14 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     let k: ReturnType<typeof knownCaller> = { known: false, language: undefined, manualName: undefined };
     try { k = knownCaller(from, sid); } catch { /* normal greeting */ }
     const namePromise = callerName(from, findName, 900).catch(() => null); // also warms the cache for /lang
-    if (closedNow(from)) {
-      // closed1: no queue, no rings, no counter page. Logged so the console call log shows "Cerrado".
+    const closedSt = closedState(from);
+    if (closedSt) {
+      // closed1/afterhours1: no queue, no rings, no counter page. Logged so the console call log shows "Cerrado".
       const lang = k.known && k.language ? k.language : undefined;
       logCall({ event: "incoming", callSid: sid, caller: from, calledNumber: to, greeting: "closed", knownLanguage: lang, flow: "closed" });
-      logCall({ event: "closed", callSid: sid, caller: from, calledNumber: to, language: lang || "es+en", weekday: etWeekday() });
+      logCall({ event: "closed", callSid: sid, caller: from, calledNumber: to, language: lang || "es+en", weekday: etWeekday(), reason: closedSt.kind, variant: closedSt.variant });
       void namePromise.then((n) => { if (n && sid) logCall({ event: "caller_name", callSid: sid, caller: from, name: n }); }).catch(() => {});
-      return res.type("text/xml").send(xml(closedTwiml(base, lang)));
+      return res.type("text/xml").send(xml(closedTwiml(base, lang, closedSt)));
     }
     rememberCaller(from, {});
     void namePromise.then((n) => { if (n && sid) logCall({ event: "caller_name", callSid: sid, caller: from, name: n }); }).catch(() => {});

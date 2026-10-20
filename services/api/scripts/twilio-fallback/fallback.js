@@ -16,6 +16,14 @@ exports.handler = (context, event, callback) => {
     twiml.hangup();
     return callback(null, twiml);
   }
+  // afterhours1: before opening / after closing (PHONE_HOURS "wd=open-close;…" minutes ET, grace already in close).
+  const ah = afterHoursVariant(String(context.PHONE_HOURS || ""), new Date());
+  if (String(context.CLOSED_ENABLED || "0") === "1" && ah && !(d10(event.From) && bypass.includes(d10(event.From)))) {
+    twiml.play(`${base}/closed-es-${ah}.mp3`);
+    twiml.play(`${base}/closed-en-${ah}.mp3`);
+    twiml.hangup();
+    return callback(null, twiml);
+  }
   const nums = String(context.DESK_NUMBERS || "").split(",").map((s) => s.trim()).filter((s) => /^\+1\d{10}$/.test(s));
   const record = String(context.RECORD || "1") === "1";
   // autoconnect1: without press 1 a long ring lets carrier voicemail take the call → cap at AUTO_TIMEOUT (18 s).
@@ -36,3 +44,21 @@ exports.handler = (context, event, callback) => {
   for (const n of nums) dial.number({ url: `${base}/fallback-screen`, method: "POST" }, n);
   callback(null, twiml);
 };
+
+// afterhours1: "before-today-600" / "after-tomorrow-600" / "after-tue-600", or null when open (or no hours).
+// Closed days (CLOSED_DAYS) are handled above; days missing from PHONE_HOURS count as closed.
+function afterHoursVariant(spec, at) {
+  const sched = {};
+  for (const part of spec.split(";")) { const m = /^(\d)=(\d+)-(\d+)$/.exec(part.trim()); if (m) sched[Number(m[1])] = { open: Number(m[2]), close: Number(m[3]) }; }
+  if (!Object.keys(sched).length) return null;
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at);
+  const g = (t) => (p.find((x) => x.type === t) || {}).value;
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(g("weekday")), now = (Number(g("hour")) % 24) * 60 + Number(g("minute"));
+  const keys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const today = sched[wd];
+  if (today && now < today.open) return `before-today-${today.open}`;
+  if (today && now < today.close) return null;
+  for (let i = 1; i <= 7; i++) { const d = (wd + i) % 7; if (sched[d]) return `after-${i === 1 ? "tomorrow" : keys[d]}-${sched[d].open}`; }
+  return null;
+}
+if (typeof module !== "undefined") module.exports.afterHoursVariant = afterHoursVariant;

@@ -72,8 +72,10 @@ for (const name of FUNCS) {
 // closed1: closed-day clips as public assets (played tempo copy when present).
 const assetVersions = [];
 const existingAssets = (await call(`${SV}/Services/${svc.sid}/Assets?PageSize=50`)).assets;
-for (const lang of ["es", "en"]) {
-  const name = `closed-${lang}`;
+// afterhours1: also every before/after-hours clip (closed-<lang>-<before|after>-<when>-<min>.mp3).
+const closedNames = [...new Set(fs.readdirSync(new URL("data/phone-prompts/", root)).map((f) => f.replace(/\.mp3$/, ""))
+  .filter((n) => /^closed-(es|en)(-(before|after)-[a-z]+-\d+)?$/.test(n)))].sort();
+for (const name of closedNames) {
   const dir = new URL("data/phone-prompts/", root);
   const tempo = Number(env.PROMPT_TEMPO || "1"), suf = Math.abs(tempo - 1) < 0.005 ? "" : `-t${Math.round(tempo * 100)}`;
   const file = [new URL(`${name}${suf}.mp3`, dir), new URL(`${name}.mp3`, dir)].find((u) => fs.existsSync(u));
@@ -91,8 +93,23 @@ let build = await (await fetch(`${SV}/Services/${svc.sid}/Builds`, { method: "PO
 if (!build.sid) throw new Error("build failed: " + (build.message || ""));
 for (let i = 0; i < 60 && !["completed", "failed"].includes(build.status); i++) { await new Promise((r) => setTimeout(r, 3000)); build = await call(`${SV}/Services/${svc.sid}/Builds/${build.sid}`); }
 if (build.status !== "completed") throw new Error("build " + build.status);
+// afterhours1: phone hours for the fallback, same rules as twilio.ts phoneHours(): site store pickup hours,
+// open = min(site open, TWILIO_PHONE_OPEN 10:00), close = site close + TWILIO_CLOSE_GRACE_MIN (5). "wd=open-close;..." in minutes ET.
+function phoneHoursVar() {
+  if (env.TWILIO_AFTERHOURS === "0") return "";
+  const hm = (x) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(x || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };
+  let hours = null;
+  try { hours = env.TWILIO_PHONE_HOURS_JSON ? JSON.parse(env.TWILIO_PHONE_HOURS_JSON) : JSON.parse(fs.readFileSync(new URL("data/site-catalog.json", root), "utf8"))?.store?.pickupHours; } catch { hours = null; }
+  if (!hours) return "";
+  const early = hm(env.TWILIO_PHONE_OPEN || "10:00"), grace = Math.max(0, Number(env.TWILIO_CLOSE_GRACE_MIN ?? "5") || 0);
+  return ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((k, wd) => {
+    const l = hours[k] || []; if (!l.length) return null;
+    const o = Math.min(...l.map((w) => hm(w.open))), c = Math.max(...l.map((w) => hm(w.close)));
+    return Number.isFinite(o) && Number.isFinite(c) ? `${wd}=${Math.min(o, Number.isFinite(early) ? early : o)}-${c + grace}` : null;
+  }).filter(Boolean).join(";");
+}
 const want = { DESK_NUMBERS: deskNums.join(","), RECORD: env.TWILIO_FALLBACK_RECORD === "0" ? "0" : "1", RING_TIMEOUT: env.TWILIO_FALLBACK_TIMEOUT || "25",
-  PASS_CALLER_ID: env.TWILIO_PASS_CALLER_ID === "0" ? "0" : "1", PRESS1: env.TWILIO_PRESS1 === "0" ? "0" : "1", AUTO_TIMEOUT: env.TWILIO_RING_TIMEOUT_SEC || "18", CLOSED_ENABLED: env.TWILIO_CLOSED_ENABLED === "1" ? "1" : "0", CLOSED_DAYS: env.TWILIO_CLOSED_DAYS || "1", CLOSED_BYPASS: env.TWILIO_CLOSED_BYPASS || "", CALLER_ID_BLOCK: [...lines, ...String(env.TWILIO_NEVER_DIAL || "").split(",")].map((s) => s.trim()).filter(Boolean).join(",") };
+  PASS_CALLER_ID: env.TWILIO_PASS_CALLER_ID === "0" ? "0" : "1", PRESS1: env.TWILIO_PRESS1 === "0" ? "0" : "1", AUTO_TIMEOUT: env.TWILIO_RING_TIMEOUT_SEC || "18", CLOSED_ENABLED: env.TWILIO_CLOSED_ENABLED === "1" ? "1" : "0", CLOSED_DAYS: env.TWILIO_CLOSED_DAYS || "1", CLOSED_BYPASS: env.TWILIO_CLOSED_BYPASS || "", PHONE_HOURS: phoneHoursVar(), CALLER_ID_BLOCK: [...lines, ...String(env.TWILIO_NEVER_DIAL || "").split(",")].map((s) => s.trim()).filter(Boolean).join(",") };
 const have = (await call(`${SV}/Services/${svc.sid}/Environments/${envr.sid}/Variables`)).variables;
 for (const [Key, Value] of Object.entries(want)) {
   const v = have.find((x) => x.key === Key);
