@@ -1261,7 +1261,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     if (req.body?.CallSid) logCall({ event: "forwarded", callSid: String(req.body.CallSid), caller: from, calledNumber: req.body?.To, forwardedFrom: fwdFrom });
     const ringSet = new Set(String(process.env.TWILIO_RING_NUMBERS || "").split(",").map(d10).filter(Boolean));
     const echo = [...waiting.values()].some((e) => d10(e.from) === d10(from) && (ringing.get(e.callSid)?.size || 0) > 0);
-    if (phoneLines().some((l) => d10(l.number) === d10(from)) || (fwdFrom && ringSet.has(d10(fwdFrom))) || (d10(from) && ringSet.has(d10(from))) || echo) {
+    if (isLoopCall({ from, fwdFrom, lines: phoneLines().map((l) => l.number), ringSet, echo })) {
       logCall({ event: "loop_rejected", callSid: req.body?.CallSid, caller: from, calledNumber: req.body?.To });
       return res.type("text/xml").send(xml(`<Reject reason="busy"/>`));
     }
@@ -1784,4 +1784,13 @@ function recentVoicemails(limit = 20) {
     }
     return out;
   } catch { return []; }
+}
+
+/** loop2: our ring legs always dial out FROM our Twilio line (callerid 21210 fix), so a real loop arrives From one of
+ *  our lines (or diverted from a ring phone, or echoes while its own legs ring). A staff cell dialing the line
+ *  directly is a normal caller — the old "From is a ring number" rule rejected those (2:12 PM 2026-10-20). */
+export function isLoopCall(o: { from: string; fwdFrom?: string; lines: string[]; ringSet: Set<string>; echo?: boolean }): boolean {
+  const d = (x: string) => String(x || "").replace(/\D/g, "").slice(-10);
+  const from = d(o.from), fwd = d(o.fwdFrom || "");
+  return (!!from && o.lines.some((l) => d(l) === from)) || (!!fwd && o.ringSet.has(fwd)) || !!o.echo;
 }
