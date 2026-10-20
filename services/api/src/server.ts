@@ -20,7 +20,7 @@ import { preTurn } from "./pre-turn.js";
 import { orderContextTurn, clearOrderContext, logTurn, pendingSummary } from "./order-context.js";
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
-import { registerTwilioRoutes } from "./twilio.js";
+import { registerTwilioRoutes, phoneAuth } from "./twilio.js";
 import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
@@ -1432,7 +1432,8 @@ if (process.env.ELVI_NAMES_TIMER !== "0") setInterval(() => { learnTicketNames()
 app.get("/api/calls/names", localOnly, async (req, res, next) => {
   try { res.json(await learnTicketNames({ dry: req.query.dry !== "0", days: Math.min(30, Number(req.query.days) || 1) })); } catch (e) { next(e); }
 });
-app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
+// remotecalls1: localhost, or the phone host with the same PIN header the counter phone uses (x-phone-pin).
+app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
   try {
     const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
     const tenant = resolveTenant(undefined);
@@ -1493,7 +1494,7 @@ app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 // Training: type the expected order ("2 tacos de bistec de comal, 2 de chorizo"); preview with Elvi's resolver, then save.
-app.post("/api/calls/:sid/expected", localOnly, async (req, res, next) => {
+app.post("/api/calls/:sid/expected", phoneAuth, async (req, res, next) => {
   try {
     const sid = String(req.params.sid || "");
     if (!/^CA[0-9a-f]{32}$/.test(sid)) return res.status(400).json({ error: "bad call id" });
@@ -1514,12 +1515,13 @@ app.post("/api/calls/:sid/expected", localOnly, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.get("/api/calls/:sid/audio", localOnly, (req, res) => {
+app.get("/api/calls/:sid/audio", phoneAuth, (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
   const sid = String(req.params.sid || "");
   if (!/^RE[0-9a-f]{32}$/.test(sid)) return res.status(400).end();
   const file = `${callsDir}/${sid}.wav`;
   if (!fs.existsSync(file)) return res.status(404).end();
-  res.type("audio/wav").sendFile(file);
+  res.sendFile(file, { headers: { "Content-Type": "audio/wav", "Accept-Ranges": "bytes" }, acceptRanges: true });
 });
 
 app.post("/api/square/webhooks", (req, res) => {

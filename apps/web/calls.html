@@ -37,6 +37,9 @@
   tr.miss td{background:var(--badbg)}tr.partial td{background:var(--warnbg)}.ch{color:var(--mut);font-size:12px}
   .misses{margin:10px 0 0;padding-left:18px;color:var(--bad)}.empty{color:var(--mut);padding:20px;text-align:center}
   .note{font-size:12px;color:var(--mut)}
+  .navl{font-size:14px;color:var(--acc);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  #pinbox{max-width:360px;margin:60px auto;display:grid;gap:10px}#pinbox input{font:inherit;font-size:22px;padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center;letter-spacing:4px}
+  @media (max-width:600px){header{flex-wrap:wrap;padding:10px 12px}header h1{font-size:18px}main{padding:10px}.kpi b{font-size:22px}.list{max-height:40vh}.turn{max-width:95%}.player button{flex:1 1 auto}}
   .player{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fbfaf7}
   .player .row1{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.player button{min-width:44px;min-height:40px}
   .player button.on{background:var(--ink);color:#fff}.player .tm{font-variant-numeric:tabular-nums;color:var(--mut);font-size:13px;margin-left:auto}
@@ -52,7 +55,7 @@
 </style>
 </head>
 <body>
-<header><img src="./img/logo-cocina-elvis.png" alt="" /><h1>Call Accuracy</h1><span class="sp"></span>
+<header><img src="./img/logo-cocina-elvis.png" alt="" /><h1>Llamadas / Calls</h1><a class="navl" href="phone.html">📞 Teléfono</a><span class="sp"></span>
   <select id="days"><option value="7">7 días</option><option value="30" selected>30 días</option><option value="90">90 días</option></select>
   <button id="reload">Actualizar</button></header>
 <main>
@@ -145,13 +148,37 @@ function detail() {
   wirePlayer();
 }
 
+// remotecalls1: same PIN as the counter phone (phone.html saves it in this browser as elviPhonePin; sent as x-phone-pin).
+// On this Mac (localhost) no PIN is needed. Audio is fetched with the PIN header and played from a blob (works on iPhone Safari).
+let pin = localStorage.getItem("elviPhonePin") || "";
+const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...(pin ? { "x-phone-pin": pin } : {}) } });
+function askPin(msg) {
+  document.querySelector("main").style.display = "none";
+  if (!$("#pinbox")) document.body.insertAdjacentHTML("beforeend", `<form id="pinbox" class="card"><h2>PIN del teléfono / Phone PIN</h2><input id="pin-in" type="password" inputmode="numeric" autocomplete="current-password" /><button>Entrar / Sign in</button><div id="pin-err" class="note" style="color:var(--bad)"></div></form>`);
+  $("#pin-err").textContent = msg || "";
+  $("#pinbox").onsubmit = (e) => { e.preventDefault(); pin = $("#pin-in").value.trim(); if (pin) localStorage.setItem("elviPhonePin", pin); load(); };
+  $("#pin-in").focus();
+}
+let blobUrl = null;
+async function loadAudio(a, sid) {
+  const url = `/api/calls/${encodeURIComponent(sid)}/audio`;
+  if (isLocal) { a.src = url; return; }
+  $("#p-tm").textContent = "Cargando… / Loading…";
+  const r = await api(url);
+  if (!r.ok) { $("#p-tm").textContent = r.status === 401 ? "PIN requerido" : "Error " + r.status; return; }
+  if (blobUrl) URL.revokeObjectURL(blobUrl);
+  blobUrl = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: "audio/wav" }));
+  if (a.isConnected) { a.src = blobUrl; a.load(); }
+}
+
 // player1: audio player + clickable dialogue. Audio comes only from the localhost-only /api/calls/:sid/audio (WAV on this Mac).
 const spk = (s) => s === "caller" ? "caller" : s === "elvi" ? "elvi" : "staff";
 const spkLabel = (s) => s === "caller" ? "Cliente / Caller" : s === "elvi" ? "Elvi 💗" : "Staff";
 const clock = (x) => { x = Math.max(0, Number(x) || 0); const m = Math.floor(x / 60), s = Math.floor(x % 60); return `${m}:${String(s).padStart(2, "0")}`; };
 function playerHtml(c) {
   return `<div class="player" id="player">
-    <audio id="aud" preload="metadata" src="/api/calls/${encodeURIComponent(c.recordingSid)}/audio"></audio>
+    <audio id="aud" preload="metadata" playsinline data-sid="${esc(c.recordingSid)}"></audio>
     <div class="row1">
       <button id="p-play" title="Reproducir / Play">▶ Play</button>
       <button id="p-stop" title="Detener / Stop">■ Stop</button>
@@ -166,6 +193,7 @@ function playerHtml(c) {
 }
 function wirePlayer() {
   const a = $("#aud"); if (!a) return;
+  loadAudio(a, a.dataset.sid);
   const seek = $("#p-seek"), tm = $("#p-tm"), play = $("#p-play");
   let dragging = false, lastK = -1;
   const dur = () => (isFinite(a.duration) && a.duration > 0 ? a.duration : 0);
@@ -200,7 +228,7 @@ async function expected(save, clear) {
   const text = $("#exp-text")?.value || "";
   draft = { sid: c.callSid, text, html: `<div class="note">Procesando…</div>` };
   $("#exp-out").innerHTML = draft.html;
-  const r = await fetch(`/api/calls/${encodeURIComponent(c.callSid)}/expected`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clear ? { clear: true } : { text, save }) });
+  const r = await api(`/api/calls/${encodeURIComponent(c.callSid)}/expected`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clear ? { clear: true } : { text, save }) });
   const out = await r.json().catch(() => ({}));
   if (!r.ok) { draft.html = `<div class="ask">${esc(out.error || "Error")}</div>`; $("#exp-out").innerHTML = draft.html; return; }
   if (clear || out.saved) { draft = null; await load(); return; }
@@ -209,7 +237,9 @@ async function expected(save, clear) {
 }
 
 async function load() {
-  const r = await fetch(`/api/calls/accuracy?days=${$("#days").value}`);
+  const r = await api(`/api/calls/accuracy?days=${$("#days").value}`);
+  if (r.status === 401 || r.status === 429) return askPin(r.status === 429 ? "Demasiados intentos. Espere 10 minutos." : pin ? "PIN incorrecto." : "");
+  $("#pinbox")?.remove(); document.querySelector("main").style.display = "";
   data = await r.json();
   if (!r.ok) { $("#list").innerHTML = `<div class="empty">${esc(data.error || "Error")}</div>`; return; }
   const cust = avgOf(data.calls.filter((c) => c.source !== "training")), tr = avgOf(data.calls.filter((c) => c.source === "training"));

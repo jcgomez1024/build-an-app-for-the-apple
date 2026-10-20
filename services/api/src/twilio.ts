@@ -1155,7 +1155,7 @@ function isLocal(req: express.Request) {
   const viaTunnel = req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"];
   return !viaTunnel && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
 }
-const phoneAuth: express.RequestHandler = (req, res, next) => {
+export const phoneAuth: express.RequestHandler = (req, res, next) => {
   if (isLocal(req)) return next();
   const want = String(process.env.PHONE_PIN || "");
   const got = String(req.headers["x-phone-pin"] || req.body?.pin || "");

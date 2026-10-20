@@ -110,7 +110,7 @@ export function passwordOk(given: string) {
 // Staff/phone routes never served on the order host.
 export const ORDER_DENY = /^\/(api\/twilio\/|api\/phone\/|api\/calls(\/|$)|api\/square\/webhooks|calls\.html|phone\.html|web\.backup)/i;
 // Phone host (unchanged from lockdown1).
-export const PHONE_OK = /^\/(health\/?$|phone\.html$|vendor\/twilio-voice\.min\.js$|img\/logo-cocina-elvis\.png$|favicon\.ico$|api\/twilio\/|api\/phone\/)/;
+export const PHONE_OK = /^\/(health\/?$|phone\.html$|vendor\/twilio-voice\.min\.js$|img\/logo-cocina-elvis\.png$|favicon\.ico$|api\/twilio\/|api\/phone\/|calls\.html$|img\/favicon\.png$|api\/calls\/accuracy$|api\/calls\/RE[0-9a-f]{32}\/audio$|api\/calls\/CA[0-9a-f]{32}\/expected$)/; // remotecalls1: call recordings page behind the phone PIN
 
 export function loginPage(error = "") {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
