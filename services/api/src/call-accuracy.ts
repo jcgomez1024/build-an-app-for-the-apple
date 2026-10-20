@@ -183,6 +183,55 @@ export function matchTicket(call: CallRecord, elvi: Line[], orders: any[]) {
   return best;
 }
 
+/** match1: ticket ↔ call matching that walk-ins can never win.
+ *  (a) a call with no order content (no Elvi items) gets no ticket; (b) only orders created from call start to 10 min
+ *  after it ends; (c) ≥50% of the call's items on the ticket, or the caller's phone / heard name on the order;
+ *  API/Elvi/phone-tagged orders preferred; (d) one ticket ↔ one call (best pairs first); (e) else no ticket. */
+export const MATCH_AFTER_END_MS = 10 * 60_000;
+export function hasOrderContent(elvi: Line[]) { return elvi.some((l) => !/^delivery fee\b/i.test(String(l.baseName || l.name || ""))); }
+function itemOverlap(elvi: Line[], ticket: Line[]) {
+  const food = elvi.filter((l) => !/^delivery fee\b/i.test(String(l.baseName || l.name || "")));
+  if (!food.length) return 0;
+  const key = (l: Line) => norm(String(l.baseName || l.name || "").split(" · ")[0]);
+  const t = new Set(ticket.map(key));
+  return food.filter((l) => t.has(key(l))).length / food.length;
+}
+function orderNames(o: any): string[] {
+  const out: string[] = [];
+  for (const f of o?.fulfillments || []) for (const d of [f.pickup_details, f.delivery_details, f.shipment_details]) if (d?.recipient?.display_name) out.push(String(d.recipient.display_name));
+  if (o?.ticket_name) out.push(String(o.ticket_name));
+  return out.map((n) => norm(n).split(" ")[0]).filter(Boolean);
+}
+export function candidateTickets(call: CallRecord & { customerName?: string | null }, elvi: Line[], orders: any[]) {
+  if (!hasOrderContent(elvi)) return [];
+  const start = Date.parse(call.at);
+  const end = start + (call.recordingSec || call.talkSec || 0) * 1000 + MATCH_AFTER_END_MS;
+  const phone = digits10(call.caller), first = norm(String(call.customerName || "")).split(" ")[0];
+  const out: Array<{ order: any; rank: number; by: string }> = [];
+  for (const o of orders) {
+    const t = Date.parse(o.created_at);
+    if (!(t >= start && t <= end)) continue;
+    const lines = ticketLines(o);
+    const phoneHit = !!phone && orderPhones(o).includes(phone);
+    const nameHit = !!first && orderNames(o).includes(first);
+    const overlap = itemOverlap(elvi, lines);
+    if (!phoneHit && !nameHit && overlap < 0.5) continue;
+    const tagged = !/point of sale/i.test(String(o.source?.name || "")) || /voice|elvi|phone/i.test(JSON.stringify(o.metadata || {}) + String(o.reference_id || ""));
+    const sim = lines.length ? scoreOrder(elvi, lines).score : 0;
+    const rank = (phoneHit ? 1000 : 0) + (nameHit ? 500 : 0) + (tagged ? 200 : 0) + overlap * 100 + sim - Math.abs(t - end) / 60000;
+    out.push({ order: o, rank, by: [phoneHit && "phone", nameHit && "name", overlap >= 0.5 && "items"].filter(Boolean).join(" + ") + " + time" });
+  }
+  return out;
+}
+/** (d) global assignment: highest-ranked call/ticket pairs first; each ticket and each call used once. */
+export function assignTickets(calls: Array<{ call: CallRecord & { customerName?: string | null }; elvi: Line[] }>, orders: any[]): Map<string, { order: any; by: string }> {
+  const pairs = calls.flatMap(({ call, elvi }) => call.recordingSid ? candidateTickets(call, elvi, orders).map((c) => ({ sid: call.callSid, ...c })) : []);
+  pairs.sort((a, b) => b.rank - a.rank);
+  const out = new Map<string, { order: any; by: string }>(), used = new Set<string>();
+  for (const p of pairs) { if (out.has(p.sid) || used.has(p.order.id)) continue; out.set(p.sid, { order: p.order, by: p.by }); used.add(p.order.id); }
+  return out;
+}
+
 export function trend(rows: Array<{ at: string; score: number | null }>) {
   const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   const groups = (key: (d: Date) => string) => {

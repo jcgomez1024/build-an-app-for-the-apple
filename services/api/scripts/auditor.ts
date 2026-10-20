@@ -3,7 +3,7 @@
  *    npx tsx scripts/auditor.ts pending    # un-notified findings as JSON
  *    npx tsx scripts/auditor.ts ack <ids…> # mark notified */
 import fs from "node:fs"; import path from "node:path";
-import { auditCall, recordFinding, pendingFindings, ackFindings, AUDITOR_DIR } from "../src/auditor.ts";
+import { auditCall, recordFinding, retireFindings, pendingFindings, ackFindings, AUDITOR_DIR } from "../src/auditor.ts";
 import { nameFromTranscript, rememberHeardNameIfNone } from "../src/order-name.ts";
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "pending") { console.log(JSON.stringify(pendingFindings(), null, 2)); process.exit(0); }
@@ -24,6 +24,7 @@ for (const row of data.calls || []) {
   const heard = row.source !== "training" && row.caller ? nameFromTranscript(row.turns || []) : null;
   if (heard) { try { rememberHeardNameIfNone(row.caller, heard); } catch { /* best effort */ } }
   if (a.flags.length || row.ticket) { if (recordFinding(row, a.flags)) recorded++; }
+  else retireFindings(row.callSid, row.noOrder ? "no order on call" : "no ticket match"); // match1
   if (a.final) state.final[row.callSid] = new Date().toISOString();
 }
 fs.mkdirSync(AUDITOR_DIR, { recursive: true, mode: 0o700 }); fs.writeFileSync(stateFile, JSON.stringify(state), { mode: 0o600 });

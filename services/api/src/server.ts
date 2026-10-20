@@ -32,7 +32,7 @@ import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
 import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
 import { auditorFindingsByCall } from "./auditor.js";
 import { paymentReceiptReadOnly } from "./square.js";
-import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
@@ -1472,10 +1472,16 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     }
     const posCat = await loadPosCatalog(cfg);
     const audits = auditorFindingsByCall();
-    const rows = calls.map((c) => {
+    // match1: Elvi lines + heard name per call, then one global ticket assignment (walk-ins can't match).
+    const heardName = (c: any) => { const n = c.orderName || nameFromTranscript(c.turns || []); if (n) return cleanFirstName(n); try { const s = savedCallerName(c.caller); return s ? cleanFirstName(s.name) : null; } catch { return null; } };
+    const prepared = calls.map((c) => {
       const elvi = toPosLines(elviLines(c.elviCart || [], menu), posCat);
       if (c.fulfillment === "DELIVERY" && elvi.length) elvi.push(deliveryFeeLine(c.deliveryFeeCents));
-      const m = c.recordingSid ? matchTicket(c, elvi, orders) : null;
+      return { call: { ...c, customerName: heardName(c) }, elvi };
+    });
+    const assigned = assignTickets(prepared, orders);
+    const rows = prepared.map(({ call: c, elvi }) => {
+      const m = assigned.get(c.callSid) || null;
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m ? expected[c.callSid] : undefined;
       const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
@@ -1491,7 +1497,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
-        orderName: (c as any).orderName || null, customerName: (() => { const n = (c as any).orderName || nameFromTranscript(c.turns || []); if (n) return cleanFirstName(n); try { const s = savedCallerName(c.caller); return s ? cleanFirstName(s.name) : null; } catch { return null; } })(), orderNameFrom: (c as any).orderNameFrom || null, // ordername1
+        orderName: (c as any).orderName || null, customerName: c.customerName || null, noOrder: !hasOrderContent(elvi), // match1 orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
           const ef = detectFulfillment(c.turns || []);

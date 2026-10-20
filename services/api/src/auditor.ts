@@ -14,7 +14,7 @@ export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRIC
 export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG"];
 export type Flag = { type: FlagType; detail: string; es: string; en: string };
 export type Finding = { id: string; callSid: string; callAt: string; score: number | null; flags: Flag[]; summary_es: string; summary_en: string;
-  customerName?: string | null; ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; createdAt: string; receipt?: string | null };
+  customerName?: string | null; ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; retired?: string; retiredAt?: string; createdAt: string; receipt?: string | null };
 
 const money = (c: number) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 const IGNORE = /\bmild salsa asada\b|^regular$/;
@@ -100,6 +100,13 @@ function writeFindings(all: Finding[], file = FINDINGS_FILE) {
   fs.renameSync(tmp, file);
 }
 const sig = (flags: Flag[]) => crypto.createHash("sha1").update(JSON.stringify(flags.map((f) => [f.type, f.detail]).sort())).digest("hex").slice(0, 10);
+/** match1: a call that no longer has anything to report (e.g. a walk-in ticket was wrongly matched): retire its open findings. */
+export function retireFindings(callSid: string, reason: string, file = FINDINGS_FILE, now = new Date()): number {
+  const all = readFindings(file); let n = 0;
+  for (const f of all) if (f.callSid === callSid && !f.superseded) { f.superseded = true; (f as any).retired = reason; (f as any).retiredAt = now.toISOString(); f.notified = true; n++; }
+  if (n) writeFindings(all, file);
+  return n;
+}
 /** Upsert the latest finding for a call (idempotent: same flags → no change; changed flags → new finding, old superseded). */
 export function recordFinding(row: any, flags: Flag[], file = FINDINGS_FILE, now = new Date()): Finding | null {
   const all = readFindings(file);
