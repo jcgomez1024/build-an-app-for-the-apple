@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import express from "express";
-import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery } from "./caller-memory.js";
+import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR } from "./caller-memory.js";
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
@@ -516,6 +516,8 @@ export function deliveryView(from: string, callSid?: string) {
     address: addr, street: heard?.street || saved?.address?.street || null,
     addressFrom: heard?.address ? "call" : saved?.address ? "saved" : null,
     savedLastUsedAt: saved?.address?.lastUsedAt || null, savedCount: saved?.addressCount || 0,
+    // callerprofile1: staff-entered unit/building, instructions and building photo (photo served behind the PIN).
+    profile: (() => { try { const p = deliveryProfile(from); const n = savedCallerName(from); return p || n ? { name: n?.name || null, unitNote: p?.unitNote || null, instructions: p?.instructions || null, photo: p?.photo || null } : null; } catch { return null; } })(),
     confirmed: !!heard?.confirmed, quote: quoteView(quote),
     // delivery2: food subtotal Elvi heard (for the MÍNIMO $10 warning); null until the ticket has lines.
     subtotalCents: (() => { const t = callSid ? ticketsByCall.get(callSid) : undefined; const ls = (t?.lines || []).filter((l) => l.kind !== "fee" && l.kind !== "divider"); return ls.length ? ls.reduce((a, l) => a + Number(l.totalCents || 0), 0) : null; })(),
@@ -536,7 +538,9 @@ async function applyCallDelivery(callSid: string, caller: string, turns: Array<{
     : quote?.ok ? `${(quote.city || "").toUpperCase()} · ${quote.breakdown || `$${(quote.feeCents! / 100).toFixed(quote.feeCents! % 100 ? 2 : 0)}`}${quote.feeConfirmed === false ? " · CONFIRMAR TARIFA" : ""} · ~${quote.etaMinutes} min · MÍNIMO $10${a.confirmed ? "" : " · confirmar dirección"}`
     : quote?.reason === "out_of_range" ? `FUERA DEL ÁREA DE ENTREGA (${quote.miles} mi)`
     : `CONFIRMAR ZONA${addr ? "" : " · FALTA DIRECCIÓN"}`;
-  return { fulfillment: FULFILLMENT_LABEL[f.fulfillment], deliverTo: f.fulfillment === "DELIVERY" ? { address: addr || "", phone: formatTicketPhone(caller), notes } : null };
+  let extra = ""; try { extra = deliveryProfileNote(deliveryProfile(caller)); } catch { extra = ""; }
+  const allNotes = [notes, extra].filter(Boolean).join(" | ") || undefined;
+  return { fulfillment: FULFILLMENT_LABEL[f.fulfillment], deliverTo: f.fulfillment === "DELIVERY" ? { address: addr || "", phone: formatTicketPhone(caller), notes: allNotes } : null };
 }
 const ticketsFile = path.join(logDir, "elvi-tickets.json");
 const ticketsByCall = new Map<string, ElviTicket>();
@@ -1189,6 +1193,16 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     if (/^https:\/\//.test(b)) lastBase = b;
     return b;
   };
+
+  // callerprofile1: building photo for a delivery caller — PIN (or localhost) only; id is random, never the phone.
+  app.get("/api/phone/caller-photo/:id", phoneAuth, (req, res) => {
+    const m = /^([a-z0-9]{12,40})(-thumb)?$/i.exec(String(req.params.id || ""));
+    if (!m) return res.status(400).end();
+    const f = path.join(PHOTO_DIR, `${m[1]}${m[2] ? "-thumb" : ""}.jpg`);
+    if (!fs.existsSync(f)) return res.status(404).end();
+    res.setHeader("Cache-Control", "private, no-store");
+    res.sendFile(f, { headers: { "Content-Type": "image/jpeg" } });
+  });
 
   // Public: Twilio <Play> fetches cloned-voice MP3s (safe filename only).
   app.get("/api/twilio/prompts/:file", (req, res) => {

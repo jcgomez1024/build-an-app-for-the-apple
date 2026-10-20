@@ -10,7 +10,10 @@ export const phoneKey = (p: unknown) => String(p || "").replace(/\D/g, "").slice
 export type NameSource = "manual" | "ticket" | "readback" | "square";
 type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string;
   // delivery1: delivery addresses per phone (personal data — this file is gitignored). Newest first, max 5.
-  addresses?: SavedAddress[]; lastFulfillment?: "DELIVERY" | "PICKUP" | "FOR_HERE"; lastFulfillmentAt?: string };
+  addresses?: SavedAddress[]; lastFulfillment?: "DELIVERY" | "PICKUP" | "FOR_HERE"; lastFulfillmentAt?: string;
+  // callerprofile1: staff-entered delivery details (personal data, gitignored). photo = file id in data/logs/calls/caller-photos.
+  delivery?: DeliveryProfile };
+export type DeliveryProfile = { unitNote?: string; instructions?: string; photo?: string; updatedAt?: string };
 export type SavedAddress = { address: string; street: string; firstUsedAt: string; lastUsedAt: string; uses: number };
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
@@ -177,6 +180,21 @@ export function saveCallerFulfillment(phoneRaw: string, fulfillment: "DELIVERY" 
   all[phone] = c;
   writeAll(all);
 }
+export const PHOTO_DIR = path.join(logDir, "caller-photos");
+/** callerprofile1: save staff-entered delivery details (unit/building, instructions, photo id) for a phone. */
+export function saveDeliveryProfile(phoneRaw: string, p: DeliveryProfile) {
+  const phone = phoneKey(phoneRaw);
+  if (phone.length !== 10) throw new Error("no number");
+  const all = readAll(); const c = all[phone] || {};
+  const clean = (s?: string) => (s == null ? undefined : String(s).replace(/\s+/g, " ").trim().slice(0, 300) || undefined);
+  c.delivery = { ...(c.delivery || {}), ...Object.fromEntries(Object.entries({ unitNote: clean(p.unitNote), instructions: clean(p.instructions), photo: p.photo && /^[a-z0-9]{12,40}$/i.test(p.photo) ? p.photo : undefined }).filter(([, v]) => v !== undefined)), updatedAt: new Date().toISOString() };
+  all[phone] = c; writeAll(all);
+  return c.delivery;
+}
+export const deliveryProfile = (phoneRaw: string): DeliveryProfile | null => readAll()[phoneKey(phoneRaw)]?.delivery || null;
+/** Ticket/console text: "<unit note> · <instructions>". */
+export const deliveryProfileNote = (p: DeliveryProfile | null) => [p?.unitNote, p?.instructions].filter(Boolean).join(" · ");
+
 /** What we know for a ringing caller: last fulfillment + last-used address (phone side only — the caller ID is the identity). */
 export function savedDelivery(phoneRaw: string): { lastFulfillment: "DELIVERY" | "PICKUP" | "FOR_HERE" | null; lastFulfillmentAt: string | null; address: SavedAddress | null; addressCount: number } {
   const c = readAll()[phoneKey(phoneRaw)];

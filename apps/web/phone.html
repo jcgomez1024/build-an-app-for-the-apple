@@ -354,8 +354,35 @@ async function poll() {
 
 // delivery1: DELIVERY badge + address (said on this call, or the saved one as soon as a known caller rings) + zone/fee/ETA.
 function money(c) { return "$" + (c / 100).toFixed(c % 100 ? 2 : 0); }
+// callerprofile1: staff-saved name, unit/building, instructions and building photo (fetched with the PIN header).
+const photoUrls = {}, photoLoading = {};
+function photoSrc(id, thumb) {
+  const k = id + (thumb ? "-thumb" : "");
+  if (photoUrls[k]) return photoUrls[k];
+  if (!photoLoading[k]) {
+    photoLoading[k] = true;
+    fetch(`/api/phone/caller-photo/${encodeURIComponent(k)}`, { headers: { "x-phone-pin": pin } }).then((r) => r.ok ? r.blob() : null).then((b) => {
+      if (!b) { photoLoading[k] = false; return; }
+      photoUrls[k] = URL.createObjectURL(b);
+      document.querySelectorAll(`img[data-photo="${k}"]`).forEach((im) => { im.src = photoUrls[k]; });
+      if (!thumb) { const big = document.getElementById("photoBig"); if (big) big.src = photoUrls[k]; }
+    }).catch(() => { photoLoading[k] = false; });
+  }
+  return "";
+}
+function openPhoto(id) {
+  let ov = document.getElementById("photoOv");
+  if (!ov) { document.body.insertAdjacentHTML("beforeend", `<div id="photoOv" style="position:fixed;inset:0;background:#000c;z-index:50;display:flex;align-items:center;justify-content:center" onclick="this.remove()"><img id="photoBig" style="max-width:96vw;max-height:92vh;border-radius:10px" alt="Edificio"></div>`); ov = document.getElementById("photoOv"); }
+  document.getElementById("photoBig").src = photoSrc(id, false) || photoUrls[id + "-thumb"] || "";
+}
+function profileHtml(p) {
+  if (!p) return "";
+  const k = p.photo ? p.photo + "-thumb" : "";
+  return `<div class="profile" style="display:flex;gap:10px;align-items:flex-start;margin-top:6px">${p.photo ? `<img data-photo="${esc(k)}" src="${photoSrc(p.photo, true)}" alt="Edificio" onclick="openPhoto('${esc(p.photo)}')" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:zoom-in;background:#eee;flex:none">` : ""}<div>${p.name ? `<b>${esc(p.name)}</b><br>` : ""}${p.unitNote ? `🏢 ${esc(p.unitNote)}<br>` : ""}${p.instructions ? `📝 ${esc(p.instructions)}` : ""}</div></div>`;
+}
 function deliveryHtml(d) {
   if (!d) return "";
+  const prof = profileHtml(d.profile);
   const q = d.quote;
   // delivery2: city + fee big; CONFIRMAR ZONA when the city/place is unknown; fuera del área past 10 mi; MÍNIMO $10.
   const min = q?.minimumCents ?? 1000;
@@ -364,13 +391,13 @@ function deliveryHtml(d) {
   const zone = q ? (q.ok ? `<div class="zone"><b>${esc((q.city || "").toUpperCase())}</b> · <b>${q.breakdown ? esc(q.breakdown) : money(q.feeCents)}</b>${q.feeConfirmed === false ? ' <span class="warn">CONFIRMAR TARIFA</span>' : ""} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` <small>(${esc(q.miles)} mi)</small>` : ""}${minTag}</div>`
     : `<div class="zone"><span class="warn">${q.reason === "out_of_range" ? `FUERA DEL ÁREA DE ENTREGA (${esc(q.miles)} mi)` : "CONFIRMAR ZONA"}</span>${q.reason === "out_of_range" ? "" : minTag}</div>`) : (d.address ? `<div class="zone">Calculando zona…${minTag}</div>` : "");
   if (d.fulfillment === "DELIVERY") {
-    return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}${zone || `<div class="zone">${minTag}</div>`}</div>`;
+    return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}${zone || `<div class="zone">${minTag}</div>`}${prof}</div>`;
   }
   if (d.fulfillment === "PICKUP" || d.fulfillment === "FOR_HERE") return `<div><span class="badge pick" style="margin-left:0">${d.fulfillment === "PICKUP" ? "PARA LLEVAR" : "PARA AQUÍ"}</span></div>`;
   if (d.address) {
-    return `<div class="deliv-box saved">${d.lastFulfillment === "DELIVERY" ? '<span class="badge deliv" style="margin-left:0">ÚLTIMA: DELIVERY</span> ' : "Dirección guardada: "}${esc(d.address)}${zone}<div class="ask">Pregunte: “¿Para entrega a domicilio o para recoger hoy?” → “¿A la misma dirección, ${esc(d.street || d.address)}?”</div></div>`;
+    return `<div class="deliv-box saved">${d.lastFulfillment === "DELIVERY" ? '<span class="badge deliv" style="margin-left:0">ÚLTIMA: DELIVERY</span> ' : "Dirección guardada: "}${esc(d.address)}${zone}${prof}<div class="ask">Pregunte: “¿Para entrega a domicilio o para recoger hoy?” → “¿A la misma dirección, ${esc(d.street || d.address)}?”</div></div>`;
   }
-  return "";
+  return prof;
 }
 
 function callerRow(c, button) {
