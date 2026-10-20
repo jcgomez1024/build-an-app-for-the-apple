@@ -48,9 +48,10 @@ dotenv.config();
 const app = express();
 // legal1: public Privacy Policy / Terms (Twilio A2P campaign) on any allowed host, no PIN/password. Static files only.
 const LEGAL_DIR = path.resolve(__dirname, "../legal");
-app.get(/^\/(privacy|terms)(\.html)?\/?$/, (req, res, next) => {
+app.get(/^\/(privacy|terms|sms-consent|sms-consent-form)(\.html)?\/?$/, (req, res, next) => {
   if (accessZone(req) === "none") return next();
-  const name = req.path.includes("privacy") ? "privacy.html" : "terms.html";
+  const m = /^\/(privacy|terms|sms-consent-form|sms-consent)/.exec(req.path); // smsconsent1: staff SMS opt-in pages (A2P)
+  const name = `${m ? m[1] : "privacy"}.html`;
   res.setHeader("Cache-Control", "public, max-age=300");
   res.sendFile(path.join(LEGAL_DIR, name));
 });
