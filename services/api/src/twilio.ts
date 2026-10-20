@@ -1033,13 +1033,17 @@ export function smsNumbers(): string[] {
   return String(process.env.TWILIO_SMS_NUMBERS || "").split(",").map((x) => x.trim()).filter((x) => /^\+1\d{10}$/.test(x));
 }
 const fmtUs = (p: string) => { const n = d10(p); return n.length === 10 ? `(${n.slice(0, 3)}) ${n.slice(3, 6)}-${n.slice(6)}` : ""; };
+/** smstext1: accents/symbols → plain GSM-7 letters (keeps one segment). */
+export const gsm7 = (t: string) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 .,'@&()+\-:\/?!]/g, "");
 /** "Carlos 11:50 AM (440) 413-9902 (línea 289)" — pure, used by the dry run. */
 export function ringSmsText(o: { name?: string | null; from: string; at: number | Date; forwardedFrom?: string }): string {
   const time = new Date(o.at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
   const num = /^\+1[2-9]\d{9}$/.test(String(o.from || "").trim()) ? fmtUs(o.from) : "Privado";
   const f = d10(o.forwardedFrom || "");
-  const via = f.endsWith("2898504") ? " (línea 289)" : f.endsWith("5519122") ? " (línea 551)" : "";
-  return `Cocina Elvis: ${(o.name || "").trim() || "Cliente"} ${time} ${num}${via}`;
+  // smstext1: matches the approved A2P samples; plain GSM-7 ("linea", "-") so it stays one 160-char segment.
+  const via = f.endsWith("2898504") ? " (linea 289)" : f.endsWith("5519122") ? " (linea 551)" : "";
+  const name = gsm7(String(o.name || "").trim()).slice(0, 24).trim() || "Cliente";
+  return `Cocina Elvis Staff Alert: ${name} ${time} ${num}${via} - please answer. Reply STOP to opt out.`;
 }
 async function sendRingSms(base: string, cust: Entry) {
   if (process.env.TWILIO_RING_SMS !== "1" || smsSent.has(cust.callSid)) return;
