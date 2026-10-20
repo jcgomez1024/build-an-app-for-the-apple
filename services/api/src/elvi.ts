@@ -1389,7 +1389,7 @@ function handleRealtimeToolCall(name: string, argsJson: string) {
         if (!q) void quoteDeliveryAddress(address).catch(() => null);
         return {
           output: q
-            ? { ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, minimum_subtotal_cents: q.minimumCents ?? 1000, message_es: q.message.es, message_en: q.message.en }
+            ? { ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, delivery_cents: q.deliveryCents ?? null, service_cents: q.serviceCents ?? null, breakdown: q.breakdown ?? null, minimum_subtotal_cents: q.minimumCents ?? 1000, message_es: q.message.es, message_en: q.message.en }
             : { ok: true, available: true, in_zone: null, needs_confirm: true, reason: "pending", message: "Looking up the address — call check_delivery_zone again in a moment; if it still can't be found, staff will confirm the zone and fee." }
         };
       }

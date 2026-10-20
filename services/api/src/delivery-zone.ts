@@ -1,4 +1,4 @@
-// delivery1/delivery2: delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder
+// delivery1/delivery2/fees1: delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder
 // (no key) incl. the incorporated place (city) — ZIP alone is not enough (44077 also covers Painesville Twp).
 // Cached in data/logs/geocode-cache.json (gitignored: addresses are personal data). On any doubt → needsConfirm.
 import fs from "node:fs";
@@ -9,12 +9,14 @@ import { addressKey } from "./delivery.js";
 const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const DELIVERY_FILE = path.join(apiRoot, "data/delivery.json");
 const cacheFile = process.env.ELVI_GEOCODE_CACHE || path.join(apiRoot, "data/logs/geocode-cache.json");
-type Zone = { id: string; label: string; feeCents: number; etaMinutes: number; maxMiles: number; requirePlace?: string; feeConfirmed?: boolean };
-export type DeliveryConfig = { origin: { lat: number; lng: number }; zones: Zone[]; maxMiles: number; subtotalMinimumCents?: number };
+type Zone = { id: string; label: string; feeCents: number; etaMinutes: number; maxMiles: number; requirePlace?: string; feeConfirmed?: boolean; serviceFee?: boolean };
+export type DeliveryConfig = { origin: { lat: number; lng: number }; zones: Zone[]; maxMiles: number; subtotalMinimumCents?: number; serviceFeeCents?: number };
 export type Quote = {
   ok: boolean; needsConfirm: boolean; reason?: "no_address" | "geocode_failed" | "out_of_range" | "place_unknown" | "pending";
   miles?: number; zone?: string; zoneLabel?: string; feeCents?: number; etaMinutes?: number; matched?: string;
   place?: string | null; city?: string | null; inCity?: boolean | null; minimumCents?: number; feeConfirmed?: boolean;
+  /** fees1: feeCents = deliveryCents + serviceCents (total charged). breakdown e.g. "Envío $6.99 + servicio $1.00 = $7.99". */
+  deliveryCents?: number; serviceCents?: number; breakdown?: string;
   message: { es: string; en: string };
 };
 
@@ -47,10 +49,15 @@ export function quoteFor(miles: number, place: string | null, cfg = loadDelivery
   if (!z) return { ok: false, needsConfirm: true, reason: "out_of_range", miles: mi, place, city, minimumCents, message: { es: "El personal confirmará la zona de entrega.", en: "Staff will confirm the delivery zone." } };
   const where = city ? ` (${city})` : "";
   const feeConfirmed = z.feeConfirmed !== false;
-  return { ok: true, needsConfirm: false, miles: mi, zone: z.id, zoneLabel: `${city || "?"} · ${money(z.feeCents)}${feeConfirmed ? "" : " (confirmar)"}`, feeCents: z.feeCents, etaMinutes: z.etaMinutes, place, city, inCity, minimumCents, feeConfirmed,
+  const serviceCents = z.serviceFee ? (cfg.serviceFeeCents ?? 0) : 0;
+  const total = z.feeCents + serviceCents;
+  const m2 = (c: number) => `$${(c / 100).toFixed(2)}`;
+  const breakdown = serviceCents ? `Envío ${m2(z.feeCents)} + servicio ${m2(serviceCents)} = ${m2(total)}` : `Envío ${money(total)}`;
+  const fee = serviceCents ? m2(total) : money(total);
+  return { ok: true, needsConfirm: false, miles: mi, zone: z.id, zoneLabel: `${city || "?"} · ${fee}${feeConfirmed ? "" : " (confirmar)"}`, feeCents: total, deliveryCents: z.feeCents, serviceCents, breakdown, etaMinutes: z.etaMinutes, place, city, inCity, minimumCents, feeConfirmed,
     message: feeConfirmed
-      ? { es: `La entrega${where} cuesta ${money(z.feeCents)} y llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is ${money(z.feeCents)} and takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` }
-      : { es: `La entrega${where} es de unos ${money(z.feeCents)}; el personal le confirma la tarifa. Llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is about ${money(z.feeCents)}; staff will confirm the fee. It takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` } };
+      ? { es: `La entrega${where} cuesta ${fee}${serviceCents ? ", incluyendo el cargo de servicio" : ""} y llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is ${fee}${serviceCents ? " including the service fee" : ""} and takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` }
+      : { es: `La entrega${where} es de unos ${fee}; el personal le confirma la tarifa. Llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is about ${fee}; staff will confirm the fee. It takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` } };
 }
 /** Back-compat for callers that only know the distance (place unknown). */
 export const quoteForMiles = (miles: number, cfg = loadDeliveryConfig()) => quoteFor(miles, null, cfg);

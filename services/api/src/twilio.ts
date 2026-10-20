@@ -501,7 +501,7 @@ export async function linkSquareTickets(force = false) {
 export const FULFILLMENT_LABEL: Record<Fulfillment, string> = { DELIVERY: "DELIVERY / ENTREGA", PICKUP: "TO GO / LLEVAR", FOR_HERE: "FOR HERE / PARA AQUI" };
 const callDelivery = new Map<string, { fulfillment: Fulfillment | null; address: string | null; street: string | null; confirmed: boolean; quote: Quote | null }>();
 function quoteView(q: Quote | null) {
-  return q ? { ok: q.ok, needsConfirm: q.needsConfirm, reason: q.reason || null, zone: q.zoneLabel || null, city: q.city || null, feeCents: q.feeCents ?? null, etaMinutes: q.etaMinutes ?? null, miles: q.miles ?? null, minimumCents: q.minimumCents ?? 1000, feeConfirmed: q.feeConfirmed !== false } : null;
+  return q ? { ok: q.ok, needsConfirm: q.needsConfirm, reason: q.reason || null, zone: q.zoneLabel || null, city: q.city || null, feeCents: q.feeCents ?? null, etaMinutes: q.etaMinutes ?? null, miles: q.miles ?? null, minimumCents: q.minimumCents ?? 1000, feeConfirmed: q.feeConfirmed !== false, breakdown: q.breakdown ?? null } : null;
 }
 export function deliveryView(from: string, callSid?: string) {
   const heard = callSid ? callDelivery.get(callSid) : undefined;
@@ -533,7 +533,7 @@ async function applyCallDelivery(callSid: string, caller: string, turns: Array<{
   logCall({ event: "fulfillment", callSid, caller, fulfillment: f.fulfillment, by: f.by, address: addr, addressFrom: a.address ? "call" : addr ? "saved" : null, addressConfirmed: a.confirmed, zone: quote?.zone || null, feeCents: quote?.feeCents ?? null, etaMinutes: quote?.etaMinutes ?? null, needsConfirm: quote ? quote.needsConfirm : f.fulfillment === "DELIVERY", source: training ? "training" : "customer" });
   try { saveCallerFulfillment(caller, f.fulfillment, a.address ? { full: a.address.full, street: a.address.street } : null); } catch { /* memory only */ }
   const notes = f.fulfillment !== "DELIVERY" ? undefined
-    : quote?.ok ? `${(quote.city || "").toUpperCase()} · $${(quote.feeCents! / 100).toFixed(quote.feeCents! % 100 ? 2 : 0)} ${quote.feeConfirmed === false ? " · CONFIRMAR TARIFA" : ""} · ~${quote.etaMinutes} min · MÍNIMO $10${a.confirmed ? "" : " · confirmar dirección"}`
+    : quote?.ok ? `${(quote.city || "").toUpperCase()} · ${quote.breakdown || `$${(quote.feeCents! / 100).toFixed(quote.feeCents! % 100 ? 2 : 0)}`}${quote.feeConfirmed === false ? " · CONFIRMAR TARIFA" : ""} · ~${quote.etaMinutes} min · MÍNIMO $10${a.confirmed ? "" : " · confirmar dirección"}`
     : quote?.reason === "out_of_range" ? `FUERA DEL ÁREA DE ENTREGA (${quote.miles} mi)`
     : `CONFIRMAR ZONA${addr ? "" : " · FALTA DIRECCIÓN"}`;
   return { fulfillment: FULFILLMENT_LABEL[f.fulfillment], deliverTo: f.fulfillment === "DELIVERY" ? { address: addr || "", phone: formatTicketPhone(caller), notes } : null };

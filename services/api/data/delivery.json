@@ -1,5 +1,5 @@
 {
-  "note": "delivery2b: City of Painesville (Census incorporated place) = flat $5, ETA 40 min. Outside Painesville city (Mentor, townships, etc.) within 10 miles = the website's per-address fee — cocinaelvis.com exposes only a range ($2.99-$12.99, max-fee setting $9.99) and no read-only per-address quote, so we fall back to $8 and flag CONFIRMAR TARIFA (feeConfirmed=false) until Carlos gives the website's fee table. Beyond 10 miles = outside the delivery area. Unknown city → CONFIRMAR ZONA. $10 food minimum before fees. No service fee.",
+  "note": "fees1 (2026-10-20, from Carlos's Square Online screenshots): City of Painesville (Census incorporated place) = flat $5 all-in, ETA 40 min (staff rule). Outside Painesville city = the website fee: Square straight-line distance tiers from 101 W Walnut Ave (0-4 mi $2.99, 4-10 mi $6.99; Square's 10-15 mi $8.99 tier is unreachable because the delivery radius is 10 mi) + $1.00 service fee per delivery order. >10 mi = out of area. Unknown city / geocode failure -> CONFIRMAR ZONA. $10 food minimum before fees.",
   "origin": {
     "label": "Cocina Elvis, 101 W Walnut Ave, Painesville, OH 44077",
     "lat": 41.715615285933,
@@ -17,30 +17,41 @@
       "feeConfirmed": true
     },
     {
-      "id": "far",
-      "label": "$8 (confirmar)",
-      "feeCents": 800,
+      "id": "web4",
+      "label": "Website 0-4 mi",
+      "feeCents": 299,
+      "etaMinutes": 50,
+      "maxMiles": 4,
+      "feeConfirmed": true,
+      "serviceFee": true
+    },
+    {
+      "id": "web10",
+      "label": "Website 4-10 mi",
+      "feeCents": 699,
       "etaMinutes": 50,
       "maxMiles": 10,
-      "feeConfirmed": false,
-      "todo": "Website fee formula unknown (no public per-address quote). Replace with the Square Online delivery fee table when Carlos shares it."
+      "feeConfirmed": true,
+      "serviceFee": true
     }
   ],
   "maxMiles": 10,
   "subtotalMinimumCents": 1000,
   "websiteReference": {
-    "fetchedAt": "2026-10-19",
-    "source": "cocinaelvis.com public store-locations API (read-only)",
+    "fetchedAt": "2026-10-20",
+    "source": "Square Online delivery settings screenshots from Carlos",
     "delivery_enabled": true,
     "courier": "seller (own drivers)",
     "delivery_areas": "radius 10 miles",
     "order_prep_time_min": 20,
     "delivery_estimated_minutes": "20-25",
-    "delivery_fee": "based on address ($2.99-$12.99 range shown; maximum fee setting $9.99)",
+    "delivery_fee": "0-4 mi $2.99; 4-10 mi $6.99; 10-15 mi $8.99 (unused, radius 10 mi); fallback $12.99",
     "delivery_order_subtotal_minimum": "$10.00",
     "service_fee": "$1.00",
     "max_orders_per_window": 6,
-    "fee_formula_found": "no — public config only shows min $2.99 / max $12.99 and a $9.99 maximum setting; per-address fee is computed inside the cart (not read-only)"
+    "fee_formula_found": "yes - tiered by straight-line distance",
+    "distance": "straight line",
+    "courier_time": "20-25 min"
   },
-  "serviceFeeCents": 0
+  "serviceFeeCents": 100
 }

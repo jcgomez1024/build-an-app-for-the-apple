@@ -360,7 +360,7 @@ function deliveryHtml(d) {
   const min = q?.minimumCents ?? 1000;
   const under = d.subtotalCents != null && d.subtotalCents < min;
   const minTag = `<span class="badge ${under ? "deliv" : "minb"}" style="margin-left:6px">MÍNIMO ${money(min)}${under ? ` · lleva ${money(d.subtotalCents)}` : ""}</span>`;
-  const zone = q ? (q.ok ? `<div class="zone"><b>${esc((q.city || "").toUpperCase())}</b> · <b>${money(q.feeCents)}</b>${q.feeConfirmed === false ? ' <span class="warn">CONFIRMAR TARIFA</span>' : ""} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` <small>(${esc(q.miles)} mi)</small>` : ""}${minTag}</div>`
+  const zone = q ? (q.ok ? `<div class="zone"><b>${esc((q.city || "").toUpperCase())}</b> · <b>${q.breakdown ? esc(q.breakdown) : money(q.feeCents)}</b>${q.feeConfirmed === false ? ' <span class="warn">CONFIRMAR TARIFA</span>' : ""} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` <small>(${esc(q.miles)} mi)</small>` : ""}${minTag}</div>`
     : `<div class="zone"><span class="warn">${q.reason === "out_of_range" ? `FUERA DEL ÁREA DE ENTREGA (${esc(q.miles)} mi)` : "CONFIRMAR ZONA"}</span>${q.reason === "out_of_range" ? "" : minTag}</div>`) : (d.address ? `<div class="zone">Calculando zona…${minTag}</div>` : "");
   if (d.fulfillment === "DELIVERY") {
     return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}${zone || `<div class="zone">${minTag}</div>`}</div>`;

@@ -58,21 +58,39 @@ test("caller memory: address history with last-used date and uses", () => {
   assert.equal(s.addressCount, 2);
   assert.equal(mem.savedDelivery("+15555550999").address, null);
 });
-test("zones: Painesville city = flat $5; outside the city = $8 + CONFIRMAR TARIFA; out past 10 mi; unknown city = confirm", () => {
+test("zones (fees1): Painesville city = flat $5; outside the city = website tier + $1 service; out past 10 mi; unknown city = confirm", () => {
   const near = z.quoteFor(2.0, "Painesville city");
-  assert.equal(near.feeCents, 500); assert.equal(near.etaMinutes, 40); assert.equal(near.city, "Painesville"); assert.equal(near.feeConfirmed, true);
+  assert.equal(near.feeCents, 500); assert.equal(near.serviceCents, 0); assert.equal(near.etaMinutes, 40); assert.equal(near.city, "Painesville"); assert.equal(near.feeConfirmed, true);
   assert.equal(near.message.es, "La entrega (Painesville) cuesta $5 y llega en unos 40 minutos. El mínimo para entrega es $10.");
   assert.equal(z.quoteFor(4.3, "Painesville city").feeCents, 500); // city stays flat $5
-  const mentor = z.quoteFor(3.0, "Mentor city");
-  assert.equal(mentor.feeCents, 800); assert.equal(mentor.etaMinutes, 50); assert.equal(mentor.city, "Mentor"); assert.equal(mentor.feeConfirmed, false);
-  assert.match(mentor.message.es, /el personal le confirma la tarifa/);
+  const mentor = z.quoteFor(6.0, "Mentor city");
+  assert.equal(mentor.feeCents, 799); assert.equal(mentor.deliveryCents, 699); assert.equal(mentor.serviceCents, 100); assert.equal(mentor.feeConfirmed, true);
+  assert.equal(mentor.breakdown, "Envío $6.99 + servicio $1.00 = $7.99"); assert.equal(mentor.etaMinutes, 50); assert.equal(mentor.city, "Mentor");
+  assert.doesNotMatch(mentor.message.es, /confirma la tarifa/); assert.match(mentor.message.es, /\$7\.99/);
   const twp = z.quoteFor(1.5, "Painesville township"); // 44077 but outside the city
-  assert.equal(twp.feeCents, 800); assert.equal(twp.city, "Painesville Twp");
+  assert.equal(twp.feeCents, 399); assert.equal(twp.breakdown, "Envío $2.99 + servicio $1.00 = $3.99"); assert.equal(twp.city, "Painesville Twp");
+  assert.equal(z.quoteFor(4.0, "Mentor city").feeCents, 399); assert.equal(z.quoteFor(4.01, "Mentor city").feeCents, 799); assert.equal(z.quoteFor(10.0, "Mentor city").feeCents, 799);
   const out = z.quoteFor(10.4, "Madison township");
   assert.equal(out.ok, false); assert.equal(out.reason, "out_of_range"); assert.match(out.message.es, /fuera del área de entrega/);
   const unk = z.quoteFor(2.0, null);
   assert.equal(unk.ok, false); assert.equal(unk.needsConfirm, true); assert.equal(unk.reason, "place_unknown");
   assert.equal(near.minimumCents, 1000);
+});
+test("fees1: distance is straight-line (haversine) from the store", () => {
+  const o = z.loadDeliveryConfig().origin;
+  assert.ok(Math.abs(z.milesBetween(o, { lat: o.lat + 1, lng: o.lng }) - 69.09) < 0.1); // 1° latitude ≈ 69.09 mi great-circle
+  assert.ok(Math.abs(z.milesBetween(o, { lat: o.lat, lng: o.lng - 0.1163 }) - 6.0) < 0.05);
+});
+test("fees1: geocoded fixtures — Painesville $5, Mentor ~6 mi $7.99, <4 mi twp $3.99, >10 mi out", async () => {
+  const at = (name: string, x: number, y: number): any => async () => ({ ok: true, json: async () => ({ result: { addressMatches: [{ matchedAddress: "F", coordinates: { x, y }, geographies: { "Incorporated Places": [{ NAME: name }] } }] } }) });
+  const o = z.loadDeliveryConfig().origin;
+  assert.equal((await z.quoteDeliveryAddress("10 Fees Fixture St, Painesville", at("Painesville city", o.lng - 0.01, o.lat + 0.005))).feeCents, 500);
+  const m = await z.quoteDeliveryAddress("11 Fees Fixture Ave, Mentor", at("Mentor city", o.lng - 0.1163, o.lat));
+  assert.equal(m.miles, 6); assert.equal(m.feeCents, 799); assert.equal(m.breakdown, "Envío $6.99 + servicio $1.00 = $7.99");
+  const c = await z.quoteDeliveryAddress("12 Fees Fixture Rd, Concord", at("Concord township", o.lng + 0.02, o.lat - 0.03));
+  assert.ok(c.miles! < 4); assert.equal(c.feeCents, 399);
+  const far = await z.quoteDeliveryAddress("13 Fees Fixture Ln, Madison", at("Madison township", o.lng + 0.215, o.lat));
+  assert.ok(far.miles! > 10); assert.equal(far.ok, false); assert.equal(far.reason, "out_of_range");
 });
 test("geocode: city from Census place, cached; failure / ambiguity asks to confirm (never guesses)", async () => {
   let calls = 0;
@@ -80,10 +98,10 @@ test("geocode: city from Census place, cached; failure / ambiguity asks to confi
   const q1 = await z.quoteDeliveryAddress("1 Fixture Way, Painesville", geo("Painesville city"));
   const q2 = await z.quoteDeliveryAddress("1 Fixture Way, Painesville", geo("Painesville city"));
   assert.equal(q1.zone, "near"); assert.equal(q2.city, "Painesville"); assert.equal(calls, 1);
-  assert.equal((await z.quoteDeliveryAddress("2 Fixture Rd, Mentor", geo("Mentor city"))).feeCents, 800);
+  assert.equal((await z.quoteDeliveryAddress("2 Fixture Rd, Mentor", geo("Mentor city"))).feeCents, 399); // ~0.4 mi outside the city → $2.99 + $1
   const twp: any = async () => ({ ok: true, json: async () => ({ result: { addressMatches: [{ matchedAddress: "T", coordinates: { x: -81.25, y: 41.72 }, geographies: { "County Subdivisions": [{ NAME: "Painesville township" }] } }] } }) });
   const t = await z.quoteDeliveryAddress("3 Township Ln", twp);
-  assert.equal(t.feeCents, 800); assert.equal(t.city, "Painesville Twp");
+  assert.equal(t.feeCents, 399); assert.equal(t.city, "Painesville Twp");
   assert.equal((await z.quoteDeliveryAddress("4 Noplace Ct", geo(null))).reason, "place_unknown");
   const two: any = async () => ({ ok: true, json: async () => ({ result: { addressMatches: [
     { coordinates: { x: -81.25, y: 41.72 }, geographies: { "Incorporated Places": [{ NAME: "Painesville city" }] } },
