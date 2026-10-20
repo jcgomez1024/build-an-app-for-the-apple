@@ -1,11 +1,30 @@
 {
-  "note": "delivery1: Carlos's delivery rules (Oct 19 2026). Distance = straight line from the restaurant to the geocoded address (US Census geocoder, no key). If geocoding fails, staff/Elvi confirm the zone — never guess. Fees are what Elvi and the console say; Square Online (cocinaelvis.com) has its own settings — see websiteReference.",
-  "origin": { "label": "Cocina Elvis, 101 W Walnut Ave, Painesville, OH 44077", "lat": 41.715615285933, "lng": -81.243669084917, "source": "US Census geocoder 2026-10-19" },
-  "prepMinutesFrom": "site-catalog.json store.prepMinutes (website order prep time)",
-  "prepMinutesDefault": 20,
+  "note": "delivery2b: City of Painesville (Census incorporated place) = flat $5, ETA 40 min. Outside Painesville city (Mentor, townships, etc.) within 10 miles = the website's per-address fee — cocinaelvis.com exposes only a range ($2.99-$12.99, max-fee setting $9.99) and no read-only per-address quote, so we fall back to $8 and flag CONFIRMAR TARIFA (feeConfirmed=false) until Carlos gives the website's fee table. Beyond 10 miles = outside the delivery area. Unknown city → CONFIRMAR ZONA. $10 food minimum before fees. No service fee.",
+  "origin": {
+    "label": "Cocina Elvis, 101 W Walnut Ave, Painesville, OH 44077",
+    "lat": 41.715615285933,
+    "lng": -81.243669084917,
+    "source": "US Census geocoder 2026-10-19"
+  },
   "zones": [
-    { "id": "near", "label": "Zona $5 (hasta 4 millas)", "maxMiles": 4, "feeCents": 500, "etaExtraMinutes": 20, "confirmed": true },
-    { "id": "far", "label": "Zona $8 (más de 4 millas)", "maxMiles": 10, "feeCents": 800, "etaExtraMinutes": 30, "confirmed": false, "todo": "Carlos: confirm ETA (prep + 30 min assumed) and the maximum distance (10 mi copied from the website)" }
+    {
+      "id": "near",
+      "label": "Painesville · $5",
+      "feeCents": 500,
+      "etaMinutes": 40,
+      "requirePlace": "Painesville city",
+      "maxMiles": 10,
+      "feeConfirmed": true
+    },
+    {
+      "id": "far",
+      "label": "$8 (confirmar)",
+      "feeCents": 800,
+      "etaMinutes": 50,
+      "maxMiles": 10,
+      "feeConfirmed": false,
+      "todo": "Website fee formula unknown (no public per-address quote). Replace with the Square Online delivery fee table when Carlos shares it."
+    }
   ],
   "maxMiles": 10,
   "subtotalMinimumCents": 1000,
@@ -20,6 +39,8 @@
     "delivery_fee": "based on address ($2.99-$12.99 range shown; maximum fee setting $9.99)",
     "delivery_order_subtotal_minimum": "$10.00",
     "service_fee": "$1.00",
-    "max_orders_per_window": 6
-  }
+    "max_orders_per_window": 6,
+    "fee_formula_found": "no — public config only shows min $2.99 / max $12.99 and a $9.99 maximum setting; per-address fee is computed inside the cart (not read-only)"
+  },
+  "serviceFeeCents": 0
 }

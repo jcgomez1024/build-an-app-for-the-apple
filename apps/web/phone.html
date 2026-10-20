@@ -34,6 +34,8 @@
   .deliv-box.saved { background:#fffaf0; border-color:#e8a33d; }
   .deliv-box .warn { color:#b3261e; font-weight:700; }
   .deliv-box .ask { color:#555; font-size:13px; }
+  .deliv-box .zone { font-size:18px; margin-top:4px; }
+  .badge.minb { background:#fff0c2; color:#7a5200; }
   button { font:inherit; font-weight:700; border:0; border-radius:14px; padding:14px 18px; cursor:pointer; font-size:17px; }
   button:disabled { opacity:.45; cursor:default; }
   .answer { background:var(--green); color:#fff; min-width:130px; }
@@ -354,14 +356,18 @@ function money(c) { return "$" + (c / 100).toFixed(c % 100 ? 2 : 0); }
 function deliveryHtml(d) {
   if (!d) return "";
   const q = d.quote;
-  const zone = q ? (q.ok ? `${esc(q.zone)} · ${money(q.feeCents)} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` · ${esc(q.miles)} mi` : ""}`
-    : `<span class="warn">${q.reason === "out_of_range" ? `Fuera de zona (${esc(q.miles)} mi)` : "CONFIRMAR ZONA / TARIFA"}</span>`) : (d.address ? "Calculando zona…" : "");
+  // delivery2: city + fee big; CONFIRMAR ZONA when the city/place is unknown; fuera del área past 10 mi; MÍNIMO $10.
+  const min = q?.minimumCents ?? 1000;
+  const under = d.subtotalCents != null && d.subtotalCents < min;
+  const minTag = `<span class="badge ${under ? "deliv" : "minb"}" style="margin-left:6px">MÍNIMO ${money(min)}${under ? ` · lleva ${money(d.subtotalCents)}` : ""}</span>`;
+  const zone = q ? (q.ok ? `<div class="zone"><b>${esc((q.city || "").toUpperCase())}</b> · <b>${money(q.feeCents)}</b>${q.feeConfirmed === false ? ' <span class="warn">CONFIRMAR TARIFA</span>' : ""} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` <small>(${esc(q.miles)} mi)</small>` : ""}${minTag}</div>`
+    : `<div class="zone"><span class="warn">${q.reason === "out_of_range" ? `FUERA DEL ÁREA DE ENTREGA (${esc(q.miles)} mi)` : "CONFIRMAR ZONA"}</span>${q.reason === "out_of_range" ? "" : minTag}</div>`) : (d.address ? `<div class="zone">Calculando zona…${minTag}</div>` : "");
   if (d.fulfillment === "DELIVERY") {
-    return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}<br>${zone}</div>`;
+    return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}${zone || `<div class="zone">${minTag}</div>`}</div>`;
   }
   if (d.fulfillment === "PICKUP" || d.fulfillment === "FOR_HERE") return `<div><span class="badge pick" style="margin-left:0">${d.fulfillment === "PICKUP" ? "PARA LLEVAR" : "PARA AQUÍ"}</span></div>`;
   if (d.address) {
-    return `<div class="deliv-box saved">${d.lastFulfillment === "DELIVERY" ? '<span class="badge deliv" style="margin-left:0">ÚLTIMA: DELIVERY</span> ' : "Dirección guardada: "}${esc(d.address)}<br>${zone}<div class="ask">Pregunte: “¿Para entrega a domicilio o para recoger hoy?” → “¿A la misma dirección, ${esc(d.street || d.address)}?”</div></div>`;
+    return `<div class="deliv-box saved">${d.lastFulfillment === "DELIVERY" ? '<span class="badge deliv" style="margin-left:0">ÚLTIMA: DELIVERY</span> ' : "Dirección guardada: "}${esc(d.address)}${zone}<div class="ask">Pregunte: “¿Para entrega a domicilio o para recoger hoy?” → “¿A la misma dirección, ${esc(d.street || d.address)}?”</div></div>`;
   }
   return "";
 }

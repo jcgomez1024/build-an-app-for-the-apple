@@ -1,5 +1,5 @@
 import { addressesIn } from "./delivery.js";
-import { quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
+import { quoteDeliveryAddress, deliveryMinimumCents, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
@@ -281,6 +281,11 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   // ad-hoc line items (name + price, no production catalog IDs) to the sandbox.
   const sandbox = runtime.env === "sandbox";
   const menu = sandbox ? await getMenu() : await getMenu(runtime);
+  // delivery2: $10 delivery minimum on the food subtotal (before the delivery fee).
+  if (input.fulfillment === "DELIVERY") {
+    const subtotal = cartSubtotalCents(input.cart, menu), min = deliveryMinimumCents();
+    if (subtotal < min) throw new Error(`Delivery minimum is $${(min / 100).toFixed(2)} before the delivery fee (this order is $${(subtotal / 100).toFixed(2)}). Add more items or choose pickup.`);
+  }
   const voiceOrderNote = buildVoiceOrderNote(input, menu);
   const lineItems = buildLineItems(input.cart, menu).map((li) => {
     if (!sandbox) return li;
@@ -1098,4 +1103,16 @@ export async function paymentReceiptReadOnly(paymentId: string, config?: Partial
     receiptCache.set(paymentId, v);
     return v;
   } catch { return null; }
+}
+
+/** delivery2: food subtotal in cents (menu price or unitPriceCents + paid modifiers) × quantity. */
+export function cartSubtotalCents(cart: CartItem[], menu: MenuItem[]): number {
+  let t = 0;
+  for (const c of cart || []) {
+    const mi = menu.find((m) => m.id === c.id);
+    const unit = Number(c.unitPriceCents ?? mi?.priceCents ?? 0);
+    const mods = (c.modifiers || []).reduce((a, m) => a + Number(m.priceDeltaCents || 0) * Number(m.quantity || 1), 0);
+    t += (unit + mods) * Math.max(1, Number(c.quantity) || 1);
+  }
+  return t;
 }

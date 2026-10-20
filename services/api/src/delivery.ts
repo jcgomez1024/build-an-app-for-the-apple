@@ -147,6 +147,7 @@ export function deliveryDialogRules(opts: { verifiedSavedStreet?: string | null 
     opts.verifiedSavedStreet
       ? `If DELIVERY: this customer is verified and has a saved address. Ask exactly: "${DELIVERY_TEXT.same.es.replace("{street}", opts.verifiedSavedStreet)}" (English: "${DELIVERY_TEXT.same.en.replace("{street}", opts.verifiedSavedStreet)}"). If no, ask for the new address.`
       : `If DELIVERY: ask for the full address (street, number, apartment, city). Never mention or guess a saved address — the customer is not verified.`,
-    "After you have the address, call set_address and check_delivery_zone. When confirming, say the delivery fee and the ETA from its result in one short sentence. If it says needs_confirm, say staff will confirm the delivery zone and fee — never guess a fee. If out of range, offer pickup.",
+    "After you have the address, call set_address and check_delivery_zone. When confirming, say the city, the delivery fee and the ETA from its result in one short sentence (use its message; if fee_confirmed is false, say the fee is approximate and staff will confirm it). If it says needs_confirm, say staff will confirm the delivery zone and fee — never guess a fee. If it is outside the delivery area, say so and offer pickup.",
+    "Delivery needs a food subtotal of at least $10 before the delivery fee. If the cart is under $10, say: \"El mínimo para entrega es de $10.\" (English: \"The delivery minimum is $10.\") and offer to add something or switch to pickup. There is no service fee.",
   ].join(" ");
 }

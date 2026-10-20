@@ -1354,7 +1354,7 @@ app.post("/api/:tenant/tools/check_delivery_zone", async (req, res, next) => {
     const q = await quoteDeliveryAddress(address);
     const lang = String(req.body?.language || "es") === "en" ? "en" : "es";
     res.json({ ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, zone: q.zone || null,
-      fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, message: q.message[lang], zip_check: checkDeliveryZone(address) });
+      fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, minimum_subtotal_cents: q.minimumCents ?? 1000, message: q.message[lang] });
   } catch (error) {
     next(error);
   }

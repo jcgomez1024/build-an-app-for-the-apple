@@ -1,5 +1,6 @@
-// delivery1: delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder (no key),
-// cached in data/logs/geocode-cache.json (gitignored: addresses are personal data). On any failure → needsConfirm.
+// delivery1/delivery2: delivery zone / fee / ETA from data/delivery.json. Geocodes with the free US Census geocoder
+// (no key) incl. the incorporated place (city) — ZIP alone is not enough (44077 also covers Painesville Twp).
+// Cached in data/logs/geocode-cache.json (gitignored: addresses are personal data). On any doubt → needsConfirm.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,21 +9,17 @@ import { addressKey } from "./delivery.js";
 const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const DELIVERY_FILE = path.join(apiRoot, "data/delivery.json");
 const cacheFile = process.env.ELVI_GEOCODE_CACHE || path.join(apiRoot, "data/logs/geocode-cache.json");
-type Zone = { id: string; label: string; maxMiles: number; feeCents: number; etaExtraMinutes: number; confirmed?: boolean };
-export type DeliveryConfig = { origin: { lat: number; lng: number }; zones: Zone[]; maxMiles: number; subtotalMinimumCents?: number; prepMinutesDefault?: number };
+type Zone = { id: string; label: string; feeCents: number; etaMinutes: number; maxMiles: number; requirePlace?: string; feeConfirmed?: boolean };
+export type DeliveryConfig = { origin: { lat: number; lng: number }; zones: Zone[]; maxMiles: number; subtotalMinimumCents?: number };
 export type Quote = {
-  ok: boolean; needsConfirm: boolean; reason?: "no_address" | "geocode_failed" | "out_of_range" | "pending";
+  ok: boolean; needsConfirm: boolean; reason?: "no_address" | "geocode_failed" | "out_of_range" | "place_unknown" | "pending";
   miles?: number; zone?: string; zoneLabel?: string; feeCents?: number; etaMinutes?: number; matched?: string;
+  place?: string | null; city?: string | null; inCity?: boolean | null; minimumCents?: number; feeConfirmed?: boolean;
   message: { es: string; en: string };
 };
 
-export function loadDeliveryConfig(): DeliveryConfig {
-  return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8"));
-}
-function prepMinutes(cfg: DeliveryConfig): number {
-  try { return Number(JSON.parse(fs.readFileSync(path.join(apiRoot, "data/site-catalog.json"), "utf8"))?.store?.prepMinutes) || cfg.prepMinutesDefault || 20; }
-  catch { return cfg.prepMinutesDefault || 20; }
-}
+export function loadDeliveryConfig(): DeliveryConfig { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); }
+export const deliveryMinimumCents = (cfg = loadDeliveryConfig()) => cfg.subtotalMinimumCents ?? 1000;
 export function milesBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 3958.8, r = (d: number) => (d * Math.PI) / 180;
   const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
@@ -30,51 +27,76 @@ export function milesBetween(a: { lat: number; lng: number }, b: { lat: number; 
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 const money = (c: number) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
-/** Zone/fee/ETA for a distance (pure; used by tests and after geocoding). */
-export function quoteForMiles(miles: number, cfg = loadDeliveryConfig()): Quote {
-  const z = [...cfg.zones].sort((a, b) => a.maxMiles - b.maxMiles).find((x) => miles <= x.maxMiles && miles <= cfg.maxMiles);
-  const mi = Math.round(miles * 10) / 10;
-  if (!z) return { ok: false, needsConfirm: true, reason: "out_of_range", miles: mi,
-    message: { es: `Esa dirección está a ${mi} millas, fuera de nuestra zona de entrega. ¿Lo quiere para recoger?`, en: `That address is ${mi} miles away, outside our delivery area. Would you like pickup instead?` } };
-  const eta = prepMinutes(cfg) + z.etaExtraMinutes;
-  return { ok: true, needsConfirm: false, miles: mi, zone: z.id, zoneLabel: z.label, feeCents: z.feeCents, etaMinutes: eta,
-    message: { es: `La entrega cuesta ${money(z.feeCents)} y llega en unos ${eta} minutos.`, en: `Delivery is ${money(z.feeCents)} and takes about ${eta} minutes.` } };
-}
-const CONFIRM: Quote["message"] = { es: "No pude ubicar la dirección. Confirme la zona de entrega con el personal.", en: "I couldn't locate that address. Please confirm the delivery zone with staff." };
+/** "Painesville city" → "Painesville"; "Painesville township" → "Painesville Twp". */
+export const cityName = (place: string | null | undefined) => !place ? null : String(place).replace(/\s+city$/i, "").replace(/\s+township$/i, " Twp").replace(/\s+village$/i, "").trim();
 
-type Cached = { lat: number; lng: number; matched: string; at: string } | { fail: true; at: string };
-function readCache(): Record<string, Cached> { try { return JSON.parse(fs.readFileSync(cacheFile, "utf8")); } catch { return {}; } }
+/** Zone/fee/ETA for a distance + Census place (pure). place = incorporated place or county subdivision NAME; null = unknown. */
+export function quoteFor(miles: number, place: string | null, cfg = loadDeliveryConfig()): Quote {
+  const mi = Math.round(miles * 10) / 10;
+  const city = cityName(place);
+  const minimumCents = deliveryMinimumCents(cfg);
+  if (miles > cfg.maxMiles) return { ok: false, needsConfirm: false, reason: "out_of_range", miles: mi, place, city, minimumCents,
+    message: { es: `Lo sentimos, esa dirección está fuera del área de entrega (${mi} millas). ¿Lo quiere para recoger?`, en: `Sorry, that address is outside our delivery area (${mi} miles). Would you like pickup instead?` } };
+  const zones = [...cfg.zones];
+  const near = zones.find((z) => z.requirePlace);
+  // $5 only inside the required city AND within its radius; unknown place inside the radius → staff confirm.
+  if (near && miles <= near.maxMiles && !place) return { ok: false, needsConfirm: true, reason: "place_unknown", miles: mi, place: null, city: null, inCity: null, minimumCents,
+    message: { es: "No pude confirmar la ciudad de esa dirección. El personal confirmará la zona y la tarifa.", en: "I couldn't confirm the city for that address. Staff will confirm the delivery zone and fee." } };
+  const inCity = near ? String(place || "").toLowerCase() === near.requirePlace!.toLowerCase() : null;
+  const z = near && inCity && miles <= near.maxMiles ? near : zones.filter((x) => !x.requirePlace).sort((a, b) => a.maxMiles - b.maxMiles).find((x) => miles <= x.maxMiles);
+  if (!z) return { ok: false, needsConfirm: true, reason: "out_of_range", miles: mi, place, city, minimumCents, message: { es: "El personal confirmará la zona de entrega.", en: "Staff will confirm the delivery zone." } };
+  const where = city ? ` (${city})` : "";
+  const feeConfirmed = z.feeConfirmed !== false;
+  return { ok: true, needsConfirm: false, miles: mi, zone: z.id, zoneLabel: `${city || "?"} · ${money(z.feeCents)}${feeConfirmed ? "" : " (confirmar)"}`, feeCents: z.feeCents, etaMinutes: z.etaMinutes, place, city, inCity, minimumCents, feeConfirmed,
+    message: feeConfirmed
+      ? { es: `La entrega${where} cuesta ${money(z.feeCents)} y llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is ${money(z.feeCents)} and takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` }
+      : { es: `La entrega${where} es de unos ${money(z.feeCents)}; el personal le confirma la tarifa. Llega en unos ${z.etaMinutes} minutos. El mínimo para entrega es ${money(minimumCents)}.`, en: `Delivery${where} is about ${money(z.feeCents)}; staff will confirm the fee. It takes about ${z.etaMinutes} minutes. The delivery minimum is ${money(minimumCents)}.` } };
+}
+/** Back-compat for callers that only know the distance (place unknown). */
+export const quoteForMiles = (miles: number, cfg = loadDeliveryConfig()) => quoteFor(miles, null, cfg);
+const CONFIRM: Quote["message"] = { es: "No pude ubicar la dirección. El personal confirmará la zona y la tarifa.", en: "I couldn't locate that address. Staff will confirm the delivery zone and fee." };
+
+type Cached = { lat: number; lng: number; matched: string; place: string | null; at: string; v: 2 } | { fail: true; at: string };
+function readCache(): Record<string, any> { try { return JSON.parse(fs.readFileSync(cacheFile, "utf8")); } catch { return {}; } }
 function writeCache(c: Record<string, Cached>) { try { fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify(c, null, 2)); } catch { /* cache only */ } }
 const cacheKey = (address: string) => String(address || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const withState = (a: string) => (/\b(oh|ohio)\b|\b44\d{3}\b/i.test(a) ? a : `${a}, ${/painesville|mentor|fairport|concord|perry|madison|willoughby|grand river|leroy|kirtland|chardon|eastlake|wickliffe|geneva/i.test(a) ? "" : "Painesville, "}OH`);
 
-/** Sync: quote from the geocode cache only (null when not looked up yet). */
+/** Sync: quote from the geocode cache only (null when not looked up yet, or cached before places were stored). */
 export function cachedQuote(address: string): Quote | null {
   if (!String(address || "").trim()) return { ok: false, needsConfirm: true, reason: "no_address", message: { es: "¿A qué dirección se lo llevamos?", en: "What's the delivery address?" } };
   const c = readCache()[cacheKey(withState(address))];
   if (!c) return null;
-  if ("fail" in c) return { ok: false, needsConfirm: true, reason: "geocode_failed", message: CONFIRM };
-  return { ...quoteForMiles(milesBetween(loadDeliveryConfig().origin, c), loadDeliveryConfig()), matched: c.matched };
+  if (c.fail) return { ok: false, needsConfirm: true, reason: "geocode_failed", message: CONFIRM };
+  if (c.v !== 2) return null; // delivery1 cache had no place → look up again
+  const cfg = loadDeliveryConfig();
+  return { ...quoteFor(milesBetween(cfg.origin, c), c.place, cfg), matched: c.matched };
 }
 
-/** Geocode (Census, ~3 s timeout, cached; failures cached 1 day) → quote. Never throws. */
+/** Geocode + place (Census geographies, ~3.5 s timeout, cached; failures cached 1 day) → quote. Never throws. */
 export async function quoteDeliveryAddress(address: string, fetcher: typeof fetch = fetch): Promise<Quote> {
   const hit = cachedQuote(address);
   if (hit) {
     const c = readCache()[cacheKey(withState(address))];
-    const staleFail = c && "fail" in c && Date.now() - Date.parse(c.at) > 86400000;
-    if (!staleFail) return hit;
+    if (!(c && c.fail && Date.now() - Date.parse(c.at) > 86400000)) return hit;
   }
   const q = withState(address);
   try {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 3500);
-    const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address=${encodeURIComponent(q)}`;
+    const url = `https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?benchmark=Public_AR_Current&vintage=Current_Current&layers=${encodeURIComponent("Incorporated Places,County Subdivisions")}&format=json&address=${encodeURIComponent(q)}`;
     const r = await fetcher(url, { signal: ctl.signal }); clearTimeout(t);
     const j: any = r.ok ? await r.json() : null;
     const m = j?.result?.addressMatches?.[0];
     const cache = readCache();
     if (!m?.coordinates) { cache[cacheKey(q)] = { fail: true, at: new Date().toISOString() }; writeCache(cache); return { ok: false, needsConfirm: true, reason: "geocode_failed", message: CONFIRM }; }
-    cache[cacheKey(q)] = { lat: m.coordinates.y, lng: m.coordinates.x, matched: String(m.matchedAddress || ""), at: new Date().toISOString() };
+    if ((j?.result?.addressMatches || []).length > 1) {
+      // Two different matches → ambiguous: don't cache a guess.
+      const places = new Set(j.result.addressMatches.map((x: any) => x?.geographies?.["Incorporated Places"]?.[0]?.NAME || x?.geographies?.["County Subdivisions"]?.[0]?.NAME || ""));
+      if (places.size > 1) return { ok: false, needsConfirm: true, reason: "place_unknown", message: { es: "Hay más de una dirección parecida. El personal confirmará la zona.", en: "More than one address matches. Staff will confirm the zone." } };
+    }
+    const g = m.geographies || {};
+    const place: string | null = g["Incorporated Places"]?.[0]?.NAME || g["County Subdivisions"]?.[0]?.NAME || null;
+    cache[cacheKey(q)] = { lat: m.coordinates.y, lng: m.coordinates.x, matched: String(m.matchedAddress || ""), place, at: new Date().toISOString(), v: 2 };
     writeCache(cache);
     return cachedQuote(address)!;
   } catch {
