@@ -37,6 +37,13 @@
   tr.miss td{background:var(--badbg)}tr.partial td{background:var(--warnbg)}.ch{color:var(--mut);font-size:12px}
   .misses{margin:10px 0 0;padding-left:18px;color:var(--bad)}.empty{color:var(--mut);padding:20px;text-align:center}
   .note{font-size:12px;color:var(--mut)}
+  .player{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fbfaf7}
+  .player .row1{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.player button{min-width:44px;min-height:40px}
+  .player button.on{background:var(--ink);color:#fff}.player .tm{font-variant-numeric:tabular-nums;color:var(--mut);font-size:13px;margin-left:auto}
+  .player input[type=range]{width:100%;margin:10px 0 2px;accent-color:var(--acc);height:28px}
+  .turn{cursor:pointer;transition:background .15s}.turn:hover{filter:brightness(.97)}.turn.elvi{background:#fde8f1;justify-self:end}
+  .turn.now{outline:2px solid var(--acc);box-shadow:0 2px 8px #1471d633}
+  .turns{max-height:420px}
   .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;background:#efe6ff;color:#5b2bb5;margin-left:6px;vertical-align:middle}
   .filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}.filters button.on{background:var(--ink);color:#fff}
   .exp textarea{width:100%;min-height:70px;font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px}
@@ -118,10 +125,11 @@ function detail() {
   $("#detail").innerHTML = `
     <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
-    ${c.hasAudio ? `<audio controls preload="none" style="width:100%;margin:10px 0" src="/api/calls/${encodeURIComponent(c.recordingSid)}/audio"></audio>` : ""}
+    ${c.hasAudio ? playerHtml(c) : ""}
     ${c.error ? `<div class="misses">Error al procesar: ${esc(c.error)}</div>` : ""}
     <h2 style="margin-top:8px">Conversación</h2>
-    <div class="turns">${c.turns.length ? c.turns.map((t) => `<div class="turn ${t.speaker}"><b>${t.speaker === "caller" ? "Cliente" : "Staff"} · ${Number(t.start).toFixed(1)}s</b>${esc(t.text)}</div>`).join("") : `<div class="empty">Sin transcripción.</div>`}</div>
+    <div class="note">${c.hasAudio && c.turns.length ? "Toca una línea para escucharla · Tap a line to jump there" : ""}</div>
+    <div class="turns" id="turns">${c.turns.length ? c.turns.map((t, k) => `<div class="turn ${spk(t.speaker)}" data-k="${k}" data-s="${Number(t.start) || 0}" data-e="${Number(t.end) || 0}"><b>${spkLabel(t.speaker)} · ${clock(t.start)}</b>${esc(t.text)}</div>`).join("") : `<div class="empty">Sin transcripción.</div>`}</div>
     <div class="cmp" style="margin-top:14px">
       <div><h2>Orden de Elvi</h2>${linesTable(c.elvi, c.pairs, "elvi")}</div>
       <div><h2>${c.ticket?.matchedBy === "manual" ? "Orden esperada (a mano)" : "Ticket de Square"}</h2>${linesTable(c.ticket?.lines, c.pairs, "ticket")}</div>
@@ -134,6 +142,57 @@ function detail() {
       <div id="exp-out">${draft?.sid === c.callSid ? draft.html : ""}</div>
     </div>` : ""}
     ${c.misses.length ? `<ul class="misses">${c.misses.map((m) => `<li>${esc(m.detail)}</li>`).join("")}</ul>` : c.score !== null ? `<div class="note" style="color:var(--ok);margin-top:8px">✓ Coincide con el ticket.</div>` : ""}`;
+  wirePlayer();
+}
+
+// player1: audio player + clickable dialogue. Audio comes only from the localhost-only /api/calls/:sid/audio (WAV on this Mac).
+const spk = (s) => s === "caller" ? "caller" : s === "elvi" ? "elvi" : "staff";
+const spkLabel = (s) => s === "caller" ? "Cliente / Caller" : s === "elvi" ? "Elvi 💗" : "Staff";
+const clock = (x) => { x = Math.max(0, Number(x) || 0); const m = Math.floor(x / 60), s = Math.floor(x % 60); return `${m}:${String(s).padStart(2, "0")}`; };
+function playerHtml(c) {
+  return `<div class="player" id="player">
+    <audio id="aud" preload="metadata" src="/api/calls/${encodeURIComponent(c.recordingSid)}/audio"></audio>
+    <div class="row1">
+      <button id="p-play" title="Reproducir / Play">▶ Play</button>
+      <button id="p-stop" title="Detener / Stop">■ Stop</button>
+      <button id="p-back" title="-10s">⏪ 10s</button>
+      <button id="p-fwd" title="+10s">10s ⏩</button>
+      <span style="width:6px"></span>
+      ${[1, 1.5, 2].map((r) => `<button class="p-rate ${r === 1 ? "on" : ""}" data-r="${r}" title="Velocidad / Speed">${r}x</button>`).join("")}
+      <span class="tm" id="p-tm">0:00 / –:––</span>
+    </div>
+    <input type="range" id="p-seek" min="0" max="1000" value="0" step="1" aria-label="Posición / Seek" />
+  </div>`;
+}
+function wirePlayer() {
+  const a = $("#aud"); if (!a) return;
+  const seek = $("#p-seek"), tm = $("#p-tm"), play = $("#p-play");
+  let dragging = false, lastK = -1;
+  const dur = () => (isFinite(a.duration) && a.duration > 0 ? a.duration : 0);
+  const paint = () => {
+    if (!dragging && dur()) seek.value = String(Math.round((a.currentTime / dur()) * 1000));
+    tm.textContent = `${clock(a.currentTime)} / ${dur() ? clock(dur()) : "–:––"}`;
+    play.textContent = a.paused ? "▶ Play" : "❚❚ Pausa";
+    const t = a.currentTime; let k = -1;
+    document.querySelectorAll("#turns .turn").forEach((el) => { const s0 = +el.dataset.s, e0 = +el.dataset.e; if (t >= s0 && t <= Math.max(e0, s0 + 0.5)) k = +el.dataset.k; });
+    if (k !== lastK) {
+      document.querySelectorAll("#turns .turn.now").forEach((el) => el.classList.remove("now"));
+      const el = k >= 0 && document.querySelector(`#turns .turn[data-k="${k}"]`);
+      if (el) { el.classList.add("now"); if (!a.paused) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      lastK = k;
+    }
+  };
+  const go = (t) => { a.currentTime = Math.min(Math.max(0, t), dur() || t); paint(); };
+  play.onclick = () => (a.paused ? a.play() : a.pause());
+  $("#p-stop").onclick = () => { a.pause(); go(0); };
+  $("#p-back").onclick = () => go(a.currentTime - 10);
+  $("#p-fwd").onclick = () => go(a.currentTime + 10);
+  document.querySelectorAll(".p-rate").forEach((b) => b.onclick = () => { a.playbackRate = +b.dataset.r; document.querySelectorAll(".p-rate").forEach((x) => x.classList.toggle("on", x === b)); });
+  seek.oninput = () => { dragging = true; if (dur()) tm.textContent = `${clock((seek.value / 1000) * dur())} / ${clock(dur())}`; };
+  seek.onchange = () => { dragging = false; if (dur()) go((seek.value / 1000) * dur()); };
+  ["timeupdate", "loadedmetadata", "play", "pause", "ended", "seeked"].forEach((ev) => a.addEventListener(ev, paint));
+  document.querySelectorAll("#turns .turn").forEach((el) => el.onclick = () => { go(+el.dataset.s); a.play(); });
+  paint();
 }
 
 async function expected(save, clear) {
