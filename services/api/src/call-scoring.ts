@@ -152,7 +152,7 @@ export function cleanPhrase(text: string): string {
   return applySharedAliases(t.replace(/[,\s]*(?:please|por\s+favor)\b/giu, "").replace(/[.?!\s]+$/u, "").trim(), "phone");
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|quesadillas?|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 export const isClosing = (t: string) => {
   let s = t.trim();
@@ -250,6 +250,25 @@ export function orderResidue(text: string, lastItemId?: string | null) {
   for (const w of itemWords) t = t.replace(new RegExp(`\\b${w}s?\\b`, "giu"), " ");
   return t.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
+/** fix1136: Elvi asked "¿de qué carne?" about "cuatro quesadillas de comal"; the caller answers "dos de chorizo y dos de
+ *  bistec" (or just "de chicharrón prensado"). Rebuild full dish phrases so each part keeps the dish + tortilla. */
+export function expandMeatAnswer(pendingDish: string, answer: string): string[] | null {
+  const a = cleanPhrase(answer).replace(/[.?!,;\s]+$/u, "").trim();
+  if (!a || FOOD.test(a)) return null;
+  const qtyRe = new RegExp(`^(${QTY})\\s+(?=de\\s)`, "iu");
+  const parts = a.split(new RegExp(`\\s*(?:,|\\by\\b|\\band\\b)\\s*(?=(?:${QTY}\\s+)?de\\s)`, "iu")).map((x) => x.trim()).filter(Boolean);
+  if (!parts.length || !parts.every((x) => new RegExp(`^(?:${QTY}\\s+)?de\\s+[\\p{L}][\\p{L}\\s]{1,40}$`, "iu").test(x))) return null;
+  pendingDish = cleanPhrase(pendingDish).replace(/^(?:y\s+)?(?:me\s+)?(?:pone|pones|ponga|das|da|dame|manda|traes?)\s+/iu, "").trim();
+  const dishQty = (pendingDish.match(new RegExp(`^(${QTY})\\s+`, "iu")) || [])[1] || "";
+  const dish = pendingDish.replace(new RegExp(`^${QTY}\\s+`, "iu"), "").replace(/[,.\s]+$/u, "").trim();
+  return parts.map((x) => { const q = (x.match(qtyRe) || [])[1]; return `${q || dishQty} ${dish} ${x.replace(qtyRe, "")}`.trim(); });
+}
+const ORDER_INTENT = /^[¿¡\s]*(?:(?:s[ií]|oh|hola|bueno)[,.\s]+)*(?:(?:buenos\s+d[ií]as|buenas\s+(?:tardes|noches))[,.\s]+)?(?:(?:se\s+)?(?:puedo|podr[ií]a|puede|quiero|quisiera|me\s+gustar[ií]a)\s+(?:hacer|poner|dejar|ordenar|pedir)(?:\s+(?:una?|mi)\s+(?:orden|pedido))?|can\s+i\s+(?:place|make|put\s+in)\s+an?\s+order|i(?:'d|\s+would)\s+like\s+to\s+(?:place\s+an\s+)?order)\b[?.!,\s]*/iu;
+const ORDER_QTY_DISH = /\p{L}{3,}/u;
+export const STAFF_VOICE = /^[¿¡\s]*(?:¿\s*)?(?:cu[aá]nt[oa]s?\s+\p{L}+\s+(?:quer[ií]a|quiere|quieres|va\s+a\s+querer)|qu[eé]\s+m[aá]s|qu[eé]\s+le\s+(?:vamos\s+a\s+)?(?:pongo|ponemos|damos)|de\s+qu[eé]\s+(?:las?|los?)\s+quiere|algo\s+m[aá]s)\b[^.!]*\?/iu;
+export const isCountOnly = (text: string) => !FOOD.test(text) && !orderResidue(text, null).replace(new RegExp(`(?<![\\p{L}])(?:${QTY.slice(3, -1)}|y|and)(?![\\p{L}])`, "giu"), "").trim();
+const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+export const spokenCount = (phrase: string) => { const w = String(phrase || "").trim().split(/\s+/)[0]?.toLowerCase() || ""; return /^\d+$/.test(w) ? Number(w) : COUNT[w] || 0; };
 export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
 
 type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[] };
@@ -321,6 +340,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let fulfillment: "DELIVERY" | "PICKUP" | null = null;
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
+  let pendingDish: string | null = null; // fix1136
   const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
@@ -335,6 +355,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   // A caller's pauses mid-sentence ("¿Me puedes tomar dos … tacos de … bistec") split one request into fragments.
   // Join consecutive caller utterances until staff speaks, then split by item.
+  // fix1136: staff speech bleeding into the caller channel ("¿Cuántas quesadillas quería, güero?") is staff, not an order.
+  turns = turns.map((t) => t.speaker === "caller" && STAFF_VOICE.test(t.text) ? { ...t, speaker: "staff" as Speaker } : t);
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
@@ -383,14 +405,37 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // fix1036: a turn that is only filler, a repeat of the item just added ("Oh, coca está bien", "Sí, coca, sí. No,
     // creo que…") or a delivery/pickup remark ("para un pedido a domicilio") orders nothing. Sending it to Elvi made her
     // re-add earlier dishes from history (the doubled tacos/quesadillas/Cokes on the 10:36 call).
+    // fix1136: "¿Puedo hacer una orden?" / "quiero ordenar" / "can I place an order" asks to order, it isn't a dish.
+    // Sent to Elvi it opened a phantom "Torta: ¿Bistec…?" question that swallowed the next answers.
+    if (!FOOD.test(t.text) && ORDER_INTENT.test(cleanPhrase(t.text)) && !ORDER_QTY_DISH.test(cleanPhrase(t.text).replace(ORDER_INTENT, ""))) { steps.push({ source: "caller-intro", heard: t.text }); continue; }
+    // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
+    if (cart.length && isCountOnly(t.text)) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
     if (fulfillmentIn(t.text) && !FOOD.test(t.text) && !DRINK.test(applySharedAliases(t.text, "phone"))) { steps.push({ source: "caller-fulfillment", heard: t.text }); continue; }
     if (cart.length && /^(comal|harina|flour|homemade|ma[ií]z|corn|campechana|bistec|chorizo|asada|pastor|al\s*pastor|bistec y chorizo)$/iu.test(bare)) {
       steps.push({ source: "caller-clarify", heard: t.text }); continue;
     }
+    // fix1136: answer to Elvi's open meat question about the previous dish → full dish phrases (no lost tortilla / dorada).
+    const expanded = pendingDish ? expandMeatAnswer(pendingDish, t.text) : null;
+    if (expanded) {
+      const asked = pendingDish!; pendingDish = null;
+      const before = cart.length;
+      // Settle Elvi's open question with the first part as plain text, then add the rest as full phrases.
+      for (let k = 0; k < expanded.length; k++) {
+        const nb = cart.length;
+        last = await say(expanded[k], t.language, "caller-meat");
+        // Elvi answering her own open question keeps her pending quantity (1); the caller said the count explicitly.
+        const said = spokenCount(expanded[k]);
+        if (said && cart.length === nb + 1 && cart[nb].quantity !== said) cart[nb].quantity = said;
+        if (k === 0 && cart.length === before && asking(last)) { await acceptOpen(t.language); }
+      }
+      steps.push({ source: "caller-meat-expanded", heard: t.text, asked, expanded });
+      continue;
+    }
     for (const raw of splitItems(cleanPhrase(t.text))) {
       let piece = cleanPhrase(raw).replace(TOKENS, " ").replace(/\b(?:para\s+)?(?:un\s+)?pedido\s*$/iu, "").replace(/\s{2,}/g, " ").trim();
       if (!piece) continue;
+      if (cart.length && isCountOnly(piece)) { steps.push({ source: "caller-count", heard: piece }); continue; }
       // ticket5: container split ("en diferentes recipientes", "separado", "split it") → NO BEBIDA dividers on the ticket.
       const sp = detectContainerSplit(piece, { afterSplit: containers.phrases.length > 0 });
       let splitFrom = -1;
@@ -408,7 +453,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         piece = cleanPhrase(sp.rest) || piece;
       }
       const prev = last ? String(last.reply || "") : "";
+      const nBefore = cart.length;
       last = await say(piece, t.language, "caller");
+      pendingDish = cart.length === nBefore && asking(last) && FOOD.test(piece) ? piece : cart.length > nBefore ? null : pendingDish;
       if (sp && splitFrom >= 0) {
         const added = cart.length > splitFrom;
         // "y aparte/por separado tres tacos" after earlier food → new container starts with the new dish.

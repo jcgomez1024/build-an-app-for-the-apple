@@ -253,6 +253,33 @@
       "example": "me pone dos, yo creo, con la taparrosca",
       "source": "real call 2026-10-20 10:36",
       "approved": "Carlos 2026-10-20 (fix request)"
+    },
+    {
+      "id": "quesadillas-doradas",
+      "match": "\\bquesadillas?\\s+doradas?\\b",
+      "to": "QD REGULAR Dorada",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "dos quesadillas doradas de chicharrón prensado",
+      "source": "real call 2026-10-20 ~11:36 (resolver only knew singular 'quesadilla dorada'; Square ticket (QD) Quesadilla Dorada)",
+      "approved": "Carlos 2026-10-20 (fix request)",
+      "forbids": "\\b(?:deluxe|preparadas?)\\b",
+      "note": "Elvi's resolver only matches 'QD' reliably; staff ring (QD) REGULAR Dorada unless deluxe/preparada is said"
+    },
+    {
+      "id": "quesadillas-doradas-deluxe",
+      "match": "\\bquesadillas?\\s+doradas?\\b",
+      "to": "QD DELUXE Dorada",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\b(?:deluxe|preparadas?)\\b",
+      "example": "dos quesadillas doradas deluxe",
+      "source": "companion of quesadillas-doradas",
+      "approved": "Carlos 2026-10-20 (fix request)"
     }
   ]
 }

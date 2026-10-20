@@ -115,7 +115,10 @@ function orderPhones(o: any): string[] {
   return out.filter(Boolean);
 }
 
-const sameItem = (a: Line, b: Line) => (a.variationId && a.variationId === b.variationId) || norm(a.baseName || a.name) === norm(b.baseName || b.name);
+// fix1136: the online menu folds the variation into the item name ("(QD) Quesadilla Dorada (QD) REGULAR Dorada", its own
+// variation id); the POS rings item "(QD) Quesadilla Dorada" + variation "(QD) REGULAR Dorada". Same dish.
+const sameItem = (a: Line, b: Line) => (a.variationId && a.variationId === b.variationId) || norm(a.baseName || a.name) === norm(b.baseName || b.name)
+  || norm(a.baseName || a.name) === norm(b.name) || norm(a.name) === norm(b.baseName || b.name);
 // The included mild Salsa Asada isn't rung on the POS ticket, so it doesn't count either way.
 const IGNORABLE = /\bmild salsa asada\b/;
 
