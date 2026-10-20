@@ -48,3 +48,10 @@ test("addons1: auditor — add-on said but not rung → STAFF_MISSING; not said 
   assert.deepEqual(types(row("una de bistec con queso", ["Bistec / Steak", "**Con Queso Fresco / With Cheese (+$0.50)"], ["Bistec / Steak"])), ["ELVI_MISS"]);
   assert.deepEqual(types(row("sopesaso de bistec con todo", ["Bistec / Steak"], ["Bistec / Steak", "Frijoles / Pinto Beans", "Queso Fresco / Fresco Cheese"], "Sopesaso Elvis")), []);
 });
+
+test("appaudit1: queso fresco / extra melted asks don't add Queso Torta or a melted-cheese filling", () => {
+  const torta = [{ id: "t", name: "Torta", modifierGroups: [{ name: "(A) Torta Options", options: [{ name: "(QTO) Queso Torta (+$0.50)" }] }, MEATS, CON] }];
+  assert.deepEqual(opts(withConAddons(add("t", ["(QTO) Queso Torta (+$0.50)", "Bistec / Steak", "Queso Derretido / Melted Cheese"]), torta, "una torta de asada con queso fresco")), ["Bistec / Steak", "**Con Queso Fresco / With Cheese (+$0.50)"]);
+  assert.deepEqual(opts(withConAddons(add("q", ["Bistec / Steak", "Queso Derretido / Melted Cheese"]), menu, "one steak quesadilla with extra melted cheese")), ["Bistec / Steak", "**EXTRA Queso Derretido / Melted Cheese (+$0.50)"]);
+  assert.deepEqual(opts(withConAddons(add("t", ["(QTO) Queso Torta (+$0.50)", "Bistec / Steak"]), torta, "una torta de queso de bistec")), ["(QTO) Queso Torta (+$0.50)", "Bistec / Steak"]);
+});

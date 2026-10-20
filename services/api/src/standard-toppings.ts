@@ -75,7 +75,7 @@ export const CON_ADDONS: Array<{ key: string; addon: RegExp; said: RegExp; only?
   { key: "queso fresco", addon: /^con queso fresco \/ with cheese$/,
     said: /\b(?:con\s+queso\s+fresco|with\s+(?:queso\s+fresco|fresco\s+cheese)|and\s+(?:queso\s+fresco|fresco\s+cheese)|y\s+queso\s+fresco|add\s+(?:queso\s+fresco|fresco\s+cheese))\b/,
     includedOn: /\bsopes(?:aso|azo)?s?\b|\b[hg]uaraches?\b|\bdeluxe\b|\bpreparada\b/i },
-  { key: "queso derretido", addon: /^extra queso derretido \/ melted cheese$/,
+  { key: "queso derretido", addon: /^extra queso derretido \/ melted cheese$/, filling: /^(?:1 x )?queso derretido \/ melted cheese$/,
     said: /\b(?:extra\s+(?:de\s+)?queso\s+derretido|mas\s+queso\s+derretido|extra\s+melted\s+cheese|more\s+melted\s+cheese|melted\s+cheese\s+extra|queso\s+derretido\s+extra)\b/ },
 ];
 const NON_FILLING = /salsa|tortilla|comal|harina|maiz|corn|flour|homemade|regular|deluxe|dorada|preparada/i;
@@ -105,7 +105,22 @@ export const conAddonSaid = (text: string, name: string) => { const r = conAddon
 export function withConAddons<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
   if (!Array.isArray(actions)) return actions;
   const said = norm(text);
-  return CON_ADDONS.reduce((acc, r) => withConAddon(r, acc, menu, said), actions);
+  return stripUnaskedCheese(CON_ADDONS.reduce((acc, r) => withConAddon(r, acc, menu, said), actions), said);
+}
+/** appaudit1: "torta de asada con queso fresco" must not also get (QTO) Queso Torta or a Queso Derretido filling.
+ *  When every cheese the customer said is queso fresco / extra melted (add-ons), drop those unasked cheese picks. */
+const CHEESE_ANY = /\b(?:queso|cheese|quesito)\b/g;
+const CHEESE_ADDON_PHRASE = /\b(?:queso\s+fresco|quesito\s+fresco|fresco\s+cheese|(?:extra|mas|more)\s+(?:de\s+)?(?:queso\s+derretido|melted\s+cheese)|queso\s+derretido\s+extra|melted\s+cheese\s+extra)\b/g;
+function stripUnaskedCheese<T extends { type: string; modifiers?: any[] }>(actions: T[], said: string): T[] {
+  const rest = said.replace(CHEESE_ADDON_PHRASE, " ");
+  if (rest === said || CHEESE_ANY.test(rest)) { CHEESE_ANY.lastIndex = 0; return actions; }
+  CHEESE_ANY.lastIndex = 0;
+  const unasked = (o: string) => /^\((?:qto|qgd)\)\s+queso\s+(?:torta|gordita)$/.test(plainOpt(o)) || /^queso derretido \/ melted cheese$/.test(plainOpt(o));
+  return actions.map((a: any) => {
+    if ((a?.type !== "add_item" && a?.type !== "update_item") || !(a.modifiers || []).some((m: any) => unasked(m.option))) return a;
+    const kept = a.modifiers.filter((m: any) => !unasked(m.option));
+    return kept.length ? { ...a, modifiers: kept } : a;
+  });
 }
 /** Back-compat (rice1). */
 export function withRiceAddon<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
