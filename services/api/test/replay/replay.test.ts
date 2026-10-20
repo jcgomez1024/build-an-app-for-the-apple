@@ -1,6 +1,7 @@
 // aliases1: replay tests from anonymized real phrasings. Pure text only: never calls Square, xAI or Twilio.
 // Run: npm run replay   (cases: test/replay/*.jsonl, one JSON object per line)
-//   fn: "app" → normalizeSpokenCatalogAliases (customer app), "phone" → cleanPhrase (call scoring)
+//   fn: "app" → normalizeSpokenCatalogAliases (customer app), "phone" → cleanPhrase (call scoring),
+//       "fulfillment" → delivery.ts fulfillmentIn (DELIVERY / PICKUP / FOR_HERE / null)
 //   eq: exact expected output · has / not: case-insensitive substrings that must / must not appear
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,8 +11,9 @@ import { fileURLToPath } from "node:url";
 import { normalizeSpokenCatalogAliases } from "../../src/text-intents.ts";
 import { cleanPhrase } from "../../src/call-scoring.ts";
 import { loadAliases, applySharedAliases } from "../../src/aliases.ts";
+import { fulfillmentIn } from "../../src/delivery.ts";
 
-type Case = { id: string; fn: "app" | "phone"; input: string; eq?: string; has?: string[]; not?: string[] };
+type Case = { id: string; fn: "app" | "phone" | "fulfillment"; input: string; eq?: string; has?: string[]; not?: string[] };
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const cases: Array<Case & { file: string }> = [];
 for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".jsonl")).sort()) {
@@ -35,7 +37,7 @@ test("shared aliases are idempotent", () => {
 
 for (const c of cases) {
   test(`${c.file} · ${c.id}`, () => {
-    const out = c.fn === "phone" ? cleanPhrase(c.input) : normalizeSpokenCatalogAliases(c.input);
+    const out = c.fn === "fulfillment" ? String(fulfillmentIn(c.input)) : c.fn === "phone" ? cleanPhrase(c.input) : normalizeSpokenCatalogAliases(c.input);
     const low = out.toLowerCase();
     if (c.eq !== undefined) assert.equal(out, c.eq);
     for (const h of c.has || []) assert.ok(low.includes(h.toLowerCase()), `expected "${h}" in "${out}"`);

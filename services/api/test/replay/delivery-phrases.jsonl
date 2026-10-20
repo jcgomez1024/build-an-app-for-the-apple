@@ -1,0 +1,22 @@
+{"id":"a-domicilio","fn":"fulfillment","input":"es para entrega a domicilio","eq":"DELIVERY"}
+{"id":"a-domicilio-short","fn":"fulfillment","input":"lo quiero a domicilio por favor","eq":"DELIVERY"}
+{"id":"delivery-es","fn":"fulfillment","input":"¿tienen delivery? es para delivery","eq":"DELIVERY"}
+{"id":"me-lo-traen","fn":"fulfillment","input":"¿me lo traen?","eq":"DELIVERY"}
+{"id":"me-lo-mandan","fn":"fulfillment","input":"me lo mandan a la casa","eq":"DELIVERY"}
+{"id":"me-lo-pueden-traer","fn":"fulfillment","input":"¿me lo pueden traer?","eq":"DELIVERY"}
+{"id":"delivered-en","fn":"fulfillment","input":"can I get it delivered","eq":"DELIVERY"}
+{"id":"delivery-en","fn":"fulfillment","input":"delivery please","eq":"DELIVERY"}
+{"id":"para-llevar-is-pickup","fn":"fulfillment","input":"dos tacos de pastor para llevar","eq":"PICKUP"}
+{"id":"pa-llevar-is-pickup","fn":"fulfillment","input":"pa' llevar","eq":"PICKUP"}
+{"id":"pa-llevar-noapos","fn":"fulfillment","input":"pa llevar","eq":"PICKUP"}
+{"id":"recoger","fn":"fulfillment","input":"es para recoger","eq":"PICKUP"}
+{"id":"paso-por-el","fn":"fulfillment","input":"yo paso por él en 20 minutos","eq":"PICKUP"}
+{"id":"to-go","fn":"fulfillment","input":"to go please","eq":"PICKUP"}
+{"id":"pickup-en","fn":"fulfillment","input":"it's for pickup","eq":"PICKUP"}
+{"id":"para-aqui","fn":"fulfillment","input":"para comer aquí","eq":"FOR_HERE"}
+{"id":"negated-delivery","fn":"fulfillment","input":"no, no es para delivery, paso por él","eq":"PICKUP"}
+{"id":"question-not-answer","fn":"fulfillment","input":"¿Para entrega a domicilio o para recoger hoy?","eq":"null"}
+{"id":"question-en","fn":"fulfillment","input":"Delivery or pickup today?","eq":"null"}
+{"id":"no-cue","fn":"fulfillment","input":"dos quesadillas de bistec","eq":"null"}
+{"id":"llevan-alone-not-delivery","fn":"fulfillment","input":"¿cuánto se llevan de tiempo?","eq":"null"}
+{"id":"order-text-untouched","fn":"app","input":"dos tacos de pastor para llevar","has":["para llevar"],"not":["__"]}

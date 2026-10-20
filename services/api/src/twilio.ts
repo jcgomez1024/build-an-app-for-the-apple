@@ -9,7 +9,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import express from "express";
-import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource } from "./caller-memory.js";
+import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery } from "./caller-memory.js";
+import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
+import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
 import { searchOrdersReadOnly } from "./square.js";
 import { orderNameForPhone } from "./call-accuracy.js";
@@ -450,6 +452,44 @@ export type ElviTicket = {
   lines: ElviTicketLine[];
   training: boolean; openAsk?: string | null; transcript?: string;
 };
+// ---- delivery1: fulfillment label + console view (saved address as soon as a known caller rings) ----
+export const FULFILLMENT_LABEL: Record<Fulfillment, string> = { DELIVERY: "DELIVERY / ENTREGA", PICKUP: "TO GO / LLEVAR", FOR_HERE: "FOR HERE / PARA AQUI" };
+const callDelivery = new Map<string, { fulfillment: Fulfillment | null; address: string | null; street: string | null; confirmed: boolean; quote: Quote | null }>();
+function quoteView(q: Quote | null) {
+  return q ? { ok: q.ok, needsConfirm: q.needsConfirm, reason: q.reason || null, zone: q.zoneLabel || null, feeCents: q.feeCents ?? null, etaMinutes: q.etaMinutes ?? null, miles: q.miles ?? null } : null;
+}
+export function deliveryView(from: string, callSid?: string) {
+  const heard = callSid ? callDelivery.get(callSid) : undefined;
+  let saved: ReturnType<typeof savedDelivery> | null = null;
+  try { saved = savedDelivery(from); } catch { saved = null; }
+  const addr = heard?.address || saved?.address?.address || null;
+  let quote = heard?.quote || null;
+  if (!quote && addr) { quote = cachedQuote(addr); if (!quote) void quoteDeliveryAddress(addr).catch(() => null); }
+  return {
+    fulfillment: heard?.fulfillment || null, // said on THIS call
+    lastFulfillment: saved?.lastFulfillment || null,
+    address: addr, street: heard?.street || saved?.address?.street || null,
+    addressFrom: heard?.address ? "call" : saved?.address ? "saved" : null,
+    savedLastUsedAt: saved?.address?.lastUsedAt || null, savedCount: saved?.addressCount || 0,
+    confirmed: !!heard?.confirmed, quote: quoteView(quote),
+  };
+}
+/** After a call's transcript: fulfillment + address (staff read-back counts) → ticket, call log, caller memory. */
+async function applyCallDelivery(callSid: string, caller: string, turns: Array<{ speaker: "caller" | "staff"; start: number; text: string }>, training: boolean) {
+  const f = detectFulfillment(turns);
+  const a = f.fulfillment === "DELIVERY" ? detectAddress(turns) : { address: null, confirmed: false, by: null };
+  if (!f.fulfillment) return null;
+  let quote: Quote | null = null;
+  const addr = a.address?.full || (f.fulfillment === "DELIVERY" ? savedDelivery(caller).address?.address || null : null);
+  if (f.fulfillment === "DELIVERY" && addr) { try { quote = await quoteDeliveryAddress(addr); } catch { quote = null; } }
+  callDelivery.set(callSid, { fulfillment: f.fulfillment, address: addr, street: a.address?.street || null, confirmed: a.confirmed, quote });
+  logCall({ event: "fulfillment", callSid, caller, fulfillment: f.fulfillment, by: f.by, address: addr, addressFrom: a.address ? "call" : addr ? "saved" : null, addressConfirmed: a.confirmed, zone: quote?.zone || null, feeCents: quote?.feeCents ?? null, etaMinutes: quote?.etaMinutes ?? null, needsConfirm: quote ? quote.needsConfirm : f.fulfillment === "DELIVERY", source: training ? "training" : "customer" });
+  try { saveCallerFulfillment(caller, f.fulfillment, a.address ? { full: a.address.full, street: a.address.street } : null); } catch { /* memory only */ }
+  const notes = f.fulfillment !== "DELIVERY" ? undefined
+    : quote?.ok ? `${quote.zoneLabel} · $${(quote.feeCents! / 100).toFixed(quote.feeCents! % 100 ? 2 : 0)} · ~${quote.etaMinutes} min${a.confirmed ? "" : " · confirmar dirección"}`
+    : `CONFIRMAR ZONA/TARIFA${addr ? "" : " · FALTA DIRECCIÓN"}`;
+  return { fulfillment: FULFILLMENT_LABEL[f.fulfillment], deliverTo: f.fulfillment === "DELIVERY" ? { address: addr || "", phone: formatTicketPhone(caller), notes } : null };
+}
 const ticketsFile = path.join(logDir, "elvi-tickets.json");
 const ticketsByCall = new Map<string, ElviTicket>();
 function loadTickets(): ElviTicket[] {
@@ -1481,7 +1521,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       try { await Promise.race([syncWaitingFromTwilio(), new Promise((r) => setTimeout(r, 800))]); } catch { /* ignore */ }
     }
     const now = Date.now();
-    const view = (e: Entry) => ({ callSid: e.callSid, from: e.from, name: e.name, line: e.line, language: e.language, training: e.training, waitingSec: Math.round((now - (e.heldAt || e.at)) / 1000) });
+    const view = (e: Entry) => ({ callSid: e.callSid, from: e.from, name: e.name, line: e.line, language: e.language, training: e.training, waitingSec: Math.round((now - (e.heldAt || e.at)) / 1000), delivery: deliveryView(e.from, e.callSid) });
     res.json({
       online: agentOnline(),
       agentAgeMs: agentAgeMs(),
@@ -1628,6 +1668,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           transcript: result.transcript,
           source: elviPhoneSource(called), phoneDisplay: formatTicketPhone(caller),
           fulfillment: "TO GO / LLEVAR",
+          // delivery1: delivery vs pickup + address from the transcript (staff read-back counts).
+          ...((await applyCallDelivery(CallSid, caller, result.turns as any, isTrainingCaller(caller)).catch(() => null)) || {}),
         }, describe, result.elviOrder?.cart || [], result.elviOrder);
         learnCallerLanguage(CallSid, caller, result.turns, callLang.get(CallSid));
         scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));

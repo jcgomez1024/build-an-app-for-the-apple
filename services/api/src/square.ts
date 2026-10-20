@@ -1,3 +1,5 @@
+import { addressesIn } from "./delivery.js";
+import { quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
@@ -122,12 +124,19 @@ function buildFulfillment(input: CheckoutRequest) {
   };
 
   if (input.fulfillment === "DELIVERY") {
+    // delivery1: structured address on the recipient + the address/zone/fee/ETA in the delivery note (staff see it on the ticket).
+    const a = addressesIn(input.customer.address || "")[0];
+    const q = (input as any).deliveryQuote as Quote | undefined;
+    const extra = q?.ok ? ` | ${q.zoneLabel} · $${((q.feeCents || 0) / 100).toFixed(2)} · ~${q.etaMinutes} min` : "";
     return {
       type: "DELIVERY",
       state: "PROPOSED",
       delivery_details: {
-        recipient,
-        note: input.customer.address ? `Delivery address: ${input.customer.address}` : undefined,
+        recipient: {
+          ...recipient,
+          ...(a ? { address: { address_line_1: a.street, address_line_2: a.unit, locality: a.city || "Painesville", administrative_district_level_1: "OH", postal_code: a.zip, country: "US" } } : {})
+        },
+        note: input.customer.address ? `DELIVERY / ENTREGA: ${input.customer.address}${extra}`.slice(0, 500) : undefined,
         schedule_type: "ASAP"
       }
     };
@@ -261,6 +270,13 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   if (input.fulfillment === "DELIVERY" && !input.customer?.address) {
     throw new Error("Delivery address is required");
   }
+  // delivery1: zone/fee from data/delivery.json (geocoded). If the zone can't be confirmed, don't take payment — staff confirm.
+  let deliveryQuote: Quote | undefined;
+  if (input.fulfillment === "DELIVERY") {
+    deliveryQuote = await quoteDeliveryAddress(input.customer.address || "");
+    if (!deliveryQuote.ok) throw new Error(deliveryQuote.reason === "out_of_range" ? deliveryQuote.message.en : "We couldn't confirm the delivery zone for that address. Please call us so staff can confirm the delivery fee.");
+    (input as any).deliveryQuote = deliveryQuote;
+  }
   // sandbox1: the sandbox account has no catalog, so read the real menu (read-only) and send
   // ad-hoc line items (name + price, no production catalog IDs) to the sandbox.
   const sandbox = runtime.env === "sandbox";
@@ -285,6 +301,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
         reference_id: `voice-${nanoid(10)}`,
         line_items: lineItems,
         fulfillments: [buildFulfillment(input)],
+        ...(deliveryQuote?.ok ? { service_charges: [{ name: `Delivery fee (${deliveryQuote.zoneLabel})`, amount_money: { amount: deliveryQuote.feeCents, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false }] } : {}),
         metadata: {
           source: "voice_order",
           voice_order_source: cleanNote(input.metadata?.source || getLaunchConfig().voiceOrderSource, 60),
@@ -298,7 +315,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
       pre_populated_data: {
         buyer_email: input.customer.email
       },
-      payment_note: `${runtime.businessName} ${input.fulfillment.toLowerCase()} voice order | ${voiceOrderNote}`.slice(0, 500)
+      payment_note: `${runtime.businessName} ${input.fulfillment.toLowerCase()} voice order${input.fulfillment === "DELIVERY" ? ` | DELIVERY TO: ${input.customer.address}` : ""} | ${voiceOrderNote}`.slice(0, 500)
     })
   }, runtime);
 

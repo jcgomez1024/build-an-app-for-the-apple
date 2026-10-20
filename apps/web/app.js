@@ -1190,7 +1190,10 @@ function getResilientElviInstructions(language) {
     "- Builds and combos (pack meals, etc.) are handled conversationally. You decide what question to ask next based on what has already been decided. You do NOT follow a rigid external script.\n" +
     "- After any successful change, give a tiny confirmation ('Added.', 'Got the two asada.', 'Removed it.') then ask 'Anything else?' or move on.\n" +
     "- Only ask for name, phone, or pickup confirmation when the customer is finishing or the order is otherwise complete.\n" +
-    `- Voice ordering is pickup-only right now. If the customer asks for delivery, say exactly: "${deliveryDisabledMessage()}" and keep fulfillment as PICKUP.\n\n` +
+    (isDeliveryEnabled()
+      // delivery1: same rules as services/api/src/delivery.ts deliveryDialogRules(); the app never offers a saved address (no phone verification).
+      ? "- Before checkout, if pickup/delivery is not set yet, ask exactly: \"¿Para entrega a domicilio o para recoger hoy?\" (English: \"Delivery or pickup today?\"). \"Para llevar\" / \"to go\" / \"recoger\" means PICKUP, not delivery. If DELIVERY: ask for the full address (street, number, apartment, city); never mention or guess a saved address. Then call set_address and check_delivery_zone, and say the delivery fee and ETA from its result. If it says needs_confirm, say staff will confirm the zone and fee — never guess a fee. If out of range, offer pickup.\n\n"
+      : `- Voice ordering is pickup-only right now. If the customer asks for delivery, say exactly: "${deliveryDisabledMessage()}" and keep fulfillment as PICKUP.\n\n`) +
     "Tool usage:\n" +
     "- Use the tools (add_to_order, update_order_item, remove_from_order, etc.) for every real change to the order.\n" +
     "- When a customer refers to 'the last one', 'that taco', '#2', etc., use the exact reference they gave.\n" +

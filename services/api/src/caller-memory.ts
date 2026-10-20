@@ -4,11 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/logs/calls");
-const file = path.join(logDir, "callers.json");
+const file = process.env.ELVI_CALLERS_FILE || path.join(logDir, "callers.json"); // delivery1: override for tests
 export const phoneKey = (p: unknown) => String(p || "").replace(/\D/g, "").slice(-10);
 
 export type NameSource = "manual" | "ticket" | "readback" | "square";
-type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string };
+type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string;
+  // delivery1: delivery addresses per phone (personal data — this file is gitignored). Newest first, max 5.
+  addresses?: SavedAddress[]; lastFulfillment?: "DELIVERY" | "PICKUP" | "FOR_HERE"; lastFulfillmentAt?: string };
+export type SavedAddress = { address: string; street: string; firstUsedAt: string; lastUsedAt: string; uses: number };
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi)\b/i;
@@ -152,4 +155,30 @@ export async function callerName(phoneRaw: string, lookup: (e164: string, signal
   }
   const got = await Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), timeoutMs))]);
   return got || (saved ? cleanFirstName(saved.name) : null);
+}
+
+// ---- delivery1: fulfillment + address history per caller ----
+const addrKey = (a: string) => String(a || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
+/** Remember how this caller ordered (and where to, for delivery). Address history keeps last-used date and a use count. */
+export function saveCallerFulfillment(phoneRaw: string, fulfillment: "DELIVERY" | "PICKUP" | "FOR_HERE", address?: { full: string; street: string } | null, at = new Date()) {
+  const phone = phoneKey(phoneRaw);
+  if (!phone) return;
+  const all = readAll();
+  const c = all[phone] || {};
+  c.lastFulfillment = fulfillment; c.lastFulfillmentAt = at.toISOString();
+  if (fulfillment === "DELIVERY" && address?.full) {
+    const list = c.addresses || [];
+    const k = addrKey(address.street || address.full);
+    const hit = list.find((x) => addrKey(x.street || x.address) === k);
+    if (hit) { hit.uses += 1; hit.lastUsedAt = at.toISOString(); if (address.full.length >= hit.address.length) hit.address = address.full; }
+    else list.push({ address: address.full, street: address.street, firstUsedAt: at.toISOString(), lastUsedAt: at.toISOString(), uses: 1 });
+    c.addresses = list.sort((a, b) => Date.parse(b.lastUsedAt) - Date.parse(a.lastUsedAt)).slice(0, 5);
+  }
+  all[phone] = c;
+  writeAll(all);
+}
+/** What we know for a ringing caller: last fulfillment + last-used address (phone side only — the caller ID is the identity). */
+export function savedDelivery(phoneRaw: string): { lastFulfillment: "DELIVERY" | "PICKUP" | "FOR_HERE" | null; lastFulfillmentAt: string | null; address: SavedAddress | null; addressCount: number } {
+  const c = readAll()[phoneKey(phoneRaw)];
+  return { lastFulfillment: c?.lastFulfillment || null, lastFulfillmentAt: c?.lastFulfillmentAt || null, address: c?.addresses?.[0] || null, addressCount: c?.addresses?.length || 0 };
 }

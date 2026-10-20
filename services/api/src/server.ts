@@ -23,6 +23,8 @@ import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
 import { registerTwilioRoutes } from "./twilio.js";
 import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
+import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
+import { quoteDeliveryAddress } from "./delivery-zone.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
 import { onCallerNameSaved } from "./twilio.js";
@@ -1330,7 +1332,7 @@ app.post("/api/:tenant/xai/transcribe", async (req, res, next) => {
   }
 });
 
-app.post("/api/:tenant/tools/check_delivery_zone", (req, res, next) => {
+app.post("/api/:tenant/tools/check_delivery_zone", async (req, res, next) => {
   try {
     const launchConfig = getLaunchConfig();
     if (!launchConfig.deliveryEnabled) {
@@ -1346,7 +1348,11 @@ app.post("/api/:tenant/tools/check_delivery_zone", (req, res, next) => {
     if (!address) {
       throw new Error("address is required");
     }
-    res.json(checkDeliveryZone(address));
+    // delivery1: geocoded distance zones (data/delivery.json); a failed lookup asks to confirm instead of guessing.
+    const q = await quoteDeliveryAddress(address);
+    const lang = String(req.body?.language || "es") === "en" ? "en" : "es";
+    res.json({ ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, zone: q.zone || null,
+      fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, message: q.message[lang], zip_check: checkDeliveryZone(address) });
   } catch (error) {
     next(error);
   }
@@ -1451,7 +1457,17 @@ app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
         source: c.source,
         expected: exp ? { text: exp.text, savedAt: exp.savedAt } : null,
         ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
-        score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : []
+        score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
+        // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
+        fulfillment: (() => {
+          const ef = detectFulfillment(c.turns || []);
+          const ea = ef.fulfillment === "DELIVERY" ? detectAddress(c.turns || []).address?.full || null : null;
+          const elviF = { fulfillment: ef.fulfillment, address: ea };
+          if (!m) return { elvi: elviF, ticket: null, score: null, misses: [] as string[] };
+          const tf = ticketFulfillment(m.order);
+          const sc = scoreFulfillment(elviF, tf);
+          return { elvi: elviF, ticket: tf, score: sc.score, misses: sc.misses, ticketMissedDelivery: sc.ticketMissedDelivery };
+        })()
       };
     });
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");

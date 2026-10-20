@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type AliasScope = "phone" | "app";
+export type AliasScope = "phone" | "app" | "fulfillment"; // delivery1: "fulfillment" rules only feed delivery.ts
 type RawAlias = { id: string; match: string; to: string; flags?: string; scope?: AliasScope[]; requires?: string; forbids?: string };
 type Alias = { id: string; re: RegExp; to: string; scope: AliasScope[]; requires?: RegExp; forbids?: RegExp };
 
@@ -25,7 +25,7 @@ export function compileAliases(raw: RawAlias[]): Alias[] {
         id: a.id,
         re: new RegExp(a.match, flags.includes("g") ? flags : flags + "g"),
         to: a.to,
-        scope: a.scope && a.scope.length ? a.scope : ["phone", "app"],
+        scope: a.scope && a.scope.length ? a.scope : ["phone", "app"], // "fulfillment" must be listed explicitly
         requires: a.requires ? new RegExp(a.requires, "iu") : undefined,
         forbids: a.forbids ? new RegExp(a.forbids, "iu") : undefined,
       });

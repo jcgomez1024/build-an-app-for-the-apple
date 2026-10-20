@@ -6,6 +6,8 @@ import { rbFormat } from "./readback.js";
 import { enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords } from "./site-catalog.js";
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
+import { deliveryDialogRules } from "./delivery.js";
+import { cachedQuote, quoteDeliveryAddress } from "./delivery-zone.js";
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
 import { preTurn, answerPick as chicharronAnswerPick } from "./pre-turn.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
@@ -1097,7 +1099,7 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
     "After any tool call, trust the returned cart state completely. Never say the cart is empty if it has items.",
     "When the customer says 'done', 'checkout', 'pagar', or similar, immediately set pickup if missing, then call checkout.",
     launchConfig.deliveryEnabled
-      ? "For delivery, collect address only if not already set. For pickup, proceed without asking."
+      ? deliveryDialogRules({ verifiedSavedStreet: null }) // delivery1: the app has no phone verification yet → always ask
       : `Voice ordering is pickup-only right now. If the customer asks for delivery, say exactly: "${launchConfig.deliveryDisabledMessage}" and keep fulfillment as PICKUP.`,
     "Resolve references like 'the last one', 'that taco', 'make it steak', '#2', or 'the first one' against the current cart and use update_item or remove_item.",
     "For mixed orders in one sentence ('two al pastor, one tripas, and a horchata'), call add_item with the full phrase — the system will split correctly.",
@@ -1380,12 +1382,17 @@ function handleRealtimeToolCall(name: string, argsJson: string) {
           }
         };
       }
-      return {
-        output: {
-          ok: true,
-          ...handleCheckDeliveryZone(args)
-        }
-      };
+      {
+        // delivery1: geocoded zone/fee/ETA (cached); not looked up yet → start the lookup and ask to re-check / confirm.
+        const address = String(args.address || "").trim();
+        const q = cachedQuote(address);
+        if (!q) void quoteDeliveryAddress(address).catch(() => null);
+        return {
+          output: q
+            ? { ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, message_es: q.message.es, message_en: q.message.en, zip_check: handleCheckDeliveryZone(args) }
+            : { ok: true, available: true, in_zone: null, needs_confirm: true, reason: "pending", message: "Looking up the address — call check_delivery_zone again in a moment; if it still can't be found, staff will confirm the zone and fee." }
+        };
+      }
     case "submit_order":
       return {
         output: {

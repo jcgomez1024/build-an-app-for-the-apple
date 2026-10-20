@@ -27,6 +27,13 @@
   .caller small { color:var(--muted); font-size:14px; }
   .badge { font-size:12px; font-weight:700; padding:2px 8px; border-radius:6px; background:#efe7ff; color:#5b2bbf; margin-left:6px; vertical-align:middle; }
   .badge.lang { background:#e7f0ff; color:#1f4fbf; }
+  /* delivery1 */
+  .badge.deliv { background:#d93025; color:#fff; font-size:14px; letter-spacing:.5px; }
+  .badge.pick { background:#e6f4ea; color:#137333; }
+  .deliv-box { margin-top:6px; padding:8px 10px; border-radius:8px; background:#fff4f2; border:2px solid #d93025; font-size:15px; line-height:1.35; }
+  .deliv-box.saved { background:#fffaf0; border-color:#e8a33d; }
+  .deliv-box .warn { color:#b3261e; font-weight:700; }
+  .deliv-box .ask { color:#555; font-size:13px; }
   button { font:inherit; font-weight:700; border:0; border-radius:14px; padding:14px 18px; cursor:pointer; font-size:17px; }
   button:disabled { opacity:.45; cursor:default; }
   .answer { background:var(--green); color:#fff; min-width:130px; }
@@ -134,6 +141,7 @@
       <h2>En llamada <span id="activeTimer">0:00</span></h2>
       <div class="big" id="activeName">—</div>
       <div class="num" id="activeNum"></div>
+      <div id="activeDelivery"></div>
       <div class="actions">
         <button class="mute" id="btnMute">Silenciar</button>
         <button class="hold" id="btnHold">En espera</button>
@@ -332,10 +340,27 @@ async function poll() {
   } catch (e) { $("status").className = "pill off"; $("status").textContent = "Sin conexión"; }
 }
 
+// delivery1: DELIVERY badge + address (said on this call, or the saved one as soon as a known caller rings) + zone/fee/ETA.
+function money(c) { return "$" + (c / 100).toFixed(c % 100 ? 2 : 0); }
+function deliveryHtml(d) {
+  if (!d) return "";
+  const q = d.quote;
+  const zone = q ? (q.ok ? `${esc(q.zone)} · ${money(q.feeCents)} · ~${esc(q.etaMinutes)} min${q.miles != null ? ` · ${esc(q.miles)} mi` : ""}`
+    : `<span class="warn">${q.reason === "out_of_range" ? `Fuera de zona (${esc(q.miles)} mi)` : "CONFIRMAR ZONA / TARIFA"}</span>`) : (d.address ? "Calculando zona…" : "");
+  if (d.fulfillment === "DELIVERY") {
+    return `<div class="deliv-box"><span class="badge deliv" style="margin-left:0">DELIVERY</span> ${d.address ? esc(d.address) : '<span class="warn">FALTA DIRECCIÓN</span>'}${d.address && !d.confirmed ? ' <span class="warn">· confirmar</span>' : ""}<br>${zone}</div>`;
+  }
+  if (d.fulfillment === "PICKUP" || d.fulfillment === "FOR_HERE") return `<div><span class="badge pick" style="margin-left:0">${d.fulfillment === "PICKUP" ? "PARA LLEVAR" : "PARA AQUÍ"}</span></div>`;
+  if (d.address) {
+    return `<div class="deliv-box saved">${d.lastFulfillment === "DELIVERY" ? '<span class="badge deliv" style="margin-left:0">ÚLTIMA: DELIVERY</span> ' : "Dirección guardada: "}${esc(d.address)}<br>${zone}<div class="ask">Pregunte: “¿Para entrega a domicilio o para recoger hoy?” → “¿A la misma dirección, ${esc(d.street || d.address)}?”</div></div>`;
+  }
+  return "";
+}
+
 function callerRow(c, button) {
   const name = c.name ? esc(c.name) : "Cliente";
   return `<div class="caller"><div class="who"><b>${name}${c.training ? '<span class="badge">Entrenamiento</span>' : ""}<span class="badge lang">${c.language === "en" ? "EN" : "ES"}</span></b>
-    <small>${esc(fmt(c.from))} · espera ${mmss(c.waitingSec)}</small></div>${button || ""}</div>`;
+    <small>${esc(fmt(c.from))} · espera ${mmss(c.waitingSec)}</small>${deliveryHtml(c.delivery)}</div>${button || ""}</div>`;
 }
 
 // One tap handler for the whole page, so a re-render (every 2 s) never swallows a tap.
@@ -347,6 +372,7 @@ document.addEventListener("pointerup", (ev) => {
 });
 const setHtml = (id, html) => { const el = $(id); if (el.innerHTML !== html) el.innerHTML = html; };
 function render() {
+  setHtml("activeDelivery", deliveryHtml((state.active || [])[0]?.delivery));
   const busy = !!call;
   const reconnecting = !busy && (!deviceOk || !navigator.onLine);
   $("status").className = "pill " + (state.online && !reconnecting ? "on" : "off");
