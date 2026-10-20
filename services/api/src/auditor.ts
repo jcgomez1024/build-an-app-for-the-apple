@@ -1,6 +1,7 @@
 // auditor1: "Elvi Auditor" — per completed call, compare the Square ticket with what was said and with Elvi's
 // listen-only order; flag staff/ticket anomalies (pings) and Elvi misses (fix candidates). Private queue:
 // data/auditor/findings.jsonl (gitignored). Summaries never include phone numbers or addresses.
+import { isStandardTopping } from "./standard-toppings.js";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -13,7 +14,7 @@ export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRIC
 export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG"];
 export type Flag = { type: FlagType; detail: string; es: string; en: string };
 export type Finding = { id: string; callSid: string; callAt: string; score: number | null; flags: Flag[]; summary_es: string; summary_en: string;
-  ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; createdAt: string; receipt?: string | null };
+  customerName?: string | null; ping: boolean; fixCandidate: boolean; notified: boolean; notifiedAt?: string; superseded?: boolean; createdAt: string; receipt?: string | null };
 
 const money = (c: number) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 const IGNORE = /\bmild salsa asada\b|^regular$/;
@@ -68,6 +69,7 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     const tc = (t.choices || []).filter((c: string) => !IGNORE.test(norm(c))), ec = (e.choices || []).filter((c: string) => !IGNORE.test(norm(c)));
     const tOnly = tc.filter((c: string) => !ec.some((x: string) => norm(x) === norm(c))), eOnly = ec.filter((c: string) => !tc.some((x: string) => norm(x) === norm(c)));
     for (const c of tOnly) {
+      if (isStandardTopping(t.baseName || t.name, c) || isStandardTopping(e.baseName || e.name, c)) continue; // sopesaso1: included
       if (said(all, c)) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`);
       else add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
     }
@@ -107,6 +109,7 @@ export function recordFinding(row: any, flags: Flag[], file = FINDINGS_FILE, now
   for (const p of prev) p.superseded = true;
   const ping = flags.some((f) => PING_TYPES.includes(f.type));
   const f: Finding = { id, callSid: row.callSid, callAt: row.at, score: row.score ?? null, flags, summary_es: summarize(flags, "es"), summary_en: summarize(flags, "en"),
+    customerName: row.customerName || null, // sopesaso1: first name heard on the call (or saved)
     ping, fixCandidate: flags.some((x) => x.type === "ELVI_MISS"), notified: !ping, createdAt: now.toISOString(), receipt: row.ticket?.receiptNumber || null };
   all.push(f); writeFindings(all, file);
   return f;

@@ -62,6 +62,8 @@ export function toPosLine(l: Line, cat: PosCatalog | null): Line {
     const i = choices.findIndex((c) => pos.variations.some((v) => norm(v.name) === norm(c)));
     if (i >= 0) { pv = pos.variations.find((v) => norm(v.name) === norm(choices[i])); choices.splice(i, 1); }
   }
+  // sopesaso1: "Regular" online vs several POS sizes (Sopesaso Elvis 10” / 2 x Sopes / Sope) → closest price, first on ties.
+  if (!pv && isRegular(srcVar.name) && pos.variations.length) pv = [...pos.variations].sort((a, b) => Math.abs(a.priceCents - srcVar.priceCents) - Math.abs(b.priceCents - srcVar.priceCents))[0];
   if (!pv) return l;
   choices = choices.filter((c) => norm(c) !== norm(pv!.name));
   const mods = pos.modifierListIds.flatMap((id) => cat.modifierLists[id]?.modifiers || []);

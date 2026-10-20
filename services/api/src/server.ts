@@ -1,4 +1,6 @@
 import path from "node:path";
+import { withIncludedToppings } from "./standard-toppings.js";
+import { nameFromTranscript } from "./order-name.js";
 import { rememberOrderName } from "./order-name.js";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -31,7 +33,7 @@ import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
 import { auditorFindingsByCall } from "./auditor.js";
 import { paymentReceiptReadOnly } from "./square.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
-import { planCallerName, saveCallerName } from "./caller-memory.js";
+import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
@@ -1477,7 +1479,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m ? expected[c.callSid] : undefined;
       const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
-      const scored = m || exp ? scoreOrder(elvi, ticket) : null;
+      const scored = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
       return {
         callSid: c.callSid, at: c.at, caller: c.caller, language: c.language || null, answered: c.answered ?? null, dialStatus: c.dialStatus || null,
         talkSec: c.talkSec || 0, hasAudio: !!(c.recordingSid && fs.existsSync(`${callsDir}/${c.recordingSid}.wav`)), recordingSid: c.recordingSid || null,
@@ -1489,7 +1491,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
-        orderName: (c as any).orderName || null, orderNameFrom: (c as any).orderNameFrom || null, // ordername1
+        orderName: (c as any).orderName || null, customerName: (() => { const n = (c as any).orderName || nameFromTranscript(c.turns || []); if (n) return cleanFirstName(n); try { const s = savedCallerName(c.caller); return s ? cleanFirstName(s.name) : null; } catch { return null; } })(), orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
           const ef = detectFulfillment(c.turns || []);

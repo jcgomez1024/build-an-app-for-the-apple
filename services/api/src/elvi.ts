@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import { withConTodo } from "./standard-toppings.js";
 import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
@@ -1565,7 +1566,7 @@ function defaultReply(language: Language) {
  */
 function withSalsaDefault(result: ElviResponse, heard: string, menu: MenuItem[], language: Language): ElviResponse {
   if (!result?.actions?.length) return result;
-  const actions = withDefaultSalsa(fixToppingNegations(fixNamedMeats(fixBurritoFillings(result.actions as any[], menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi") as ElviAction[];
+  const actions = withConTodo(withDefaultSalsa(fixToppingNegations(fixNamedMeats(fixBurritoFillings(result.actions as any[], menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi"), menu, heard, "elvi"), menu, heard) as ElviAction[]; // sopesaso1: con todo
   if (JSON.stringify(actions) === JSON.stringify(result.actions)) return result;
   const reply = String(result.reply || "");
   const isReadback = /(¿Algo más\?|Anything else\?)\s*$/.test(reply);

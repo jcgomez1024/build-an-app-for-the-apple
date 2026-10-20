@@ -3,7 +3,7 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { nameFromStaffAsk, rememberHeardNameIfNone } from "./order-name.js";
+import { nameFromTranscript, rememberHeardNameIfNone } from "./order-name.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -1724,7 +1724,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         try { if (!name) name = await callerName(caller, findName, 2500); } catch { /* no name */ }
         // ordername1 (listen-only): the name the caller gave when staff asked "¿a nombre de quién?" → ticket + log;
         // saved as an Elvi-heard name only if this number has no saved name (staff-entered always wins).
-        const heardOrderName = nameFromStaffAsk(result.turns as any);
+        const heardOrderName = nameFromTranscript(result.turns as any);
         if (heardOrderName) {
           const savedNow = !isTrainingCaller(caller) && rememberHeardNameIfNone(caller, heardOrderName);
           logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: "staff-ask", savedToMemory: savedNow });

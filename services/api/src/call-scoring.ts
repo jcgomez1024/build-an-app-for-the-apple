@@ -275,6 +275,12 @@ type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: st
 export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => Promise<any>;
 
 /** Replay caller turns through Elvi; apply her actions to a shadow cart. */
+/** sopesaso1: newer choices replace older ones in the same single-choice step; multi-pick steps add up. */
+export function mergeMods(old: any[], add: any[]): any[] {
+  const out = [...old];
+  for (const m of add) if (!out.some((o) => String(o.option) === String(m.option))) out.push(m);
+  return out;
+}
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const cart: Line[] = [];
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
@@ -324,7 +330,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const prevReply = history.length >= 4 ? history[history.length - 3].text : "";
     const answering = /\?\s*$/.test(prevReply) && !/algo más|anything else/i.test(prevReply);
     const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text);
-    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout" && !(a.type === "add_item" && source === "caller" && !names && !answering && cart.some((l) => l.itemId === a.itemId)));
+    // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
+    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").flatMap((a: any) => {
+      if (!(a.type === "add_item" && source === "caller" && !names && !answering && cart.some((l) => l.itemId === a.itemId))) return [a];
+      const prevLine = cart[cart.map((l) => l.itemId).lastIndexOf(a.itemId)];
+      const have = new Set((prevLine.modifiers || []).map((m: any) => String(m.option)));
+      const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)));
+      return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], a.modifiers || []) }] : [];
+    });
     apply(acts);
     const added = acts.filter((a: any) => a.type === "add_item");
     if (added.length) lastAdded = cart[cart.length - 1] || null;

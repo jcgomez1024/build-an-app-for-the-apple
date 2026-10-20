@@ -70,3 +70,20 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return !!saved;
 }
+
+// sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
+const NOT_NAMES = /^(mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta)$/iu;
+export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "staff") continue;
+    for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[,.!?]|\s*$)/gu)) {
+      const w = m[1];
+      if (NOT_NAMES.test(w)) continue;
+      const n = cleanFirstName(w);
+      if (n) return n;
+    }
+  }
+  return null;
+}
+/** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
+export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
