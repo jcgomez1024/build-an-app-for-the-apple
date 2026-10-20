@@ -245,34 +245,34 @@ const closedBypassed = (from: string) => {
   return !!(d10(from) && bypass.includes(d10(from)));
 };
 
-// ---- afterhours1: before opening / after closing (same voice + style as the Monday message), then hang up. ----
-// Hours = the website's store pickup hours (data/site-catalog.json → store.pickupHours, America/New_York).
-// Phone opens at the EARLIER of the site's open time and TWILIO_PHONE_OPEN (default 10:00, per Carlos's
-// "abrimos a las diez" — online pickup starts later). Closes at the site close + TWILIO_CLOSE_GRACE_MIN (default 5).
-// TWILIO_AFTERHOURS=0 turns this part off (Monday message stays). Override hours: TWILIO_PHONE_HOURS_JSON.
-export type DayHours = { open: number; close: number } | null; // minutes since midnight, ET
+// ---- afterhours1/hours2: before opening / after closing (same voice + style as the Monday message), then hang up. ----
+// hours2: the PHONE uses the real store hours in data/phone-hours.json (NOT the website's online-ordering hours).
+// The phone stops answering closeLeadMinutes (30) before close; TWILIO_CLOSE_GRACE_MIN (default 0) can add time back.
+// TWILIO_AFTERHOURS=0 turns this part off (Monday message stays). Override hours: TWILIO_PHONE_HOURS_JSON (same shape).
+export type DayHours = { open: number; close: number } | null; // minutes since midnight, ET (close = last answering minute + 1)
 const WD_KEYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const hm = (s: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(s || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };
-let siteHoursCache: { mtime: number; hours: Record<string, Array<{ open: string; close: string }>> | null } = { mtime: -1, hours: null };
-function siteStoreHours(): Record<string, Array<{ open: string; close: string }>> | null {
+type PhoneHoursFile = { closeLeadMinutes?: number; hours: Record<string, Array<{ open: string; close: string }>> };
+let phoneHoursCache: { mtime: number; data: PhoneHoursFile | null } = { mtime: -1, data: null };
+export const PHONE_HOURS_FILE = path.join(apiRoot, "data/phone-hours.json");
+function storeHours(): PhoneHoursFile | null {
   if (process.env.TWILIO_PHONE_HOURS_JSON) { try { return JSON.parse(process.env.TWILIO_PHONE_HOURS_JSON); } catch { return null; } }
-  const f = path.join(apiRoot, "data/site-catalog.json");
   try {
-    const st = fs.statSync(f);
-    if (st.mtimeMs !== siteHoursCache.mtime) siteHoursCache = { mtime: st.mtimeMs, hours: JSON.parse(fs.readFileSync(f, "utf8"))?.store?.pickupHours || null };
-  } catch { return siteHoursCache.hours; }
-  return siteHoursCache.hours;
+    const st = fs.statSync(PHONE_HOURS_FILE);
+    if (st.mtimeMs !== phoneHoursCache.mtime) phoneHoursCache = { mtime: st.mtimeMs, data: JSON.parse(fs.readFileSync(PHONE_HOURS_FILE, "utf8")) };
+  } catch { return phoneHoursCache.data; }
+  return phoneHoursCache.data;
 }
-/** Phone hours for one weekday (0=Sun), or null when closed all day / unknown. */
-export function phoneHours(wd: number, hours = siteStoreHours()): DayHours {
+/** Phone answering window for one weekday (0=Sun), or null when closed all day / unknown. */
+export function phoneHours(wd: number, cfg = storeHours()): DayHours {
   if (closedDaysEnv().includes(wd)) return null;
-  const list = hours ? hours[WD_KEYS[wd]] : undefined;
+  const list = cfg?.hours ? cfg.hours[WD_KEYS[wd]] : undefined;
   if (!list || !list.length) return null;
   const opens = list.map((w) => hm(w.open)).filter(Number.isFinite), closes = list.map((w) => hm(w.close)).filter(Number.isFinite);
   if (!opens.length || !closes.length) return null;
-  const early = hm(process.env.TWILIO_PHONE_OPEN || "10:00");
-  const open = Number.isFinite(early) ? Math.min(Math.min(...opens), early) : Math.min(...opens);
-  return { open, close: Math.max(...closes) };
+  const lead = Math.max(0, Number(cfg?.closeLeadMinutes ?? 30) || 0);
+  const grace = Math.max(0, Number(process.env.TWILIO_CLOSE_GRACE_MIN ?? "0") || 0);
+  return { open: Math.min(...opens), close: Math.max(...closes) - lead + grace };
 }
 const ES_HOURS = ["doce", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once"];
 const ES_DAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -294,12 +294,11 @@ export function closedState(from: string, at: Date = new Date()): ClosedState | 
   const wd = etWeekday(at), now = etMinutes(at);
   if (closedDaysEnv().includes(wd)) return { kind: "day", when: (wd + 1) % 7, openMin: 600, variant: "day" };
   if (process.env.TWILIO_AFTERHOURS === "0") return null;
-  const hours = siteStoreHours();
-  const today = phoneHours(wd, hours);
+  const hours = storeHours();
   if (!hours) return null; // no hours config → never block calls
-  const grace = Math.max(0, Number(process.env.TWILIO_CLOSE_GRACE_MIN ?? "5") || 0);
+  const today = phoneHours(wd, hours);
   if (today && now < today.open) return { kind: "before", when: "today", openMin: today.open, variant: `before-today-${today.open}` };
-  if (today && now < today.close + grace) return null;
+  if (today && now < today.close) return null;
   for (let i = 1; i <= 7; i++) {
     const d = (wd + i) % 7, h = phoneHours(d, hours);
     if (!h) continue;

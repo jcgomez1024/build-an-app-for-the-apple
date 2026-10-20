@@ -1,0 +1,14 @@
+{
+  "note": "hours2: real STORE hours for the phone (Carlos, Oct 19 2026), America/New_York. Separate from the website's online-ordering hours (site-catalog.json, starts 11 on purpose). The phone stops answering closeLeadMinutes BEFORE close (staff start cleaning).",
+  "timezone": "America/New_York",
+  "closeLeadMinutes": 30,
+  "hours": {
+    "MON": [],
+    "TUE": [{ "open": "10:00", "close": "18:00" }],
+    "WED": [{ "open": "10:00", "close": "21:00" }],
+    "THU": [{ "open": "10:00", "close": "21:00" }],
+    "FRI": [{ "open": "10:00", "close": "22:00" }],
+    "SAT": [{ "open": "10:00", "close": "22:00" }],
+    "SUN": [{ "open": "08:00", "close": "21:00" }]
+  }
+}
