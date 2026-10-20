@@ -1045,6 +1045,25 @@ export function ringSmsText(o: { name?: string | null; from: string; at: number 
   const name = gsm7(String(o.name || "").trim()).slice(0, 24).trim() || "Cliente";
   return `Cocina Elvis Staff Alert: ${name} ${time} ${num}${via} - please answer. Reply STOP to opt out.`;
 }
+/** smsfrom1: alert FROM the line the customer called (if attached to the messaging service), keeping the service SID;
+ *  otherwise the service pool picks. No service configured → From = the line (legacy). Pure. */
+export function smsSender(calledLine: string, attached: string[], svc: string, fallbackLine = ""): { from?: string; messagingServiceSid?: string } {
+  if (!svc) return { from: fallbackLine };
+  const hit = attached.find((n) => d10(n) && d10(n) === d10(calledLine));
+  return hit ? { from: hit, messagingServiceSid: svc } : { messagingServiceSid: svc };
+}
+let svcNums: { svc: string; at: number; nums: string[] } | null = null;
+/** Numbers attached to the messaging service (read-only GET, cached 1 h; [] on error → service pool). */
+async function serviceNumbers(svc: string): Promise<string[]> {
+  if (svcNums && svcNums.svc === svc && Date.now() - svcNums.at < 3600_000) return svcNums.nums;
+  try {
+    const r = await fetch(`https://messaging.twilio.com/v1/Services/${svc}/PhoneNumbers?PageSize=50`, { headers: { Authorization: twAuth() } });
+    const j: any = r.ok ? await r.json() : null;
+    const nums = (j?.phone_numbers || []).map((p: any) => String(p.phone_number));
+    svcNums = { svc, at: Date.now(), nums };
+    return nums;
+  } catch { return []; }
+}
 async function sendRingSms(base: string, cust: Entry) {
   if (process.env.TWILIO_RING_SMS !== "1" || smsSent.has(cust.callSid)) return;
   const to = smsNumbers(); const account = process.env.TWILIO_ACCOUNT_SID;
@@ -1060,11 +1079,13 @@ async function sendRingSms(base: string, cust: Entry) {
   const body = ringSmsText({ name: cust.name, from: cust.from, at: cust.at || now, forwardedFrom: callFwd.get(cust.callSid) });
   const svc = String(process.env.TWILIO_MESSAGING_SERVICE_SID || "").trim();
   const line = phoneLines().find((l) => d10(l.number) === d10(cust.line))?.number || phoneLines()[0]?.number || "";
+  const sender = smsSender(cust.line, svc ? await serviceNumbers(svc) : [], svc, line);
   for (const n of to) {
     smsTimes.push(now);
     try {
       const params = new URLSearchParams({ To: n, Body: body });
-      if (svc) params.set("MessagingServiceSid", svc); else params.set("From", line);
+      if (sender.messagingServiceSid) params.set("MessagingServiceSid", sender.messagingServiceSid);
+      if (sender.from) params.set("From", sender.from);
       if (/^https:\/\//.test(base)) params.set("StatusCallback", `${base}/api/twilio/sms-status?cust=${encodeURIComponent(cust.callSid)}`);
       const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Messages.json`, {
         method: "POST", headers: { Authorization: twAuth(), "content-type": "application/x-www-form-urlencoded" }, body: params,
