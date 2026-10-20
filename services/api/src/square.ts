@@ -1,4 +1,5 @@
 import { addressesIn } from "./delivery.js";
+import { cleanFullName } from "./caller-memory.js";
 import { quoteDeliveryAddress, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
@@ -116,9 +117,14 @@ async function squareRequest<T>(
   return body;
 }
 
-function buildFulfillment(input: CheckoutRequest) {
+/** ordername1: cleaned customer name (Title Case; junk like "Cliente"/"Receipt" dropped). */
+export function orderDisplayName(input: { customer?: { name?: string } }): string | null {
+  return cleanFullName(input.customer?.name || "");
+}
+
+export function buildFulfillment(input: CheckoutRequest) {
   const recipient = {
-    display_name: input.customer.name || "Cocina Elvis customer",
+    display_name: orderDisplayName(input) || "Cocina Elvis customer",
     phone_number: input.customer.phone,
     email_address: input.customer.email
   };
@@ -326,6 +332,8 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
       order: {
         location_id: runtime.locationId,
         reference_id: `voice-${nanoid(10)}`,
+        // ordername1: the customer's name on the order (POS ticket) — same as the fulfillment recipient display name.
+        ...(orderDisplayName(input) ? { ticket_name: orderDisplayName(input)!.slice(0, 30) } : {}),
         line_items: sandbox || !deliveryQuote?.ok ? lineItems : assertCatalogOnly([...lineItems, deliveryFeeLineItem(Number(deliveryQuote.feeCents))]),
         fulfillments: [buildFulfillment(input)],
         ...(sandbox && deliveryQuote?.ok ? { service_charges: [{ name: `Delivery fee (${deliveryQuote.zoneLabel})`, amount_money: { amount: deliveryQuote.feeCents, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false }] } : {}),

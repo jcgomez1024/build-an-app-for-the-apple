@@ -96,7 +96,7 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -129,6 +129,7 @@ function detail() {
     <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${c.hasAudio ? playerHtml(c) : ""}
+    ${c.orderName ? `<div class="note" style="margin:6px 0">A nombre de: <b>${esc(c.orderName)}</b></div>` : ""}
     ${auditHtml(c)}
     ${c.error ? `<div class="misses">Error al procesar: ${esc(c.error)}</div>` : ""}
     <h2 style="margin-top:8px">Conversación</h2>

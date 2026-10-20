@@ -1,4 +1,6 @@
 import WebSocket from "ws";
+import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
+import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
 import type { MenuItem } from "./menu.js";
 import { getLaunchConfig } from "./launch-config.js";
@@ -41,6 +43,8 @@ type ElviRequest = {
   history?: ConversationTurn[];
   /** Order session (persistent order context until submit/cancel). */
   sessionKey?: string;
+  /** ordername1: Elvi taking a phone order (server-side only, never from the web body). savedName = caller memory. */
+  phoneOrder?: { savedName?: string | null; orderName?: string | null };
 };
 
 export type ElviAudioRequest = {
@@ -1650,11 +1654,34 @@ export function recordLastAdd(key: string | undefined, actions: any[] | undefine
   if (a) lastAddBySession.set(key, { itemId: a.itemId, quantity: Number(a.quantity) || 1, modifiers: (a.modifiers || []).map((m: any) => ({ step: m.step || m.groupName, option: m.option, ...(m.isDefault ? { isDefault: true } : {}) })), at: Date.now() });
 }
 
+/** ordername1: on a phone order, ask/confirm the name before wrapping up; the answer becomes set_customer {name}. */
+export function phoneOrderNameTurn(input: ElviRequest, lastReply: string, DONE: RegExp): ElviResponse | null {
+  const po = input.phoneOrder;
+  if (!po) return null;
+  const lang = input.language, said = String(input.transcript || "");
+  const out = (reply: string, name?: string): ElviResponse => ({ language: lang, engine: "xai", reply, actions: name ? [{ type: "set_customer", name } as ElviAction] : [] } as ElviResponse);
+  const q = nameQuestionIn(lastReply);
+  if (q) {
+    const r = resolveNameAnswer(said, q, po.savedName);
+    if (!r) return out(ASK_NAME[lang]);
+    return out(nameAckText(lang, cleanFirstName(r.name) || r.name), r.name);
+  }
+  // Correction right after the thank-you ("no, es a nombre de …").
+  if (/^(Gracias|Thanks), [^.]+\. /.test(lastReply) && /^\s*(no|nop|perd[oó]n|sorry|actually|mejor)(?![\p{L}])/iu.test(said)) {
+    const n = nameFromAnswer(said);
+    if (n) return out(nameAckText(lang, cleanFirstName(n) || n), n);
+  }
+  if (/(¿Algo más\?|Anything else\?)\s*$/.test(lastReply) && DONE.test(said) && !po.orderName) return out(wrapUpNameQuestion(lang, po.savedName));
+  return null;
+}
+
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
   // fix18: "así está bien" / "es todo" / "that's all" after "¿Algo más?" closes the order. The model re-added the
   // last dish for these ("está" also matched Platillo de Guisado), so answer here with no cart change (never checkout).
   const lastReply = [...(input.history || [])].reverse().find((h) => h.role === "assistant")?.text || "";
   const DONE = /^\s*(?:no[\s,.!]*)?(?:(?:as[ií]\s+)?est[aá]\s+bien|(?:eso\s+)?es\s+todo|ser[ií]a\s+todo|nada\s+m[aá]s|that'?s\s+(?:fine|it|all|good|everything)|it'?s\s+fine|nothing\s+else|no\s+thanks?|that\s+will\s+be\s+all)(?:[\s,.!]*(?:gracias|thanks?|thank\s+you|por\s+favor|please))?[\s.!]*$/iu;
+  const named = phoneOrderNameTurn(input, lastReply, DONE);
+  if (named) return named;
   if (/(¿Algo más\?|Anything else\?)\s*$/.test(lastReply) && DONE.test(String(input.transcript || ""))) {
     const es = input.language === "es";
     return { language: input.language, engine: "xai", reply: es ? "¡Perfecto! Revisa tu orden y cuando estés listo, pasa a pagar." : "Perfect! Review your order and check out when you're ready.", actions: [] } as ElviResponse;

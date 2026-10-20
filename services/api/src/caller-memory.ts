@@ -7,7 +7,7 @@ const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../da
 const file = process.env.ELVI_CALLERS_FILE || path.join(logDir, "callers.json"); // delivery1: override for tests
 export const phoneKey = (p: unknown) => String(p || "").replace(/\D/g, "").slice(-10);
 
-export type NameSource = "manual" | "ticket" | "readback" | "square";
+export type NameSource = "manual" | "ticket" | "readback" | "elvi" | "square"; // ordername1: elvi = heard by Elvi on the order
 type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string;
   // delivery1: delivery addresses per phone (personal data — this file is gitignored). Newest first, max 5.
   addresses?: SavedAddress[]; lastFulfillment?: "DELIVERY" | "PICKUP" | "FOR_HERE"; lastFulfillmentAt?: string;
@@ -16,7 +16,7 @@ type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; 
 export type DeliveryProfile = { unitNote?: string; instructions?: string; photo?: string; updatedAt?: string };
 export type SavedAddress = { address: string; street: string; firstUsedAt: string; lastUsedAt: string; uses: number };
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
-const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
+const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi)\b/i;
 /** Full name as typed, trimmed and Title Cased; null for junk (digits only, Receipt/Cliente/Guest/TO GO, 1 letter, >40 chars). */
 export function cleanFullName(raw: string | null | undefined): string | null {

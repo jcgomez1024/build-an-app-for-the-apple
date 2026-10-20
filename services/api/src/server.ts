@@ -1,4 +1,5 @@
 import path from "node:path";
+import { rememberOrderName } from "./order-name.js";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
@@ -1176,11 +1177,21 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
+    rememberPhoneOrderName(req);
     res.status(201).json(result);
   } catch (error) {
     next(error);
   }
 });
+
+/** ordername1: an Elvi phone order (internal, localhost only — never a web body) saves its name as Elvi-heard. */
+function rememberPhoneOrderName(req: express.Request) {
+  const b = req.body || {};
+  const host = String(req.headers.host || "").split(":")[0];
+  const internal = !(req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"]) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
+  if (!internal || b.metadata?.source !== "phone" || !b.customer?.phone || !b.customer?.name) return;
+  try { rememberOrderName(String(b.customer.phone), String(b.customer.name)); } catch { /* best effort */ }
+}
 
 app.post("/api/orders/checkout", async (req, res, next) => {
   try {
@@ -1189,6 +1200,7 @@ app.post("/api/orders/checkout", async (req, res, next) => {
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     const result = await createCheckout(req.body, sq);
     clearOrderContext(orderSessionKey(req.body), "submitted");
+    rememberPhoneOrderName(req);
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -1477,6 +1489,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
+        orderName: (c as any).orderName || null, orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
           const ef = detectFulfillment(c.turns || []);
