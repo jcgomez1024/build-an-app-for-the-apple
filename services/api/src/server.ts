@@ -41,6 +41,14 @@ dotenv.config({ path: path.resolve(__dirname, "../.env.custapp") });
 dotenv.config();
 
 const app = express();
+// legal1: public Privacy Policy / Terms (Twilio A2P campaign) on any allowed host, no PIN/password. Static files only.
+const LEGAL_DIR = path.resolve(__dirname, "../legal");
+app.get(/^\/(privacy|terms)(\.html)?\/?$/, (req, res, next) => {
+  if (accessZone(req) === "none") return next();
+  const name = req.path.includes("privacy") ? "privacy.html" : "terms.html";
+  res.setHeader("Cache-Control", "public, max-age=300");
+  res.sendFile(path.join(LEGAL_DIR, name));
+});
 // order1: host-based public access. Localhost unrestricted; elvi host = phone only;
 // order host = password-gated customer app (no staff/phone routes); any other tunneled host = 404.
 app.use((req, res, next) => {
