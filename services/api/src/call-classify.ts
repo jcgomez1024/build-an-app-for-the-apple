@@ -1,6 +1,6 @@
 // unusual1: non-order calls for the Elvi Auditor → UNUSUAL_CALL {category, urgent, question, summary es/en}.
 // Rules only (transcript). No phone numbers/addresses in the output.
-export type UnusualCategory = "question_dietary" | "complaint" | "catering_large" | "wrong_number_spam" | "reservation_other";
+export type UnusualCategory = "question_dietary" | "question_general" | "complaint" | "catering_large" | "wrong_number_spam" | "reservation_other";
 export type Unusual = { category: UnusualCategory; urgent: boolean; question: string | null; summary_es: string; summary_en: string; answers?: FaqAnswer[] };
 // faq1: Carlos's answers (data/faq.json) — recorded on question calls and quoted in the UNUSUAL_CALL summary.
 import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
@@ -23,7 +23,10 @@ const URGENT = /\b(wrong order|got the wrong|gave me the wrong|missing|forgot|le
 const CATERING = /\b(catering|cater|party|fiesta|evento?|event|charolas?|trays?|half pan|full pan|medio pan|pan entero|banquete|graduaci[oó]n|graduation|quincea[nñ]era|boda|wedding|(?:para|for)\s+(?:\d{2,}|veinte|treinta|cuarenta|cincuenta|cien|twenty|thirty|forty|fifty|hundred)\s+(?:personas|people|guests|invitados))\b/;
 const SPAM = /\b(wrong number|n[uú]mero equivocado|me equivoqu[eé] de n[uú]mero|equivocado de n[uú]mero|extended warranty|car warranty|google (?:listing|business|my business)|seo|merchant services|credit card processing|insurance|press (?:one|1|two|2)|this is (?:a|an) (?:automated|recorded)|robocall|survey|encuesta|ganador|you(?:'ve| have) won)\b/;
 const RESERVATION = /\b(reserv\w*|mesa para|table for|job|trabajo|empleo|hiring|aplicaci[oó]n|application|apply|contratando|delivery driver position|lost and found|olvid[eé] (?:mi|un)|left my)\b/;
-const DIETARY_Q = /\b(vegetarian\w*|vegan\w*|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|lacteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|hours?|horario|open|abiertos?|cierran|close|price|precio|cuanto cuesta|how much|menu|do you (?:have|sell|make)|tienen|venden|hacen)\b/;
+// qgeneral1: dietary = ingredients/diet only; general = wait time, hours, prices, location, menu availability.
+const DIET_Q = /\b(vegetarian\w*|vegan\w*|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|lacteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|chicken broth|caldo|consome)\b/;
+const GENERAL_Q = /\b(how long|cuanto (?:tiempo|tarda|se tarda)|tarda[ns]?|wait\w*|espera|ready|listo|carry ?out|hours?|horario|open|abiert[oa]s?|cierra[ns]?|close[sd]?|price|precio|cuanto cuesta|cuanto es|how much|where|donde|address|direccion|location|ubicad[oa]|menu|do you (?:have|sell|make)|tienen|venden|hacen|still have|todavia)\b/;
+const DIETARY_Q = new RegExp(`${DIET_Q.source}|${GENERAL_Q.source}`);
 const firstQuestion = (caller: T[]) => {
   const q = caller.find((t) => /\?/.test(t.text) && DIETARY_Q.test(norm(t.text))) || caller.find((t) => /\?/.test(t.text)) || caller.find((t) => DIETARY_Q.test(norm(t.text)));
   return q ? scrub(q.text) : null;
@@ -48,6 +51,8 @@ export function classifyCall(turns: T[], hasOrder: boolean): Unusual | null {
   if (q && DIETARY_Q.test(all)) {
     const answers = faqAnswers(caller.filter((t) => DIETARY_Q.test(norm(t.text)) || /\?/.test(t.text)).map((t) => t.text).join(" "));
     const a = (l: "es" | "en") => (answers.length ? ` ${l === "es" ? "Respuesta" : "Answer"}: ${answers.map((x) => x[l]).join(" ")}` : "");
+    const diet = DIET_Q.test(all);
+    if (!diet) return { category: "question_general", urgent: false, question: q, answers: [], summary_es: `Pregunta general del cliente (espera/horario/precio/ubicación/menú), sin pedido.${quote(q)}`, summary_en: `General customer question (wait/hours/price/location/menu), no order.${quote(q)}` };
     return { category: "question_dietary", urgent: false, question: q, answers, summary_es: `Pregunta del cliente, sin pedido.${quote(q)}${a("es")}`, summary_en: `Customer question, no order.${quote(q)}${a("en")}` };
   }
   return null;
