@@ -342,6 +342,54 @@
       "example": "de bistec con arrocito",
       "source": "rice1: Con Arroz / With Rice add-on",
       "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "frijolitos",
+      "match": "\\bfrijolitos\\b",
+      "to": "frijoles",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "de pastor con frijolitos",
+      "source": "addons1: (C) Con / With paid add-ons",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "quesito-fresco",
+      "match": "\\bquesito fresco\\b",
+      "to": "queso fresco",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "con quesito fresco",
+      "source": "addons1: (C) Con / With paid add-ons",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "extra-quesito-derretido",
+      "match": "\\b(?:extra|mas|más) quesito derretido\\b",
+      "to": "extra queso derretido",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "con extra quesito derretido",
+      "source": "addons1: (C) Con / With paid add-ons",
+      "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "extra-cheese-melted",
+      "match": "\\bextra cheese melted\\b",
+      "to": "extra melted cheese",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "extra cheese melted please",
+      "source": "addons1: (C) Con / With paid add-ons",
+      "approved": "Carlos 2026-10-20"
     }
   ]
 }

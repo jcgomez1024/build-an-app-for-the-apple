@@ -2,7 +2,7 @@
 // listen-only order; flag staff/ticket anomalies (pings) and Elvi misses (fix candidates). Private queue:
 // data/auditor/findings.jsonl (gitignored). Summaries never include phone numbers or addresses.
 import { classifyCall } from "./call-classify.js";
-import { isStandardTopping } from "./standard-toppings.js";
+import { isStandardTopping, conAddonSaid } from "./standard-toppings.js";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -24,7 +24,8 @@ const STOP = new Set(["extra", "with", "side", "regular", "order", "orden", "mex
 export function keywords(name: string) {
   return [...new Set(norm(String(name).replace(/\*+/g, " ").replace(/\([^)]*\)/g, " ")).split(" ").filter((w) => w.length >= 4 && !STOP.has(w) && w !== "with" && w !== "con"))];
 }
-const said = (text: string, name: string) => { const t = ` ${norm(text)} `; const k = keywords(name); return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
+// addons1: a "(C) Con / With" paid add-on counts as said only on its own phrase ("con frijoles", "extra queso derretido").
+const said = (text: string, name: string) => { const ca = conAddonSaid(text, name); if (ca !== null) return ca; const t = ` ${norm(text)} `; const k = keywords(name); return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
 const isFee = (l: any) => /^delivery fee\b/i.test(String(l?.baseName || l?.name || ""));
 const isCustom = (l: any) => !String(l?.baseName || l?.name || "").trim() || (!l?.variationId && !isFee(l));
 
