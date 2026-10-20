@@ -61,7 +61,7 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
 }
 
 // "(TCO) Taco de Comal / Homemade" (POS variation) == "(TCO) Taco Comal / Homemade (+$1.00)" (online modifier).
-const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+export const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\(\s*[+-]?\s*\$\s*\d+(?:\.\d{1,2})?\s*\)/g, " ").replace(/^\s*\(\s*[a-z]{1,4}\s*\)\s*/i, " ").replace(/^\s*\d+\s*x\s+/i, "")
   .replace(/[^a-z0-9]+/g, " ").replace(/\b(de|del|la|el)\b/g, " ").replace(/\s+/g, " ").trim();
 const digits10 = (p: string) => String(p || "").replace(/\D/g, "").slice(-10);

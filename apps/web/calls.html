@@ -96,7 +96,7 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -129,6 +129,7 @@ function detail() {
     <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${c.hasAudio ? playerHtml(c) : ""}
+    ${auditHtml(c)}
     ${c.error ? `<div class="misses">Error al procesar: ${esc(c.error)}</div>` : ""}
     <h2 style="margin-top:8px">Conversación</h2>
     <div class="note">${c.hasAudio && c.turns.length ? "Toca una línea para escucharla · Tap a line to jump there" : ""}</div>
@@ -170,6 +171,18 @@ async function loadAudio(a, sid) {
   if (blobUrl) URL.revokeObjectURL(blobUrl);
   blobUrl = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: "audio/wav" }));
   if (a.isConnected) { a.src = blobUrl; a.load(); }
+}
+
+// auditor1: Elvi Auditor findings (data/auditor/findings.jsonl via the PIN-protected API).
+const AUD_LABEL = { STAFF_EXTRA: "Staff: de más", STAFF_MISSING: "Staff: faltó", CUSTOM_AMOUNT: "Monto libre", PRICE_DIFF: "Precio", NO_TICKET: "Sin ticket", DELIVERY_FEE_MISSING: "Sin envío", DELIVERY_FEE_WRONG: "Envío mal", ELVI_MISS: "Elvi" };
+function auditBadge(c) {
+  const a = c.audit; if (!a || !a.flags?.length) return "";
+  const ping = a.flags.filter((f) => f.type !== "ELVI_MISS").length, elvi = a.flags.length - ping;
+  return (ping ? `<span class="tag" style="background:${a.notified ? "#eee" : "#fdeaea"};color:${a.notified ? "#6b6b70" : "#c62828"}" title="${esc(a.summary_es)}">⚑ ${ping}</span>` : "") + (elvi ? `<span class="tag" title="Errores de Elvi">Elvi ${elvi}</span>` : "");
+}
+function auditHtml(c) {
+  const a = c.audit; if (!a || !a.flags?.length) return "";
+  return `<div class="card" style="margin:10px 0;padding:10px 12px;background:#fffaf5"><h2 style="margin:0 0 6px">Auditor ${a.notified ? '<span class="note">(avisado)</span>' : ""}</h2><ul style="margin:0;padding-left:18px">${a.flags.map((f) => `<li><b>${esc(AUD_LABEL[f.type] || f.type)}</b> — ${esc(f.es)} <span class="note">${esc(f.en)}</span></li>`).join("")}</ul></div>`;
 }
 
 // player1: audio player + clickable dialogue. Audio comes only from the localhost-only /api/calls/:sid/audio (WAV on this Mac).

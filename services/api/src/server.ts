@@ -26,6 +26,8 @@ import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
 import { quoteDeliveryAddress } from "./delivery-zone.js";
 import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
+import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
+import { auditorFindingsByCall } from "./auditor.js";
 import { paymentReceiptReadOnly } from "./square.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
@@ -1399,7 +1401,8 @@ const shadowTurn = (sessionKey: string) => async (transcript: string, language: 
   );
 };
 registerTwilioRoutes(app, shadowTurn, (e164, signal) => findCustomerGivenNameReadOnly(e164, buildSquareConfig(resolveTenant(undefined)), signal),
-  async (cart) => elviLines(cart, await getFullMenu(buildSquareConfig(resolveTenant(undefined)))));
+  // auditor1: ticket lines use the exact Square POS item/variation names and POS prices (read-only catalog).
+  async (cart) => { const cfg = buildSquareConfig(resolveTenant(undefined)); return toPosLines(elviLines(cart, await getFullMenu(cfg)), await loadPosCatalog(cfg)); });
 
 // Call Accuracy (staff-only): recordings and caller numbers never leave this Mac through the public tunnel.
 function localOnly(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -1453,8 +1456,10 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         catch (e) { squareError = e instanceof Error ? e.message.slice(0, 200) : String(e); }
       }
     }
+    const posCat = await loadPosCatalog(cfg);
+    const audits = auditorFindingsByCall();
     const rows = calls.map((c) => {
-      const elvi = elviLines(c.elviCart || [], menu);
+      const elvi = toPosLines(elviLines(c.elviCart || [], menu), posCat);
       if (c.fulfillment === "DELIVERY" && elvi.length) elvi.push(deliveryFeeLine(c.deliveryFeeCents));
       const m = c.recordingSid ? matchTicket(c, elvi, orders) : null;
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
@@ -1470,6 +1475,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         expected: exp ? { text: exp.text, savedAt: exp.savedAt } : null,
         ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, ...squareRefs(m.order), receiptUrl: null as string | null, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
+        elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
+        audit: audits[c.callSid] || null,
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
           const ef = detectFulfillment(c.turns || []);

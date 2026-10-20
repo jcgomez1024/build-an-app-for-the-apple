@@ -14,7 +14,10 @@
     "check:pack-guides": "tsx scripts/pack-especial-guides.ts --check",
     "sync:site-menu": "tsx scripts/site-menu-sync.ts",
     "check:site-menu": "tsx scripts/check-site-menu.ts",
-    "replay": "tsx --test test/replay/*.test.ts"
+    "replay": "tsx --test test/replay/*.test.ts",
+    "auditor:run": "tsx scripts/auditor.ts run",
+    "auditor:pending": "tsx scripts/auditor.ts pending",
+    "auditor:ack": "tsx scripts/auditor.ts ack"
   },
   "dependencies": {
     "cors": "^2.8.5",
