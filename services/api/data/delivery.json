@@ -40,5 +40,10 @@
     "distance": "straight line",
     "courier_time": "20-25 min"
   },
-  "serviceFeeCents": 0
+  "serviceFeeCents": 0,
+  "squareFeeVariations": {
+    "500": "UVVEBGR56Z52F2JL44V3V2CW",
+    "800": "G43MX6TMJ5LICU6RDC7TRXP6",
+    "_note": "catalog1: production Square item 'Delivery Fee' (5POTD5DCZ23CYGK32YVQGDS3) variations Delivery 1 $5 / Delivery 2 $8, verified read-only 2026-10-20"
+  }
 }

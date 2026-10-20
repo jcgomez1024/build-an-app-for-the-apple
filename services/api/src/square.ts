@@ -1,5 +1,5 @@
 import { addressesIn } from "./delivery.js";
-import { quoteDeliveryAddress, deliveryMinimumCents, type Quote } from "./delivery-zone.js";
+import { quoteDeliveryAddress, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
@@ -258,6 +258,22 @@ function findModifierOptionCatalogId(menuItem: MenuItem, groupId?: string, optio
   return "";
 }
 
+// catalog1 (Carlos's rule): production orders contain ONLY real Square catalog item variations — food, drinks and the
+// "Delivery Fee" item (Delivery 1 $5 / Delivery 2 $8). No ad-hoc/custom-amount lines, no ad-hoc service charges.
+// Sandbox keeps its "[TEST]" ad-hoc lines (the sandbox account has no catalog).
+export class CatalogOnlyError extends Error { staff = true; constructor(msg: string) { super(msg); this.name = "CatalogOnlyError"; } }
+export function assertCatalogOnly(lineItems: any[]) {
+  const bad = lineItems.filter((li) => !li?.catalog_object_id || li.base_price_money || /^\[TEST\]/.test(String(li.name || "")));
+  if (bad.length) throw new CatalogOnlyError(`Staff must enter this order: ${bad.map((b) => b?.name || "?").join(", ")} is not a Square catalog item (no custom amounts on production orders).`);
+  return lineItems;
+}
+export function deliveryFeeLineItem(feeCents: number, file: { squareFeeVariations?: Record<string, string> } = loadDeliveryFile()) {
+  const id = file.squareFeeVariations?.[String(feeCents)];
+  if (!id) throw new CatalogOnlyError(`No Square "Delivery Fee" variation for $${(feeCents / 100).toFixed(2)}; staff must confirm the delivery fee.`);
+  return { catalog_object_id: id, quantity: "1" };
+}
+function loadDeliveryFile() { try { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); } catch { return {}; } }
+
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
   const runtime = getSquareConfig(config);
   if (!runtime.locationId) {
@@ -287,6 +303,12 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
     if (subtotal < min) throw new Error(`Delivery minimum is $${(min / 100).toFixed(2)} before the delivery fee (this order is $${(subtotal / 100).toFixed(2)}). Add more items or choose pickup.`);
   }
   const voiceOrderNote = buildVoiceOrderNote(input, menu);
+  // catalog1: production = catalog variations only, delivery fee as the catalog "Delivery Fee" item; otherwise refuse (staff).
+  if (!sandbox) {
+    const prod: any[] = buildLineItems(input.cart, menu);
+    if (deliveryQuote?.ok) prod.push(deliveryFeeLineItem(Number(deliveryQuote.feeCents)));
+    assertCatalogOnly(prod);
+  }
   const lineItems = buildLineItems(input.cart, menu).map((li) => {
     if (!sandbox) return li;
     const mi = menu.find((m) => m.name === li.name);
@@ -304,9 +326,9 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
       order: {
         location_id: runtime.locationId,
         reference_id: `voice-${nanoid(10)}`,
-        line_items: lineItems,
+        line_items: sandbox || !deliveryQuote?.ok ? lineItems : assertCatalogOnly([...lineItems, deliveryFeeLineItem(Number(deliveryQuote.feeCents))]),
         fulfillments: [buildFulfillment(input)],
-        ...(deliveryQuote?.ok ? { service_charges: [{ name: `Delivery fee (${deliveryQuote.zoneLabel})`, amount_money: { amount: deliveryQuote.feeCents, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false }] } : {}),
+        ...(sandbox && deliveryQuote?.ok ? { service_charges: [{ name: `Delivery fee (${deliveryQuote.zoneLabel})`, amount_money: { amount: deliveryQuote.feeCents, currency: "USD" }, calculation_phase: "TOTAL_PHASE", taxable: false }] } : {}),
         metadata: {
           source: "voice_order",
           voice_order_source: cleanNote(input.metadata?.source || getLaunchConfig().voiceOrderSource, 60),
