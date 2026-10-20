@@ -13,7 +13,8 @@ import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
-import { searchOrdersReadOnly } from "./square.js";
+import { searchOrdersReadOnly, paymentReceiptReadOnly } from "./square.js";
+import { squareRefs } from "./call-accuracy.js";
 import { orderNameForPhone } from "./call-accuracy.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
@@ -451,7 +452,51 @@ export type ElviTicket = {
   deliverTo?: { name?: string; address?: string; phone?: string; notes?: string } | null;
   lines: ElviTicketLine[];
   training: boolean; openAsk?: string | null; transcript?: string;
+  squareRef?: SquareRef | null; // ticketno1: the real Square ticket once staff ring it up
 };
+export type SquareRef = { receiptNumber: string | null; ticketName: string | null; orderId: string; paymentId: string | null; dashboardUrl: string | null; receiptUrl: string | null; matchedBy: string; linkedAt: string };
+// ---- ticketno1: link each Elvi ticket to the real Square ticket (read-only) so staff see Square's own numbers ----
+// "Receipt #" = payment receipt_number (what the printed receipt and Transactions search show); "Ticket" = POS ticket name.
+const squareLinksFile = path.join(logDir, "square-links.json");
+function loadSquareLinks(): Record<string, SquareRef> { try { return JSON.parse(fs.readFileSync(squareLinksFile, "utf8")); } catch { return {}; } }
+export function squareLinkFor(callSid: string): SquareRef | null { return loadSquareLinks()[callSid] || null; }
+let lastSquareLink = 0;
+/** Pick the Square order for a call: phone match, or ticket name = caller's name, or the only order rung up right after. */
+export function pickSquareOrder(t: { at: string; caller: string; name: string | null }, orders: any[]): { order: any; by: string } | null {
+  const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";
+  const win = orders.filter((o) => { const c = Date.parse(o.created_at); return c >= at - 2 * 60000 && c <= at + 60 * 60000; });
+  const phoneOf = (o: any) => (o.fulfillments || []).flatMap((f: any) => [f.pickup_details, f.delivery_details].map((x: any) => d10(x?.recipient?.phone_number || "")));
+  const byPhone = phone ? win.filter((o) => phoneOf(o).includes(phone)) : [];
+  if (byPhone.length) return { order: byPhone[0], by: "phone" };
+  const byName = first ? win.filter((o) => String(o.ticket_name || "").trim().split(/\s+/)[0]?.toLowerCase() === first) : [];
+  if (byName.length === 1) return { order: byName[0], by: "ticket name" };
+  const soon = win.filter((o) => Date.parse(o.created_at) <= at + 20 * 60000);
+  if (soon.length === 1) return { order: soon[0], by: "only ticket in 20 min" };
+  return null;
+}
+export async function linkSquareTickets(force = false) {
+  if (!force && Date.now() - lastSquareLink < 60000) return;
+  lastSquareLink = Date.now();
+  const links = loadSquareLinks();
+  const todo = [...ticketsByCall.values()].filter((t) => !links[t.callSid] && Date.now() - Date.parse(t.at) > 60000 && Date.now() - Date.parse(t.at) < 72 * 3600000);
+  if (!todo.length) return;
+  const start = new Date(Math.min(...todo.map((t) => Date.parse(t.at))) - 3 * 60000).toISOString();
+  let orders: any[] = [];
+  try { orders = await searchOrdersReadOnly(start, new Date().toISOString()); } catch { return; }
+  const used = new Set(Object.values(links).map((l) => l.orderId));
+  let changed = false;
+  for (const t of todo) {
+    const pick = pickSquareOrder(t, orders.filter((o) => !used.has(o.id)));
+    if (!pick) continue;
+    const r = squareRefs(pick.order);
+    const rc = r.paymentId ? await paymentReceiptReadOnly(r.paymentId) : null;
+    const ref: SquareRef = { receiptNumber: rc?.receiptNumber || r.receiptNumber, ticketName: r.ticketName, orderId: r.orderId, paymentId: r.paymentId, dashboardUrl: r.dashboardUrl, receiptUrl: rc?.receiptUrl || null, matchedBy: pick.by, linkedAt: new Date().toISOString() };
+    links[t.callSid] = ref; used.add(r.orderId); changed = true;
+    t.squareRef = ref;
+    logCall({ event: "square_ticket", callSid: t.callSid, receiptNumber: ref.receiptNumber, orderId: ref.orderId, matchedBy: ref.matchedBy });
+  }
+  if (changed) { try { fs.writeFileSync(squareLinksFile, JSON.stringify(links, null, 1)); saveTickets(); } catch { /* best effort */ } }
+}
 // ---- delivery1: fulfillment label + console view (saved address as soon as a known caller rings) ----
 export const FULFILLMENT_LABEL: Record<Fulfillment, string> = { DELIVERY: "DELIVERY / ENTREGA", PICKUP: "TO GO / LLEVAR", FOR_HERE: "FOR HERE / PARA AQUI" };
 const callDelivery = new Map<string, { fulfillment: Fulfillment | null; address: string | null; street: string | null; confirmed: boolean; quote: Quote | null }>();
@@ -1515,6 +1560,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
   });
   app.get("/api/phone/state", phoneAuth, async (req, res) => {
     if (req.query.ready === "1") touchAgent("poll"); // heartbeat: a counter page with a working phone is open
+    void linkSquareTickets().catch(() => {});
     prune();
     // Best-effort reconcile with Twilio so Contestar survives API restarts mid-hold.
     if (req.query.ready === "1") {
@@ -1576,7 +1622,9 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       await Promise.all(unnamed.map(async (n) => { try { found.set(n, await callerName(n, findName, 700)); } catch { found.set(n, null); } }));
       for (const r of rows) if (!r.name && found.get(r.number)) r.name = found.get(r.number)!;
     }
-    res.json({ range, days, summary: summarize(rows), rows });
+    void linkSquareTickets().catch(() => {});
+    const links = loadSquareLinks();
+    res.json({ range, days, summary: summarize(rows), rows: rows.map((r) => ({ ...r, square: links[r.callSid] || null })) });
   });
 
   app.get("/api/phone/voicemail/:sid", phoneAuth, (req, res) => {

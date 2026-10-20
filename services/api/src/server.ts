@@ -25,6 +25,8 @@ import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PH
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
 import { quoteDeliveryAddress } from "./delivery-zone.js";
+import { squareRefs } from "./call-accuracy.js";
+import { paymentReceiptReadOnly } from "./square.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
 import { onCallerNameSaved } from "./twilio.js";
@@ -1456,7 +1458,7 @@ app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
         elvi, elviTotalCents: elvi.reduce((a, l) => a + l.totalCents, 0),
         source: c.source,
         expected: exp ? { text: exp.text, savedAt: exp.savedAt } : null,
-        ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
+        ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, ...squareRefs(m.order), receiptUrl: null as string | null, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
@@ -1470,6 +1472,13 @@ app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
         })()
       };
     });
+    // ticketno1: real Square receipt number + public receipt link (read-only Payments API, cached).
+    await Promise.all(rows.map(async (r: any) => {
+      if (!r.ticket?.paymentId) return;
+      const rc = await Promise.race([paymentReceiptReadOnly(r.ticket.paymentId, cfg), new Promise<null>((ok) => setTimeout(() => ok(null), 2500))]);
+      if (rc?.receiptNumber) r.ticket.receiptNumber = rc.receiptNumber;
+      r.ticket.receiptUrl = rc?.receiptUrl || null;
+    }));
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
     res.json({ calls: rows, trend: trend(customer), trainingTrend: trend(training), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }

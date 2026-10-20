@@ -1085,3 +1085,17 @@ export async function findCustomerGivenNameReadOnly(phoneE164: string, config?: 
   const c = r.customers?.[0];
   return (c?.given_name || c?.nickname || "").trim() || null;
 }
+
+// ticketno1: read-only payment receipt (receipt_number + public receipt_url), cached per payment.
+const receiptCache = new Map<string, { receiptNumber: string | null; receiptUrl: string | null }>();
+export async function paymentReceiptReadOnly(paymentId: string, config?: Partial<SquareRuntimeConfig>) {
+  if (!paymentId) return null;
+  const hit = receiptCache.get(paymentId);
+  if (hit) return hit;
+  try {
+    const r = await squareRequest<{ payment?: { receipt_number?: string; receipt_url?: string } }>(`/v2/payments/${encodeURIComponent(paymentId)}`, { method: "GET" }, getSquareConfig(config));
+    const v = { receiptNumber: r.payment?.receipt_number || null, receiptUrl: r.payment?.receipt_url || null };
+    receiptCache.set(paymentId, v);
+    return v;
+  } catch { return null; }
+}

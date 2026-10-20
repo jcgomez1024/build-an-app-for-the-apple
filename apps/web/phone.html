@@ -270,6 +270,15 @@ function ticketDateParts(iso) {
     return { date, time };
   } catch { return { date: "—", time: "" }; }
 }
+// ticketno1: Square's own numbers (searchable in Square): Receipt # (payment) + Ticket (POS ticket name), with links.
+function sqRefHtml(r) {
+  if (!r) return "";
+  const parts = [];
+  if (r.receiptNumber) parts.push(r.receiptUrl ? `<a href="${esc(r.receiptUrl)}" target="_blank" rel="noopener" title="Order ${esc(r.orderId)}">Receipt #${esc(r.receiptNumber)}</a>` : `<span title="Order ${esc(r.orderId)}">Receipt #${esc(r.receiptNumber)}</span>`);
+  if (r.ticketName) parts.push(`Ticket: ${esc(r.ticketName)}`);
+  if (r.dashboardUrl) parts.push(`<a href="${esc(r.dashboardUrl)}" target="_blank" rel="noopener">Dashboard</a>`);
+  return parts.join(" · ") || `<span title="Order ${esc(r.orderId)}">pedido …${esc(String(r.orderId).slice(-6))}</span>`;
+}
 function renderTicketPaper(t) {
   if (!t) return '<div class="ticket-empty">Sin ticket todavía.</div>';
   const title = t.name ? esc(t.name) : ("Receipt #" + esc(t.receiptCode || "XXXX"));
@@ -292,7 +301,7 @@ function renderTicketPaper(t) {
   } else if (phone) {
     deliver = `<div class="phone">${esc(phone)}</div>`;
   }
-  const foot = `<hr class="rule"><div class="foot">Receipt: #${esc(t.receiptCode || "XXXX")}</div>`;
+  const foot = `<hr class="rule"><div class="foot">${t.squareRef ? `Square: ${sqRefHtml(t.squareRef)}<br><small>Elvi #${esc(t.receiptCode || "XXXX")}</small>` : `Elvi #${esc(t.receiptCode || "XXXX")} <small>(aún sin ticket de Square)</small>`}</div>`;
   const phase = t.phase === "listening"
     ? '<div class="phase listening">Elvi escuchando… (live aún no activo)</div>'
     : '<div class="phase">Final · desde grabación</div>';
@@ -314,7 +323,7 @@ function renderTickets() {
   setHtml("ticketView", renderTicketPaper(t));
   const list = state?.tickets || [];
   setHtml("lastTickets", list.length ? list.map((x) => {
-    const label = x.name || ("Receipt #" + x.receiptCode);
+    const label = (x.name || ("Elvi #" + x.receiptCode)) + (x.squareRef?.receiptNumber ? " · Receipt #" + x.squareRef.receiptNumber : "");
     const summary = (x.lines || []).filter((l) => l.kind !== "divider").map((l) => `${l.quantity}× ${l.name}`).slice(0, 3).join(", ") || "(vacío)";
     const on = (selectedTicketSid || (state.activeTicket && state.activeTicket.callSid) || (list[0] && list[0].callSid)) === x.callSid ? " on" : "";
     return `<button type="button" data-ticket="${esc(x.callSid)}" class="${on}"><b>${esc(label)}</b><small>${esc(summary)}</small></button>`;
@@ -499,7 +508,7 @@ function callRow(r) {
   return `<div class="cl-row ${r.missed ? "missed" : ""} ${r.outcome === "rejected" ? "rejected" : ""}">
     <div class="cl-time">${esc(r.time)}</div>
     <div class="cl-who"><b>${who}</b>${r.training ? '<span class="tag-test">prueba</span>' : ""}${r.line ? `<span class="cl-line">${esc(r.line)}</span>` : ""}
-      <div class="cl-meta">${r.name ? esc(r.numberDisplay) + " · " : ""}<span class="cl-out ${cls}">${esc(r.outcomeLabel)}</span>${dur}</div></div>
+      <div class="cl-meta">${r.name ? esc(r.numberDisplay) + " · " : ""}<span class="cl-out ${cls}">${esc(r.outcomeLabel)}</span>${dur}${r.square ? " · " + sqRefHtml(r.square) : ""}</div></div>
     <div class="cl-acts">${acts}</div></div>`;
 }
 function renderCalls(j) {

@@ -208,3 +208,18 @@ export function nameMatchForCall(call: { at: string; caller: string; talkSec?: n
   }
   return best ? { name: best.name, orderId: best.orderId, createdAt: best.createdAt } : null;
 }
+
+/** ticketno1: the numbers Square shows for an order. "Receipt #" = the payment's receipt_number (first 4 characters of
+ *  the payment/tender ID, as printed on the receipt and searchable in Transactions); "Ticket" = the order's ticket_name
+ *  typed at the POS. The long order ID stays for linking. */
+export function squareRefs(order: any) {
+  const tender = (order?.tenders || [])[0];
+  const paymentId: string | null = tender?.payment_id || tender?.id || null;
+  return {
+    orderId: String(order?.id || ""),
+    receiptNumber: paymentId ? paymentId.slice(0, 4) : null,
+    ticketName: order?.ticket_name ? String(order.ticket_name) : null,
+    paymentId,
+    dashboardUrl: paymentId ? `https://app.squareup.com/dashboard/sales/transactions/${paymentId}` : null,
+  };
+}

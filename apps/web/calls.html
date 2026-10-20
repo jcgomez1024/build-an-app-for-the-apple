@@ -87,7 +87,7 @@ function list() {
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
       <div class="t">${fmtTime(c.at)}${tagHtml(c)}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
-      <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · ticket " + money(c.ticket.totalCents) : ""}</div>
+      <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
 }
@@ -101,12 +101,23 @@ function linesTable(lines, pairs, side) {
   }).join("")}<tr><td></td><td><b>Total</b></td><td><b>${money(lines.reduce((a, l) => a + l.totalCents, 0))}</b></td></tr></table>`;
 }
 
+// ticketno1: Square's own numbers — "Receipt #XXXX" (payment receipt number, searchable in Transactions) and the POS
+// "Ticket" name; links to the public receipt and the Dashboard transaction. The long order ID is kept on hover.
+function sqRef(t) {
+  if (t.matchedBy === "manual") return "orden a mano";
+  const parts = [];
+  if (t.receiptNumber) parts.push(t.receiptUrl ? `<a href="${esc(t.receiptUrl)}" target="_blank" rel="noopener" title="Order ${esc(t.id)}">Receipt #${esc(t.receiptNumber)}</a>` : `<span title="Order ${esc(t.id)}">Receipt #${esc(t.receiptNumber)}</span>`);
+  if (t.ticketName) parts.push(`Ticket: ${esc(t.ticketName)}`);
+  if (t.dashboardUrl) parts.push(`<a href="${esc(t.dashboardUrl)}" target="_blank" rel="noopener">Dashboard</a>`);
+  return parts.length ? parts.join(" · ") : `<span title="Order ${esc(t.id)}">pedido …${esc(String(t.id || "").slice(-6))}</span>`;
+}
+
 function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
     <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
-    <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ticket ${esc(c.ticket.id.slice(-6))} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
+    <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${c.hasAudio ? `<audio controls preload="none" style="width:100%;margin:10px 0" src="/api/calls/${encodeURIComponent(c.recordingSid)}/audio"></audio>` : ""}
     ${c.error ? `<div class="misses">Error al procesar: ${esc(c.error)}</div>` : ""}
     <h2 style="margin-top:8px">Conversación</h2>
