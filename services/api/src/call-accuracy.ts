@@ -13,7 +13,7 @@ export const TARGET = 95;
 export type CallRecord = {
   callSid: string; at: string; caller: string; calledNumber?: string; language?: string; heard?: string;
   answered?: boolean; dialStatus?: string; talkSec?: number; recordingSid?: string; recordingSec?: number; file?: string;
-  turns?: any[]; transcript?: string; elviCart?: any[]; error?: string; source?: "customer" | "training";
+  turns?: any[]; transcript?: string; elviCart?: any[]; fulfillment?: "DELIVERY" | "PICKUP" | null; deliveryFeeCents?: number | null; error?: string; source?: "customer" | "training";
   voicemail?: { recordingSid: string; durationSec: number; transcript: string; cart: any[] };
 };
 
@@ -46,8 +46,10 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
       if (e.event === "recording") { // latest processing wins (reprocessed calls)
         c.recordingSid = e.recordingSid; c.recordingSec = Number(e.durationSec) || 0; c.file = e.file;
         c.turns = e.turns; c.transcript = e.transcript; c.elviCart = e.elviOrder?.cart || []; c.error = undefined;
+        if (e.elviOrder?.fulfillment) c.fulfillment = e.elviOrder.fulfillment;
         if (!c.language && e.greetingLanguage) c.language = e.greetingLanguage;
       }
+      if (e.event === "fulfillment" && (e.fulfillment === "DELIVERY" || e.fulfillment === "PICKUP")) { c.fulfillment = e.fulfillment; c.deliveryFeeCents = e.feeCents ?? c.deliveryFeeCents ?? null; }
       if (e.event === "recording_error") c.error = e.error;
       if (e.event === "voicemail") { c.answered = false; c.dialStatus = "voicemail"; c.voicemail = { recordingSid: e.recordingSid, durationSec: Number(e.durationSec) || 0, transcript: e.transcript || "", cart: e.elviOrder?.cart || [] }; }
       calls.set(e.callSid, c);
@@ -84,6 +86,13 @@ export function elviLines(cart: any[] = [], menu: MenuItem[]): Line[] {
     const q = Number(l.quantity) || 1;
     return { itemId: l.itemId, baseName: item?.name, variationId: item?.squareVariationId, name: item?.readbackName || item?.name || l.itemId, quantity: q, choices, unitCents: unit, totalCents: unit * q };
   });
+}
+
+/** fix1036: Elvi's delivery fee as the POS rings it ("Delivery Fee · Delivery 1" $5 ≤4 mi / "Delivery 2" $8). Unknown distance → $5. */
+export function deliveryFeeLine(feeCents?: number | null): Line {
+  const fee = Number(feeCents) > 0 ? Number(feeCents) : 500;
+  const v = fee >= 800 ? "Delivery 2" : "Delivery 1";
+  return { baseName: "Delivery Fee", name: `Delivery Fee · ${v}`, quantity: 1, choices: [v], unitCents: fee, totalCents: fee };
 }
 
 export function ticketLines(order: any): Line[] {

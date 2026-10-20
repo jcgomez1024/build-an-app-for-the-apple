@@ -25,7 +25,7 @@ import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PH
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
 import { quoteDeliveryAddress } from "./delivery-zone.js";
-import { squareRefs } from "./call-accuracy.js";
+import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
 import { paymentReceiptReadOnly } from "./square.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName } from "./caller-memory.js";
@@ -1454,6 +1454,7 @@ app.get("/api/calls/accuracy", localOnly, async (req, res, next) => {
     }
     const rows = calls.map((c) => {
       const elvi = elviLines(c.elviCart || [], menu);
+      if (c.fulfillment === "DELIVERY" && elvi.length) elvi.push(deliveryFeeLine(c.deliveryFeeCents));
       const m = c.recordingSid ? matchTicket(c, elvi, orders) : null;
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m ? expected[c.callSid] : undefined;

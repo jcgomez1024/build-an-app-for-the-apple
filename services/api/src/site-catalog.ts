@@ -435,6 +435,8 @@ export function readbackName(item: MenuItem, language: "en" | "es") {
   if (product.skus.length < 2) return half(base) || base;
   const sku = cleanSku(product.skus.find((k) => k.squareId === item.squareVariationId)?.name || "");
   if (!sku) return half(base);
+  // fix1036: a soda SKU is its own product ("Coca Cola" under the "Pepsi" product → not "Pepsi Coca Cola").
+  if (/\b(?:coca|cola|sprite|fanta|pepsi|jarritos?|7\s*up|dr\.?\s*pepper|mountain\s+dew|squirt|topo\s+chico)\b/i.test(sku)) return sku;
   const skuWords = concepts(sku);
   const baseWords = [...concepts(half(base))];
   return baseWords.some((w) => skuWords.has(w)) ? sku : `${half(base)} ${sku}`;

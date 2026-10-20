@@ -2,6 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
+import { fulfillmentIn, detectFulfillment } from "./delivery.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -236,6 +237,21 @@ export function removalNotesIn(text: string): string[] {
 }
 const lineHasDeluxe = (l: any) => (l?.modifiers || []).some((m: any) => /\bDELUXE\b/i.test(String(m?.option || "")) && !/^\s*regular\b/i.test(String(m?.option || "")));
 
+// fix1036 (real call 2026-10-20 10:36): words that never order anything on their own.
+const FILLER = /(?<![\p{L}\p{N}])(?:s[ií]|no|oh|ah|okay|ok|okey|bueno|pues|este|creo\s+que|yo\s+creo|est[aá]\s+bien|as[ií]\s+est[aá]\s+bien|eso|ser[ií]a|todo|nada\s+m[aá]s|gracias|claro|perfecto|listo|ya|mhm|aj[aá]|that'?s|it|fine|yes|yeah|good|all)(?![\p{L}\p{N}])/giu;
+const DRINK = /\b(?:coca(?:\s+cola)?|coke|pepsi|sprite|fanta|jarritos?|horchata|jamaica|tamarindo|agua|soda|refresco|diet)\b/iu;
+const ORDER_QTY = new RegExp(`\\b(?:${QTY.slice(3, -1)})\\b`, "iu");
+const TOKENS = /__(?:DELIVERY|PICKUP|FOR_HERE)__/g;
+/** What's left of a caller turn after filler and the words of the item just added ("Sí, coca, sí. No, creo que" → ""). */
+export function orderResidue(text: string, lastItemId?: string | null) {
+  let t = applySharedAliases(String(text || ""), "phone").replace(TOKENS, " ").toLowerCase();
+  const itemWords = String(lastItemId || "").toLowerCase().replace(/^sq-/, "").replace(/-[a-z0-9]{6}$/i, "").split(/[^a-zñ]+/).filter((w) => w.length > 2 && w !== "drink");
+  t = t.replace(FILLER, " ");
+  for (const w of itemWords) t = t.replace(new RegExp(`\\b${w}s?\\b`, "giu"), " ");
+  return t.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
+
 type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[] };
 export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => Promise<any>;
 
@@ -284,7 +300,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     history.push({ role: "customer", text }, { role: "assistant", text: String(r?.reply || "") });
     const wasLast = lastTouched;
     touchedNow.length = 0;
-    apply((r?.actions || []).filter((a: any) => a.type !== "checkout"));
+    // fix1036: Elvi re-adding dishes from history on a turn that names no dish, drink or quantity and answers no
+    // open question is a duplicate, not a new item.
+    const prevReply = history.length >= 4 ? history[history.length - 3].text : "";
+    const answering = /\?\s*$/.test(prevReply) && !/algo más|anything else/i.test(prevReply);
+    const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text);
+    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout" && !(a.type === "add_item" && source === "caller" && !names && !answering && cart.some((l) => l.itemId === a.itemId)));
+    apply(acts);
+    const added = acts.filter((a: any) => a.type === "add_item");
+    if (added.length) lastAdded = cart[cart.length - 1] || null;
     if (source !== "auto") attributeRemovals(text, wasLast);
     steps.push({ source, heard: text, language, reply: r?.reply, actions: (r?.actions || []).map((a: any) => a.type) });
     return r;
@@ -293,6 +317,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let autoAccepted = false;
   const containers: ContainerPlan = { breaks: [], splits: [], phrases: [] };
   let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
+  // fix1036: fulfillment heard anywhere (caller or staff read-back "delivery, tus quesadillas…"); last mention wins.
+  let fulfillment: "DELIVERY" | "PICKUP" | null = null;
+  let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
+  let lastAdded: Line | null = null;
+  const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
   // Phone staff fill in the details; accept Elvi's suggested choices for whatever is still open.
@@ -315,7 +344,25 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   turns = merged;
   for (const t of turns) {
-    if (t.speaker !== "caller") { steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null; continue; }
+    if (t.speaker !== "caller") {
+      steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
+      noteFulfillment(t.text);
+      staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
+      continue;
+    }
+    noteFulfillment(t.text);
+    if (staffAskedComal) {
+      staffAskedComal = false;
+      if (/^[¿¡\s]*(s[ií]|yes|ok(?:ay)?|aj[aá]|eso|claro|correcto|exacto|comal)(?![\p{L}\p{N}])/iu.test(t.text) && !/\bno\b/iu.test(t.text)) {
+        const q = [...cart].reverse().find((l) => /quesadilla/i.test(l.itemId));
+        if (q) {
+          const mods = q.modifiers || [];
+          const i = mods.findIndex((m: any) => /tortilla/i.test(String(m?.step || "")));
+          if (i >= 0 && !/comal/i.test(String(mods[i].option || ""))) { mods[i] = { ...mods[i], option: COMAL_OPTION.quesadilla }; q.modifiers = mods; }
+          steps.push({ source: "caller-comal", heard: t.text });
+        }
+      }
+    }
     if (staffAskedSplit) {
       const asked = staffAskedSplit;
       staffAskedSplit = null;
@@ -333,11 +380,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto)$/iu.test(bare)) {
       steps.push({ source: "caller-ack", heard: t.text }); continue;
     }
+    // fix1036: a turn that is only filler, a repeat of the item just added ("Oh, coca está bien", "Sí, coca, sí. No,
+    // creo que…") or a delivery/pickup remark ("para un pedido a domicilio") orders nothing. Sending it to Elvi made her
+    // re-add earlier dishes from history (the doubled tacos/quesadillas/Cokes on the 10:36 call).
+    if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
+    if (fulfillmentIn(t.text) && !FOOD.test(t.text) && !DRINK.test(applySharedAliases(t.text, "phone"))) { steps.push({ source: "caller-fulfillment", heard: t.text }); continue; }
     if (cart.length && /^(comal|harina|flour|homemade|ma[ií]z|corn|campechana|bistec|chorizo|asada|pastor|al\s*pastor|bistec y chorizo)$/iu.test(bare)) {
       steps.push({ source: "caller-clarify", heard: t.text }); continue;
     }
     for (const raw of splitItems(cleanPhrase(t.text))) {
-      let piece = cleanPhrase(raw);
+      let piece = cleanPhrase(raw).replace(TOKENS, " ").replace(/\b(?:para\s+)?(?:un\s+)?pedido\s*$/iu, "").replace(/\s{2,}/g, " ").trim();
       if (!piece) continue;
       // ticket5: container split ("en diferentes recipientes", "separado", "split it") → NO BEBIDA dividers on the ticket.
       const sp = detectContainerSplit(piece, { afterSplit: containers.phrases.length > 0 });
@@ -371,5 +423,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
   await acceptOpen(lang0());
-  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true };
+  fulfillment = detectFulfillment(turns as any).fulfillment as any;
+  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment };
 }

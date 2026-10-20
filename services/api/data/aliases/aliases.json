@@ -203,6 +203,56 @@
       ],
       "source": "delivery1 (Carlos 2026-10-19)",
       "approved": "Carlos 2026-10-19"
+    },
+    {
+      "id": "maiz-comal",
+      "match": "\\b(?:o\\s+)?de\\s+ma[ií]z(?:\\s+en\\s+el\\s+comal)?\\b",
+      "to": "de comal",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\bquesadillas?\\b",
+      "forbids": "\\b(?:doradas?|fritas?|harina|flour|taquer[ao]s?|street)\\b",
+      "example": "tres quesadillas de bistec o de maíz",
+      "source": "real call 2026-10-20 10:36 (staff: ¿de maíz en el comal?) — Square ticket QCO Quesadilla de Comal",
+      "approved": "Carlos 2026-10-20 (fix request)"
+    },
+    {
+      "id": "taparrosca-coca",
+      "match": "\\b(?:con\\s+)?(?:la\\s+|las\\s+)?(?:tapa\\s*rroscas?|taparroscas?)\\b",
+      "to": "coca cola",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "me pone dos con la taparrosca",
+      "source": "real call 2026-10-20 10:36 (glass-bottle/twist-cap Coke)",
+      "approved": "Carlos 2026-10-20 (fix request)"
+    },
+    {
+      "id": "coca-cokes",
+      "match": "\\b(?:cocas?(?:\\s+colas?)?|cokes?)\\b(?!\\s+(?:diet|light|zero))",
+      "to": "coca cola",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "forbids": "\\b(?:diet|light|zero|pepsi)\\b",
+      "example": "dos cocas / two cokes",
+      "source": "real call 2026-10-20 10:36",
+      "approved": "Carlos 2026-10-20 (fix request)"
+    },
+    {
+      "id": "yo-creo",
+      "match": "[,\\s]*\\byo\\s+creo\\b[,]?",
+      "to": " ",
+      "scope": [
+        "phone"
+      ],
+      "example": "me pone dos, yo creo, con la taparrosca",
+      "source": "real call 2026-10-20 10:36",
+      "approved": "Carlos 2026-10-20 (fix request)"
     }
   ]
 }
