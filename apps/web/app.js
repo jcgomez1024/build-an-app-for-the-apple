@@ -252,6 +252,7 @@ function stopLocalTtsAudio() {
 }
 
 async function speakLocalText(text, language = getEffectiveLanguage(), options = {}) {
+  clearReplyWatchdog();
   const cleanText = formatCentsForSpeech(text, language).trim();
   if (!cleanText) {
     return;
@@ -1007,6 +1008,7 @@ async function openRealtimeSession() {
 
   ws.addEventListener("close", () => {
     console.log("[REALTIME] WebSocket closed");
+    if (state.turnInFlight) void speakFallbackReply(); // reply1: a dropped live session mid-turn still gets an answer
     state.xaiSessionReady = false;
     state.turnInFlight = false;
     ui.status.textContent = "Realtime disconnected";
@@ -1060,6 +1062,7 @@ async function openRealtimeSession() {
     }
 
     if (payload.type === "response.output_audio.delta" && payload.delta) {
+      clearReplyWatchdog();
       if (isLocalBuildActive()) return;
       console.log("[AUDIO] Received output_audio.delta, type:", typeof payload.delta, "length:", String(payload.delta).length);
       queuePcmDeltaForPlayback(payload.delta);
@@ -1067,6 +1070,7 @@ async function openRealtimeSession() {
     }
 
     if ((payload.type === "response.output_audio_transcript.delta" || payload.type === "response.output_text.delta") && payload.delta) {
+      clearReplyWatchdog();
       if (isLocalBuildActive()) return;
       state.activeReplyText += String(payload.delta || "");
       ui.reply.textContent = formatCentsForSpeech(state.activeReplyText);
@@ -1076,6 +1080,7 @@ async function openRealtimeSession() {
 
     if (/input_audio.*transcription.*(completed|done|final)/i.test(String(payload.type || "")) && payload.transcript) {
       state.lastUserText = String(payload.transcript || "").trim();
+      armReplyWatchdog();
       return;
     }
 
@@ -1083,7 +1088,16 @@ async function openRealtimeSession() {
       if (cancelRealtimeResponseDuringLocalBuild()) {
         return;
       }
-      const result = await handleToolCall(payload.name, payload.arguments || "{}");
+      // reply1: a failed tool call (server restart, network) used to throw here → no function output → Elvi went silent.
+      let result;
+      try { result = await handleToolCall(payload.name, payload.arguments || "{}"); }
+      catch (err1) {
+        console.warn("[TOOL] failed, retrying once", err1);
+        await new Promise((r) => setTimeout(r, 1500));
+        try { result = await handleToolCall(payload.name, payload.arguments || "{}"); }
+        catch (err2) { console.warn("[TOOL] failed twice", err2); result = { output: { ok: false, reason: "server_unavailable", message: fallbackReplyText(), instruction: "Nothing changed in the cart. Say the message, then wait." } }; }
+      }
+      result = result || { output: { ok: false, reason: "no_result", message: fallbackReplyText() } };
       const actions = result.actions || (result.action ? [result.action] : []);
       if (result.output?.ok === false && /unknown_menu_item|item_not_available/.test(String(result.output.reason || ""))) {
         state.lastUnavailableMessage = String(state.lastUnavailableMessage || result.output.message || "");
@@ -1196,6 +1210,9 @@ function getResilientElviInstructions(language) {
       : `- Voice ordering is pickup-only right now. If the customer asks for delivery, say exactly: "${deliveryDisabledMessage()}" and keep fulfillment as PICKUP.\n\n`) +
     "Tool usage:\n" +
     "- Use the tools (add_to_order, update_order_item, remove_from_order, etc.) for every real change to the order.\n" +
+    "- 'Taqueros', 'taquitos', 'street tacos' or 'de maíz' mean the Taco Taquero / Street Taco tortilla. 'Make them X', 'change it to X', 'mejor X', 'que sean X' on items already in the cart = update_order_item on those lines (never a new add), then confirm the change in one short sentence.\n" +
+    "- A required choice the customer didn't say (like the taco tortilla: comal, harina or taquero) must be asked, not assumed.\n" +
+    "- Always answer every customer turn out loud, even if a tool fails: say a short sorry and ask them to repeat.\n" +
     "- When a customer refers to 'the last one', 'that taco', '#2', etc., use the exact reference they gave.\n" +
     "- For complex builds, call the tool once you have a complete choice. You can ask one focused question at a time.\n\n" +
     "Recovery style examples:\n" +
@@ -3701,7 +3718,8 @@ async function handleChatFallbackTurn(text) {
     if (reply) await speakLocalText(reply, getEffectiveLanguage());
   } catch (error) {
     console.warn("[CHAT] fallback failed", error);
-    ui.reply.textContent = getEffectiveLanguage() === "es" ? "Perdón, no pude procesar eso. Intenta otra vez." : "Sorry, I couldn't process that. Please try again.";
+    ui.reply.textContent = fallbackReplyText();
+    void speakLocalText(ui.reply.textContent, getEffectiveLanguage()).catch(() => {}); // reply1: say it, not just show it
   } finally {
     state.turnInFlight = false;
     ui.status.textContent = "Connected";
@@ -3820,7 +3838,8 @@ function sendUserTurn(text, options = {}) {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
     if (state.turnInFlight) return false;
     // Orders go through the same menu resolver the realtime tool uses; other talk goes to /elvi/chat.
-    if (isLikelyVoiceOrderCommand(text) && !isCurrentOrderQuestion(text)) void resolvePendingComboTurnLocally(text);
+    if (state.cart.length && MODIFY_CUE.test(text)) void handleLocalModifyTurn(text); // reply1: "change X to Y" on cart items
+    else if (isLikelyVoiceOrderCommand(text) && !isCurrentOrderQuestion(text)) void resolvePendingComboTurnLocally(text);
     else void handleChatFallbackTurn(text);
     return true;
   }
@@ -3841,6 +3860,7 @@ function sendUserTurn(text, options = {}) {
 
   state.turnInFlight = true; setAvatarState("thinking");
   state.lastUserText = text;
+  armReplyWatchdog();
   beginRealtimeTurnCartCheck();
   sendWs({
     type: "conversation.item.create",
@@ -6557,4 +6577,50 @@ async function checkFavorites(phoneRaw) {
       return b; }));
     void speakLocalText(fav.greeting, getEffectiveLanguage());
   } catch {}
+}
+
+// reply1 (Carlos): Elvi ALWAYS answers. If a live-voice turn gets no reply (tool error, server restart, dropped
+// response) within 12 s, she says a short fallback and the turn is released.
+let replyWatchdog = null;
+function fallbackReplyText() {
+  return getEffectiveLanguage() === "es" ? "Perdón, se me fue la señal un segundo. ¿Me lo repite, por favor?" : "Sorry, I lost you for a second. Could you say that again?";
+}
+function clearReplyWatchdog() { if (replyWatchdog) { clearTimeout(replyWatchdog); replyWatchdog = null; } }
+function armReplyWatchdog(ms = 12000) {
+  clearReplyWatchdog();
+  replyWatchdog = setTimeout(() => { replyWatchdog = null; void speakFallbackReply(); }, ms);
+}
+async function speakFallbackReply() {
+  clearReplyWatchdog();
+  if (state.elviSpeaking) return;
+  const text = fallbackReplyText();
+  try { sendWs({ type: "response.cancel" }); } catch {}
+  state.turnInFlight = false;
+  ui.reply.textContent = text;
+  ui.status.textContent = "Connected";
+  try { await speakLocalText(text, getEffectiveLanguage()); } catch {}
+}
+
+// reply1: typed / fallback "change X to Y" on cart items → same resolver update the live voice tool uses, then confirm.
+const MODIFY_CUE = /\b(?:make (?:it|them|those|that)|change|switch|instead|actually|can you (?:make|change)|cambia(?:r|lo|los|las)?|c[aá]mbia(?:lo|los|las|me)|mejor|que sean|hazlo|hazlos|en vez de|en lugar de)\b/i;
+async function handleLocalModifyTurn(text) {
+  state.turnInFlight = true; setAvatarState("thinking");
+  const es = getEffectiveLanguage() === "es";
+  let say = "";
+  try {
+    const r = await handleToolCall("update_order_item", { reference: text, change_modifiers: [text] });
+    const actions = r?.actions || (r?.action ? [r.action] : []);
+    if (actions.length) {
+      applyActions(actions); renderCart();
+      const idx = actions[0].cartIndex ?? state.cart.length - 1;
+      const line = describeCartLine(state.cart[idx] || state.cart[state.cart.length - 1]);
+      say = (es ? `Listo, quedó así: ${line}. ¿Algo más?` : `Done, it's now: ${line}. Anything else?`);
+    } else say = r?.output?.message || "";
+  } catch (e) { console.warn("[MODIFY] failed", e); }
+  if (!say) { state.turnInFlight = false; return handleChatFallbackTurn(text); }
+  state.turnInFlight = false;
+  ui.reply.textContent = formatCentsForSpeech(say);
+  state.chatFallbackHistory = Array.isArray(state.chatFallbackHistory) ? state.chatFallbackHistory : [];
+  state.chatFallbackHistory.push({ role: "customer", text }, { role: "assistant", text: say });
+  try { await speakLocalText(say, getEffectiveLanguage()); } catch {}
 }

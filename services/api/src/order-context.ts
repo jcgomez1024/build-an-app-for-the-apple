@@ -136,7 +136,7 @@ function apply(p: Pending, item: MenuItem, text: string) {
       if (os.length === 1) { p.fills[g.id] = fillOf(g, os[0]); continue; }
       const f = mentions(text, g)[0];
       if (f) { p.fills[g.id] = fillOf(g, f.o); any = true; }
-      else if ((g as any).defaultOptions?.length) {
+      else if ((g as any).defaultOptions?.length && !(/tortilla|shell/i.test(g.name) && os.length > 1)) { // tortilla1: ask the tortilla
         // Site preselect (Comal, Grande) applied silently and read back (fix9).
         const d = os.find((o) => (g as any).defaultOptions.includes(o.name));
         if (d) p.fills[g.id] = fillOf(g, d);

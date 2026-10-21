@@ -178,7 +178,7 @@ function leadingQuantity(text: string) {
  * preselect, the same as checking out on cocinaelvis.com. Meat groups are still asked.
  * Returns the completed add, or the result asking only the groups that are really open.
  */
-export const STREET_WORDS = /\b(street|taquer[oa]s?|de ma[ií]z|maiz|chic[oa]s?)\b/i;
+export const STREET_WORDS = /\b(street|taquer[oa]s?|taquit[oa]s?|de ma[ií]z|maiz|chic[oa]s?)\b/i;
 export const SMALL_WORDS = /\b(chic[oa]s?|chiquit[oa]s?|small|pequen[oa]s?|pequeñ[oa]s?|regular|10\s*(inch|in|inches|pulgadas)?|diez pulgadas|ten inch)\b|'10/i;
 export function completeWithSiteDefaults(result: any, items: MenuItem[], text: string) {
   if (!result || result.ok !== false || result.reason !== "missing_required_modifiers" || !result.selectedItem?.itemId) return result;
@@ -197,7 +197,8 @@ export function completeWithSiteDefaults(result: any, items: MenuItem[], text: s
     else if (g && !/carne|meat/i.test(g.name) && !/mix option/i.test(g.name) && g.defaultOptions?.length) {
       if (/\bsize\b/i.test(g.name) && SMALL_WORDS.test(text)) pick = options.filter((o: any) => /'\s*10\b/.test(o.name)).slice(0, 1);
       else if (/tortilla|shell/i.test(g.name) && STREET_WORDS.test(text)) pick = options.filter((o: any) => /taquer|street/i.test(o.name)).slice(0, 1);
-      if (!pick.length) pick = options.filter((o: any) => g.defaultOptions.includes(o.name));
+      // tortilla1 (Carlos): a required tortilla choice is ASKED when the customer didn't say one (no silent Comal preselect).
+      if (!pick.length && !(/tortilla|shell/i.test(g.name) && options.length > 1)) pick = options.filter((o: any) => g.defaultOptions.includes(o.name));
     }
     if (pick.length) for (const o of pick) filled.push({ groupId: g.id, groupName: g.name, option: o.name, optionId: o.id, priceDeltaCents: o.priceDeltaCents || 0, quantity: 1 });
     else open.push(req);
