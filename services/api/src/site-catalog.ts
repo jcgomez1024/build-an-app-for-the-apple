@@ -751,6 +751,11 @@ export function fixNamedMeats<T extends { type: string; itemId?: string; modifie
   // do NOT stack every named meat onto each add (that trips maxSelections and strips them all).
   const oneEachHits = said.match(/\b(?:una?|uno|otra?|otro|another|one)\s+de\b/g);
   if (oneEachHits && oneEachHits.length >= 2) return actions;
+  // tortilla2: split lines of one item that each already carry their own meat ("2 de pastor en harina y 2 de asada")
+  // are final — never stack every named meat onto each line.
+  const meatOf = (a: any) => (a?.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.groupName || m.step || ""))).map((m: any) => m.option).sort().join("+");
+  const adds = actions.filter((a: any) => a?.type === "add_item");
+  if (adds.length >= 2 && adds.every((a: any) => meatOf(a)) && new Set(adds.map(meatOf)).size >= 2) return actions;
   return actions.map((a: any) => {
     if (a?.type !== "add_item") return a;
     const item = (menu || []).find((m: any) => m.id === a.itemId);

@@ -363,6 +363,8 @@ export function closedTwiml(base: string, lang?: Lang, state?: ClosedState | nul
 }
 
 /** intro2 (Carlos, Oct 18): short notices. v2 cache keys so the old long clips (kept on disk) are never served. */
+/** intro3: new / unknown-language caller TwiML — opening, notice, then Enqueue (ring legs start on the first hold poll). */
+export const introTwiml = (base: string, notice: string, enqueue: string) => `${playOrSay(base, "es", "Cocina Elvis", "opening-es")}${notice}${enqueue}`;
 export const NOTICE_NEW: Record<Lang, string> = {
   es: "Enseguida le atendemos. Esta llamada puede ser grabada.",
   en: "We'll be right with you. This call may be recorded.",
@@ -1272,7 +1274,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const msg = playOrSay(base, lang, (isHeld ? HELD_TEXT : HOLD_TEXT)[lang], isHeld ? `held-${lang}` : `hold-${lang}`);
     if (isHeld) return `${msg}<Play>${xmlEscape(music)}</Play>`;
     const sw = HOLD_SWITCH[lang];
-    return `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST">${msg}${playOrSay(base, sw.voice, sw.text, sw.key)}<Play>${xmlEscape(music)}</Play></Gather>`;
+    return `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST">${playOrSay(base, sw.voice, sw.text, sw.key)}${msg}<Play>${xmlEscape(music)}</Play></Gather>`;
   };
 
   const voicemailXml = (base: string, lang: Lang) =>
@@ -1342,9 +1344,14 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       return res.type("text/xml").send(xml(`${await noticeLine(k.language, { name, returning: true, voicemail: false, base })}${queueOrVoicemail(base, sid, from, to, k.language, name)}`));
     }
     logCall({ event: "incoming", callSid: sid, caller: from, calledNumber: to, greeting: k.known ? "returning-unknown-language" : "new", flow: "counter" });
-    res.type("text/xml").send(xml(`${playOrSay(base, "es", "Cocina Elvis", "opening-es")}
-  <Gather input="speech" speechTimeout="auto" timeout="1" language="es-MX" hints="hola,hello,hi,buenas,bueno" action="${base}/api/twilio/lang" method="POST" actionOnEmptyResult="true"/>
-  <Redirect method="POST">${base}/api/twilio/lang</Redirect>`));
+    // intro3 (Carlos, Oct 21): no language-listening pause. "Cocina Elvis" + the notice in Spanish, then ring at once.
+    // English stays one key away on the hold loop ("For English, press 2"); a saved language still wins next call.
+    if (sid) callLang.set(sid, "es");
+    logCall({ event: "language", callSid: sid, caller: from, heard: "", language: "es", from: "default" });
+    let nm: string | null = null;
+    try { nm = await namePromise; } catch { /* plain notice */ }
+    if (nm && sid) logCall({ event: "caller_name", callSid: sid, caller: from, name: nm });
+    res.type("text/xml").send(xml(introTwiml(base, await noticeLine("es", { name: nm, returning: k.known, voicemail: false, base }), queueOrVoicemail(base, sid, from, to, "es", nm))));
   });
 
   app.post("/api/twilio/lang", form, guard, async (req, res) => {

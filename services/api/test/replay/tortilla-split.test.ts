@@ -27,3 +27,10 @@ test("tortilla2: all lines named → no confirm; an unrelated answer drops the p
   preTurn("tsp4", "4 tacos, 2 de pastor en harina y 2 de asada", menu, "es");
   assert.equal(preTurn("tsp4", "y una horchata grande", menu, "es").updates, undefined);
 });
+import { fixNamedMeats } from "../../src/site-catalog.ts";
+test("tortilla2: split lines keep one meat each (fixNamedMeats doesn't stack pastor+asada on both)", () => {
+  const r = preTurn("tsp5", "quiero 4 tacos, 2 de pastor en harina y 2 de asada", menu, "es");
+  const acts = r.adds!.map((a) => ({ type: "add_item", ...a }));
+  const out = fixNamedMeats(acts as any, menu, "quiero 4 tacos, 2 de pastor en harina y 2 de asada");
+  assert.deepEqual(out.map((a: any) => a.modifiers.filter((m: any) => m.groupId === "B").map((m: any) => m.option)), [["Alpastor / Roasted Pork"], ["Bistec / Steak"]]);
+});
