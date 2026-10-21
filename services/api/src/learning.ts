@@ -8,7 +8,7 @@ type Flag = { type: string; detail: string };
 const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE_MISSING|DELIVERY_FEE_WRONG)$/;
 const clone = (l: Line): Line => ({ ...l, choices: [...(l.choices || [])] });
 export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): { lines: Line[]; corrected: string[] } {
-  let gt = ticket.map(clone); const corrected: string[] = [];
+  let gt = ticket.map(clone); const corrected: string[] = []; const used = new Set<Line>();
   for (const f of flags.filter((x) => STAFF.test(x.type))) {
     const d = String(f.detail || "");
     let m = /^ticket item never mentioned:\s*\d+\s*×\s*(.+)$/.exec(d);
@@ -20,9 +20,13 @@ export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): {
     m = /^custom amount \$([\d.]+)$/.exec(d);
     if (m) { // a2: staff rang a said item as a custom amount — the voice item with that total replaces the nameless line
       const cents = Math.round(Number(m[1]) * 100), i = gt.findIndex((l) => !String(l.name || "").trim() && l.totalCents === cents);
-      const said = elvi.filter((e) => !gt.some((g) => g.name === e.name));
-      const pick = said.find((e) => e.totalCents === cents);
-      if (i >= 0 && pick) { gt.splice(i, 1, clone(pick)); corrected.push(`custom amount → ${pick.baseName || pick.name}`); }
+      const said = elvi.filter((e) => !ticket.some((g) => g.name === e.name));
+      let pick = said.find((e) => e.totalCents === cents && !used.has(e));
+      // alex1: no exact total (staff typed their own price) — when the nameless lines and the voice-only items are the same
+      // count, pair them in price order (cheapest custom ↔ cheapest voice item)
+      if (!pick && i >= 0) { const blanks = ticket.filter((l) => !String(l.name || "").trim()).map((l) => l.totalCents).sort((x, y) => x - y); const all = [...said].sort((x, y) => x.totalCents - y.totalCents);
+        if (blanks.length === all.length) { const c = all[blanks.indexOf(cents)]; if (c && !used.has(c)) pick = c; } }
+      if (i >= 0 && pick) { used.add(pick); gt.splice(i, 1, clone(pick)); corrected.push(`custom amount → ${pick.baseName || pick.name}`); }
       continue;
     }
     if (f.type === "PRICE_DIFF") for (const l of gt) { const e = elvi.find((x) => x.name === l.name); if (e && e.unitCents !== l.unitCents) { l.unitCents = e.unitCents; l.totalCents = e.unitCents * l.quantity; corrected.push(`catalog price on ${l.name}`); } }

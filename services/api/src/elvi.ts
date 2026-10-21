@@ -239,6 +239,9 @@ const fuPlain = (s: string) => fuFold(s).replace(/[¿¡]/g, "");
 export function shortAckAfterReadback(input: ElviRequest, lastReply: string): ElviResponse | null {
   if (!/(¿Algo más\?|Anything else\?)\s*$/.test(lastReply)) return null;
   const t = fuPlain(String(input.transcript || ""));
+  // alex1: a sentence cut off mid-way ("Y en otro no me le puede poner este,") — wait for the rest, ring nothing
+  if (/\b(este|pero|con|de|le|me|el|la|un|una|unos?)\s*[,.]?\s*$/.test(t + " ") && /[,]\s*$/.test(String(input.transcript || "").trim()) && !/\b(bistec|pastor|chorizo|pollo|asada|carnitas|cabeza|frijol|queso|arroz|crema)\b/.test(t))
+    return { language: input.language, engine: "xai", reply: input.language === "es" ? "¿Sí? Dígame." : "Sure, go ahead.", actions: [] } as any;
   if (!t.trim() || DISH_RE.test(t) || /\b(bebida|agua|refresco|soda|horchata|drink|coca|jarrito)\b/.test(t)) return null;
   // counting with no dish ("y me pone dos, tres") — the dish comes next; ask instead of re-adding the last one
   const nums = t.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
@@ -308,6 +311,32 @@ export function sameDishMore(input: ElviRequest): ElviResponse | null {
   if (!fresh.length) return { language, engine: "xai", reply: language === "es" ? "Sí, ya los tengo. ¿Algo más?" : "Yes, I have those. Anything else?", actions: [] } as any;
   return { language, engine: "xai", reply: addReadback(fresh, menu, language), actions: fresh } as any;
 }
+/** alex1: "¿tiene chilaquiles?" asks if we sell it — answer, don't ring one. */
+const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
+export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
+  const t = String(input.transcript || "").trim(); const m = AVAIL_Q.exec(t); if (!m) return null;
+  if (/\b(\d+|dos|tres|cuatro|cinco|two|three|four)\b/i.test(m[1])) return null;
+  const es = input.language === "es";
+  return { language: input.language, engine: "xai", reply: es ? "Sí, sí tenemos. ¿Cuántos le preparo?" : "Yes, we do. How many would you like?", actions: [] } as any;
+}
+/** alex1: a turn that names neither the dish nor "another/otro" can't start a NEW line of the dish just rung — it changes that
+ * line ("dos huevos", "en vez de huevos bistec"). "dos huevos" on a dish that already comes with two eggs is not an extra. */
+export function sameLineGuard(result: ElviResponse, input: ElviRequest): ElviResponse {
+  const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
+  const acts = (result?.actions || []) as any[]; if (!last || acts.length !== 1 || acts[0]?.type !== "add_item" || acts[0].itemId !== last.itemId) return result;
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]); const item: any = menu.find((m) => m.id === last.itemId); if (!item) return result;
+  const t = fuPlain(String(input.transcript || "")), prev = fuPlain([...(input.history || [])].reverse().find((h) => h.role === "customer")?.text || "");
+  const noun = dishNounOf(item);
+  const fresh = (x: string) => (noun && new RegExp(`\\b${noun}`).test(x)) || /\b(otr[oa]s?|another|uno mas|una mas|one more)\b/.test(x);
+  let a = { ...acts[0], modifiers: [...(acts[0].modifiers || [])] };
+  if (/huevo/i.test(item.name) && /\bdos huevos\b/.test(t) && !/\b(extra|mas huevo|tres huevos)\b/.test(t)) a.modifiers = a.modifiers.filter((m: any) => !/extra\s*huevo/i.test(String(m.option)));
+  if (/\ben vez de\s+(?:los\s+)?huevos?\b/.test(t)) a.modifiers = a.modifiers.filter((m: any) => !/extra\s*huevo/i.test(String(m.option)));
+  if (fresh(t) || fresh(prev)) return { ...result, actions: [a] }; // a new line ("deme uno", "y en otro …," + "en vez de huevos bistec")
+  const same = JSON.stringify((a.modifiers || []).map((m: any) => m.option).sort()) === JSON.stringify((last.modifiers || []).filter((m: any) => !m.isDefault).map((m: any) => m.option).sort());
+  if (same) return { ...result, actions: [], reply: input.language === "es" ? "Muy bien. ¿Algo más?" : "Okay. Anything else?" };
+  return { ...result, actions: [{ type: "update_item", itemId: a.itemId, quantity: last.quantity, modifiers: a.modifiers, correction: true } as any] };
+}
+const dishNounOf = (item: any) => fuPlain(String(item?.name || "")).replace(/\(.*?\)/g, " ").split(/\s+/).find((w: string) => w.length >= 4)?.replace(/e?s$/, "") || "";
 export function multiDishTurn(input: ElviRequest): ElviResponse | null {
   const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
   const clauses = splitDishClauses(String(input.transcript || ""));
@@ -1861,6 +1890,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   }
   const intent = orderIntentOnly(input);
   if (intent) return intent;
+  const avail = availabilityQuestion(input);
+  if (avail) return avail;
   const ack = shortAckAfterReadback(input, lastReply);
   if (ack) return ack;
   const mem = memoryTurn(input);
@@ -1884,7 +1915,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   if (fixed) { recordLastAdd(input.sessionKey, fixed.actions); return fixed; }
   const topping = toppingCorrection(input);
   if (topping) { recordLastAdd(input.sessionKey, topping.actions); return topping; }
-  const result = await chatWithElviCore(input, runtimeConfig);
+  const result0 = await chatWithElviCore(input, runtimeConfig);
+  const result = sameLineGuard(result0, input);
   const salsa = withSalsaDefault(result, input.transcript || "", ((input as any).resolverMenu || input.menu || []) as MenuItem[], (result.language || input.language) as Language);
   // suggest1: one learned, free-option question per item (reply only; actions/rules untouched).
   const final = withLearnedSuggestion(salsa, { sessionKey: input.sessionKey, heard: input.transcript || "", lang: ((result.language || input.language) === "en" ? "en" : "es"), menu: ((input as any).resolverMenu || input.menu || []) as any[] });

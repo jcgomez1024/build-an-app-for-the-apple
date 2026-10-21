@@ -57,3 +57,10 @@ test("a1: an approved slang mapping rewrites phone and app text alike; pending d
   K.setMemoryOverride([]); assert.equal(K.rewriteSlang("dos con la taparrosca"), "dos con la taparrosca");
   K.setMemoryOverride(null);
 });
+test("alex1: two nameless custom amounts at staff prices ↔ the two voice items (price order); staff pattern 'custom amount instead of item'", () => {
+  const ch = (c: string[], cents: number) => ({ ...ln("Chilaquiles", 1, c), unitCents: cents, totalCents: cents });
+  const elvi = [ch([], 1200), ch(["Bistec / Steak"], 1500), { ...ln("Horchata", 1, []), unitCents: 550, totalCents: 550 }];
+  const ticket = [{ ...ln("", 1, []), unitCents: 1600, totalCents: 1600 }, { ...ln("Horchata", 1, []), unitCents: 550, totalCents: 550 }, { ...ln("", 1, []), unitCents: 1900, totalCents: 1900 }];
+  const g = L.groundTruth(ticket, elvi, [{ type: "CUSTOM_AMOUNT", detail: "custom amount $16.00" }, { type: "CUSTOM_AMOUNT", detail: "custom amount $19.00" }]);
+  assert.deepEqual(g.lines.map((l) => [l.name, l.choices]), [["Chilaquiles", []], ["Horchata", []], ["Chilaquiles", ["Bistec / Steak"]]]);
+});

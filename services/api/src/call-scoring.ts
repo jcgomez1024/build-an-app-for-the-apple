@@ -344,9 +344,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // open question is a duplicate, not a new item.
     const prevReply = history.length >= 4 ? history[history.length - 3].text : "";
     const answering = /\?\s*$/.test(prevReply) && !/algo más|anything else/i.test(prevReply);
-    const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text);
+    const prevCaller = history.length >= 4 ? history[history.length - 4].text : "";
+    // alex1: "Y en otro no me le puede poner este," + "en vez de huevos bistec" — the previous half-sentence asked for ANOTHER one
+    const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text) || (/\b(otr[oa]s?|another|one more)\b/i.test(prevCaller) && /[,]\s*$/.test(prevCaller.trim()));
     // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
-    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").flatMap((a: any) => {
+    // alex1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
+    const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah)\b/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
+    const sig = (x: any) => `${x.itemId}|${(x.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/salsa asada/i.test(o)).sort().join(",")}`;
+    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").filter((a: any) => !(confirming && a.type === "add_item" && cart.some((l) => sig(l) === sig(a)))).flatMap((a: any) => {
       if (!(a.type === "add_item" && source === "caller" && !names && !answering && cart.some((l) => l.itemId === a.itemId))) return [a];
       const prevLine = cart[cart.map((l) => l.itemId).lastIndexOf(a.itemId)];
       const have = new Set((prevLine.modifiers || []).map((m: any) => String(m.option)));
