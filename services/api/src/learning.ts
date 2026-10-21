@@ -12,6 +12,32 @@ const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE
 export function truthOverrides(): Record<string, any> {
   try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/learning/truth-overrides.json"), "utf8")); } catch { return {}; }
 }
+/** grade1: data quality per call — every grade trains, weighted. */
+export type Grade = "best" | "good" | "medium" | "bad";
+export const GRADE_DEFAULTS: Record<Grade, number> = { best: 1.0, good: 0.75, medium: 0.5, bad: 0.25 };
+export function gradeWeights(): Record<Grade, number> {
+  try { return { ...GRADE_DEFAULTS, ...JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/learning/config.json"), "utf8")).gradeWeights }; } catch { return { ...GRADE_DEFAULTS }; }
+}
+export const gradeWeight = (g: Grade) => gradeWeights()[g] ?? 0.5;
+const dishKey = (l: { name: string; baseName?: string }) => { const m = String(l.baseName || l.name).toLowerCase().match(/tacos?|burritos?|quesadillas?|gorditas?|tortas?|enchiladas?|tamales?|horchatas?|jamaicas?|aguas?|sopes?|huaraches?|tostadas?|chilaquiles|menudos?|cocas?|coca cola|nachos|flautas?/); return m ? m[0].replace(/ cola$/, "").replace(/(es|s)$/, "") : null; };
+/** BEST: ticket = customer's words, full read-back confirmed. GOOD: ticket = words with no read-back, or a corrected
+ *  read-back the ticket reflects. MEDIUM: staff errors / partly unclear, truth fixed by words or overrides. BAD: unclear. */
+export function gradeCall(o: { unclear: boolean; staffScore: number | null; readback: { status: string; dishCounts?: Record<string, number> }; truthLines: Array<{ name: string; baseName?: string }>; overridden?: boolean; corrected?: string[] }): Grade {
+  if (o.unclear) return "bad";
+  const ticketOk = o.staffScore === 100 && !o.overridden;
+  if (!ticketOk) return "medium";
+  if (o.readback.status === "confirmed") {
+    const said = new Set(Object.keys(o.readback.dishCounts || {}));
+    const full = o.truthLines.map(dishKey).filter(Boolean).every((k) => said.has(k as string));
+    return full ? "best" : "good";
+  }
+  return "good"; // no read-back, or corrected and the ticket reflects it (staffScore 100 against the corrected truth)
+}
+export function gradeStats(ex: Example[]) {
+  const out: Record<string, number> = { best: 0, good: 0, medium: 0, bad: 0 };
+  for (const e of ex) if (e.channel === "phone" && e.grade) out[e.grade]++;
+  return out;
+}
 /** readback1: Elvi/staff accuracy with vs without a staff read-back, by answering device (desk 9249 / cell 6793 /
  *  counter). Messy calls excluded. Later: per staff member once a staff name is captured on answer. */
 export function readbackStats(ex0: Example[]) {
@@ -82,7 +108,7 @@ export function stripPii(text: string, names: Array<string | null | undefined> =
 }
 export const ref = (sid: string) => "ex-" + createHash("sha256").update(String(sid)).digest("hex").slice(0, 10);
 const lineStr = (l: Line) => `${l.quantity}× ${l.baseName || l.name}${l.choices?.length ? " [" + [...l.choices].sort().join("; ") + "]" : ""}`;
-export type Example = { readback?: "confirmed" | "corrected" | "none"; answeredBy?: string | null; difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
+export type Example = { grade?: Grade; readback?: "confirmed" | "corrected" | "none"; answeredBy?: string | null; difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
   elvi: string[]; elviScore: number | null; staffScore: number | null; corrected: string[]; staffMisses: Miss[] };
 export function phoneExample(row: any): Example | null {
   if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
@@ -96,13 +122,14 @@ export function phoneExample(row: any): Example | null {
   const rb = detectReadback((row.turns || []) as any);
   if (!ov && rb.status !== "none") { const a = applyReadback(lines as any, rb); if (a.changed.length) { lines.splice(0, lines.length, ...(a.lines as any)); corrected.push(...a.changed); } }
   const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
+  const grade = gradeCall({ unclear: !!row.unclear, staffScore: staffS.score, readback: rb, truthLines: lines, overridden: !!ov, corrected });
   staffS.misses = customAmountMisses(staffS.misses, corrected);
   // case1e: reviewed coaching points replace the generic missed/extra pair for the corrected line
   if (ov?.coaching?.length) {
     const drop = new RegExp(ov.coachingMatch || "$^", "i");
     staffS.misses = [...staffS.misses.filter((x) => !drop.test(`${x.detail} ${x.ticket || ""} ${x.elvi || ""}`)), ...ov.coaching.map((c: any) => ({ kind: "coaching", detail: `${c.item}: ${c.detail}`, ticket: c.item, coach: c.type } as any))];
   }
-  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: rb.status === "confirmed" ? 1.5 : 1, readback: rb.status, answeredBy: row.answeredBy || null, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
+  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: gradeWeight(grade), grade, readback: rb.status, answeredBy: row.answeredBy || null, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
 /** App session: the paid cart is the truth (weight 1); an abandoned cart is low weight (0.2). */

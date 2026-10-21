@@ -20,7 +20,9 @@ if (cmd === "approve" || cmd === "reject") {
 
 async function build() {
   const res = await fetch("http://localhost:4000/api/calls/accuracy?days=90"); const data: any = await res.json();
-  const phone = (data.calls || []).filter((r: any) => r.source !== "training").map(L.phoneExample).filter(Boolean);
+  const grades: Record<string, string> = {}; // grade1: CallSid → grade (for calls.html badges)
+  const phone = (data.calls || []).filter((r: any) => r.source !== "training").map((r: any) => { const e = L.phoneExample(r); if (e?.grade) grades[r.callSid] = e.grade; return e; }).filter(Boolean);
+  fs.writeFileSync(path.join(dir, "grades.json"), JSON.stringify(grades, null, 1));
   const sdir = path.join(root, "data/logs/sessions"); const app: any[] = [];
   for (const f of fs.readdirSync(sdir).filter((x) => x.endsWith(".jsonl") && !/-(call|rescore|probe|replay|expected|test|learn)/.test(x))) {
     const es = fs.readFileSync(path.join(sdir, f), "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
@@ -34,7 +36,7 @@ async function build() {
   const readbacks = L.readbackStats(phone as any); // readback1
   fs.writeFileSync(path.join(dir, "readback-phrases.json"), JSON.stringify(L.readbackPhrases((data.calls || []).filter((r: any) => r.source !== "training")), null, 1));
   const wk = acc.length ? acc[acc.length - 1].week : "";
-  J("report.json", { generatedAt: new Date().toISOString(), readbacks, examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
+  J("report.json", { generatedAt: new Date().toISOString(), readbacks, grades: L.gradeStats(phone as any), gradeWeights: L.gradeWeights(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
     voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk) });
   return { phone: phone as any[], app, data };
 }
@@ -89,7 +91,9 @@ async function nightly() {
   const avg = (xs: any[]) => { const W = xs.reduce((a, x) => a + wOf(x), 0); return xs.length ? Math.round((xs.reduce((a, x) => a + x.score * wOf(x), 0) / W) * 10) / 10 : null; };
   const ok = evals.filter((x) => x.score != null && !messy.has(x.ref)), okMessy = evals.filter((x) => x.score != null && messy.has(x.ref));
   const mean = avg(ok), messyMean = avg(okMessy);
-  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
+  const gradeOf = (ref: string) => (phone.find((e: any) => e.ref === ref) as any)?.grade || "medium";
+  const perGrade: Record<string, any> = {}; for (const g of ["best", "good", "medium", "bad"]) { const xs = evals.filter((x) => x.score != null && gradeOf(x.ref) === g); perGrade[g] = { replayed: xs.length, elviReplayAccuracy: avg(xs) }; }
+  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, perGrade, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
   // 2) self-retry: each miss → candidate memory entries from the customer-truth, retried up to N attempts
   const approved = K.loadMemory(); const queue = K.readPending();
   /** unclear1 gates (after the normal ones): every messy call is replayed too and may not regress; a candidate that comes
@@ -97,8 +101,11 @@ async function nightly() {
   const messyGate = async (cand: any, mem: any, replays: any[]) => {
     if (cand.status === "rejected") return;
     K.setMemoryOverride([...approved, mem]);
-    for (const ref of messy) { if (ref === cand.callRef || replays.some((x: any) => x.ref === ref)) continue; const ex: any = phone.find((x: any) => x.ref === ref); const b = evals.find((x) => x.ref === ref)?.score; try { const a = await replay(rows.get(ref), ex.truthLines); replays.push({ ref, before: b, after: a.score, messy: true }); } catch { replays.push({ ref, before: b, after: -1, messy: true }); } }
+    const guard = new Set([...messy, ...phone.filter((e: any) => e.grade === "best" || e.grade === "good").map((e: any) => e.ref)]); // grade1
+    for (const ref of guard) { if (ref === cand.callRef || replays.some((x: any) => x.ref === ref)) continue; const ex: any = phone.find((x: any) => x.ref === ref); const b = evals.find((x) => x.ref === ref)?.score; try { const a = await replay(rows.get(ref), ex.truthLines); replays.push({ ref, before: b, after: a.score, messy: messy.has(ref), grade: gradeOf(ref) }); } catch { replays.push({ ref, before: b, after: -1, messy: messy.has(ref), grade: gradeOf(ref) }); } }
     K.setMemoryOverride(null);
+    for (const x of replays) x.grade = x.grade || gradeOf(x.ref);
+    if (replays.some((x: any) => (x.grade === "best" || x.grade === "good") && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a best/good call"; return; }
     if (replays.some((x: any) => x.messy && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a messy call"; return; }
     if (messy.has(cand.callRef) && !replays.some((x: any) => !messy.has(x.ref) && x.before != null && x.after >= x.before)) { cand.status = "rejected"; cand.reason = "auto: based only on a messy call (no clear call helped or held)"; }
   };
@@ -179,7 +186,7 @@ async function nightly() {
   }
   saveCache();
   K.writePending(queue);
-  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
+  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, perGrade, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
 }
 
 if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }

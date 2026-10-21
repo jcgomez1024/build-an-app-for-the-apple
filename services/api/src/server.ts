@@ -1499,6 +1499,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     }
     const posCat = await loadPosCatalog(cfg);
     const audits = auditorFindingsByCall();
+    const grades: Record<string, string> = (() => { try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/learning/grades.json"), "utf8")); } catch { return {}; } })(); // grade1
     // match1: Elvi lines + heard name per call, then one global ticket assignment (walk-ins can't match).
     const heardName = (c: any) => { const n = c.orderName || nameFromTranscript(c.turns || []); if (n) return cleanFirstName(n); try { const s = savedCallerName(c.caller); return s ? cleanFirstName(s.name) : null; } catch { return null; } };
     const prepared = calls.map((c) => {
@@ -1531,6 +1532,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         audit: audits[c.callSid] || null,
         followUp, // followup1
         unclear, // unclear1
+        grade: unclear ? "bad" : grades[c.callSid] || null, // grade1 (from the nightly/learning build)
         readback: (() => { const r = detectReadback((c.turns || []) as any); return { status: r.status, staffText: r.staffText || null, response: r.response || null }; })(), // readback1
         answeredBy: (c as any).answeredBy || (c.answered ? "unknown" : null), // readback1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
