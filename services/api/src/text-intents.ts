@@ -79,6 +79,7 @@ export function stripLeadFiller(text: string) {
 export function normalizeSpokenCatalogAliases(text: string) {
   // aliases1: shared phone+app spoken aliases (data/aliases/aliases.json) run first.
   return applySharedAliases(stripLeadFiller(String(text || "")), "app")
+    .replace(/\b[oh]?orchatas?\b/gi, "horchata") // horchata1: STT "orchata"
     // cheyenne1: "hecha a mano" / "de hecha mano" / "handmade" = the Comal (homemade) tortilla
     .replace(/(?:(?:de\s+)?(?:la\s+)?(?:tortilla\s+)?(?:grande\s+)?)?\bhech[oa]s?\s+(?:a\s+)?mano\b|\bhand\s*-?\s*made\b|\bmade\s+by\s+hand\b/gi, "de comal")
     .replace(/\b(al|el)\s+pastor\b/gi, "alpastor")

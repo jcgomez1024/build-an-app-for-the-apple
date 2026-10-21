@@ -338,6 +338,11 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
   // A new dish by name ("mejor un burrito") starts over instead.
   const alone = pinnedMenu(heard, menu);
   if (alone.length && alone.length < menu.length && !alone.some((m) => ctx.items.includes(m))) return null;
+  // horchata1: a different menu item named by its own distinctive word ("un agua de horchata") also starts over —
+  // pinnedMenu doesn't pin drinks, so a stale dish question (Menudo) swallowed every later turn.
+  { const h = fuPlain(heard); const words = (m: any) => fuPlain(String(m.name || "")).replace(/\(.*?\)|\d+\s*oz/g, " ").split(/[^a-z]+/).filter((w) => w.length >= 5 && !/^(fresca|frescas|grande|extra|order|orden|tortillas?|regular|especial)$/.test(w));
+    const own = new Set(ctx.items.flatMap(words));
+    if (menu.some((m) => !ctx.items.includes(m) && words(m).some((w) => !own.has(w) && new RegExp(`\\b${w}s?\\b`).test(h)))) return null; }
   try {
     const run = (t: string) => {
       const req: any = { text: t, language, actionHint: "add_item", toolArgs: { itemQuery: t }, cart: [] };
