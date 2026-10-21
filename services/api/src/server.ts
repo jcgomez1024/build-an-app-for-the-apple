@@ -1,3 +1,5 @@
+import { recall as recallMemory, readPending, decide, LEARN_DIR } from "./elvi-knowledge.js";
+import { splitDishClauses } from "./elvi.js";
 import path from "node:path";
 import { withIncludedToppings } from "./standard-toppings.js";
 import { nameFromTranscript } from "./order-name.js";
@@ -748,6 +750,8 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
 	    res.locals.menuItems = items;
 	    let input = buildResolverInput(req.body);
 	    let text = resolverText(input);
+	    // learn2: approved correction memory first — the same knowledge module the phone uses (chatWithElvi → memoryTurn).
+	    { const hit = recallMemory(text, items as any, splitDishClauses(text)); if (hit) { res.json({ ok: true, message: "", actions: hit.map((h) => ({ type: "add_item", itemId: h.itemId, quantity: h.quantity, modifiers: h.modifiers.map((m) => ({ groupId: m.groupId, groupName: m.groupName, option: m.option, quantity: 1 })) })), memory: hit.map((h) => h.memoryId) }); return; } }
 	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
 	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
 	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }
@@ -1188,6 +1192,8 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     markInternalPhone(req);
     const result = await createCheckout(req.body, sq);
+    // learn2: the paid cart is the app session's ground truth (session log; no customer details)
+    logTurn(orderSessionKey(req.body), { channel: "app", event: "checkout", paid: true, cart: (req.body?.cart || []).map((l: any) => ({ id: l.id, quantity: l.quantity, modifiers: (l.modifiers || []).map((m: any) => m.option) })) });
     clearOrderContext(orderSessionKey(req.body), "submitted");
     rememberPhoneOrderName(req);
     res.status(201).json(result);
@@ -1651,6 +1657,35 @@ app.post(["/api/:tenant/favorites", "/api/favorites"], async (req, res, next) =>
 });
 
 setFavMenuLoader(async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[]);
+// learn2: nightly learning loop (2:30 AM ET): examples, self-eval, self-retry → pending queue. Runs as a child process.
+function scheduleNightlyLearning() {
+  const tick = () => {
+    const now = new Date(); const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const next = new Date(et); next.setHours(2, 30, 0, 0); if (next <= et) next.setDate(next.getDate() + 1);
+    setTimeout(async () => {
+      try { const { spawn } = await import("node:child_process"); const p = spawn(process.execPath, ["--import", "tsx", "scripts/learning.ts", "nightly"], { cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), stdio: ["ignore", "pipe", "pipe"] });
+        p.stdout?.on("data", (d) => console.log("learn2:", String(d).trim().slice(0, 300))); p.on("exit", (c) => console.log("learn2: nightly exit", c)); } catch (e) { console.warn("learn2: nightly failed", e); }
+      tick();
+    }, next.getTime() - et.getTime()).unref?.();
+  };
+  tick();
+}
+if (process.env.NODE_ENV !== "test" && !process.env.ELVI_NO_LEARNING) scheduleNightlyLearning();
+app.get("/api/learning", phoneAuth, (_req, res) => {
+  const rd = (f: string) => { try { return JSON.parse(fs.readFileSync(path.join(LEARN_DIR, f), "utf8")); } catch { return null; } };
+  let nightly: any[] = []; try { nightly = fs.readFileSync(path.join(LEARN_DIR, "nightly.jsonl"), "utf8").trim().split("\n").filter(Boolean).slice(-30).map((l) => JSON.parse(l)); } catch { /* none yet */ }
+  res.json({ report: rd("report.json"), nightly, queue: readPending() });
+});
+// learn2: developer approval — localhost only (never through the tunnel).
+app.post("/api/learning/:id/decide", (req, res) => {
+  const host = String(req.headers.host || "").split(":")[0];
+  if (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"] || !/^(localhost|127\.0\.0\.1)$/.test(host)) return res.status(403).json({ error: "localhost only" });
+  const c = readPending().find((x) => x.id === String(req.params.id));
+  const ok = !!req.body?.approve;
+  if (ok && (!c || c.regression?.suite !== "pass" || c.regression.replays.some((r) => r.after < r.before))) return res.status(409).json({ error: "candidate has regressions or is unknown" });
+  const r = decide(String(req.params.id), ok, "developer (Grok Bot)", String(req.body?.reason || ""));
+  res.status(r ? 200 : 404).json(r || { error: "no pending candidate" });
+});
 async function refreshOnlineLearning() {
   try {
     const cfg = buildSquareConfig(resolveTenant(undefined));

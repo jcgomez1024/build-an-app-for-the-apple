@@ -743,6 +743,22 @@ const meatOptSaid = (optName: string, said: string) => {
   }
   return false;
 };
+const dishNoun = (m: any) => String(m?.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\(.*?\)/g, " ").trim().split(/\s+/).find((w: string) => w.length >= 4) || "";
+/** fix_uriel: the part of the sentence that belongs to this dish — clauses split on y/and/commas/periods; a clause with no
+ * dish noun belongs to the dish named before it. No noun of this dish anywhere → the whole text. */
+export function clauseFor(said: string, item: any, menu: any[]): string {
+  const mine = dishNoun(item); if (!mine) return said;
+  const nouns = [...new Set((menu || []).map(dishNoun).filter(Boolean))] as string[];
+  const has = (seg: string, n: string) => new RegExp(`\\b${n}e?s?\\b`).test(seg);
+  if (!has(said, mine)) return said;
+  let cur = ""; const out: string[] = [];
+  for (const seg of said.split(/\s*(?:[,.;!?]|\by\b|\band\b)\s*/)) {
+    const n = nouns.filter((x) => has(seg, x)).sort((a, b) => b.length - a.length)[0];
+    if (n) cur = n;
+    if (cur === mine) out.push(seg);
+  }
+  return out.join(" ");
+}
 export function fixNamedMeats<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text = "", shape: "elvi" | "resolver" = "resolver"): T[] {
   if (!Array.isArray(actions) || !actions.length) return actions;
   const said = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -762,7 +778,7 @@ export function fixNamedMeats<T extends { type: string; itemId?: string; modifie
     const meatG: any = (item?.modifierGroups || []).find((g: any) => /carne|meat/i.test(g.name));
     if (!meatG) return a;
     const opts = (meatG.options || []).map((o: any) => (typeof o === "string" ? { name: o } : o)).filter((o: any) => o?.name && !/^\W*double\b/i.test(o.name));
-    const hits = opts.filter((o: any) => meatOptSaid(o.name, said));
+    const hits = opts.filter((o: any) => meatOptSaid(o.name, clauseFor(said, item, menu)));
     // Deduplicate by option id/name (asada+bistec both match Bistec).
     const seen = new Set<string>();
     const named: any[] = [];

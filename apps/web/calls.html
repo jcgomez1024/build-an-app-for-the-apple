@@ -69,6 +69,7 @@
   <section class="card"><div class="tabs"><button data-p="daily" class="on">Diario</button><button data-p="weekly">Semanal</button></div>
     <div class="chart" id="chart"></div><div class="note" style="margin-top:22px" id="sqnote"></div>
     <div class="note" id="namenote" title="Informativo: no cuenta en la calificación de Elvi"></div></section>
+  <section class="card" id="learning"><h2>Aprendizaje de Elvi</h2><div class="note" id="learn-body">–</div></section>
   <section class="layout">
     <div class="card"><h2>Llamadas</h2><div class="filters" id="filters"><button data-f="all" class="on">Todas</button><button data-f="customer">Clientes</button><button data-f="training">Entrenamiento</button></div><div class="list" id="list"></div></div>
     <div class="card" id="detail"><div class="empty">Elige una llamada.</div></div>
@@ -293,7 +294,20 @@ async function expected(save, clear) {
   $("#exp-out").innerHTML = draft.html;
 }
 
+// learn2: order-to-voice accuracy (Elvi + staff), staff coaching points, nightly replay trend, pending-approval queue.
+async function loadLearning() {
+  try {
+    const r = await api("/api/learning"); if (!r.ok) return; const d = await r.json(); const rp = d.report || {};
+    const acc = (rp.voiceAccuracy || []).map((w) => `${esc(w.week)}: Elvi ${w.elvi}% · Personal ${w.staff}% (${w.calls})`).join("<br>") || "–";
+    const coach = (rp.coaching || []).map((c) => `• ${esc(c.es)}`).join("<br>") || "Sin errores repetidos.";
+    const night = (d.nightly || []).slice(-7).map((n) => `${esc(new Date(n.at).toLocaleDateString("es-US", { timeZone: "America/New_York" }))}: ${n.elviReplayAccuracy ?? "–"}%`).join(" · ") || "Aún no corre (2:30 AM ET).";
+    const q = (d.queue || []).filter((c) => c.status === "pending");
+    const qs = q.map((c) => `• <b>${esc(c.phrase)}</b> → ${esc(c.item)}: ${esc(c.choices.join(", "))} · antes ${c.before.score} → después ${c.after?.score} · ${c.attempts.length} intentos · similares ${c.similar.agree}/${c.similar.checked} · suite ${esc(c.regression?.suite || "–")}`).join("<br>") || "Ninguna";
+    $("#learn-body").innerHTML = `<b>Orden vs voz del cliente</b><br>${acc}<br><br><b>Puntos de práctica (personal)</b><br>${coach}<br><br><b>Repaso nocturno</b><br>${night}<br><br><b>Correcciones pendientes de aprobación (${q.length})</b><br>${qs}<br><small>Ejemplos: ${rp.examples?.phone ?? 0} llamadas · ${rp.examples?.app ?? 0} sesiones app (${rp.examples?.appPaid ?? 0} pagadas)</small>`;
+  } catch { /* optional */ }
+}
 async function load() {
+  loadLearning();
   const r = await api(`/api/calls/accuracy?days=${$("#days").value}`);
   if (r.status === 401 || r.status === 429) return askPin(r.status === 429 ? "Demasiados intentos. Espere 10 minutos." : pin ? "PIN incorrecto." : "");
   $("#pinbox")?.remove(); document.querySelector("main").style.display = "";

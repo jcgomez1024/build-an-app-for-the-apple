@@ -1,0 +1,87 @@
+// learn2: labeled examples. Ground truth = what the CUSTOMER said: the staff ticket, corrected by the auditor's staff flags
+// (STAFF_MISSING adds what was said, STAFF_EXTRA removes what wasn't), so Elvi never learns a staff error.
+// PII stripped; files only under data/learning/ (gitignored).
+import { scoreOrder, type Line, type Miss } from "./call-accuracy.js";
+import { createHash } from "node:crypto";
+
+type Flag = { type: string; detail: string };
+const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE_MISSING|DELIVERY_FEE_WRONG)$/;
+const clone = (l: Line): Line => ({ ...l, choices: [...(l.choices || [])] });
+export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): { lines: Line[]; corrected: string[] } {
+  let gt = ticket.map(clone); const corrected: string[] = [];
+  for (const f of flags.filter((x) => STAFF.test(x.type))) {
+    const d = String(f.detail || "");
+    let m = /^ticket item never mentioned:\s*\d+\s*×\s*(.+)$/.exec(d);
+    if (m) { const n = gt.length; gt = gt.filter((l) => l.name !== m![1].trim() && l.baseName !== m![1].trim()); if (gt.length < n) corrected.push(`removed ${m[1].trim()}`); continue; }
+    m = /^(.+?):\s*(.+?) said, not rung$/.exec(d);
+    if (m) { for (const l of gt) if (l.name === m[1] && !l.choices.includes(m[2])) { l.choices.push(m[2]); corrected.push(`added ${m[2]} on ${m[1]}`); } continue; }
+    m = /^(.+?):\s*(.+?) never mentioned$/.exec(d);
+    if (m) { for (const l of gt) if (l.name === m[1] && l.choices.includes(m[2])) { l.choices = l.choices.filter((c) => c !== m![2]); corrected.push(`removed ${m[2]} from ${m[1]}`); } continue; }
+    if (f.type === "PRICE_DIFF") for (const l of gt) { const e = elvi.find((x) => x.name === l.name); if (e && e.unitCents !== l.unitCents) { l.unitCents = e.unitCents; l.totalCents = e.unitCents * l.quantity; corrected.push(`catalog price on ${l.name}`); } }
+  }
+  return { lines: gt, corrected };
+}
+
+const ADDR = /\b\d{2,6}\s+(?:[a-z]+\s){0,3}(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\b\.?/gi;
+export function stripPii(text: string, names: Array<string | null | undefined> = []): string {
+  let t = String(text || "").replace(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g, "<PHONE>").replace(/\b\d{7,}\b/g, "<PHONE>").replace(ADDR, "<ADDRESS>").replace(/\S+@\S+\.\S+/g, "<EMAIL>");
+  for (const n of names) for (const w of String(n || "").split(/\s+/).filter((x) => x.length >= 2)) t = t.replace(new RegExp(`(?<![\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), "<NAME>");
+  return t;
+}
+export const ref = (sid: string) => "ex-" + createHash("sha256").update(String(sid)).digest("hex").slice(0, 10);
+const lineStr = (l: Line) => `${l.quantity}× ${l.baseName || l.name}${l.choices?.length ? " [" + [...l.choices].sort().join("; ") + "]" : ""}`;
+export type Example = { ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
+  elvi: string[]; elviScore: number | null; staffScore: number | null; corrected: string[]; staffMisses: Miss[] };
+export function phoneExample(row: any): Example | null {
+  if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
+  const names = [row.customerName, row.orderName, row.nameCheck?.heard, row.nameCheck?.ticket];
+  const { lines, corrected } = groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
+  const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
+  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
+    truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
+}
+/** App session: the paid cart is the truth (weight 1); an abandoned cart is low weight (0.2). */
+export function appExample(session: string, entries: any[]): Example | null {
+  const turns = entries.filter((e) => e.heard).map((e) => ({ speaker: "caller", text: stripPii(String(e.heard)) }));
+  if (!turns.length) return null;
+  const paid = [...entries].reverse().find((e) => e.event === "checkout" && e.paid);
+  const cart = paid ? paid.cart : entries.flatMap((e) => (e.actions || []).map((a: any) => {
+    if (typeof a === "string") { const m = /^(\d+)x\s+(\S+)\s*\[(.*)\]$/.exec(a); return m ? { id: m[2], quantity: Number(m[1]), modifiers: m[3] ? m[3].split(/,\s(?=[(A-Z*])/) : [] } : null; }
+    return a?.type === "add_item" ? { id: a.itemId, quantity: a.quantity, modifiers: (a.modifiers || []).map((m: any) => m.option) } : null;
+  }).filter(Boolean));
+  if (!cart?.length) return null;
+  const truth = cart.map((l: any) => `${l.quantity}× ${l.id} [${[...(l.modifiers || [])].sort().join("; ")}]`);
+  return { ref: ref("app-" + session), at: entries[0]?.at || "", channel: "app", weight: paid ? 1 : 0.2, turns, truth, truthLines: [], elvi: truth, elviScore: null, staffScore: null, corrected: [], staffMisses: [] };
+}
+/** Staff-mistake patterns (no staff names): weekly, by item and error type. */
+export function errorType(m: Miss): string {
+  const d = `${m.detail} ${m.ticket || ""}`;
+  if (m.kind === "quantity") return "wrong qty";
+  if (m.kind === "missing_item") return "missed item";
+  if (m.kind === "extra_item") return "extra item";
+  if (m.kind === "price") return "price";
+  if (/tortilla|comal|harina|taquer|ma[ií]z|corn|flour/i.test(d)) return "wrong tortilla";
+  if (/frijol|bean|queso|cheese|arroz|rice|crema|extra|lechuga/i.test(d)) return "missed/extra add-on";
+  if (/bistec|steak|pastor|pork|chorizo|pollo|chicken|carnitas|cabeza|buche|tripa|prensado|duro|lengua|suadero/i.test(d)) return "wrong meat";
+  return "other choice";
+}
+const weekOf = (iso: string) => { const d = new Date(new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/New_York" }) + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+export function staffPatterns(ex: Example[]) {
+  const m = new Map<string, { week: string; item: string; type: string; count: number }>();
+  for (const e of ex) for (const x of e.staffMisses) { const item = String(x.ticket || x.elvi || x.detail.split(":")[0]).split(" · ")[0]; const k = `${weekOf(e.at)}|${item}|${errorType(x)}`; const c = m.get(k) || { week: weekOf(e.at), item, type: errorType(x), count: 0 }; c.count++; m.set(k, c); }
+  return [...m.values()].sort((a, b) => b.week.localeCompare(a.week) || b.count - a.count);
+}
+export function coachingPoints(p: ReturnType<typeof staffPatterns>, week: string) {
+  return p.filter((x) => x.week === week).slice(0, 5).map((x) => ({ es: `${x.item}: ${x.type} (${x.count}×) — repasar al marcar`, en: `${x.item}: ${x.type} (${x.count}×) — double-check when ringing` }));
+}
+/** Order-to-voice accuracy for Elvi and staff, per week (phone examples). */
+export function voiceAccuracy(ex: Example[]) {
+  const w = new Map<string, { week: string; n: number; elvi: number; staff: number }>();
+  for (const e of ex) { if (e.channel !== "phone" || e.elviScore == null || e.staffScore == null) continue; const k = weekOf(e.at); const s = w.get(k) || { week: k, n: 0, elvi: 0, staff: 0 }; s.n++; s.elvi += e.elviScore; s.staff += e.staffScore; w.set(k, s); }
+  return [...w.values()].sort((a, b) => a.week.localeCompare(b.week)).map((s) => ({ week: s.week, calls: s.n, elvi: Math.round((s.elvi / s.n) * 10) / 10, staff: Math.round((s.staff / s.n) * 10) / 10 }));
+}
+/** Fine-tune-ready chat format (not used for training yet). */
+export const finetuneRow = (e: Example) => ({ messages: [
+  { role: "system", content: "You are Elvi, Cocina Elvis's order taker. Output the order as Square catalog lines." },
+  { role: "user", content: e.turns.map((t) => `${t.speaker === "caller" ? "Customer" : "Staff"}: ${t.text}`).join("\n") },
+  { role: "assistant", content: JSON.stringify(e.truth) }], weight: e.weight, ref: e.ref, channel: e.channel });

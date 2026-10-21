@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { favoriteAnswer } from "./favorites.js";
+import { recall as recallMemory } from "./elvi-knowledge.js";
 import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
@@ -230,6 +231,75 @@ export function orderIntentOnly(input: ElviRequest): ElviResponse | null {
   if (!ORDER_INTENT.test(String(input.transcript || ""))) return null;
   const es = input.language === "es";
   return { language: input.language, engine: "xai", reply: es ? "¡Claro! ¿Qué le preparo?" : "Sure! What can I get you?", actions: [] } as any;
+}
+
+const DISH_RE = /\b(tacos?|tortas?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|sopes?|huaraches?|doradas?|pambazos?|enchiladas?|tostadas?|flautas?|nachos)\b/;
+const fuPlain = (s: string) => fuFold(s).replace(/[¿¡]/g, "");
+/** fix_uriel: "Ajá, aparte" / "Ajá" / "ujú" after "¿Algo más?" with no dish and no number adds nothing (the model re-added a torta). */
+export function shortAckAfterReadback(input: ElviRequest, lastReply: string): ElviResponse | null {
+  if (!/(¿Algo más\?|Anything else\?)\s*$/.test(lastReply)) return null;
+  const t = fuPlain(String(input.transcript || ""));
+  if (!t.trim() || DISH_RE.test(t) || /\b(bebida|agua|refresco|soda|horchata|drink|coca|jarrito)\b/.test(t)) return null;
+  // counting with no dish ("y me pone dos, tres") — the dish comes next; ask instead of re-adding the last one
+  const nums = t.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  if (nums.some((x) => /^(\d+|dos|tres|cuatro|cinco|seis|two|three|four|five|six)$/.test(x)) && nums.every((x) => /^(\d+|una?|uno|dos|tres|cuatro|cinco|seis|two|three|four|five|six|y|and|me|pone|ponga|da|dame|de|esos|otr[ao]s?|mas|more|give)$/.test(x)))
+    return { language: input.language, engine: "xai", reply: input.language === "es" ? "¿De qué serían?" : "Of what?", actions: [] } as any;
+  if (/\b(\d+|una?|uno|otr[ao]s?|one|another)\b/.test(t)) return null;
+  const w = t.replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+  const FILL = /^(aja|uju|ujum|mhm|si|ok|okay|aparte|separados?|sigue|todo|eso|bueno|de|con|y|este|asi|bien|yeah|yes|uh|huh|right|separate|bistec|prensado|asada|pastor|alpastor|chorizo|pollo|carnitas|cabeza|buche|tripa|duro|chicharron|lengua|suadero|steak)$/;
+  if (!w.length || w.length > 6 || !w.every((x) => FILL.test(x))) return null;
+  const es = input.language === "es";
+  return { language: input.language, engine: "xai", reply: es ? "Muy bien. ¿Algo más?" : "Okay. Anything else?", actions: [] } as any;
+}
+/** fix_uriel: a turn naming 2+ dishes is split into one clause per dish; each clause is resolved on its own (its meats,
+ * its count). A clause taken back ("…de bistec, no, perdón, y otra quesadilla de prensado") is dropped. All-or-nothing. */
+export function splitDishClauses(text: string): string[] {
+  const t = fuPlain(text);
+  const segs = t.split(/\s*(?:[,.;!?]|\by\b|\band\b)\s*/).filter(Boolean);
+  const chunks: Array<{ noun: string; segs: string[]; retracted: boolean }> = [];
+  for (const seg of segs) {
+    const n = seg.match(DISH_RE)?.[1]?.replace(/e?s$/, "");
+    if (n) chunks.push({ noun: n, segs: [seg], retracted: false });
+    else if (chunks.length) { if (/^(no|perdon|mejor no|digo|sorry|i mean)$/.test(seg.trim())) chunks[chunks.length - 1].retracted = true; else chunks[chunks.length - 1].segs.push(seg); }
+  }
+  // a retraction only counts when the same dish is said again right after
+  // the tortilla said in the taken-back clause still holds ("de bistec de comal, no, perdón, de prensado" → comal prensado)
+  chunks.forEach((c, i) => { const nx = chunks[i + 1]; if (c.retracted && nx?.noun === c.noun) { const sh = c.segs.join(" ").match(/\b(?:de |en )?(comal|harina|maiz|taquer[oa]s?|dorad[oa]s?)\b/); if (sh && !new RegExp(sh[1]).test(nx.segs.join(" "))) nx.segs.push(`de ${sh[1]}`); } });
+  const keep = chunks.filter((c, i) => !(c.retracted && chunks[i + 1]?.noun === c.noun));
+  if (new Set(keep.map((c) => c.noun)).size < 2) return [];
+  return keep.map((c) => c.segs.filter((s) => !/^(aja|uju|si|separados|aparte|ok|okay)( (aja|uju|si|separados))*$/.test(s.trim())).join(" "));
+}
+/** learn2: approved correction memory — same function the app's /menu/resolve uses. */
+export function memoryTurn(input: ElviRequest): ElviResponse | null {
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
+  const t = String(input.transcript || "");
+  const hit = recallMemory(t, menu, splitDishClauses(t));
+  if (!hit) return null;
+  const actions = hit.map((h) => ({ type: "add_item" as const, itemId: h.itemId, quantity: h.quantity, modifiers: h.modifiers.map((m) => ({ step: m.step, option: m.option })) }));
+  return { language: input.language, engine: "xai", reply: addReadback(actions as any, menu, input.language as Language), actions, memory: hit.map((h) => h.memoryId) } as any;
+}
+export function multiDishTurn(input: ElviRequest): ElviResponse | null {
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
+  const clauses = splitDishClauses(String(input.transcript || ""));
+  if (!clauses.length) return null;
+  const language = input.language as Language;
+  const adds: any[] = [];
+  try {
+    for (const c of clauses) {
+      const items = pinnedMenu(c, menu);
+      if (!items.length || items.length >= menu.length) return null;
+      const req: any = { text: c, language, actionHint: "add_item", toolArgs: { itemQuery: c }, cart: [] };
+      const r: any = completeWithSiteDefaults(resolveEspecialRequest(items as any, req) || resolveMenuRequest(items as any, req), menu, c);
+      if (!r?.ok) return null;
+      let mine: any[] = fixNamedMeats((r.actions || []).filter((a: any) => a?.type === "add_item"), menu, c) as any[];
+      const own = spokenQtyFor(c, items);
+      if (own && mine.length === 1) mine = [{ ...mine[0], quantity: own }];
+      for (const a of mine) adds.push({ type: "add_item", itemId: String(a.itemId), quantity: Math.max(1, Number(a.quantity) || 1), modifiers: (a.modifiers || []).map((m: any) => ({ step: String(m.groupName || m.groupId || m.step || ""), option: String(m.option || "") })) });
+    }
+  } catch { return null; }
+  if (!adds.length) return null;
+  const out = withSalsaDefault({ language, engine: "xai", reply: addReadback(adds, menu, language), actions: adds } as any, String(input.transcript || ""), menu, language);
+  return { ...out, reply: addReadback(out.actions as any, menu, language) } as any;
 }
 
 export function resolveFollowUp(heard: string, history: ConversationTurn[] | undefined, menu: MenuItem[], language: Language): Pick<ElviResponse, "reply" | "actions"> & { said?: string } | null {
@@ -1755,6 +1825,12 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   }
   const intent = orderIntentOnly(input);
   if (intent) return intent;
+  const ack = shortAckAfterReadback(input, lastReply);
+  if (ack) return ack;
+  const mem = memoryTurn(input);
+  if (mem) { recordLastAdd((input as any).sessionKey, mem.actions); return mem; }
+  const multi = multiDishTurn(input);
+  if (multi) { recordLastAdd((input as any).sessionKey, multi.actions); return multi; }
   const small = appSmallSopeReply(input);
   if (small) return small;
   const favLines = favoriteAnswer(input.sessionKey, String(input.transcript || ""));
