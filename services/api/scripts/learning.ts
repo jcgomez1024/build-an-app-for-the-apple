@@ -74,7 +74,8 @@ async function replayer() {
       if (cache[k] && !opts.fresh) return cache[k]; // replay3: fresh = real AI answers, no cache
       const r: any = await live(t, language, history); const { audioBase64, audioMimeType, ...keep } = r || {}; cache[k] = keep; return keep;
     };
-    const r: any = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), run as any);
+    const runT = (opts as any).trace ? async (t: string, l: "es" | "en", h: any[]) => { const x: any = await run(t, l, h); console.log(`> ${t}\n    ${(x?.actions || []).map((a: any) => `${a.type} ${a.itemId || ""} q${a.quantity ?? ""} [${(a.modifiers || []).map((m: any) => m.option).join("; ")}]`).join(" | ")}`); return x; } : run;
+    const r: any = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), runT as any);
     // a2: score exactly like /api/calls/accuracy — POS names, delivery fee line, included toppings (was: menu names → 40 on a perfect order)
     const lines: any[] = toPosLines(elviLines(r.cart || [], resolverMenu as any), posCat);
     if (r.fulfillment === "DELIVERY" && lines.length) lines.push(deliveryFeeLine(row.deliveryFeeCents ?? r.deliveryFeeCents));
@@ -243,7 +244,16 @@ async function replay3() {
   void med;
 }
 
-if (cmd === "replay3") await replay3();
+/** replay1 <CallSid> [--runs N]: fresh replays of one call, printing each run's lines + score. Read-only (writes nothing). */
+async function replay1() {
+  const runs = Number(process.argv[process.argv.indexOf("--runs") + 1]) || 3;
+  const data: any = await (await fetch("http://localhost:4000/api/calls/accuracy?days=90")).json();
+  const row = (data.calls || []).find((c: any) => c.callSid === arg || c.callSid.endsWith(String(arg))); if (!row?.compare) { console.error("no scored call"); return; }
+  const { replay } = await replayer();
+  for (let i = 0; i < runs; i++) { const r = await replay(row, row.compare.truth, { fresh: true, trace: process.argv.includes("--trace") } as any); console.log(`run ${i + 1}: ${r.score}`); for (const l of r.lines) console.log("   " + l); if (process.argv.includes("--steps")) for (const st of r.raw?.steps || []) if (/same-as|listed|fragment/.test(st.source) || (st.actions || []).length) console.log("   · " + st.source + " :: " + String(st.heard).slice(0, 90) + " → " + (st.actions || []).join(",")); }
+}
+if (cmd === "replay1") await replay1();
+else if (cmd === "replay3") await replay3();
 else if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }
 else if (cmd === "nightly") await nightly();
 else console.log("usage: build | nightly | list | approve <id> | reject <id> [reason]");

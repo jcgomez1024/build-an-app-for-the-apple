@@ -25,14 +25,17 @@ export function keywords(name: string) {
   return [...new Set(norm(String(name).replace(/\*+/g, " ").replace(/\([^)]*\)/g, " ")).split(" ").filter((w) => w.length >= 4 && !STOP.has(w) && w !== "with" && w !== "con"))];
 }
 // addons1: a "(C) Con / With" paid add-on counts as said only on its own phrase ("con frijoles", "extra queso derretido").
-const said = (text: string, name: string) => { const ca = conAddonSaid(text, name); if (ca !== null) return ca; const t = ` ${norm(text)} `; const k = keywords(name); return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
+export const said = (text: string, name: string) => { const ca = conAddonSaid(text, name); if (ca !== null) return ca;
+  // tw4938: an "on the side" option ("DELUXE ***APARTE / EVERTHING ON SIDE***") is said only when one turn asks for it on the
+  // side AND names the toppings (deluxe / con todo / preparada) — "aparte, una porción de nachos" (= also) is not it.
+  if (/aparte|on side/i.test(name)) return String(text).split(/\n/).some((l) => /\b(aparte|on the side|por separado)\b/i.test(l) && /\b(deluxe|con todo|preparad[oa]s?|everything|todo aparte)\b/i.test(l) && !/\baparte,?\s+(un[oa]?|otr[oa]|la|el)\b/i.test(l)); const t = ` ${norm(text)} `; const k = keywords(name); return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
 const isFee = (l: any) => /^delivery fee\b/i.test(String(l?.baseName || l?.name || ""));
 const isCustom = (l: any) => !String(l?.baseName || l?.name || "").trim() || (!l?.variationId && !isFee(l));
 
 /** Pure: findings for one /api/calls/accuracy row. nowMs decides whether "no ticket yet" is final. */
 export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: boolean } | null {
   if (!r?.recordingSid || !(r.turns || []).length || r.answered === false) return null;
-  const all = (r.turns || []).map((t: any) => t.text).join(" ");
+  const all = (r.turns || []).map((t: any) => t.text).join("\n");
   const staff = (r.turns || []).filter((t: any) => t.speaker === "staff").map((t: any) => t.text).join(" ");
   const flags: Flag[] = [];
   const add = (type: FlagType, detail: string, es: string, en: string) => { if (!flags.some((f) => f.type === type && f.detail === detail)) flags.push({ type, detail, es, en }); }; // match2: deduped
@@ -93,6 +96,9 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     const tOnly = tc.filter((c: string) => !ec.some((x: string) => norm(x) === norm(c))), eOnly = ec.filter((c: string) => !tc.some((x: string) => norm(x) === norm(c)));
     for (const c of tOnly) {
       if (isStandardTopping(t.baseName || t.name, c) || isStandardTopping(e.baseName || e.name, c)) continue; // sopesaso1: included
+      // tw4938: the ticket line's own variation ("(QD) DELUXE Preparada" in "Quesadilla Dorada · (QD) DELUXE Preparada") is the
+      // item staff rang, not an unmentioned add-on: same variation → nothing; Elvi rang another variation → her miss.
+      if (norm(t.name).includes(norm(c))) { if (!norm(e.name).includes(norm(c))) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`); continue; }
       if (said(all, c)) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`);
       else add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
     }

@@ -338,6 +338,28 @@ export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string 
   const all = caller.join(" ");
   return !caller.some((t) => ASKS_TO_ORDER.test(t)) && INFO_Q.test(all) && /\?|^\s*(?:are|is|do|does|can|what|which|how|tienen|es|son|lleva|hay)\b/imu.test(all);
 }
+// tw4938: which dish kinds a phrase names, and which kind a menu item is (by its id).
+const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b/iu],
+  ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu]];
+export const dishesNamed = (text: string) => new Set(DISH_KINDS.filter(([, re]) => re.test(String(text || ""))).map(([k]) => k));
+export const kindOfItem = (itemId: string) => { const id = String(itemId || "").toLowerCase(); const hit = DISH_KINDS.find(([k]) => id.includes(k)); return hit ? hit[0] : null; };
+const MEAT_LIST = "bistec|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripa|prensado|duro|lengua|suadero|deshebrada|picadillo|nopales|vegetal|campechana";
+const lineHasMeat = (l: { modifiers?: any[] }, meat: string) => (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option)));
+const tortillaWordOf = (l: { modifiers?: any[] }) => { const o = (l.modifiers || []).map((m: any) => String(m.option)).join(" "); return /taquer|street/i.test(o) ? " taquero" : /harina|flour/i.test(o) ? " de harina" : /comal|homemade/i.test(o) ? " de comal" : ""; };
+/** tw4938: meats the caller listed for the dish being ordered ("uno de bistec … y tripa", "otra tripa") — each one is a line. */
+export function listedMeats(text: string): Array<{ meat: string; another: boolean }> {
+  const t = cleanPhrase(text), out: Array<{ meat: string; another: boolean }> = [];
+  const re = new RegExp(String.raw`\b(?:(un[oa]|otr[oa]|y)\s+(?:de\s+|m[aá]s\s+de\s+)?(?:al\s+)?)(${MEAT_LIST})\b`, "giu");
+  for (const m of t.matchAll(re)) { const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue; if (/^y$/i.test(m[1]) && new RegExp(String.raw`\bde\s+(?:${MEAT_LIST})\s*$`, "iu").test(t.slice(0, m.index))) continue; /* "de bistec y chorizo" = one mixed item */ out.push({ meat: m[2].toLowerCase(), another: /^otr/i.test(m[1]) }); }
+  return out;
+}
+/** tw4938: "serían (esos) tres [tacos]" — the caller's running total for a dish. */
+export function statedTotal(text: string): { n: number; kind: string | null } | null {
+  const m = [...cleanPhrase(text).matchAll(/\b(?:ser[ií]an|son)\s+(?:esos\s+|estos\s+|los\s+)?(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b(?:\s+(\w+))?/giu)].pop();
+  if (!m) return null; const n = spokenCount(m[1]); if (!n) return null;
+  const k = m[2] ? [...dishesNamed(m[2])][0] || null : null; return { n, kind: k };
+}
+
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
   const cart: Line[] = [];
@@ -406,14 +428,39 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // the gordita already rung (definite article + yes), not a new one
       const aboutExisting = /^\s*(s[ií]|yes)(?=[\s,.!]|$)/i.test(text) && new RegExp(`\\b(?:la|el)\\s+${dishNoun(text) || "\\0"}s?\\b[^?]*\\?`, "i").test(lastStaff) && !/\b(dos|tres|\d+|otr[oa]s?|m[aá]s)\b/i.test(text);
       if (!(a.type === "add_item" && source === "caller" && (!names || aboutExisting) && !answering && cart.some((l) => l.itemId === a.itemId))) return [a];
+      // tw4938: a re-sent line of a dish other than the one being talked about ("Preparada con todo" about the quesadilla
+      // just rung re-sent the tacos) changes nothing — merging it put bistec + al pastor + Deluxe on the tripa taco.
+      const ka = kindOfItem(a.itemId), kl = lastAdded ? kindOfItem((lastAdded as Line).itemId) : null;
+      if (ka && kl && ka !== kl && !dishesNamed(text).has(ka)) return [];
       const prevLine = cart[cart.map((l) => l.itemId).lastIndexOf(a.itemId)];
       const have = new Set((prevLine.modifiers || []).map((m: any) => String(m.option)));
-      const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)));
-      return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], a.modifiers || []) }] : [];
+      // tw4938: never stack a second meat on a line through a merge unless this turn names that meat
+      const meatRe = new RegExp(MEAT_LIST, "i"), prevMeat = [...have].some((o) => meatRe.test(o));
+      const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)) && !(prevMeat && meatRe.test(String(m.option)) && !new RegExp((String(m.option).match(meatRe) || ["\\0"])[0], "i").test(text)));
+      return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], fresh) }] : [];
     });
     carryAskedQty(acts, text, history.length >= 4 ? history[history.length - 4].text : "", answering);
     // qty1: "dos de bistec" right after 2 bistec were rung (no dish noun, no más/otros) restates that line — not 2 more
     for (let i = acts.length - 1; i >= 0; i--) if (isRestatement(text, acts[i], cart, sig)) acts.splice(i, 1);
+    // tw4938: a turn that names a dish re-sends earlier lines of a dish it never names ("serían esos tres y una quesadilla
+    // preparada" → the 3 tacos came back with Deluxe) — those lines are already rung, not new.
+    const named = dishesNamed(text);
+    // tw4938: "Eh. Y" (no dish, meat or choice word) changed nothing — Elvi's update moved a bistec onto the tripa taco.
+    if (source === "caller" && !FOOD.test(text) && !MEAT_WORDS.test(text) && !/\b(con|sin|deluxe|todo|preparad\w*|extra|aparte|harina|comal|ma[ií]z|taquer\w*|grande|chico|regular|doble|double|with|without|no)\b/iu.test(text))
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "update_item") acts.splice(i, 1);
+    // …and a turn naming no dish ("Preparada con todo") is about the dish just rung: re-sent lines of another dish are dropped.
+    { const pk = [...dishesNamed(prevCaller)]; const kl = pk.length === 1 ? pk[0] : lastAdded ? kindOfItem((lastAdded as Line).itemId) : null;
+      if (source !== "auto" && !named.size && kl) for (let i = acts.length - 1; i >= 0; i--) { const a = acts[i]; const k = a.type === "add_item" || a.type === "update_item" ? kindOfItem(a.itemId) : null; if (k && k !== kl && cart.some((l) => l.itemId === a.itemId)) acts.splice(i, 1); } }
+    let droppedReadds = 0;
+    if (source !== "auto" && named.size) for (let i = acts.length - 1; i >= 0; i--) { const a = acts[i]; const k = a.type === "add_item" ? kindOfItem(a.itemId) : null; if (k && !named.has(k) && cart.some((l) => l.itemId === a.itemId)) { acts.splice(i, 1); droppedReadds++; } }
+    // …and if that was all Elvi sent, the dish this turn names was lost: ask once more with this turn alone (no history to re-send).
+    if (droppedReadds && source === "caller" && !acts.some((a: any) => a.type === "add_item" && named.has(kindOfItem(a.itemId) || ""))) {
+      const r2: any = await run(text, language, []);
+      for (const a of r2?.actions || []) if (a.type === "add_item" && named.has(kindOfItem(a.itemId) || "")) acts.push(a);
+    }
+    // tw4938: "dos quesadillas doradas … preparadas" → one line came back at qty 1; the spoken count is the quantity.
+    { const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:y|e|and|me\s+das|dame|quiero)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
+      if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && named.has(kindOfItem(adds[0].itemId) || "")) adds[0].quantity = n; }
     apply(acts);
     // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
     if (SMALL_SOPE.test(applySharedAliases(text, "phone"))) for (const l of touchedNow) if (/sopes[ae]so/i.test(l.itemId)) l.posSize = "small";
@@ -421,6 +468,29 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (added.length) lastAdded = cart[cart.length - 1] || null;
     if (source !== "auto") attributeRemovals(text, wasLast);
     steps.push({ source, heard: text, language, reply: r?.reply, actions: (r?.actions || []).map((a: any) => a.type) });
+    if (source === "caller") {
+      // tw4938: every meat the caller listed for this dish is a line; Elvi dropped "… y tripa" / "otra tripa". Ring the missing
+      // ones as their own short phrase (same dish + tortilla as the line they go with).
+      const mine = [...new Set(touchedNow)].filter((l) => cart.includes(l));
+      const kinds = new Set(mine.map((l) => kindOfItem(l.itemId)).filter(Boolean));
+      const nk = dishesNamed(text);
+      const refFor = () => mine.length && kinds.size === 1 ? mine[mine.length - 1] : (!mine.length ? [...cart].reverse().find((l) => { const k = kindOfItem(l.itemId); return k && (!nk.size || nk.has(k)) && (l.modifiers || []).some((m: any) => new RegExp(MEAT_LIST, "i").test(String(m.option))); }) : null);
+      const want = listedMeats(text), have = new Map<string, number>();
+      for (const l of mine) for (const w of want) if (lineHasMeat(l, w.meat)) have.set(w.meat, (have.get(w.meat) || 0) + (Number(l.quantity) || 1));
+      for (const w of want) {
+        if ((have.get(w.meat) || 0) > 0) { have.set(w.meat, have.get(w.meat)! - 1); continue; }
+        const ref = refFor(); if (!ref || (!w.another && !mine.length)) continue;
+        const k = kindOfItem(ref.itemId)!;
+        await say(`${dishPhrase(k)}${tortillaWordOf(ref)} de ${w.meat}`, language, "caller-meat-listed");
+      }
+      // tw4938: "serían esos tres" — the caller's total for the dish; drop later exact repeats beyond it (a meat said twice).
+      const st = statedTotal(text); const kind = st?.kind || (kinds.size === 1 ? [...kinds][0] : null);
+      if (st && kind) {
+        const of = () => cart.filter((l) => kindOfItem(l.itemId) === kind);
+        let count = of().reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+        for (let i = cart.length - 1; i >= 0 && count > st.n; i--) { const l = cart[i]; if (kindOfItem(l.itemId) !== kind || (Number(l.quantity) || 1) !== 1) continue; if (cart.slice(0, i).some((x) => sig(x) === sig(l))) { cart.splice(i, 1); count--; } }
+      }
+    }
     return r;
   };
   let last: any = null;
@@ -521,6 +591,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (frag) {
       const both = /\b(?:l[ao]s\s+dos|ambos|ambas|both)\b/iu.test(t.text);
       const askedNoun = (lastStaff.match(FOOD) || [])[0]?.toLowerCase().replace(/s$/, "");
+      // tw4938: staff "Otra quesadilla, ¿de qué va a ser?" → "de bistec, igual" is about a quesadilla, not the nachos still waiting.
+      const askedKind = [...dishesNamed(lastStaff)][0];
+      if (!both && askedKind && !pendingDishes.some((d) => dishesNamed(d).has(askedKind))) {
+        const ref = [...cart].reverse().find((l) => kindOfItem(l.itemId) === askedKind);
+        const fm = (frag.match(new RegExp(MEAT_LIST, "iu")) || [])[0];
+        if (ref && /\b(igual|same|lo\s+mismo)\b/iu.test(t.text) && (!fm || lineHasMeat(ref, fm))) { const l: Line = { ...ref, quantity: 1, modifiers: [...(ref.modifiers || [])] }; cart.push(l); lastAdded = l; steps.push({ source: "caller-same-as", heard: t.text, kind: askedKind }); }
+        else { last = await say(`${dishPhrase(askedKind)} ${frag}`.trim(), t.language, "caller-meat-fragment"); if (asking(last)) await acceptOpen(t.language); }
+        continue;
+      }
       const pick = both ? [...pendingDishes] : [pendingDishes.find((d) => askedNoun && dishNoun(d) === askedNoun) || pendingDishes[0]];
       for (const d of pick) {
         pendingDishes = pendingDishes.filter((x) => x !== d);
