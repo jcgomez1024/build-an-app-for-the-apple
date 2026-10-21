@@ -70,10 +70,15 @@ export function phoneExample(row: any): Example | null {
   // case1b: a reviewed truth (data/learning/truth-overrides.json, keyed by CallSid) beats flag-derived corrections.
   // "ticket" = the ticket already matches the customer's words; otherwise { lines: Line[], note }.
   const ov = truthOverrides()[row.callSid];
-  const { lines, corrected } = ov === "ticket" || ov?.use === "ticket" ? { lines: row.ticket.lines.map(clone), corrected: [`reviewed: ticket = customer's words${ov?.note ? " (" + ov.note + ")" : ""}`] }
+  const { lines, corrected } = ov === "ticket" || ov?.use === "ticket" ? { lines: row.ticket.lines.map(clone).map((l: Line, k: number) => { for (const r of ov?.replace || []) if (r.set && r.line === k) return { ...r.set, choices: [...(r.set.choices || [])] } as Line; else if ((r.line == null || r.line === k) && r.from && l.choices.includes(r.from)) l.choices = l.choices.map((c) => (c === r.from ? r.to : c)); return l; }), corrected: [`reviewed: ticket = customer's words${ov?.note ? " (" + ov.note + ")" : ""}`] }
     : ov?.lines ? { lines: ov.lines, corrected: [`reviewed truth${ov.note ? " (" + ov.note + ")" : ""}`] } : groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
   const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
   staffS.misses = customAmountMisses(staffS.misses, corrected);
+  // case1e: reviewed coaching points replace the generic missed/extra pair for the corrected line
+  if (ov?.coaching?.length) {
+    const drop = new RegExp(ov.coachingMatch || "$^", "i");
+    staffS.misses = [...staffS.misses.filter((x) => !drop.test(`${x.detail} ${x.ticket || ""} ${x.elvi || ""}`)), ...ov.coaching.map((c: any) => ({ kind: "coaching", detail: `${c.item}: ${c.detail}`, ticket: c.item, coach: c.type } as any))];
+  }
   return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
@@ -103,6 +108,7 @@ export function customAmountMisses(misses: Miss[], corrected: string[]): Miss[] 
 /** Staff-mistake patterns (no staff names): weekly, by item and error type. */
 export function errorType(m: Miss): string {
   const d = `${m.detail} ${m.ticket || ""}`;
+  if ((m as any).coach) return String((m as any).coach);
   if ((m as any).custom) return "custom amount instead of item";
   if (m.kind === "quantity") return "wrong qty";
   if (m.kind === "missing_item" && !String(m.ticket || "").trim()) return "custom amount instead of item";

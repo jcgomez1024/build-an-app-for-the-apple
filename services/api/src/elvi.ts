@@ -365,12 +365,28 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
   const t = norm(String(input.transcript || ""));
   const recent = [...(input.history || []).filter((h: any) => h.role === "customer").slice(-3).map((h: any) => norm(h.text)), t].join(" ");
   const menu: any[] = (input as any).resolverMenu || input.menu || [];
+  // case1e: a dish-type word can be several turns back (Elvi's own questions and autos in between)
+  const custTurns = (input.history || []).filter((h: any) => h.role === "customer").map((h: any) => norm(h.text));
+  const sinceDish = custTurns.slice(Math.max(0, custTurns.length - 6));
+  const recentWide = [...sinceDish, t].join(" ");
   const actions = result.actions.map((a: any) => {
     if (!(a?.type === "add_item" || a?.type === "update_item") || !Array.isArray(a.modifiers)) return a;
     let mods = [...a.modifiers]; const on = (re: RegExp) => mods.some((m) => re.test(String(m.option)));
     if (/\bsin frijol/.test(t)) mods = mods.filter((m) => !/frijol|beans/i.test(String(m.option)));
     if (on(/\(QGD\)|queso gordita/i) && !/derretid|melted|extra (de )?queso|mas queso/.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
     if (on(/con frijoles|with beans/i) && !/refrit/.test(t)) mods = mods.filter((m) => !/frijoles refritos|refried beans/i.test(String(m.option)) || /con frijoles|with beans/i.test(String(m.option)));
+    // case1e: "de chicharrón dorada … de maíz" — dorada/frita is the Quesadilla Dorada (corn, fried), not a comal tortilla
+    const item0 = menu.find((i: any) => i.id === a.itemId);
+    if (a.type === "add_item" && item0 && /^quesadilla$/i.test(String(item0.name).trim()) && /\b(dorad[ao]s?|frit[ao]s?|fried)\b/.test(recentWide) && !/\b(harina|flour)\W*$/.test(t)) {
+      const qd = menu.find((i: any) => /quesadilla dorada/i.test(i.name) && !/deluxe|online|preparad/i.test(i.name));
+      if (qd) {
+        const qdOpts = (qd.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => ({ g, o })));
+        const kept = mods.filter((m) => !/^\s*\([A-Z]{1,4}\)/.test(String(m.option))).map((m) => { const hit = qdOpts.find(({ o }: any) => o.name === m.option) || qdOpts.find(({ o }: any) => !/extra/i.test(o.name) && meatOptSaid(o.name, String(m.option).toLowerCase().split(" /")[0])); return hit ? { step: hit.g.name, option: hit.o.name } : null; }).filter(Boolean) as any[];
+        const reg = qdOpts.find(({ o }: any) => /REGULAR/i.test(o.name));
+        if (reg && !kept.some((m) => m.option === reg.o.name)) kept.unshift({ step: reg.g.name, option: reg.o.name });
+        return { ...a, itemId: qd.id, modifiers: kept };
+      }
+    }
     const words = [...recent.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquera)\b/g)].map((m) => m[1]);
     const lastW = words[words.length - 1];
     const want = !lastW ? null : /harina|flour/.test(lastW) ? /harina|flour|\(QHR\)/i : /taquera/.test(lastW) ? /taquera/i : /comal|homemade|\(QCO\)/i;

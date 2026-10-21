@@ -401,7 +401,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
   let pendingDish: string | null = null; // fix1136
-  let pendingDishes: string[] = []; let lastStaff = ""; let lastTortilla = ""; // case1c: several bare dishes waiting for their meat
+  let pendingDishes: string[] = []; let lastStaff = ""; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
   const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
@@ -434,6 +434,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       lastStaff = t.text;
       continue;
     }
+    // case1d: staff "¿La gordita también quieres que lleve frijoles?" → "Sí…": beans on that gordita (option name resolved at the end)
+    { const ask = lastStaff.match(/\b(?:la|el)\s+(\p{L}+?)s?\b[^?]*\b(frijoles|beans|queso|cheese|cebolla|cilantro|crema|lechuga|arroz|rice)\b[^?]*\?/iu);
+      if (ask && /^\s*(s[ií]|yes|aj[aá])(?=[\s,.!]|$)/iu.test(t.text)) { const noun = ask[1].toLowerCase(); const idx = cart.map((l) => String(l.itemId)).map((id, k) => (id.includes(noun) ? k : -1)).filter((k) => k >= 0).pop();
+        if (idx != null && idx >= 0) yesAdds.push({ line: cart[idx], what: ask[2].toLowerCase() }); } }
     noteFulfillment(t.text);
     if (staffAskedComal) {
       staffAskedComal = false;
@@ -489,7 +493,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const pick = both ? [...pendingDishes] : [pendingDishes.find((d) => askedNoun && dishNoun(d) === askedNoun) || pendingDishes[0]];
       for (const d of pick) {
         pendingDishes = pendingDishes.filter((x) => x !== d);
-        const phrase = `${dishPhrase(d)} ${frag}`.trim();
+        // case1e: keep the dish-type word the fragment cut off ("De chicharrón. ¿De chicharrón dorada o …?")
+        const kind = (cleanPhrase(t.text).match(/\b(dorad[ao]s?|frit[ao]s?)\b/iu) || [])[1];
+        const phrase = `${dishPhrase(d)} ${frag}${kind && !new RegExp(kind, "i").test(frag) ? " " + kind : ""}`.trim();
         if (pendingDish && dishNoun(pendingDish) === dishNoun(d)) pendingDish = null;
         last = await say(phrase, t.language, "caller-meat-fragment");
         // the tortilla the caller already chose this call ("De maíz") answers a repeat tortilla question
@@ -555,6 +561,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
   await acceptOpen(lang0());
+  for (const y of yesAdds) { // case1d
+    const re = /frijol|bean/.test(y.what) ? /con frijoles|with beans/i : new RegExp(y.what, "i");
+    if (!cart.includes(y.line) || (y.line.modifiers || []).some((m: any) => re.test(String(m.option)))) continue;
+    const opt = cart.flatMap((l) => (l.itemId === y.line.itemId ? l.modifiers || [] : [])).find((m: any) => re.test(String(m.option)));
+    if (opt) y.line.modifiers = [...(y.line.modifiers || []), { ...opt }];
+  }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment };
 }

@@ -21,3 +21,10 @@ test("case1c: 'gordita y una quesadilla' → staff asks the gordita → each fra
   const r: any = await shadowOrderFromTurns(turns, run as any);
   assert.deepEqual(r.cart.map((l: any) => [l.itemId, l.modifiers[0].option]), [["sq-gordita-T", "de bistec, con queso"], ["sq-quesadilla-T", "de bistec con frijoles"]]);
 });
+test("case1d: 'sí' to staff's '¿La gordita también … frijoles?' adds beans to that gordita", async () => {
+  const run = async (t: string) => /bistec/.test(t) && !/otra/.test(t) ? { reply: "Ok. ¿Algo más?", actions: [{ type: "add_item", itemId: "sq-gordita-T", quantity: 1, modifiers: [{ step: "", option: "Bistec / Steak" }] }] }
+    : /otra/.test(t) ? { reply: "Ok. ¿Algo más?", actions: [{ type: "add_item", itemId: "sq-gordita-T", quantity: 1, modifiers: [{ step: "", option: "**Con Frijoles / With Beans (+$0.50)" }] }] } : { reply: "¿Algo más?", actions: [] };
+  const turns: any[] = [{ speaker: "caller", text: "una gordita de bistec" }, { speaker: "staff", text: "¿La gordita también quieres que lleve frijoles?" }, { speaker: "caller", text: "Sí." }, { speaker: "staff", text: "Ok." }, { speaker: "caller", text: "y otra gordita con frijoles" }];
+  const r: any = await shadowOrderFromTurns(turns, run as any);
+  assert.deepEqual(r.cart[0].modifiers.map((m: any) => m.option), ["Bistec / Steak", "**Con Frijoles / With Beans (+$0.50)"]);
+});

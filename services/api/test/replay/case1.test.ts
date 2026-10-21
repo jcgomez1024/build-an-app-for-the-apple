@@ -25,3 +25,12 @@ test("case1: updating a gordita to queso gordita replaces the variation (never G
   const m = mergeMods([{ option: "(GD) Gordita" }, { option: "**Con Frijoles / With Beans (+$0.50)" }], [{ option: "(QGD) Queso Gordita (+$0.50)" }, { option: "Bistec / Steak" }]).map((x: any) => x.option);
   assert.deepEqual(m, ["**Con Frijoles / With Beans (+$0.50)", "(QGD) Queso Gordita (+$0.50)", "Bistec / Steak"]);
 });
+test("case1e: 'de chicharrón dorada … De maíz … prensado' is a Quesadilla Dorada with prensado", () => {
+  const m2: any[] = [...menu, { id: "qd", name: "(QD) Quesadilla Dorada", modifierGroups: [{ name: "Size", options: [{ name: "(QD) REGULAR Dorada" }] }, { name: "Carnes", options: [{ name: "Prensado / Spicy Pork (+$0.50)" }, { name: "Bistec / Steak" }] }] }];
+  const r: any = caseFix({ language: "es", reply: "x", actions: [{ type: "add_item", itemId: "qsd", quantity: 1, modifiers: [{ step: "", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" }, { step: "", option: "Prensado / Spicy Pork (+$0.50)" }] }] } as any,
+    { transcript: "Oh, prensado", language: "es", menu: m2, resolverMenu: m2, history: [{ role: "customer", text: "¿De cuál? De chicharrón. ¿De chicharrón dorada o de harina o de maíz?" }, { role: "customer", text: "De maíz." }] } as any);
+  assert.equal(r.actions[0].itemId, "qd");
+  assert.deepEqual(r.actions[0].modifiers.map((m: any) => m.option), ["(QD) REGULAR Dorada", "Prensado / Spicy Pork (+$0.50)"]);
+  const plain: any = caseFix({ language: "es", reply: "x", actions: [{ type: "add_item", itemId: "qsd", quantity: 1, modifiers: [] }] } as any, { transcript: "una quesadilla de comal", language: "es", menu: m2, resolverMenu: m2, history: [] } as any);
+  assert.equal(plain.actions[0].itemId, "qsd");
+});
