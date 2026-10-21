@@ -15,7 +15,7 @@ const memFile = () => path.join(LEARN_DIR, "memory.json");
 export const pendingFile = () => path.join(LEARN_DIR, "pending.json");
 
 export type MemoryEntry = { id: string; dish: string; key: string[]; phrase: string; item: string; choices: string[]; quantity?: number | null;
-  kind: "clause" | "alias"; source: string; approvedAt?: string; approvedBy?: string };
+  kind: "clause" | "alias" | "slang"; from?: string; to?: string; source: string; approvedAt?: string; approvedBy?: string };
 export type Candidate = MemoryEntry & { status: "pending" | "approved" | "rejected"; reason?: string; callRef: string;
   before: { score: number; lines: string[] }; after: { score: number; lines: string[] } | null; attempts: Array<{ n: number; key: string[]; score: number | null; note: string }>;
   similar: { checked: number; agree: number; disagree: number }; regression: { suite: string; replays: Array<{ ref: string; before: number; after: number }> } | null; createdAt: string };
@@ -75,4 +75,11 @@ export function decide(id: string, ok: boolean, by: string, reason = "") {
   c.status = ok ? "approved" : "rejected"; c.reason = reason || (ok ? "approved" : "rejected by reviewer");
   if (ok) { const mem = loadMemory().filter((m) => m.id !== c.id); const { status, reason: _r, callRef, before, after, attempts, similar, regression, createdAt, ...entry } = c; mem.push({ ...entry, approvedAt: new Date().toISOString(), approvedBy: by }); saveMemory(mem); }
   writePending(all); return c;
+}
+
+/** a1: approved slang/alias mappings ("taparrosca" → "refresco") rewrite the utterance before parsing — phone and app alike. */
+export function rewriteSlang(text: string): string {
+  let t = String(text || "");
+  for (const e of loadMemory()) if (e.kind === "slang" && e.from && e.to) t = t.replace(new RegExp(`(?<![\\p{L}])${e.from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), e.to);
+  return t;
 }

@@ -45,3 +45,15 @@ test("learn2 cross-channel: a correction learned from a PHONE call, once approve
   const src = fs.readFileSync(new URL("../../src/server.ts", import.meta.url), "utf8");
   assert.match(src, /menu\/resolve[\s\S]{0,600}recallMemory\(text/); // /menu/resolve consumes the shared memory
 });
+test("a2: staff rang a said item as a custom amount → truth uses the voice item; tracked as a staff pattern", () => {
+  const coke = { ...ln("Coca Cola", 2, ["Coca Cola"]), unitCents: 350, totalCents: 700 };
+  const g = L.groundTruth([ln("Torta", 1, []), { ...ln("", 1, []), unitCents: 700, totalCents: 700 }], [ln("Torta", 1, []), coke], [{ type: "CUSTOM_AMOUNT", detail: "custom amount $7.00" }]);
+  assert.deepEqual(g.lines.map((l) => [l.name, l.quantity]), [["Torta", 1], ["Coca Cola", 2]]);
+  assert.equal(L.errorType({ kind: "missing_item", ticket: "", detail: "Elvi missed 1 × " } as any), "custom amount instead of item");
+});
+test("a1: an approved slang mapping rewrites phone and app text alike; pending does nothing", () => {
+  K.setMemoryOverride([{ id: "sl-1", kind: "slang", from: "taparrosca", to: "refresco", dish: "", key: [], phrase: "taparrosca", item: "", choices: [], source: "t" } as any]);
+  assert.equal(K.rewriteSlang("dos con la taparrosca"), "dos con la refresco");
+  K.setMemoryOverride([]); assert.equal(K.rewriteSlang("dos con la taparrosca"), "dos con la taparrosca");
+  K.setMemoryOverride(null);
+});

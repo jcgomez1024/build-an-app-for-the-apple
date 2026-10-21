@@ -1,4 +1,4 @@
-import { recall as recallMemory, readPending, decide, LEARN_DIR } from "./elvi-knowledge.js";
+import { recall as recallMemory, readPending, decide, LEARN_DIR, rewriteSlang } from "./elvi-knowledge.js";
 import { splitDishClauses } from "./elvi.js";
 import path from "node:path";
 import { withIncludedToppings } from "./standard-toppings.js";
@@ -749,7 +749,7 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
 	    const items = await getFullMenu(buildSquareConfig(tenant));
 	    res.locals.menuItems = items;
 	    let input = buildResolverInput(req.body);
-	    let text = resolverText(input);
+	    let text = rewriteSlang(resolverText(input)); // a1: approved slang, same module as the phone
 	    // learn2: approved correction memory first — the same knowledge module the phone uses (chatWithElvi → memoryTurn).
 	    { const hit = recallMemory(text, items as any, splitDishClauses(text)); if (hit) { res.json({ ok: true, message: "", actions: hit.map((h) => ({ type: "add_item", itemId: h.itemId, quantity: h.quantity, modifiers: h.modifiers.map((m) => ({ groupId: m.groupId, groupName: m.groupName, option: m.option, quantity: 1 })) })), memory: hit.map((h) => h.memoryId) }); return; } }
 	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
@@ -971,7 +971,7 @@ app.post("/api/menu/resolve", async (req, res, next) => {
 	    const items = await getFullMenu(buildSquareConfig(tenant));
 	    res.locals.menuItems = items;
 	    let input = buildResolverInput(req.body);
-	    let text = resolverText(input);
+	    let text = rewriteSlang(resolverText(input)); // a1: approved slang, same module as the phone
 	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
 	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
 	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }

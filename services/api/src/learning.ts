@@ -17,6 +17,14 @@ export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): {
     if (m) { for (const l of gt) if (l.name === m[1] && !l.choices.includes(m[2])) { l.choices.push(m[2]); corrected.push(`added ${m[2]} on ${m[1]}`); } continue; }
     m = /^(.+?):\s*(.+?) never mentioned$/.exec(d);
     if (m) { for (const l of gt) if (l.name === m[1] && l.choices.includes(m[2])) { l.choices = l.choices.filter((c) => c !== m![2]); corrected.push(`removed ${m[2]} from ${m[1]}`); } continue; }
+    m = /^custom amount \$([\d.]+)$/.exec(d);
+    if (m) { // a2: staff rang a said item as a custom amount — the voice item with that total replaces the nameless line
+      const cents = Math.round(Number(m[1]) * 100), i = gt.findIndex((l) => !String(l.name || "").trim() && l.totalCents === cents);
+      const said = elvi.filter((e) => !gt.some((g) => g.name === e.name));
+      const pick = said.find((e) => e.totalCents === cents);
+      if (i >= 0 && pick) { gt.splice(i, 1, clone(pick)); corrected.push(`custom amount → ${pick.baseName || pick.name}`); }
+      continue;
+    }
     if (f.type === "PRICE_DIFF") for (const l of gt) { const e = elvi.find((x) => x.name === l.name); if (e && e.unitCents !== l.unitCents) { l.unitCents = e.unitCents; l.totalCents = e.unitCents * l.quantity; corrected.push(`catalog price on ${l.name}`); } }
   }
   return { lines: gt, corrected };
@@ -57,6 +65,7 @@ export function appExample(session: string, entries: any[]): Example | null {
 export function errorType(m: Miss): string {
   const d = `${m.detail} ${m.ticket || ""}`;
   if (m.kind === "quantity") return "wrong qty";
+  if (m.kind === "missing_item" && !String(m.ticket || "").trim()) return "custom amount instead of item";
   if (m.kind === "missing_item") return "missed item";
   if (m.kind === "extra_item") return "extra item";
   if (m.kind === "price") return "price";

@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { favoriteAnswer } from "./favorites.js";
-import { recall as recallMemory } from "./elvi-knowledge.js";
+import { recall as recallMemory, rewriteSlang } from "./elvi-knowledge.js";
 import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
@@ -1813,6 +1813,7 @@ export function appSmallSopeReply(input: { transcript?: string; language?: strin
     : "Online we only have the 10-inch Sopesaso Elvis. Would you like the 10-inch, or would you rather call us for the small sopes?" } as ElviResponse;
 }
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
+  if (input?.transcript) { const t = rewriteSlang(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; } // a1: approved slang
   // fix18: "así está bien" / "es todo" / "that's all" after "¿Algo más?" closes the order. The model re-added the
   // last dish for these ("está" also matched Platillo de Guisado), so answer here with no cart change (never checkout).
   const lastReply = [...(input.history || [])].reverse().find((h) => h.role === "assistant")?.text || "";
