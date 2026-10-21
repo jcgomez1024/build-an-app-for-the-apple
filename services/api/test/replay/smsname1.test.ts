@@ -1,7 +1,10 @@
 // smsname1: synthetic numbers/names only; no SMS is sent (TWILIO_RING_SMS unset, fetch stubbed).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ringSmsText, nameFollowUpText, shouldNameFollowUp, sendNameFollowUp, _setSmsMetaForTest, _smsMetaForTest } from "../../src/twilio.ts";
+import fs from "node:fs"; import os from "node:os"; import path from "node:path";
+// smsname1: never write into the real call log
+const tmpLog = fs.mkdtempSync(path.join(os.tmpdir(), "elvi-calllog-")); process.env.ELVI_CALL_LOG_DIR = tmpLog;
+const { ringSmsText, nameFollowUpText, shouldNameFollowUp, sendNameFollowUp, _setSmsMetaForTest, _smsMetaForTest } = await import("../../src/twilio.ts");
 test("smsname1: a name known at ring time is in the ring alert", () => {
   assert.match(ringSmsText({ name: "Testa", from: "+15555550123", at: Date.UTC(2026, 9, 21, 17, 6) }), /Staff Alert: Testa 1:06 PM/);
 });
@@ -25,5 +28,7 @@ test("smsname1: second learned name for the same call sends nothing more", async
     await sendNameFollowUp("CAtest1", "Testa"); await sendNameFollowUp("CAtest1", "Otra");
     assert.equal(sent.length, 1); assert.match(decodeURIComponent(sent[0].replace(/\+/g, " ")), /Llamada 1:06 PM \(\.\.\.0123\): Testa/);
     assert.equal(_smsMetaForTest("CAtest1").followUp, true);
+    const logged = fs.readdirSync(tmpLog).map((f) => fs.readFileSync(path.join(tmpLog, f), "utf8")).join("");
+    assert.match(logged, /ring_sms_name/); // written to the temp dir, not data/logs/calls
   } finally { (globalThis as any).fetch = f; delete process.env.TWILIO_RING_SMS; }
 });

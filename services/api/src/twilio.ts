@@ -28,7 +28,7 @@ const apiRoot = path.resolve(__dirname, "..");
 dotenv.config({ path: path.join(apiRoot, ".env.twilio") });
 
 const callsDir = path.join(apiRoot, "data/calls");
-const logDir = path.join(apiRoot, "data/logs/calls");
+const logDir = process.env.ELVI_CALL_LOG_DIR || path.join(apiRoot, "data/logs/calls"); // tests point this at a temp dir
 
 type ShadowFn = (sessionKey: string) => ShadowTurn;
 type Lang = "es" | "en";
