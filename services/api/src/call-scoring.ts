@@ -349,9 +349,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text) || (/\b(otr[oa]s?|another|one more)\b/i.test(prevCaller) && /[,]\s*$/.test(prevCaller.trim()));
     // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
     // alex1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
-    const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah)\b/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
+    const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah)(?=[\s,.!]|$)/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
     const sig = (x: any) => `${x.itemId}|${(x.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/salsa asada/i.test(o)).sort().join(",")}`;
-    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").filter((a: any) => !(confirming && a.type === "add_item" && cart.some((l) => sig(l) === sig(a)))).flatMap((a: any) => {
+    const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").filter((a: any) => !(a.type === "add_item" && ((confirming && (cart.some((l) => sig(l) === sig(a)) || (/\bunos\b.*\botros\b/i.test(text) && cart.some((l) => l.itemId === a.itemId)))) || (/^\s*(dos|2|two) huevos\W*$/i.test(text) && cart.some((l) => /huevo/i.test(String(l.itemId)))))))
+      .map((a: any) => (a.type === "add_item" && /en vez de (los )?huevos|instead of (the )?eggs/i.test(text) ? { ...a, modifiers: (a.modifiers || []).filter((m: any) => !/extra huevo/i.test(String(m.option))) } : a)).flatMap((a: any) => {
       if (!(a.type === "add_item" && source === "caller" && !names && !answering && cart.some((l) => l.itemId === a.itemId))) return [a];
       const prevLine = cart[cart.map((l) => l.itemId).lastIndexOf(a.itemId)];
       const have = new Set((prevLine.modifiers || []).map((m: any) => String(m.option)));

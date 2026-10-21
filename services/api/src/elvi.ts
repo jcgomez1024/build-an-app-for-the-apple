@@ -313,6 +313,39 @@ export function sameDishMore(input: ElviRequest): ElviResponse | null {
 }
 /** alex1: "¿tiene chilaquiles?" asks if we sell it — answer, don't ring one. */
 const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
+// alex1: "Y en otro … este," + "en vez de huevos bistec" = another of the last dish with that meat (no extra egg).
+// alex1: "¿tiene chilaquiles?" … "deme uno con," — the dish was just asked about; ring one plain and let them finish.
+export function oneOfAskedDish(input: ElviRequest): ElviResponse | null {
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const t = norm(String(input.transcript || ""));
+  const m = t.match(/\b(?:deme|dame|me da|quiero|give me|i'?ll take)\s+(un[oa]?|one)\b(.*)$/);
+  if (!m || /[a-z]{3,}/.test(m[2].replace(/\b(con|with|de|of|por favor|please|este|esta|ah|eh)\b/g, ""))) return null;
+  const said = (input.history || []).filter((h: any) => h.role === "customer").slice(-3).map((h: any) => norm(String(h.text || ""))).join(" ");
+  const menu: any[] = (input as any).resolverMenu || input.menu || [];
+  const hits = menu.filter((i: any) => { const w = norm(String(i.name || "")).split(/\s+/)[0]; return w.length >= 6 && new RegExp(`\\b${w}`).test(said); });
+  const ids = [...new Set(hits.map((h) => h.id))];
+  if (ids.length !== 1) return null;
+  const item = hits[0];
+  return { language: input.language, reply: input.language === "en" ? `${item.name}. With what?` : `${item.name}. ¿Con qué?`, actions: [{ type: "add_item", itemId: item.id, quantity: 1, modifiers: [] }] } as any;
+}
+
+export function insteadOfEggs(input: ElviRequest): ElviResponse | null {
+  const t = String(input.transcript || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const m = t.match(/\b(?:en vez de|en lugar de|instead of)\s+(?:los\s+|the\s+)?(?:huevos?|eggs?)\s*(?:,\s*)?(?:con\s+|with\s+)?(.+)$/);
+  const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
+  if (!m || !last) return null;
+  const item: any = ((input as any).resolverMenu || input.menu || []).find((i: any) => i.id === last.itemId);
+  const opts = (item?.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => ({ g, o })));
+  const hits = opts.filter(({ o }: any) => !/extra/i.test(o.name) && meatOptSaid(o.name, m[1]));
+  if (!item || hits.length !== 1) return null;
+  const prev: any[] = (input.history || []).filter((h: any) => h.role === "customer").slice(-1);
+  const another = /\b(otr[oa]s?|another|one more)\b/i.test(String(prev[0]?.text || "")) || /\b(otr[oa]|another)\b/i.test(t);
+  const mods = [{ step: hits[0].g.name, option: hits[0].o.name }];
+  const es = input.language !== "en";
+  return { language: input.language, reply: es ? `${item.name} con ${hits[0].o.name.replace(/\s*\(.*\)$/, "")}. ¿Algo más?` : `${item.name} with ${hits[0].o.name.replace(/\s*\(.*\)$/, "")}. Anything else?`,
+    actions: [another ? { type: "add_item", itemId: item.id, quantity: 1, modifiers: mods } : { type: "update_item", itemId: item.id, quantity: last.quantity, modifiers: mods, correction: true }] } as any;
+}
+
 export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
   const t = String(input.transcript || "").trim(); const m = AVAIL_Q.exec(t); if (!m) return null;
   if (/\b(\d+|dos|tres|cuatro|cinco|two|three|four)\b/i.test(m[1])) return null;
@@ -1892,6 +1925,13 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   if (intent) return intent;
   const avail = availabilityQuestion(input);
   if (avail) return avail;
+  // alex1: "…nada más a uno agrégamele, agrégamele" trails off before saying what — wait, change nothing
+  if (/\b(agr[eé]g(a|ue)(me)?(le|se)|p[oó]n(ga)?(me)?le|ech(e|a)(me)?le|add|put)\W*$/i.test(String(input.transcript || "").trim()))
+    return { language: input.language, reply: input.language === "en" ? "Sure, what should I add?" : "¿Sí? ¿Qué le agrego?", actions: [] } as any;
+  const one = oneOfAskedDish(input);
+  if (one) return one;
+  const swap = insteadOfEggs(input);
+  if (swap) return swap;
   const ack = shortAckAfterReadback(input, lastReply);
   if (ack) return ack;
   const mem = memoryTurn(input);

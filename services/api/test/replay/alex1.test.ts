@@ -18,3 +18,15 @@ test("alex1: 'dos huevos' after the dish is no new line and no extra egg; 'otro'
   const r = sameLineGuard(add(["1 x EXTRA Huevo (+$1.25)", "Bistec / Steak (+$3.00)"]), { ...base, transcript: "en vez de huevos bistec", history: [{ role: "customer", text: "Y en otro no me le puede poner este," }] });
   assert.equal(r.actions[0].type, "add_item"); assert.deepEqual(r.actions[0].modifiers.map((m: any) => m.option), ["Bistec / Steak (+$3.00)"]);
 });
+import { insteadOfEggs } from "../../src/elvi.ts";
+test("alex1: 'en vez de huevos bistec' after 'Y en otro …,' adds a second dish with bistec only", () => {
+  recordLastAdd("alx2", [{ type: "add_item", itemId: "chq", quantity: 1, modifiers: [] }]);
+  const r: any = insteadOfEggs({ transcript: "en vez de huevos bistec", language: "es", menu, resolverMenu: menu, sessionKey: "alx2", history: [{ role: "customer", text: "Y en otro no me le puede poner este," }] } as any);
+  assert.equal(r.actions[0].type, "add_item"); assert.deepEqual(r.actions[0].modifiers.map((m: any) => m.option), ["Bistec / Steak (+$3.00)"]);
+});
+import { oneOfAskedDish } from "../../src/elvi.ts";
+test("alex1: 'deme uno con,' after asking about chilaquiles rings one chilaquiles", () => {
+  const r: any = oneOfAskedDish({ transcript: "Ajá Ah, deme uno con,", language: "es", menu, resolverMenu: menu, history: [{ role: "customer", text: "Disculpa, ¿tiene chilaquiles?" }] } as any);
+  assert.equal(r.actions[0].itemId, "chq");
+  assert.equal(oneOfAskedDish({ transcript: "deme uno de asada", language: "es", menu, resolverMenu: menu, history: [{ role: "customer", text: "¿tiene chilaquiles?" }] } as any), null);
+});
