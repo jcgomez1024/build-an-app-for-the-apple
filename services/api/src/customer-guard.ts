@@ -109,6 +109,10 @@ export function passwordOk(given: string) {
 
 // Staff/phone routes never served on the order host.
 export const ORDER_DENY = /^\/(api\/twilio\/|api\/phone\/|api\/calls(\/|$)|api\/square\/webhooks|calls\.html|phone\.html|web\.backup)/i;
+/** open1 (Carlos 10/21: "nobody has the link, it's all sandbox"): the customer ordering page, its static assets and the APIs it
+ *  calls are open on the order host without the preview login. Everything else on that host (learning, favorites-by-phone,
+ *  anything not listed) still needs the login; staff/phone/PII routes stay 404 there (ORDER_DENY) and PIN-gated on the phone host. */
+export const ORDER_PUBLIC = /^\/(?:$|index\.html$|app\.js$|ui1\.js$|ui1\.css$|styles\.css$|halo\.js$|favicon\.ico$|img\/[\w.-]+\.(?:png|jpe?g|webp|svg|ico)$|api\/config$|api\/tenants$|api\/(?:[a-z0-9-]+\/)?(?:menu|menu\/resolve|menu\/info|ui\/catalog|elvi\/chat|orders\/checkout|realtime\/session|xai\/client-secret|xai\/speech|xai\/transcribe|tools\/check_delivery_zone|tools\/submit_order)$)/i;
 // Phone host (unchanged from lockdown1).
 export const PHONE_OK = /^\/(health\/?$|phone\.html$|vendor\/twilio-voice\.min\.js$|img\/logo-cocina-elvis\.png$|favicon\.ico$|api\/twilio\/|api\/phone\/|calls\.html$|img\/favicon\.png$|api\/calls\/accuracy$|api\/calls\/RE[0-9a-f]{32}\/audio$|api\/calls\/CA[0-9a-f]{32}\/expected$)/; // remotecalls1: call recordings page behind the phone PIN
 

@@ -26,7 +26,7 @@ import { orderContextTurn, clearOrderContext, logTurn, pendingSummary } from "./
 import { listPublicTenants, resolveTenant } from "./tenant.js";
 import { getLaunchConfig, publicLaunchConfig } from "./launch-config.js";
 import { registerTwilioRoutes, phoneAuth } from "./twilio.js";
-import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
+import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, ORDER_PUBLIC, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
 import { quoteDeliveryAddress, quoteAppAddress } from "./delivery-zone.js";
@@ -88,6 +88,11 @@ app.use((req, res, next) => {
       res.setHeader("Set-Cookie", cookie);
       res.redirect(303, "/");
     });
+  }
+  if (ORDER_PUBLIC.test(req.path) && !/^\/api\/(calls|learning|twilio|phone|favorites)\b/i.test(req.path)) {
+    // open1: voice sessions cost money per use — besides the per-IP limit, cap them for the whole open page
+    if (/\/(realtime\/session|xai\/client-secret)$/.test(req.path)) { const g = hitLimit("voice-token-global", "all", Number(process.env.VOICE_GLOBAL_PER_HOUR || 60), 3600_000); if (g.limited) { res.setHeader("Retry-After", String(g.retryAfterSec)); return void res.status(429).json({ error: "Voice is busy right now. Please type your order or try again later." }); } }
+    return next();
   }
   if (previewCookieOk(req)) return next();
   if (req.path.startsWith("/api/")) return void res.status(401).json({ error: "Login required" });
