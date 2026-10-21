@@ -62,3 +62,46 @@ test("fav1: top picks = one per item; items not on today's menu are skipped quie
   const f = favoritesFor([o("4", [quesa]), o("3", [q2]), o("2", [{ name: "Old Item", qty: 1, mods: [] }]), o("1", [torta])], menu, { channel: "app", available: yes })!;
   assert.deepEqual(f.offers.map((x) => x[0].action.itemId), ["Q", "T"]); assert.deepEqual(f.dropped, []);
 });
+const { usualLines } = await import("../../src/favorites.ts");
+test("fav2: same items + quantities, different toppings → usual with the most common choice per group", () => {
+  const t = (m: string) => ({ name: "Torta", qty: 1, mods: [m] });
+  const f = favoritesFor([o("3", [t("Pastor"), horch]), o("2", [horch, t("Bistec / Steak")]), o("1", [t("Bistec / Steak"), horch])], menu, { channel: "app", available: yes })!;
+  assert.equal(f.kind, "usual");
+  assert.deepEqual(f.offers[0].find((l) => l.action.itemId === "T")!.action.modifiers, [{ step: "(B) Torta Carnes", option: "Bistec / Steak" }]);
+});
+test("fav2: tie → most recent order's choice; an add-on only once of three is left off; today's price", () => {
+  const q = (mods: string[]) => ({ name: "Quesadilla", qty: 1, mods });
+  const tie = usualLines([o("3", [{ name: "Torta", qty: 1, mods: ["Pastor"] }]), o("2", [{ name: "Torta", qty: 1, mods: ["Bistec / Steak"] }]), o("1", [{ name: "Torta", qty: 1, mods: [] }])], menu);
+  assert.deepEqual(tie[0].mods, ["Pastor"]);
+  const f = favoritesFor([o("3", [q(["Con Frijoles / With Beans (+$0.25)"])]), o("2", [q([])]), o("1", [q([])])], menu, { channel: "app", available: yes })!;
+  assert.equal(f.kind, "usual"); assert.deepEqual(f.offers[0][0].action.modifiers, []); assert.match(f.greeting.en, /\$6\.00 today/);
+  const g = favoritesFor([o("3", [q([])]), o("2", [q(["Con Frijoles / With Beans (+$0.25)"])]), o("1", [q(["Con Frijoles / With Beans (+$0.25)"])])], menu, { channel: "app", available: yes })!;
+  assert.match(g.greeting.en, /\$6\.50 today/); // add-on at today's +$0.50
+});
+test("fav2: different quantities or items → still top picks", () => {
+  const f = favoritesFor([o("3", [{ name: "Torta", qty: 2, mods: [] }]), o("2", [torta]), o("1", [torta])], menu, { channel: "app", available: yes })!;
+  assert.equal(f.kind, "top");
+});
+const { buildHistoryLinked } = await import("../../src/favorites.ts");
+const ord = (id: string, r: any, extra: any = {}) => ({ id, created_at: `2026-01-0${id.length}${id}`, source: { name: "Square Online" }, state: "COMPLETED", total_money: { amount: 900 },
+  fulfillments: [{ type: "PICKUP", pickup_details: { recipient: r } }], line_items: [{ name: "Torta", quantity: "1" }], ...extra });
+test("fav3: name links — distinctive full name with no phone links; first name alone never; shared name needs email; other phone needs email/address", () => {
+  const { history, links } = buildHistoryLinked([
+    ord("1", { display_name: "Zed Qwerty", phone_number: "5550000011", email_address: "zq@example.test" }),
+    ord("2", { display_name: "zed  QWERTY" }),                                   // no phone, distinctive → link
+    ord("3", { display_name: "Zed" }),                                           // first name only → never
+    ord("4", { display_name: "Ana Example", phone_number: "5550000021" }),
+    ord("5", { display_name: "Ana Example", phone_number: "5550000022" }),
+    ord("6", { display_name: "Ana Example" }),                                   // name on 2 phones, no email → no link
+    ord("7", { display_name: "Ana Example", email_address: "a@example.test" }),  // email not on file → no link
+    ord("10", { display_name: "Yul Asdfgh", phone_number: "5550000055", email_address: "ya@example.test" }),
+    ord("8", { display_name: "Yul Asdfgh", phone_number: "5550000033", email_address: "ya@example.test" }), // other phone + same email → link
+    ord("9", { display_name: "Yul Asdfgh", phone_number: "5550000044" }),        // other phone, no corroboration → no link
+  ], {});
+  assert.deepEqual(links.filter((l) => l.phone === "5550000011").map((l) => [l.orderId, l.by]), [["2", "distinctive"]]);
+  assert.deepEqual(links.filter((l) => l.phone === "5550000055").map((l) => [l.orderId, l.by]), [["8", "email"]]);
+  assert.equal(links.some((l) => ["3", "6", "7", "9"].includes(l.orderId) && l.phone === "5550000011"), false);
+  assert.equal(links.some((l) => l.orderId === "6"), false);
+  assert.equal(links.some((l) => l.orderId === "9" && l.phone === "5550000055"), false);
+  assert.equal(history["5550000011"].length, 2);
+});

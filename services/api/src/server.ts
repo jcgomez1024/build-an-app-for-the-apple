@@ -39,7 +39,7 @@ import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from 
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
-import { buildHistory, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
+import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey } from "./caller-memory.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1655,9 +1655,9 @@ async function refreshOnlineLearning() {
     writeOnlineLearning(data);
     try { // fav1: per-phone history (gitignored data/logs/favorites); 120 days of tickets, read-only
       const older = await weeks(new Date(end.getTime() - 120 * 86400000), start).catch(() => [] as any[]);
-      const h = buildHistory([...orders, ...older], phoneByLinkedOrder());
-      writeHistory(h);
-      console.log(`fav1: history for ${Object.keys(h).length} phones, ${Object.values(h).filter((x) => x.length >= FAV_MIN_ORDERS).length} with ≥${FAV_MIN_ORDERS} orders`);
+      const { history: h, links } = buildHistoryLinked([...orders, ...older], phoneByLinkedOrder());
+      writeHistory(h, links);
+      console.log(`fav1: history for ${Object.keys(h).length} phones, ${Object.values(h).filter((x) => x.length >= FAV_MIN_ORDERS).length} with ≥${FAV_MIN_ORDERS} orders; fav3: ${links.length} orders linked by name to ${new Set(links.map((l) => l.phone)).size} customers`);
     } catch (e) { console.warn("fav1: history failed", e instanceof Error ? e.message.slice(0, 120) : e); }
     console.log(`learn1: online learning feed ${data.orders} paid online orders`);
   } catch (e) { console.warn("learn1: refresh failed", e instanceof Error ? e.message.slice(0, 120) : e); }
