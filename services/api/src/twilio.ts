@@ -172,6 +172,27 @@ export const tempoSuffix = (t = promptTempo()) => (Math.abs(t - 1) < 0.005 ? "" 
  *  prompts and the hold music always play at 1.0. */
 export const tempoEligible = (key: string) =>
   /^(opening-|notice-|closed-|held-(es|en)$|hold-(es|en)$|hold-switch-)/.test(key);
+/** ringback1 (Carlos): standard US ringback — 440 + 480 Hz, 2 s on / 4 s off — as an 8 kHz 16-bit mono WAV (one 6 s cycle),
+ *  generated in memory and served by our API; the waiting hold loops it until staff accept / bridge. */
+let ringbackCache: Buffer | null = null;
+export function ringbackWav(): Buffer {
+  if (ringbackCache) return ringbackCache;
+  const rate = 8000, n = rate * 6, data = Buffer.alloc(n * 2);
+  for (let i = 0; i < 2 * rate; i++) {
+    const t = i / rate, env = Math.min(1, i / 80, (2 * rate - i) / 80); // 10 ms ramps, no clicks
+    const v = env * 0.22 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 480 * t));
+    data.writeInt16LE(Math.round(v * 32767), i * 2);
+  }
+  const h = Buffer.alloc(44);
+  h.write("RIFF", 0); h.writeUInt32LE(36 + data.length, 4); h.write("WAVE", 8); h.write("fmt ", 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22);
+  h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(data.length, 40);
+  return (ringbackCache = Buffer.concat([h, data]));
+}
+export const RINGBACK_PATH = "/api/twilio/tones/ringback-us.wav";
+/** Waiting hold (after the greeting, until bridge): ringback only, looped (~60 s; the waitUrl re-requests it after). */
+export const waitingHoldTwiml = (base: string, lang: "es" | "en") =>
+  `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST"><Play loop="10">${base}${RINGBACK_PATH}</Play></Gather>`;
+
 function promptFile(key: string) {
   if (!/^[a-z0-9_-]+$/i.test(key)) return null;
   const suf = tempoEligible(key) ? tempoSuffix() : "";
@@ -1337,6 +1358,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
   });
 
   // Public: Twilio <Play> fetches cloned-voice MP3s (safe filename only).
+  app.get(RINGBACK_PATH, (_req, res) => { res.type("audio/wav").set("Cache-Control", "public, max-age=86400").send(ringbackWav()); });
   app.get("/api/twilio/prompts/:file", (req, res) => {
     const m = /^([a-z0-9_-]+)\.mp3$/i.exec(String(req.params.file || ""));
     if (!m) return res.status(400).end();
@@ -1352,6 +1374,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const msg = playOrSay(base, lang, (isHeld ? HELD_TEXT : HOLD_TEXT)[lang], isHeld ? `held-${lang}` : `hold-${lang}`);
     if (isHeld) return `${msg}<Play>${xmlEscape(music)}</Play>`;
     void HOLD_SWITCH; // ring2 (Carlos): no "For English, press 2" — Spanish only for new callers; language is corrected after the call
+    if (process.env.TWILIO_WAIT_RINGBACK !== "0") return waitingHoldTwiml(base, lang); // ringback1: ringback, not silence/music, while staff phones ring
     return `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST">${msg}<Play>${xmlEscape(music)}</Play></Gather>`;
   };
 
