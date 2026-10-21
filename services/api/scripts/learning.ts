@@ -45,6 +45,8 @@ async function replayer() {
   const tenant = resolveTenant(undefined);
   const cfg: any = { env: tenant.square.env, accessToken: tenant.square.accessToken, locationId: tenant.square.locationId, apiVersion: tenant.square.apiVersion, appPublicUrl: "http://localhost:4000", businessName: tenant.branding.displayName };
   const menu = await getMenu(cfg); const resolverMenu: any[] = await getFullMenu(cfg).catch(() => menu);
+  const { loadPosCatalog, toPosLines } = await import("../src/pos-catalog.ts"); const { withIncludedToppings } = await import("../src/standard-toppings.ts");
+  const { deliveryFeeLine } = await import("../src/call-accuracy.ts"); const posCat = await loadPosCatalog(cfg);
   // a3: deterministic replays — each turn's result is cached by (code version, text after slang, memory hit, history).
   // Same code + same memory → same answer every night; a candidate only changes the turns it touches (and those after).
   const { createHash } = await import("node:crypto");
@@ -61,8 +63,10 @@ async function replayer() {
       const r: any = await live(t, language, history); const { audioBase64, audioMimeType, ...keep } = r || {}; cache[k] = keep; return keep;
     };
     const r: any = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), run as any);
-    const lines = elviLines(r.cart || [], resolverMenu as any);
-    return { score: scoreOrder(lines, truth).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`) };
+    // a2: score exactly like /api/calls/accuracy — POS names, delivery fee line, included toppings (was: menu names → 40 on a perfect order)
+    const lines: any[] = toPosLines(elviLines(r.cart || [], resolverMenu as any), posCat);
+    if (r.fulfillment === "DELIVERY" && lines.length) lines.push(deliveryFeeLine(row.deliveryFeeCents ?? r.deliveryFeeCents));
+    return { score: scoreOrder(lines.map(withIncludedToppings), truth.map(withIncludedToppings)).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`) };
   };
   return { replay, resolverMenu, saveCache, tenant };
 }
