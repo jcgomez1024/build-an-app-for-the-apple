@@ -723,7 +723,7 @@ export function fixBurritoFillings<T extends { type: string; itemId?: string; mo
  * fill that dish's Carne/Meat group, up to the website max (Sopesaso Elvis allows 2). If the caller names
  * more meats than max, leave meats unset so Elvi asks — never silently drop extras.
  */
-const meatOptSaid = (optName: string, said: string) => {
+export const meatOptSaid = (optName: string, said: string) => {
   const clean = cleanOpt(optName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/^solo\s+/i.test(clean) && !/\bsolo\s+/i.test(said)) return false; // "Solo Frijoles" needs "solo"
   if (/bistec|steak/.test(clean) && /\b(bistec|asada|steak|campechana)\b/.test(said)) return true;

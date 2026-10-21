@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import type { MenuItem } from "./menu.js";
 import { getLaunchConfig } from "./launch-config.js";
 import { rbFormat } from "./readback.js";
-import { enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords } from "./site-catalog.js";
+import { meatOptSaid, enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords } from "./site-catalog.js";
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
 import { deliveryDialogRules } from "./delivery.js";
@@ -242,7 +242,7 @@ export function shortAckAfterReadback(input: ElviRequest, lastReply: string): El
   if (!t.trim() || DISH_RE.test(t) || /\b(bebida|agua|refresco|soda|horchata|drink|coca|jarrito)\b/.test(t)) return null;
   // counting with no dish ("y me pone dos, tres") — the dish comes next; ask instead of re-adding the last one
   const nums = t.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
-  if (nums.some((x) => /^(\d+|dos|tres|cuatro|cinco|seis|two|three|four|five|six)$/.test(x)) && nums.every((x) => /^(\d+|una?|uno|dos|tres|cuatro|cinco|seis|two|three|four|five|six|y|and|me|pone|ponga|da|dame|de|esos|otr[ao]s?|mas|more|give)$/.test(x)))
+  if (nums.some((x) => /^(\d+|dos|tres|cuatro|cinco|seis|two|three|four|five|six)$/.test(x)) && nums.every((x) => /^(\d+|una?|uno|dos|tres|cuatro|cinco|seis|two|three|four|five|six|y|and|me|pone|ponga|da|dame|de|esos|otr[ao]s?|mas|more|give|pero|si|ah|eh|solo|digo|no|aja|bueno|este)$/.test(x)))
     return { language: input.language, engine: "xai", reply: input.language === "es" ? "¿De qué serían?" : "Of what?", actions: [] } as any;
   if (/\b(\d+|una?|uno|otr[ao]s?|one|another)\b/.test(t)) return null;
   const w = t.replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
@@ -277,6 +277,36 @@ export function memoryTurn(input: ElviRequest): ElviResponse | null {
   if (!hit) return null;
   const actions = hit.map((h) => ({ type: "add_item" as const, itemId: h.itemId, quantity: h.quantity, modifiers: h.modifiers.map((m) => ({ step: m.step, option: m.option })) }));
   return { language: input.language, engine: "xai", reply: addReadback(actions as any, menu, input.language as Language), actions, memory: hit.map((h) => h.memoryId) } as any;
+}
+/** cheyenne1: "dos de chorizo" / "y dos de bistec y dos de chorizo" with no dish named = more of the LAST dish (same tortilla),
+ * with the named meat. The same dish + meat + count as the last add is a repeat, not a new line. ("dos de" never means dorados.) */
+const MORE_SEG = /^(?:y\s+)?(?:tambi[eé]n\s+)?(?:me\s+(?:da|pone|das|pones)\s+)?(\d{1,2}|una?|uno|dos|tres|cuatro|cinco|seis|otr[ao]s?)\s+(?:m[aá]s\s+)?de\s+([\p{L}\s]+?)$/iu;
+export function sameDishMore(input: ElviRequest): ElviResponse | null {
+  const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
+  if (!last || Date.now() - last.at > 3 * 3600_000) return null;
+  const t = fuPlain(String(input.transcript || "")).replace(/\b(por favor|please|porfa)\b/g, " ").replace(/\s+/g, " ").trim();
+  if (!t || DISH_RE.test(t)) return null;
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
+  const item: any = menu.find((m) => m.id === last.itemId); if (!item) return null;
+  const meatG: any = (item.modifierGroups || []).find((g: any) => /carne|meat/i.test(g.name) && !/extra/i.test(g.name)); if (!meatG) return null;
+  const segs = t.split(/\s*(?:,|\.|;|\by\b(?=\s+(?:\d|una?|uno|dos|tres|cuatro|cinco|seis|otr)))\s*/).map((x) => x.trim()).filter(Boolean);
+  const N: Record<string, number> = { un: 1, una: 1, uno: 1, otra: 1, otro: 1, otras: 2, otros: 2, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
+  const adds: any[] = [];
+  for (const seg of segs) {
+    if (/^(?:(?:no|digo|solo|ah|eh|este|bueno|si|aja|pero|o sea|perdon|cuatro|tres|cinco|seis|dos y dos|\d+)\s*)+$/.test(seg)) continue; // "No, digo, solo, ah, cuatro"
+    const m = MORE_SEG.exec(seg); if (!m) return null;
+    const opt = (meatG.options || []).map((o: any) => (typeof o === "string" ? { name: o } : o)).find((o: any) => meatOptSaid(o.name, m[2]));
+    if (!opt) return null;
+    const q = /\d/.test(m[1]) ? Number(m[1]) : N[m[1]] || 1;
+    const others = (last.modifiers || []).filter((x: any) => !(meatG.options || []).some((o: any) => (typeof o === "string" ? o : o.name) === x.option));
+    adds.push({ type: "add_item", itemId: item.id, quantity: q, modifiers: [...others.map((x: any) => ({ step: x.step, option: x.option })), { step: meatG.name, option: opt.name }] });
+  }
+  if (!adds.length) return null;
+  const lastMeat = (last.modifiers || []).find((x: any) => (meatG.options || []).some((o: any) => (typeof o === "string" ? o : o.name) === x.option))?.option;
+  const fresh = adds.filter((a, i) => !(i === 0 && a.quantity === last.quantity && a.modifiers[a.modifiers.length - 1].option === lastMeat)); // repeat of the last line
+  const language = input.language as Language;
+  if (!fresh.length) return { language, engine: "xai", reply: language === "es" ? "Sí, ya los tengo. ¿Algo más?" : "Yes, I have those. Anything else?", actions: [] } as any;
+  return { language, engine: "xai", reply: addReadback(fresh, menu, language), actions: fresh } as any;
 }
 export function multiDishTurn(input: ElviRequest): ElviResponse | null {
   const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
@@ -337,7 +367,7 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
     }));
     if (!adds.length) return null;
     // fix_uriel: an answer that carries its own count for this dish ("me pone dos tortas de bistec") keeps it.
-    const own = spokenQtyFor(heard, ctx.items);
+    const own = spokenQtyFor(heard, ctx.items) || spokenQtyFor(ctx.saidTurns.join(" "), ctx.items); // cheyenne1: "Dos tacos de bistec" → "¿qué tortilla?" → "hecha a mano" keeps 2
     if (own && adds.length === 1) adds[0].quantity = own;
     // Everything the caller said for this dish, so later checks see "only rice" and "half pollo" alike.
     return { reply: addReadback(adds, menu, language), actions: adds, said: [...ctx.saidTurns, heard].join(" ") };
@@ -1820,7 +1850,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   const DONE = /^\s*(?:no[\s,.!]*)?(?:(?:as[ií]\s+)?est[aá]\s+bien|(?:eso\s+)?es\s+todo|ser[ií]a\s+todo|nada\s+m[aá]s|that'?s\s+(?:fine|it|all|good|everything)|it'?s\s+fine|nothing\s+else|no\s+thanks?|that\s+will\s+be\s+all)(?:[\s,.!]*(?:gracias|thanks?|thank\s+you|por\s+favor|please))?[\s.!]*$/iu;
   const named = phoneOrderNameTurn(input, lastReply, DONE);
   if (named) return named;
-  if (/(¿Algo más\?|Anything else\?)\s*$/.test(lastReply) && DONE.test(String(input.transcript || ""))) {
+  if (/(¿Algo más\?|Anything else\?|¿De qué serían\?|Of what\?)\s*$/.test(lastReply) && DONE.test(String(input.transcript || ""))) {
     const es = input.language === "es";
     return { language: input.language, engine: "xai", reply: es ? "¡Perfecto! Revisa tu orden y cuando estés listo, pasa a pagar." : "Perfect! Review your order and check out when you're ready.", actions: [] } as ElviResponse;
   }
@@ -1830,6 +1860,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   if (ack) return ack;
   const mem = memoryTurn(input);
   if (mem) { recordLastAdd((input as any).sessionKey, mem.actions); return mem; }
+  const more = sameDishMore(input);
+  if (more) { recordLastAdd((input as any).sessionKey, more.actions); return more; }
   const multi = multiDishTurn(input);
   if (multi) { recordLastAdd((input as any).sessionKey, multi.actions); return multi; }
   const small = appSmallSopeReply(input);

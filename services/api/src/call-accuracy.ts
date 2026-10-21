@@ -1,3 +1,4 @@
+import { compareNames } from "./name-accuracy.js";
 // Call accuracy: match each recorded call's shadow order (Elvi) to the Square ticket staff rang up, and score it.
 // Square is read-only here (Orders Search). Nothing is created or changed.
 import fs from "node:fs";
@@ -285,7 +286,7 @@ export function candidateTickets(call: CallRecord & { customerName?: string | nu
     if (!(t >= start && t <= end)) continue;
     const lines = ticketLines(o);
     const phoneHit = !!phone && orderPhones(o).includes(phone);
-    const nameHit = !!first && orderNames(o).includes(first);
+    const nameHit = !!first && (orderNames(o).includes(first) || orderNames(o).some((n: string) => first.length >= 4 && n.length >= 4 && compareNames(first, n) !== "mismatch")); // cheyenne1: 'Cheyenne' ≈ ticket 'Cheyen'
     const overlap = itemOverlap(elvi, lines);
     if (!phoneHit && !nameHit && overlap < 0.5) continue;
     const tagged = !/point of sale/i.test(String(o.source?.name || "")) || /voice|elvi|phone/i.test(JSON.stringify(o.metadata || {}) + String(o.reference_id || ""));
