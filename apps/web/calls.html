@@ -104,7 +104,7 @@ function renderReadbacks(calls) {
   const a = (xs) => xs.length ? (Math.round(xs.reduce((s, c) => s + c.score, 0) / xs.length * 10) / 10) + "%" : "–";
   el.innerHTML = `<table><tr><th>Contestó</th><th>Llamadas</th><th>Con read-back</th><th>Elvi con</th><th>Elvi sin</th></tr>${Object.entries(groups).map(([k, xs]) => { const w = xs.filter((c) => c.readback && c.readback.status !== "none"); const wo = xs.filter((c) => !c.readback || c.readback.status === "none"); return `<tr><td>${esc(k)}</td><td>${xs.length}</td><td>${w.length}</td><td>${a(w)}</td><td>${a(wo)}</td></tr>`; }).join("")}</table><div class="note">Por aparato (escritorio 9249, celular 6793, mostrador). Por persona: opción futura si se captura el nombre del personal al contestar.</div>`;
 }
-const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null && !c.unclear); // unclear1: not in accuracy return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
+const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null && !c.unclear); /* unclear1: not in accuracy */ return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
 
 function chart() {
   const rows = ((filter === "training" ? data?.trainingTrend : data?.trend)?.[period] || []).slice(-14);
