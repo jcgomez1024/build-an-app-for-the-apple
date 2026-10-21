@@ -2,8 +2,11 @@
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
-// v3menu: browsable-menu PREVIEW, only with ?menu=v3 (live default unchanged until Carlos approves).
-const V3 = (() => { try { return new URLSearchParams(location.search).get("menu") === "v3"; } catch { return false; } })();
+// v3menu: the browsable menu is the default (Carlos approved 10/21). ?menu=old = previous ui1 home.
+const Q3 = (() => { try { return new URLSearchParams(location.search); } catch { return new Map(); } })();
+const V3 = Q3.get("menu") !== "old";
+// Scheduled pickup is NOT approved for live orders yet: only with ?schedule=1 (testing; submit is a dry run).
+const SCHED_OK = V3 && Q3.get("schedule") === "1";
 // v3menu: photos with no recorded source (img/SOURCES.tsv) are not shown in the preview.
 const UNVERIFIED_IMG = new Set(["meat-carnitas.jpg", "opt-burrito-grande.jpg", "opt-burrito-regular.jpg", "opt-gordita.jpg", "opt-pico-chips.jpg", "opt-quesadilla-comal.jpg", "opt-quesadilla-harina.jpg", "opt-quesadilla-street.jpg", "opt-queso-gordita.jpg", "opt-queso-torta.jpg", "opt-torta.jpg"]);
 const $ = (s, r = document) => r.querySelector(s);
@@ -106,7 +109,7 @@ const U = { menu: [], cats: [], productOf: new Map(), screen: "home", cat: null,
 
 async function load() {
   const [m, c] = await Promise.all([fetch(`/api/${TENANT}/menu`).then((r) => r.json()), fetch(`/api/${TENANT}/ui/catalog${V3 ? "?v3=1" : ""}`).then((r) => r.json())]);
-  if (V3) { U.store = c.storeState || null; U.popular = c.popular || []; U.schedAvail = c.scheduleAvail || null; }
+  if (V3) { U.store = v3Store(c.storeState); U.popular = c.popular || []; U.schedAvail = c.scheduleAvail || null; if (U.sched === undefined) U.sched = !!U.store?.schedule; }
   U.menu = m.items || [];
   const cats = c.categories || [];
   for (const cat of cats) for (const x of cat.items) U.productOf.set(x.id, x.product);
@@ -122,13 +125,17 @@ function render() {
   if (!root) return;
   document.documentElement.lang = lang();
   U.lang = lang();
-  const sub = $("#ui1 .u1-head small"); if (sub) sub.textContent = t("Pide con Elvi · Painesville", "Order with Elvi · Painesville");
+  const sub = $("#ui1 .u1-head small"); if (sub) sub.textContent = V3 ? "101 W Walnut Ave · Painesville" : t("Pide con Elvi · Painesville", "Order with Elvi · Painesville");
+  if (V3) document.body.classList.toggle("v3-view-elvi", U.view === "elvi");
+  if (V3 && U.screen === "item") { if (!root.innerHTML) root.innerHTML = v3HTML(); v3RenderSheet(); renderBar(); renderCartStrip(); v3Side(); v3Line(); return; }
+  if (V3) { U.v3focused = false; v3RenderSheet(); }
   if (U.screen === "home") { if (V3) { const y = window.scrollY; root.innerHTML = v3HTML(); v3After(y); } else root.innerHTML = homeHTML(); }
   else if (U.screen === "cat" || U.screen === "prod") root.innerHTML = catHTML();
   else if (U.screen === "item") root.innerHTML = itemHTML();
   else if (U.screen === "receipt") root.innerHTML = receiptHTML();
   renderBar();
   renderCartStrip();
+  if (V3) { v3Side(); v3Line(); }
 }
 function homeHTML() {
   return `<h2 class="u1-h2">${t("¿Qué se te antoja?", "What are you craving?")}</h2><div class="u1-grid">${U.cats.map((c, i) => {
@@ -270,7 +277,7 @@ function renderBar() {
   const b = B(); const cart = b?.state?.cart || [];
   const n = cart.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
   const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
-  if (U.screen === "item") {
+  if (U.screen === "item" && !V3) {
     const gs = U.item.modifierGroups || [];
     const st = U.step !== "x" && U.step !== null ? gs[U.step] : null;
     const miss = missingStep();
@@ -280,6 +287,9 @@ function renderBar() {
     return;
   }
   if (U.screen === "receipt") { bar.innerHTML = `<button class="u1-btn s" data-go="home">${t("Menú", "Menu")}</button><button class="u1-btn s" data-read="1">🔊 ${t("Leer otra vez", "Read again")}</button>`; return; }
+  if (V3) { const when = U.sched && U.store?.schedule && !v3Live() ? t(U.store.schedule.es, U.store.schedule.en).replace(/^(Programar para|Schedule for) /, t("Recoger ", "Pickup ")) : t("Ver orden", "View order");
+    document.body.classList.toggle("v3-cart0", !n);
+    bar.innerHTML = `<button class="u1-btn p v3-cartbar" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${esc(when)}<span>${money(tot)}</span></button><div class="v3-ebar"><span class="v3-dot"></span><div><small>Elvi</small><p id="v3-line"></p></div></div>`; return; }
   bar.innerHTML = `<button class="u1-btn p" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${money(tot)} — ${t("Ver orden", "View order")}</button>`;
 }
 function modsText(line) {
@@ -325,6 +335,9 @@ function showToast(item, mods, said) {
 }
 
 // ---------- v3menu: one scrolling menu, sticky tabs + scroll-spy ----------
+function v3Store(st) { if (!st) return null; if (!SCHED_OK) return { ...st, schedule: null }; if (st.schedule && st.state === "closed") st = { ...st, pill: { es: "Cerrado · programar", en: "Closed · schedule" }, banner: { es: `Cerrado ahora · ${st.schedule.es}`, en: `Closed now · ${st.schedule.en}` } };
+  if (st.schedule && st.state === "before_open") st = { ...st, schedule: { ...st.schedule, es: st.schedule.es.replace(/para \S+ /, "para hoy "), en: st.schedule.en.replace(/for \S+ /, "for today ") } };
+  return st; }
 function v3Live() { return !U.store || U.store.state === "open" || U.store.state === "last_order"; }
 function v3CanOrder(item) { if (v3Live()) return true; if (!U.sched || !U.store?.schedule) return false; return item ? U.schedAvail?.[item.id] !== false : true; }
 // Scheduled pickup (preview, DRY RUN): builds what a Square order with pickup_at would carry, sends nothing.
@@ -363,10 +376,11 @@ function v3Sections() {
 }
 function v3HTML() {
   const s = U.store, secs = v3Sections(); U.v3secs = secs;
-  const banner = s?.banner ? `<div class="v3-banner ${s.state}">${esc(t(s.banner.es, s.banner.en))}${s.schedule ? (U.sched ? `<small>${esc(t("Recoger: ", "Pickup: ") + t(s.schedule.es, s.schedule.en).replace(/^(Programar para|Schedule for) /, ""))}</small><span class="v3-sbtns"><button type="button" class="v3-sched" data-v3submit="1">${t("Enviar pedido (prueba)", "Send order (test)")}</button><button type="button" class="v3-sched o" data-v3unsched="1">${t("Cancelar", "Cancel")}</button></span>` : `<button type="button" class="v3-sched" data-v3sched="1">🕒 ${esc(t(s.schedule.es, s.schedule.en))}</button>`) : ""}${s.state === "closed" ? `<small>${s.hours.map((h) => `${t(h.es, h.en)} ${h.open ? h.open + "–" + h.close : t("cerrado", "closed")}`).join(" · ")}</small>` : ""}</div>` : "";
+  const banner = s?.banner ? `<div class="v3-banner ${s.state}">${esc(t(s.banner.es, s.banner.en))}${s.schedule ? `<label class="v3-chk"><input type="checkbox" data-v3chk="1" ${U.sched ? "checked" : ""}> ${esc(t(s.schedule.es, s.schedule.en).replace(/^Programar para /, "Programar para recoger ").replace(/^Schedule for /, "Schedule pickup for "))}</label>${U.sched ? `<button type="button" class="v3-sched" data-v3submit="1">${t("Enviar pedido (prueba)", "Send order (test)")}</button>` : ""}` : ""}${s.state === "closed" || s.state === "before_open" ? `<small>${s.hours.map((h) => `${t(h.es, h.en)} ${h.open ? h.open + "–" + h.close : t("cerrado", "closed")}`).join(" · ")}</small>` : ""}</div>` : "";
   const tabs = `<nav class="v3-tabs" id="v3-tabs" aria-label="${t("Categorías", "Categories")}">${secs.map((x) => `<button type="button" data-v3tab="${x.id}">${esc(t(x.es, x.en))}${x.timed && !x.open ? " ⏱" : ""}</button>`).join("")}</nav>`;
   const body = secs.map((x) => `<section class="v3-sec" id="s-${x.id}"><h2 class="u1-h2">${esc(t(x.es, x.en))}</h2>${x.timed && x.window ? `<p class="v3-sub">${esc((x.open ? "" : t("Cerrado ahora · ", "Closed now · ")) + t(x.window.es, x.window.en))}</p>` : ""}${x.groups.map((g) => v3Card(g.list, g.x, x.open, x.popular)).join("")}</section>`).join("");
-  return `${banner}${tabs}<div class="v3-list">${body}</div>`;
+  const seg = `<div class="v3-seg" role="tablist"><button type="button" role="tab" data-v3view="menu" class="${U.view !== "elvi" ? "on" : ""}" aria-selected="${U.view !== "elvi"}">🍽️ ${t("Menú", "Menu")}</button><button type="button" role="tab" data-v3view="elvi" class="${U.view === "elvi" ? "on" : ""}" aria-selected="${U.view === "elvi"}"><span class="v3-dot"></span> Elvi</button></div>`;
+  return `${seg}${banner}${U.view === "elvi" ? v3ElviHTML() : `${tabs}<div class="v3-list">${body}</div>`}`;
 }
 function v3After(y) {
   const pill = document.querySelector("#v3-pill");
@@ -390,16 +404,57 @@ function v3Motion() { try { return matchMedia("(prefers-reduced-motion: reduce)"
 if (V3) {
   window.addEventListener("scroll", () => { if (v3Raf) return; v3Raf = requestAnimationFrame(() => { v3Raf = 0; v3Spy(); }); }, { passive: true });
   document.addEventListener("click", (e) => {
-    const sc = e.target.closest?.("[data-v3sched],[data-v3unsched],[data-v3submit]");
-    if (sc) { if (sc.dataset.v3submit) { v3DryRun(); return; } U.sched = !!sc.dataset.v3sched; if (U.sched) v3Say(t(`Listo, programamos tu pedido: ${U.store.schedule.es.replace(/^Programar para /, "")}. Solo puedes agregar lo que está disponible a esa hora.`, `OK, scheduling your order: ${U.store.schedule.en.replace(/^Schedule for /, "")}. Only items available then can be added.`)); render(); return; }
+    const vw = e.target.closest?.("[data-v3view]"); if (vw) { U.view = vw.dataset.v3view; render(); window.scrollTo(0, 0); return; }
+    if (e.target.closest?.("[data-v3x]")) { U.v3x = !U.v3x; return; }
+    const sc = e.target.closest?.("[data-v3chk],[data-v3submit]");
+    if (sc) { if (sc.dataset.v3submit) { v3DryRun(); return; } U.sched = !U.sched; if (!U.sched) v3Closed(); if (U.sched) v3Say(t(`Listo, programamos tu pedido: ${U.store.schedule.es.replace(/^Programar para /, "")}. Solo puedes agregar lo que está disponible a esa hora.`, `OK, scheduling your order: ${U.store.schedule.en.replace(/^Schedule for /, "")}. Only items available then can be added.`)); render(); return; }
     const b = e.target.closest?.("[data-v3tab]"); if (!b) return;
     const el = document.getElementById(`s-${b.dataset.v3tab}`); if (!el) return;
     window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - v3Offset() - 6, behavior: v3Motion() });
   });
   // closed / before-open: tapping a card explains instead of opening it
-  document.addEventListener("click", (e) => { if (!v3CanOrder() && !U.sched && e.target.closest?.("#ui1 .v3-card")) { e.stopImmediatePropagation(); e.preventDefault(); v3Closed(); } }, true);
+  document.addEventListener("click", (e) => { if (!v3CanOrder() && e.target.closest?.("#ui1 .v3-card")) { e.stopImmediatePropagation(); e.preventDefault(); v3Closed(); } }, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.screen === "item") { U.screen = "home"; render(); } });
+  setInterval(v3Line, 500);
   // store state re-evaluated every minute (server time)
-  setInterval(() => { fetch(`/api/${TENANT}/ui/catalog?v3=1`).then((r) => r.json()).then((c) => { U.store = c.storeState || U.store; U.popular = c.popular || U.popular; U.schedAvail = c.scheduleAvail || null; if (!U.store?.schedule) U.sched = false; if (U.screen === "home") render(); }).catch(() => {}); }, 60000);
+  setInterval(() => { fetch(`/api/${TENANT}/ui/catalog?v3=1`).then((r) => r.json()).then((c) => { U.store = v3Store(c.storeState) || U.store; U.popular = c.popular || U.popular; U.schedAvail = c.scheduleAvail || null; if (!U.store?.schedule) U.sched = false; if (U.screen === "home") render(); }).catch(() => {}); }, 60000);
+}
+
+function v3CartHTML() {
+  const b = B(); const cart = b?.state?.cart || [];
+  if (!cart.length) return `<p class="v3-empty">${t("Vacía — agrega algo del menú o dímelo.", "Empty — add something from the menu or tell me.")}</p>`;
+  const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
+  const when = U.sched && U.store?.schedule ? `<p class="v3-when">🗓 ${esc(t(U.store.schedule.es, U.store.schedule.en).replace(/^(Programar para|Schedule for) /, t("Recoger ", "Pickup ")))} · ${t("programado", "scheduled")}</p>` : "";
+  return `${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="v3-cl tot"><span>Subtotal</span><b>${money(tot)}</b></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
+}
+function v3ElviHTML() { return `<section class="v3-elvi"><div class="v3-elvi-card"><span class="v3-dot big"></span><div><b>Elvi</b><small>${t("Pide hablando o tocando el menú", "Order by talking or tapping the menu")}</small></div></div><p class="v3-elvi-line" id="v3-elvi-line"></p><h3>🛒 ${t("Tu orden", "Your order")}</h3>${v3CartHTML()}</section>`; }
+function v3Side() {
+  let el = document.getElementById("v3-side");
+  if (!el) { el = document.createElement("aside"); el.id = "v3-side"; el.className = "v3-side"; document.getElementById("ui1")?.appendChild?.(el); }
+  el.innerHTML = `<div class="v3-elvi-card"><span class="v3-dot big"></span><div><b>Elvi</b><small>${t("Pide hablando o tocando el menú", "Order by talking or tapping the menu")}</small></div></div><div class="v3-side-cart"><h3>🛒 ${t("Tu orden", "Your order")}</h3>${v3CartHTML()}</div>`;
+}
+// Elvi's latest line, mirrored into the compact bar / Elvi view / side panel.
+function v3Line() { const txt = document.querySelector("#assistant-reply")?.textContent || ""; for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e && e.textContent !== txt) e.textContent = txt; } }
+// ---------- v3 item sheet: all groups in Square order, Elvi asks only the first missing required group ----------
+function v3Ask(g) { const l = groupLabel(g); if (/carne|meat/i.test(l)) return t("¿De qué carne?", "Which meat?"); if (/adentro|inside/i.test(l)) return t("¿Qué le ponemos adentro?", "What goes inside?"); if (/tortilla/i.test(l)) return t("¿Qué tortilla?", "Which tortilla?"); if (/tama|size/i.test(l)) return t("¿De qué tamaño?", "Which size?"); return t(`¿${l}?`, `${l}?`); }
+function v3SheetHTML() {
+  const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
+  const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
+  const say = miss !== undefined ? v3Ask(gs[miss]) : t(`Perfecto: ${itemName(it)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(it)}${picked ? " — " + picked : ""}.`);
+  const grp = (i) => { const g = gs[i]; const need = minOf(g) > 0 && !Object.keys(U.sel[g.id]).length; const mx = maxOf(g);
+    return `<div class="v3-grp ${need ? "need" : ""}" id="v3-g-${i}"><div class="v3-gh"><b>${esc(groupLabel(g))}</b><span>${need ? t("Requerido", "Required") + (mx > 1 && mx < 99 ? ` · ${t("hasta", "up to")} ${mx}` : "") : Object.keys(U.sel[g.id]).length ? "✓" : ""}</span></div><div class="u1-grid opts">${tilesFor(i)}</div></div>`; };
+  const extras = extra.length ? `<details class="v3-extras" ${U.v3x ? "open" : ""}><summary data-v3x="1">＋ ${t("Agregar extras", "Add extras")}</summary>${extra.map(grp).join("")}</details>` : "";
+  const foot = miss !== undefined ? `<button class="u1-btn p v3-full" disabled>${t("Falta", "Still need")}: ${esc(groupLabel(gs[miss]))}</button>` : `<button class="u1-btn p v3-full" data-add="1">${t("Agregar", "Add")} · ${money(itemTotal())}</button>`;
+  return `<div class="v3-sheet-bg" data-go="back"></div><div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(itemName(it))}"><div class="v3-grab"></div><div class="v3-sheet-body"><div class="v3-hero">${img(itemPhoto(it), itemName(it))}<div><b>${esc(itemName(it))}</b><div class="v3-price">${money(itemTotal())}</div><small class="v3-desc2">${esc(String(it.description || "").slice(0, 140))}</small></div></div><div class="v3-ask"><span class="v3-dot big"></span><b>${esc(say)}</b></div>${main.map(grp).join("")}${extras}</div><div class="v3-foot"><button class="u1-btn s" data-go="back" aria-label="${t("Cerrar", "Close")}">✕</button>${foot}</div></div>`;
+}
+function v3RenderSheet() {
+  let el = document.getElementById("v3-sheet-wrap");
+  if (U.screen !== "item") { if (el) el.innerHTML = ""; document.body.classList.remove("v3-sheet-on"); return; }
+  if (!el) { el = document.createElement("div"); el.id = "v3-sheet-wrap"; document.getElementById("ui1")?.appendChild?.(el); }
+  const sc = el.querySelector?.(".v3-sheet-body")?.scrollTop || 0;
+  el.innerHTML = v3SheetHTML(); document.body.classList.add("v3-sheet-on");
+  const b = el.querySelector?.(".v3-sheet-body"); if (b) b.scrollTop = sc;
+  if (!U.v3focused) { U.v3focused = true; setTimeout(() => el.querySelector?.(".v3-foot button")?.focus?.(), 0); }
 }
 
 // ---------- live updates from chat / voice (app.js applyActions + renderCart) ----------

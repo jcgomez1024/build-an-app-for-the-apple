@@ -15,7 +15,7 @@ function zoned(now: Date, tz: string) {
 export type StoreState = { state: "open" | "last_order" | "before_open" | "closed"; prepMinutes: number; pill: { es: string; en: string }; banner: { es: string; en: string } | null;
   schedule?: { at: string; es: string; en: string } | null;
   hours: Array<{ day: string; es: string; en: string; open: string | null; close: string | null }>; lastOrder: string | null; nextOpen: { es: string; en: string } | null };
-/** PREVIEW-ONLY hours override (relayed by the designer from Carlos, 2026-10-21, to confirm): weekends 10am–8pm
+/** Web-menu hours override (Carlos approved 2026-10-21): weekends 10am–8pm
  *  (Cash App is right; Square will be updated). Live phone hours still come from Square's site catalog. */
 export const PREVIEW_HOURS: Record<string, { open: string; close: string }> = { SAT: { open: "10:00", close: "20:00" }, SUN: { open: "10:00", close: "20:00" } };
 /** Store state from the website's pickup hours (same source Elvi uses) and its prep time. Last order = close − prep. */

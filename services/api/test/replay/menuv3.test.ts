@@ -23,7 +23,7 @@ test("menuv3: store states (ET)", () => {
 test("menuv3: real catalog gives a store state", () => { assert.ok(storeState(at("2026-10-21T15:00:00Z"))?.pill?.es); });
 
 // ---- page script in a stub DOM ----
-function runPage(store: any, schedAvail: any = null) {
+function runPage(store: any, schedAvail: any = null, search = "") {
   const src = fs.readFileSync(path.join(web, "ui1.js"), "utf8").replace(/^export \{\};$/m, "");
   const html: Record<string, string> = {}; const clicks: any[] = []; const adds: any[] = [];
   const mk = (sel: string): any => new Proxy({ style: { setProperty() {} }, dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, textContent: "", setAttribute() {}, removeAttribute() {}, getBoundingClientRect: () => ({ top: 0, height: 50, bottom: 50 }), scrollTo() {}, closest: () => null },
@@ -43,10 +43,10 @@ function runPage(store: any, schedAvail: any = null) {
   g.window = { elviBridge: { state: { cart: [], menu }, addFromMenu: (it: any, qn: number, m: any) => { adds.push([it.id, qn, m]); return { ok: true, said: "Agregué " + it.name + ". ¿Algo más?" }; }, addCartItem: () => { throw new Error("v3 must not bypass Elvi"); }, renderCart() {}, readback: () => "" },
     addEventListener() {}, scrollY: 0, scrollTo() {}, dispatchEvent() {} };
   g.requestAnimationFrame = (f: any) => setTimeout(f, 0); g.matchMedia = () => ({ matches: true }); g.CustomEvent = class { constructor(public type: string, public o: any) {} };
-  g.location = { search: "?menu=v3", hostname: "order.cocinaelvis.app" };
+  g.location = { search, hostname: "order.cocinaelvis.app" };
   g.localStorage = { getItem: () => "es", setItem() {} };
   g.document = { querySelector: q, querySelectorAll: () => [], getElementById: (i: string) => q("#" + i), documentElement: mk("html"), readyState: "loading",
-    body: Object.assign(mk("body"), { prepend() {} }), createElement: () => mk("#ui1"), addEventListener: (ev: string, f: any) => { if (ev === "click") clicks.push(f); } };
+    body: Object.assign(mk("body"), { prepend() {} }), createElement: () => mk("el" + Math.random()), addEventListener: (ev: string, f: any) => { if (ev === "click") clicks.push(f); } };
   g.fetch = async (u: string) => ({ ok: true, json: async () => (String(u).includes("/ui/catalog") ? catalog : { items: menu }) });
   const ids: any[] = []; const realSI = setInterval; g.setInterval = (f: any, ms: number) => { const h = realSI(f, ms); ids.push(h); return h; };
   new Function(src)();
@@ -75,10 +75,16 @@ test("menuv3: closed store blocks adds", async () => {
   await tick(); assert.match(P.html["#ui1-main"] || "", /v3-banner closed/);
   P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0); P.stop();
 });
-test("menuv3: live default unchanged (no ?menu=v3 → no v3 view)", async () => {
+test("menuv3: v3 is the default; ?menu=old falls back; Programar only with ?schedule=1", async () => {
   const src = fs.readFileSync(path.join(web, "ui1.js"), "utf8");
-  assert.match(src, /get\("menu"\) === "v3"/);
-  assert.match(src, /if \(V3\) \{ const y = window\.scrollY; root\.innerHTML = v3HTML\(\); v3After\(y\); \} else root\.innerHTML = homeHTML\(\);/);
+  assert.match(src, /const V3 = Q3\.get\("menu"\) !== "old";/);
+  assert.match(src, /const SCHED_OK = V3 && Q3\.get\("schedule"\) === "1";/);
+  const sched = { at: "2026-10-27T15:00:00.000Z", es: "Programar para mar 11:00am", en: "Schedule for Tue 11:00am" };
+  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Ya cerramos por hoy — abrimos mar 11:00am", en: "x" }, hours: [], nextOpen: { es: "abrimos mar 11:00am", en: "x" }, schedule: sched }, { s1: true });
+  await tick(); const h = P.html["#ui1-main"] || "";
+  assert.match(h, /abrimos mar 11:00am/); assert.ok(!/data-v3chk|Programar/.test(h), "no scheduling on the default page");
+  assert.match(h, /data-v3view="elvi"/, "Menú | Elvi toggle");
+  P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0, "browse-only while closed"); P.stop();
 });
 
 // ---- Elvi's add step, extracted from app.js and run with synthetic stubs ----
@@ -114,11 +120,12 @@ test("menuv3: next opening skips Monday; weekend preview hours 10am; last order 
 });
 test("menuv3: closed → schedule pickup; only items available then; submit is a dry run", async () => {
   const sched = { at: "2026-10-27T15:00:00.000Z", es: "Programar para mar 11:00am", en: "Schedule for Tue 11:00am" };
-  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Cerrado", en: "Closed" }, hours: [], nextOpen: null, schedule: sched }, { t1: true, s1: true, w1: false });
+  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Cerrado", en: "Closed" }, hours: [], nextOpen: null, schedule: sched }, { t1: true, s1: true, w1: false }, "?schedule=1");
   const g: any = globalThis; let fetched = 0; const f0 = g.fetch; g.fetch = async (...a: any[]) => { fetched++; return f0(...a); };
-  await tick(); assert.match(P.html["#ui1-main"] || "", /data-v3sched="1">🕒 Programar para mar 11:00am/);
-  P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0, "no add before choosing to schedule");
-  P.click({ v3sched: "1" }); await tick();
+  await tick(); assert.match(P.html["#ui1-main"] || "", /data-v3chk="1" checked> Programar para recoger mar 11:00am/, "schedule on by default");
+  assert.match(P.html["#ui1-main"] || "", /Cerrado ahora · Programar para mar 11:00am/);
+  P.click({ v3chk: "1" }); await tick(); P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0, "unchecked = browse-only");
+  P.click({ v3chk: "1" }); await tick();
   assert.match(P.html["#ui1-main"] || "", /data-v3submit="1"/);
   P.click({ item: "s1" }); await tick(); assert.deepEqual(P.adds.map((a) => a[0]), ["s1"]);
   P.click({ item: "w1" }); await tick(); assert.equal(P.adds.length, 1, "item not available at pickup time is blocked");
@@ -126,4 +133,17 @@ test("menuv3: closed → schedule pickup; only items available then; submit is a
   fetched = 0; P.click({ v3submit: "1" }); await tick();
   assert.equal(P.win.__v3LastDryRun.dryRun, true); assert.equal(P.win.__v3LastDryRun.fulfillment.pickup_at, sched.at);
   assert.equal(fetched, 0, "dry run sends nothing"); g.fetch = f0; P.stop();
+});
+
+test("menuv3: item sheet asks only the first missing required group, then enables Agregar", async () => {
+  const P = runPage({ state: "open", pill: { es: "Abierto", en: "Open" }, banner: null, hours: [] });
+  await tick(); P.click({ item: "t1" }); await tick();
+  const sh = P.html["#v3-sheet-wrap"] || Object.entries(P.html).find(([k, v]) => /v3-sheet/.test(v))?.[1] || "";
+  assert.match(sh, /¿De qué carne\?/); assert.match(sh, /disabled>Falta: Carne/); assert.match(sh, /v3-grp need/);
+  assert.equal(P.adds.length, 0);
+  P.click({ g: "0", o: "Pollo" }); await tick();
+  const sh2 = Object.entries(P.html).filter(([k, v]) => /v3-sheet/.test(v)).map(([, v]) => v).pop() || "";
+  assert.match(sh2, /data-add="1">Agregar · \$3\.50/);
+  P.click({ add: "1" }); await tick();
+  assert.deepEqual(P.adds.map((a) => a[0]), ["t1"]); assert.equal(P.adds[0][2][0].option, "Pollo"); P.stop();
 });
