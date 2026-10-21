@@ -40,7 +40,7 @@ import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
-import { phoneKey } from "./caller-memory.js";
+import { phoneKey, savedLanguage } from "./caller-memory.js";
 import { isOnlineOrder as isOnlineSq } from "./call-accuracy.js";
 import { heardName as shadowHeardName, ticketName as squareTicketName, compareNames, nameStats } from "./name-accuracy.js";
 
@@ -1522,6 +1522,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         followUp, // followup1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
         nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),
+        languageNotes: (c as any).languageNotes || [], savedLanguage: (() => { try { const s = savedLanguage(c.caller); return s.language ? { language: s.language, from: s.from, by: s.by || null, at: s.at || null } : null; } catch { return null; } })(), // lang2
         orderName: (c as any).orderName || null, customerName: c.customerName || null, noOrder: !hasOrderContent(elvi), // match1 orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {

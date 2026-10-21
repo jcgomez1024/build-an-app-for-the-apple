@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import express from "express";
-import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR } from "./caller-memory.js";
+import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual } from "./caller-memory.js";
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
@@ -104,11 +104,25 @@ export function dominantCallerLanguage(turns: CallTurn[], minWords = 4): Lang | 
   if (n.es + n.en < minWords || n.es === n.en) return null;
   return n.en > n.es ? "en" : "es";
 }
-function learnCallerLanguage(callSid: string, caller: string, turns: CallTurn[], greeted: Lang | undefined) {
-  const lang = dominantCallerLanguage(turns);
-  if (!lang || !caller) return;
-  try { rememberCaller(caller, { language: lang, heardSpeech: true }); } catch { /* best effort */ }
-  if (greeted && greeted !== lang) logCall({ event: "language_corrected", callSid, caller, from: greeted, to: lang });
+/** lang2: confident main language of the caller — ≥ 8 caller words and ≥ 70 % in one language. */
+export function confidentCallerLanguage(turns: CallTurn[], minWords = 8, minShare = 0.7): { language: Lang; share: number } | null {
+  const n = { es: 0, en: 0 };
+  for (const t of turns) if (t.speaker === "caller") n[t.language] += String(t.text || "").split(/\s+/).filter(Boolean).length;
+  const tot = n.es + n.en; if (tot < minWords) return null;
+  const language: Lang = n.en > n.es ? "en" : "es", share = n[language] / tot;
+  return share >= minShare ? { language, share: Math.round(share * 100) / 100 } : null;
+}
+/** lang2: after each transcript — confident + different from the saved language → update it and log "language_corrected"
+ *  (informational, no ping). A manual (staff) setting is never changed automatically. */
+export function learnCallerLanguage(callSid: string, caller: string, turns: CallTurn[], greeted: Lang | undefined) {
+  if (!caller) return;
+  const c = confidentCallerLanguage(turns);
+  if (!c) return;
+  const saved = savedLanguage(caller);
+  const before = saved.language || greeted || null;
+  if (saved.from === "manual") { if (saved.language !== c.language) logCall({ event: "language_correction_skipped", callSid, caller, saved: saved.language, heard: c.language, share: c.share, reason: "manual" }); return; }
+  try { rememberCaller(caller, { language: c.language, heardSpeech: true }); } catch { /* best effort */ }
+  if (before && before !== c.language) logCall({ event: "language_corrected", callSid, caller, from: before, to: c.language, share: c.share, source: "auto" });
 }
 
 export async function scoreRecording(buf: Buffer, sessionKey: string, shadowOrder: ShadowFn, opts: { callerChannel?: 1 | 2; before?: CallTurn[] } = {}) {
@@ -1213,6 +1227,13 @@ function isLocal(req: express.Request) {
   const viaTunnel = req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"];
   return !viaTunnel && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
 }
+/** lang2: caller number for a call (from the call logs). */
+function callerForSid(sid: string): string | null {
+  for (const f of fs.readdirSync(logDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().reverse()) {
+    for (const l of fs.readFileSync(path.join(logDir, f), "utf8").split("\n")) { if (!l.includes(sid) || !l.includes('"incoming"')) continue; try { const j = JSON.parse(l); if (j.callSid === sid && j.caller) return String(j.caller); } catch {} }
+  }
+  return null;
+}
 export const phoneAuth: express.RequestHandler = (req, res, next) => {
   if (isLocal(req)) return next();
   const want = String(process.env.PHONE_PIN || "");
@@ -1249,6 +1270,17 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
   };
 
   // callerprofile1: building photo for a delivery caller — PIN (or localhost) only; id is random, never the phone.
+  // lang2: staff ES/EN toggle on calls.html → that number's saved language for future calls (manual wins over auto).
+  app.post("/api/calls/:sid/language", json, phoneAuth, (req, res) => {
+    const sid = String(req.params.sid || ""), language = req.body?.language === "en" ? "en" : req.body?.language === "es" ? "es" : null;
+    if (!/^CA[0-9a-zA-Z]{10,40}$/.test(sid) || !language) return res.status(400).json({ error: "bad request" });
+    const caller = callerForSid(sid);
+    if (!caller) return res.status(404).json({ error: "call not found" });
+    const by = String(req.body?.by || "").replace(/[^\p{L}\p{N} .'-]/gu, "").slice(0, 40) || "staff (PIN)";
+    const { from } = setCallerLanguageManual(caller, language, by);
+    logCall({ event: "language_manual", callSid: sid, caller, from, to: language, by });
+    res.json({ ok: true, language, from, by });
+  });
   app.get("/api/phone/caller-photo/:id", phoneAuth, (req, res) => {
     const m = /^([a-z0-9]{12,40})(-thumb)?$/i.exec(String(req.params.id || ""));
     if (!m) return res.status(400).end();
@@ -1420,7 +1452,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       if (sid) callLang.set(sid, lang);
       if (e) e.language = lang;
       logCall({ event: "language_switch", callSid: sid, caller: e?.from || req.body?.From, from: before, to: lang, digit });
-      try { rememberCaller(e?.from || String(req.body?.From || ""), { language: lang, heardSpeech: true }); } catch { /* best effort */ }
+      try { setCallerLanguageKey(e?.from || String(req.body?.From || ""), lang); } catch { /* best effort */ } // lang2: press 2 saves English (unless staff set it)
     }
     // Still inside the Enqueue wait: returning wait-safe TwiML keeps the caller in the queue.
     res.type("text/xml").send(xml(holdTwiml(base, lang, false)));

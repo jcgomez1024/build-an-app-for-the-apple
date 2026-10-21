@@ -52,6 +52,7 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
       }
       if (e.event === "fulfillment" && (e.fulfillment === "DELIVERY" || e.fulfillment === "PICKUP")) { c.fulfillment = e.fulfillment; c.deliveryFeeCents = e.feeCents ?? c.deliveryFeeCents ?? null; }
       if (e.event === "order_name_cleared") { (c as any).orderName = undefined; (c as any).orderNameFrom = undefined; } // cleanup1
+      if (e.event === "language_corrected" || e.event === "language_manual") (c as any).languageNotes = [...((c as any).languageNotes || []), { kind: e.event === "language_manual" ? "manual" : "auto", from: e.from || null, to: e.to, by: e.by || null, at: e.ts, share: e.share ?? null }]; // lang2
       if (e.event === "order_name" && e.name) { (c as any).orderName = e.name; (c as any).orderNameFrom = e.from || null; } // ordername1
       if (e.event === "recording_error") c.error = e.error;
       if (e.event === "voicemail") { c.answered = false; c.dialStatus = "voicemail"; c.voicemail = { recordingSid: e.recordingSid, durationSec: Number(e.durationSec) || 0, transcript: e.transcript || "", cart: e.elviOrder?.cart || [] }; }

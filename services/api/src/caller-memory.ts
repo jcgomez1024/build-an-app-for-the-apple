@@ -8,7 +8,7 @@ const file = process.env.ELVI_CALLERS_FILE || path.join(logDir, "callers.json");
 export const phoneKey = (p: unknown) => String(p || "").replace(/\D/g, "").slice(-10);
 
 export type NameSource = "manual" | "ticket" | "readback" | "elvi" | "square"; // ordername1: elvi = heard by Elvi on the order
-type Caller = { language?: "es" | "en"; languageFrom?: "speech"; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string;
+type Caller = { language?: "es" | "en"; languageFrom?: "speech" | "manual" | "key"; languageSetBy?: string; languageSetAt?: string; name?: string; nameFrom?: NameSource; nameSource?: NameSource; nameUpdatedAt?: string; nameHistory?: Record<string, number>; lastPickupName?: string; lastPickupAt?: string; calls?: number; lastCall?: string;
   // delivery1: delivery addresses per phone (personal data — this file is gitignored). Newest first, max 5.
   addresses?: SavedAddress[]; lastFulfillment?: "DELIVERY" | "PICKUP" | "FOR_HERE"; lastFulfillmentAt?: string;
   // callerprofile1: staff-entered delivery details (personal data, gitignored). photo = file id in data/logs/calls/caller-photos.
@@ -111,11 +111,31 @@ export function rememberCaller(phoneRaw: string, update: { language?: "es" | "en
   if (!phone) return;
   const all = readAll();
   const c = all[phone] || {};
-  if (update.language && update.heardSpeech) { c.language = update.language; c.languageFrom = "speech"; }
+  // lang2: a staff-set (manual) language is never overwritten by speech / auto detection.
+  if (update.language && update.heardSpeech && c.languageFrom !== "manual") { c.language = update.language; c.languageFrom = "speech"; }
   c.calls = (c.calls || 0) + (update.heardSpeech === undefined ? 1 : 0);
   c.lastCall = new Date().toISOString();
   all[phone] = c;
   writeAll(all);
+}
+
+/** lang2: staff set the language on calls.html — wins over automatic changes. */
+export function setCallerLanguageManual(phoneRaw: string, language: "es" | "en", by: string): { from: "es" | "en" | null } {
+  const phone = phoneKey(phoneRaw); if (!phone) return { from: null };
+  const all = readAll(); const c = all[phone] || {}; const from = c.language || null;
+  c.language = language; c.languageFrom = "manual"; c.languageSetBy = by; c.languageSetAt = new Date().toISOString();
+  all[phone] = c; writeAll(all); return { from };
+}
+/** lang2: the caller pressed 2 / 1 — their own choice; saved unless staff set it manually. */
+export function setCallerLanguageKey(phoneRaw: string, language: "es" | "en"): boolean {
+  const phone = phoneKey(phoneRaw); if (!phone) return false;
+  const all = readAll(); const c = all[phone] || {};
+  if (c.languageFrom === "manual") return false;
+  c.language = language; c.languageFrom = "key"; all[phone] = c; writeAll(all); return true;
+}
+export function savedLanguage(phoneRaw: string): { language: "es" | "en" | null; from: string | null; by?: string; at?: string } {
+  const c = readAll()[phoneKey(phoneRaw)];
+  return { language: c?.language || null, from: c?.languageFrom || null, by: c?.languageSetBy, at: c?.languageSetAt };
 }
 
 /** First name only, and only if it looks like a real name (no digits, no "cliente", "test", business words). */
