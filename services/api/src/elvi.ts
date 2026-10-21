@@ -354,6 +354,39 @@ export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
 }
 /** alex1: a turn that names neither the dish nor "another/otro" can't start a NEW line of the dish just rung — it changes that
  * line ("dos huevos", "en vez de huevos bistec"). "dos huevos" on a dish that already comes with two eggs is not an extra. */
+/** case1 (Oct 21 1:55 PM): the customer's own words override choices the model invented.
+ *  - "sin frijoles" → no bean options on that line
+ *  - a cheese-gordita (QGD) "con queso" already IS the cheese → no extra Queso Derretido unless "derretido/melted/extra queso"
+ *  - "con frijoles" on a gordita = the "Con Frijoles" option, not a second Frijoles Refritos filling (unless "refritos")
+ *  - tortilla: the LAST tortilla word the caller said wins ("¿de harina o de maíz?" … "De maíz" → Comal, not Harina) */
+export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse {
+  if (!result?.actions?.length) return result;
+  const norm = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const t = norm(String(input.transcript || ""));
+  const recent = [...(input.history || []).filter((h: any) => h.role === "customer").slice(-3).map((h: any) => norm(h.text)), t].join(" ");
+  const menu: any[] = (input as any).resolverMenu || input.menu || [];
+  const actions = result.actions.map((a: any) => {
+    if (!(a?.type === "add_item" || a?.type === "update_item") || !Array.isArray(a.modifiers)) return a;
+    let mods = [...a.modifiers]; const on = (re: RegExp) => mods.some((m) => re.test(String(m.option)));
+    if (/\bsin frijol/.test(t)) mods = mods.filter((m) => !/frijol|beans/i.test(String(m.option)));
+    if (on(/\(QGD\)|queso gordita/i) && !/derretid|melted|extra (de )?queso|mas queso/.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
+    if (on(/con frijoles|with beans/i) && !/refrit/.test(t)) mods = mods.filter((m) => !/frijoles refritos|refried beans/i.test(String(m.option)) || /con frijoles|with beans/i.test(String(m.option)));
+    const words = [...recent.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquera)\b/g)].map((m) => m[1]);
+    const lastW = words[words.length - 1];
+    const want = !lastW ? null : /harina|flour/.test(lastW) ? /harina|flour|\(QHR\)/i : /taquera/.test(lastW) ? /taquera/i : /comal|homemade|\(QCO\)/i;
+    const item = menu.find((i: any) => i.id === a.itemId);
+    if (want && item) for (const g of item.modifierGroups || []) {
+      const opts = (g.options || []).map((o: any) => String(o.name));
+      if (!opts.some((o: string) => /harina|flour/i.test(o)) || !opts.some((o: string) => /comal|homemade/i.test(o))) continue;
+      const i = mods.findIndex((m) => opts.includes(String(m.option)));
+      const pick = opts.find((o: string) => want.test(o));
+      if (i >= 0 && pick && !want.test(String(mods[i].option))) mods[i] = { ...mods[i], option: pick };
+    }
+    return { ...a, modifiers: mods };
+  });
+  return { ...result, actions };
+}
+
 export function sameLineGuard(result: ElviResponse, input: ElviRequest): ElviResponse {
   const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
   const acts = (result?.actions || []) as any[]; if (!last || acts.length !== 1 || acts[0]?.type !== "add_item" || acts[0].itemId !== last.itemId) return result;
@@ -1910,6 +1943,11 @@ export function appSmallSopeReply(input: { transcript?: string; language?: strin
     : "Online we only have the 10-inch Sopesaso Elvis. Would you like the 10-inch, or would you rather call us for the small sopes?" } as ElviResponse;
 }
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
+  // case1: every path (deterministic turns and the model) gets the caller's-words cleanup
+  const r = await chatWithElviPaths(input, runtimeConfig);
+  try { return caseFix(r, input); } catch { return r; }
+}
+async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
   if (input?.transcript) { const t = rewriteSlang(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; } // a1: approved slang
   // fix18: "así está bien" / "es todo" / "that's all" after "¿Algo más?" closes the order. The model re-added the
   // last dish for these ("está" also matched Platillo de Guisado), so answer here with no cart change (never checkout).

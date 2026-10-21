@@ -279,7 +279,9 @@ export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ 
 /** Replay caller turns through Elvi; apply her actions to a shadow cart. */
 /** sopesaso1: newer choices replace older ones in the same single-choice step; multi-pick steps add up. */
 export function mergeMods(old: any[], add: any[]): any[] {
-  const out = [...old];
+  let out = [...old];
+  const VAR = /^\s*\([A-Z]{1,4}\)/; // case1: "(GD) Gordita" vs "(QGD) Queso Gordita" — one variation per line, newest wins
+  if (add.some((m) => VAR.test(String(m.option)))) out = out.filter((o) => !VAR.test(String(o.option)));
   for (const m of add) if (!out.some((o) => String(o.option) === String(m.option))) out.push(m);
   return out;
 }
@@ -346,7 +348,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const answering = /\?\s*$/.test(prevReply) && !/algo más|anything else/i.test(prevReply);
     const prevCaller = history.length >= 4 ? history[history.length - 4].text : "";
     // alex1: "Y en otro no me le puede poner este," + "en vez de huevos bistec" — the previous half-sentence asked for ANOTHER one
-    const names = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text) || (/\b(otr[oa]s?|another|one more)\b/i.test(prevCaller) && /[,]\s*$/.test(prevCaller.trim()));
+    const names0 = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text) || (/\b(otr[oa]s?|another|one more)\b/i.test(prevCaller) && /[,]\s*$/.test(prevCaller.trim()) && !FOOD.test(prevCaller));
+    // case1: "…la otra" / "las de bistec" points at a dish already rung — choices for it, not a new one
+    const definite = /\b(la|el|las|los)\s+otr[oa]s?\b|\b(?:o\s+)?las,?\s+de\b/i.test(text) && !/\b(\d+|dos|tres|cuatro|una m[aá]s|otra m[aá]s)\b/i.test(text) && !FOOD.test(text);
+    const names = names0 && !definite;
     // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
     // alex1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
     const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah)(?=[\s,.!]|$)/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
