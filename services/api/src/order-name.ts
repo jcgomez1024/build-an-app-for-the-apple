@@ -29,6 +29,8 @@ export function nameFromAnswer(text: string): string | null {
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
   if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|thanks|nada|todo|eso)$/iu.test(words[0])) return null;
+  // rec1: "Okay, está bien, gracias" is not a name
+  if (words.some((w) => /^(est[aá]|bien|perfecto|vale|claro|listo|sale|[aá]ndale|correcto|igualmente|fine|good|great|alright|sure|right|perfect)$/iu.test(w))) return null;
   return cleanFullName(words.join(" "));
 }
 /** Caller's answer to a name question → the order name (confirmed or corrected), or null to ask again. */
@@ -60,6 +62,9 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff" || !STAFF_ASK.test(turns[i].text)) continue;
     for (const t of turns.slice(i + 1, i + 3)) if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) return n; }
+    // rec1: the transcript can put the answer just BEFORE the ask (overlap): "…sería todo. Zed." / "¿Tu nombre?"
+    const prev = turns[i - 1];
+    if (prev?.speaker === "caller") { const last = prev.text.trim().split(/(?<=[.!?])\s+/).pop() || ""; const n = last.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(last) ? nameFromAnswer(last) : null; if (n) return n; }
   }
   return null;
 }
