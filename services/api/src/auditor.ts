@@ -142,10 +142,14 @@ export function recordFinding(row: any, flags: Flag[], file = FINDINGS_FILE, now
   if (prev.some((f) => f.id === id)) return null;
   for (const p of prev) p.superseded = true;
   const ping = flags.some((f) => PING_TYPES.includes(f.type));
+  // rescore1: a rescore that only changes counts/details is the same staff issue — carry "notified" over; notify again
+  // only when a staff flag TYPE appears that no already-notified finding for this call had.
+  const told = new Set(all.filter((f) => f.callSid === row.callSid && f.notified && f.ping).flatMap((f) => f.flags.map((x) => x.type)));
+  const carried = ping && told.size > 0 && flags.filter((x) => PING_TYPES.includes(x.type)).every((x) => told.has(x.type));
   const f: Finding = { id, callSid: row.callSid, callAt: row.at, score: row.score ?? null, flags, summary_es: summarize(flags, "es"), summary_en: summarize(flags, "en"),
     customerName: row.customerName || null,
     ...(() => { const u: any = flags.find((x) => x.type === "UNUSUAL_CALL") || flags.find((x) => x.type === "ORDER_FOLLOWUP"); return u ? { category: u.category, urgent: !!u.urgent, question: u.question || null } : {}; })(), // unusual1 // sopesaso1: first name heard on the call (or saved)
-    ping, fixCandidate: flags.some((x) => x.type === "ELVI_MISS"), notified: !ping, createdAt: now.toISOString(), receipt: row.ticket?.receiptNumber || null };
+    ping, fixCandidate: flags.some((x) => x.type === "ELVI_MISS"), notified: !ping || carried, ...(carried ? { notifiedAt: now.toISOString(), carriedFrom: prev.map((p) => p.id) } : {}), createdAt: now.toISOString(), receipt: row.ticket?.receiptNumber || null };
   all.push(f); writeFindings(all, file);
   return f;
 }
