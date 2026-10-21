@@ -98,7 +98,10 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     }
     for (const c of eOnly) {
       // rice1: Elvi is listen-only — a choice the caller (or staff) said that isn't on the ticket is a staff miss.
-      if (said(all, c)) add("STAFF_MISSING", `${t.name}: ${c} said, not rung`, `${t.name}: se dijo «${c}» pero no está en el ticket.`, `${t.name}: "${c}" was said but isn't on the ticket.`);
+      // match2: the choice IS rung, just on another item of the ticket (e.g. prensado on the quesadillas) → Elvi put it on the wrong item.
+      const elsewhere = tLines.some((x: any) => x !== t && norm(x.baseName || x.name) !== norm(t.baseName || t.name) && (x.choices || []).some((y: string) => norm(y) === norm(c)));
+      if (elsewhere) add("ELVI_MISS", `${t.name}: Elvi added ${c} (it belongs to another item)`, `${t.name}: Elvi agregó «${c}», que va en otro artículo del ticket.`, `${t.name}: Elvi added "${c}", which belongs to another item on the ticket.`);
+      else if (said(all, c)) add("STAFF_MISSING", `${t.name}: ${c} said, not rung`, `${t.name}: se dijo «${c}» pero no está en el ticket.`, `${t.name}: "${c}" was said but isn't on the ticket.`);
       else add("ELVI_MISS", `${t.name}: Elvi added ${c}`, `${t.name}: Elvi agregó «${c}».`, `${t.name}: Elvi added "${c}".`);
     }
     if (e.quantity !== t.quantity) add("ELVI_MISS", `${t.name}: qty ticket ${t.quantity}, Elvi ${e.quantity}`, `${t.name}: cantidad ticket ${t.quantity}, Elvi ${e.quantity}.`, `${t.name}: quantity ticket ${t.quantity}, Elvi ${e.quantity}.`);
