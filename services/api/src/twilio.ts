@@ -1023,6 +1023,27 @@ const twAuth = () => "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:$
  * Caller ID on those phones = the Twilio line that was called (Twilio only allows its own/verified numbers as
  * From on a REST call; the caller's number can't be passed through). The whisper says who is calling.
  */
+/** route1 (Carlos): per-line ring routing from .env.twilio, e.g. TWILIO_LINE_RING=1609:cells,2795:desk (line suffix).
+ *  cells = only the TWILIO_RING_NUMBERS phones (not the counter page); desk = only the counter/browser client (phone.html);
+ *  unset / other = both (old behavior). TWILIO_DESK_FALLBACK_CELLS=1 rings the cells when the desk is offline (default off). */
+export type RingMode = "cells" | "desk" | "both";
+export function lineRingMode(line: string): RingMode {
+  const n = d10(line);
+  for (const part of String(process.env.TWILIO_LINE_RING || "").split(",")) {
+    const [k, v] = part.split(":").map((x) => x.trim().toLowerCase());
+    if (k && n && n.endsWith(k.replace(/\D/g, "")) && (v === "cells" || v === "desk" || v === "both")) return v as RingMode;
+  }
+  return "both";
+}
+export const deskFallbackCells = () => process.env.TWILIO_DESK_FALLBACK_CELLS === "1";
+/** Ring phones for this line right now (desk line: none, unless the fallback flag is on and the desk is offline). */
+export function ringNumbersFor(line: string, deskOnline: boolean): string[] {
+  const mode = lineRingMode(line);
+  if (mode === "desk") return deskFallbackCells() && !deskOnline ? ringNumbers() : [];
+  return ringNumbers();
+}
+/** Does the counter page (desk) get this line's calls? */
+export const deskTakesLine = (line: string) => lineRingMode(line) !== "cells";
 export function ringNumbers(): string[] {
   const own = new Set(phoneLines().map((l) => d10(l.number)));
   return String(process.env.TWILIO_RING_NUMBERS || "").split(",").map((x) => x.trim()).filter(Boolean)
@@ -1135,7 +1156,7 @@ async function sendRingSms(base: string, cust: Entry) {
 async function startRings(base: string, cust: Entry) {
   void sendRingSms(base, cust).catch(() => {}); // ringsms1: never blocks ringing
   const skip = ringNoAccept.get(cust.callSid);
-  const nums = ringNumbers().filter((n) => !skip?.has(n));
+  const nums = ringNumbersFor(cust.line, agentOnline()).filter((n) => !skip?.has(n));
   const account = process.env.TWILIO_ACCOUNT_SID;
   if (counterClaim.has(cust.callSid) || deskAtPrompt.get(cust.callSid)?.size) return;
   if (!nums.length || !account || !process.env.TWILIO_AUTH_TOKEN || !/^https:\/\//.test(base)) return;
@@ -1321,7 +1342,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const online = agentOnline();
     waiting.set(sid, { callSid: sid, from, name, line: to, queue, language: lang, training: isTrainingCaller(from), at: now, lastSeen: now });
     if (sid) { callNames.set(sid, name); if (to) callLines.set(sid, to); }
-    logCall({ event: online ? "queued" : "queued_soft_offline", callSid: sid, caller: from, line: to, queue, agentAgeMs: agentAgeMs() });
+    logCall({ event: online ? "queued" : "queued_soft_offline", callSid: sid, caller: from, line: to, queue, agentAgeMs: agentAgeMs(), ringMode: lineRingMode(to) });
+    if (lineRingMode(to) === "desk" && !online) logCall({ event: "desk_offline", callSid: sid, caller: from, line: to, fallbackCells: deskFallbackCells(), agentAgeMs: agentAgeMs(), note: deskFallbackCells() ? "desk offline → ringing cells (fallback on)" : "desk offline, fallback off → voicemail after ~8 s on hold" });
     return `<Enqueue action="${base}/api/twilio/queue-done" method="POST" waitUrl="${base}/api/twilio/hold?lang=${lang}" waitUrlMethod="POST">${xmlEscape(queue)}</Enqueue>`;
   };
 
@@ -1431,9 +1453,12 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const tooLong = queueTime > (isHeld ? maxHeldSec() : maxWaitSec());
     // ring1: desk phone(s) ring with the counter page; re-ring after a ring leg times out while the caller still waits.
     // fix26: phones that answered without pressing 1 (carrier voicemail) don't count — fall back to the old no-counter rule.
-    const rings = !isHeld && ringNumbers().filter((n) => !ringNoAccept.get(sid)?.has(n)).length > 0;
+    const line = e?.line || "";
+    const rings = !isHeld && ringNumbersFor(line, agentOnline()).filter((n) => !ringNoAccept.get(sid)?.has(n)).length > 0;
     if (rings && e && !tooLong) void startRings(base, e);
-    if (tooLong || (!rings && !agentOnline() && queueTime > 8)) {
+    else if (e && !isHeld && !tooLong) void sendRingSms(base, e).catch(() => {}); // route1: desk-only line still texts staff
+    const deskCounts = deskTakesLine(line) && agentOnline();
+    if (tooLong || (!rings && !deskCounts && queueTime > 8)) {
       logCall({ event: "leave_queue", callSid: sid, caller: e?.from || req.body?.From, reason: tooLong ? "max_wait" : "no_agent", queueTime, agentAgeMs: agentAgeMs() });
       return res.type("text/xml").send(xml("<Leave/>"));
     }
@@ -1685,7 +1710,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       agentGraceMs: agentGraceMs(),
       maxWaitSec: maxWaitSec(),
       maxHeldSec: maxHeldSec(),
-      lines: phoneLines().map((l) => ({ ...l, waiting: [...waiting.values()].filter((e) => e.queue === l.queue).sort((a, b) => a.at - b.at).map(view) })),
+      // route1: a cells-only line never shows/rings on the counter page.
+      lines: phoneLines().map((l) => ({ ...l, ringMode: lineRingMode(l.number), waiting: deskTakesLine(l.number) ? [...waiting.values()].filter((e) => e.queue === l.queue).sort((a, b) => a.at - b.at).map(view) : [] })),
       held: [...held.values()].map((e) => ({ ...view(e), queue: e.queue })),
       active: [...active.values()].map((a) => ({ ...view(a), agentCallSid: a.agentSid, talkSec: Math.round((now - a.since) / 1000) })),
       voicemails: recentVoicemails(),
