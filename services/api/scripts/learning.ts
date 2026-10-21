@@ -80,11 +80,24 @@ async function nightly() {
   // 1) self-eval with the approved memory
   const evals: any[] = [];
   for (const e of phone) { const row = rows.get(e.ref); try { const r = await replay(row, e.truthLines); evals.push({ ref: e.ref, score: r.score }); } catch { evals.push({ ref: e.ref, score: null }); } }
-  const ok = evals.filter((x) => x.score != null);
-  const mean = ok.length ? Math.round((ok.reduce((a, x) => a + x.score, 0) / ok.length) * 10) / 10 : null;
-  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
+  // unclear1: messy calls (relayed orders, crosstalk) are replayed and trained on, but reported as their own number
+  const messy = new Set(phone.filter((e: any) => e.difficulty === "messy").map((e: any) => e.ref));
+  const avg = (xs: any[]) => (xs.length ? Math.round((xs.reduce((a, x) => a + x.score, 0) / xs.length) * 10) / 10 : null);
+  const ok = evals.filter((x) => x.score != null && !messy.has(x.ref)), okMessy = evals.filter((x) => x.score != null && messy.has(x.ref));
+  const mean = avg(ok), messyMean = avg(okMessy);
+  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
   // 2) self-retry: each miss → candidate memory entries from the customer-truth, retried up to N attempts
   const approved = K.loadMemory(); const queue = K.readPending();
+  /** unclear1 gates (after the normal ones): every messy call is replayed too and may not regress; a candidate that comes
+   *  from a messy call must also help or not hurt at least one CLEAR call (messy truth alone is not enough). */
+  const messyGate = async (cand: any, mem: any, replays: any[]) => {
+    if (cand.status === "rejected") return;
+    K.setMemoryOverride([...approved, mem]);
+    for (const ref of messy) { if (ref === cand.callRef || replays.some((x: any) => x.ref === ref)) continue; const ex: any = phone.find((x: any) => x.ref === ref); const b = evals.find((x) => x.ref === ref)?.score; try { const a = await replay(rows.get(ref), ex.truthLines); replays.push({ ref, before: b, after: a.score, messy: true }); } catch { replays.push({ ref, before: b, after: -1, messy: true }); } }
+    K.setMemoryOverride(null);
+    if (replays.some((x: any) => x.messy && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a messy call"; return; }
+    if (messy.has(cand.callRef) && !replays.some((x: any) => !messy.has(x.ref) && x.before != null && x.after >= x.before)) { cand.status = "rejected"; cand.reason = "auto: based only on a messy call (no clear call helped or held)"; }
+  };
   const clausesOf = (e: any) => e.turns.filter((t: any) => t.speaker === "caller").flatMap((t: any) => { const s = splitDishClauses(t.text); return s.length ? s : K.dishOf(t.text) ? [t.text] : []; });
   for (const e of phone) {
     const before = evals.find((x) => x.ref === e.ref)?.score; if (before == null || before >= 100) continue;
@@ -122,6 +135,8 @@ async function nightly() {
         K.setMemoryOverride(null);
         cand.regression = { suite, replays };
         if (suite !== "pass" || replays.some((x) => x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regression"; }
+        for (const x of replays) if (messy.has(x.ref)) x.messy = true;
+        await messyGate(cand, win.cand, replays);
       }
       queue.push(cand);
     }
@@ -153,12 +168,14 @@ async function nightly() {
       cand.similar.agree = replays.filter((x) => x.after >= x.before).length; cand.similar.disagree = replays.length - cand.similar.agree;
       cand.regression = { suite, replays };
       if (suite !== "pass" || cand.similar.disagree) { cand.status = "rejected"; cand.reason = "auto: regression"; }
+      for (const x of replays) if (messy.has(x.ref)) x.messy = true;
+      await messyGate(cand, c, replays);
     }
     queue.push(cand);
   }
   saveCache();
   K.writePending(queue);
-  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
+  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
 }
 
 if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }

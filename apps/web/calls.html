@@ -85,7 +85,11 @@ const lastDigits = (p) => (p ? "•••" + String(p).replace(/\D/g, "").slice(
 let data = null, period = "daily", current = null, filter = "all", draft = null;
 const tagHtml = (c) => c.source === "training" ? `<span class="tag">Entrenamiento</span>` : "";
 const shown = () => data.calls.map((c, i) => ({ c, i })).filter(({ c }) => filter === "all" || (filter === "training" ? c.source === "training" : c.source !== "training"));
-const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null); return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
+// unclear1: "Orden poco clara" — listed and used for training (difficulty messy), never in Elvi/staff accuracy
+const unclearBadge = (c) => c.unclear ? ` <span class="tag" style="background:#fde68a;color:#78350f" title="${esc(c.unclear.note || "Orden poco clara: no cuenta para la precisión")}">Orden poco clara</span>` : "";
+const unclearToggle = (c) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? `<div class="note"><label><input type="checkbox" ${c.unclear ? "checked" : ""} onchange="setUnclear('${c.callSid}', this.checked)"> Orden poco clara (no cuenta para la precisión; sí para entrenar)</label></div>` : "";
+async function setUnclear(sid, on) { const note = on ? prompt("Nota (opcional):", "") : null; const r = await fetch(`/api/calls/${sid}/unclear`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unclear: on, note }) }); if (!r.ok) alert("No se pudo: " + r.status); else location.reload(); }
+const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null && !c.unclear); // unclear1: not in accuracy return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
 
 function chart() {
   const rows = ((filter === "training" ? data?.trainingTrend : data?.trend)?.[period] || []).slice(-14);
@@ -130,7 +134,7 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -160,7 +164,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${nameTag(c)}</h2>
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${nameTag(c)}</h2>${unclearToggle(c)}
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${langHtml(c)}
     ${c.hasAudio ? playerHtml(c) : ""}

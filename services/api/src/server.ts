@@ -36,6 +36,7 @@ import { auditorFindingsByCall } from "./auditor.js";
 import { paymentReceiptReadOnly } from "./square.js";
 import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
+import { loadUnclear, setUnclear } from "./unclear.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
@@ -1513,7 +1514,9 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m && !followUp ? expected[c.callSid] : undefined;
       const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
-      const scored = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
+      const unclear = loadUnclear()[c.callSid] || null; // unclear1: listed, never scored
+      const scored0 = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
+      const scored = scored0; // unclear1: still scored (training uses it); excluded from accuracy numbers
       return {
         callSid: c.callSid, at: c.at, caller: c.caller, language: c.language || null, answered: c.answered ?? null, dialStatus: c.dialStatus || null,
         talkSec: c.talkSec || 0, hasAudio: !!(c.recordingSid && fs.existsSync(`${callsDir}/${c.recordingSid}.wav`)), recordingSid: c.recordingSid || null,
@@ -1526,6 +1529,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
         followUp, // followup1
+        unclear, // unclear1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
         nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),
         languageNotes: (c as any).languageNotes || [], savedLanguage: (() => { try { const s = savedLanguage(c.caller); return s.language ? { language: s.language, from: s.from, by: s.by || null, at: s.at || null } : null; } catch { return null; } })(), // lang2
@@ -1550,7 +1554,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       r.ticket.receiptUrl = rc?.receiptUrl || null;
     }));
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
-    res.json({ calls: rows, trend: trend(customer), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
+    res.json({ calls: rows, trend: trend(customer.filter((r: any) => !r.unclear)), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }
 });
 // Training: type the expected order ("2 tacos de bistec de comal, 2 de chorizo"); preview with Elvi's resolver, then save.
@@ -1677,6 +1681,13 @@ app.get("/api/learning", phoneAuth, (_req, res) => {
   res.json({ report: rd("report.json"), nightly, queue: readPending() });
 });
 // learn2: developer approval — localhost only (never through the tunnel).
+// unclear1: mark / clear "Orden poco clara" (localhost only, like learning approvals)
+app.post("/api/calls/:sid/unclear", express.json(), (req, res) => {
+  const host = String(req.headers.host || "").split(":")[0];
+  if (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"] || !/^(localhost|127\.0\.0\.1)$/.test(host)) return res.status(403).json({ error: "localhost only" });
+  try { const on = req.body?.unclear !== false; const all = setUnclear(String(req.params.sid), on, { by: "calls.html", note: req.body?.note ? String(req.body.note).slice(0, 300) : undefined }); res.json({ callSid: req.params.sid, unclear: all[String(req.params.sid)] || null }); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : String(e) }); }
+});
 app.post("/api/learning/:id/decide", (req, res) => {
   const host = String(req.headers.host || "").split(":")[0];
   if (req.headers["cf-connecting-ip"] || req.headers["cf-ray"] || req.headers["x-forwarded-for"] || !/^(localhost|127\.0\.0\.1)$/.test(host)) return res.status(403).json({ error: "localhost only" });

@@ -16,6 +16,7 @@ if (!r?.ok) { console.error("api unavailable", r?.status); process.exit(0); }
 const data: any = await r.json();
 let audited = 0, recorded = 0;
 for (const row of data.calls || []) {
+  if (row.unclear) { retireFindings(row.callSid, "unclear order"); continue; } // unclear1
   if (state.final[row.callSid]) continue;
   const a = auditCall(row);
   if (!a) continue;

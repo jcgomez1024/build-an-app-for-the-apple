@@ -62,7 +62,7 @@ export function stripPii(text: string, names: Array<string | null | undefined> =
 }
 export const ref = (sid: string) => "ex-" + createHash("sha256").update(String(sid)).digest("hex").slice(0, 10);
 const lineStr = (l: Line) => `${l.quantity}× ${l.baseName || l.name}${l.choices?.length ? " [" + [...l.choices].sort().join("; ") + "]" : ""}`;
-export type Example = { ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
+export type Example = { difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
   elvi: string[]; elviScore: number | null; staffScore: number | null; corrected: string[]; staffMisses: Miss[] };
 export function phoneExample(row: any): Example | null {
   if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
@@ -79,7 +79,7 @@ export function phoneExample(row: any): Example | null {
     const drop = new RegExp(ov.coachingMatch || "$^", "i");
     staffS.misses = [...staffS.misses.filter((x) => !drop.test(`${x.detail} ${x.ticket || ""} ${x.elvi || ""}`)), ...ov.coaching.map((c: any) => ({ kind: "coaching", detail: `${c.item}: ${c.detail}`, ticket: c.item, coach: c.type } as any))];
   }
-  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
+  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
 /** App session: the paid cart is the truth (weight 1); an abandoned cart is low weight (0.2). */
@@ -121,7 +121,8 @@ export function errorType(m: Miss): string {
   return "other choice";
 }
 const weekOf = (iso: string) => { const d = new Date(new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/New_York" }) + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
-export function staffPatterns(ex: Example[]) {
+export function staffPatterns(ex0: Example[]) {
+  const ex = ex0.filter((e) => e.difficulty !== "messy"); // unclear1: no coaching counts from messy calls
   const m = new Map<string, { week: string; item: string; type: string; count: number }>();
   for (const e of ex) for (const x of e.staffMisses) { const item = String(x.ticket || x.elvi || x.detail.split(":")[0]).split(" · ")[0]; const k = `${weekOf(e.at)}|${item}|${errorType(x)}`; const c = m.get(k) || { week: weekOf(e.at), item, type: errorType(x), count: 0 }; c.count++; m.set(k, c); }
   return [...m.values()].sort((a, b) => b.week.localeCompare(a.week) || b.count - a.count);
@@ -130,7 +131,8 @@ export function coachingPoints(p: ReturnType<typeof staffPatterns>, week: string
   return p.filter((x) => x.week === week).slice(0, 5).map((x) => ({ es: `${x.item}: ${x.type} (${x.count}×) — repasar al marcar`, en: `${x.item}: ${x.type} (${x.count}×) — double-check when ringing` }));
 }
 /** Order-to-voice accuracy for Elvi and staff, per week (phone examples). */
-export function voiceAccuracy(ex: Example[]) {
+export function voiceAccuracy(ex0: Example[]) {
+  const ex = ex0.filter((e) => e.difficulty !== "messy"); // unclear1
   const w = new Map<string, { week: string; n: number; elvi: number; staff: number }>();
   for (const e of ex) { if (e.channel !== "phone" || e.elviScore == null || e.staffScore == null) continue; const k = weekOf(e.at); const s = w.get(k) || { week: k, n: 0, elvi: 0, staff: 0 }; s.n++; s.elvi += e.elviScore; s.staff += e.staffScore; w.set(k, s); }
   return [...w.values()].sort((a, b) => a.week.localeCompare(b.week)).map((s) => ({ week: s.week, calls: s.n, elvi: Math.round((s.elvi / s.n) * 10) / 10, staff: Math.round((s.staff / s.n) * 10) / 10 }));
@@ -139,4 +141,4 @@ export function voiceAccuracy(ex: Example[]) {
 export const finetuneRow = (e: Example) => ({ messages: [
   { role: "system", content: "You are Elvi, Cocina Elvis's order taker. Output the order as Square catalog lines." },
   { role: "user", content: e.turns.map((t) => `${t.speaker === "caller" ? "Customer" : "Staff"}: ${t.text}`).join("\n") },
-  { role: "assistant", content: JSON.stringify(e.truth) }], weight: e.weight, ref: e.ref, channel: e.channel });
+  { role: "assistant", content: JSON.stringify(e.truth) }], weight: e.weight, ref: e.ref, channel: e.channel, difficulty: e.difficulty || "clear" });
