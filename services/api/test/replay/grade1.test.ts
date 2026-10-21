@@ -21,3 +21,15 @@ test("grade1: weights come from config defaults and become the example weight", 
   const b = L.phoneExample({ ...row, callSid: "CA" + "5".repeat(32), unclear: { note: "x" } })!; assert.equal(b.grade, "bad"); assert.equal(b.weight, 0.25);
   assert.deepEqual(L.gradeStats([e, b] as any), { best: 1, good: 0, medium: 0, bad: 1 });
 });
+test("staffgrade1: best / good / medium / bad / none", () => {
+  const S = (o: any) => L.staffGradeOf({ unclear: false, staffScore: 100, misses: [], readback: { status: "none" }, ...o });
+  assert.equal(S({ readback: { status: "confirmed" } }), "best");
+  assert.equal(S({}), "good"); assert.equal(S({ readback: { status: "corrected" } }), "good");
+  assert.equal(S({ staffScore: 90, misses: [{ kind: "choice", detail: "Taco: Cebolla said, not rung" }] }), "medium");
+  assert.equal(S({ staffScore: 70, misses: [{ kind: "missing_item", detail: "x", ticket: "" }] }), "medium"); // custom amount
+  assert.equal(S({ staffScore: 60, misses: [{ kind: "missing_item", detail: "Torta", ticket: "Torta" }] }), "bad");
+  assert.equal(S({ staffScore: 80, misses: [{ kind: "choice", detail: "Taco: Bistec / Steak vs Chorizo" }] }), "bad"); // wrong meat
+  assert.equal(S({ unclear: true }), null);
+  const by = L.staffGradeByDevice([{ channel: "phone", staffGrade: "good", answeredBy: "desk 0000", readback: "none" }, { channel: "phone", staffGrade: "best", answeredBy: "desk 0000", readback: "confirmed" }] as any);
+  assert.equal(by["desk 0000"].readbackRate, 50); assert.equal(by.all.best, 1);
+});

@@ -94,6 +94,8 @@ async function setUnclear(sid, on) { const note = on ? prompt("Nota (opcional):"
 // grade1: data quality of the call for training (best / good / medium / bad)
 const GRADE_UI = { best: ["Datos: excelente", "#bbf7d0", "#14532d"], good: ["Datos: bueno", "#dbeafe", "#1e3a8a"], medium: ["Datos: medio", "#fef3c7", "#78350f"], bad: ["Datos: malo", "#fecaca", "#7f1d1d"] };
 const gradeBadge = (c) => c.grade && GRADE_UI[c.grade] ? ` <span class="tag" style="background:${GRADE_UI[c.grade][1]};color:${GRADE_UI[c.grade][2]}" title="Calidad de datos para entrenar a Elvi">${GRADE_UI[c.grade][0]}</span>` : "";
+const STAFF_UI = { best: "Personal: excelente", good: "Personal: bueno", medium: "Personal: medio", bad: "Personal: malo" }; // staffgrade1
+const staffBadge = (c) => c.staffGrade && STAFF_UI[c.staffGrade] ? ` <span class="tag" style="background:${GRADE_UI[c.staffGrade][1]};color:${GRADE_UI[c.staffGrade][2]}" title="Ticket vs orden correcta + read-back confirmado">${STAFF_UI[c.staffGrade]}</span>` : "";
 const rbTag = (c) => c.readback && c.readback.status !== "none" ? ` <span class="tag" title="El personal repitió la orden al final">${c.readback.status === "confirmed" ? "🔁 Read-back ✓" : "🔁 Read-back corregido"}</span>` : "";
 function renderReadbacks(calls) {
   const el = document.getElementById("rb-summary"); if (!el) return;
@@ -147,7 +149,7 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -177,7 +179,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${langHtml(c)}
     ${c.hasAudio ? playerHtml(c) : ""}

@@ -20,9 +20,11 @@ if (cmd === "approve" || cmd === "reject") {
 
 async function build() {
   const res = await fetch("http://localhost:4000/api/calls/accuracy?days=90"); const data: any = await res.json();
+  const staffGrades: Record<string, string | null> = {}; // staffgrade1
   const grades: Record<string, string> = {}; // grade1: CallSid → grade (for calls.html badges)
-  const phone = (data.calls || []).filter((r: any) => r.source !== "training").map((r: any) => { const e = L.phoneExample(r); if (e?.grade) grades[r.callSid] = e.grade; return e; }).filter(Boolean);
+  const phone = (data.calls || []).filter((r: any) => r.source !== "training").map((r: any) => { const e = L.phoneExample(r); if (e?.grade) grades[r.callSid] = e.grade; if (e) staffGrades[r.callSid] = e.staffGrade ?? null; return e; }).filter(Boolean);
   fs.writeFileSync(path.join(dir, "grades.json"), JSON.stringify(grades, null, 1));
+  fs.writeFileSync(path.join(dir, "staff-grades.json"), JSON.stringify(staffGrades, null, 1));
   const sdir = path.join(root, "data/logs/sessions"); const app: any[] = [];
   for (const f of fs.readdirSync(sdir).filter((x) => x.endsWith(".jsonl") && !/-(call|rescore|probe|replay|expected|test|learn)/.test(x))) {
     const es = fs.readFileSync(path.join(sdir, f), "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
@@ -36,7 +38,7 @@ async function build() {
   const readbacks = L.readbackStats(phone as any); // readback1
   fs.writeFileSync(path.join(dir, "readback-phrases.json"), JSON.stringify(L.readbackPhrases((data.calls || []).filter((r: any) => r.source !== "training")), null, 1));
   const wk = acc.length ? acc[acc.length - 1].week : "";
-  J("report.json", { generatedAt: new Date().toISOString(), readbacks, grades: L.gradeStats(phone as any), gradeWeights: L.gradeWeights(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
+  J("report.json", { generatedAt: new Date().toISOString(), readbacks, grades: L.gradeStats(phone as any), staffGrades: L.staffGradeByDevice(phone as any), gradeWeights: L.gradeWeights(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
     voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk) });
   return { phone: phone as any[], app, data };
 }

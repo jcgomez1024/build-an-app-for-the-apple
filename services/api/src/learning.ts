@@ -33,6 +33,22 @@ export function gradeCall(o: { unclear: boolean; staffScore: number | null; read
   }
   return "good"; // no read-back, or corrected and the ticket reflects it (staffScore 100 against the corrected truth)
 }
+/** staffgrade1: BEST = ticket 100% vs correct order AND confirmed read-back. GOOD = exact, no read-back (or a corrected
+ *  read-back the ticket reflects). MEDIUM = minor (one or two option/modifier misses, custom amount, price). BAD = wrong
+ *  or missing dish, wrong meat, wrong qty, or 3+ errors. Unclear calls: no staff grade. */
+export function staffGradeOf(o: { unclear: boolean; staffScore: number | null; misses: Miss[]; readback: { status: string } }): Grade | null {
+  if (o.unclear || o.staffScore == null) return null;
+  if (o.staffScore === 100 && !o.misses.length) return o.readback.status === "confirmed" ? "best" : "good";
+  const types = o.misses.map(errorType);
+  if (types.length >= 3 || types.some((t) => /^(missed item|extra item|wrong qty|wrong meat|wrong dish type)$/.test(t))) return "bad";
+  return "medium";
+}
+export function staffGradeByDevice(ex: Example[]) {
+  const out: Record<string, { best: number; good: number; medium: number; bad: number; calls: number; readbacks: number; readbackRate: number | null }> = {};
+  for (const e of ex) { if (e.channel !== "phone" || !e.staffGrade) continue;
+    for (const k of ["all", e.answeredBy || "unknown"]) { const o = (out[k] = out[k] || { best: 0, good: 0, medium: 0, bad: 0, calls: 0, readbacks: 0, readbackRate: null }); o[e.staffGrade]++; o.calls++; if (e.readback && e.readback !== "none") o.readbacks++; o.readbackRate = Math.round((o.readbacks / o.calls) * 1000) / 10; } }
+  return out;
+}
 export function gradeStats(ex: Example[]) {
   const out: Record<string, number> = { best: 0, good: 0, medium: 0, bad: 0 };
   for (const e of ex) if (e.channel === "phone" && e.grade) out[e.grade]++;
@@ -108,7 +124,7 @@ export function stripPii(text: string, names: Array<string | null | undefined> =
 }
 export const ref = (sid: string) => "ex-" + createHash("sha256").update(String(sid)).digest("hex").slice(0, 10);
 const lineStr = (l: Line) => `${l.quantity}× ${l.baseName || l.name}${l.choices?.length ? " [" + [...l.choices].sort().join("; ") + "]" : ""}`;
-export type Example = { grade?: Grade; readback?: "confirmed" | "corrected" | "none"; answeredBy?: string | null; difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
+export type Example = { staffGrade?: Grade | null; grade?: Grade; readback?: "confirmed" | "corrected" | "none"; answeredBy?: string | null; difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
   elvi: string[]; elviScore: number | null; staffScore: number | null; corrected: string[]; staffMisses: Miss[] };
 export function phoneExample(row: any): Example | null {
   if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
@@ -129,7 +145,7 @@ export function phoneExample(row: any): Example | null {
     const drop = new RegExp(ov.coachingMatch || "$^", "i");
     staffS.misses = [...staffS.misses.filter((x) => !drop.test(`${x.detail} ${x.ticket || ""} ${x.elvi || ""}`)), ...ov.coaching.map((c: any) => ({ kind: "coaching", detail: `${c.item}: ${c.detail}`, ticket: c.item, coach: c.type } as any))];
   }
-  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: gradeWeight(grade), grade, readback: rb.status, answeredBy: row.answeredBy || null, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
+  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: gradeWeight(grade), grade, staffGrade: staffGradeOf({ unclear: !!row.unclear, staffScore: staffS.score, misses: staffS.misses, readback: rb }), readback: rb.status, answeredBy: row.answeredBy || null, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
 /** App session: the paid cart is the truth (weight 1); an abandoned cart is low weight (0.2). */
