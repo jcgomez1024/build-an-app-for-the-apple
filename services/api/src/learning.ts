@@ -6,6 +6,7 @@ import fs from "node:fs";
 // PII stripped; files only under data/learning/ (gitignored).
 import { scoreOrder, type Line, type Miss } from "./call-accuracy.js";
 import { createHash } from "node:crypto";
+import { withIncludedToppings } from "./standard-toppings.js";
 
 type Flag = { type: string; detail: string };
 const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE_MISSING|DELIVERY_FEE_WRONG)$/;
@@ -137,7 +138,9 @@ export function phoneExample(row: any): Example | null {
   // readback1: confirmed recap > customer words > ticket (dish/quantity level); a reviewed override still wins over all
   const rb = detectReadback((row.turns || []) as any);
   if (!ov && rb.status !== "none") { const a = applyReadback(lines as any, rb); if (a.changed.length) { lines.splice(0, lines.length, ...(a.lines as any)); corrected.push(...a.changed); } }
-  const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
+  // replay3: score exactly like /api/calls/accuracy and the replay (included toppings count as present on both sides)
+  const wit = (ls: any[]) => ls.map(withIncludedToppings as any) as Line[];
+  const elviS = scoreOrder(wit(row.elvi || []), wit(lines)), staffS = scoreOrder(wit(row.ticket.lines), wit(lines));
   const grade = gradeCall({ unclear: !!row.unclear, staffScore: staffS.score, readback: rb, truthLines: lines, overridden: !!ov, corrected });
   staffS.misses = customAmountMisses(staffS.misses, corrected);
   // case1e: reviewed coaching points replace the generic missed/extra pair for the corrected line
