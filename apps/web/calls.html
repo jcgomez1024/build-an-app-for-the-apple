@@ -69,7 +69,7 @@
   <button id="reload">Actualizar</button></header>
 <main>
   <section class="card" id="cmp" style="display:none"><h2>Comparar: orden correcta · ticket · Elvi</h2>
-    <div class="filters" id="cmp-f"><button data-g="bg" class="on">Best + Good</button><button data-g="all">Todas (incl. medium / bad)</button></div>
+    <div class="filters" id="cmp-f"><button data-g="bg" class="on">Best + Good</button><button data-g="all">Todas (incl. medium / bad)</button> <label class="note"><input type="checkbox" id="cmp-train"> incluir llamadas de entrenamiento</label></div>
     <div id="cmp-sum" class="cmp-sum"></div><div id="cmp-list"></div></section>
   <section class="kpis">
     <div class="card kpi"><b id="k-avg">–</b><span>Elvi hoy vs orden correcta (meta 95%) · <i id="k-scored">0</i> calificadas</span></div>
@@ -366,7 +366,7 @@ document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { per
 
 // cmp1: "Comparar" — correct order vs staff ticket vs Elvi, item by item. Data comes from /api/calls/accuracy (same PIN).
 const CALLS_PAGE_VERSION = "live1";
-let cmpOn = false, cmpGrade = "bg";
+let cmpOn = false, cmpGrade = "bg", cmpTrain = false;
 const normC = (c) => String(c).replace(/\s*\(\+\$[\d.]+\)/, "").trim().toLowerCase();
 const isSalsaDefault = (c) => /mild salsa asada/i.test(c);
 function cmpMatch(truth, other) {
@@ -397,12 +397,12 @@ const pct = (n) => n == null ? "–" : Math.round(n) + "%";
 const avgN = (a) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 function topTypes(arr) { const m = {}; for (const t of arr) m[t] = (m[t] || 0) + 1; return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(k)} (${v})`).join(", ") || "ninguno"; }
 function renderCompare() {
-  const all = (data?.calls || []).map((c, i) => ({ c, i })).filter(({ c }) => c.compare).sort((a, b) => b.c.at.localeCompare(a.c.at));
+  const all = (data?.calls || []).map((c, i) => ({ c, i })).filter(({ c }) => c.compare && (cmpTrain || c.source !== "training")).sort((a, b) => b.c.at.localeCompare(a.c.at));
   const rows = all.filter(({ c }) => cmpGrade === "all" || ["best", "good"].includes(c.compare.grade));
   const clear = rows.filter(({ c }) => !c.unclear);
   const counts = { best: 0, good: 0, medium: 0, bad: 0 }; for (const { c } of all) if (counts[c.compare.grade] !== undefined) counts[c.compare.grade]++;
   const rb = rows.filter(({ c }) => c.compare.readback !== "none").length;
-  $("#cmp-sum").innerHTML = `<div><b>${rows.length}</b> llamadas</div><div title="Elvi en la llamada = lo que armó con el código de ese día · Elvi hoy = replay con los arreglos actuales">Elvi en la llamada <b>${pct(avgN(clear.map(({ c }) => c.compare.elviLiveScore).filter((x) => x != null)))}</b> → Elvi hoy <b>${pct(avgN(clear.map(({ c }) => c.compare.elviScore).filter((x) => x != null)))}</b> vs personal <b>${pct(avgN(clear.map(({ c }) => c.compare.staffScore).filter((x) => x != null)))}</b> (contra la orden correcta${clear.length < rows.length ? "; sin órdenes poco claras" : ""})</div>`
+  $("#cmp-sum").innerHTML = `<div><b>${rows.length}</b> llamadas</div><div title="Elvi en la llamada = lo que armó con el código de ese día · Elvi hoy = replay con los arreglos actuales">Elvi en la llamada <b>${pct(avgN(clear.map(({ c }) => c.compare.elviLiveScore).filter((x) => x != null)))}</b> → Elvi hoy <b>${pct(avgN(clear.map(({ c }) => c.compare.elviScore).filter((x) => x != null)))}</b> vs personal <b>${pct(avgN(clear.map(({ c }) => c.compare.staffScore).filter((x) => x != null)))}</b> (clientes${cmpTrain ? " + entrenamiento" : ""}, contra la orden correcta${clear.length < rows.length ? "; sin órdenes poco claras" : ""})</div>`
     + `<div>Best ${counts.best} · Good ${counts.good} · Medium ${counts.medium} · Bad ${counts.bad}</div><div>Read-back en estas ${rows.length} llamadas: ${rb} (${rows.length ? Math.round(rb / rows.length * 100) : 0}%)${cmpGrade === "bg" ? ` · en todas las calificadas: ${all.filter(({ c }) => c.compare.readback !== "none").length} de ${all.length}` : ""}</div>`
     + `<div>Fallas Elvi hoy: ${topTypes(rows.flatMap(({ c }) => c.compare.elviMissTypes))} · en la llamada: ${topTypes(rows.flatMap(({ c }) => c.compare.elviLiveMissTypes))}</div><div>Fallas personal: ${topTypes(rows.flatMap(({ c }) => c.compare.staffMissTypes))}</div>`;
   $("#cmp-list").innerHTML = rows.map(({ c, i }) => { const k = c.compare;
@@ -414,6 +414,7 @@ function renderCompare() {
 }
 function showCompare(on) { cmpOn = on; $("#cmp").style.display = on ? "" : "none"; document.querySelectorAll("main > section:not(#cmp)").forEach((x) => x.style.display = on ? "none" : ""); $("#cmp-btn").classList.toggle("on", on); if (on) renderCompare(); }
 $("#cmp-btn").onclick = () => showCompare(!cmpOn);
+$("#cmp-train").onchange = (e) => { cmpTrain = e.target.checked; renderCompare(); };
 document.querySelectorAll("#cmp-f button").forEach((b) => b.onclick = () => { cmpGrade = b.dataset.g; document.querySelectorAll("#cmp-f button").forEach((x) => x.classList.toggle("on", x === b)); renderCompare(); });
 document.addEventListener("click", (e) => { const o = e.target.closest?.("[data-open]"); if (!o) return; e.preventDefault(); current = Number(o.dataset.open); showCompare(false); list(); detail(); $("#detail").scrollIntoView?.({ behavior: "smooth" }); });
 if (location.hash === "#comparar") cmpOn = true;
