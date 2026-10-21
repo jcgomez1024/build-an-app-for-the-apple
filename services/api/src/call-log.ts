@@ -29,6 +29,14 @@ export function formatNumber(p: string) {
   const d = d10(p);
   return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (p || "Número privado");
 }
+/** closedlabel1: call-log label from the "closed" event's reason (day = closed weekday; before/after = hours). */
+const ES_DAY = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+export function closedLabel(ev: any): string {
+  const r = String(ev?.reason || "");
+  if (r === "after" || r === "before") return "Cerrado (fuera de horario)";
+  const wd = Number(ev?.weekday);
+  return `Cerrado (${Number.isInteger(wd) && wd >= 0 && wd <= 6 ? ES_DAY[wd] : "día cerrado"})`;
+}
 /** line1: the customer-facing line. Forwarded from 289-8504 → "289", from 551-9122 → "551"; a direct dial to a
  *  Twilio number → "Twilio 1609". Calls logged before line1 (no forwardedFrom known) keep the old lineShort label. */
 export function lineForCall(called: string, forwardedFrom?: string | null): string {
@@ -155,7 +163,7 @@ export function buildCallLog(events: any[], opts: {
       voicemail: "Buzón de voz",
       hungup: `Colgó en espera${waitSec != null ? ` (${waitSec} s)` : ""}`,
       rejected: "Rechazada (loop guard)",
-      closed: "Cerrado (lunes)",
+      closed: closedLabel(last("closed")), // closedlabel1: day vs before/after hours
       in_progress: "En curso",
       unknown: "Sin resultado",
     };

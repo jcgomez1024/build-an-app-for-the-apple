@@ -541,7 +541,7 @@ function callRow(r) {
   ].join("");
   return `<div class="cl-row ${r.missed ? "missed" : ""} ${r.outcome === "rejected" ? "rejected" : ""}">
     <div class="cl-time">${esc(r.time)}</div>
-    <div class="cl-who"><b>${who}</b>${r.training ? '<span class="tag-test">prueba</span>' : ""}${r.line ? `<span class="cl-line">${esc(r.line)}</span>` : ""}
+    <div class="cl-who"><b>${who}</b>${r.training ? '<span class="tag-test">prueba</span>' : ""}${r.line ? `<span class="cl-line" title="Línea que marcó el cliente">${/^\d+$/.test(r.line) ? "línea " : ""}${esc(r.line)}</span>` : ""}
       <div class="cl-meta">${r.name ? esc(r.numberDisplay) + " · " : ""}<span class="cl-out ${cls}">${esc(r.outcomeLabel)}</span>${dur}${r.square ? " · " + sqRefHtml(r.square) : ""}</div></div>
     <div class="cl-acts">${acts}</div></div>`;
 }
