@@ -175,14 +175,20 @@ async function loadAudio(a, sid) {
 }
 
 // auditor1: Elvi Auditor findings (data/auditor/findings.jsonl via the PIN-protected API).
-const AUD_LABEL = { STAFF_EXTRA: "Staff: de más", STAFF_MISSING: "Staff: faltó", CUSTOM_AMOUNT: "Monto libre", PRICE_DIFF: "Precio", NO_TICKET: "Sin ticket", DELIVERY_FEE_MISSING: "Sin envío", DELIVERY_FEE_WRONG: "Envío mal", ELVI_MISS: "Elvi", UNUSUAL_CALL: "Revisar" };
+const AUD_LABEL = { STAFF_EXTRA: "Staff: de más", STAFF_MISSING: "Staff: faltó", CUSTOM_AMOUNT: "Monto libre", PRICE_DIFF: "Precio", NO_TICKET: "Sin ticket", DELIVERY_FEE_MISSING: "Sin envío", DELIVERY_FEE_WRONG: "Envío mal", ELVI_MISS: "Elvi", UNUSUAL_CALL: "Revisar", ORDER_FOLLOWUP: "Pedido en línea" };
 const AUD_CAT = { question_dietary: "pregunta", complaint: "queja", catering_large: "catering", wrong_number_spam: "equivocado/spam", reservation_other: "otro" };
+// followup1: call about an existing Square Online order — not scored against Elvi.
+function followUpBadge(c) {
+  const f = c.followUp; if (!f) return "";
+  const due = f.dueAt ? new Date(f.dueAt).toLocaleString("es-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" }) : "";
+  return `<span class="tag" style="background:#e3f2fd;color:#0d47a1" title="Pedido en línea ${esc(String(f.orderId).slice(-6))} · ${esc(f.fulfillmentState || f.state || "")} · no cuenta para Elvi">🛒 Seguimiento pedido en línea${due ? ` · para ${esc(due)}` : ""}</span>`;
+}
 function auditBadge(c) {
-  const a = c.audit; if (!a || !a.flags?.length) return "";
+  const a = c.audit; if (!a || !a.flags?.length) return followUpBadge(c);
   const un = a.flags.find((f) => f.type === "UNUSUAL_CALL");
   const rev = un ? `<span class="tag" style="background:${un.urgent ? "#c62828" : "#fff3e0"};color:${un.urgent ? "#fff" : "#e65100"}" title="${esc(un.es)}">Revisar · ${esc(AUD_CAT[un.category] || un.category)}${un.urgent ? " ⚠" : ""}</span>` : "";
-  const ping = a.flags.filter((f) => f.type !== "ELVI_MISS" && f.type !== "UNUSUAL_CALL").length, elvi = a.flags.filter((f) => f.type === "ELVI_MISS").length;
-  return rev + (ping ? `<span class="tag" style="background:${a.notified ? "#eee" : "#fdeaea"};color:${a.notified ? "#6b6b70" : "#c62828"}" title="${esc(a.summary_es)}">⚑ ${ping}</span>` : "") + (elvi ? `<span class="tag" title="Errores de Elvi">Elvi ${elvi}</span>` : "");
+  const ping = a.flags.filter((f) => f.type !== "ELVI_MISS" && f.type !== "UNUSUAL_CALL" && f.type !== "ORDER_FOLLOWUP").length, elvi = a.flags.filter((f) => f.type === "ELVI_MISS").length;
+  return followUpBadge(c) + rev + (ping ? `<span class="tag" style="background:${a.notified ? "#eee" : "#fdeaea"};color:${a.notified ? "#6b6b70" : "#c62828"}" title="${esc(a.summary_es)}">⚑ ${ping}</span>` : "") + (elvi ? `<span class="tag" title="Errores de Elvi">Elvi ${elvi}</span>` : "");
 }
 function auditHtml(c) {
   const a = c.audit; if (!a || !a.flags?.length) return "";

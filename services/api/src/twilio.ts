@@ -465,13 +465,15 @@ let lastSquareLink = 0;
 /** Pick the Square order for a call: phone match, or ticket name = caller's name, or the only order rung up right after. */
 export function pickSquareOrder(t: { at: string; caller: string; name: string | null }, orders: any[]): { order: any; by: string } | null {
   const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";
-  const win = orders.filter((o) => { const c = Date.parse(o.created_at); return c >= at - 2 * 60000 && c <= at + 60 * 60000; });
+  const empty = (o: any) => !(o?.line_items || []).length && !Number(o?.total_money?.amount || 0); // followup1: never link $0 / no-item orders
+  const online = (o: any) => /online|website|ecom/i.test(String(o?.source?.name || ""));
+  const win = orders.filter((o) => { const c = Date.parse(o.created_at); return !empty(o) && c >= at - 2 * 60000 && c <= at + 60 * 60000; });
   const phoneOf = (o: any) => (o.fulfillments || []).flatMap((f: any) => [f.pickup_details, f.delivery_details].map((x: any) => d10(x?.recipient?.phone_number || "")));
   const byPhone = phone ? win.filter((o) => phoneOf(o).includes(phone)) : [];
   if (byPhone.length) return { order: byPhone[0], by: "phone" };
   const byName = first ? win.filter((o) => String(o.ticket_name || "").trim().split(/\s+/)[0]?.toLowerCase() === first) : [];
   if (byName.length === 1) return { order: byName[0], by: "ticket name" };
-  const soon = win.filter((o) => Date.parse(o.created_at) <= at + 20 * 60000);
+  const soon = win.filter((o) => !online(o) && Date.parse(o.created_at) <= at + 20 * 60000); // followup1: POS tickets only
   if (soon.length === 1) return { order: soon[0], by: "only ticket in 20 min" };
   return null;
 }

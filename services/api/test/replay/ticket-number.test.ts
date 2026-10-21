@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 const { squareRefs } = await import("../../src/call-accuracy.ts");
 const t = await import("../../src/twilio.ts");
-const order = (id: string, at: string, extra: any = {}) => ({ id, created_at: at, tenders: [{ id: `Ab12${id}xyz`, payment_id: `Ab12${id}xyz` }], ...extra });
+const order = (id: string, at: string, extra: any = {}) => ({ id, created_at: at, line_items: [{ name: "Taco", quantity: "1" }], total_money: { amount: 300 }, tenders: [{ id: `Ab12${id}xyz`, payment_id: `Ab12${id}xyz` }], ...extra });
 
 test("squareRefs: Receipt # = first 4 of the payment ID, Ticket = ticket_name, Dashboard link", () => {
   const r = squareRefs(order("ORD1", "2026-10-19T15:00:00Z", { ticket_name: "Test" }));

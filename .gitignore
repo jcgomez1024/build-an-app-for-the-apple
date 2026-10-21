@@ -32,3 +32,4 @@ services/api/data/twilio-fallback-urls*.json
 avatar/*.glb
 *.before-*
 services/api/data/auditor/
+services/api/data/learning/

@@ -11,7 +11,7 @@ import { norm } from "./call-accuracy.js";
 
 export const AUDITOR_DIR = process.env.ELVI_AUDITOR_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/auditor");
 export const FINDINGS_FILE = path.join(AUDITOR_DIR, "findings.jsonl");
-export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS" | "UNUSUAL_CALL";
+export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS" | "UNUSUAL_CALL" | "ORDER_FOLLOWUP";
 export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG", "UNUSUAL_CALL"];
 export type Flag = { type: FlagType; detail: string; es: string; en: string; category?: string; urgent?: boolean; question?: string | null };
 export type Finding = { id: string; callSid: string; callAt: string; score: number | null; flags: Flag[]; summary_es: string; summary_en: string;
@@ -40,6 +40,16 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   const delivery = r.elviFulfillment === "DELIVERY" || r.fulfillment?.elvi?.fulfillment === "DELIVERY";
   const endedMs = Date.parse(r.at) + ((r.recordingSec || r.talkSec || 0) * 1000);
   // unusual1: non-order calls (question/dietary, complaint, catering, wrong number/spam, other) — a "Revisar" ping.
+  // followup1: a call about an existing online order — informational only (never scored, no staff checks);
+  // only an urgent complaint about it still pings.
+  if (r.followUp) {
+    const fu = r.followUp, due = fu.dueAt ? new Date(fu.dueAt).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" }) : null;
+    flags.push({ type: "ORDER_FOLLOWUP", detail: `online order ${String(fu.orderId).slice(-6)}${due ? `, due ${due}` : ""}`, category: "order_followup",
+      es: `Llamada sobre un pedido en línea ya hecho${due ? ` (para ${due})` : ""}. No cuenta para Elvi.`, en: `Call about an existing online order${due ? ` (due ${due})` : ""}. Not scored against Elvi.` } as Flag);
+    const cu = classifyCall(r.turns || [], false);
+    if (cu?.category === "complaint" && cu.urgent) flags.push({ type: "UNUSUAL_CALL", detail: `complaint (urgent)`, es: cu.summary_es, en: cu.summary_en, category: cu.category, urgent: true, question: cu.question } as Flag);
+    return { flags, final: nowMs - endedMs > 60 * 60_000 };
+  }
   const u = classifyCall(r.turns || [], elviFood.length > 0);
   if (u) flags.push({ type: "UNUSUAL_CALL", detail: `${u.category}${u.urgent ? " (urgent)" : ""}${u.question ? `: ${u.question}` : ""}`, es: u.summary_es, en: u.summary_en, category: u.category, urgent: u.urgent, question: u.question } as Flag);
   if (!r.ticket) {
@@ -123,7 +133,7 @@ export function recordFinding(row: any, flags: Flag[], file = FINDINGS_FILE, now
   const ping = flags.some((f) => PING_TYPES.includes(f.type));
   const f: Finding = { id, callSid: row.callSid, callAt: row.at, score: row.score ?? null, flags, summary_es: summarize(flags, "es"), summary_en: summarize(flags, "en"),
     customerName: row.customerName || null,
-    ...(() => { const u: any = flags.find((x) => x.type === "UNUSUAL_CALL"); return u ? { category: u.category, urgent: !!u.urgent, question: u.question || null } : {}; })(), // unusual1 // sopesaso1: first name heard on the call (or saved)
+    ...(() => { const u: any = flags.find((x) => x.type === "UNUSUAL_CALL") || flags.find((x) => x.type === "ORDER_FOLLOWUP"); return u ? { category: u.category, urgent: !!u.urgent, question: u.question || null } : {}; })(), // unusual1 // sopesaso1: first name heard on the call (or saved)
     ping, fixCandidate: flags.some((x) => x.type === "ELVI_MISS"), notified: !ping, createdAt: now.toISOString(), receipt: row.ticket?.receiptNumber || null };
   all.push(f); writeFindings(all, file);
   return f;

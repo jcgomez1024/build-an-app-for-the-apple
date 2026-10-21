@@ -32,6 +32,8 @@ import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
 import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
 import { auditorFindingsByCall } from "./auditor.js";
 import { paymentReceiptReadOnly } from "./square.js";
+import { followUpFor } from "./call-accuracy.js";
+import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved } from "./twilio.js";
@@ -1472,7 +1474,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     let orders: any[] = [];
     let squareError: string | undefined;
     if (calls.length) {
-      const startAt = new Date(Math.min(...calls.map((c) => Date.parse(c.at))) - 5 * 60000).toISOString();
+      const startAt = new Date(Math.min(...calls.map((c) => Date.parse(c.at))) - 24 * 3600000).toISOString(); // followup1: online orders up to 24 h before
       const endAt = new Date(Math.max(...calls.map((c) => Date.parse(c.at))) + 90 * 60000).toISOString();
       const key = `${startAt}|${endAt}`;
       if (ordersCache && ordersCache.key === key && Date.now() - ordersCache.at < 3 * 60000) orders = ordersCache.orders;
@@ -1490,11 +1492,14 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       if (c.fulfillment === "DELIVERY" && elvi.length) elvi.push(deliveryFeeLine(c.deliveryFeeCents));
       return { call: { ...c, customerName: heardName(c) }, elvi };
     });
-    const assigned = assignTickets(prepared, orders);
+    // followup1: calls about an existing Square Online order — linked to it, never scored, no staff checks.
+    const followUps = new Map(prepared.map(({ call: c, elvi }) => [c.callSid, c.recordingSid ? followUpFor(c, elvi, orders) : null] as const));
+    const assigned = assignTickets(prepared.filter(({ call: c }) => !followUps.get(c.callSid)), orders);
     const rows = prepared.map(({ call: c, elvi }) => {
-      const m = assigned.get(c.callSid) || null;
+      const followUp = followUps.get(c.callSid) || null;
+      const m = followUp ? null : assigned.get(c.callSid) || null;
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
-      const exp = !m ? expected[c.callSid] : undefined;
+      const exp = !m && !followUp ? expected[c.callSid] : undefined;
       const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
       const scored = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
       return {
@@ -1508,6 +1513,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
+        followUp, // followup1
         orderName: (c as any).orderName || null, customerName: c.customerName || null, noOrder: !hasOrderContent(elvi), // match1 orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
@@ -1606,3 +1612,16 @@ server.listen(port, () => {
   console.log(`Cocina Elvis API listening on http://localhost:${port}`);
 });
 
+
+// learn1: hourly read-only refresh of the online-order learning feed (last 60 days of paid Square Online orders).
+async function refreshOnlineLearning() {
+  try {
+    const cfg = buildSquareConfig(resolveTenant(undefined));
+    const end = new Date(), start = new Date(end.getTime() - 60 * 86400000);
+    const orders = await searchOrdersReadOnly(start.toISOString(), end.toISOString(), cfg);
+    const data = buildOnlineLearning(orders, end);
+    writeOnlineLearning(data);
+    console.log(`learn1: online learning feed ${data.orders} paid online orders`);
+  } catch (e) { console.warn("learn1: refresh failed", e instanceof Error ? e.message.slice(0, 120) : e); }
+}
+if (process.env.NODE_ENV !== "test" && !process.env.ELVI_NO_LEARNING) { setTimeout(() => void refreshOnlineLearning(), 30_000).unref?.(); setInterval(() => void refreshOnlineLearning(), 3600_000).unref?.(); }

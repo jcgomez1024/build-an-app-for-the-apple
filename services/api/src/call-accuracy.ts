@@ -203,6 +203,42 @@ function orderNames(o: any): string[] {
   if (o?.ticket_name) out.push(String(o.ticket_name));
   return out.map((n) => norm(n).split(" ")[0]).filter(Boolean);
 }
+// followup1 (Carlos): Square Online orders are never scored against Elvi; $0 orders with no items are never tickets.
+export const isOnlineOrder = (o: any) => /online|website|ecom/i.test(String(o?.source?.name || ""));
+export const isEmptyOrder = (o: any) => !(o?.line_items || []).length && !Number(o?.total_money?.amount || 0);
+export const isPosTicket = (o: any) => !isEmptyOrder(o) && !isOnlineOrder(o);
+/** Caller talks about an order already placed (online / scheduled / status / change). */
+export const FOLLOWUP_CUES = /\b(?:placed an order|you placed|i placed|my order|your order|the order (?:i|you)|ordered online|online order|on(?:line| the website| the app)|for tomorrow|says tomorrow|pick ?up time|is it ready|ready yet|change (?:my|the) order|cancel (?:my|the) order|hice (?:un|una|el|mi) (?:pedido|orden)|mi (?:pedido|orden)|su (?:pedido|orden)|por internet|en l[ií]nea|para ma[nñ]ana|ya est[aá] list[oa]|cambiar (?:mi|el|la) (?:pedido|orden)|cancelar)\b/i;
+/** followup1b: staff (often an outbound callback) mention the order's date/time — "it says for tomorrow at 11", "para mañana a las 11". */
+export const ORDER_TIME_CUES = /\b(?:tomorrow|today at|tonight|for (?:today|now)|right now today|\d{1,2}(?::\d{2})?\s*(?:a\.?\s?m|p\.?\s?m)\b|ma[nñ]ana|hoy (?:a las|mismo)|para hoy|a las \d{1,2}|pick(?:ed)? ?up (?:at|time)|scheduled|programad[oa])/i;
+/** Our own Twilio numbers (outbound callbacks put us in "caller"; the customer is then the called number). */
+const OUR_LINES = () => String(process.env.TWILIO_LINES || "+14409011609=x,+14406642795=x").split(",").map((p) => digits10(p.split("=")[0])).filter(Boolean);
+export const customerPhoneOf = (call: { caller: string; calledNumber?: string }, ours: string[] = OUR_LINES()) => { const c = digits10(call.caller); return c && ours.includes(c) && call.calledNumber ? digits10(call.calledNumber) : c; };
+/** followup1: the caller's own recent Square Online order (phone, else name) from 24 h before the call to its end. */
+export function findFollowUpOrder(call: CallRecord & { customerName?: string | null }, orders: any[]): { order: any; by: string } | null {
+  const start = Date.parse(call.at), end = start + (call.recordingSec || call.talkSec || 0) * 1000 + 5 * 60000;
+  const phone = customerPhoneOf(call), first = norm(String(call.customerName || "")).split(" ")[0];
+  const recent = orders.filter((o) => isOnlineOrder(o) && !isEmptyOrder(o) && !/^DRAFT$/i.test(String(o.state || "")) && (() => { const t = Date.parse(o.created_at); return t >= start - 24 * 3600000 && t <= end; })());
+  const byPhone = phone ? recent.filter((o) => orderPhones(o).includes(phone)) : [];
+  if (byPhone.length) return { order: byPhone[byPhone.length - 1], by: "phone" };
+  const byName = first ? recent.filter((o) => orderNames(o).includes(first)) : [];
+  if (byName.length === 1) return { order: byName[0], by: "name" };
+  return null;
+}
+/** followup1: an order follow-up call = links to a recent online order and adds no new phone order (or says so). */
+export function followUpFor(call: CallRecord & { customerName?: string | null }, elvi: Line[], orders: any[]) {
+  const hit = findFollowUpOrder(call, orders);
+  if (!hit) return null;
+  const said = (call.turns || []).map((t: any) => t.text).join(" ");
+  // A new phone order (items, no follow-up / order-time words) is not a follow-up. Phone-matched + staff naming the
+  // order's time/date (outbound callbacks for late online orders pushed to tomorrow) always is.
+  const staffSaid = (call.turns || []).filter((t: any) => t.speaker === "staff").map((t: any) => t.text).join(" ");
+  const timeTalk = hit.by === "phone" && ORDER_TIME_CUES.test(staffSaid);
+  if (hasOrderContent(elvi) && !FOLLOWUP_CUES.test(said) && !timeTalk) return null;
+  const f = (hit.order.fulfillments || [])[0] || {}, d = f.pickup_details || f.delivery_details || {};
+  return { orderId: String(hit.order.id), source: String(hit.order.source?.name || "online"), state: String(hit.order.state || ""), fulfillment: f.type || null, fulfillmentState: f.state || null,
+    dueAt: d.pickup_at || d.deliver_at || null, placedAt: d.placed_at || hit.order.created_at, totalCents: Number(hit.order.total_money?.amount || 0), matchedBy: hit.by };
+}
 export function candidateTickets(call: CallRecord & { customerName?: string | null }, elvi: Line[], orders: any[]) {
   if (!hasOrderContent(elvi)) return [];
   const start = Date.parse(call.at);
@@ -210,6 +246,7 @@ export function candidateTickets(call: CallRecord & { customerName?: string | nu
   const phone = digits10(call.caller), first = norm(String(call.customerName || "")).split(" ")[0];
   const out: Array<{ order: any; rank: number; by: string }> = [];
   for (const o of orders) {
+    if (!isPosTicket(o)) continue; // followup1
     const t = Date.parse(o.created_at);
     if (!(t >= start && t <= end)) continue;
     const lines = ticketLines(o);
