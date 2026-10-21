@@ -17,6 +17,7 @@ import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./
 import { searchOrdersReadOnly, paymentReceiptReadOnly } from "./square.js";
 import { squareRefs } from "./call-accuracy.js";
 import { orderNameForPhone } from "./call-accuracy.js";
+import { heardName as heardShadowName } from "./name-accuracy.js";
 import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favorites.js";
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
@@ -1799,6 +1800,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         }, describe, result.elviOrder?.cart || [], result.elviOrder);
         learnCallerLanguage(CallSid, caller, result.turns, callLang.get(CallSid));
         scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));
+        // namecheck1: Elvi's shadow order always carries the name she heard (practice for live orders).
+        try { const hn = heardShadowName(result.turns as any, heardOrderName); if (hn && result.elviOrder) (result.elviOrder as any).customerName = hn; } catch {}
         logCall({ event: "recording", callSid: CallSid, caller, name, greetingLanguage: callLang.get(CallSid), recordingSid: RecordingSid, durationSec: RecordingDuration, file: path.relative(apiRoot, file), segments: files.length, callerChannel, lines, ticketPhase: ticket.phase, ...result });
       } catch (e) {
         logCall({ event: "recording_error", callSid: CallSid, caller, recordingSid: RecordingSid, error: e instanceof Error ? e.message : String(e) });

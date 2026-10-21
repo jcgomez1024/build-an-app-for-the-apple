@@ -47,6 +47,7 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
         c.recordingSid = e.recordingSid; c.recordingSec = Number(e.durationSec) || 0; c.file = e.file;
         c.turns = e.turns; c.transcript = e.transcript; c.elviCart = e.elviOrder?.cart || []; c.error = undefined;
         if (e.elviOrder?.fulfillment) c.fulfillment = e.elviOrder.fulfillment;
+        if (e.elviOrder?.customerName) (c as any).elviName = e.elviOrder.customerName; // namecheck1
         if (!c.language && e.greetingLanguage) c.language = e.greetingLanguage;
       }
       if (e.event === "fulfillment" && (e.fulfillment === "DELIVERY" || e.fulfillment === "PICKUP")) { c.fulfillment = e.fulfillment; c.deliveryFeeCents = e.feeCents ?? c.deliveryFeeCents ?? null; }

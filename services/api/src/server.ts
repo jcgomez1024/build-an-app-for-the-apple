@@ -41,6 +41,8 @@ import { shadowOrderFromTurns } from "./call-scoring.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey } from "./caller-memory.js";
+import { isOnlineOrder as isOnlineSq } from "./call-accuracy.js";
+import { heardName as shadowHeardName, ticketName as squareTicketName, compareNames, nameStats } from "./name-accuracy.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1516,6 +1518,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
         followUp, // followup1
+        // namecheck1: informational name accuracy (not in the item score, never a staff flag)
+        nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),
         orderName: (c as any).orderName || null, customerName: c.customerName || null, noOrder: !hasOrderContent(elvi), // match1 orderNameFrom: (c as any).orderNameFrom || null, // ordername1
         // delivery1: fulfillment + address, transcript vs the Square ticket (read-only order JSON). Separate from the item score.
         fulfillment: (() => {
@@ -1537,7 +1541,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       r.ticket.receiptUrl = rc?.receiptUrl || null;
     }));
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
-    res.json({ calls: rows, trend: trend(customer), trainingTrend: trend(training), squareError: squareError || null, ordersSearched: orders.length });
+    res.json({ calls: rows, trend: trend(customer), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }
 });
 // Training: type the expected order ("2 tacos de bistec de comal, 2 de chorizo"); preview with Elvi's resolver, then save.

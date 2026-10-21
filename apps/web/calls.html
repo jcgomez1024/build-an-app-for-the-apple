@@ -66,7 +66,8 @@
     <div class="card kpi"><b id="k-missed">–</b><span>No contestadas</span></div>
   </section>
   <section class="card"><div class="tabs"><button data-p="daily" class="on">Diario</button><button data-p="weekly">Semanal</button></div>
-    <div class="chart" id="chart"></div><div class="note" style="margin-top:22px" id="sqnote"></div></section>
+    <div class="chart" id="chart"></div><div class="note" style="margin-top:22px" id="sqnote"></div>
+    <div class="note" id="namenote" title="Informativo: no cuenta en la calificación de Elvi"></div></section>
   <section class="layout">
     <div class="card"><h2>Llamadas</h2><div class="filters" id="filters"><button data-f="all" class="on">Todas</button><button data-f="customer">Clientes</button><button data-f="training">Entrenamiento</button></div><div class="list" id="list"></div></div>
     <div class="card" id="detail"><div class="empty">Elige una llamada.</div></div>
@@ -92,11 +93,25 @@ function chart() {
     `<div class="bar" style="height:${Math.max(4, r.avg * 1.4)}px;background:${r.avg >= 95 ? "var(--ok)" : r.avg >= 80 ? "var(--warn)" : "var(--bad)"}"><i>${r.avg}%</i><small>${esc(r.period.replace(/^wk /, "sem "))} (${r.calls})</small></div>`).join("");
 }
 
+// namecheck1: name Elvi heard vs the staff ticket — informational only.
+const NAME_LBL = { match: ["✓ nombre", "var(--ok)"], close: ["≈ nombre", "var(--warn)"], missing: ["sin nombre", "var(--warn)"], mismatch: ["✗ nombre", "var(--bad)"] };
+function nameTag(c) {
+  const n = c.nameCheck; if (!n || (!n.heard && !n.result)) return "";
+  const l = n.result ? NAME_LBL[n.result] : null;
+  return ` <span class="tag" title="Nombre que escuchó Elvi${n.ticket ? " · ticket: " + esc(n.ticket) : ""} (informativo)"${l ? ` style="border-color:${l[1]}"` : ""}>🎧 ${esc(n.heard || "—")}${l ? " · " + l[0] : ""}</span>`;
+}
+function nameNote() {
+  const el = $("#namenote"); if (!el) return;
+  const w = (data?.nameTrend || []).slice(-1)[0];
+  el.textContent = w ? `Nombres (${w.period.replace(/^wk /, "sem ")}): escuchó ${w.heard}/${w.calls} · comparadas ${w.compared}: ✓ ${w.match} · ≈ ${w.close} · sin nombre ${w.missing} · ✗ ${w.mismatch}${w.accuracy !== null ? ` · ${w.accuracy}%` : ""} (informativo, no cuenta en la calificación)` : "";
+}
+
 function list() {
+  nameNote();
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -126,7 +141,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}</h2>
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${nameTag(c)}</h2>
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${c.hasAudio ? playerHtml(c) : ""}
     ${c.orderName ? `<div class="note" style="margin:6px 0">A nombre de: <b>${esc(c.orderName)}</b></div>` : ""}
