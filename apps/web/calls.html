@@ -69,6 +69,7 @@
   <section class="card"><div class="tabs"><button data-p="daily" class="on">Diario</button><button data-p="weekly">Semanal</button></div>
     <div class="chart" id="chart"></div><div class="note" style="margin-top:22px" id="sqnote"></div>
     <div class="note" id="namenote" title="Informativo: no cuenta en la calificación de Elvi"></div></section>
+  <section class="card" id="readbacks"><h2>Read-back del personal</h2><div id="rb-summary" class="note">–</div></section>
   <section class="card" id="learning"><h2>Aprendizaje de Elvi</h2><div class="note" id="learn-body">–</div></section>
   <section class="layout">
     <div class="card"><h2>Llamadas</h2><div class="filters" id="filters"><button data-f="all" class="on">Todas</button><button data-f="customer">Clientes</button><button data-f="training">Entrenamiento</button></div><div class="list" id="list"></div></div>
@@ -89,6 +90,15 @@ const shown = () => data.calls.map((c, i) => ({ c, i })).filter(({ c }) => filte
 const unclearBadge = (c) => c.unclear ? ` <span class="tag" style="background:#fde68a;color:#78350f" title="${esc(c.unclear.note || "Orden poco clara: no cuenta para la precisión")}">Orden poco clara</span>` : "";
 const unclearToggle = (c) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? `<div class="note"><label><input type="checkbox" ${c.unclear ? "checked" : ""} onchange="setUnclear('${c.callSid}', this.checked)"> Orden poco clara (no cuenta para la precisión; sí para entrenar)</label></div>` : "";
 async function setUnclear(sid, on) { const note = on ? prompt("Nota (opcional):", "") : null; const r = await fetch(`/api/calls/${sid}/unclear`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unclear: on, note }) }); if (!r.ok) alert("No se pudo: " + r.status); else location.reload(); }
+// readback1: staff read-back per call + accuracy with vs without, by answering device (not by person — no staff name yet)
+const rbTag = (c) => c.readback && c.readback.status !== "none" ? ` <span class="tag" title="El personal repitió la orden al final">${c.readback.status === "confirmed" ? "🔁 Read-back ✓" : "🔁 Read-back corregido"}</span>` : "";
+function renderReadbacks(calls) {
+  const el = document.getElementById("rb-summary"); if (!el) return;
+  const rows = calls.filter((c) => c.score !== null && !c.unclear && c.source !== "training");
+  const groups = {}; for (const c of rows) for (const k of ["Todas", c.answeredBy || "?"]) (groups[k] = groups[k] || []).push(c);
+  const a = (xs) => xs.length ? (Math.round(xs.reduce((s, c) => s + c.score, 0) / xs.length * 10) / 10) + "%" : "–";
+  el.innerHTML = `<table><tr><th>Contestó</th><th>Llamadas</th><th>Con read-back</th><th>Elvi con</th><th>Elvi sin</th></tr>${Object.entries(groups).map(([k, xs]) => { const w = xs.filter((c) => c.readback && c.readback.status !== "none"); const wo = xs.filter((c) => !c.readback || c.readback.status === "none"); return `<tr><td>${esc(k)}</td><td>${xs.length}</td><td>${w.length}</td><td>${a(w)}</td><td>${a(wo)}</td></tr>`; }).join("")}</table><div class="note">Por aparato (escritorio 9249, celular 6793, mostrador). Por persona: opción futura si se captura el nombre del personal al contestar.</div>`;
+}
 const avgOf = (rows) => { const s = rows.filter((c) => c.score !== null && !c.unclear); // unclear1: not in accuracy return { n: s.length, avg: s.length ? Math.round(s.reduce((a, c) => a + c.score, 0) / s.length * 10) / 10 : null }; };
 
 function chart() {
@@ -134,7 +144,7 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${rbTag(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
       <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
@@ -164,7 +174,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${nameTag(c)}</h2>${unclearToggle(c)}
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${rbTag(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${langHtml(c)}
     ${c.hasAudio ? playerHtml(c) : ""}
@@ -322,6 +332,7 @@ async function load() {
   $("#k-train").textContent = tr.avg === null ? "–" : tr.avg + "%"; $("#k-tscored").textContent = tr.n;
   $("#k-calls").textContent = data.calls.filter((c) => c.turns.length).length;
   $("#k-missed").textContent = data.calls.filter((c) => c.answered === false).length;
+  renderReadbacks(data.calls);
   $("#sqnote").textContent = data.squareError ? `Square: ${data.squareError}` : `Tickets de Square revisados: ${data.ordersSearched} (solo lectura). Se empareja por teléfono y hora (2 min antes a 45 min después de la llamada).`;
   if (current === null && data.calls.length) current = 0;
   chart(); list(); detail();

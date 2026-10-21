@@ -1,3 +1,4 @@
+import { detectReadback, applyReadback } from "./staff-readback.js";
 import path from "node:path";
 import fs from "node:fs";
 // learn2: labeled examples. Ground truth = what the CUSTOMER said: the staff ticket, corrected by the auditor's staff flags
@@ -10,6 +11,25 @@ type Flag = { type: string; detail: string };
 const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE_MISSING|DELIVERY_FEE_WRONG)$/;
 export function truthOverrides(): Record<string, any> {
   try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/learning/truth-overrides.json"), "utf8")); } catch { return {}; }
+}
+/** readback1: Elvi/staff accuracy with vs without a staff read-back, by answering device (desk 9249 / cell 6793 /
+ *  counter). Messy calls excluded. Later: per staff member once a staff name is captured on answer. */
+export function readbackStats(ex0: Example[]) {
+  const ex = ex0.filter((e) => e.channel === "phone" && e.difficulty !== "messy" && e.elviScore != null && e.staffScore != null);
+  const groups = new Map<string, Example[]>();
+  for (const e of ex) for (const k of ["all", e.answeredBy || "unknown"]) groups.set(k, [...(groups.get(k) || []), e]);
+  const avg = (xs: Example[], f: (e: Example) => number) => (xs.length ? Math.round((xs.reduce((a, e) => a + f(e), 0) / xs.length) * 10) / 10 : null);
+  return [...groups].map(([device, xs]) => { const w = xs.filter((e) => e.readback && e.readback !== "none"), wo = xs.filter((e) => !e.readback || e.readback === "none");
+    return { device, calls: xs.length, readbacks: w.length, confirmed: xs.filter((e) => e.readback === "confirmed").length, corrected: xs.filter((e) => e.readback === "corrected").length,
+      withReadback: { elvi: avg(w, (e) => e.elviScore!), staff: avg(w, (e) => e.staffScore!) }, withoutReadback: { elvi: avg(wo, (e) => e.elviScore!), staff: avg(wo, (e) => e.staffScore!) } }; });
+}
+/** readback1: confirmed recap phrasings (PII stripped) — examples for Elvi's own end-of-order confirmation wording. */
+export function readbackPhrases(rows: any[]): Array<{ ref: string; text: string; response: string; language: string }> {
+  const out: any[] = [];
+  for (const r of rows) { const rb = detectReadback((r.turns || []) as any); if (rb.status !== "confirmed" || !rb.staffText) continue;
+    const names = [r.customerName, r.orderName, r.nameCheck?.heard, r.nameCheck?.ticket];
+    out.push({ ref: ref(r.callSid), text: stripPii(rb.staffText, names), response: stripPii(rb.response || "", names), language: /(the|your|that|you)/i.test(rb.staffText) ? "en" : "es" }); }
+  return out;
 }
 const clone = (l: Line): Line => ({ ...l, choices: [...(l.choices || [])] });
 const MEAT_RE = /bistec|steak|pastor|chorizo|pollo|chicken|carnitas|cabeza|buche|tripa|prensado|duro|pork rinds|lengua|suadero|barbacoa|birria|campechana|camar|shrimp|pescado|fish/i;
@@ -62,7 +82,7 @@ export function stripPii(text: string, names: Array<string | null | undefined> =
 }
 export const ref = (sid: string) => "ex-" + createHash("sha256").update(String(sid)).digest("hex").slice(0, 10);
 const lineStr = (l: Line) => `${l.quantity}× ${l.baseName || l.name}${l.choices?.length ? " [" + [...l.choices].sort().join("; ") + "]" : ""}`;
-export type Example = { difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
+export type Example = { readback?: "confirmed" | "corrected" | "none"; answeredBy?: string | null; difficulty?: "clear" | "messy"; difficultyNote?: string; ref: string; at: string; channel: "phone" | "app"; weight: number; turns: Array<{ speaker: string; text: string }>; truth: string[]; truthLines: Line[];
   elvi: string[]; elviScore: number | null; staffScore: number | null; corrected: string[]; staffMisses: Miss[] };
 export function phoneExample(row: any): Example | null {
   if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
@@ -72,6 +92,9 @@ export function phoneExample(row: any): Example | null {
   const ov = truthOverrides()[row.callSid];
   const { lines, corrected } = ov === "ticket" || ov?.use === "ticket" ? { lines: row.ticket.lines.map(clone).map((l: Line, k: number) => { for (const r of ov?.replace || []) if (r.set && r.line === k) return { ...r.set, choices: [...(r.set.choices || [])] } as Line; else if ((r.line == null || r.line === k) && r.from && l.choices.includes(r.from)) l.choices = l.choices.map((c) => (c === r.from ? r.to : c)); return l; }), corrected: [`reviewed: ticket = customer's words${ov?.note ? " (" + ov.note + ")" : ""}`] }
     : ov?.lines ? { lines: ov.lines, corrected: [`reviewed truth${ov.note ? " (" + ov.note + ")" : ""}`] } : groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
+  // readback1: confirmed recap > customer words > ticket (dish/quantity level); a reviewed override still wins over all
+  const rb = detectReadback((row.turns || []) as any);
+  if (!ov && rb.status !== "none") { const a = applyReadback(lines as any, rb); if (a.changed.length) { lines.splice(0, lines.length, ...(a.lines as any)); corrected.push(...a.changed); } }
   const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
   staffS.misses = customAmountMisses(staffS.misses, corrected);
   // case1e: reviewed coaching points replace the generic missed/extra pair for the corrected line
@@ -79,7 +102,7 @@ export function phoneExample(row: any): Example | null {
     const drop = new RegExp(ov.coachingMatch || "$^", "i");
     staffS.misses = [...staffS.misses.filter((x) => !drop.test(`${x.detail} ${x.ticket || ""} ${x.elvi || ""}`)), ...ov.coaching.map((c: any) => ({ kind: "coaching", detail: `${c.item}: ${c.detail}`, ticket: c.item, coach: c.type } as any))];
   }
-  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
+  return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: rb.status === "confirmed" ? 1.5 : 1, readback: rb.status, answeredBy: row.answeredBy || null, difficulty: row.unclear ? "messy" : "clear", ...(row.unclear?.note ? { difficultyNote: row.unclear.note } : {}), turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
 /** App session: the paid cart is the truth (weight 1); an abandoned cart is low weight (0.2). */

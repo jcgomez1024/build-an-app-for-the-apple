@@ -57,6 +57,9 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
       if (e.event === "order_name" && e.name) { (c as any).orderName = e.name; (c as any).orderNameFrom = e.from || null; } // ordername1
       if (e.event === "recording_error") c.error = e.error;
       if (e.event === "bridged") (c as any)._bridged = true; // deadleg1
+      // readback1: answering device (no staff identity yet): desk 9249, cell 6793, or the counter tablet
+      if (e.event === "whisper" && e.via === "desk" && e.ringTo) (c as any).answeredBy = `${/9249$/.test(String(e.ringTo)) ? "desk" : /6793$/.test(String(e.ringTo)) ? "cell" : "phone"} ${String(e.ringTo).slice(-4)}`;
+      if (e.event === "answered" && e.via === "counter") (c as any).answeredBy = "counter";
       if (/^(parent_end|caller_gone|ring_answer_dead|ring_accept_dead)$/.test(e.event)) (c as any)._gone = true;
       if (e.event === "voicemail") { c.answered = false; c.dialStatus = "voicemail"; c.voicemail = { recordingSid: e.recordingSid, durationSec: Number(e.durationSec) || 0, transcript: e.transcript || "", cart: e.elviOrder?.cart || [] }; }
       calls.set(e.callSid, c);

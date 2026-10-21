@@ -37,6 +37,7 @@ import { paymentReceiptReadOnly } from "./square.js";
 import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadUnclear, setUnclear } from "./unclear.js";
+import { detectReadback } from "./staff-readback.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
@@ -1530,6 +1531,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         audit: audits[c.callSid] || null,
         followUp, // followup1
         unclear, // unclear1
+        readback: (() => { const r = detectReadback((c.turns || []) as any); return { status: r.status, staffText: r.staffText || null, response: r.response || null }; })(), // readback1
+        answeredBy: (c as any).answeredBy || (c.answered ? "unknown" : null), // readback1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
         nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),
         languageNotes: (c as any).languageNotes || [], savedLanguage: (() => { try { const s = savedLanguage(c.caller); return s.language ? { language: s.language, from: s.from, by: s.by || null, at: s.at || null } : null; } catch { return null; } })(), // lang2

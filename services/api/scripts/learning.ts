@@ -31,8 +31,10 @@ async function build() {
   fs.writeFileSync(path.join(dir, "examples.jsonl"), all.map((e) => JSON.stringify({ ...e, truthLines: undefined })).join("\n") + "\n");
   fs.writeFileSync(path.join(dir, "finetune.jsonl"), all.map((e) => JSON.stringify(L.finetuneRow(e))).join("\n") + "\n");
   const patterns = L.staffPatterns(phone as any), acc = L.voiceAccuracy(phone as any);
+  const readbacks = L.readbackStats(phone as any); // readback1
+  fs.writeFileSync(path.join(dir, "readback-phrases.json"), JSON.stringify(L.readbackPhrases((data.calls || []).filter((r: any) => r.source !== "training")), null, 1));
   const wk = acc.length ? acc[acc.length - 1].week : "";
-  J("report.json", { generatedAt: new Date().toISOString(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
+  J("report.json", { generatedAt: new Date().toISOString(), readbacks, examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
     voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk) });
   return { phone: phone as any[], app, data };
 }
@@ -82,7 +84,9 @@ async function nightly() {
   for (const e of phone) { const row = rows.get(e.ref); try { const r = await replay(row, e.truthLines); evals.push({ ref: e.ref, score: r.score }); } catch { evals.push({ ref: e.ref, score: null }); } }
   // unclear1: messy calls (relayed orders, crosstalk) are replayed and trained on, but reported as their own number
   const messy = new Set(phone.filter((e: any) => e.difficulty === "messy").map((e: any) => e.ref));
-  const avg = (xs: any[]) => (xs.length ? Math.round((xs.reduce((a, x) => a + x.score, 0) / xs.length) * 10) / 10 : null);
+  // readback1: confirmed read-backs weigh more (example weight 1.5)
+  const wOf = (x: any) => Number(phone.find((e: any) => e.ref === x.ref)?.weight) || 1;
+  const avg = (xs: any[]) => { const W = xs.reduce((a, x) => a + wOf(x), 0); return xs.length ? Math.round((xs.reduce((a, x) => a + x.score * wOf(x), 0) / W) * 10) / 10 : null; };
   const ok = evals.filter((x) => x.score != null && !messy.has(x.ref)), okMessy = evals.filter((x) => x.score != null && messy.has(x.ref));
   const mean = avg(ok), messyMean = avg(okMessy);
   fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");

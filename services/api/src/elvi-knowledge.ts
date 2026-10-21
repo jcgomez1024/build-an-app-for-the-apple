@@ -83,3 +83,9 @@ export function rewriteSlang(text: string): string {
   for (const e of loadMemory()) if (e.kind === "slang" && e.from && e.to) t = t.replace(new RegExp(`(?<![\\p{L}])${e.from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), e.to);
   return t;
 }
+
+/** readback1: confirmed staff read-backs (PII stripped), shared by phone + app as examples of end-of-order confirmation
+ *  phrasing. Reference data only — Elvi's live confirmation wording is unchanged. */
+export function readbackExamples(): Array<{ ref: string; text: string; response: string; language: string }> {
+  try { return JSON.parse(fs.readFileSync(path.join(LEARN_DIR, "readback-phrases.json"), "utf8")); } catch { return []; }
+}
