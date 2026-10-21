@@ -53,13 +53,24 @@
   .exp .row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.exp .ask{color:var(--warn);font-size:13px;margin-top:6px}
   @media (max-width:820px){.layout,.cmp{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
 .lang-btn{margin-left:6px;padding:2px 10px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer}.lang-btn.on{background:#1f6feb;color:#fff;border-color:#1f6feb}
+/* cmp1: comparison view */
+.cmp-sum{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.cmp-sum>div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px}
+.cmp-call{border-top:1px solid #e2e8f0;padding:12px 0}.cmp-h{font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.cmp-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.cmp-cols h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;color:#64748b}
+.cmp-it{border-radius:6px;padding:4px 6px;margin-bottom:4px;font-size:13px;line-height:1.3}.cmp-it small{display:block;color:#475569}
+.c-ok{background:#dcfce7}.c-bad{background:#fee2e2}.c-ext{background:#fef3c7}.c-bad b.m,.c-ok b.m{color:#b91c1c;font-weight:600}
+@media (max-width:700px){.cmp-cols{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header><img src="./img/logo-cocina-elvis.png" alt="" /><h1>Llamadas / Calls</h1><a class="navl" href="phone.html">📞 Teléfono</a><span class="sp"></span>
   <select id="days"><option value="7">7 días</option><option value="30" selected>30 días</option><option value="90">90 días</option></select>
+  <button id="cmp-btn" title="Orden correcta vs ticket vs Elvi">⚖️ Comparar</button>
   <button id="reload">Actualizar</button></header>
 <main>
+  <section class="card" id="cmp" style="display:none"><h2>Comparar: orden correcta · ticket · Elvi</h2>
+    <div class="filters" id="cmp-f"><button data-g="bg" class="on">Best + Good</button><button data-g="all">Todas (incl. medium / bad)</button></div>
+    <div id="cmp-sum" class="cmp-sum"></div><div id="cmp-list"></div></section>
   <section class="kpis">
     <div class="card kpi"><b id="k-avg">–</b><span>Precisión con clientes (meta 95%) · <i id="k-scored">0</i> calificadas</span></div>
     <div class="card kpi"><b id="k-train">–</b><span>Precisión en entrenamiento · <i id="k-tscored">0</i> calificadas</span></div>
@@ -340,7 +351,7 @@ async function load() {
   renderReadbacks(data.calls);
   $("#sqnote").textContent = data.squareError ? `Square: ${data.squareError}` : `Tickets de Square revisados: ${data.ordersSearched} (solo lectura). Se empareja por teléfono y hora (2 min antes a 45 min después de la llamada).`;
   if (current === null && data.calls.length) current = 0;
-  chart(); list(); detail();
+  chart(); list(); detail(); if (cmpOn) showCompare(true);
 }
 document.addEventListener("click", (e) => {
   if (e.target.id === "exp-prev") expected(false);
@@ -352,6 +363,60 @@ document.querySelectorAll("#filters button").forEach((b) => b.onclick = () => {
   const first = shown()[0]; current = first ? first.i : null; chart(); list(); if (current !== null) detail(); else $("#detail").innerHTML = `<div class="empty">Sin llamadas.</div>`;
 });
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { period = b.dataset.p; document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b)); chart(); });
+
+// cmp1: "Comparar" — correct order vs staff ticket vs Elvi, item by item. Data comes from /api/calls/accuracy (same PIN).
+const CALLS_PAGE_VERSION = "cmp1";
+let cmpOn = false, cmpGrade = "bg";
+const normC = (c) => String(c).replace(/\s*\(\+\$[\d.]+\)/, "").trim().toLowerCase();
+const isSalsaDefault = (c) => /mild salsa asada/i.test(c);
+function cmpMatch(truth, other) {
+  const used = new Set(), res = [];
+  for (const t of truth) {
+    let best = -1, bs = -1;
+    other.forEach((o, j) => { if (used.has(j) || o.baseName !== t.baseName) return; const tc = new Set(t.choices.map(normC)); const sc = o.choices.filter((c) => tc.has(normC(c))).length * 2 - Math.abs(o.quantity - t.quantity); if (sc > bs) { bs = sc; best = j; } });
+    if (best >= 0) used.add(best);
+    res.push(best >= 0 ? other[best] : null);
+  }
+  return { res, extras: other.filter((_, j) => !used.has(j)) };
+}
+const realLines = (ls) => (ls || []).filter((l) => !/delivery fee|cargo de entrega/i.test(l.name || ""));
+function cmpItem(l, ref, cls) {
+  const rc = ref ? new Set(ref.choices.map(normC)) : null;
+  const mods = l.choices.filter((c) => !isSalsaDefault(c)).map((c) => rc && !rc.has(normC(c)) ? `<b class="m">${esc(c)}</b>` : esc(c)).join(" · ");
+  const qty = ref && ref.quantity !== l.quantity ? `<b class="m">${l.quantity}×</b>` : `${l.quantity}×`;
+  return `<div class="cmp-it ${cls}">${qty} ${esc(l.name || l.baseName)}${mods ? `<small>${mods}</small>` : ""}</div>`;
+}
+function cmpCol(title, truth, lines, isTruth) {
+  if (isTruth) return `<div><h4>${title}</h4>${truth.map((t) => cmpItem(t, null, "")).join("") || `<div class="note">–</div>`}</div>`;
+  const { res, extras } = cmpMatch(truth, lines);
+  const same = (t, o) => o && o.quantity === t.quantity && new Set(o.choices.filter((c) => !isSalsaDefault(c)).map(normC)).size === new Set(t.choices.filter((c) => !isSalsaDefault(c)).map(normC)).size && t.choices.filter((c) => !isSalsaDefault(c)).every((c) => o.choices.some((x) => normC(x) === normC(c)));
+  const rows = truth.map((t, i) => { const o = res[i]; if (!o) return `<div class="cmp-it c-bad">Falta: ${t.quantity}× ${esc(t.name || t.baseName)}</div>`; return cmpItem(o, t, same(t, o) ? "c-ok" : "c-bad"); });
+  return `<div><h4>${title}</h4>${rows.join("")}${extras.map((e) => cmpItem(e, null, "c-ext").replace('cmp-it c-ext">', 'cmp-it c-ext">Extra: ')).join("")}</div>`;
+}
+const pct = (n) => n == null ? "–" : Math.round(n) + "%";
+const avgN = (a) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+function topTypes(arr) { const m = {}; for (const t of arr) m[t] = (m[t] || 0) + 1; return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(k)} (${v})`).join(", ") || "ninguno"; }
+function renderCompare() {
+  const all = (data?.calls || []).map((c, i) => ({ c, i })).filter(({ c }) => c.compare).sort((a, b) => b.c.at.localeCompare(a.c.at));
+  const rows = all.filter(({ c }) => cmpGrade === "all" || ["best", "good"].includes(c.compare.grade));
+  const clear = rows.filter(({ c }) => !c.unclear);
+  const counts = { best: 0, good: 0, medium: 0, bad: 0 }; for (const { c } of all) if (counts[c.compare.grade] !== undefined) counts[c.compare.grade]++;
+  const rb = rows.filter(({ c }) => c.compare.readback !== "none").length;
+  $("#cmp-sum").innerHTML = `<div><b>${rows.length}</b> llamadas</div><div>Elvi <b>${pct(avgN(clear.map(({ c }) => c.compare.elviScore).filter((x) => x != null)))}</b> vs personal <b>${pct(avgN(clear.map(({ c }) => c.compare.staffScore).filter((x) => x != null)))}</b> (contra la orden correcta${clear.length < rows.length ? "; sin órdenes poco claras" : ""})</div>`
+    + `<div>Best ${counts.best} · Good ${counts.good} · Medium ${counts.medium} · Bad ${counts.bad}</div><div>Read-back ${rows.length ? Math.round(rb / rows.length * 100) : 0}%</div>`
+    + `<div>Fallas Elvi: ${topTypes(rows.flatMap(({ c }) => c.compare.elviMissTypes))}</div><div>Fallas personal: ${topTypes(rows.flatMap(({ c }) => c.compare.staffMissTypes))}</div>`;
+  $("#cmp-list").innerHTML = rows.map(({ c, i }) => { const k = c.compare;
+    return `<div class="cmp-call"><div class="cmp-h"><b>${fmtTime(c.at)}</b>${k.line ? `<span class="tag">línea ${esc(k.line)}</span>` : ""}${c.answeredBy ? `<span class="tag">${esc(c.answeredBy)}</span>` : ""}${gradeBadge({ grade: k.grade })}${staffBadge({ staffGrade: k.staffGrade })}${unclearBadge(c)}
+      <span class="tag">Elvi ${pct(k.elviScore)}</span><span class="tag">Personal ${pct(k.staffScore)}</span><span class="tag">Read-back: ${k.readback === "none" ? "no" : "sí (" + esc(k.readback) + ")"}</span>
+      <a href="#" data-open="${i}">▶ grabación / transcripción</a></div>
+      <div class="cmp-cols">${cmpCol("Orden correcta", k.truth, [], true)}${cmpCol("Ticket del personal", k.truth, realLines(c.ticket?.lines), false)}${cmpCol("Elvi", k.truth, realLines(c.elvi), false)}</div>
+      ${k.corrected?.length ? `<div class="note">Fuente: ${esc(k.corrected.join("; "))}</div>` : ""}</div>`; }).join("") || `<div class="empty">Sin llamadas calificadas${cmpGrade === "bg" ? " best/good — prueba «Todas»" : ""}.</div>`;
+}
+function showCompare(on) { cmpOn = on; $("#cmp").style.display = on ? "" : "none"; document.querySelectorAll("main > section:not(#cmp)").forEach((x) => x.style.display = on ? "none" : ""); $("#cmp-btn").classList.toggle("on", on); if (on) renderCompare(); }
+$("#cmp-btn").onclick = () => showCompare(!cmpOn);
+document.querySelectorAll("#cmp-f button").forEach((b) => b.onclick = () => { cmpGrade = b.dataset.g; document.querySelectorAll("#cmp-f button").forEach((x) => x.classList.toggle("on", x === b)); renderCompare(); });
+document.addEventListener("click", (e) => { const o = e.target.closest?.("[data-open]"); if (!o) return; e.preventDefault(); current = Number(o.dataset.open); showCompare(false); list(); detail(); $("#detail").scrollIntoView?.({ behavior: "smooth" }); });
+if (location.hash === "#comparar") cmpOn = true;
 $("#reload").onclick = load; $("#days").onchange = () => { current = null; load(); };
 load();
 </script>

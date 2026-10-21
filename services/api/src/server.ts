@@ -42,6 +42,7 @@ import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrder
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
+import { compareRow } from "./compare.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey, savedLanguage } from "./caller-memory.js";
@@ -1560,6 +1561,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       if (rc?.receiptNumber) r.ticket.receiptNumber = rc.receiptNumber;
       r.ticket.receiptUrl = rc?.receiptUrl || null;
     }));
+    // cmp1: comparison data (correct order + scores against it) for the "Comparar" view; same rows, same PIN
+    for (const r of rows as any[]) { const c = calls.find((x) => x.callSid === r.callSid); r.compare = compareRow({ ...r, calledNumber: c?.calledNumber }); }
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
     res.json({ calls: rows, trend: trend(customer.filter((r: any) => !r.unclear)), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }
