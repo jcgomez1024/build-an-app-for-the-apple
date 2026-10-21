@@ -68,3 +68,9 @@ test("alex1: custom-amount corrections become 'custom amount instead of item', b
   const m = L.customAmountMisses([{ kind: "missing_item", detail: "Chilaquiles con Huevo", elvi: "Chilaquiles con Huevo" } as any, { kind: "extra_item", detail: "x", ticket: "1 × " } as any], ["custom amount → Chilaquiles con Huevo"]);
   assert.equal(m.length, 1); assert.equal(L.errorType(m[0]), "custom amount instead of item");
 });
+test("case1b: staff-missing never adds a second tortilla/meat, melted cheese on QGD, or a second bean option", () => {
+  const t = [{ ...ln("Quesadilla", 1, ["(QCO) Quesadilla de Comal / Homemade", "Duro / Pork Rinds"]) }, { ...ln("Gordita", 1, ["(QGD) Queso Gordita", "**Con Frijoles / With Beans", "Bistec / Steak"]) }];
+  const flags = ["Quesadilla: (QHR) Quesadilla de Harina / Flour said, not rung", "Quesadilla: Prensado / Spicy Pork said, not rung", "Gordita: Queso Derretido / Melted Cheese said, not rung", "Gordita: Frijoles Refritos / Refried Beans said, not rung", "Gordita: Salsa Verde said, not rung"].map((detail) => ({ type: "STAFF_MISSING", detail }));
+  const g = L.groundTruth(t as any, [], flags as any);
+  assert.deepEqual(g.lines.map((l: any) => l.choices), [["(QCO) Quesadilla de Comal / Homemade", "Duro / Pork Rinds"], ["(QGD) Queso Gordita", "**Con Frijoles / With Beans", "Bistec / Steak", "Salsa Verde"]]);
+});

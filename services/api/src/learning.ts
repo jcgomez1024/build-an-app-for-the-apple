@@ -1,3 +1,5 @@
+import path from "node:path";
+import fs from "node:fs";
 // learn2: labeled examples. Ground truth = what the CUSTOMER said: the staff ticket, corrected by the auditor's staff flags
 // (STAFF_MISSING adds what was said, STAFF_EXTRA removes what wasn't), so Elvi never learns a staff error.
 // PII stripped; files only under data/learning/ (gitignored).
@@ -6,7 +8,22 @@ import { createHash } from "node:crypto";
 
 type Flag = { type: string; detail: string };
 const STAFF = /^(STAFF_EXTRA|STAFF_MISSING|PRICE_DIFF|CUSTOM_AMOUNT|DELIVERY_FEE_MISSING|DELIVERY_FEE_WRONG)$/;
+export function truthOverrides(): Record<string, any> {
+  try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/learning/truth-overrides.json"), "utf8")); } catch { return {}; }
+}
 const clone = (l: Line): Line => ({ ...l, choices: [...(l.choices || [])] });
+const MEAT_RE = /bistec|steak|pastor|chorizo|pollo|chicken|carnitas|cabeza|buche|tripa|prensado|duro|pork rinds|lengua|suadero|barbacoa|birria|campechana|camar|shrimp|pescado|fish/i;
+/** case1b: the ticket choice a voice-only choice would contradict on the same line, or null. */
+export function conflictsWith(have: string[], add: string): string | null {
+  const VAR = /^\s*\([A-Z]{1,4}\)/;
+  const find = (re: RegExp) => have.find((c) => re.test(c)) || null;
+  if (VAR.test(add)) return find(VAR);
+  if (MEAT_RE.test(add) && !/frijol|bean|queso|cheese/i.test(add)) return have.find((c) => MEAT_RE.test(c) && !/frijol|bean|queso|cheese/i.test(c)) || null;
+  if (/queso derretido|melted cheese/i.test(add)) return find(/\(QGD\)|queso gordita/i);
+  if (/frijoles refritos|refried beans/i.test(add)) return find(/con frijoles|with beans/i);
+  if (/con frijoles|with beans/i.test(add)) return find(/frijoles refritos|refried beans/i);
+  return null;
+}
 export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): { lines: Line[]; corrected: string[] } {
   let gt = ticket.map(clone); const corrected: string[] = []; const used = new Set<Line>();
   for (const f of flags.filter((x) => STAFF.test(x.type))) {
@@ -14,7 +31,10 @@ export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): {
     let m = /^ticket item never mentioned:\s*\d+\s*×\s*(.+)$/.exec(d);
     if (m) { const n = gt.length; gt = gt.filter((l) => l.name !== m![1].trim() && l.baseName !== m![1].trim()); if (gt.length < n) corrected.push(`removed ${m[1].trim()}`); continue; }
     m = /^(.+?):\s*(.+?) said, not rung$/.exec(d);
-    if (m) { for (const l of gt) if (l.name === m[1] && !l.choices.includes(m[2])) { l.choices.push(m[2]); corrected.push(`added ${m[2]} on ${m[1]}`); } continue; }
+    if (m) { for (const l of gt) if (l.name === m[1] && !l.choices.includes(m[2])) {
+      const clash = conflictsWith(l.choices, m[2]); // case1b: never two tortillas / two meats / QGD + melted cheese on one line
+      if (clash) { corrected.push(`skipped ${m[2]} on ${m[1]} (conflicts with ${clash})`); continue; }
+      l.choices.push(m[2]); corrected.push(`added ${m[2]} on ${m[1]}`); } continue; }
     m = /^(.+?):\s*(.+?) never mentioned$/.exec(d);
     if (m) { for (const l of gt) if (l.name === m[1] && l.choices.includes(m[2])) { l.choices = l.choices.filter((c) => c !== m![2]); corrected.push(`removed ${m[2]} from ${m[1]}`); } continue; }
     m = /^custom amount \$([\d.]+)$/.exec(d);
@@ -47,7 +67,11 @@ export type Example = { ref: string; at: string; channel: "phone" | "app"; weigh
 export function phoneExample(row: any): Example | null {
   if (!row?.ticket?.lines?.length || row.followUp || row.score == null) return null;
   const names = [row.customerName, row.orderName, row.nameCheck?.heard, row.nameCheck?.ticket];
-  const { lines, corrected } = groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
+  // case1b: a reviewed truth (data/learning/truth-overrides.json, keyed by CallSid) beats flag-derived corrections.
+  // "ticket" = the ticket already matches the customer's words; otherwise { lines: Line[], note }.
+  const ov = truthOverrides()[row.callSid];
+  const { lines, corrected } = ov === "ticket" || ov?.use === "ticket" ? { lines: row.ticket.lines.map(clone), corrected: [`reviewed: ticket = customer's words${ov?.note ? " (" + ov.note + ")" : ""}`] }
+    : ov?.lines ? { lines: ov.lines, corrected: [`reviewed truth${ov.note ? " (" + ov.note + ")" : ""}`] } : groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
   const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
   staffS.misses = customAmountMisses(staffS.misses, corrected);
   return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
