@@ -54,7 +54,7 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
-const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|su\s+nombre|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name)/iu;
+const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*\?|your\s+name|\bname\s*\?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name)/iu;
 /** Listen-only: the caller's answer right after the staff asked for the name. */
 export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
