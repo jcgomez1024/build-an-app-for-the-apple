@@ -32,10 +32,10 @@ export function formatNumber(p: string) {
 /** closedlabel1: call-log label from the "closed" event's reason (day = closed weekday; before/after = hours). */
 const ES_DAY = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 export function closedLabel(ev: any): string {
-  const r = String(ev?.reason || "");
-  if (r === "after" || r === "before") return "Cerrado (fuera de horario)";
-  const wd = Number(ev?.weekday);
-  return `Cerrado (${Number.isInteger(wd) && wd >= 0 && wd <= 6 ? ES_DAY[wd] : "día cerrado"})`;
+  // Carlos: always the call's actual ET weekday (logged at the call), e.g. "Cerrado (martes)" — for closed days and before/after hours.
+  let wd = Number(ev?.weekday);
+  if (!(Number.isInteger(wd) && wd >= 0 && wd <= 6) && (ev?.ts || ev?.at)) wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(new Date(ev.ts || ev.at).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" }));
+  return `Cerrado (${wd >= 0 && wd <= 6 ? ES_DAY[wd] : "fuera de horario"})`;
 }
 /** line1: the customer-facing line. Forwarded from 289-8504 → "289", from 551-9122 → "551"; a direct dial to a
  *  Twilio number → "Twilio 1609". Calls logged before line1 (no forwardedFrom known) keep the old lineShort label. */
