@@ -6475,7 +6475,23 @@ window.elviBridge = {
   lineTotal: (line) => getCartLineTotalCents(line),
   readback: (lines) => shortAddReadback(lines),
   lang: () => getEffectiveLanguage(),
+  // v3menu: a menu-card add goes through Elvi's own add step (same validation + applyActions as her add_item tool),
+  // and Elvi is told about it (typed history + live voice session) so her follow-ups and "otro igual" keep working.
+  addFromMenu: (item, quantity = 1, modifiers = []) => menuCardAdd(item, quantity, modifiers),
 };
+function menuCardAdd(item, quantity, modifiers) {
+  const check = validateAddItemToolArgs({ itemId: item?.id, quantity, modifiers });
+  if (!check.ok) return { ok: false, missing: (check.requiredGroups || []).map((g) => g.groupName), message: check.message };
+  applyActions([{ type: "add_item", itemId: item.id, quantity, modifiers }]);
+  const line = state.cart[state.cart.length - 1];
+  const es = getEffectiveLanguage() !== "en";
+  const said = `${es ? "Agregué" : "Added"} ${shortAddReadback([{ item, quantity, modifiers }]) || item.name}. ${es ? "¿Algo más?" : "Anything else?"}`;
+  try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text: said }); } catch {}
+  sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `The customer added from the menu: ${describeCartLine(line)}. Cart now has ${getCartItemCount()} item(s). Do not add it again.` }] } });
+  if (ui.reply) ui.reply.textContent = said;
+  try { window.dispatchEvent(new CustomEvent("elvi:menu-add", { detail: { itemId: item.id, said } })); } catch {}
+  return { ok: true, said };
+}
 {
   const baseRenderCart = renderCart;
   renderCart = function (...args) {

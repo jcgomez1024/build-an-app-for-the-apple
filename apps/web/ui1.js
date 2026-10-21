@@ -2,6 +2,10 @@
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
+// v3menu: browsable-menu PREVIEW, only with ?menu=v3 (live default unchanged until Carlos approves).
+const V3 = (() => { try { return new URLSearchParams(location.search).get("menu") === "v3"; } catch { return false; } })();
+// v3menu: photos with no recorded source (img/SOURCES.tsv) are not shown in the preview.
+const UNVERIFIED_IMG = new Set(["meat-carnitas.jpg", "opt-burrito-grande.jpg", "opt-burrito-regular.jpg", "opt-gordita.jpg", "opt-pico-chips.jpg", "opt-quesadilla-comal.jpg", "opt-quesadilla-harina.jpg", "opt-quesadilla-street.jpg", "opt-queso-gordita.jpg", "opt-queso-torta.jpg", "opt-torta.jpg"]);
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const money = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
@@ -31,6 +35,7 @@ const OPTION_PHOTO = [
   [/frijol/i, "carlos-frijoles.jpg"], [/arroz/i, "carlos-arroz.jpg"], [/queso\s+fresco/i, "taco-9.jpg"], [/crema/i, "taco-10.jpg"], [/cebolla/i, "carlos-cebolla.jpg"], [/cilantro/i, "carlos-cilantro.jpg"],
 ];
 function img(file, label, extra = "") {
+  if (V3 && file && UNVERIFIED_IMG.has(file)) file = null;
   if (!file) return `<div class="u1-ph ${extra}"><span>${esc(label || "")}</span></div>`;
   if (/^https?:/.test(file)) return `<img class="u1-img ${extra}" src="${esc(file)}" alt="" loading="lazy">`;
   const c = CROPS[file];
@@ -100,7 +105,8 @@ function twinOf(g, o) {
 const U = { menu: [], cats: [], productOf: new Map(), screen: "home", cat: null, item: null, step: 0, sel: {}, dbl: {}, last: {}, toast: null };
 
 async function load() {
-  const [m, c] = await Promise.all([fetch(`/api/${TENANT}/menu`).then((r) => r.json()), fetch(`/api/${TENANT}/ui/catalog`).then((r) => r.json())]);
+  const [m, c] = await Promise.all([fetch(`/api/${TENANT}/menu`).then((r) => r.json()), fetch(`/api/${TENANT}/ui/catalog${V3 ? "?v3=1" : ""}`).then((r) => r.json())]);
+  if (V3) { U.store = c.storeState || null; U.popular = c.popular || []; U.schedAvail = c.scheduleAvail || null; }
   U.menu = m.items || [];
   const cats = c.categories || [];
   for (const cat of cats) for (const x of cat.items) U.productOf.set(x.id, x.product);
@@ -117,7 +123,7 @@ function render() {
   document.documentElement.lang = lang();
   U.lang = lang();
   const sub = $("#ui1 .u1-head small"); if (sub) sub.textContent = t("Pide con Elvi · Painesville", "Order with Elvi · Painesville");
-  if (U.screen === "home") root.innerHTML = homeHTML();
+  if (U.screen === "home") { if (V3) { const y = window.scrollY; root.innerHTML = v3HTML(); v3After(y); } else root.innerHTML = homeHTML(); }
   else if (U.screen === "cat" || U.screen === "prod") root.innerHTML = catHTML();
   else if (U.screen === "item") root.innerHTML = itemHTML();
   else if (U.screen === "receipt") root.innerHTML = receiptHTML();
@@ -246,6 +252,13 @@ function buildModifiers() {
 function missingStep() { const gs = U.item.modifierGroups || []; return steps().main.find((i) => minOf(gs[i]) > 0 && !Object.keys(U.sel[gs[i].id]).length); }
 function addToCart(item, mods) {
   const b = B(); if (!b) return;
+  if (V3) { // v3menu: same add step Elvi uses (validation + applyActions), and Elvi is told about it
+    if (!v3CanOrder(item)) { v3Closed(item); return; }
+    const r = b.addFromMenu ? b.addFromMenu(item, 1, mods) : null;
+    if (r && !r.ok) { v3Say(t(`Falta: ${(r.missing || []).join(", ")}`, `Missing: ${(r.missing || []).join(", ")}`)); return; }
+    if (!r) b.addCartItem(item, 1, mods);
+    b.renderCart(); showToast(item, mods, r?.said || ""); U.screen = "home"; render(); return;
+  }
   b.addCartItem(item, 1, mods);
   b.renderCart();
   const said = b.readback?.([{ item, quantity: 1, modifiers: mods }]) || "";
@@ -311,6 +324,84 @@ function showToast(item, mods, said) {
   clearTimeout(U.toast); U.toast = setTimeout(() => el.classList.remove("on"), 4200);
 }
 
+// ---------- v3menu: one scrolling menu, sticky tabs + scroll-spy ----------
+function v3Live() { return !U.store || U.store.state === "open" || U.store.state === "last_order"; }
+function v3CanOrder(item) { if (v3Live()) return true; if (!U.sched || !U.store?.schedule) return false; return item ? U.schedAvail?.[item.id] !== false : true; }
+// Scheduled pickup (preview, DRY RUN): builds what a Square order with pickup_at would carry, sends nothing.
+function v3DryRun() {
+  const cart = B()?.state?.cart || [];
+  const payload = { dryRun: true, fulfillment: { type: "PICKUP", pickup_at: U.store?.schedule?.at || null, schedule_type: "SCHEDULED" }, line_items: cart.map((l) => ({ catalog_item_id: l.item?.id, quantity: String(l.quantity || 1), modifiers: (l.modifiers || []).map((m) => m.option) })) };
+  window.__v3LastDryRun = payload;
+  v3Say(cart.length ? t(`Prueba: pedido programado para ${U.store.schedule.es.replace(/^Programar para /, "")} (${cart.length} artículo(s)). No se envió nada a Square.`, `Test: scheduled order for ${U.store.schedule.en.replace(/^Schedule for /, "")} (${cart.length} item(s)). Nothing was sent to Square.`) : t("Tu carrito está vacío.", "Your cart is empty."));
+  return payload;
+}
+function v3Say(text) { const r = document.querySelector("#assistant-reply"); if (r) r.textContent = text; }
+function v3Closed(item) { const s = U.store; if (item && U.sched) { v3Say(t(`${itemName(item)} no está disponible a esa hora.`, `${itemName(item)} is not available at that time.`)); return; } v3Say(s?.state === "before_open" ? t(s.banner.es, s.banner.en) : t(`Ahora estamos cerrados${s?.nextOpen ? " — " + s.nextOpen.es : ""}.`, `We're closed right now${s?.nextOpen ? " — " + s.nextOpen.en : ""}.`)); const el = document.querySelector("#elvi-halo"); if (el) { el.classList.add("v3-err"); setTimeout(() => el.classList.remove("v3-err"), 1500); } }
+function v3Price(list) { const p = list.map((it) => it.priceCents || 0); const lo = Math.min(...p), hi = Math.max(...p); return money(lo) + (hi > lo ? "–" + money(hi) : ""); }
+function v3Card(list, x, catOpen, popular) {
+  const it = list[0];
+  const off = (!v3Live() && U.sched && U.schedAvail) ? list.every((i) => U.schedAvail[i.id] === false) : (!catOpen || list.every((i) => i._x?.available === false));
+  const w = x?.window;
+  const name = list.length > 1 ? String(x.product).replace(/\s+or\s+/i, t(" o ", " or ")) : itemName(it);
+  const photo = itemPhoto(it);
+  const desc = String(it.description || "").replace(/\s+/g, " ").trim();
+  const badge = off && w ? `<span class="v3-badge t">${esc(t("Disponible ", "Available ") + t(w.es, w.en))}</span>` : popular ? `<span class="v3-badge p">★ Popular</span>` : "";
+  const attr = list.length > 1 ? `data-prod="${esc(x.product)}"` : `data-item="${esc(it.id)}"`;
+  return `<button class="v3-card ${off ? "is-closed" : ""}" ${attr} id="u1-it-${esc(it.id)}" ${off ? 'aria-disabled="true"' : ""}>${photo ? `<span class="v3-thumb">${img(photo, name)}</span>` : ""}<span class="v3-body">${badge}<b>${esc(name)}</b>${desc ? `<small class="v3-desc">${esc(desc)}</small>` : ""}<span class="v3-price">${v3Price(list)}${list.length > 1 ? ` · ${list.length} ${t("opciones", "choices")}` : ""}</span></span>${off ? "" : `<span class="v3-plus" aria-hidden="true">+</span>`}</button>`;
+}
+function v3Groups(cat) {
+  const groups = [];
+  for (const x of cat.items) { const it = U.menu.find((m) => m.id === x.id); if (!it) continue; it._x = x; let g = groups.find((y) => y.product === x.product); if (!g) groups.push(g = { product: x.product, x, list: [] }); g.list.push(it); }
+  return groups;
+}
+function v3Sections() {
+  const out = [];
+  const pop = (U.popular || []).map((p) => ({ product: p.product, x: p, list: [U.menu.find((m) => m.id === p.id)].filter(Boolean).map((it) => Object.assign(it, { _x: it._x || p })) })).filter((g) => g.list.length);
+  if (pop.length) out.push({ id: "popular", es: "Popular", en: "Popular", open: true, groups: pop, popular: true });
+  U.cats.forEach((c, i) => { if (c.popular) return; const m = catMeta(c); out.push({ id: `c${i}`, es: m.es, en: m.en, open: c.available !== false, window: c.window, timed: !!c.customTimes, groups: v3Groups(c) }); });
+  return out.filter((s) => s.groups.length);
+}
+function v3HTML() {
+  const s = U.store, secs = v3Sections(); U.v3secs = secs;
+  const banner = s?.banner ? `<div class="v3-banner ${s.state}">${esc(t(s.banner.es, s.banner.en))}${s.schedule ? (U.sched ? `<small>${esc(t("Recoger: ", "Pickup: ") + t(s.schedule.es, s.schedule.en).replace(/^(Programar para|Schedule for) /, ""))}</small><span class="v3-sbtns"><button type="button" class="v3-sched" data-v3submit="1">${t("Enviar pedido (prueba)", "Send order (test)")}</button><button type="button" class="v3-sched o" data-v3unsched="1">${t("Cancelar", "Cancel")}</button></span>` : `<button type="button" class="v3-sched" data-v3sched="1">🕒 ${esc(t(s.schedule.es, s.schedule.en))}</button>`) : ""}${s.state === "closed" ? `<small>${s.hours.map((h) => `${t(h.es, h.en)} ${h.open ? h.open + "–" + h.close : t("cerrado", "closed")}`).join(" · ")}</small>` : ""}</div>` : "";
+  const tabs = `<nav class="v3-tabs" id="v3-tabs" aria-label="${t("Categorías", "Categories")}">${secs.map((x) => `<button type="button" data-v3tab="${x.id}">${esc(t(x.es, x.en))}${x.timed && !x.open ? " ⏱" : ""}</button>`).join("")}</nav>`;
+  const body = secs.map((x) => `<section class="v3-sec" id="s-${x.id}"><h2 class="u1-h2">${esc(t(x.es, x.en))}</h2>${x.timed && x.window ? `<p class="v3-sub">${esc((x.open ? "" : t("Cerrado ahora · ", "Closed now · ")) + t(x.window.es, x.window.en))}</p>` : ""}${x.groups.map((g) => v3Card(g.list, g.x, x.open, x.popular)).join("")}</section>`).join("");
+  return `${banner}${tabs}<div class="v3-list">${body}</div>`;
+}
+function v3After(y) {
+  const pill = document.querySelector("#v3-pill");
+  if (pill && U.store) { pill.textContent = t(U.store.pill.es, U.store.pill.en); pill.className = `v3-pill ${U.store.state}`; }
+  if (typeof y === "number") window.scrollTo(0, y);
+  v3Spy();
+}
+function v3Offset() { const h = document.querySelector(".u1-head")?.getBoundingClientRect().height || 64; const tb = document.querySelector("#v3-tabs")?.getBoundingClientRect().height || 44; return h + tb; }
+let v3Raf = 0;
+function v3Spy() {
+  if (!V3 || U.screen !== "home" || !U.v3secs) return;
+  const lim = v3Offset() + 24; let act = U.v3secs[0]?.id;
+  for (const x of U.v3secs) { const el = document.getElementById(`s-${x.id}`); if (el && el.getBoundingClientRect().top <= lim) act = x.id; }
+  if (act === U.v3act && document.querySelector('[data-v3tab][aria-current="true"]')) return;
+  U.v3act = act;
+  document.querySelectorAll("[data-v3tab]").forEach((b) => { const on = b.dataset.v3tab === act; b.classList.toggle("on", on); on ? b.setAttribute("aria-current", "true") : b.removeAttribute("aria-current"); });
+  const bar = document.querySelector("#v3-tabs"), b = document.querySelector(`[data-v3tab="${act}"]`);
+  if (bar && b && bar.scrollTo) bar.scrollTo({ left: b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2, behavior: v3Motion() });
+}
+function v3Motion() { try { return matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; } catch { return "auto"; } }
+if (V3) {
+  window.addEventListener("scroll", () => { if (v3Raf) return; v3Raf = requestAnimationFrame(() => { v3Raf = 0; v3Spy(); }); }, { passive: true });
+  document.addEventListener("click", (e) => {
+    const sc = e.target.closest?.("[data-v3sched],[data-v3unsched],[data-v3submit]");
+    if (sc) { if (sc.dataset.v3submit) { v3DryRun(); return; } U.sched = !!sc.dataset.v3sched; if (U.sched) v3Say(t(`Listo, programamos tu pedido: ${U.store.schedule.es.replace(/^Programar para /, "")}. Solo puedes agregar lo que está disponible a esa hora.`, `OK, scheduling your order: ${U.store.schedule.en.replace(/^Schedule for /, "")}. Only items available then can be added.`)); render(); return; }
+    const b = e.target.closest?.("[data-v3tab]"); if (!b) return;
+    const el = document.getElementById(`s-${b.dataset.v3tab}`); if (!el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - v3Offset() - 6, behavior: v3Motion() });
+  });
+  // closed / before-open: tapping a card explains instead of opening it
+  document.addEventListener("click", (e) => { if (!v3CanOrder() && !U.sched && e.target.closest?.("#ui1 .v3-card")) { e.stopImmediatePropagation(); e.preventDefault(); v3Closed(); } }, true);
+  // store state re-evaluated every minute (server time)
+  setInterval(() => { fetch(`/api/${TENANT}/ui/catalog?v3=1`).then((r) => r.json()).then((c) => { U.store = c.storeState || U.store; U.popular = c.popular || U.popular; U.schedAvail = c.scheduleAvail || null; if (!U.store?.schedule) U.sched = false; if (U.screen === "home") render(); }).catch(() => {}); }, 60000);
+}
+
 // ---------- live updates from chat / voice (app.js applyActions + renderCart) ----------
 let lastCartLen = 0;
 window.addEventListener("elvi:cart", () => {
@@ -360,10 +451,10 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-lang]"))
 function mount() {
   const shell = document.createElement("div");
   shell.id = "ui1";
-  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1><div id="ui1-halo-slot"></div></header>
+  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1>${V3 ? '<span id="v3-pill" class="v3-pill"></span>' : ""}<div id="ui1-halo-slot"></div></header>
   <main id="ui1-main"></main><div id="ui1-toast" class="u1-toast"></div><div class="u1-bottom"><div id="ui1-cart" class="u1-cart is-empty"></div><div id="ui1-bar" class="u1-bar"></div></div>`;
   document.body.prepend(shell);
-  document.body.classList.add("ui1");
+  document.body.classList.add("ui1"); if (V3) document.body.classList.add("v3");
 }
 mount();
 load().then(render).catch((e) => { $("#ui1-main").innerHTML = `<p class="u1-note">Menu error: ${esc(e.message)}</p>`; });

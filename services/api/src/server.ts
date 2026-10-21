@@ -43,6 +43,7 @@ import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from 
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { compareRow } from "./compare.js";
+import { storeState, popularProducts as realPopular } from "./menu-v3.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey, savedLanguage } from "./caller-memory.js";
@@ -271,7 +272,17 @@ app.get("/api/:tenant/ui/catalog", async (req, res, next) => {
       return { name: c.name, ...(c.popular ? { popular: true } : {}), customTimes: c.customTimes, available: c.popular ? true : a.available, today: (a as any).today || "", window: (a as any).window || null,
         items: ids.map((x: any) => { const m: any = items.find((it: any) => it.id === x.id); const ia: any = c.popular ? itemAvailability(m?.squareCatalogObjectId) : a; return { ...x, available: ia.available, window: ia.window || null }; }) };
     }).filter((c) => c.items.length);
-    res.json({ categories, store: { timezone: cat?.store?.timezone, prepMinutes: cat?.store?.prepMinutes } });
+    // v3menu: preview-only extras (the live ui1 page ignores them): store state + Popular from real paid orders/tickets
+    const v3 = req.query.v3 ? (() => {
+      const pop = realPopular((cat?.products || []).map((p: any) => p.name));
+      const popIds = pop.flatMap((p) => { const sp: any = (cat?.products || []).find((x: any) => x.name === p.name); return items.filter((m: any) => m.squareCatalogObjectId === sp?.squareId).slice(0, 1).map((m: any) => ({ id: m.id, product: p.name, count: p.count, available: itemAvailability(m.squareCatalogObjectId).available, window: itemAvailability(m.squareCatalogObjectId).window || null })); });
+      const st = storeState();
+      // scheduled pickup: which items are orderable AT the next opening (especiales keep their own start times)
+      const at = st?.schedule ? new Date(st.schedule.at) : null;
+      const scheduleAvail = at ? Object.fromEntries(items.map((m: any) => [m.id, itemAvailability(m.squareCatalogObjectId, at).available])) : null;
+      return { storeState: st, popular: popIds, scheduleAvail };
+    })() : {};
+    res.json({ categories, store: { timezone: cat?.store?.timezone, prepMinutes: cat?.store?.prepMinutes }, ...v3 });
   } catch (error) {
     next(error);
   }
