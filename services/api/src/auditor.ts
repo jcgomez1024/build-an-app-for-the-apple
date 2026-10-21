@@ -35,7 +35,7 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   const all = (r.turns || []).map((t: any) => t.text).join(" ");
   const staff = (r.turns || []).filter((t: any) => t.speaker === "staff").map((t: any) => t.text).join(" ");
   const flags: Flag[] = [];
-  const add = (type: FlagType, detail: string, es: string, en: string) => flags.push({ type, detail, es, en });
+  const add = (type: FlagType, detail: string, es: string, en: string) => { if (!flags.some((f) => f.type === type && f.detail === detail)) flags.push({ type, detail, es, en }); }; // match2: deduped
   const elviFood = (r.elvi || []).filter((l: any) => !isFee(l));
   const delivery = r.elviFulfillment === "DELIVERY" || r.fulfillment?.elvi?.fulfillment === "DELIVERY";
   const endedMs = Date.parse(r.at) + ((r.recordingSec || r.talkSec || 0) * 1000);
@@ -65,8 +65,16 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   const feeLine = tLines.find(isFee);
   if (delivery && !feeLine) add("DELIVERY_FEE_MISSING", "delivery call, no Delivery Fee line", "Entrega a domicilio sin cargo de envío en el ticket.", "Delivery order with no delivery fee on the ticket.");
   if (delivery && feeLine && r.deliveryFeeCents && Math.abs(feeLine.totalCents - r.deliveryFeeCents) > 1) add("DELIVERY_FEE_WRONG", `fee ${money(feeLine.totalCents)} vs rule ${money(r.deliveryFeeCents)}`, `Cargo de envío ${money(feeLine.totalCents)}; por distancia debía ser ${money(r.deliveryFeeCents)}.`, `Delivery fee ${money(feeLine.totalCents)}; distance rule says ${money(r.deliveryFeeCents)}.`);
+  const qtyDone = new Set<string>();
   for (const p of r.pairs || []) {
     const t = p.ticket, e = p.elvi;
+    // match2: leftover units of an item matched on both sides = ONE quantity flag for that item (no missing/extra).
+    if ((p as any).qtyDiff) {
+      const q = (p as any).qtyDiff; if (qtyDone.has(q.item)) continue; qtyDone.add(q.item);
+      if (t && (isFee(t) || isCustom(t))) continue;
+      add("ELVI_MISS", `${q.item}: qty ticket ${q.ticket}, Elvi ${q.elvi}`, `${q.item}: cantidad ticket ${q.ticket}, Elvi ${q.elvi}.`, `${q.item}: quantity ticket ${q.ticket}, Elvi ${q.elvi}.`);
+      continue;
+    }
     if (t && (isFee(t) || isCustom(t))) continue;
     if (e && isFee(e)) continue;
     if (t && !e) {

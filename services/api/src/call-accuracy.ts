@@ -128,41 +128,73 @@ const IGNORABLE = /\bmild salsa asada\b/;
 
 export type Miss = { kind: "missing_item" | "extra_item" | "quantity" | "choices" | "price"; ticket?: string; elvi?: string; detail: string };
 
-/** Score Elvi's lines against the ticket: item 40, quantity 20, choices 25, price 15 per line. */
+/** match2: non-item ticket lines (NO DRINK / NO BEBIDA, notes, $0 "no …" lines) are never scored. */
+export const isNonItemLine = (l: Line) => /^\s*(?:no\s+(?:bebida|drink|soda|refresco)s?\b|nota\b|note\b|notes\b|\*+\s*note)/i.test(String(l.baseName || l.name || ""))
+  || (!Number(l.totalCents) && /^\s*no\b/i.test(String(l.baseName || l.name || "")));
+const choiceKey = (l: Line) => [...new Set(l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)))].sort().join("|");
+/** Same item + same choices → one line with the summed quantity (split lines / duplicate ticket lines). */
+export function consolidate(lines: Line[]): Line[] {
+  const out: Line[] = [];
+  for (const l of lines) {
+    if (isNonItemLine(l)) continue;
+    const hit = out.find((o) => sameItem(o, l) && choiceKey(o) === choiceKey(l));
+    if (hit) { hit.quantity += l.quantity; hit.totalCents += l.totalCents; hit.unitCents = Math.round(hit.totalCents / Math.max(1, hit.quantity)); }
+    else out.push({ ...l, choices: [...l.choices] });
+  }
+  return out;
+}
+const part = (l: Line, q: number): Line => ({ ...l, quantity: q, totalCents: Math.round((l.totalCents / Math.max(1, l.quantity)) * q) });
+
+/** match2: score per ITEM (item 40, total quantity 20, choices 25 × exactly-matched units, price 15). Each unit is
+ *  matched once: same choices first, then the closest choices, then the leftover is ONE quantity difference. */
 export function scoreOrder(elvi: Line[], ticket: Line[]): { score: number; misses: Miss[]; pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> } {
   const misses: Miss[] = [];
   const pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> = [];
-  const left = [...elvi];
-  for (const t of ticket) {
-    // Prefer the same item with the most matching choices.
-    let best = -1, bestOverlap = -1;
-    left.forEach((e, i) => {
-      if (!sameItem(e, t)) return;
-      const tc = new Set(t.choices.map(norm));
-      const ov = e.choices.filter((c) => tc.has(norm(c))).length;
-      if (ov > bestOverlap) { best = i; bestOverlap = ov; }
-    });
-    if (best < 0) { misses.push({ kind: "missing_item", ticket: t.name, detail: `Elvi missed ${t.quantity} × ${t.name}` }); pairs.push({ ticket: t, points: 0 }); continue; }
-    const e = left.splice(best, 1)[0];
-    let pts = 40;
-    if (e.quantity === t.quantity) pts += 20; else misses.push({ kind: "quantity", ticket: t.name, detail: `${t.name}: ticket ${t.quantity}, Elvi ${e.quantity}` });
-    const tc = new Set(t.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)));
-    const ec = new Set(e.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)));
-    const union = new Set([...tc, ...ec]);
-    const inter = [...tc].filter((c) => ec.has(c)).length;
-    const jac = union.size ? inter / union.size : 1;
-    pts += Math.round(25 * jac);
-    if (jac < 1) {
-      const miss = [...tc].filter((c) => !ec.has(c)), extra = [...ec].filter((c) => !tc.has(c));
-      misses.push({ kind: "choices", ticket: t.name, detail: `${t.name}: ${miss.length ? `missed ${miss.join(", ")}` : ""}${miss.length && extra.length ? "; " : ""}${extra.length ? `extra ${extra.join(", ")}` : ""}` });
+  const E = consolidate(elvi), T = consolidate(ticket);
+  type G = { t: Line[]; e: Line[] };
+  const groups: G[] = [];
+  const groupOf = (l: Line) => groups.find((g) => [...g.t, ...g.e].some((x) => sameItem(x, l)));
+  for (const t of T) { const g = groupOf(t); if (g) g.t.push(t); else groups.push({ t: [t], e: [] }); }
+  for (const e of E) { const g = groupOf(e); if (g) g.e.push(e); else groups.push({ t: [], e: [e] }); }
+  let total = 0;
+  for (const g of groups) {
+    const tq = g.t.reduce((a, l) => a + l.quantity, 0), eq = g.e.reduce((a, l) => a + l.quantity, 0);
+    const name = (g.t[0] || g.e[0]).name;
+    if (!eq) { for (const t of g.t) { misses.push({ kind: "missing_item", ticket: t.name, detail: `Elvi missed ${t.quantity} × ${t.name}` }); pairs.push({ ticket: t, points: 0 }); } continue; }
+    if (!tq) { for (const e of g.e) { misses.push({ kind: "extra_item", elvi: e.name, detail: `Elvi added ${e.quantity} × ${e.name} (not on ticket)` }); pairs.push({ elvi: e, points: 0 }); } continue; }
+    const tl = g.t.map((l) => ({ l, q: l.quantity })), el = g.e.map((l) => ({ l, q: l.quantity }));
+    let exact = 0;
+    // 1) same choices
+    for (const t of tl) for (const e of el) { if (!t.q || !e.q || choiceKey(t.l) !== choiceKey(e.l)) continue; const m = Math.min(t.q, e.q); t.q -= m; e.q -= m; exact += m; pairs.push({ ticket: part(t.l, m), elvi: part(e.l, m), points: 100 }); }
+    // 2) closest choices for the rest (choice flags, never a quantity flag)
+    for (const t of tl) while (t.q) {
+      const tc = new Set(t.l.choices.map(norm));
+      const cand = el.filter((e) => e.q).sort((a, b) => b.l.choices.filter((c) => tc.has(norm(c))).length - a.l.choices.filter((c) => tc.has(norm(c))).length)[0];
+      if (!cand) break;
+      const m = Math.min(t.q, cand.q); t.q -= m; cand.q -= m;
+      const tcs = new Set(t.l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c))), ecs = new Set(cand.l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)));
+      const miss = [...tcs].filter((c) => !ecs.has(c)), extra = [...ecs].filter((c) => !tcs.has(c));
+      misses.push({ kind: "choices", ticket: t.l.name, detail: `${t.l.name}${m > 1 ? ` (${m})` : ""}: ${miss.length ? `missed ${miss.join(", ")}` : ""}${miss.length && extra.length ? "; " : ""}${extra.length ? `extra ${extra.join(", ")}` : ""}` });
+      const jac = (() => { const u = new Set([...tcs, ...ecs]); return u.size ? [...tcs].filter((c) => ecs.has(c)).length / u.size : 1; })();
+      const pt = part(t.l, m), pe = part(cand.l, m);
+      exact += m * jac; // partial choice credit
+      pairs.push({ ticket: pt, elvi: pe, points: 60 + Math.round(25 * jac) + (Math.abs(pt.totalCents - pe.totalCents) <= 1 ? 15 : 0) });
     }
-    if (Math.abs(e.totalCents - t.totalCents) <= 1) pts += 15;
-    else misses.push({ kind: "price", ticket: t.name, detail: `${t.name}: ticket $${(t.totalCents / 100).toFixed(2)}, Elvi $${(e.totalCents / 100).toFixed(2)}` });
-    pairs.push({ ticket: t, elvi: e, points: pts });
+    // 3) leftover units on one side = ONE quantity difference for this item
+    const restT = tl.filter((t) => t.q), restE = el.filter((e) => e.q);
+    if (tq !== eq) misses.push({ kind: "quantity", ticket: name, detail: `${name}: ticket ${tq}, Elvi ${eq}` });
+    const qtyDiff = { item: name, ticket: tq, elvi: eq };
+    for (const t of restT) pairs.push({ ticket: part(t.l, t.q), points: 0, qtyDiff } as any);
+    for (const e of restE) pairs.push({ elvi: part(e.l, e.q), points: 0, qtyDiff } as any);
+    // item score
+    const tc = g.t.reduce((a, l) => a + l.totalCents, 0), ec = g.e.reduce((a, l) => a + l.totalCents, 0);
+    let pts = 40 + (tq === eq ? 20 : 0) + Math.round(25 * (exact / Math.max(tq, eq)));
+    if (Math.abs(tc - ec) <= 1) pts += 15;
+    else if (tq === eq && exact >= tq - 1e-9 && !misses.some((x) => x.kind === "choices" && x.ticket === name)) misses.push({ kind: "price", ticket: name, detail: `${name}: ticket $${(tc / 100).toFixed(2)}, Elvi $${(ec / 100).toFixed(2)}` }); // only when nothing else explains it
+    total += pts;
   }
-  for (const e of left) { misses.push({ kind: "extra_item", elvi: e.name, detail: `Elvi added ${e.quantity} × ${e.name} (not on ticket)` }); pairs.push({ elvi: e, points: 0 }); }
-  const denom = 100 * Math.max(1, pairs.length);
-  return { score: Math.round((pairs.reduce((s, p) => s + p.points, 0) / denom) * 1000) / 10, misses, pairs };
+  const n = groups.filter((g) => g.t.length || g.e.length).length;
+  return { score: Math.round((total / (100 * Math.max(1, n))) * 1000) / 10, misses, pairs };
 }
 
 /**

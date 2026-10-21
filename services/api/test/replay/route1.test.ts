@@ -35,3 +35,14 @@ test("route1: 'cells+desk' = both (cells ring and the counter page gets it)", ()
   assert.deepEqual(ringNumbersFor("+15550009002", false), []);
   process.env.TWILIO_LINE_RING = saved;
 });
+test("route3: explicit number + desk; never-dial and own lines are dropped", () => {
+  const saved = process.env.TWILIO_LINE_RING, nd = process.env.TWILIO_NEVER_DIAL;
+  process.env.TWILIO_LINE_RING = "9001:cells+desk,9002:+15550003333+desk";
+  assert.deepEqual(ringNumbersFor("+15550009002", true), ["+15550003333"]); assert.equal(deskTakesLine("+15550009002"), true);
+  assert.equal(lineRingMode("+15550009002"), "custom");
+  process.env.TWILIO_NEVER_DIAL = "+15550003333";
+  assert.deepEqual(ringNumbersFor("+15550009002", true), []);
+  process.env.TWILIO_LINE_RING = "9002:+15550009001+desk"; // our own Twilio line → never dialed
+  assert.deepEqual(ringNumbersFor("+15550009002", true), []);
+  process.env.TWILIO_LINE_RING = saved; if (nd === undefined) delete process.env.TWILIO_NEVER_DIAL; else process.env.TWILIO_NEVER_DIAL = nd;
+});

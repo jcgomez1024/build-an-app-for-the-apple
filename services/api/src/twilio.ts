@@ -1030,24 +1030,39 @@ const twAuth = () => "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:$
 /** route1 (Carlos): per-line ring routing from .env.twilio, e.g. TWILIO_LINE_RING=1609:cells,2795:desk (line suffix).
  *  cells = only the TWILIO_RING_NUMBERS phones (not the counter page); desk = only the counter/browser client (phone.html);
  *  unset / other = both (old behavior). TWILIO_DESK_FALLBACK_CELLS=1 rings the cells when the desk is offline (default off). */
-export type RingMode = "cells" | "desk" | "both";
-export function lineRingMode(line: string): RingMode {
+export type RingMode = "cells" | "desk" | "both" | "custom";
+/** route3: per-line plan. Tokens joined by "+": cells (TWILIO_RING_NUMBERS), desk (phone.html), or a phone number,
+ *  e.g. 1609:cells+desk,2795:+14405519249+desk. Never-dial numbers and our own Twilio lines are always dropped. */
+export type RingPlan = { cells: boolean; desk: boolean; numbers: string[] };
+export function lineRingPlan(line: string): RingPlan {
   const n = d10(line);
   for (const part of String(process.env.TWILIO_LINE_RING || "").split(",")) {
-    const [k, v] = part.split(":").map((x) => x.trim().toLowerCase());
-    if (k && n && n.endsWith(k.replace(/\D/g, "")) && (v === "cells" || v === "desk" || v === "both" || v === "cells+desk" || v === "desk+cells")) return (v.includes("+") ? "both" : v) as RingMode;
+    const i = part.indexOf(":"); if (i < 0) continue;
+    const k = part.slice(0, i).replace(/\D/g, ""), v = part.slice(i + 1).trim().toLowerCase();
+    if (!k || !n || !n.endsWith(k)) continue;
+    const toks = v.split("+").map((x) => x.trim()).filter(Boolean);
+    const plan: RingPlan = { cells: false, desk: false, numbers: [] };
+    for (const t of toks) { if (t === "cells") plan.cells = true; else if (t === "desk") plan.desk = true; else if (t === "both") { plan.cells = true; plan.desk = true; } else if (/^\d{10,11}$/.test(t)) plan.numbers.push(`+1${d10(t)}`); }
+    if (plan.cells || plan.desk || plan.numbers.length) return plan;
   }
-  return "both";
+  return { cells: true, desk: true, numbers: [] };
+}
+export function lineRingMode(line: string): RingMode {
+  const p = lineRingPlan(line);
+  return p.numbers.length ? "custom" : p.cells && p.desk ? "both" : p.cells ? "cells" : "desk";
 }
 export const deskFallbackCells = () => process.env.TWILIO_DESK_FALLBACK_CELLS === "1";
-/** Ring phones for this line right now (desk line: none, unless the fallback flag is on and the desk is offline). */
+/** Ring phones for this line right now. Desk-only line: none, unless the fallback flag is on and the desk is offline. */
 export function ringNumbersFor(line: string, deskOnline: boolean): string[] {
-  const mode = lineRingMode(line);
-  if (mode === "desk") return deskFallbackCells() && !deskOnline ? ringNumbers() : [];
-  return ringNumbers();
+  const p = lineRingPlan(line);
+  const own = new Set(phoneLines().map((l) => d10(l.number)));
+  const extra = p.numbers.filter((x) => !own.has(d10(x)) && !neverDial(x));
+  let out = [...(p.cells ? ringNumbers() : []), ...extra];
+  if (!out.length && p.desk && deskFallbackCells() && !deskOnline) out = ringNumbers();
+  return [...new Set(out)];
 }
 /** Does the counter page (desk) get this line's calls? */
-export const deskTakesLine = (line: string) => lineRingMode(line) !== "cells";
+export const deskTakesLine = (line: string) => lineRingPlan(line).desk;
 export function ringNumbers(): string[] {
   const own = new Set(phoneLines().map((l) => d10(l.number)));
   return String(process.env.TWILIO_RING_NUMBERS || "").split(",").map((x) => x.trim()).filter(Boolean)
