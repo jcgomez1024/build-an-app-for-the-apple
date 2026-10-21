@@ -1244,7 +1244,7 @@ async function startRings(base: string, cust: Entry) {
     // Twilio line that received the call; the whisper still tells staff the caller's name/number.
     const passed = "";
     const legs = ringing.get(cust.callSid) || new Map<string, string>();
-    ringing.set(cust.callSid, legs);
+    ringing.set(cust.callSid, legs); watchDeadLegs(); // deadleg1
     await Promise.all(nums.map(async (to) => {
       try {
         const place = (from: string) => fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Calls.json`, {
@@ -1271,6 +1271,34 @@ async function startRings(base: string, cust: Entry) {
   } finally { ringStarting.delete(cust.callSid); }
 }
 /** Stop the other phones once someone answered (or the caller left). `keep` = the leg that answered. */
+const parentEnd = new Map<string, { status: string; durationSec: number; endedAt: string | null }>();
+/** deadleg1: has the CUSTOMER's leg already ended? Read-only GET; null if unknown (network/auth) so callers don't act. */
+export async function parentLegEnded(custSid: string, fetcher: typeof fetch = fetch): Promise<boolean | null> {
+  const account = process.env.TWILIO_ACCOUNT_SID; if (!account || !/^CA[0-9a-f]{32}$/.test(custSid)) return null;
+  try {
+    const r = await fetcher(`https://api.twilio.com/2010-04-01/Accounts/${account}/Calls/${custSid}.json`, { headers: { Authorization: twAuth() } });
+    if (!r.ok) return null; const j: any = await r.json();
+    if (/^(completed|canceled|failed|busy|no-answer)$/.test(String(j.status || ""))) parentEnd.set(custSid, { status: j.status, durationSec: Number(j.duration) || 0, endedAt: j.end_time ? new Date(j.end_time).toISOString() : null });
+    return /^(completed|canceled|failed|busy|no-answer)$/.test(String(j.status || ""));
+  } catch { return null; }
+}
+/** deadleg1: the caller hung up (Oct 21 1:10 PM: during the intro, before Enqueue) — drop the waiter, end the ring legs. */
+async function callerGone(custSid: string, where: string) {
+  waiting.delete(custSid);
+  const pe = parentEnd.get(custSid);
+  if (pe) logCall({ event: "parent_end", callSid: custSid, ...pe, from: "twilio-get" });
+  logCall({ event: "caller_gone", callSid: custSid, where });
+  await cancelRings(custSid, "", "caller-gone").catch(() => {});
+}
+let deadLegTimer: ReturnType<typeof setInterval> | null = null;
+function watchDeadLegs() {
+  if (deadLegTimer) return;
+  deadLegTimer = setInterval(() => {
+    const open = new Set([...ringing.keys(), ...[...deskAtPrompt].filter(([, v]) => v.size).map(([k]) => k)]);
+    for (const custSid of open) void parentLegEnded(custSid).then((gone) => { if (gone && (ringing.has(custSid) || deskAtPrompt.get(custSid)?.size)) void callerGone(custSid, "ring-watch"); });
+  }, 4000);
+  (deadLegTimer as any).unref?.();
+}
 async function cancelRings(custSid: string, keep = "", reason = "") {
   const account = process.env.TWILIO_ACCOUNT_SID;
   // Desk legs already answered and sitting at "oprima 1": end them (canceled only works while ringing).
@@ -1666,6 +1694,11 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const custSid = String(req.query.cust || "");
     const qParam = String(req.query.q || "");
     ringing.get(custSid)?.delete(ringSid);
+    if (await parentLegEnded(custSid) === true) { // deadleg1: never give staff dead air
+      logCall({ event: "ring_answer_dead", callSid: custSid, ringCallSid: ringSid, ringTo: req.body?.To });
+      void callerGone(custSid, "ring-answer");
+      return res.type("text/xml").send(xml(`${sayIn("es", "El cliente ya colgó.")}<Hangup/>`));
+    }
     const orig = waiting.get(custSid);
     if (!orig || counterClaim.has(custSid)) {
       logCall({ event: "ring_answer_empty", callSid: custSid, ringCallSid: ringSid, counterClaimed: counterClaim.has(custSid) });
@@ -1710,6 +1743,10 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       if (to) { if (!ringNoAccept.has(custSid)) ringNoAccept.set(custSid, new Set()); ringNoAccept.get(custSid)!.add(to); }
       logCall({ event: "ring_not_accepted", callSid: custSid, ringCallSid: ringSid, ringTo: to, digits });
       return res.type("text/xml").send(xml("<Hangup/>"));
+    }
+    if (await parentLegEnded(custSid) === true) { // deadleg1
+      logCall({ event: "ring_accept_dead", callSid: custSid, ringCallSid: ringSid });
+      waiting.delete(custSid); void callerGone(custSid, "ring-accept"); // another caller on the same line can still be taken
     }
     const queue = waiting.get(custSid)?.queue || (phoneLines().some((l) => l.queue === qParam) ? qParam : "");
     const target = queue ? [...waiting.values()].filter((x) => x.queue === queue).sort((a, b) => a.at - b.at)[0] : undefined;

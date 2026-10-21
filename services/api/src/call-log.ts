@@ -15,8 +15,9 @@ export type CallLogRow = {
   outcome: CallOutcome; outcomeLabel: string; missed: boolean;
   waitSec: number | null; durationSec: number | null;
   recordingSid: string | null; recordingKind: "call" | "voicemail" | null;
-  hasTicket: boolean; training: boolean; deskTo: string | null;
+  hasTicket: boolean; training: boolean; deskTo: string | null; note?: string | null;
 };
+const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
 export type CallLogRange = "today" | "yesterday" | "7d";
 export type TwilioStatus = { status: string; duration: number | null; checkedAt: number };
 
@@ -138,11 +139,22 @@ export function buildCallLog(events: any[], opts: {
     let outcome: CallOutcome = "unknown";
     let waitSec: number | null = null;
     let durationSec: number | null = null;
+    let lateNote: string | null = null;
     if (first.event === "loop_rejected" || of("loop_rejected").length) outcome = "rejected";
     else if (of("closed").length) outcome = "closed"; // closed1: closed-day message, nobody rang
-    else if (answered.length) {
+    else if (answered.length && !of("bridged").length && (of("parent_end").length || of("caller_gone").length || of("ring_answer_dead").length || of("ring_accept_dead").length)) {
+      // deadleg1: a staff leg "answered" but nothing ever bridged — the caller left first (Oct 21 1:10 PM: hung up at 5 s,
+      // desk picked up an empty leg at 11 s). Missed call; the staff leg's time is not call time.
+      outcome = "hungup";
+      const pe = last("parent_end"), cg = of("caller_gone")[0];
+      waitSec = num(pe?.durationSec) ?? (cg ? Math.max(0, Math.round((Date.parse(cg.ts) - Date.parse(at)) / 1000)) : st?.duration ?? null);
+      const ra = of("ring_answered")[0];
+      if (ra && waitSec != null) { const late = Math.round((Date.parse(ra.ts) - Date.parse(at)) / 1000 - waitSec); if (late > 0) lateNote = `${ra.via === "counter" || !/^\+?1?440551/.test(String(ra.ringTo || "")) ? "personal" : "escritorio"} contestó ${late} s tarde`; }
+    } else if (answered.length) {
       outcome = answered.some((e) => e.via === "desk") || (deskWhisper && !answered.some((e) => e.via === "counter")) ? "desk" : "counter";
-      durationSec = Math.max(...answered.map((e) => num(e.durationSec) || 0));
+      // deadleg1: talk time after the bridge only (not the staff leg's ring/whisper time)
+      const br = of("bridged")[0], end = answered[answered.length - 1];
+      durationSec = br ? Math.max(0, Math.round((Date.parse(end.ts) - Date.parse(br.ts)) / 1000)) : Math.max(...answered.map((e) => num(e.durationSec) || 0));
       waitSec = num(of("bridged")[0]?.queueTime);
     } else if (vm) {
       outcome = "voicemail";
@@ -161,7 +173,7 @@ export function buildCallLog(events: any[], opts: {
       counter: "Contestada en mostrador",
       desk: deskLabel(deskTo),
       voicemail: "Buzón de voz",
-      hungup: `Colgó en espera${waitSec != null ? ` (${waitSec} s)` : ""}`,
+      hungup: lateNote || (answered.length && !of("bridged").length) ? `Colgó antes de contestar${waitSec != null ? ` · esperó ${mmss(waitSec)}` : ""}` : `Colgó en espera${waitSec != null ? ` (${waitSec} s)` : ""}`,
       rejected: "Rechazada (loop guard)",
       closed: closedLabel(last("closed")), // closedlabel1: day vs before/after hours
       in_progress: "En curso",
@@ -175,7 +187,7 @@ export function buildCallLog(events: any[], opts: {
       waitSec, durationSec,
       recordingSid: rec?.recordingSid || vm?.recordingSid || null,
       recordingKind: rec?.recordingSid ? "call" : vm?.recordingSid ? "voicemail" : null,
-      hasTicket: opts.hasTicket(sid), training, deskTo,
+      hasTicket: opts.hasTicket(sid), training, deskTo, note: lateNote,
     });
   }
   return rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
