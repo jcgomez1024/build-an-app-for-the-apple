@@ -556,6 +556,7 @@ export async function linkSquareTickets(force = false) {
     links[t.callSid] = ref; used.add(r.orderId); changed = true;
     t.squareRef = ref;
     logCall({ event: "square_ticket", callSid: t.callSid, receiptNumber: ref.receiptNumber, orderId: ref.orderId, matchedBy: ref.matchedBy });
+    void sendNameFollowUp(t.callSid, cleanFirstName(String(ref.ticketName || "")) || null).catch(() => {}); // smsname1
   }
   if (changed) { try { fs.writeFileSync(squareLinksFile, JSON.stringify(links, null, 1)); saveTickets(); } catch { /* best effort */ } }
 }
@@ -1125,6 +1126,7 @@ const callFwd = new Map<string, string>(); // customer CallSid -> ForwardedFrom 
 const smsSent = new Map<string, number>(); // customer CallSid -> ms (one text per call)
 const smsByCaller = new Map<string, number>(); // caller d10 -> last text ms
 const smsTimes: number[] = []; // texts in the last hour
+const smsMeta = new Map<string, { base: string; from: string; line: string; at: number; nameSent: boolean; followUp: boolean }>(); // smsname1
 const SMS_CALLER_GAP_MS = 2 * 60 * 1000, SMS_PER_HOUR = 30;
 export function smsNumbers(): string[] {
   return String(process.env.TWILIO_SMS_NUMBERS || "").split(",").map((x) => x.trim()).filter((x) => /^\+1\d{10}$/.test(x));
@@ -1167,32 +1169,59 @@ async function sendRingSms(base: string, cust: Entry) {
   if (!to.length || !account || !process.env.TWILIO_AUTH_TOKEN) return;
   const now = Date.now();
   smsSent.set(cust.callSid, now);
-  if (smsSent.size > 500) for (const [k, t] of smsSent) if (now - t > 6 * 3600_000) { smsSent.delete(k); callFwd.delete(k); }
+  if (smsSent.size > 500) for (const [k, t] of smsSent) if (now - t > 6 * 3600_000) { smsSent.delete(k); callFwd.delete(k); smsMeta.delete(k); }
   while (smsTimes.length && now - smsTimes[0] > 3600_000) smsTimes.shift();
   const key = d10(cust.from) || "privado";
   if (now - (smsByCaller.get(key) || 0) < SMS_CALLER_GAP_MS) { logCall({ event: "ring_sms_skipped", callSid: cust.callSid, reason: "caller-rate" }); return; }
   if (smsTimes.length + to.length > SMS_PER_HOUR) { logCall({ event: "ring_sms_skipped", callSid: cust.callSid, reason: "hour-cap" }); return; }
   smsByCaller.set(key, now);
   const body = ringSmsText({ name: cust.name, from: cust.from, at: cust.at || now, forwardedFrom: callFwd.get(cust.callSid) });
+  smsMeta.set(cust.callSid, { base, from: cust.from, line: cust.line, at: cust.at || now, nameSent: !!String(cust.name || "").trim(), followUp: false });
+  await postStaffSms(base, cust.callSid, cust.line, to, body, "ring_sms");
+}
+async function postStaffSms(base: string, callSid: string, calledLine: string, to: string[], body: string, event: string) {
+  const account = process.env.TWILIO_ACCOUNT_SID; const now = Date.now();
   const svc = String(process.env.TWILIO_MESSAGING_SERVICE_SID || "").trim();
-  const line = phoneLines().find((l) => d10(l.number) === d10(cust.line))?.number || phoneLines()[0]?.number || "";
-  const sender = smsSender(cust.line, svc ? await serviceNumbers(svc) : [], svc, line);
+  const line = phoneLines().find((l) => d10(l.number) === d10(calledLine))?.number || phoneLines()[0]?.number || "";
+  const sender = smsSender(calledLine, svc ? await serviceNumbers(svc) : [], svc, line);
   for (const n of to) {
     smsTimes.push(now);
     try {
       const params = new URLSearchParams({ To: n, Body: body });
       if (sender.messagingServiceSid) params.set("MessagingServiceSid", sender.messagingServiceSid);
       if (sender.from) params.set("From", sender.from);
-      if (/^https:\/\//.test(base)) params.set("StatusCallback", `${base}/api/twilio/sms-status?cust=${encodeURIComponent(cust.callSid)}`);
+      if (/^https:\/\//.test(base)) params.set("StatusCallback", `${base}/api/twilio/sms-status?cust=${encodeURIComponent(callSid)}`);
       const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Messages.json`, {
         method: "POST", headers: { Authorization: twAuth(), "content-type": "application/x-www-form-urlencoded" }, body: params,
       });
       const j = await r.json().catch(() => ({})) as { sid?: string; status?: string; code?: number; message?: string };
-      if (r.ok && j.sid) logCall({ event: "ring_sms", callSid: cust.callSid, to: n, messageSid: j.sid, status: j.status, body });
-      else logCall({ event: "ring_sms_error", callSid: cust.callSid, to: n, status: r.status, code: j.code, error: String(j.message || "").slice(0, 200) });
-    } catch (e) { logCall({ event: "ring_sms_error", callSid: cust.callSid, to: n, error: e instanceof Error ? e.message : String(e) }); }
+      if (r.ok && j.sid) logCall({ event, callSid, to: n, messageSid: j.sid, status: j.status, body });
+      else logCall({ event: event + "_error", callSid, to: n, status: r.status, code: j.code, error: String(j.message || "").slice(0, 200) });
+    } catch (e) { logCall({ event: event + "_error", callSid, to: n, error: e instanceof Error ? e.message : String(e) }); }
   }
 }
+/** smsname1: "Llamada 1:06 PM (...6767): Alex" — the name learned after the ring alert went out. Pure, GSM-7. */
+export function nameFollowUpText(o: { name: string; from: string; at: number | Date }): string {
+  const time = new Date(o.at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+  const n = d10(o.from); const num = n.length === 10 ? `(...${n.slice(6)})` : "(Privado)";
+  return `Llamada ${time} ${num}: ${gsm7(String(o.name || "").trim()).slice(0, 24).trim()}`;
+}
+/** smsname1: decide whether a learned name gets a follow-up text. Pure: only when a ring alert went out without a name,
+ *  no follow-up was sent yet for this call, and the name is real. */
+export function shouldNameFollowUp(meta: { nameSent: boolean; followUp: boolean } | undefined, name: string | null | undefined): boolean {
+  if (/^\s*(mesa|table|para llevar|to go|cliente|customer)\b/i.test(String(name || ""))) return false;
+  return !!meta && !meta.nameSent && !meta.followUp && !!gsm7(String(name || "")).replace(/[^A-Za-z]/g, "").length;
+}
+/** smsname1: one follow-up per call to the same recipients when the name is learned (heard or Square ticket). */
+export async function sendNameFollowUp(callSid: string, name: string | null | undefined) {
+  const meta = smsMeta.get(callSid);
+  if (process.env.TWILIO_RING_SMS !== "1" || !shouldNameFollowUp(meta, name)) return;
+  const to = smsNumbers(); if (!to.length || !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+  meta!.followUp = true;
+  await postStaffSms(meta!.base, callSid, meta!.line, to, nameFollowUpText({ name: String(name), from: meta!.from, at: meta!.at }), "ring_sms_name");
+}
+export function _setSmsMetaForTest(callSid: string, m: any) { smsMeta.set(callSid, m); }
+export function _smsMetaForTest(callSid: string) { return smsMeta.get(callSid); }
 /** ringtime1: ring-leg REST body — also ask Twilio for initiated / ringing / answered events (timeline in the call log). */
 export function ringLegBody(p: Record<string, string>) {
   const b = new URLSearchParams(p);
@@ -1908,6 +1937,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: "staff-ask", savedToMemory: savedNow });
           name = cleanFirstName(heardOrderName) || name;
           callNames.set(CallSid, name);
+          void sendNameFollowUp(CallSid, name).catch(() => {}); // smsname1
         }
         if (name) callNames.set(CallSid, name);
         let lines: any[] = [];
