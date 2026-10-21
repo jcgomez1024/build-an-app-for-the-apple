@@ -40,7 +40,8 @@ async function build() {
   const wk = acc.length ? acc[acc.length - 1].week : "";
   J("report.json", { generatedAt: new Date().toISOString(), readbacks, grades: L.gradeStats(phone as any), staffGrades: L.staffGradeByDevice(phone as any), gradeWeights: L.gradeWeights(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
     // live1: same definition as calls.html / Comparar — against the correct order, clear calls only
-    elviScoreDefinition: "Elvi hoy = replay with current fixes vs correct order; Elvi en la llamada = first processing that day",
+    elviScoreDefinition: "Elvi hoy = median of 3 fresh replays with current code (scripts/learning.ts replay3) vs correct order; Elvi en la llamada = first processing that day",
+    replay3: (() => { try { const r = JSON.parse(fs.readFileSync(path.join(dir, "replay3.json"), "utf8")); return { at: r.at, runs: r.runs, customers: r.customers, training: r.training }; } catch { return null; } })(),
     elviLiveVsToday: (() => { const cs = (data.calls || []).filter((r: any) => r.compare && !r.unclear && r.source !== "training" && r.compare.elviScore != null);
       const av = (a: number[]) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
       return { calls: cs.length, live: av(cs.map((r: any) => r.compare.elviLiveScore)), today: av(cs.map((r: any) => r.compare.elviScore)), staff: av(cs.map((r: any) => r.compare.staffScore).filter((x: any) => x != null)) }; })(),
@@ -64,20 +65,20 @@ async function replayer() {
   const head = (() => { try { return execSync("git rev-parse HEAD", { cwd: root }).toString().trim(); } catch { return "nogit"; } })();
   const cf = path.join(dir, "replay-cache.json"); let cache: Record<string, any> = {}; try { const c = JSON.parse(fs.readFileSync(cf, "utf8")); if (c.head === head) cache = c.turns || {}; } catch { /* fresh */ }
   const saveCache = () => fs.writeFileSync(cf, JSON.stringify({ head, turns: cache }));
-  const replay = async (row: any, truth: any[]) => {
+  const replay = async (row: any, truth: any[], opts: { fresh?: boolean } = {}) => {
     const key = `learn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const live = (t: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: t.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: key } as any, { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model } as any);
     const run = async (t: string, language: "es" | "en", history: any[]) => {
       const tt = K.rewriteSlang(t), hit = K.recall(tt, resolverMenu);
       const k = createHash("sha256").update(JSON.stringify([tt, language, history, hit?.map((h) => h.memoryId) || null])).digest("hex");
-      if (cache[k]) return cache[k];
+      if (cache[k] && !opts.fresh) return cache[k]; // replay3: fresh = real AI answers, no cache
       const r: any = await live(t, language, history); const { audioBase64, audioMimeType, ...keep } = r || {}; cache[k] = keep; return keep;
     };
     const r: any = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), run as any);
     // a2: score exactly like /api/calls/accuracy — POS names, delivery fee line, included toppings (was: menu names → 40 on a perfect order)
     const lines: any[] = toPosLines(elviLines(r.cart || [], resolverMenu as any), posCat);
     if (r.fulfillment === "DELIVERY" && lines.length) lines.push(deliveryFeeLine(row.deliveryFeeCents ?? r.deliveryFeeCents));
-    return { score: scoreOrder(lines.map(withIncludedToppings), truth.map(withIncludedToppings)).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`) };
+    return { score: scoreOrder(lines.map(withIncludedToppings), truth.map(withIncludedToppings)).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`), raw: r };
   };
   return { replay, resolverMenu, saveCache, tenant };
 }
@@ -208,7 +209,42 @@ async function nightly() {
   console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, trainingReplayAccuracy: tAvg(trainEvals), trainingRegressions: trainingRegressions.length, perGrade, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
 }
 
-if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }
+/** replay3 (Carlos): "Elvi hoy" = the real result of FRESH replays with current code (no cache, no hand-picked scores).
+ *  Each scored call (customers + training) is replayed N times (default 3); the median run's order is written as the call's
+ *  latest processing (so calls.html / Comparar / weekly report all show it) with every run's score and a varies flag.
+ *  Usage: replay3 [--runs N] [--dry] [--only CallSid,…]. Local data only; no calls/SMS. */
+async function replay3() {
+  const runs = Number(process.argv[process.argv.indexOf("--runs") + 1]) || 3, dry = process.argv.includes("--dry");
+  const only = process.argv.includes("--only") ? new Set(String(process.argv[process.argv.indexOf("--only") + 1]).split(",")) : null;
+  const res = await fetch("http://localhost:4000/api/calls/accuracy?days=90"); const data: any = await res.json();
+  const { replay } = await replayer();
+  const logDir = path.join(root, "data/logs/calls"); const out: any[] = [];
+  for (const row of data.calls || []) {
+    if (!row.compare || (only && !only.has(row.callSid))) continue;
+    const truth = row.compare.truth; const rs: any[] = [];
+    for (let i = 0; i < runs; i++) { try { rs.push(await replay(row, truth, { fresh: true })); } catch (e) { rs.push({ score: 0, lines: [], raw: null, error: String(e).slice(0, 120) }); } }
+    const sorted = [...rs].sort((a, b) => a.score - b.score), med = sorted[Math.floor((sorted.length - 1) / 2)];
+    const scores = rs.map((r) => r.score), varies = Math.min(...scores) !== Math.max(...scores);
+    out.push({ callSid: row.callSid, at: row.at, source: row.source, unclear: !!row.unclear, scores, min: sorted[0].score, median: med.score, max: sorted[sorted.length - 1].score, varies, runs: rs.map((r) => r.lines) });
+    if (!dry && med.raw) {
+      // append to the file holding the call's latest recording event (same as rescore-call.ts)
+      let rec: any = null, file = "";
+      for (const f of fs.readdirSync(logDir).filter((x) => /^\d{4}-\d\d-\d\d\.jsonl$/.test(x)).sort()) for (const l of fs.readFileSync(path.join(logDir, f), "utf8").split("\n")) { if (!l.trim()) continue; let e: any; try { e = JSON.parse(l); } catch { continue; } if (e.callSid === row.callSid && e.event === "recording") { rec = e; file = f; } }
+      if (rec) fs.appendFileSync(path.join(logDir, file), JSON.stringify({ ...rec, ts: new Date().toISOString(), elviOrder: med.raw, rescoredBy: "replay3", replayScores: scores, replayVaries: varies, replayHead: execSync("git rev-parse --short HEAD", { cwd: root }).toString().trim() }) + "\n");
+    }
+    console.error(`${row.at} ${row.source} runs=${scores.join("/")} median=${med.score}${varies ? " VARIES" : ""}`);
+  }
+  const cust = out.filter((x) => x.source !== "training" && !x.unclear), med = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
+  const avg = (xs: number[]) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length * 10) / 10 : null;
+  const summary = { at: new Date().toISOString(), runs, customers: { calls: cust.length, avgOfMedians: avg(cust.map((x) => x.median)), avgMin: avg(cust.map((x) => x.min)), avgMax: avg(cust.map((x) => x.max)), varies: cust.filter((x) => x.varies).length },
+    training: { calls: out.filter((x) => x.source === "training").length, avgOfMedians: avg(out.filter((x) => x.source === "training").map((x) => x.median)) }, calls: out };
+  if (!dry) fs.writeFileSync(path.join(dir, "replay3.json"), JSON.stringify(summary, null, 1));
+  console.log(JSON.stringify({ ...summary, calls: undefined }));
+  void med;
+}
+
+if (cmd === "replay3") await replay3();
+else if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }
 else if (cmd === "nightly") await nightly();
 else console.log("usage: build | nightly | list | approve <id> | reject <id> [reason]");
 process.exit(0);

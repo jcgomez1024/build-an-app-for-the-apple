@@ -190,7 +190,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${c.compare ? replayTag(c) : ""}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${langHtml(c)}
     ${c.hasAudio ? playerHtml(c) : ""}
@@ -365,7 +365,7 @@ document.querySelectorAll("#filters button").forEach((b) => b.onclick = () => {
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { period = b.dataset.p; document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b)); chart(); });
 
 // cmp1: "Comparar" — correct order vs staff ticket vs Elvi, item by item. Data comes from /api/calls/accuracy (same PIN).
-const CALLS_PAGE_VERSION = "live1";
+const CALLS_PAGE_VERSION = "replay3";
 let cmpOn = false, cmpGrade = "bg", cmpTrain = false;
 const normC = (c) => String(c).replace(/\s*\(\+\$[\d.]+\)/, "").trim().toLowerCase();
 const isSalsaDefault = (c) => /mild salsa asada/i.test(c);
@@ -393,6 +393,8 @@ function cmpCol(title, truth, lines, isTruth) {
   const rows = truth.map((t, i) => { const o = res[i]; if (!o) return `<div class="cmp-it c-bad">Falta: ${t.quantity}× ${esc(t.name || t.baseName)}</div>`; return cmpItem(o, t, same(t, o) ? "c-ok" : "c-bad"); });
   return `<div><h4>${title}</h4>${rows.join("")}${extras.map((e) => cmpItem(e, null, "c-ext").replace('cmp-it c-ext">', 'cmp-it c-ext">Extra: ')).join("")}</div>`;
 }
+// replay3: "Elvi hoy" is the median of fresh replays; "varía" when the runs disagree (min–median–max shown)
+const replayTag = (c) => !c.replay ? ` <span class="tag" title="Sin replay fresco todavía">sin replay</span>` : c.replay.varies ? ` <span class="tag" style="background:#fde68a;color:#78350f" title="Replays: ${c.replay.scores.join(" / ")} (mediana)">varía ${Math.min(...c.replay.scores)}–${Math.max(...c.replay.scores)}</span>` : ` <span class="tag" title="Replays: ${c.replay.scores.join(" / ")}">${c.replay.scores.length}× igual</span>`;
 const pct = (n) => n == null ? "–" : Math.round(n) + "%";
 const avgN = (a) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 function topTypes(arr) { const m = {}; for (const t of arr) m[t] = (m[t] || 0) + 1; return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(k)} (${v})`).join(", ") || "ninguno"; }
@@ -402,12 +404,12 @@ function renderCompare() {
   const clear = rows.filter(({ c }) => !c.unclear);
   const counts = { best: 0, good: 0, medium: 0, bad: 0 }; for (const { c } of all) if (counts[c.compare.grade] !== undefined) counts[c.compare.grade]++;
   const rb = rows.filter(({ c }) => c.compare.readback !== "none").length;
-  $("#cmp-sum").innerHTML = `<div><b>${rows.length}</b> llamadas</div><div title="Elvi en la llamada = lo que armó con el código de ese día · Elvi hoy = replay con los arreglos actuales">Elvi en la llamada <b>${pct(avgN(clear.map(({ c }) => c.compare.elviLiveScore).filter((x) => x != null)))}</b> → Elvi hoy <b>${pct(avgN(clear.map(({ c }) => c.compare.elviScore).filter((x) => x != null)))}</b> vs personal <b>${pct(avgN(clear.map(({ c }) => c.compare.staffScore).filter((x) => x != null)))}</b> (clientes${cmpTrain ? " + entrenamiento" : ""}, contra la orden correcta${clear.length < rows.length ? "; sin órdenes poco claras" : ""})</div>`
+  $("#cmp-sum").innerHTML = `<div><b>${rows.length}</b> llamadas</div><div title="Elvi en la llamada = lo que armó con el código de ese día · Elvi hoy = replay con los arreglos actuales">Elvi en la llamada <b>${pct(avgN(clear.map(({ c }) => c.compare.elviLiveScore).filter((x) => x != null)))}</b> → Elvi hoy <b>${pct(avgN(clear.map(({ c }) => c.compare.elviScore).filter((x) => x != null)))}</b> <small>(mediana de replays frescos${clear.some(({ c }) => c.replay?.varies) ? `; ${clear.filter(({ c }) => c.replay?.varies).length} varía` : ""})</small> vs personal <b>${pct(avgN(clear.map(({ c }) => c.compare.staffScore).filter((x) => x != null)))}</b> (clientes${cmpTrain ? " + entrenamiento" : ""}, contra la orden correcta${clear.length < rows.length ? "; sin órdenes poco claras" : ""})</div>`
     + `<div>Best ${counts.best} · Good ${counts.good} · Medium ${counts.medium} · Bad ${counts.bad}</div><div>Read-back en estas ${rows.length} llamadas: ${rb} (${rows.length ? Math.round(rb / rows.length * 100) : 0}%)${cmpGrade === "bg" ? ` · en todas las calificadas: ${all.filter(({ c }) => c.compare.readback !== "none").length} de ${all.length}` : ""}</div>`
     + `<div>Fallas Elvi hoy: ${topTypes(rows.flatMap(({ c }) => c.compare.elviMissTypes))} · en la llamada: ${topTypes(rows.flatMap(({ c }) => c.compare.elviLiveMissTypes))}</div><div>Fallas personal: ${topTypes(rows.flatMap(({ c }) => c.compare.staffMissTypes))}</div>`;
   $("#cmp-list").innerHTML = rows.map(({ c, i }) => { const k = c.compare;
     return `<div class="cmp-call"><div class="cmp-h"><b>${fmtTime(c.at)}</b>${k.line ? `<span class="tag">línea ${esc(k.line)}</span>` : ""}${c.answeredBy ? `<span class="tag">${esc(c.answeredBy)}</span>` : ""}${gradeBadge({ grade: k.grade })}${staffBadge({ staffGrade: k.staffGrade })}${unclearBadge(c)}
-      <span class="tag" title="Elvi en la llamada → Elvi hoy (replay con arreglos actuales)">Elvi ${k.elviLiveScore !== k.elviScore ? pct(k.elviLiveScore) + " → " : ""}${pct(k.elviScore)}</span><span class="tag">Personal ${pct(k.staffScore)}</span><span class="tag">Read-back: ${k.readback === "none" ? "no" : "sí (" + esc(k.readback) + ")"}</span>
+      <span class="tag" title="Elvi en la llamada → Elvi hoy (replay con arreglos actuales)">Elvi ${k.elviLiveScore !== k.elviScore ? pct(k.elviLiveScore) + " → " : ""}${pct(k.elviScore)}</span>${replayTag(c)}<span class="tag">Personal ${pct(k.staffScore)}</span><span class="tag">Read-back: ${k.readback === "none" ? "no" : "sí (" + esc(k.readback) + ")"}</span>
       <a href="#" data-open="${i}">▶ grabación / transcripción</a></div>
       <div class="cmp-cols">${cmpCol("Orden correcta", k.truth, [], true)}${cmpCol("Ticket del personal", k.truth, realLines(c.ticket?.lines), false)}${cmpCol("Elvi hoy (replay)", k.truth, realLines(c.elvi), false)}</div>
       ${c.elviLive && k.elviLiveScore !== k.elviScore ? `<details class="note"><summary>Elvi en la llamada (${pct(k.elviLiveScore)})</summary><div class="cmp-cols">${cmpCol("Elvi en la llamada", k.truth, realLines(c.elviLive), false)}</div></details>` : ""}${k.corrected?.length ? `<div class="note">Fuente: ${esc(k.corrected.join("; "))}</div>` : ""}</div>`; }).join("") || `<div class="empty">Sin llamadas calificadas${cmpGrade === "bg" ? " best/good — prueba «Todas»" : ""}.</div>`;

@@ -1569,6 +1569,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       const live = c?.elviCartLive ? toPosLines(elviLines(c.elviCartLive, menu), posCat) : null;
       if (live && c.fulfillment === "DELIVERY" && live.length) live.push(deliveryFeeLine(c.deliveryFeeCents));
       r.elviLive = live; r.rescoredAt = c?.rescoredAt || null;
+      r.replay = c?.replayScores ? { scores: c.replayScores, varies: !!c.replayVaries, head: c.replayHead || null } : null; // replay3
       r.compare = compareRow({ ...r, calledNumber: c?.calledNumber });
       if (r.compare) { r.scoreVsTicket = r.score; r.score = r.compare.elviScore; }
     }

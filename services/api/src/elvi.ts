@@ -387,9 +387,9 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
         return { ...a, itemId: qd.id, modifiers: kept };
       }
     }
-    const words = [...recent.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquera)\b/g)].map((m) => m[1]);
+    const words = [...recent.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquer[oa]s?|street|chiquitos?)\b/g)].map((m) => m[1]); // qty1: "del chiquito, taquero" is the street taco
     const lastW = words[words.length - 1];
-    const want = !lastW ? null : /harina|flour/.test(lastW) ? /harina|flour|\(QHR\)/i : /taquera/.test(lastW) ? /taquera/i : /comal|homemade|\(QCO\)/i;
+    const want = !lastW ? null : /harina|flour/.test(lastW) ? /harina|flour|\(QHR\)/i : /taquer|street|chiquit/.test(lastW) ? /taquer|street|\(TST\)/i : /comal|homemade|\(QCO\)/i;
     const item = menu.find((i: any) => i.id === a.itemId);
     if (want && item) for (const g of item.modifierGroups || []) {
       const opts = (g.options || []).map((o: any) => String(o.name));

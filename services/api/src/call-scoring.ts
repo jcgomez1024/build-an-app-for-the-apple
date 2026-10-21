@@ -158,6 +158,29 @@ export function cleanPhrase(text: string): string {
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup)\b/iu;
 const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
+const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
+/** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
+ *  add keeps the 2 already asked for. Only when the answer's first clause names no quantity of its own, the dish is the one
+ *  the caller just asked for, and the AI rang 1. Mutates acts in place. */
+export function isRestatement(text: string, a: any, cart: any[], sig: (x: any) => string): boolean {
+  if (a?.type !== "add_item") return false;
+  const t = String(text).trim().replace(/[.,!¡¿?]+$/u, "");
+  const m = t.match(/^(?:y\s+)?(dos|tres|cuatro|cinco|seis|\d+)\s+de\s+[\p{L} ]{3,30}$/iu);
+  if (!m || /\b(m[aá]s|otr[oa]s|tambi[eé]n|also|more)\b/i.test(t) || FOOD.test(t)) return false;
+  const n = QTY_N[m[1].toLowerCase()] || Number(m[1]);
+  return cart.some((l: any) => sig(l) === sig(a) && (l.quantity || 1) === n && (a.quantity || 1) === n);
+}
+export function carryAskedQty(acts: any[], text: string, prevCustomer: string, answering: boolean) {
+  if (!answering || !prevCustomer) return;
+  const m = prevCustomer.match(/\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|\d+)\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|sopesa[sz]os|huaraches|tostadas|tamales|enchiladas)\b/i);
+  if (!m) return;
+  const n = QTY_N[m[1].toLowerCase()] || Number(m[1]); if (!(n > 1)) return;
+  const first = text.split(/[.;!?]|\s+y\s+(?:tambi[eé]n\s+)?|\s+and\s+/i)[0] || "";
+  if (/\b(un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six|\d+)\b/i.test(first)) return;
+  const stem = m[2].toLowerCase().replace(/(?:es|s)$/, "").replace(/sopesaz?o?/, "sopesaso").replace(/sope$/, "sope");
+  const adds = acts.filter((a) => a?.type === "add_item" && String(a.itemId || "").toLowerCase().includes(stem.slice(0, 5)));
+  if (adds.length === 1 && (adds[0].quantity || 1) === 1) adds[0].quantity = n;
+}
 export const isClosing = (t: string) => {
   let s = t.trim();
   if (!s || FOOD.test(s)) return false;
@@ -388,6 +411,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)));
       return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], a.modifiers || []) }] : [];
     });
+    carryAskedQty(acts, text, history.length >= 4 ? history[history.length - 4].text : "", answering);
+    // qty1: "dos de bistec" right after 2 bistec were rung (no dish noun, no más/otros) restates that line — not 2 more
+    for (let i = acts.length - 1; i >= 0; i--) if (isRestatement(text, acts[i], cart, sig)) acts.splice(i, 1);
     apply(acts);
     // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
     if (SMALL_SOPE.test(applySharedAliases(text, "phone"))) for (const l of touchedNow) if (/sopes[ae]so/i.test(l.itemId)) l.posSize = "small";

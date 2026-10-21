@@ -50,6 +50,8 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
         // live1: first processing = "Elvi en la llamada" (that day's code); later rescores = "Elvi hoy" (current fixes)
         if (!e.rescoredBy && (c as any).elviCartLive === undefined) (c as any).elviCartLive = e.elviOrder?.cart || [];
         if (e.rescoredBy) (c as any).rescoredAt = e.ts;
+        // replay3: fresh-replay runs behind the current order (median run); a later plain rescore clears them
+        (c as any).replayScores = Array.isArray(e.replayScores) ? e.replayScores : null; (c as any).replayVaries = !!e.replayVaries; (c as any).replayHead = e.replayHead || null;
         if (e.elviOrder?.fulfillment) c.fulfillment = e.elviOrder.fulfillment;
         if (e.elviOrder?.customerName) (c as any).elviName = e.elviOrder.customerName; // namecheck1
         if (!c.language && e.greetingLanguage) c.language = e.greetingLanguage;
