@@ -457,7 +457,11 @@ const HOLD_MUSIC_DEFAULT = "http://com.twilio.music.guitars.s3.amazonaws.com/Pit
 const HOLD_MUSIC = process.env.TWILIO_HOLD_MUSIC || ""; // empty → use local loop via play URL when base known
 
 // ---- counter-phone state (in memory; resets when the API restarts) ----
-type Entry = { callSid: string; from: string; name: string | null; line: string; queue: string; language: Lang; training: boolean; at: number; lastSeen: number; heldAt?: number };
+type Entry = { callSid: string; from: string; name: string | null; line: string; queue: string; language: Lang; training: boolean; at: number; lastSeen: number; heldAt?: number; introEndsAt?: number };
+/** ring2: the greeting + recording notice length before the caller is in the queue (no bridge before it ends). */
+export const INTRO_MS = () => Math.max(0, Number(process.env.TWILIO_INTRO_MS ?? 5500) || 0);
+/** ring2: seconds a ring leg must still wait before dialing the queue, so the notice always finishes first. */
+export const bridgeWaitSec = (introEndsAt: number | undefined, now = Date.now()) => (introEndsAt && introEndsAt > now ? Math.ceil((introEndsAt - now) / 1000) : 0);
 const waiting = new Map<string, Entry>(); // customer CallSid -> waiting in a line queue
 const held = new Map<string, Entry>(); // customer CallSid -> put on hold by staff (own queue hold-<sid>)
 const active = new Map<string, Entry & { agentSid: string; since: number }>(); // agent CallSid -> bridged call
@@ -1326,8 +1330,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const music = HOLD_MUSIC || (promptFile("hold-music-loop") ? `${base}/api/twilio/prompts/hold-music-loop.mp3` : HOLD_MUSIC_DEFAULT);
     const msg = playOrSay(base, lang, (isHeld ? HELD_TEXT : HOLD_TEXT)[lang], isHeld ? `held-${lang}` : `hold-${lang}`);
     if (isHeld) return `${msg}<Play>${xmlEscape(music)}</Play>`;
-    const sw = HOLD_SWITCH[lang];
-    return `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST">${playOrSay(base, sw.voice, sw.text, sw.key)}${msg}<Play>${xmlEscape(music)}</Play></Gather>`;
+    void HOLD_SWITCH; // ring2 (Carlos): no "For English, press 2" — Spanish only for new callers; language is corrected after the call
+    return `<Gather input="dtmf" numDigits="1" timeout="1" action="${base}/api/twilio/hold-key?lang=${lang}" method="POST">${msg}<Play>${xmlEscape(music)}</Play></Gather>`;
   };
 
   const voicemailXml = (base: string, lang: Lang) =>
@@ -1340,7 +1344,9 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     // loop Leaves to voicemail after a few seconds (covers tsx reloads that wipe in-memory presence).
     const now = Date.now();
     const online = agentOnline();
-    waiting.set(sid, { callSid: sid, from, name, line: to, queue, language: lang, training: isTrainingCaller(from), at: now, lastSeen: now });
+    waiting.set(sid, { callSid: sid, from, name, line: to, queue, language: lang, training: isTrainingCaller(from), at: now, lastSeen: now, introEndsAt: now + INTRO_MS() });
+    // ring2: ring the staff phones NOW, in parallel with the greeting + notice (ring-accept waits for the notice to end).
+    if (process.env.TWILIO_RING_EARLY !== "0" && base) { const w = waiting.get(sid); if (w) void startRings(base, w).catch(() => {}); }
     if (sid) { callNames.set(sid, name); if (to) callLines.set(sid, to); }
     logCall({ event: online ? "queued" : "queued_soft_offline", callSid: sid, caller: from, line: to, queue, agentAgeMs: agentAgeMs(), ringMode: lineRingMode(to) });
     if (lineRingMode(to) === "desk" && !online) logCall({ event: "desk_offline", callSid: sid, caller: from, line: to, fallbackCells: deskFallbackCells(), agentAgeMs: agentAgeMs(), note: deskFallbackCells() ? "desk offline → ringing cells (fallback on)" : "desk offline, fallback off → voicemail after ~8 s on hold" });
@@ -1527,7 +1533,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       if (whisper.startsWith("<Say")) whisper = "";
     }
     logCall({ event: "whisper", callSid: target.callSid, played: !!whisper, via: "counter" });
-    res.type("text/xml").send(xml(`${whisper}<Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${base}/api/twilio/recording?leg=queue" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${base}/api/twilio/agent-done" method="POST"><Queue url="${base}/api/twilio/bridge" method="POST">${xmlEscape(queue)}</Queue></Dial>`));
+    const tapWait = heldSid ? 0 : bridgeWaitSec(target.introEndsAt); // ring2: counter tap during the notice waits for it
+    res.type("text/xml").send(xml(`${whisper}${tapWait ? `<Pause length="${tapWait}"/>` : ""}<Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${base}/api/twilio/recording?leg=queue" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${base}/api/twilio/agent-done" method="POST"><Queue url="${base}/api/twilio/bridge" method="POST">${xmlEscape(queue)}</Queue></Dial>`));
   });
 
   // Queue url: runs on the customer's side right before the bridge. Confirms who was really dequeued.
@@ -1635,7 +1642,9 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     }
     active.set(ringSid, { ...target, agentSid: ringSid, since: Date.now() });
     logCall({ event: "whisper", callSid: target.callSid, played: true, via: "desk", ringCallSid: ringSid, ringTo: req.body?.To, accepted: true });
-    res.type("text/xml").send(xml(`<Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${base}/api/twilio/recording?leg=queue" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${base}/api/twilio/agent-done?via=desk" method="POST"><Queue url="${base}/api/twilio/bridge" method="POST">${xmlEscape(queue)}</Queue></Dial>`));
+    const waitSec = bridgeWaitSec(target.introEndsAt); // ring2: never bridge before the recording notice ends
+    if (waitSec) logCall({ event: "bridge_wait", callSid: target.callSid, ringCallSid: ringSid, waitSec });
+    res.type("text/xml").send(xml(`${waitSec ? `<Pause length="${waitSec}"/>` : ""}<Dial timeout="30" record="record-from-answer-dual" recordingStatusCallback="${base}/api/twilio/recording?leg=queue" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${base}/api/twilio/agent-done?via=desk" method="POST"><Queue url="${base}/api/twilio/bridge" method="POST">${xmlEscape(queue)}</Queue></Dial>`));
   });
   // Ring leg finished (no-answer / busy / canceled / completed). The hold loop re-rings while the caller still waits.
   // ringsms1: delivery status of the ring-time texts (queued/sent/delivered/undelivered/failed + ErrorCode, e.g. 30034).
