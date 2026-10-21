@@ -335,7 +335,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   const say = async (text: string, language: "es" | "en", source: string) => {
     const r = await run(text, language, history.slice(-24));
-    history.push({ role: "customer", text }, { role: "assistant", text: String(r?.reply || "") });
+    // suggest1: listen-only — staff, not Elvi, answer the caller, so Elvi's offer never becomes answerable here.
+    const said = String(r?.reply || ""), offer = String(r?.offerText || "");
+    history.push({ role: "customer", text }, { role: "assistant", text: offer && said.endsWith(offer) ? said.slice(0, -offer.length).trim() : said });
     const wasLast = lastTouched;
     touchedNow.length = 0;
     // fix1036: Elvi re-adding dishes from history on a turn that names no dish, drink or quantity and answers no

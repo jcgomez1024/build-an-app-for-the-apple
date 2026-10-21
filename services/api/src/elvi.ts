@@ -1,5 +1,6 @@
 import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
+import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
@@ -1635,6 +1636,20 @@ export function toppingCorrection(input: Pick<ElviRequest, "sessionKey" | "trans
   return { language: input.language, engine: "xai", reply: `${note} ${rb}`.trim(), actions: [action] } as ElviResponse;
 }
 
+/** suggest1: "sí" to Elvi's one offer → add exactly the offered options to that item; "no" → nothing. */
+export function offerReply(input: ElviRequest): ElviResponse | null {
+  const lastReply = [...(input.history || [])].reverse().find((h) => h.role === "assistant")?.text || "";
+  const ans = offerAnswer(input.sessionKey, String(input.transcript || ""), lastReply);
+  if (!ans) return null;
+  const es = input.language !== "en";
+  const last = input.sessionKey ? lastAddBySession.get(input.sessionKey) : undefined;
+  if (!ans.yes || !last || last.itemId !== ans.itemId) return { language: input.language, engine: "xai", reply: es ? "Perfecto. ¿Algo más?" : "Sounds good. Anything else?", actions: [] } as ElviResponse;
+  const menu = ((input as any).resolverMenu || input.menu || []) as MenuItem[];
+  const mods = [...(last.modifiers || []), ...ans.offer.options.filter((o) => !(last.modifiers || []).some((m: any) => m.option === o.option)).map((o) => ({ step: o.group, option: o.option }))];
+  const action: any = { type: "update_item", itemId: last.itemId, quantity: last.quantity, modifiers: mods, correction: true };
+  return { language: input.language, engine: "xai", reply: addReadback([{ type: "add_item", itemId: last.itemId, quantity: last.quantity, modifiers: mods } as any], menu, input.language), actions: [action] } as ElviResponse;
+}
+
 export function quantityCorrection(input: Pick<ElviRequest, "sessionKey" | "transcript" | "language" | "menu"> & { resolverMenu?: MenuItem[] }): ElviResponse | null {
   const key = input.sessionKey;
   const last = key ? lastAddBySession.get(key) : undefined;
@@ -1715,12 +1730,16 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   }
   const small = appSmallSopeReply(input);
   if (small) return small;
+  const offered = offerReply(input);
+  if (offered) { recordLastAdd(input.sessionKey, offered.actions); return offered; }
   const fixed = quantityCorrection(input);
   if (fixed) { recordLastAdd(input.sessionKey, fixed.actions); return fixed; }
   const topping = toppingCorrection(input);
   if (topping) { recordLastAdd(input.sessionKey, topping.actions); return topping; }
   const result = await chatWithElviCore(input, runtimeConfig);
-  const final = withSalsaDefault(result, input.transcript || "", ((input as any).resolverMenu || input.menu || []) as MenuItem[], (result.language || input.language) as Language);
+  const salsa = withSalsaDefault(result, input.transcript || "", ((input as any).resolverMenu || input.menu || []) as MenuItem[], (result.language || input.language) as Language);
+  // suggest1: one learned, free-option question per item (reply only; actions/rules untouched).
+  const final = withLearnedSuggestion(salsa, { sessionKey: input.sessionKey, heard: input.transcript || "", lang: ((result.language || input.language) === "en" ? "en" : "es"), menu: ((input as any).resolverMenu || input.menu || []) as any[] });
   recordLastAdd(input.sessionKey, final.actions);
   return final;
 }
