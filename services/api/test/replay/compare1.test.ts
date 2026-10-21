@@ -11,3 +11,9 @@ test("cmp1: ticket matches, Elvi missed a meat → staff 100, Elvi lower, line f
   assert.equal(c.truth.length, 1);
 });
 test("cmp1: no ticket → no comparison", () => { assert.equal(compareRow({ callSid: "CAx", ticket: null, elvi: [], score: null }), null); });
+test("live1: live-call order scored separately from today's replay", () => {
+  const row = { callSid: "CAsyntheticlive1", at: "2026-10-01T16:00:00Z", score: 100, turns: [], ticket: { lines: [L(2, ["Bistec / Steak"])] },
+    elvi: [L(2, ["Bistec / Steak"])], elviLive: [L(1, ["Bistec / Steak"])], audit: { flags: [] }, unclear: null };
+  const c = compareRow(row)!;
+  assert.equal(c.elviScore, 100); assert.ok((c.elviLiveScore ?? 100) < 100); assert.ok(c.elviLiveMissTypes.length >= 1);
+});

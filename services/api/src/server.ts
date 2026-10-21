@@ -1562,7 +1562,16 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       r.ticket.receiptUrl = rc?.receiptUrl || null;
     }));
     // cmp1: comparison data (correct order + scores against it) for the "Comparar" view; same rows, same PIN
-    for (const r of rows as any[]) { const c = calls.find((x) => x.callSid === r.callSid); r.compare = compareRow({ ...r, calledNumber: c?.calledNumber }); }
+    // live1: one definition everywhere — Elvi's score = "Elvi hoy" (latest replay) against the correct order; the live-call
+    // order is kept as "Elvi en la llamada". scoreVsTicket keeps the old raw ticket comparison for reference.
+    for (const r of rows as any[]) {
+      const c: any = calls.find((x) => x.callSid === r.callSid);
+      const live = c?.elviCartLive ? toPosLines(elviLines(c.elviCartLive, menu), posCat) : null;
+      if (live && c.fulfillment === "DELIVERY" && live.length) live.push(deliveryFeeLine(c.deliveryFeeCents));
+      r.elviLive = live; r.rescoredAt = c?.rescoredAt || null;
+      r.compare = compareRow({ ...r, calledNumber: c?.calledNumber });
+      if (r.compare) { r.scoreVsTicket = r.score; r.score = r.compare.elviScore; }
+    }
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
     res.json({ calls: rows, trend: trend(customer.filter((r: any) => !r.unclear)), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }

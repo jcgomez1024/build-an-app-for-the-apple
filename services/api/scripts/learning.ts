@@ -39,6 +39,11 @@ async function build() {
   fs.writeFileSync(path.join(dir, "readback-phrases.json"), JSON.stringify(L.readbackPhrases((data.calls || []).filter((r: any) => r.source !== "training")), null, 1));
   const wk = acc.length ? acc[acc.length - 1].week : "";
   J("report.json", { generatedAt: new Date().toISOString(), readbacks, grades: L.gradeStats(phone as any), staffGrades: L.staffGradeByDevice(phone as any), gradeWeights: L.gradeWeights(), examples: { phone: phone.length, app: app.length, appPaid: app.filter((a) => a.weight === 1).length, staffCorrected: phone.filter((p: any) => p.corrected.length).length },
+    // live1: same definition as calls.html / Comparar — against the correct order, clear calls only
+    elviScoreDefinition: "Elvi hoy = replay with current fixes vs correct order; Elvi en la llamada = first processing that day",
+    elviLiveVsToday: (() => { const cs = (data.calls || []).filter((r: any) => r.compare && !r.unclear && r.source !== "training" && r.compare.elviScore != null);
+      const av = (a: number[]) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+      return { calls: cs.length, live: av(cs.map((r: any) => r.compare.elviLiveScore)), today: av(cs.map((r: any) => r.compare.elviScore)), staff: av(cs.map((r: any) => r.compare.staffScore).filter((x: any) => x != null)) }; })(),
     voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk) });
   return { phone: phone as any[], app, data };
 }

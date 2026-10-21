@@ -47,6 +47,9 @@ export function loadCalls(sinceDays = 60): CallRecord[] {
       if (e.event === "recording") { // latest processing wins (reprocessed calls)
         c.recordingSid = e.recordingSid; c.recordingSec = Number(e.durationSec) || 0; c.file = e.file;
         c.turns = e.turns; c.transcript = e.transcript; c.elviCart = e.elviOrder?.cart || []; c.error = undefined;
+        // live1: first processing = "Elvi en la llamada" (that day's code); later rescores = "Elvi hoy" (current fixes)
+        if (!e.rescoredBy && (c as any).elviCartLive === undefined) (c as any).elviCartLive = e.elviOrder?.cart || [];
+        if (e.rescoredBy) (c as any).rescoredAt = e.ts;
         if (e.elviOrder?.fulfillment) c.fulfillment = e.elviOrder.fulfillment;
         if (e.elviOrder?.customerName) (c as any).elviName = e.elviOrder.customerName; // namecheck1
         if (!c.language && e.greetingLanguage) c.language = e.greetingLanguage;
