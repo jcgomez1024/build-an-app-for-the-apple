@@ -14,3 +14,11 @@ test("ring2: hold loop has no 'For English, press 2'", async () => {
   const hold = src.slice(src.indexOf("const holdTwiml"), src.indexOf("const voicemailXml"));
   assert.doesNotMatch(hold, /playOrSay\(base, sw\.voice/);
 });
+test("instant1: auto-connect (TWILIO_PRESS1=0) skips the whisper unless TWILIO_AUTO_WHISPER=1", async () => {
+  const src = (await import("node:fs")).readFileSync(new URL("../../src/twilio.ts", import.meta.url), "utf8");
+  const i = src.indexOf('process.env.TWILIO_PRESS1 === "0" && process.env.TWILIO_AUTO_WHISPER !== "1"');
+  assert.ok(i > 0);
+  const branch = src.slice(i, src.indexOf("}", src.indexOf("return res.type", i)));
+  assert.match(branch, /<Redirect method="POST">\$\{action\}&amp;auto=1<\/Redirect>/);
+  assert.doesNotMatch(branch, /whisper\s*\|\||playCloned/);
+});

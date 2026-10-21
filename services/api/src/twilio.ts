@@ -1630,6 +1630,11 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const action = `${base}/api/twilio/ring-accept?cust=${encodeURIComponent(custSid)}&amp;q=${encodeURIComponent(qParam || orig.queue)}`;
     // autoconnect1: TWILIO_PRESS1=0 → whisper "Llamada de {name}" (or "Llamada de Cocina Elvis") then connect, no keypress.
     // Carrier voicemail protection = short ring timeout (TWILIO_RING_TIMEOUT_SEC). Counter tap still wins in /ring-accept.
+    if (process.env.TWILIO_PRESS1 === "0" && process.env.TWILIO_AUTO_WHISPER !== "1") {
+      // instant1 (Carlos): auto-connect with NO whisper — straight to the bridge (notice-hold still applies in ring-accept).
+      logCall({ event: "ring_answered", callSid: custSid, ringCallSid: ringSid, ringTo: req.body?.To, whisper: false, auto: true });
+      return res.type("text/xml").send(xml(`<Redirect method="POST">${action}&amp;auto=1</Redirect>`));
+    }
     if (process.env.TWILIO_PRESS1 === "0") {
       if (!whisper) { whisper = await playCloned(base, "es", "Llamada de Cocina Elvis.", "whisper-es-generic", "whisper-es-generic"); if (whisper.startsWith("<Say")) whisper = ""; }
       logCall({ event: "ring_answered", callSid: custSid, ringCallSid: ringSid, ringTo: req.body?.To, whisper: !!whisper, auto: true });
