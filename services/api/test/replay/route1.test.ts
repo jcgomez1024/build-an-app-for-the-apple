@@ -28,3 +28,10 @@ test("route1: unknown line / unset config → both (old behavior)", () => {
   const saved = process.env.TWILIO_LINE_RING; delete process.env.TWILIO_LINE_RING;
   assert.equal(lineRingMode("+15550009001"), "both"); process.env.TWILIO_LINE_RING = saved;
 });
+test("route1: 'cells+desk' = both (cells ring and the counter page gets it)", () => {
+  const saved = process.env.TWILIO_LINE_RING; process.env.TWILIO_LINE_RING = "9001:cells+desk,9002:desk";
+  assert.equal(lineRingMode("+15550009001"), "both"); assert.equal(deskTakesLine("+15550009001"), true);
+  assert.deepEqual(ringNumbersFor("+15550009001", true), ["+15550001111", "+15550002222"]);
+  assert.deepEqual(ringNumbersFor("+15550009002", false), []);
+  process.env.TWILIO_LINE_RING = saved;
+});

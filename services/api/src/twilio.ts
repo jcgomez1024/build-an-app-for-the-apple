@@ -1035,7 +1035,7 @@ export function lineRingMode(line: string): RingMode {
   const n = d10(line);
   for (const part of String(process.env.TWILIO_LINE_RING || "").split(",")) {
     const [k, v] = part.split(":").map((x) => x.trim().toLowerCase());
-    if (k && n && n.endsWith(k.replace(/\D/g, "")) && (v === "cells" || v === "desk" || v === "both")) return v as RingMode;
+    if (k && n && n.endsWith(k.replace(/\D/g, "")) && (v === "cells" || v === "desk" || v === "both" || v === "cells+desk" || v === "desk+cells")) return (v.includes("+") ? "both" : v) as RingMode;
   }
   return "both";
 }
