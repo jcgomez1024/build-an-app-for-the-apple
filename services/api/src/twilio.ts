@@ -1172,6 +1172,12 @@ async function sendRingSms(base: string, cust: Entry) {
     } catch (e) { logCall({ event: "ring_sms_error", callSid: cust.callSid, to: n, error: e instanceof Error ? e.message : String(e) }); }
   }
 }
+/** ringtime1: ring-leg REST body — also ask Twilio for initiated / ringing / answered events (timeline in the call log). */
+export function ringLegBody(p: Record<string, string>) {
+  const b = new URLSearchParams(p);
+  for (const ev of ["initiated", "ringing", "answered", "completed"]) b.append("StatusCallbackEvent", ev);
+  return b;
+}
 async function startRings(base: string, cust: Entry) {
   void sendRingSms(base, cust).catch(() => {}); // ringsms1: never blocks ringing
   const skip = ringNoAccept.get(cust.callSid);
@@ -1193,7 +1199,7 @@ async function startRings(base: string, cust: Entry) {
       try {
         const place = (from: string) => fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Calls.json`, {
           method: "POST", headers: { Authorization: twAuth(), "content-type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
+          body: ringLegBody({
             To: to, From: from, Timeout: String(ringTimeoutSec()),
             Url: `${base}/api/twilio/ring-answer?cust=${encodeURIComponent(cust.callSid)}&q=${encodeURIComponent(cust.queue)}`, Method: "POST",
             StatusCallback: `${base}/api/twilio/ring-status?cust=${encodeURIComponent(cust.callSid)}`, StatusCallbackMethod: "POST",
@@ -1671,6 +1677,9 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
   app.post("/api/twilio/ring-status", form, guard, (req, res) => {
     const ringSid = String(req.body?.CallSid || "");
     const custSid = String(req.query.cust || "");
+    // ringtime1: progress events are logged only — they must not end the leg (that was "completed"-only before).
+    const st = String(req.body?.CallStatus || "");
+    if (/^(initiated|ringing|in-progress|answered|queued)$/.test(st)) { logCall({ event: "ring_progress", callSid: custSid, ringCallSid: ringSid, ringTo: req.body?.To, status: st, sequence: req.body?.SequenceNumber, timestamp: req.body?.Timestamp }); return res.sendStatus(204); }
     const legs = ringing.get(custSid);
     legs?.delete(ringSid);
     if (legs && !legs.size) ringing.delete(custSid);
