@@ -20,6 +20,6 @@ const menu = await getMenu(cfg); const resolverMenu = await getFullMenu(cfg).cat
 const key = `rescore-${sid.slice(-12)}-${Date.now()}`;
 const run = async (transcript: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: transcript.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: key } as any, { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model } as any);
 const r: any = await shadowOrderFromTurns(rec.turns.map((t: any) => ({ ...t })), run as any);
-for (const s of r.steps) if (s.source !== "staff") console.log(" ", s.source, "|", String(s.heard||"").slice(0,70), "=>", String(s.reply || "").slice(0, 90), s.actions || "");
+for (const s of r.steps) if (s.source !== "staff") console.log(" ", s.source, "|", String(s.heard||"").slice(0,200), "=>", String(s.reply || "").slice(0, 90), s.actions || "");
 console.log("fulfillment", r.fulfillment, "cart", r.cart.map((l: any) => `${l.quantity}×${l.itemId} ${(l.modifiers || []).map((m: any) => m.option).join("+")}`));
 if (!dry) fs.appendFileSync(path.join(dir, file), JSON.stringify({ ...rec, ts: new Date().toISOString(), elviOrder: r, rescoredBy: "fix1036" }) + "\n");

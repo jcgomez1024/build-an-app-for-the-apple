@@ -98,9 +98,20 @@ async function nightly() {
   const avg = (xs: any[]) => { const W = xs.reduce((a, x) => a + wOf(x), 0); return xs.length ? Math.round((xs.reduce((a, x) => a + x.score * wOf(x), 0) / W) * 10) / 10 : null; };
   const ok = evals.filter((x) => x.score != null && !messy.has(x.ref)), okMessy = evals.filter((x) => x.score != null && messy.has(x.ref));
   const mean = avg(ok), messyMean = avg(okMessy);
+  // train1: training calls (staff test calls) are replayed too — tracked as their own number, never in customer accuracy,
+  // and guarded: a candidate may not regress them, and a drop vs the last nightly is listed as a regression
+  const trainEx: any[] = (data.calls || []).filter((r: any) => r.source === "training").map((r: any) => { try { return L.phoneExample(r); } catch { return null; } }).filter(Boolean);
+  for (const e of trainEx) rows.set(e.ref, (data.calls || []).find((r: any) => L.ref(r.callSid) === e.ref));
+  const trainEvals: any[] = [];
+  for (const e of trainEx) { try { const r = await replay(rows.get(e.ref), e.truthLines); trainEvals.push({ ref: e.ref, score: r.score }); } catch { trainEvals.push({ ref: e.ref, score: null }); } }
+  const trainRefs = new Set(trainEx.map((e: any) => e.ref));
+  const tAvg = (xs: any[]) => { const v = xs.filter((x) => x.score != null); return v.length ? Math.round(v.reduce((a, x) => a + x.score, 0) / v.length * 10) / 10 : null; };
+  const prevNight = (() => { try { const ls = fs.readFileSync(path.join(dir, "nightly.jsonl"), "utf8").trim().split("\n"); return JSON.parse(ls[ls.length - 1]); } catch { return null; } })();
+  const trainingRegressions = trainEvals.filter((x) => { const b = prevNight?.training?.perExample?.find((p: any) => p.ref === x.ref)?.score; return b != null && x.score != null && x.score < b; })
+    .map((x) => ({ ref: x.ref, before: prevNight.training.perExample.find((p: any) => p.ref === x.ref).score, after: x.score }));
   const gradeOf = (ref: string) => (phone.find((e: any) => e.ref === ref) as any)?.grade || "medium";
   const perGrade: Record<string, any> = {}; for (const g of ["best", "good", "medium", "bad"]) { const xs = evals.filter((x) => x.score != null && gradeOf(x.ref) === g); perGrade[g] = { replayed: xs.length, elviReplayAccuracy: avg(xs) }; }
-  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, perGrade, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
+  fs.appendFileSync(path.join(dir, "nightly.jsonl"), JSON.stringify({ at: new Date().toISOString(), examples: phone.length, replayed: ok.length, elviReplayAccuracy: mean, messy: { replayed: okMessy.length, elviReplayAccuracy: messyMean }, training: { replayed: trainEvals.filter((x) => x.score != null).length, elviReplayAccuracy: tAvg(trainEvals), regressions: trainingRegressions, perExample: trainEvals }, perGrade, memoryEntries: K.loadMemory().length, perExample: evals }) + "\n");
   // 2) self-retry: each miss → candidate memory entries from the customer-truth, retried up to N attempts
   const approved = K.loadMemory(); const queue = K.readPending();
   /** unclear1 gates (after the normal ones): every messy call is replayed too and may not regress; a candidate that comes
@@ -108,12 +119,13 @@ async function nightly() {
   const messyGate = async (cand: any, mem: any, replays: any[]) => {
     if (cand.status === "rejected") return;
     K.setMemoryOverride([...approved, mem]);
-    const guard = new Set([...messy, ...phone.filter((e: any) => e.grade === "best" || e.grade === "good").map((e: any) => e.ref)]); // grade1
-    for (const ref of guard) { if (ref === cand.callRef || replays.some((x: any) => x.ref === ref)) continue; const ex: any = phone.find((x: any) => x.ref === ref); const b = evals.find((x) => x.ref === ref)?.score; try { const a = await replay(rows.get(ref), ex.truthLines); replays.push({ ref, before: b, after: a.score, messy: messy.has(ref), grade: gradeOf(ref) }); } catch { replays.push({ ref, before: b, after: -1, messy: messy.has(ref), grade: gradeOf(ref) }); } }
+    const guard = new Set([...messy, ...trainRefs, ...phone.filter((e: any) => e.grade === "best" || e.grade === "good").map((e: any) => e.ref)]); // grade1 + train1
+    for (const ref of guard) { if (ref === cand.callRef || replays.some((x: any) => x.ref === ref)) continue; const ex: any = phone.find((x: any) => x.ref === ref) || trainEx.find((x: any) => x.ref === ref); const b = (evals.find((x) => x.ref === ref) || trainEvals.find((x) => x.ref === ref))?.score; try { const a = await replay(rows.get(ref), ex.truthLines); replays.push({ ref, before: b, after: a.score, messy: messy.has(ref), grade: gradeOf(ref) }); } catch { replays.push({ ref, before: b, after: -1, messy: messy.has(ref), grade: gradeOf(ref) }); } }
     K.setMemoryOverride(null);
     for (const x of replays) x.grade = x.grade || gradeOf(x.ref);
     if (replays.some((x: any) => (x.grade === "best" || x.grade === "good") && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a best/good call"; return; }
     if (replays.some((x: any) => x.messy && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a messy call"; return; }
+    if (replays.some((x: any) => trainRefs.has(x.ref) && x.before != null && x.after < x.before)) { cand.status = "rejected"; cand.reason = "auto: regresses a training call"; return; } // train1
     if (messy.has(cand.callRef) && !replays.some((x: any) => !messy.has(x.ref) && x.before != null && x.after >= x.before)) { cand.status = "rejected"; cand.reason = "auto: based only on a messy call (no clear call helped or held)"; }
   };
   const clausesOf = (e: any) => e.turns.filter((t: any) => t.speaker === "caller").flatMap((t: any) => { const s = splitDishClauses(t.text); return s.length ? s : K.dishOf(t.text) ? [t.text] : []; });
@@ -193,7 +205,7 @@ async function nightly() {
   }
   saveCache();
   K.writePending(queue);
-  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, perGrade, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
+  console.log(JSON.stringify({ examples: phone.length, elviReplayAccuracy: mean, messyReplayAccuracy: messyMean, trainingReplayAccuracy: tAvg(trainEvals), trainingRegressions: trainingRegressions.length, perGrade, pending: queue.filter((x) => x.status === "pending").length, rejected: queue.filter((x) => x.status === "rejected").length }));
 }
 
 if (cmd === "build") { const b = await build(); console.log(JSON.stringify({ phone: b.phone.length, app: b.app.length })); }

@@ -284,6 +284,13 @@ export function followUpFor(call: CallRecord & { customerName?: string | null },
   return { orderId: String(hit.order.id), source: String(hit.order.source?.name || "online"), state: String(hit.order.state || ""), fulfillment: f.type || null, fulfillmentState: f.state || null,
     dueAt: d.pickup_at || d.deliver_at || null, placedAt: d.placed_at || hit.order.created_at, totalCents: Number(hit.order.total_money?.amount || 0), matchedBy: hit.by };
 }
+/** match3: Jaccard overlap of all chosen options (tortilla, meats, toppings; default salsa ignored) between two orders. */
+export function choiceAgreement(a: Line[], b: Line[]): number {
+  const set = (ls: Line[]) => new Set(ls.flatMap((l) => [l.baseName, ...(l.choices || [])]).map((c) => String(c).replace(/\s*\(\+\$[\d.]+\)/, "").trim().toLowerCase()).filter((c) => c && !/salsa asada/.test(c)));
+  const A = set(a), B = set(b); if (!A.size || !B.size) return 0;
+  let i = 0; for (const x of A) if (B.has(x)) i++;
+  return i / (A.size + B.size - i);
+}
 export function candidateTickets(call: CallRecord & { customerName?: string | null }, elvi: Line[], orders: any[]) {
   if (!hasOrderContent(elvi)) return [];
   const start = Date.parse(call.at);
@@ -299,6 +306,9 @@ export function candidateTickets(call: CallRecord & { customerName?: string | nu
     const nameHit = !!first && (orderNames(o).includes(first) || orderNames(o).some((n: string) => first.length >= 4 && n.length >= 4 && compareNames(first, n) !== "mismatch")); // cheyenne1: 'Cheyenne' ≈ ticket 'Cheyen'
     const overlap = itemOverlap(elvi, lines);
     if (!phoneHit && !nameHit && overlap < 0.5) continue;
+    // match3: an items-only match (no phone, no name) must also agree on the details — 'quesadillas' alone paired a training
+    // call (chorizo/tripa/buche) with an unrelated walk-in ticket (menudo/al pastor) 7 min later
+    if (!phoneHit && !nameHit && choiceAgreement(elvi, lines) < 0.4) continue;
     const tagged = !/point of sale/i.test(String(o.source?.name || "")) || /voice|elvi|phone/i.test(JSON.stringify(o.metadata || {}) + String(o.reference_id || ""));
     const sim = lines.length ? scoreOrder(elvi, lines).score : 0;
     const rank = (phoneHit ? 1000 : 0) + (nameHit ? 500 : 0) + (tagged ? 200 : 0) + overlap * 100 + sim - Math.abs(t - end) / 60000;
