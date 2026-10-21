@@ -130,7 +130,10 @@ const pendingPack = new Map<string, { text: string; at: number }>();
 
 const pendingEnchiladas = new Map<string, { rest: string; at: number }>();
 
-export function preTurn(key: string | undefined, text: string, menu: MenuItem[], language: string, opts: { hasComboState?: boolean } = {}): { reply?: string; text: string; replayed?: boolean; adds?: SplitAdd[] } {
+export type ShellUpdate = { type: "update_item"; itemId: string; quantity: number; modifiers: SplitAdd["modifiers"]; match: string[] };
+export function preTurn(key: string | undefined, text: string, menu: MenuItem[], language: string, opts: { hasComboState?: boolean } = {}): { reply?: string; text: string; replayed?: boolean; adds?: SplitAdd[]; updates?: ShellUpdate[] } {
+  const shellAns = shellConfirmAnswer(key, text, menu, language);
+  if (shellAns) return { text, reply: shellAns.reply, adds: [], updates: shellAns.updates };
   // fix23: kitchen shorthand + STT — campechana = bistec+chorizo; "o mal"/"omal" = comal.
   // aliases1: campechana / o mal / guarache / tepa… come from the shared list (data/aliases/aliases.json).
   text = applySharedAliases(String(text || ""), "app");
@@ -212,7 +215,7 @@ export function preTurn(key: string | undefined, text: string, menu: MenuItem[],
   if (ch?.reply) return { reply: ch.reply, text };
   // fix12: "Ocho tacos" → "8 tacos" so every resolver keeps the count.
   const base = (ch?.text ?? text).replace(/\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven|eight|nine|ten)\s+(?=(tacos|quesadillas|gorditas|tortas|burritos|sopes|tamales|tostadas|enchiladas|elotes|esquites)\b)/gi, (w) => `${num(w.trim())} `);
-  const split = splitSinglesTurn(base, menu, language);
+  const split = splitSinglesTurn(base, menu, language, key);
   if (split) return { reply: split.reply, text: base, adds: split.adds };
   const out = packRewrite(base, menu);
   if (/\b\d+\s*pack\b/i.test(out) && !/\b(todos|todas|all)\b/i.test(out) && !new RegExp(`\\b${NUM_RE}\\b[^]*\\b${NUM_RE}\\b[^]*\\b${NUM_RE}\\b`, "i").test(out)) pendingPack.set(pk, { text: out, at: Date.now() });
@@ -231,7 +234,7 @@ const MEAT_EXTRA: Record<string, RegExp> = { alpastor: /\b(al ?pastor|pastor)\b/
 
 export type SplitAdd = { itemId: string; quantity: number; modifiers: Array<{ groupId: string; groupName: string; option: string; optionId?: string; priceDeltaCents: number }> };
 
-export function splitSinglesTurn(text: string, menu: MenuItem[], language: string): { reply: string; adds: SplitAdd[] } | null {
+export function splitSinglesTurn(text: string, menu: MenuItem[], language: string, key?: string): { reply: string; adds: SplitAdd[] } | null {
   const t = plainText(text);
   if (PACK_WORD.test(t) || /\bcombos?\b/.test(t)) return null;
   const nounM = t.match(/\b(tacos?|quesadillas?)\b/);
@@ -294,6 +297,7 @@ export function splitSinglesTurn(text: string, menu: MenuItem[], language: strin
   const adds: SplitAdd[] = [];
   const asks: string[] = [];
   const es = language === "es";
+  const unnamed: Array<{ add: SplitAdd; meat: any; seg: string }> = []; // tortilla2: lines that didn't name a tortilla
   for (const l of counted) {
     const meat = l.meat || gMeat;
     const shell = l.shell || gShell || def;
@@ -307,6 +311,7 @@ export function splitSinglesTurn(text: string, menu: MenuItem[], language: strin
     }
     if (!meat) return null;
     adds.push({ itemId: item.id, quantity: l.n, modifiers: [mod(shellG, shell), mod(meatG, meat)] });
+    if (!l.shell && !gShell && opts(shellG).length > 1) unnamed.push({ add: adds[adds.length - 1], meat, seg: l.s });
   }
   // Stated total (global count) must equal sum of lines — pad was already enforced by the slice rule above.
   const stated = global.map((l) => l.n).find((n) => n >= 2);
@@ -322,6 +327,18 @@ export function splitSinglesTurn(text: string, menu: MenuItem[], language: strin
     }
   }
   let reply = rbFormat(adds.filter((a) => !(a as any).unknownMeat).map((a) => ({ name: item.name, quantity: a.quantity, mods: a.modifiers.map((m) => ({ option: m.option, group: m.groupName })), cents: ((item.priceCents || 0) + a.modifiers.reduce((x, m) => x + m.priceDeltaCents, 0)) * a.quantity })), language);
+  // tortilla2 (Carlos): a line without a tortilla gets the website default and ONE grouped confirm
+  // ("¿Y los 2 de asada, de comal por igual?"); yes / pause keeps it, naming harina or taquero switches it.
+  if (unnamed.length && def && unnamed.length < counted.length + 1) {
+    const meatWord = (u: { meat: any; seg: string }) => { const said = u.seg.replace(/^.*?\b\d+\s*(?:tacos?|quesadillas?)?\s*(?:de\s+)?/u, "").replace(/[^\p{L}\s]/gu, "").trim() || null; return (said || plainText(String(u.meat.name).split(" / ")[es ? 0 : 1] || u.meat.name)).trim().toLowerCase(); };
+    const who = unnamed.map((u) => es ? `${u.add.quantity === 1 ? "el" : "los"} ${u.add.quantity} de ${meatWord(u)}` : `the ${u.add.quantity} ${meatWord(u)}`);
+    const list = (xs: string[]) => xs.length < 2 ? xs[0] : `${xs.slice(0, -1).join(", ")} ${es ? "y" : "and"} ${xs[xs.length - 1]}`;
+    const defWord = es ? shellWord(def.name, true) : shellWord(def.name, false);
+    const allUnnamed = unnamed.length === counted.length;
+    const q = es ? `¿${allUnnamed ? "Todos" : "Y"} ${list(who).replace(/^el /, "el ").replace(/^los /, allUnnamed ? "los " : "los ")}, de ${defWord}${allUnnamed ? "" : " por igual"}?` : `${allUnnamed ? "All" : "And"} ${list(who)}, on ${defWord}${allUnnamed ? "" : " as well"}?`;
+    reply = reply ? `${reply.replace(/\s*(¿Algo más\?|Anything else\?)\s*$/, "")} ${q}` : q;
+    if (key) pendingShell.set(key, { itemId: item.id, lines: unnamed.map((u) => ({ quantity: u.add.quantity, modifiers: u.add.modifiers })), at: Date.now() });
+  }
   if (asks.length) {
     const uniq = [...new Set(asks.filter((a) => a && a !== "?"))];
     const ask = uniq.length
@@ -330,6 +347,34 @@ export function splitSinglesTurn(text: string, menu: MenuItem[], language: strin
     reply = reply ? `${reply} ${ask}` : ask;
   }
   return { reply, adds, asks } as any;
+}
+
+// ---- tortilla2: answer to "¿Y los 2 de asada, de comal por igual?" ----
+const pendingShell = new Map<string, { itemId: string; lines: Array<{ quantity: number; modifiers: SplitAdd["modifiers"] }>; at: number }>();
+export function shellWord(option: string, es: boolean) { return /comal/i.test(option) ? "comal" : /harina|flour/i.test(option) ? (es ? "harina" : "flour") : /taquer|street/i.test(option) ? (es ? "taquero" : "street") : String(option).toLowerCase(); }
+/** yes / pause ("sí", "ok", "así", "por igual") keeps the default (nothing to change); naming harina / taquero / comal switches those lines. */
+export function shellConfirmAnswer(key: string | undefined, text: string, menu: MenuItem[], language: string): { reply: string; updates: ShellUpdate[] } | null {
+  const p = key ? pendingShell.get(key) : undefined;
+  if (!p) return null;
+  pendingShell.delete(key!);
+  if (Date.now() - p.at > 15 * 60_000) return null;
+  const t = plainText(text);
+  const kind = SHELL_KIND.find(([w]) => w.test(t));
+  const es0 = language === "es";
+  if (!kind && /^\s*(?:s[ií]|si|yes|yeah|yep|ok(?:ay)?|okey|claro|sure|as[ií]|igual|por igual|tambi[eé]n|esta bien|that'?s fine|fine|same|mm+|eh+|um+|aja)?[\s,.!]*(?:s[ií]|por igual|igual|tambi[eé]n|as[ií] est[aá] bien|please|por favor|gracias|thanks|as well|too)?[\s.!]*$/i.test(t))
+    return { updates: [], reply: es0 ? "Perfecto, de comal. ¿Algo más?" : "Perfect, comal. Anything else?" }; // yes / pause keeps the default
+  if (!kind || t.split(/\s+/).length > 8) return null; // anything else → keep default, normal flow
+  const item: any = menu.find((m) => m.id === p.itemId); const shellG = (item?.modifierGroups || []).find((g: any) => /tortilla/i.test(g.name));
+  const o = (shellG?.options || []).map((x: any) => (typeof x === "string" ? { name: x } : x)).find((x: any) => kind[1].test(x.name));
+  if (!o) return null;
+  const es = language === "es";
+  const updates: ShellUpdate[] = p.lines.map((l) => {
+    const old = l.modifiers.find((m) => m.groupId === shellG.id);
+    if (old?.option === o.name) return null as any;
+    return { type: "update_item", itemId: p.itemId, quantity: l.quantity, match: l.modifiers.map((m) => m.option), modifiers: l.modifiers.map((m) => (m.groupId === shellG.id ? { ...m, option: o.name, optionId: o.id, priceDeltaCents: o.priceDeltaCents || 0 } : m)) };
+  }).filter(Boolean);
+  const w = shellWord(o.name, es);
+  return { updates, reply: updates.length ? (es ? `Listo, de ${w}. ¿Algo más?` : `Got it, ${w}. Anything else?`) : (es ? "Perfecto. ¿Algo más?" : "Perfect. Anything else?") };
 }
 
 // ---- Vague orders: one clear question, the answer completes it (fix13) -----

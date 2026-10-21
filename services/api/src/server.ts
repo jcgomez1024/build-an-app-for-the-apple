@@ -751,6 +751,7 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
 	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
 	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
 	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }
+	    if (pre.updates?.length) { res.json({ ok: true, message: pre.reply, actions: pre.updates.map((u: any) => ({ ...u, modifiers: u.modifiers.map((m: any) => ({ ...m, quantity: 1 })) })), orderContext: null }); return; } // tortilla2
 	    if (pre.reply) { res.json({ ok: false, reason: "clarify", message: pre.reply, orderContext: { clarify: true } }); return; }
 	    if (pre.text !== text) {
 	      text = pre.text;
@@ -970,6 +971,7 @@ app.post("/api/menu/resolve", async (req, res, next) => {
 	    // fix11: packs ("8 tacos" → 8 Pack) and the chicharrón question run first.
 	    const pre = preTurn(orderSessionKey(req.body), text, items as any, (input as any).language || "en", { hasComboState: Boolean(input.comboState) });
 	    if (pre.adds?.length) { res.json({ ok: true, message: pre.reply, actions: pre.adds.map((a: any) => ({ type: "add_item", itemId: a.itemId, quantity: a.quantity, modifiers: [...a.modifiers.map((m: any) => ({ ...m, quantity: 1 })), ...(a.unknownMeat ? [{ groupName: "meat_needs_ask", option: a.unknownMeat, quantity: 1 }] : [])] })), orderContext: null, selectedItem: contextSelectedItem(items as any, pre.adds[0].itemId) }); return; }
+	    if (pre.updates?.length) { res.json({ ok: true, message: pre.reply, actions: pre.updates.map((u: any) => ({ ...u, modifiers: u.modifiers.map((m: any) => ({ ...m, quantity: 1 })) })), orderContext: null }); return; } // tortilla2
 	    if (pre.reply) { res.json({ ok: false, reason: "clarify", message: pre.reply, orderContext: { clarify: true } }); return; }
 	    if (pre.text !== text) {
 	      text = pre.text;

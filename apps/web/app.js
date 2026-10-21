@@ -5487,7 +5487,9 @@ function applyActions(actions) {
 
     if (action.type === "update_item") {
       // ui4: a correction edits the MOST RECENT line of that item.
-      const lastIndex = action.correction ? state.cart.map((l) => l.item.id).lastIndexOf(action.itemId) : -1;
+      // tortilla2: "match" = the line's current options (e.g. its meat + old tortilla) → edit exactly that split line.
+      const matchIndex = Array.isArray(action.match) ? state.cart.findIndex((l) => l.item.id === action.itemId && action.match.every((o) => (l.modifiers || []).some((m) => m.option === o))) : -1;
+      const lastIndex = matchIndex >= 0 ? matchIndex : action.correction ? state.cart.map((l) => l.item.id).lastIndexOf(action.itemId) : -1;
       updateCartItem(action.itemId, Number(action.quantity) || (lastIndex >= 0 ? state.cart[lastIndex].quantity : 1), lastIndex >= 0 ? lastIndex : action.cartIndex, action.modifiers);
       continue;
     }

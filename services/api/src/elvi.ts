@@ -107,7 +107,7 @@ async function chatWithElviCore(
 
   // fix11: packs and the chicharrón question first (same as web resolve).
   const pre = preTurn(input.sessionKey, transcript, input.resolverMenu || input.menu, input.language);
-  if (pre.reply) return { language: input.language, engine: "xai", reply: pre.reply, actions: splitActions(pre.adds) } as ElviResponse;
+  if (pre.reply) return { language: input.language, engine: "xai", reply: pre.reply, actions: [...splitActions(pre.adds), ...((pre.updates || []) as any[])] } as ElviResponse;
   if (pre.text !== transcript) {
     transcript = pre.text;
     // A replayed sentence (chicharrón answer) replaces the turns that asked about it.
@@ -683,7 +683,7 @@ async function chatWithElviAudioCore(
   }
   // fix11: chicharrón question / pack rewrite on what was heard; a rewrite reruns the turn as text.
   const pre = preTurn(input.sessionKey, heard, input.resolverMenu || input.menu, input.language);
-  if (pre.reply) return { ...result, reply: pre.reply, actions: splitActions(pre.adds), audioBase64: undefined, audioMimeType: undefined, customerTranscript: heard } as any;
+  if (pre.reply) return { ...result, reply: pre.reply, actions: [...splitActions(pre.adds), ...((pre.updates || []) as any[])], audioBase64: undefined, audioMimeType: undefined, customerTranscript: heard } as any;
   // fix12: "Ocho tacos de alpastor" heard but the audio model added 1 → redo the turn as text.
   const countWord = heard.toLowerCase().match(/\b(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven|eight|nine|ten)\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|tamales)\b/);
   const COUNT: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
