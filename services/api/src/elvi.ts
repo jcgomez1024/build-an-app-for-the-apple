@@ -211,6 +211,27 @@ const LOOKS_LIKE_ORDER = /\b(want|get|give|order|add|i'?ll have|can i|one|two|th
  * Answer to Elvi's last question about a dish ("asada" after "Gordita: Bistec, Cabeza…?"):
  * resolve it against that dish only, with everything the customer said for it. Same on every channel.
  */
+const FUQ: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+const fuFold = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** "dos tortas" → 2 when the number sits right before this dish's own noun; else null. */
+export function spokenQtyFor(text: string, items: any[]): number | null {
+  const t = fuFold(text);
+  for (const it of items) {
+    const noun = fuFold(String(it.name || "")).replace(/\(.*?\)/g, " ").trim().split(/\s+/).find((w) => w.length >= 4);
+    if (!noun) continue;
+    const m = new RegExp(`\\b(\\d+|${Object.keys(FUQ).join("|")})\\s+(?:otr[ao]s?\\s+)?${noun.slice(0, -1)}`).exec(t);
+    if (m) { const n = /\d/.test(m[1]) ? Number(m[1]) : FUQ[m[1]]; if (n > 1 && n < 30) return n; }
+  }
+  return null;
+}
+/** fix_uriel: "¿puedo hacer una orden?" / "quiero ordenar" names no dish → invite the order; never guess a dish. */
+const ORDER_INTENT = /^\s*(?:(?:ya|hola|bueno|s[ií]|oiga|ok|hi|hello|yes)[\s,.!]*)*(?:¿)?(?:puedo|podr[ií]a|quisiera|quiero|me\s+gustar[ií]a|can\s+i|could\s+i|i'?d\s+like\s+to|i\s+want\s+to)\s+(?:hacer|poner|ordenar|pedir|place|make|order)(?:\s+(?:una|un|an?)\s+(?:orden|pedido|order))?(?:\s+(?:para\s+llevar|to\s+go|for\s+pickup))?[\s?.!]*$/iu;
+export function orderIntentOnly(input: ElviRequest): ElviResponse | null {
+  if (!ORDER_INTENT.test(String(input.transcript || ""))) return null;
+  const es = input.language === "es";
+  return { language: input.language, engine: "xai", reply: es ? "¡Claro! ¿Qué le preparo?" : "Sure! What can I get you?", actions: [] } as any;
+}
+
 export function resolveFollowUp(heard: string, history: ConversationTurn[] | undefined, menu: MenuItem[], language: Language): Pick<ElviResponse, "reply" | "actions"> & { said?: string } | null {
   const ctx = followUpContext(history as any, menu);
   if (!ctx || !heard) return null;
@@ -245,6 +266,9 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
       modifiers: (a.modifiers || []).map((m: any) => ({ step: String(m.groupName || m.groupId || ""), option: String(m.option || "") }))
     }));
     if (!adds.length) return null;
+    // fix_uriel: an answer that carries its own count for this dish ("me pone dos tortas de bistec") keeps it.
+    const own = spokenQtyFor(heard, ctx.items);
+    if (own && adds.length === 1) adds[0].quantity = own;
     // Everything the caller said for this dish, so later checks see "only rice" and "half pollo" alike.
     return { reply: addReadback(adds, menu, language), actions: adds, said: [...ctx.saidTurns, heard].join(" ") };
   } catch {
@@ -1729,6 +1753,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
     const es = input.language === "es";
     return { language: input.language, engine: "xai", reply: es ? "¡Perfecto! Revisa tu orden y cuando estés listo, pasa a pagar." : "Perfect! Review your order and check out when you're ready.", actions: [] } as ElviResponse;
   }
+  const intent = orderIntentOnly(input);
+  if (intent) return intent;
   const small = appSmallSopeReply(input);
   if (small) return small;
   const favLines = favoriteAnswer(input.sessionKey, String(input.transcript || ""));
