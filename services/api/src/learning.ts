@@ -49,6 +49,7 @@ export function phoneExample(row: any): Example | null {
   const names = [row.customerName, row.orderName, row.nameCheck?.heard, row.nameCheck?.ticket];
   const { lines, corrected } = groundTruth(row.ticket.lines, row.elvi || [], row.audit?.flags || []);
   const elviS = scoreOrder(row.elvi || [], lines), staffS = scoreOrder(row.ticket.lines, lines);
+  staffS.misses = customAmountMisses(staffS.misses, corrected);
   return { ref: ref(row.callSid), at: row.at, channel: "phone", weight: 1, turns: (row.turns || []).map((t: any) => ({ speaker: t.speaker, text: stripPii(t.text, names) })),
     truth: lines.map(lineStr), truthLines: lines, elvi: (row.elvi || []).map(lineStr), elviScore: elviS.score, staffScore: staffS.score, corrected, staffMisses: staffS.misses };
 }
@@ -65,9 +66,20 @@ export function appExample(session: string, entries: any[]): Example | null {
   const truth = cart.map((l: any) => `${l.quantity}× ${l.id} [${[...(l.modifiers || [])].sort().join("; ")}]`);
   return { ref: ref("app-" + session), at: entries[0]?.at || "", channel: "app", weight: paid ? 1 : 0.2, turns, truth, truthLines: [], elvi: truth, elviScore: null, staffScore: null, corrected: [], staffMisses: [] };
 }
+/** alex1: a nameless custom amount replaced by a voice item is ONE staff error ("custom amount instead of item"), not a
+ * missed item plus an extra blank line. */
+export function customAmountMisses(misses: Miss[], corrected: string[]): Miss[] {
+  const names = corrected.map((c) => /^custom amount → (.+)$/.exec(c)?.[1]).filter(Boolean) as string[];
+  if (!names.length) return misses;
+  const out = misses.filter((x) => !(x.kind === "extra_item" && !String(x.ticket || "").replace(/^\d+\s*×\s*/, "").trim()));
+  const left = [...names];
+  return out.map((x) => { const i = left.findIndex((n) => x.kind === "missing_item" && `${x.elvi || ""} ${x.detail}`.includes(n));
+    if (i < 0) return x; left.splice(i, 1); return { ...x, custom: true } as Miss; });
+}
 /** Staff-mistake patterns (no staff names): weekly, by item and error type. */
 export function errorType(m: Miss): string {
   const d = `${m.detail} ${m.ticket || ""}`;
+  if ((m as any).custom) return "custom amount instead of item";
   if (m.kind === "quantity") return "wrong qty";
   if (m.kind === "missing_item" && !String(m.ticket || "").trim()) return "custom amount instead of item";
   if (m.kind === "missing_item") return "missed item";

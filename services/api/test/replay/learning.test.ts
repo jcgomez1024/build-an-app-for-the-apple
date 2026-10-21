@@ -64,3 +64,7 @@ test("alex1: two nameless custom amounts at staff prices ↔ the two voice items
   const g = L.groundTruth(ticket, elvi, [{ type: "CUSTOM_AMOUNT", detail: "custom amount $16.00" }, { type: "CUSTOM_AMOUNT", detail: "custom amount $19.00" }]);
   assert.deepEqual(g.lines.map((l) => [l.name, l.choices]), [["Chilaquiles", []], ["Horchata", []], ["Chilaquiles", ["Bistec / Steak"]]]);
 });
+test("alex1: custom-amount corrections become 'custom amount instead of item', blank extras dropped", () => {
+  const m = L.customAmountMisses([{ kind: "missing_item", detail: "Chilaquiles con Huevo", elvi: "Chilaquiles con Huevo" } as any, { kind: "extra_item", detail: "x", ticket: "1 × " } as any], ["custom amount → Chilaquiles con Huevo"]);
+  assert.equal(m.length, 1); assert.equal(L.errorType(m[0]), "custom amount instead of item");
+});
