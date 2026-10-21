@@ -5490,7 +5490,11 @@ function applyActions(actions) {
       // tortilla2: "match" = the line's current options (e.g. its meat + old tortilla) → edit exactly that split line.
       const matchIndex = Array.isArray(action.match) ? state.cart.findIndex((l) => l.item.id === action.itemId && action.match.every((o) => (l.modifiers || []).some((m) => m.option === o))) : -1;
       const lastIndex = matchIndex >= 0 ? matchIndex : action.correction ? state.cart.map((l) => l.item.id).lastIndexOf(action.itemId) : -1;
-      updateCartItem(action.itemId, Number(action.quantity) || (lastIndex >= 0 ? state.cart[lastIndex].quantity : 1), lastIndex >= 0 ? lastIndex : action.cartIndex, action.modifiers);
+      // tortilla2: a matched split-line switch only replaces the groups it names (keeps salsa etc.).
+      const mods = matchIndex >= 0 && Array.isArray(action.modifiers)
+        ? [...(state.cart[matchIndex].modifiers || []).filter((m) => !action.modifiers.some((n) => n.groupId && n.groupId === m.groupId)), ...action.modifiers.filter((n) => !(state.cart[matchIndex].modifiers || []).some((m) => m.groupId === n.groupId && m.option === n.option) || true)].filter((m, i, a) => a.findIndex((x) => x.groupId === m.groupId && x.option === m.option) === i)
+        : action.modifiers;
+      updateCartItem(action.itemId, Number(action.quantity) || (lastIndex >= 0 ? state.cart[lastIndex].quantity : 1), lastIndex >= 0 ? lastIndex : action.cartIndex, mods);
       continue;
     }
 
