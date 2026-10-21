@@ -3317,6 +3317,8 @@ function attachUiHandlers() {
     syncRealtimeOrderContext();
   });
 
+  ui.phone?.addEventListener("change", () => void checkFavorites(ui.phone.value));
+
   ui.checkoutForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     state.customer.name = ui.name.value.trim();
@@ -5500,6 +5502,7 @@ function applyActions(actions) {
       if (action.phone) {
         state.customer.phone = action.phone;
         ui.phone.value = action.phone;
+        void checkFavorites(action.phone);
       }
       if (action.email) {
         state.customer.email = action.email;
@@ -6530,4 +6533,28 @@ function tryCartCorrection(text) {
     return true;
   }
   return false;
+}
+
+// fav1: repeat customers (≥3 past orders): "your usual" or top 3 picks, today's prices; a tap (or "sí" in chat) adds exactly that.
+// No name / address / delivery nudge in the app (phone isn't verified).
+const favChecked = new Set();
+async function checkFavorites(phoneRaw) {
+  const phone = String(phoneRaw || "").replace(/\D/g, "").slice(-10);
+  if (phone.length !== 10 || favChecked.has(phone)) return;
+  favChecked.add(phone);
+  try {
+    const r = await fetch(`/api/${state.tenantSlug}/favorites`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, language: getEffectiveLanguage(), orderSessionId: state.orderSessionId }) });
+    const fav = await r.json().catch(() => ({}));
+    if (!fav?.kind || !fav.greeting) return;
+    ui.reply.textContent = fav.greeting;
+    state.chatFallbackHistory = Array.isArray(state.chatFallbackHistory) ? state.chatFallbackHistory : [];
+    state.chatFallbackHistory.push({ role: "assistant", text: fav.greeting });
+    let box = document.getElementById("fav-offers");
+    if (!box) { box = document.createElement("div"); box.id = "fav-offers"; box.className = "fav-offers"; ui.reply.insertAdjacentElement("afterend", box); }
+    box.replaceChildren(...fav.offers.map((o) => { const b = document.createElement("button"); b.type = "button"; b.className = "fav-offer";
+      b.textContent = `${o.label} · $${(o.cents / 100).toFixed(2)}`;
+      b.onclick = () => { applyActions(o.actions.map((a) => { const item = state.menu.find((m) => m.id === a.itemId); return { ...a, modifiers: typeof chatModifiersForCart === "function" ? chatModifiersForCart(item, a.modifiers) : a.modifiers }; })); renderCart(); box.remove(); };
+      return b; }));
+    void speakLocalText(fav.greeting, getEffectiveLanguage());
+  } catch {}
 }

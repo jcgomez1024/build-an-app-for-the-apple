@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
+import { favoriteAnswer } from "./favorites.js";
 import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
@@ -1730,6 +1731,13 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   }
   const small = appSmallSopeReply(input);
   if (small) return small;
+  const favLines = favoriteAnswer(input.sessionKey, String(input.transcript || ""));
+  if (favLines) { // fav1: "sí" to the usual / "el segundo" → exactly those lines (today's catalog); customer can still change anything
+    const acts = favLines.map((l) => ({ ...l.action })) as any[];
+    const rb = addReadback(acts, ((input as any).resolverMenu || input.menu || []) as MenuItem[], input.language);
+    const r = { language: input.language, engine: "xai", reply: rb, actions: acts } as ElviResponse;
+    recordLastAdd(input.sessionKey, acts); return r;
+  }
   const offered = offerReply(input);
   if (offered) { recordLastAdd(input.sessionKey, offered.actions); return offered; }
   const fixed = quantityCorrection(input);

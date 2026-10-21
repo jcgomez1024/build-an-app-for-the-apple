@@ -17,6 +17,8 @@ import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./
 import { searchOrdersReadOnly, paymentReceiptReadOnly } from "./square.js";
 import { squareRefs } from "./call-accuracy.js";
 import { orderNameForPhone } from "./call-accuracy.js";
+import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favorites.js";
+import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
 
@@ -70,6 +72,21 @@ export function isTrainingCaller(phone: unknown) {
 export function neverDial(phone: unknown) {
   const n = d10(phone);
   return !!n && String(process.env.TWILIO_NEVER_DIAL || "").split(",").map(d10).filter(Boolean).includes(n);
+}
+
+/** fav1: phone favorites are READY but INACTIVE while the phone is listen-only. Elvi says nothing; we only log what she
+ * would have offered (local, gitignored call log). ELVI_PHONE_FAVORITES=1 is for when live answering starts (still log-only today). */
+let favMenu: { at: number; items: any[] } | null = null;
+let favMenuLoader: (() => Promise<any[]>) | null = null;
+export function setFavMenuLoader(fn: () => Promise<any[]>) { favMenuLoader = fn; }
+export async function logPhoneFavorites(sid: string, from: string) {
+  const orders = loadHistory()[favKey(from)];
+  if (!orders || orders.length < 3) return;
+  if (!favMenuLoader) return;
+  if (!favMenu || Date.now() - favMenu.at > 600_000) favMenu = { at: Date.now(), items: await favMenuLoader() };
+  const fav = favoritesFor(orders, favMenu.items, { name: confidentName(from), channel: "phone", nudge: deliveryNudge(from, orders, "phone") });
+  if (!fav) return;
+  logCall({ event: "favorites_would_offer", callSid: sid, caller: from, kind: fav.kind, orders: fav.orders, live: process.env.ELVI_PHONE_FAVORITES === "1", greetingEs: fav.greeting.es, greetingEn: fav.greeting.en, dropped: fav.dropped, deliveryNudge: !!fav.deliveryNudge });
 }
 
 function logCall(entry: Record<string, unknown>) {
@@ -1314,6 +1331,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       return res.type("text/xml").send(xml(closedTwiml(base, lang, closedSt)));
     }
     rememberCaller(from, {});
+    void logPhoneFavorites(sid, from).catch(() => {});
     void namePromise.then((n) => { if (n && sid) logCall({ event: "caller_name", callSid: sid, caller: from, name: n }); }).catch(() => {});
     if (k.known && k.language) {
       const name = await namePromise;

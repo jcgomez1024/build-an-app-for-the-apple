@@ -36,9 +36,11 @@ import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
-import { onCallerNameSaved } from "./twilio.js";
+import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
+import { buildHistory, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
+import { phoneKey } from "./caller-memory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1614,13 +1616,49 @@ server.listen(port, () => {
 
 
 // learn1: hourly read-only refresh of the online-order learning feed (last 60 days of paid Square Online orders).
+/** fav1: POS phone tickets linked to a call (square-links) → caller phone from that call's incoming event. */
+function phoneByLinkedOrder(): Record<string, string> {
+  const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/logs/calls");
+  let links: Record<string, any> = {}; try { links = JSON.parse(fs.readFileSync(path.join(logDir, "square-links.json"), "utf8")); } catch { return {}; }
+  const callerBySid: Record<string, string> = {};
+  for (const f of fs.readdirSync(logDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)))
+    for (const l of fs.readFileSync(path.join(logDir, f), "utf8").split("\n")) { if (!l.includes('"incoming"')) continue; try { const j = JSON.parse(l); if (j.callSid && j.caller) callerBySid[j.callSid] = j.caller; } catch {} }
+  const out: Record<string, string> = {};
+  for (const [sid, ref] of Object.entries(links)) if (ref?.orderId && callerBySid[sid]) out[ref.orderId] = callerBySid[sid];
+  return out;
+}
+
+// fav1: customer app favorites. Phone typed in the app is NOT verified → never say a name, never an address, no delivery nudge
+// (app delivery fees aren't Square items yet). Returns the greeting + exact lines; a "sí"/"el primero" in chat adds them.
+app.post(["/api/:tenant/favorites", "/api/favorites"], async (req, res, next) => {
+  try {
+    const phone = phoneKey(req.body?.phone);
+    if (phone.length !== 10) return res.json({ kind: null });
+    const lang = req.body?.language === "es" ? "es" : "en";
+    const menu = await getMenu(buildSquareConfig(resolveTenant(String(req.params.tenant || req.headers.host || ""))));
+    const fav = favoritesFor(loadHistory()[phone], menu as any[], { name: null, channel: "app", nudge: null });
+    if (!fav) return res.json({ kind: null });
+    const key = orderSessionKey(req.body); if (key) pendingFav.set(key, { fav, at: Date.now() });
+    res.json({ kind: fav.kind, greeting: fav.greeting[lang], dropped: fav.dropped, offers: fav.offers.map((o) => ({ label: o.map((l) => l.label[lang]).join(" + "), cents: o.reduce((a, l) => a + l.cents, 0), actions: o.map((l) => l.action) })) });
+  } catch (e) { next(e); }
+});
+
+setFavMenuLoader(async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[]);
 async function refreshOnlineLearning() {
   try {
     const cfg = buildSquareConfig(resolveTenant(undefined));
     const end = new Date(), start = new Date(end.getTime() - 60 * 86400000);
-    const orders = await searchOrdersReadOnly(start.toISOString(), end.toISOString(), cfg);
+    // fav1: searchOrdersReadOnly stops at 10 pages (1000 orders, oldest first) — fetch week by week so recent days aren't cut off.
+    const weeks = async (from: Date, to: Date) => { const out: any[] = []; for (let t = from.getTime(); t < to.getTime(); t += 7 * 86400000) out.push(...await searchOrdersReadOnly(new Date(t).toISOString(), new Date(Math.min(t + 7 * 86400000, to.getTime())).toISOString(), cfg)); return out; };
+    const orders = await weeks(start, end);
     const data = buildOnlineLearning(orders, end);
     writeOnlineLearning(data);
+    try { // fav1: per-phone history (gitignored data/logs/favorites); 120 days of tickets, read-only
+      const older = await weeks(new Date(end.getTime() - 120 * 86400000), start).catch(() => [] as any[]);
+      const h = buildHistory([...orders, ...older], phoneByLinkedOrder());
+      writeHistory(h);
+      console.log(`fav1: history for ${Object.keys(h).length} phones, ${Object.values(h).filter((x) => x.length >= FAV_MIN_ORDERS).length} with ≥${FAV_MIN_ORDERS} orders`);
+    } catch (e) { console.warn("fav1: history failed", e instanceof Error ? e.message.slice(0, 120) : e); }
     console.log(`learn1: online learning feed ${data.orders} paid online orders`);
   } catch (e) { console.warn("learn1: refresh failed", e instanceof Error ? e.message.slice(0, 120) : e); }
 }

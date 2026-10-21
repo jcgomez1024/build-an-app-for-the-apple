@@ -1377,3 +1377,5 @@ input, select {
 @media (max-width: 600px) {
   .elvi-halo { width: 84px; top: 88px; }
 }
+
+.fav-offers{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.fav-offer{padding:10px 14px;border-radius:999px;border:1px solid #c9a227;background:#fff8e1;font-size:15px;cursor:pointer;max-width:100%}
