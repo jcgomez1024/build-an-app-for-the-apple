@@ -1584,7 +1584,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
           const ea = ef.fulfillment === "DELIVERY" ? detectAddress(c.turns || []).address?.full || null : null;
           const elviF = { fulfillment: ef.fulfillment, address: ea };
           if (!m) return { elvi: elviF, ticket: null, score: null, misses: [] as string[] };
-          const tf = ticketFulfillment(m.order);
+          const tfs = [m.order, ...extra.map((x) => x.order)].map(ticketFulfillment); const tf = tfs.find((x) => x.fulfillment === "DELIVERY") || tfs[0]; // fee1: any linked ticket
           const sc = scoreFulfillment(elviF, tf);
           return { elvi: elviF, ticket: tf, score: sc.score, misses: sc.misses, ticketMissedDelivery: sc.ticketMissedDelivery };
         })()

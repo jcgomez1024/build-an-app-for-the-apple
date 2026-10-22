@@ -65,6 +65,9 @@ test("fix1036 comal confirm: staff '¿En el comal?' + caller 'Sí' switches the 
 });
 test("fix1036 delivery fee line matches the POS 'Delivery Fee · Delivery 1'", () => {
   const ticket = [{ baseName: "Delivery Fee", name: "Delivery Fee · Delivery 1", quantity: 1, choices: ["Delivery 1"], unitCents: 500, totalCents: 500 }];
-  assert.equal(scoreOrder([deliveryFeeLine(null)], ticket).score, 100);
+  // fee1: the fee is not an item — a missing or extra fee line doesn't move the item score (delivery yes/no is checked separately)
+  const taco = { baseName: "Taco", name: "Taco", quantity: 1, choices: [], unitCents: 300, totalCents: 300 };
+  assert.equal(scoreOrder([taco, deliveryFeeLine(null)], [taco, ...ticket]).score, 100);
+  assert.equal(scoreOrder([taco], [taco, ...ticket]).score, 100);
   assert.equal(deliveryFeeLine(800).name, "Delivery Fee · Delivery 2");
 });

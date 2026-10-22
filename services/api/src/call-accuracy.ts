@@ -124,13 +124,15 @@ export const isPlateMarker = (li: any) => PLATE_MARKER.test(String(li?.name || "
 export function ticketLines(order: any): Line[] {
   let plate = 0; const L = (order?.line_items || []).filter((li: any) => !isEntryError(li));
   const hasMarker = L.some(isPlateMarker);
+  // fee1: a nameless $8.00 custom amount on a delivery or big/combined ticket is the delivery fee (not an item, not a ghost)
+  const bigOrDelivery = hasMarker || (order?.fulfillments || []).some((f: any) => f?.type === "DELIVERY") || L.reduce((a: number, li: any) => a + (Number(li.quantity) || 1), 0) >= 12;
   return L.flatMap((li: any) => { if (isPlateMarker(li)) { plate++; return []; } return [{ li, plate }]; }).map(({ li, plate }: any) => {
     const q = Number(li.quantity) || 1;
     const total = Number(li.gross_sales_money?.amount ?? li.total_money?.amount ?? 0);
     return {
       ...(hasMarker ? { plate } : {}),
-      ...(isCustomAmountLi(li) && !String(li.name || "").trim().replace(/^custom amount$/i, "") ? { ghost: true } : {}),
-      baseName: li.name, variationId: li.catalog_object_id, name: [li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
+      ...(isCustomAmountLi(li) && !String(li.name || "").trim().replace(/^custom amount$/i, "") && !(bigOrDelivery && Number(li.base_price_money?.amount) === 800) ? { ghost: true } : {}),
+      baseName: isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, variationId: li.catalog_object_id, name: [isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
       // On the POS the tortilla/size is the variation; online it's a modifier. Count it as a choice either way.
       quantity: q, choices: [...(li.variation_name && li.variation_name !== "Regular" ? [String(li.variation_name)] : []), ...(li.modifiers || []).map((m: any) => String(m.name || ""))], unitCents: Math.round(total / q), totalCents: total
     };
@@ -176,6 +178,9 @@ const part = (l: Line, q: number): Line => ({ ...l, quantity: q, totalCents: Mat
 export function scoreOrder(elvi: Line[], ticket: Line[]): { score: number; misses: Miss[]; pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> } {
   const misses: Miss[] = [];
   const pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> = [];
+  // fee1: delivery fees are not items — delivery yes/no is the separate fulfillment check
+  const isFeeLine = (l: any) => /^\s*delivery\s*fee\b/i.test(String(l?.baseName || l?.name || ""));
+  elvi = elvi.filter((l) => !isFeeLine(l)); ticket = ticket.filter((l) => !isFeeLine(l));
   const E = consolidate(elvi), T = consolidate(ticket);
   type G = { t: Line[]; e: Line[] };
   const groups: G[] = [];

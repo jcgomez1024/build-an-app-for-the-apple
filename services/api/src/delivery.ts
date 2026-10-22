@@ -109,6 +109,7 @@ export function redactAddresses(text: string): string {
 }
 
 /** Square ticket fulfillment (read-only order JSON) → our type + the address/notes as typed. */
+const bigTicket = (o: any) => (o?.line_items || []).some((l: any) => /^\s*(?:no|sin)\s+bebida/i.test(String(l?.name || ""))) || (o?.line_items || []).reduce((a: number, l: any) => a + (Number(l?.quantity) || 1), 0) >= 12;
 export function ticketFulfillment(order: any): { fulfillment: Fulfillment; address: string | null } {
   const fs = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
   const noteText = [order?.note, ...fs.map((f: any) => f?.delivery_details?.note || f?.pickup_details?.note), ...(order?.line_items || []).map((l: any) => l?.note)].filter(Boolean).join(" ");
@@ -118,6 +119,9 @@ export function ticketFulfillment(order: any): { fulfillment: Fulfillment; addre
   if (ra?.address_line_1) address = [ra.address_line_1, ra.address_line_2, ra.locality, ra.postal_code].filter(Boolean).join(", ");
   if (!address) address = addressesIn(noteText)[0]?.full || null;
   if (d) return { fulfillment: "DELIVERY", address };
+  // fee1: phone delivery is rung as PICKUP + a "Delivery Fee" catalog line ($5 / $8), a Delivery service charge, or a nameless $8
+  if ((order?.line_items || []).some((l: any) => /^\s*delivery\s*fee\b|^\s*env[ií]o\b/i.test(String(l?.name || "")) || (!l?.catalog_object_id && !String(l?.name || "").trim() && Number(l?.base_price_money?.amount) === 800 && bigTicket(order)))
+    || (order?.service_charges || []).some((c: any) => /deliver|env[ií]o|domicilio/i.test(String(c?.name || "")))) return { fulfillment: "DELIVERY", address };
   if (/\b(delivery|deliver|entrega|domicilio)\b/i.test(noteText) || address) return { fulfillment: "DELIVERY", address }; // staff typed it in the notes
   if (fs.some((f: any) => f?.type === "DINE_IN")) return { fulfillment: "FOR_HERE", address: null };
   return { fulfillment: "PICKUP", address: null };
