@@ -360,6 +360,16 @@ export function statedTotal(text: string): { n: number; kind: string | null } | 
   const k = m[2] ? [...dishesNamed(m[2])][0] || null : null; return { n, kind: k };
 }
 
+/** multi1: whose order a caller turn is about — "para Juana…", "en la de ella", "la orden de Ana" → that person; "en mi orden",
+ *  "la mía", "la primera" → the caller ("me"). null = no switch (keep the current person). */
+export function personSwitch(text: string): string | null {
+  const t = String(text || "");
+  if (/\b(?:en\s+)?mi\s+orden\b|\b(?:en\s+)?la\s+m[ií]a\b|\ben\s+la\s+primera\b|\bpara\s+m[ií]\b|\bmy\s+order\b/iu.test(t)) return "me";
+  const m = /\b(?:para|for)\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t) || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t);
+  if (m && !/^(Usted|Llevar|Aqu[ií]|Comer|Ahorita|Mañana|Hoy)$/u.test(m[1])) return m[1].toLowerCase() === "él" || m[1].toLowerCase() === "el" ? "él" : m[1];
+  return null;
+}
+
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
   const cart: Line[] = [];
@@ -367,9 +377,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const steps: any[] = [];
   let lastTouched: Line | null = null;
   const touchedNow: Line[] = [];
+  let person: string | null = null; // multi1: per-person groups inside the one cart
   const apply = (actions: any[] = []) => {
     for (const a of actions) {
-      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback }; cart.push(l); lastTouched = l; touchedNow.push(l); }
+      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
       else if (a.type === "update_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) { cart[i] = { ...cart[i], quantity: a.quantity ?? cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
@@ -401,6 +412,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     for (const l of targets) l.elviNotes = [...new Set([...(l.elviNotes || []), ...notes])];
   };
   const say = async (text: string, language: "es" | "en", source: string) => {
+    if (source === "caller" || source === "caller-retry") { const p = personSwitch(text); if (p) person = p; }
     const r = await run(text, language, history.slice(-24));
     // suggest1: listen-only — staff, not Elvi, answer the caller, so Elvi's offer never becomes answerable here.
     const said = String(r?.reply || ""), offer = String(r?.offerText || "");
@@ -678,5 +690,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (opt) y.line.modifiers = [...(y.line.modifiers || []), { ...opt }];
   }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
-  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment };
+  const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
+  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(groups.length ? { groups } : {}) };
 }

@@ -38,7 +38,7 @@ import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadUnclear, setUnclear } from "./unclear.js";
 import { detectReadback } from "./staff-readback.js";
-import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
@@ -1528,12 +1528,24 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     // followup1: calls about an existing Square Online order — linked to it, never scored, no staff checks.
     const followUps = new Map(prepared.map(({ call: c, elvi }) => [c.callSid, c.recordingSid ? followUpFor(c, elvi, orders) : null] as const));
     const assigned = assignTickets(prepared.filter(({ call: c }) => !followUps.get(c.callSid)), orders);
+    // multi1: other tickets for the same call (manual links + other people's orders within ±45 min); scored as one union
+    const links = loadTicketLinks(); const usedAll = new Set([...assigned.values()].map((x) => String(x.order.id)));
+    const linkedBy = new Map(prepared.map(({ call: c, elvi }) => {
+      if (followUps.get(c.callSid) || !c.recordingSid) return [c.callSid, [] as Array<{ order: any; by: string }>] as const;
+      const prim = assigned.get(c.callSid)?.order || null; const used = new Set([...usedAll].filter((id) => id !== String(prim?.id)));
+      const l = linkedTickets(c as any, elvi, prim, orders, { manual: links[c.callSid] || [], usedElsewhere: used });
+      for (const x of l) usedAll.add(String(x.order.id));
+      return [c.callSid, l] as const;
+    }));
     const rows = prepared.map(({ call: c, elvi }) => {
       const followUp = followUps.get(c.callSid) || null;
-      const m = followUp ? null : assigned.get(c.callSid) || null;
+      const linked = linkedBy.get(c.callSid) || [];
+      const m0 = followUp ? null : assigned.get(c.callSid) || null;
+      const m = m0 || (linked[0] ? { order: linked[0].order, by: linked[0].by } : null);
+      const extra = linked.filter((x) => x.order !== m?.order);
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m && !followUp ? expected[c.callSid] : undefined;
-      const ticket = m ? ticketLines(m.order) : exp ? elviLines(exp.cart, menu) : [];
+      const ticket = m ? [...ticketLines(m.order), ...extra.flatMap((x) => ticketLines(x.order))] : exp ? elviLines(exp.cart, menu) : [];
       const unclear = loadUnclear()[c.callSid] || null; // unclear1: listed, never scored
       const scored0 = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
       const scored = scored0; // unclear1: still scored (training uses it); excluded from accuracy numbers
@@ -1544,7 +1556,9 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         elvi, elviTotalCents: elvi.reduce((a, l) => a + l.totalCents, 0),
         source: c.source,
         expected: exp ? { text: exp.text, savedAt: exp.savedAt } : null,
-        ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, ...squareRefs(m.order), receiptUrl: null as string | null, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) } : null,
+        ticket: !m && exp ? { id: "manual", createdAt: exp.savedAt, matchedBy: "manual", source: "manual", lines: ticket, totalCents: ticket.reduce((a, l) => a + l.totalCents, 0) } : m ? { id: m.order.id, ...squareRefs(m.order), receiptUrl: null as string | null, createdAt: m.order.created_at, matchedBy: m.by, source: m.order.source?.name || null, lines: ticket, totalCents: Number(m.order.total_money?.amount || 0) + extra.reduce((a, x) => a + Number(x.order.total_money?.amount || 0), 0),
+          linked: [{ ...squareRefs(m.order), createdAt: m.order.created_at, matchedBy: m.by, totalCents: Number(m.order.total_money?.amount || 0), lines: ticketLines(m.order).length, primary: true },
+            ...extra.map((x) => ({ ...squareRefs(x.order), createdAt: x.order.created_at, matchedBy: x.by, totalCents: Number(x.order.total_money?.amount || 0), lines: ticketLines(x.order).length, primary: false }))] } : null,
         score: scored ? scored.score : null, misses: scored ? scored.misses : [], pairs: scored ? scored.pairs : [],
         elviFulfillment: c.fulfillment || null, deliveryFeeCents: c.deliveryFeeCents ?? null, recordingSec: c.recordingSec || 0,
         audit: audits[c.callSid] || null,
@@ -1592,6 +1606,18 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     const customer = rows.filter((r) => r.source !== "training"), training = rows.filter((r) => r.source === "training");
     res.json({ calls: rows, trend: trend(customer.filter((r: any) => !r.unclear)), trainingTrend: trend(training), nameTrend: nameStats(customer as any), squareError: squareError || null, ordersSearched: orders.length });
   } catch (error) { next(error); }
+});
+// multi1: link / unlink another Square ticket (receipt # like "AB12" or order id) to a call — read-only lookup, stored locally.
+const TICKET_LINKS = path.join(process.cwd(), "data/learning/ticket-links.json");
+function loadTicketLinks(): Record<string, string[]> { try { return JSON.parse(fs.readFileSync(TICKET_LINKS, "utf8")); } catch { return {}; } }
+app.post("/api/calls/:sid/link-ticket", phoneAuth, express.json(), (req, res) => {
+  const sid = String(req.params.sid || ""); if (!/^CA[0-9a-f]{32}$/.test(sid)) return res.status(400).json({ error: "bad call id" });
+  const ref = String(req.body?.ref || "").trim().replace(/^#/, ""); if (!/^[A-Za-z0-9]{4,40}$/.test(ref)) return res.status(400).json({ error: "Receipt # o ID de orden / receipt # or order id" });
+  const all = loadTicketLinks(); const cur = new Set(all[sid] || []);
+  if (req.body?.remove) cur.delete(ref); else cur.add(ref);
+  if (cur.size) all[sid] = [...cur]; else delete all[sid];
+  fs.writeFileSync(TICKET_LINKS, JSON.stringify(all, null, 1)); ordersCache = null;
+  res.json({ ok: true, links: all[sid] || [] });
 });
 // Training: type the expected order ("2 tacos de bistec de comal, 2 de chorizo"); preview with Elvi's resolver, then save.
 app.post("/api/calls/:sid/expected", phoneAuth, async (req, res, next) => {

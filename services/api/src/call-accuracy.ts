@@ -318,6 +318,33 @@ export function candidateTickets(call: CallRecord & { customerName?: string | nu
   }
   return out;
 }
+/** multi1: the caller orders for other people too ("dos órdenes", "para Juana…", "la de ella", "otra orden aparte"). */
+export const MULTI_ORDER_CUES = /\b(?:dos|tres|cuatro|2|3|4)\s+[oó]rdenes\b|\botra\s+orden\b|\b(?:la|el|en\s+la)\s+(?:orden\s+)?de\s+(?:ella|[ée]l|mi\s+\w+)\b|\bpara\s+(?:mi\s+(?:esposa|esposo|hij[oa]|herman[oa]|mam[aá]|pap[aá]|amig[oa]|compa\w*)|ella|[ée]l)\b|\bpara\s+\p{Lu}\p{Ll}{2,}|\b(?:separate|another)\s+order\b|\bfor\s+(?:my\s+\w+|her|him)\b/u;
+export const mentionsOtherOrders = (turns: Array<{ speaker: string; text: string }>) => MULTI_ORDER_CUES.test((turns || []).filter((t) => t.speaker === "caller").map((t) => t.text).join(" \n "));
+export const MULTI_WINDOW_MS = 45 * 60_000;
+const refMatches = (o: any, ref: string) => { const r = String(ref || "").trim().replace(/^#/, "").toLowerCase(); const s = squareRefs(o); return !!r && (String(o.id).toLowerCase() === r || String(s.receiptNumber || "").toLowerCase() === r || String(s.paymentId || "").toLowerCase() === r); };
+/** multi1: extra tickets for one call — manual links (receipt # or order id) first, then, when the caller talks about other
+ *  people's orders, unassigned POS tickets within ±45 min that make Elvi's order fit better (union score up, details agree). */
+export function linkedTickets(call: { at: string; recordingSec?: number; talkSec?: number; turns?: any[] }, elvi: Line[], primary: any | null, orders: any[], opts: { manual?: string[]; usedElsewhere?: Set<string> } = {}) {
+  const out: Array<{ order: any; by: string }> = []; const have = new Set<string>(primary ? [String(primary.id)] : []);
+  for (const ref of opts.manual || []) { const o = orders.find((x) => refMatches(x, ref)); if (o && !have.has(String(o.id))) { out.push({ order: o, by: "manual" }); have.add(String(o.id)); } }
+  if (!hasOrderContent(elvi) || !mentionsOtherOrders((call.turns || []) as any)) return out;
+  const start = Date.parse(call.at) - MULTI_WINDOW_MS, end = Date.parse(call.at) + (call.recordingSec || call.talkSec || 0) * 1000 + MULTI_WINDOW_MS;
+  const union = () => [...(primary ? ticketLines(primary) : []), ...out.flatMap((x) => ticketLines(x.order))];
+  for (let k = 0; k < 3; k++) {
+    const base = scoreOrder(elvi, union()).score; let best: { o: any; gain: number } | null = null;
+    for (const o of orders) {
+      if (have.has(String(o.id)) || opts.usedElsewhere?.has(String(o.id)) || !isPosTicket(o)) continue;
+      const t = Date.parse(o.created_at); if (!(t >= start && t <= end)) continue;
+      const lines = ticketLines(o).filter((l) => String(l.name || "").trim()); if (!lines.length) continue;
+      if (itemOverlap(lines, elvi) < 0.5 || choiceAgreement(elvi, lines) < 0.25) continue; // its items must be things the caller ordered
+      const gain = scoreOrder(elvi, [...union(), ...ticketLines(o)]).score - base;
+      if (gain >= 5 && (!best || gain > best.gain)) best = { o, gain };
+    }
+    if (!best) break; out.push({ order: best.o, by: "auto: other person's order + items + time (±45 min)" }); have.add(String(best.o.id));
+  }
+  return out;
+}
 /** (d) global assignment: highest-ranked call/ticket pairs first; each ticket and each call used once. */
 export function assignTickets(calls: Array<{ call: CallRecord & { customerName?: string | null }; elvi: Line[] }>, orders: any[]): Map<string, { order: any; by: string }> {
   const pairs = calls.flatMap(({ call, elvi }) => call.recordingSid ? candidateTickets(call, elvi, orders).map((c) => ({ sid: call.callSid, ...c })) : []);

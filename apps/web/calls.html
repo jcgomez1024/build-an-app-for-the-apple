@@ -411,9 +411,24 @@ function renderCompare() {
     return `<div class="cmp-call"><div class="cmp-h"><b>${fmtTime(c.at)}</b>${k.line ? `<span class="tag">línea ${esc(k.line)}</span>` : ""}${c.answeredBy ? `<span class="tag">${esc(c.answeredBy)}</span>` : ""}${gradeBadge({ grade: k.grade })}${staffBadge({ staffGrade: k.staffGrade })}${unclearBadge(c)}
       <span class="tag" title="Elvi en la llamada → Elvi hoy (replay con arreglos actuales)">Elvi ${k.elviLiveScore !== k.elviScore ? pct(k.elviLiveScore) + " → " : ""}${pct(k.elviScore)}</span>${replayTag(c)}<span class="tag">Personal ${pct(k.staffScore)}</span><span class="tag">Read-back: ${k.readback === "none" ? "no" : "sí (" + esc(k.readback) + ")"}</span>
       <a href="#" data-open="${i}">▶ grabación / transcripción</a></div>
+      ${linkedHTML(c)}
       <div class="cmp-cols">${cmpCol("Orden correcta", k.truth, [], true)}${cmpCol("Ticket del personal", k.truth, realLines(c.ticket?.lines), false)}${cmpCol("Elvi hoy (replay)", k.truth, realLines(c.elvi), false)}</div>
       ${c.elviLive && k.elviLiveScore !== k.elviScore ? `<details class="note"><summary>Elvi en la llamada (${pct(k.elviLiveScore)})</summary><div class="cmp-cols">${cmpCol("Elvi en la llamada", k.truth, realLines(c.elviLive), false)}</div></details>` : ""}${k.corrected?.length ? `<div class="note">Fuente: ${esc(k.corrected.join("; "))}</div>` : ""}</div>`; }).join("") || `<div class="empty">Sin llamadas calificadas${cmpGrade === "bg" ? " best/good — prueba «Todas»" : ""}.</div>`;
 }
+/* multi1: every Square ticket counted for this call (one person's order per ticket), plus a "link ticket" action */
+function linkedHTML(c) {
+  const L = c.ticket?.linked || [];
+  const items = L.map((t) => `<span class="tag" title="${esc(t.matchedBy || "")}">${t.primary ? "Ticket" : "+ Ticket"} ${t.receiptNumber ? "#" + esc(t.receiptNumber) : esc(String(t.orderId || "").slice(0, 6))}${t.ticketName ? " · " + esc(t.ticketName) : ""} · $${(Number(t.totalCents || 0) / 100).toFixed(2)}${/manual/.test(t.matchedBy || "") && !t.primary ? " (manual)" : /auto/.test(t.matchedBy || "") ? " (auto)" : ""}${!t.primary && /manual/.test(t.matchedBy || "") ? ` <a href="#" data-unlink="${esc(c.callSid)}" data-ref="${esc(t.receiptNumber || t.orderId)}" title="Quitar">✕</a>` : ""}</span>`).join("");
+  return `<div class="note">Tickets: ${items || "—"} <a href="#" data-link="${esc(c.callSid)}">＋ vincular ticket</a>${L.length > 1 ? ` · se califica contra los ${L.length} tickets juntos` : ""}</div>`;
+}
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-link],[data-unlink]"); if (!a) return; e.preventDefault();
+  const sid = a.dataset.link || a.dataset.unlink;
+  const ref = a.dataset.ref || prompt("Receipt # (ej. AB12) o ID de orden de Square:", ""); if (!ref) return;
+  const r = await api(`/api/calls/${encodeURIComponent(sid)}/link-ticket`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, remove: !!a.dataset.unlink }) });
+  if (!r.ok) { alert((await r.json().catch(() => ({}))).error || "Error"); return; }
+  location.reload();
+});
 function showCompare(on) { cmpOn = on; $("#cmp").style.display = on ? "" : "none"; document.querySelectorAll("main > section:not(#cmp)").forEach((x) => x.style.display = on ? "none" : ""); $("#cmp-btn").classList.toggle("on", on); if (on) renderCompare(); }
 $("#cmp-btn").onclick = () => showCompare(!cmpOn);
 $("#cmp-train").onchange = (e) => { cmpTrain = e.target.checked; renderCompare(); };
