@@ -41,3 +41,11 @@ test("prep1: 'preparada, por favor' after a regular dorada switches to the delux
   assert.deepEqual(r.actions[1].modifiers, mods);
   assert.equal(variationSwitch({ ...base, transcript: "una preparada de pastor" }), null);
 });
+test("opt2: an add-on option ('*** HORCHATA 32oz') on the asked dish doesn't swallow 'un agua de horchata'", () => {
+  const m2: any[] = [...menu,
+    { id: "soup", name: "Soup Bowl", priceCents: 1200, modifierGroups: [{ id: "T", name: "Tortillas", options: [{ id: "c4", name: "4 x (Corn) Comal Tortilla" }, { id: "h4", name: "4 x (Harina) Flour Tortilla" }] }, { id: "D", name: "Drink", options: [{ id: "dh", name: "*** HORCHATA 32oz (+$5.00)" }] }] },
+    { id: "agua-h", name: "Agua Fresca Horchata 32oz", priceCents: 550, modifierGroups: [] }];
+  const h: any[] = [{ role: "customer", text: "un soup bowl" }, { role: "assistant", text: "Soup Bowl: ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?" }];
+  const r: any = resolveFollowUp("Ah, póngame un agua de horchata", h, m2, "es");
+  assert.ok(!r || !(r.actions || []).some((a: any) => a.itemId === "soup"), JSON.stringify(r));
+});

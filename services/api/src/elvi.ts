@@ -498,7 +498,9 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
   { const h = fuPlain(heard); const words = (m: any) => fuPlain(String(m.name || "")).replace(/\(.*?\)|\d+\s*oz/g, " ").split(/[^a-z]+/).filter((w) => w.length >= 5 && !/^(fresca|frescas|grande|extra|order|orden|tortillas?|regular|especial)$/.test(w));
     // comal1: the asked dish's own option words ("de comal" for Quesadilla: ¿Comal, Harina…?) answer the question —
     // another item that merely shares the word (Tortillas Comal) is not a new dish.
-    const optWords = (m: any) => (m.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => String(typeof o === "string" ? o : o.name))).flatMap((n: string) => fuPlain(n).split(/[^a-z]+/).filter((w) => w.length >= 5));
+    // opt2: add-on options ("*** HORCHATA 32oz (+$5.00)", "EXTRA …" on Menudo) don't count — a drink named then is its own item
+    const optWords = (m: any) => (m.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => String(typeof o === "string" ? o : o.name)))
+      .filter((n: string) => !/^\s*\*{2,}|^\s*extra\b/i.test(n)).flatMap((n: string) => fuPlain(n).split(/[^a-z]+/).filter((w) => w.length >= 5));
     const own = new Set([...ctx.items.flatMap(words), ...ctx.items.flatMap(optWords)]);
     if (menu.some((m) => !ctx.items.includes(m) && words(m).some((w) => !own.has(w) && new RegExp(`\\b${w}s?\\b`).test(h)))) return null; }
   try {
