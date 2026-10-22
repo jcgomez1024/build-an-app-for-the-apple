@@ -110,6 +110,8 @@ export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): {
       if (!pick && i >= 0) { const blanks = ticket.filter((l) => !String(l.name || "").trim()).map((l) => l.totalCents).sort((x, y) => x - y); const all = [...said].sort((x, y) => x.totalCents - y.totalCents);
         if (blanks.length === all.length) { const c = all[blanks.indexOf(cents)]; if (c && !used.has(c)) pick = c; } }
       if (i >= 0 && pick) { used.add(pick); gt.splice(i, 1, clone(pick)); corrected.push(`custom amount → ${pick.baseName || pick.name}`); }
+      // ghost1: nothing spoken is left to explain it (every voice-only item already paired) → a likely Square ghost amount (reopened saved ticket); not part of the order
+      else if (i >= 0 && !said.some((e) => !used.has(e))) { gt.splice(i, 1); corrected.push(`custom amount $${m[1]} ignored (possible Square ghost)`); }
       continue;
     }
     if (f.type === "PRICE_DIFF") for (const l of gt) { const e = elvi.find((x) => x.name === l.name); if (e && e.unitCents !== l.unitCents) { l.unitCents = e.unitCents; l.totalCents = e.unitCents * l.quantity; corrected.push(`catalog price on ${l.name}`); } }
