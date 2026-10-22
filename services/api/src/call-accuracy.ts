@@ -122,6 +122,14 @@ export const isEntryError = (li: any) => isCustomAmountLi(li) && (ENTRY_ERROR.te
 export const PLATE_MARKER = /^\s*(?:no|sin)\s+bebida\b|^\s*no\s+drink\b/i;
 export const isPlateMarker = (li: any) => PLATE_MARKER.test(String(li?.name || "")) && !Number(li?.base_price_money?.amount || 0);
 // std2: variationId → options that are the only choice in their modifier group (true defaults). Set from the live menu.
+// std3: "3 x (Flour) Harina Tortilla" — the count is how many come; the type is the caller's choice, so it's checked normally.
+export const TORT_TYPE = /\b(comal|ma[ií]z|corn|harina|flour)\b/i;
+/** tortilla3: ticket items whose tortilla type was never said by the caller nor asked/confirmed by staff (a minor staff miss). */
+export function tortillaUnconfirmed(turns: any[] = [], lines: Line[] = []): string[] {
+  const all = norm((turns || []).map((t: any) => t.text).join(" "));
+  if (/\b(comal|maiz|corn|harina|flour|hech[oa]s? a mano|handmade|homemade|street|taquer[oa]s?|chiquit[oa]s?)\b/.test(all)) return [];
+  return [...new Set((lines || []).filter((l) => (l.choices || []).some((c) => TORT_TYPE.test(c) && !/^\s*\*{2,}|\bextra\b/i.test(c))).map((l) => String(l.baseName || l.name)))];
+}
 const STD_SINGLE = new Map<string, Set<string>>();
 export function setStdMenu(menu: any[] = []) {
   STD_SINGLE.clear();
@@ -145,7 +153,7 @@ export function ticketLines(order: any): Line[] {
       // std2: a $0 modifier is standard/included only when it's a true default — a count-prefixed label ("2 QUESO") or the only
       // option of its group on this item. A $0 protein/choice that was rung but never said still flags.
       freeChoices: (li.modifiers || []).filter((m: any) => !Number(m.total_price_money?.amount ?? m.base_price_money?.amount ?? 0))
-        .map((m: any) => String(m.name || "")).filter((n: string) => /^\s*\d+\s+\S/.test(n) || !!STD_SINGLE.get(String(li.catalog_object_id || ""))?.has(norm(n))), unitCents: Math.round(total / q), totalCents: total
+        .map((m: any) => String(m.name || "")).filter((n: string) => (/^\s*\d+\s+\S/.test(n) && !TORT_TYPE.test(n)) || !!STD_SINGLE.get(String(li.catalog_object_id || ""))?.has(norm(n))), unitCents: Math.round(total / q), totalCents: total
     };
   });
 }

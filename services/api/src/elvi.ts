@@ -438,14 +438,48 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
     if (want && item) for (const g of item.modifierGroups || []) {
       const opts = (g.options || []).map((o: any) => String(o.name));
       if (!opts.some((o: string) => /harina|flour/i.test(o)) || !opts.some((o: string) => /comal|homemade/i.test(o))) continue;
+      if (EXTRA_TORT.test(String(g.name)) || opts.every((o: string) => /^\s*\*{2,}|\bextra\b/i.test(o))) continue; // tortilla2: Extras are add-ons
       const i = mods.findIndex((m) => opts.includes(String(m.option)));
       const pick = opts.find((o: string) => want.test(o));
       if (i >= 0 && pick && !want.test(String(mods[i].option))) mods[i] = { ...mods[i], option: pick };
     }
+    // tortilla2 (Carlos): one tortilla TYPE per item; extra tortillas are the paid Extras add-on, only when asked
+    // ("más tortillas", "extra tortillas") — never a second type.
+    if (item) {
+      const isExtra = (o: string) => /^\s*\*{2,}|\bextra\b/i.test(o) && /tortilla/i.test(o);
+      const typeGroups = (item.modifierGroups || []).filter((g: any) => /tortilla|shell/i.test(g.name) && !EXTRA_TORT.test(g.name) && (g.options || []).length > 1 && !(g.options || []).every((o: any) => isExtra(String(o.name))));
+      for (const g of typeGroups) { const opts = (g.options || []).map((o: any) => String(o.name)); const idx = mods.map((m, i) => opts.includes(String(m.option)) ? i : -1).filter((i) => i >= 0);
+        if (idx.length > 1) mods = mods.filter((_, i) => !idx.slice(0, -1).includes(i)); }
+      const askedExtra = EXTRA_TORT_SAID.test(recentWide);
+      if (!askedExtra) mods = mods.filter((m) => !isExtra(String(m.option)));
+      else if (!mods.some((m) => isExtra(String(m.option)))) {
+        const xg = (item.modifierGroups || []).find((g: any) => (g.options || []).some((o: any) => isExtra(String(o.name))));
+        if (xg) { const flourish = /\b(harina|flour)\b/.test(recentWide.slice(recentWide.search(EXTRA_TORT_SAID))) || mods.some((m) => /harina|flour/i.test(String(m.option)) && !isExtra(String(m.option)));
+          const pick = (xg.options || []).map((o: any) => String(o.name)).filter(isExtra).find((o: string) => flourish ? /harina|flour/i.test(o) : /comal|corn|homemade/i.test(o));
+          if (pick) mods.push({ step: xg.name, option: pick } as any); }
+      }
+    }
     return { ...a, modifiers: mods };
   });
+  // tortilla3 (Carlos): an item with a tortilla type choice is never silently defaulted — when the caller hasn't said a
+  // type anywhere on the call, hold the add and ask "¿comal o harina?" / "corn or flour?".
+  const custAll = [...custTurns, t].join(" ");
+  if (!TORT_TYPE_SAID.test(custAll)) {
+    for (const a of actions as any[]) {
+      if (a?.type !== "add_item") continue; const item = menu.find((i: any) => i.id === a.itemId); if (!item) continue;
+      const g = (item.modifierGroups || []).find((g: any) => /tortilla|shell/i.test(g.name) && !EXTRA_TORT.test(g.name) && (g.minSelections ?? 0) > 0
+        && (g.options || []).some((o: any) => /harina|flour/i.test(o.name)) && (g.options || []).some((o: any) => /comal|corn|homemade/i.test(o.name)));
+      if (!g) continue;
+      const name = String(item.readbackName || item.name).split(" / ")[0];
+      const q = input.language === "es" ? `${name}: ¿comal o harina?` : `${name}: corn or flour?`;
+      return { ...result, audioBase64: undefined, audioMimeType: undefined, actions: (actions as any[]).filter((x) => x !== a), reply: q } as any;
+    }
+  }
   return { ...result, actions };
 }
+const EXTRA_TORT = /\bextra\b/i;
+const EXTRA_TORT_SAID = /\b(extra|m[aá]s|more|additional)\s+(de\s+|of\s+)?tortill|\btortill\w*\s+(extra|adicional)/;
+export const TORT_TYPE_SAID = /\b(comal|ma[ií]z|corn|harina|flour|hech[oa]s?\s+a\s+mano|handmade|homemade|street|taquer[oa]s?|chiquit[oa]s?|dorad[ao]s?)\b/;
 
 export function sameLineGuard(result: ElviResponse, input: ElviRequest): ElviResponse {
   const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;

@@ -7,11 +7,11 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { norm, optKey } from "./call-accuracy.js";
+import { norm, optKey, TORT_TYPE, tortillaUnconfirmed } from "./call-accuracy.js";
 
 export const AUDITOR_DIR = process.env.ELVI_AUDITOR_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/auditor");
 export const FINDINGS_FILE = path.join(AUDITOR_DIR, "findings.jsonl");
-export type FlagType = "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS" | "UNUSUAL_CALL" | "ORDER_FOLLOWUP";
+export type FlagType = "TORTILLA_UNCONFIRMED" | "STAFF_EXTRA" | "STAFF_MISSING" | "CUSTOM_AMOUNT" | "PRICE_DIFF" | "NO_TICKET" | "DELIVERY_FEE_MISSING" | "DELIVERY_FEE_WRONG" | "ELVI_MISS" | "UNUSUAL_CALL" | "ORDER_FOLLOWUP";
 export const PING_TYPES: FlagType[] = ["STAFF_EXTRA", "STAFF_MISSING", "CUSTOM_AMOUNT", "PRICE_DIFF", "NO_TICKET", "DELIVERY_FEE_MISSING", "DELIVERY_FEE_WRONG", "UNUSUAL_CALL"];
 export type Flag = { type: FlagType; detail: string; es: string; en: string; category?: string; urgent?: boolean; question?: string | null };
 export type Finding = { id: string; callSid: string; callAt: string; score: number | null; flags: Flag[]; summary_es: string; summary_en: string;
@@ -26,6 +26,8 @@ export function keywords(name: string) {
 }
 // addons1: a "(C) Con / With" paid add-on counts as said only on its own phrase ("con frijoles", "extra queso derretido").
 export const said = (text: string, name: string) => { const ca = conAddonSaid(text, name); if (ca !== null) return ca;
+  // tortilla2: paid Extras tortillas are said only when asked for ("más tortillas", "extra tortillas"), not on any "tortilla"
+  if (/^\s*\*{2,}|\bextra\b/i.test(name) && /tortill/i.test(name)) return /\b(extra|mas|more|additional)\s+(de\s+|of\s+)?tortill|\btortill\w*\s+(extra|adicional)/.test(norm(text));
   // tw4938: an "on the side" option ("DELUXE ***APARTE / EVERTHING ON SIDE***") is said only when one turn asks for it on the
   // side AND names the toppings (deluxe / con todo / preparada) — "aparte, una porción de nachos" (= also) is not it.
   if (/aparte|on side/i.test(name)) return String(text).split(/\n/).some((l) => /\b(aparte|on the side|por separado)\b/i.test(l) && /\b(deluxe|con todo|preparad[oa]s?|everything|todo aparte)\b/i.test(l) && !/\baparte,?\s+(un[oa]?|otr[oa]|la|el)\b/i.test(l)); const t = ` ${norm(text)} `; let k = keywords(name);
@@ -70,6 +72,8 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   const feeLine = tLines.find(isFee);
   if (delivery && !feeLine) add("DELIVERY_FEE_MISSING", "delivery call, no Delivery Fee line", "Entrega a domicilio sin cargo de envío en el ticket.", "Delivery order with no delivery fee on the ticket.");
   if (delivery && feeLine && r.deliveryFeeCents && Math.abs(feeLine.totalCents - r.deliveryFeeCents) > 1) add("DELIVERY_FEE_WRONG", `fee ${money(feeLine.totalCents)} vs rule ${money(r.deliveryFeeCents)}`, `Cargo de envío ${money(feeLine.totalCents)}; por distancia debía ser ${money(r.deliveryFeeCents)}.`, `Delivery fee ${money(feeLine.totalCents)}; distance rule says ${money(r.deliveryFeeCents)}.`);
+  // tortilla3: caller never said a type and staff never asked/confirmed it → minor staff miss (no ping)
+  for (const n of tortillaUnconfirmed(r.turns, tLines)) add("TORTILLA_UNCONFIRMED", `${n}: tortilla type not confirmed`, `${n}: no se confirmó el tipo de tortilla (comal o harina).`, `${n}: tortilla type (corn or flour) wasn't confirmed on the call.`);
   const qtyDone = new Set<string>();
   for (const p of r.pairs || []) {
     const t = p.ticket, e = p.elvi;
@@ -103,6 +107,16 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
       // tw4938: the ticket line's own variation ("(QD) DELUXE Preparada" in "Quesadilla Dorada · (QD) DELUXE Preparada") is the
       // item staff rang, not an unmentioned add-on: same variation → nothing; Elvi rang another variation → her miss.
       if (norm(t.name).includes(norm(c))) { if (!norm(e.name).includes(norm(c))) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`); continue; }
+      // std3: a counted tortilla label is checked on its type only: caller said that type → Elvi's miss; caller said another
+      // type → staff rang the wrong one; no type said → a default is fine.
+      if (/^\s*\d+\s*x?\s/i.test(c) && TORT_TYPE.test(c)) {
+        const typ = (s: string) => { const w = norm(s); return /\b(harina|flour)\b/.test(w) ? "flour" : /\b(comal|maiz|corn)\b/.test(w) ? "corn" : null; };
+        const want = new Set(String(all).split(/\n/).flatMap((l) => [...norm(l).matchAll(/\b(harina|flour|comal|maiz|corn)\b/g)].map((m) => typ(m[0]))));
+        const mine = typ(c);
+        if (mine && want.has(mine)) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`);
+        else if (want.size) add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
+        continue;
+      }
       if (said(all, c)) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`);
       else if (free.has(norm(c))) continue; // std1: a $0 standard/included modifier isn't an add-on or extra charge
       else add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
