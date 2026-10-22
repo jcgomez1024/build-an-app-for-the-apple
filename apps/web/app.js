@@ -3217,7 +3217,7 @@ function validateAddItemToolArgs(args) {
       ? (isComboTacosRequiredGroup(group.name) ? 1 : 0)
       : min;
     const picks = byGroup.get(group.id) || [];
-    const validOptionSet = new Set((group.options || []).map((o) => String(o)));
+    const validOptionSet = new Set((group.options || []).map((o) => optionDisplayName(o)) /* add1: options can be {id,name} objects — String(o) was "[object Object]" and refused every manual add */);
     const validPicks = picks.filter((pick) => validOptionSet.has(pick.option));
     const distinct = new Set(validPicks.map((pick) => pick.option)).size;
 
@@ -3381,7 +3381,7 @@ async function doCheckout() {
             language: getEffectiveLanguage(),
             source: state.runtimeConfig.voiceOrderSource,
             transcriptSummary: state.lastUserText,
-            cartSummary: describeCurrentOrderForSpeech()
+            cartSummary: state.cart.map(describeCartLine).join("; ").slice(0, 480) // add1: describeCurrentOrderForSpeech never existed -> every checkout threw
           }
         })
       });
@@ -6532,7 +6532,17 @@ function ui4CorrectionText(text) {
   return ui4Plain(text)
     .replace(/\b(sin|no|without)\s+(los\s+)?(frijoles|beans)\b/g, "solo arroz")
     .replace(/\b(sin|no|without)\s+(el\s+)?(arroz|rice)\b/g, "solo frijoles")
-    .replace(/\b(only|just)\s+rice\b/g, "solo arroz").replace(/\b(only|just)\s+beans\b/g, "solo frijoles");
+    .replace(/\b(only|just)\s+rice\b/g, "solo arroz").replace(/\b(only|just)\s+beans\b/g, "solo frijoles")
+    // change1: "verde not asada" / "en vez de asada": drop the old choice so it can't win the match.
+    .replace(/\b(not|instead of|rather than|en vez de|en lugar de|y no)\s+(the\s+|la\s+|el\s+|los\s+|las\s+)?[a-z]+\b/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+// change1: fuzzy fallback: a single word that names exactly one option of the group ("verde" -> "Medium Salsa Verde").
+const UI4_GENERIC = new Set(["salsa", "mild", "medium", "spicy", "picante", "with", "side", "extra", "online", "options", "orden", "order", "carne", "meat"]);
+function ui4TokenPick(g, t) {
+  const words = new Set(t.split(" ").filter((w) => w.length >= 4 && !UI4_GENERIC.has(w)));
+  const hits = (g.options || []).filter((o) => ui4Plain(o.name || o).split(" ").some((w) => words.has(w)));
+  return hits.length === 1 ? hits[0] : null;
 }
 function ui4OptionPhrases(name) {
   const raw = String(name || "").replace(/\s*\(\+?\$[\d.]+\)\s*/g, " ").replace(/^\(\w+\)\s*/, "").replace(/^\d+\s*x\s+/i, "").replace(/\*+/g, "").trim();
@@ -6562,6 +6572,7 @@ function tryCartCorrection(text) {
           if (new RegExp(`(^|\\s)${ph.replace(/\s+/g, "\\s+")}(\\s|$)`).test(t) && ph.length > bestLen) { best = o; bestLen = ph.length; }
         }
       }
+      if (!best && modOf(g) >= 0) best = ui4TokenPick(g, t); // only re-pick a choice the line already has
       if (!best) continue;
       const at = modOf(g);
       const cur = at >= 0 ? mods[at] : null;

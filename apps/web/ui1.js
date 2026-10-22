@@ -147,7 +147,7 @@ function homeHTML() {
   }).join("")}</div>`;
 }
 function catHTML() {
-  const c = U.cats[U.cat];
+  const c = U.cats[U.cat]; if (!c) return "";
   const m = catMeta(c);
   // ui5: one tile per website product (drinks: "Coca Cola / Pepsi" opens its choices), website order.
   const groups = [];
@@ -471,7 +471,9 @@ document.addEventListener("click", (e) => {
   if (!el || !el.closest("#ui1")) return;
   const d = el.dataset;
   if (d.cat !== undefined) { U.cat = Number(d.cat); U.prod = null; U.screen = "cat"; render(); window.scrollTo(0, 0); return; }
-  if (d.prod !== undefined) { U.prod = d.prod; U.screen = "prod"; render(); window.scrollTo(0, 0); return; }
+  if (d.prod !== undefined) { // add1: v3 cards have no category screen first — find the product's category (catHTML needs U.cat)
+    if (U.cat === null || U.cat === undefined || !U.cats[U.cat]?.items?.some((x) => x.product === d.prod)) { const i = U.cats.findIndex((c) => !c.popular && c.items.some((x) => x.product === d.prod)); U.cat = i >= 0 ? i : U.cats.findIndex((c) => c.items.some((x) => x.product === d.prod)); }
+    if (!U.cats[U.cat]) return; U.prod = d.prod; U.screen = "prod"; render(); window.scrollTo(0, 0); return; }
   if (d.item) { openItem(d.item); return; }
   if (d.dbl !== undefined) { const g = U.item.modifierGroups[Number(d.dbl)]; const s = U.dbl[g.id]; s.has(d.o) ? s.delete(d.o) : s.add(d.o); render(); return; }
   if (d.g !== undefined) { pick(Number(d.g), d.o); return; }
