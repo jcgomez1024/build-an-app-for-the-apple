@@ -312,6 +312,40 @@ export function sameDishMore(input: ElviRequest): ElviResponse | null {
   if (!fresh.length) return { language, engine: "xai", reply: language === "es" ? "Sí, ya los tengo. ¿Algo más?" : "Yes, I have those. Anything else?", actions: [] } as any;
   return { language, engine: "xai", reply: addReadback(fresh, menu, language), actions: fresh } as any;
 }
+/** again1: "y otras dos" / "otros tres iguales" with no dish or meat named = that many more of the LAST line, same options. */
+export function sameAgain(input: ElviRequest): ElviResponse | null {
+  const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
+  if (!last || Date.now() - last.at > 3 * 3600_000) return null;
+  const t = fuPlain(String(input.transcript || "")).replace(/\b(por favor|please|porfa)\b/g, " ").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  const m = t.match(/^(?:(?:y|ah|eh|si|aja|este|tambien)\s+)*(?:otr[oa]s?\s+(\d{1,2}|dos|tres|cuatro|cinco|seis)|(\d{1,2}|dos|tres|cuatro|cinco|seis)\s+m[aá]s|otr[oa])(?:\s+(?:igual(?:es)?|asi|mas))*$/);
+  if (!m) return null;
+  const N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
+  const w = m[1] || m[2];
+  const q = !w ? 1 : /\d/.test(w) ? Number(w) : N[w] || 1;
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
+  if (!menu.some((i) => i.id === last.itemId)) return null;
+  const acts: any[] = [{ type: "add_item", itemId: last.itemId, quantity: q, modifiers: (last.modifiers || []).map((x: any) => ({ step: x.step, option: x.option })) }];
+  return { language: input.language, engine: "xai", reply: addReadback(acts, menu, input.language as Language), actions: acts } as any;
+}
+
+/** prep1: "preparada" / "deluxe" / "normal" right after a dish was rung = switch that line to the sibling variation
+ * (same Square item, other variation) whose name carries the word — options kept. */
+export function variationSwitch(input: ElviRequest): ElviResponse | null {
+  const key = (input as any).sessionKey; const last = key ? lastAddBySession.get(key) : undefined;
+  if (!last || Date.now() - last.at > 3 * 3600_000) return null;
+  const t = fuPlain(String(input.transcript || "")).replace(/\b(por favor|please|porfa|gracias)\b/g, " ").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  const m = t.match(/^(?:(?:no|si|ah|eh|aja|este|mejor|la|el)\s+)*(preparad[ao]s?|deluxe|regular(?:es)?|normal(?:es)?|sencill[ao]s?)$/);
+  if (!m) return null;
+  const menu = (((input as any).resolverMenu || input.menu || []) as MenuItem[]);
+  const cur: any = menu.find((i) => i.id === last.itemId);
+  if (!cur?.squareCatalogObjectId) return null;
+  const want = /^(preparad|deluxe)/.test(m[1]) ? /deluxe|preparad/i : /regular|normal|sencill/i;
+  const sibs = menu.filter((i: any) => i.squareCatalogObjectId === cur.squareCatalogObjectId && i.id !== cur.id && want.test(String(i.name)));
+  if (want.test(String(cur.name))) return { language: input.language, engine: "xai", reply: input.language === "en" ? "Yes, I have it that way. Anything else?" : "Sí, así la tengo. ¿Algo más?", actions: [] } as any;
+  if (sibs.length !== 1) return null;
+  const add: any = { type: "add_item", itemId: sibs[0].id, quantity: last.quantity, modifiers: (last.modifiers || []).map((x: any) => ({ step: x.step, option: x.option })) };
+  return { language: input.language, engine: "xai", reply: addReadback([add], menu, input.language as Language), actions: [{ type: "remove_item", itemId: cur.id, quantity: last.quantity }, add] } as any;
+}
 /** alex1: "¿tiene chilaquiles?" asks if we sell it — answer, don't ring one. */
 const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh|(?:el\s+d[ií]a\s+de\s+)?hoy|ahorita|today|right\s+now)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
 // alex1: "Y en otro … este," + "en vez de huevos bistec" = another of the last dish with that meat (no extra egg).
@@ -462,7 +496,10 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
   // horchata1: a different menu item named by its own distinctive word ("un agua de horchata") also starts over —
   // pinnedMenu doesn't pin drinks, so a stale dish question (Menudo) swallowed every later turn.
   { const h = fuPlain(heard); const words = (m: any) => fuPlain(String(m.name || "")).replace(/\(.*?\)|\d+\s*oz/g, " ").split(/[^a-z]+/).filter((w) => w.length >= 5 && !/^(fresca|frescas|grande|extra|order|orden|tortillas?|regular|especial)$/.test(w));
-    const own = new Set(ctx.items.flatMap(words));
+    // comal1: the asked dish's own option words ("de comal" for Quesadilla: ¿Comal, Harina…?) answer the question —
+    // another item that merely shares the word (Tortillas Comal) is not a new dish.
+    const optWords = (m: any) => (m.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => String(typeof o === "string" ? o : o.name))).flatMap((n: string) => fuPlain(n).split(/[^a-z]+/).filter((w) => w.length >= 5));
+    const own = new Set([...ctx.items.flatMap(words), ...ctx.items.flatMap(optWords)]);
     if (menu.some((m) => !ctx.items.includes(m) && words(m).some((w) => !own.has(w) && new RegExp(`\\b${w}s?\\b`).test(h)))) return null; }
   try {
     const run = (t: string) => {
@@ -2002,6 +2039,10 @@ async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<Xai
   if (ack) return ack;
   const mem = memoryTurn(input);
   if (mem) { recordLastAdd((input as any).sessionKey, mem.actions); return mem; }
+  const again = sameAgain(input);
+  if (again) { recordLastAdd((input as any).sessionKey, again.actions); return again; }
+  const vsw = variationSwitch(input);
+  if (vsw) { recordLastAdd((input as any).sessionKey, vsw.actions.filter((a: any) => a.type === "add_item")); return vsw; }
   const more = sameDishMore(input);
   if (more) { recordLastAdd((input as any).sessionKey, more.actions); return more; }
   const multi = multiDishTurn(input);

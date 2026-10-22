@@ -78,7 +78,9 @@ export function stripLeadFiller(text: string) {
 
 export function normalizeSpokenCatalogAliases(text: string) {
   // aliases1: shared phone+app spoken aliases (data/aliases/aliases.json) run first.
-  return applySharedAliases(stripLeadFiller(String(text || "")), "app")
+  // aceite1: "quesadilla(s) de bistec en aceite / frita(s)" = the fried (QD) Quesadilla Dorada, not a comal quesadilla.
+  const fried = (x: string) => x.replace(/\b(quesadillas?)\b((?:\s+(?!y\b|and\b)[\p{L}]+){0,4}?)\s+(?:en\s+aceite|fritas?|frit[oa]s?)\b/giu, (_m, q: string, mid: string) => `${q} ${/s$/i.test(q) ? "doradas" : "dorada"}${mid}`);
+  return applySharedAliases(fried(stripLeadFiller(String(text || ""))), "app")
     .replace(/\b[oh]?orchatas?\b/gi, "horchata") // horchata1: STT "orchata"
     // cheyenne1: "hecha a mano" / "de hecha mano" / "handmade" = the Comal (homemade) tortilla
     .replace(/(?:(?:de\s+)?(?:la\s+)?(?:tortilla\s+)?(?:grande\s+)?)?\bhech[oa]s?\s+(?:a\s+)?mano\b|\bhand\s*-?\s*made\b|\bmade\s+by\s+hand\b/gi, "de comal")
