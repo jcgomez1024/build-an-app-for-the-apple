@@ -71,6 +71,8 @@ function groupLabel(g) {
   const n = cleanOpt(g.name).replace(/^(T|Q|G|TO|CB|GQT|B)\s+/i, "");
   if (/tortilla|shell/i.test(n)) return "Tortilla";
   if (/size|tama/i.test(n)) return t("Tamaño", "Size");
+  // fill1 (Carlos): a "meat" group that also offers cheese / potatoes is a filling, not a meat.
+  if (/carne|meat/i.test(n) && (g.options || []).some((o) => /\b(queso|cheese|papas?|potato(es)?)\b/i.test(cleanOpt(o.name || o)))) return t("Relleno", "Filling (Relleno)");
   if (/carne|meat/i.test(n)) return t("Carne", "Meat");
   if (/burrito.*options|adentro/i.test(n)) return t("Adentro", "Inside");
   if (/salsa/i.test(n)) return "Salsa";
