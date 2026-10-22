@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { recall as recallMemory, readPending, decide, LEARN_DIR, rewriteSlang } from "./elvi-knowledge.js";
 import { splitDishClauses } from "./elvi.js";
 import path from "node:path";
@@ -46,6 +47,10 @@ import { compareRow } from "./compare.js";
 import { feeOnPickup } from "./fee-check.js";
 import { registerCustRoutes } from "./cust-routes.js";
 import { twilioVerifySender, readSession, signSession, cookieHeader } from "./cust-auth.js";
+import { timingOptions, validateTiming, timingConfig } from "./timing.js";
+import { saveOrderRec, recByToken, fetchView, renderSuccess } from "./success-page.js";
+import { verifySquareSignature, webhookTrusted } from "./square-webhook.js";
+import { checkoutLive } from "./customer-guard.js";
 import { notePendingProfile, completeProfile, profileForPhone } from "./cust-profile.js";
 import { storeState, popularProducts as realPopular } from "./menu-v3.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly, findCustomerByPhoneReadOnly } from "./square.js";
@@ -229,7 +234,7 @@ async function synthesizeSpeech(tenant: ReturnType<typeof resolveTenant>, text: 
 }
 
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "1mb", verify: (req: any, _res, buf) => { if (req.url?.startsWith("/api/square/webhooks")) req.rawBody = buf; } })); // whsig1: raw body for the signature
 // custapp1: per-IP rate limits on customer ordering routes (phone system routes are not limited)
 app.use(["/api/orders/checkout", "/api/:tenant/orders/checkout"], rateLimit("checkout", 5, 10 * 60_000));
 app.use(["/api/realtime/session", "/api/:tenant/realtime/session", "/api/:tenant/xai/client-secret"], rateLimit("voice-token", 10, 10 * 60_000));
@@ -1208,13 +1213,39 @@ app.post("/api/menu/resolve", async (req, res, next) => {
   }
 });
 
+// time1: ASAP / scheduled timing for pickup & delivery (open or closed), validated server-side
+async function checkTiming(req: express.Request, tenant: ReturnType<typeof resolveTenant>) {
+  delete req.body.timingResolved;
+  const f = req.body?.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP";
+  const menu: any[] = await getMenu(buildSquareConfig(tenant));
+  const items = (Array.isArray(req.body?.cart) ? req.body.cart : []).map((l: any) => menu.find((m) => m.id === l?.id)).filter(Boolean);
+  return validateTiming(f, req.body?.timing, items);
+}
+function rememberOrderTiming(token: string, orderId: string, env: "sandbox" | "production", body: any, tc: any) {
+  try { saveOrderRec(token, { orderId, env, f: body.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP", scheduleType: tc.scheduleType, at: tc.at, readyAt: tc.readyAt, label: tc.label, window: tc.window || null,
+    firstName: String(body.customer?.name || "").trim().split(/\s+/)[0]?.slice(0, 30) || null, address: body.fulfillment === "DELIVERY" ? String(body.customer?.address || "").slice(0, 200) || null : null }); } catch { /* best effort */ }
+}
+app.get("/api/:tenant/orders/timing", (req, res) => {
+  const f = req.query.f === "DELIVERY" ? "DELIVERY" : "PICKUP";
+  res.json({ fulfillment: f, ...(timingOptions(f) || {}) });
+});
+app.post("/api/:tenant/orders/timing", async (req, res, next) => {
+  try { const tenant = resolveTenant(req.params.tenant || req.headers.host); res.json(await checkTiming(req, tenant)); } catch (e) { next(e); }
+});
+
 app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
   try {
     const tenant = resolveTenant(req.params.tenant || req.headers.host);
     const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     markInternalPhone(req);
-    const result = await createCheckout(req.body, sq);
+    const tc = await checkTiming(req, tenant); // time1: server decides the time; a body can't supply timingResolved
+    if (!tc.ok) { res.status(422).json({ error: tc.error[req.body?.metadata?.language === "en" ? "en" : "es"], unavailable: tc.unavailable || [], timingError: true }); return; }
+    req.body.timingResolved = tc;
+    req.body.successToken = crypto.randomBytes(18).toString("base64url"); // success1: only this browser's redirect can show this order
+    const result: any = await createCheckout(req.body, sq);
+    if (result.orderId) rememberOrderTiming(req.body.successToken, result.orderId, sq.env, req.body, tc);
+    result.timing = tc;
     try { notePendingProfile(readSession(req.headers.cookie), result.orderId, sq.env, req.body?.customer || {}); } catch { /* prof1 best effort */ }
     // learn2: the paid cart is the app session's ground truth (session log; no customer details)
     logTurn(orderSessionKey(req.body), { channel: "app", event: "checkout", paid: true, cart: (req.body?.cart || []).map((l: any) => ({ id: l.id, quantity: l.quantity, modifiers: (l.modifiers || []).map((m: any) => m.option) })) });
@@ -1249,7 +1280,13 @@ app.post("/api/orders/checkout", async (req, res, next) => {
     const sq = gatedCheckoutConfig(buildSquareConfig(tenant));
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     markInternalPhone(req);
-    const result = await createCheckout(req.body, sq);
+    const tc = await checkTiming(req, tenant); // time1: server decides the time; a body can't supply timingResolved
+    if (!tc.ok) { res.status(422).json({ error: tc.error[req.body?.metadata?.language === "en" ? "en" : "es"], unavailable: tc.unavailable || [], timingError: true }); return; }
+    req.body.timingResolved = tc;
+    req.body.successToken = crypto.randomBytes(18).toString("base64url"); // success1: only this browser's redirect can show this order
+    const result: any = await createCheckout(req.body, sq);
+    if (result.orderId) rememberOrderTiming(req.body.successToken, result.orderId, sq.env, req.body, tc);
+    result.timing = tc;
     try { notePendingProfile(readSession(req.headers.cookie), result.orderId, sq.env, req.body?.customer || {}); } catch { /* prof1 best effort */ }
     clearOrderContext(orderSessionKey(req.body), "submitted");
     rememberPhoneOrderName(req);
@@ -1665,7 +1702,10 @@ app.get("/api/calls/:sid/audio", phoneAuth, (req, res) => {
 });
 
 app.post("/api/square/webhooks", (req, res) => {
-  console.log("Square webhook", JSON.stringify(req.body));
+  const sig = verifySquareSignature((req as any).rawBody, String(req.headers["x-square-hmacsha256-signature"] || ""));
+  if (sig === "invalid") { console.warn("Square webhook: bad signature"); res.sendStatus(403); return; }
+  console.log("Square webhook", sig, JSON.stringify(req.body));
+  if (!webhookTrusted(sig, checkoutLive())) { res.sendStatus(200); return; }
   // prof1: payment events only TRIGGER a check; completeProfile re-reads the payment from Square before writing anything
   const pay = req.body?.data?.object?.payment;
   if (/^payment\.(created|updated)$/.test(String(req.body?.type || "")) && pay?.id && pay.status === "COMPLETED")
@@ -1674,17 +1714,25 @@ app.post("/api/square/webhooks", (req, res) => {
 });
 
 app.get("/checkout/success", async (req, res) => {
-  // prof1: confirmed checkout → maybe create the profile, and refresh the session so the next visit says "Hola"
-  try {
-    const orderId = typeof req.query.orderId === "string" ? req.query.orderId.slice(0, 64) : "";
-    const s = readSession(req.headers.cookie);
-    if (orderId && s && !s.cid) {
-      const d = await completeProfile({ orderId }, buildSquareConfig(resolveTenant(undefined)));
-      const h = profileForPhone(s.p);
-      if (d?.customerId && h) res.setHeader("Set-Cookie", cookieHeader(signSession({ p: s.p, cid: h.cid, fn: h.fn, em: s.em }), process.env.CUST_COOKIE_SECURE !== "0"));
-    }
-  } catch { /* never block the thank-you page */ }
-  res.type("html").send("<h1>Gracias. Your Cocina Elvis order was received.</h1>");
+  // success1: ck (our random token) → exactly one order; fetched from Square in the env it was created in (sandbox unless live)
+  const lang: "es" | "en" = req.query.lang === "en" || req.query.lang === "es" ? (req.query.lang as any) : /^en/i.test(String(req.headers["accept-language"] || "")) ? "en" : "es";
+  const rec = typeof req.query.ck === "string" ? recByToken(req.query.ck) : null;
+  let view: any = null;
+  if (rec && (rec.env === "sandbox" || checkoutLive())) {
+    const cfg = rec.env === "production" ? buildSquareConfig(resolveTenant(undefined)) : { env: "sandbox", accessToken: process.env.SQUARE_SANDBOX_ACCESS_TOKEN, locationId: process.env.SQUARE_SANDBOX_LOCATION_ID };
+    try { view = await fetchView(rec, cfg); } catch { view = null; }
+    // prof1: confirmed checkout → maybe create the profile; refresh the session so the next visit says "Hola"
+    try {
+      const s = readSession(req.headers.cookie);
+      if (view?.state === "paid" && s && !s.cid) {
+        const d = await completeProfile({ orderId: rec.orderId }, buildSquareConfig(resolveTenant(undefined)));
+        const h = profileForPhone(s.p);
+        if (d?.customerId && h) res.setHeader("Set-Cookie", cookieHeader(signSession({ p: s.p, cid: h.cid, fn: h.fn, em: s.em }), process.env.CUST_COOKIE_SECURE !== "0"));
+      }
+    } catch { /* never block the thank-you page */ }
+  }
+  res.setHeader("Cache-Control", "no-store"); res.setHeader("Referrer-Policy", "no-referrer");
+  res.type("html").send(renderSuccess(view, lang, req.originalUrl, timingConfig().prep));
 });
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

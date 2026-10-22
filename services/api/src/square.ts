@@ -123,6 +123,7 @@ export function orderDisplayName(input: { customer?: { name?: string } }): strin
 }
 
 export function buildFulfillment(input: CheckoutRequest) {
+  const tm = (input as any).timingResolved as { scheduleType: "ASAP" | "SCHEDULED"; at: string; window?: { from: string; to: string; en: string } } | undefined;
   const recipient = {
     display_name: orderDisplayName(input) || "Cocina Elvis customer",
     phone_number: input.customer.phone,
@@ -142,8 +143,9 @@ export function buildFulfillment(input: CheckoutRequest) {
           ...recipient,
           ...(a ? { address: { address_line_1: a.street, address_line_2: a.unit, locality: a.city || "Painesville", administrative_district_level_1: "OH", postal_code: a.zip, country: "US" } } : {})
         },
-        note: input.customer.address ? `DELIVERY / ENTREGA: ${input.customer.address}${extra}`.slice(0, 500) : undefined,
-        schedule_type: "ASAP"
+        note: input.customer.address ? `DELIVERY / ENTREGA: ${input.customer.address}${extra}${tm?.window ? ` | ENTREGA ${tm.window.en}` : ""}`.slice(0, 500) : undefined,
+        // time1: scheduled delivery — deliver_at = window start, 10-min window; prep starts at ready − prep
+        ...(tm?.scheduleType === "SCHEDULED" ? { schedule_type: "SCHEDULED", deliver_at: tm.window?.from || tm.at, ...(tm.window ? { delivery_window_duration: `PT${Math.round((Date.parse(tm.window.to) - Date.parse(tm.window.from)) / 60000)}M` } : {}) } : { schedule_type: "ASAP" })
       }
     };
   }
@@ -153,7 +155,8 @@ export function buildFulfillment(input: CheckoutRequest) {
     state: "PROPOSED",
     pickup_details: {
       recipient,
-      schedule_type: "ASAP"
+      // time1: scheduled pickup at the chosen ready time
+      ...(tm?.scheduleType === "SCHEDULED" ? { schedule_type: "SCHEDULED", pickup_at: tm.at } : { schedule_type: "ASAP" })
     }
   };
 }
@@ -362,7 +365,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
         }
       },
       checkout_options: {
-        redirect_url: `${runtime.appPublicUrl}/checkout/success`,
+        redirect_url: `${runtime.appPublicUrl}/checkout/success${/^[A-Za-z0-9_-]{16,64}$/.test(String((input as any).successToken || "")) ? `?ck=${(input as any).successToken}` : ""}`,
         ask_for_shipping_address: false
       },
       pre_populated_data: {

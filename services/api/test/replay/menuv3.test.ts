@@ -65,26 +65,24 @@ test("menuv3: page renders tabs, Popular first, timed tab marked, card add goes 
   const tabs = [...h.matchAll(/data-v3tab="([^"]+)">([^<]+)/g)].map((m) => m[2]);
   assert.equal(tabs[0], "Popular"); assert.ok(!tabs.some((x) => /MOST POPULAR|Más populares/.test(x)), "site popular dup skipped");
   assert.ok(tabs.some((x) => x.includes("⏱")), "closed timed category marked");
-  assert.match(h, /★ Popular/); assert.match(h, /v3-card is-closed[^>]*data-item="w1"/);
+  assert.match(h, /★ Popular/); assert.match(h, /v3-card is-later[^>]*data-item="w1"/); assert.match(h, /v3-sub">Cerrado ahora · sáb–dom 11am–3pm/, "time-window note kept");
   P.click({ item: "s1" }); await tick();
   assert.deepEqual(P.adds, [["s1", 1, []]], "simple item adds via Elvi's addFromMenu");
   P.stop();
 });
-test("menuv3: closed store blocks adds", async () => {
-  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Cerrado", en: "Closed" }, hours: [], nextOpen: { es: "abrimos jue 11:00am", en: "opens Thu 11:00am" } });
-  await tick(); assert.match(P.html["#ui1-main"] || "", /v3-banner closed/);
-  P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0); P.stop();
+test("menuv3 time1: closed / before open → small banner, browsing AND adding allowed (even time-window items)", async () => {
+  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "x", en: "x" }, hours: [], nextOpen: { es: "abrimos jue 11:00am", en: "we open Thu 11:00am" } });
+  await tick(); const h = P.html["#ui1-main"] || "";
+  assert.match(h, /v3-banner closed slim">Cerrado · abrimos jue 11:00am · puedes ordenar ahora para más tarde/);
+  assert.ok(!/data-v3chk|data-v3submit/.test(h), "old Programar checkbox gone");
+  P.click({ item: "s1" }); await tick(); P.click({ item: "w1" }); await tick(); assert.deepEqual(P.adds.map((a) => a[0]), ["s1", "w1"]); P.stop();
+  const Q = runPage({ state: "before_open", pill: { es: "Abre 11:00am", en: "Opens 11:00am" }, banner: { es: "x", en: "x" }, hours: [], nextOpen: null });
+  await tick(); assert.match(Q.html["#ui1-main"] || "", /Abrimos 11:00am · puedes ordenar ahora para más tarde/); Q.stop();
 });
-test("menuv3: v3 is the default; ?menu=old falls back; Programar only with ?schedule=1", async () => {
+test("menuv3 time1: ?schedule=1 approach removed; checkout timing step exists", () => {
   const src = fs.readFileSync(path.join(web, "ui1.js"), "utf8");
   assert.match(src, /const V3 = Q3\.get\("menu"\) !== "old";/);
-  assert.match(src, /const SCHED_OK = V3 && Q3\.get\("schedule"\) === "1";/);
-  const sched = { at: "2026-10-27T15:00:00.000Z", es: "Programar para mar 11:00am", en: "Schedule for Tue 11:00am" };
-  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Ya cerramos por hoy — abrimos mar 11:00am", en: "x" }, hours: [], nextOpen: { es: "abrimos mar 11:00am", en: "x" }, schedule: sched }, { s1: true });
-  await tick(); const h = P.html["#ui1-main"] || "";
-  assert.match(h, /abrimos mar 11:00am/); assert.ok(!/data-v3chk|Programar/.test(h), "no scheduling on the default page");
-  assert.match(h, /data-v3view="elvi"/, "Menú | Elvi toggle");
-  P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0, "browse-only while closed"); P.stop();
+  assert.ok(!/SCHED_OK|v3DryRun|data-v3chk/.test(src)); assert.match(src, /function timingHTML\(\)/); assert.match(src, /data-tmpay/);
 });
 
 // ---- Elvi's add step, extracted from app.js and run with synthetic stubs ----
@@ -118,23 +116,6 @@ test("menuv3: next opening skips Monday; weekend preview hours 10am; last order 
   assert.equal(s("2026-10-24T23:30:00Z").pill.en, "Last order 7:40pm");
   assert.equal(s("2026-10-21T15:00:00Z").schedule, null);
 });
-test("menuv3: closed → schedule pickup; only items available then; submit is a dry run", async () => {
-  const sched = { at: "2026-10-27T15:00:00.000Z", es: "Programar para mar 11:00am", en: "Schedule for Tue 11:00am" };
-  const P = runPage({ state: "closed", pill: { es: "Cerrado", en: "Closed" }, banner: { es: "Cerrado", en: "Closed" }, hours: [], nextOpen: null, schedule: sched }, { t1: true, s1: true, w1: false }, "?schedule=1");
-  const g: any = globalThis; let fetched = 0; const f0 = g.fetch; g.fetch = async (...a: any[]) => { fetched++; return f0(...a); };
-  await tick(); assert.match(P.html["#ui1-main"] || "", /data-v3chk="1" checked> Programar para recoger mar 11:00am/, "schedule on by default");
-  assert.match(P.html["#ui1-main"] || "", /Cerrado ahora · Programar para mar 11:00am/);
-  P.click({ v3chk: "1" }); await tick(); P.click({ item: "s1" }); await tick(); assert.equal(P.adds.length, 0, "unchecked = browse-only");
-  P.click({ v3chk: "1" }); await tick();
-  assert.match(P.html["#ui1-main"] || "", /data-v3submit="1"/);
-  P.click({ item: "s1" }); await tick(); assert.deepEqual(P.adds.map((a) => a[0]), ["s1"]);
-  P.click({ item: "w1" }); await tick(); assert.equal(P.adds.length, 1, "item not available at pickup time is blocked");
-  P.win.elviBridge.state.cart = [{ item: { id: "s1" }, quantity: 1, modifiers: [] }];
-  fetched = 0; P.click({ v3submit: "1" }); await tick();
-  assert.equal(P.win.__v3LastDryRun.dryRun, true); assert.equal(P.win.__v3LastDryRun.fulfillment.pickup_at, sched.at);
-  assert.equal(fetched, 0, "dry run sends nothing"); g.fetch = f0; P.stop();
-});
-
 test("menuv3: item sheet asks only the first missing required group, then enables Agregar", async () => {
   const P = runPage({ state: "open", pill: { es: "Abierto", en: "Open" }, banner: null, hours: [] });
   await tick(); P.click({ item: "t1" }); await tick();

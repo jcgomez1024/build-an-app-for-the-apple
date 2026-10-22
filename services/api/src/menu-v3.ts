@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import { loadSiteCatalog, currentTime } from "./site-catalog.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const DAY_ES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"], DAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const toMin = (hhmm: string) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + (m || 0); };
-const fmt = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
-function zoned(now: Date, tz: string) {
+export const DAY_ES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"], DAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const toMin = (hhmm: string) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + (m || 0); };
+export const fmt = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
+export function zoned(now: Date, tz: string) {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now).map((x) => [x.type, x.value]));
   return { day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(String(p.weekday)), minutes: Number(p.hour) * 60 + Number(p.minute) };
 }
@@ -55,4 +55,9 @@ export function storeState(now = currentTime(), catalog = loadSiteCatalog()): St
     const at = new Date(now.getTime() + (i * 1440 + toMin(ww.open) - minutes) * 60000); at.setUTCSeconds(0, 0);
     return { ...st, schedule: { at: at.toISOString(), es: `Programar para ${DAY_ES[d]} ${fmt(toMin(ww.open))}`, en: `Schedule for ${DAY_EN[d]} ${fmt(toMin(ww.open))}` } }; }
   return { ...st, schedule: null };
+}
+
+/** time1: the day's open window (web hours override, else Square site pickup hours). */
+export function openWindow(d: number, catalog = loadSiteCatalog()): { open: string; close: string } | null {
+  const store: any = catalog?.store; return (PREVIEW_HOURS as any)[DAYS[d]] || store?.pickupHours?.[DAYS[d]]?.[0] || null;
 }

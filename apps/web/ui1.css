@@ -186,10 +186,20 @@ body.v3 .v3-pill{margin-right:50px}
 .cust-box h3{margin:0 0 6px}
 .cust-box input{width:100%;box-sizing:border-box;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #ccc;margin:8px 0}
 .cust-go,.cust-fav,.cust-out{display:block;width:100%;margin:6px 0;padding:11px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
-.cust-go,.cust-fav{background:var(--v3-accent,#c8102e);color:#fff}
+.cust-go,.cust-fav{background:var(--accent,#1471d6);color:#fff}
 .cust-out{background:#eee;color:#333}
-.cust-link{background:none;border:0;color:var(--v3-accent,#c8102e);font-weight:700;cursor:pointer;padding:0}
+.cust-link{background:none;border:0;color:var(--accent,#1471d6);font-weight:700;cursor:pointer;padding:0}
 .cust-x{position:absolute;top:6px;right:10px;border:0;background:none;font-size:24px;cursor:pointer}
-.cust-sub{opacity:.8;margin:6px 0}.cust-fine{font-size:12px;opacity:.6}.cust-err{color:#c8102e;min-height:1em;margin:4px 0 0}
+.cust-sub{opacity:.8;margin:6px 0}.cust-fine{font-size:12px;opacity:.6}.cust-err{color:#c62828;min-height:1em;margin:4px 0 0}
 .cust-past{font-size:14px;margin:4px 0}.cust-prompt{font-size:14px;margin:4px 0 10px}
 @media (max-width:959px){.cust-btn{padding:4px 8px;font-size:12px}}
+/* time1: non-blocking banner + checkout timing step */
+.v3-banner.slim{padding:8px 12px;font-size:13px}
+.v3-card.is-later{opacity:.85}
+.tm-seg{display:flex;gap:6px;margin-bottom:8px}.tm-seg button{flex:1;padding:10px;border-radius:10px;border:1px solid #d6deea;background:#fff;font-weight:700;cursor:pointer}.tm-seg button.on{background:var(--accent,#1471d6);color:#fff;border-color:transparent}
+.tm-h{font-weight:800;margin:6px 0}.tm-o{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid #e3e8f0;border-radius:10px;margin:6px 0;cursor:pointer}
+.tm-sched{display:flex;gap:6px;margin:6px 0}.tm-sched select{flex:1;padding:10px;border-radius:10px;border:1px solid #ccd;font-size:15px}
+.tm-flag{background:#fff4e5;color:#8a4b00;border-radius:10px;padding:10px;margin:8px 0}
+.tm-f input{display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:6px 0;border-radius:10px;border:1px solid #ccd;font-size:16px}.tm-err{color:#c62828;min-height:1em;margin:4px 0}
+.tm-o{justify-content:flex-start;text-align:left;font-weight:600}.tm-o input{width:auto;flex:none;margin:3px 0 0;accent-color:var(--accent,#1471d6)}
+#tm-step{scroll-margin-top:80px}

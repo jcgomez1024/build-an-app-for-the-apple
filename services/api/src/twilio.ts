@@ -962,7 +962,8 @@ function touchAgent(reason = "heartbeat") {
     fs.writeFileSync(presenceFile, JSON.stringify({ seenAt: agentSeenAt, reason, at: new Date().toISOString() }));
   } catch { /* best effort */ }
 }
-let lastBase = (process.env.APP_PUBLIC_URL || "").replace(/\/$/, "");
+// time1: APP_PUBLIC_URL is now the customer host (order.*), which denies /api/twilio — wait for a real Twilio webhook base instead.
+let lastBase = /\/\/order\./.test(process.env.APP_PUBLIC_URL || "") ? "" : (process.env.APP_PUBLIC_URL || "").replace(/\/$/, "");
 /** Default 90s: covers brief API restarts while /phone.html keeps polling every 2s. */
 const agentGraceMs = () => Number(process.env.PHONE_ONLINE_GRACE_MS || 90000);
 const agentOnline = () => Date.now() - agentSeenAt < agentGraceMs();

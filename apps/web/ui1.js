@@ -5,8 +5,7 @@ const TENANT = "cocina-elvis";
 // v3menu: the browsable menu is the default (Carlos approved 10/21). ?menu=old = previous ui1 home.
 const Q3 = (() => { try { return new URLSearchParams(location.search); } catch { return new Map(); } })();
 const V3 = Q3.get("menu") !== "old";
-// Scheduled pickup is NOT approved for live orders yet: only with ?schedule=1 (testing; submit is a dry run).
-const SCHED_OK = V3 && Q3.get("schedule") === "1";
+// time1: browsing/adding is never blocked by store hours; timing (ASAP / Programar) is chosen at checkout.
 // v3menu: photos with no recorded source (img/SOURCES.tsv) are not shown in the preview.
 const UNVERIFIED_IMG = new Set(["meat-carnitas.jpg", "opt-burrito-grande.jpg", "opt-burrito-regular.jpg", "opt-gordita.jpg", "opt-pico-chips.jpg", "opt-quesadilla-comal.jpg", "opt-quesadilla-harina.jpg", "opt-quesadilla-street.jpg", "opt-queso-gordita.jpg", "opt-queso-torta.jpg", "opt-torta.jpg"]);
 const $ = (s, r = document) => r.querySelector(s);
@@ -110,7 +109,7 @@ const U = { menu: [], cats: [], productOf: new Map(), screen: "home", cat: null,
 
 async function load() {
   const [m, c] = await Promise.all([fetch(`/api/${TENANT}/menu`).then((r) => r.json()), fetch(`/api/${TENANT}/ui/catalog${V3 ? "?v3=1" : ""}`).then((r) => r.json())]);
-  if (V3) { U.store = v3Store(c.storeState); U.popular = c.popular || []; U.schedAvail = c.scheduleAvail || null; if (U.sched === undefined) U.sched = !!U.store?.schedule; }
+  if (V3) { U.store = v3Store(c.storeState); U.popular = c.popular || []; }
   U.menu = m.items || [];
   const cats = c.categories || [];
   for (const cat of cats) for (const x of cat.items) U.productOf.set(x.id, x.product);
@@ -261,7 +260,6 @@ function missingStep() { const gs = U.item.modifierGroups || []; return steps().
 function addToCart(item, mods) {
   const b = B(); if (!b) return;
   if (V3) { // v3menu: same add step Elvi uses (validation + applyActions), and Elvi is told about it
-    if (!v3CanOrder(item)) { v3Closed(item); return; }
     const r = b.addFromMenu ? b.addFromMenu(item, 1, mods) : null;
     if (r && !r.ok) { v3Say(t(`Falta: ${(r.missing || []).join(", ")}`, `Missing: ${(r.missing || []).join(", ")}`)); return; }
     if (!r) b.addCartItem(item, 1, mods);
@@ -288,7 +286,7 @@ function renderBar() {
     return;
   }
   if (U.screen === "receipt") { bar.innerHTML = `<button class="u1-btn s" data-go="home">${t("Menú", "Menu")}</button><button class="u1-btn s" data-read="1">🔊 ${t("Leer otra vez", "Read again")}</button>`; return; }
-  if (V3) { const when = U.sched && U.store?.schedule && !v3Live() ? t(U.store.schedule.es, U.store.schedule.en).replace(/^(Programar para|Schedule for) /, t("Recoger ", "Pickup ")) : t("Ver orden", "View order");
+  if (V3) { const when = t("Ver orden", "View order");
     document.body.classList.toggle("v3-cart0", !n);
     bar.innerHTML = `<button class="u1-btn p v3-cartbar" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${esc(when)}<span>${money(tot)}</span></button><div class="v3-ebar"><span class="v3-dot"></span><div><small>Elvi</small><p id="v3-line"></p></div></div>`; return; }
   bar.innerHTML = `<button class="u1-btn p" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${money(tot)} — ${t("Ver orden", "View order")}</button>`;
@@ -313,10 +311,7 @@ function receiptHTML() {
   return `<h2 class="u1-h2">${t("Así quedó tu orden", "Here's your order")}</h2>
   <div class="u1-rc">${cart.length ? cart.map((l, i) => `<div class="u1-rl" id="u1-rl-${i}">${img(itemPhoto(l.item), itemName(l.item))}<div class="d"><b>${Number(l.quantity) > 1 ? l.quantity + " × " : ""}${esc(itemName(l.item))}</b><br><span>${esc(modsText(l))}</span></div><div class="u1-price">${money(b.lineTotal(l))}</div><button class="u1-x" data-rm="${i}" aria-label="remove">✕</button></div>`).join("") : `<p class="u1-note">${t("Tu orden está vacía.", "Your order is empty.")}</p>`}
   <div class="u1-tot"><span>Subtotal</span><span>${money(tot)}</span></div><div class="u1-note">${t("Impuesto y total final los calcula Square.", "Tax & final total calculated by Square.")}</div></div>
-  <div class="u1-rc u1-pickup"><b>${t("Recoger en", "Pickup at")}</b><br>Cocina Elvis · 101 W Walnut Ave, Unit B, Painesville, OH 44077<br>
-  <b>${t("Listo en aprox. 20 min", "Ready in about 20 min")}</b> <span class="u1-draft">${t("BORRADOR", "DRAFT")}</span><br>
-  ${t("Tel", "Phone")}: <a href="tel:+14405519122">(440) 551-9122</a>
-  <div class="u1-mut">${t("Prueba local: sin pago ni SMS.", "Local test: no payment, no SMS.")}</div></div>`;
+  ${timingHTML()}`;
 }
 async function readBack() {
   const cart = B()?.state?.cart || [];
@@ -336,32 +331,26 @@ function showToast(item, mods, said) {
 }
 
 // ---------- v3menu: one scrolling menu, sticky tabs + scroll-spy ----------
-function v3Store(st) { if (!st) return null; if (!SCHED_OK) return { ...st, schedule: null }; if (st.schedule && st.state === "closed") st = { ...st, pill: { es: "Cerrado · programar", en: "Closed · schedule" }, banner: { es: `Cerrado ahora · ${st.schedule.es}`, en: `Closed now · ${st.schedule.en}` } };
-  if (st.schedule && st.state === "before_open") st = { ...st, schedule: { ...st.schedule, es: st.schedule.es.replace(/para \S+ /, "para hoy "), en: st.schedule.en.replace(/for \S+ /, "for today ") } };
+function v3Store(st) { if (!st) return null;
+  const later = { es: "puedes ordenar ahora para más tarde", en: "you can order now for later" };
+  if (st.state === "before_open") return { ...st, banner: { es: `${st.pill.es.replace(/^Abre /, "Abrimos ")} · ${later.es}`, en: `${st.pill.en.replace(/^Opens /, "We open ")} · ${later.en}` } };
+  if (st.state === "closed") return { ...st, banner: { es: `Cerrado${st.nextOpen ? " · " + st.nextOpen.es.replace(/^abrimos/, "abrimos") : ""} · ${later.es}`, en: `Closed${st.nextOpen ? " · " + st.nextOpen.en : ""} · ${later.en}` } };
   return st; }
 function v3Live() { return !U.store || U.store.state === "open" || U.store.state === "last_order"; }
-function v3CanOrder(item) { if (v3Live()) return true; if (!U.sched || !U.store?.schedule) return false; return item ? U.schedAvail?.[item.id] !== false : true; }
-// Scheduled pickup (preview, DRY RUN): builds what a Square order with pickup_at would carry, sends nothing.
-function v3DryRun() {
-  const cart = B()?.state?.cart || [];
-  const payload = { dryRun: true, fulfillment: { type: "PICKUP", pickup_at: U.store?.schedule?.at || null, schedule_type: "SCHEDULED" }, line_items: cart.map((l) => ({ catalog_item_id: l.item?.id, quantity: String(l.quantity || 1), modifiers: (l.modifiers || []).map((m) => m.option) })) };
-  window.__v3LastDryRun = payload;
-  v3Say(cart.length ? t(`Prueba: pedido programado para ${U.store.schedule.es.replace(/^Programar para /, "")} (${cart.length} artículo(s)). No se envió nada a Square.`, `Test: scheduled order for ${U.store.schedule.en.replace(/^Schedule for /, "")} (${cart.length} item(s)). Nothing was sent to Square.`) : t("Tu carrito está vacío.", "Your cart is empty."));
-  return payload;
-}
+function v3CanOrder() { return true; } // time1: never block adds; unavailable-at-time items are flagged at checkout
 function v3Say(text) { const r = document.querySelector("#assistant-reply"); if (r) r.textContent = text; }
 function v3Closed(item) { const s = U.store; if (item && U.sched) { v3Say(t(`${itemName(item)} no está disponible a esa hora.`, `${itemName(item)} is not available at that time.`)); return; } v3Say(s?.state === "before_open" ? t(s.banner.es, s.banner.en) : t(`Ahora estamos cerrados${s?.nextOpen ? " — " + s.nextOpen.es : ""}.`, `We're closed right now${s?.nextOpen ? " — " + s.nextOpen.en : ""}.`)); const el = document.querySelector("#elvi-halo"); if (el) { el.classList.add("v3-err"); setTimeout(() => el.classList.remove("v3-err"), 1500); } }
 function v3Price(list) { const p = list.map((it) => it.priceCents || 0); const lo = Math.min(...p), hi = Math.max(...p); return money(lo) + (hi > lo ? "–" + money(hi) : ""); }
 function v3Card(list, x, catOpen, popular) {
   const it = list[0];
-  const off = (!v3Live() && U.sched && U.schedAvail) ? list.every((i) => U.schedAvail[i.id] === false) : (!catOpen || list.every((i) => i._x?.available === false));
+  const off = !catOpen || list.every((i) => i._x?.available === false); // time-window badge only (not a block)
   const w = x?.window;
   const name = list.length > 1 ? String(x.product).replace(/\s+or\s+/i, t(" o ", " or ")) : itemName(it);
   const photo = itemPhoto(it);
   const desc = String(it.description || "").replace(/\s+/g, " ").trim();
   const badge = off && w ? `<span class="v3-badge t">${esc(t("Disponible ", "Available ") + t(w.es, w.en))}</span>` : popular ? `<span class="v3-badge p">★ Popular</span>` : "";
   const attr = list.length > 1 ? `data-prod="${esc(x.product)}"` : `data-item="${esc(it.id)}"`;
-  return `<button class="v3-card ${off ? "is-closed" : ""}" ${attr} id="u1-it-${esc(it.id)}" ${off ? 'aria-disabled="true"' : ""}>${photo ? `<span class="v3-thumb">${img(photo, name)}</span>` : ""}<span class="v3-body">${badge}<b>${esc(name)}</b>${desc ? `<small class="v3-desc">${esc(desc)}</small>` : ""}<span class="v3-price">${v3Price(list)}${list.length > 1 ? ` · ${list.length} ${t("opciones", "choices")}` : ""}</span></span>${off ? "" : `<span class="v3-plus" aria-hidden="true">+</span>`}</button>`;
+  return `<button class="v3-card ${off ? "is-later" : ""}" ${attr} id="u1-it-${esc(it.id)}">${photo ? `<span class="v3-thumb">${img(photo, name)}</span>` : ""}<span class="v3-body">${badge}<b>${esc(name)}</b>${desc ? `<small class="v3-desc">${esc(desc)}</small>` : ""}<span class="v3-price">${v3Price(list)}${list.length > 1 ? ` · ${list.length} ${t("opciones", "choices")}` : ""}</span></span><span class="v3-plus" aria-hidden="true">+</span></button>`;
 }
 function v3Groups(cat) {
   const groups = [];
@@ -377,7 +366,7 @@ function v3Sections() {
 }
 function v3HTML() {
   const s = U.store, secs = v3Sections(); U.v3secs = secs;
-  const banner = s?.banner ? `<div class="v3-banner ${s.state}">${esc(t(s.banner.es, s.banner.en))}${s.schedule ? `<label class="v3-chk"><input type="checkbox" data-v3chk="1" ${U.sched ? "checked" : ""}> ${esc(t(s.schedule.es, s.schedule.en).replace(/^Programar para /, "Programar para recoger ").replace(/^Schedule for /, "Schedule pickup for "))}</label>${U.sched ? `<button type="button" class="v3-sched" data-v3submit="1">${t("Enviar pedido (prueba)", "Send order (test)")}</button>` : ""}` : ""}${s.state === "closed" || s.state === "before_open" ? `<small>${s.hours.map((h) => `${t(h.es, h.en)} ${h.open ? h.open + "–" + h.close : t("cerrado", "closed")}`).join(" · ")}</small>` : ""}</div>` : "";
+  const banner = s?.banner ? `<div class="v3-banner ${s.state} slim">${esc(t(s.banner.es, s.banner.en))}</div>` : "";
   const tabs = `<nav class="v3-tabs" id="v3-tabs" aria-label="${t("Categorías", "Categories")}">${secs.map((x) => `<button type="button" data-v3tab="${x.id}">${esc(t(x.es, x.en))}${x.timed && !x.open ? " ⏱" : ""}</button>`).join("")}</nav>`;
   const body = secs.map((x) => `<section class="v3-sec" id="s-${x.id}"><h2 class="u1-h2">${esc(t(x.es, x.en))}</h2>${x.timed && x.window ? `<p class="v3-sub">${esc((x.open ? "" : t("Cerrado ahora · ", "Closed now · ")) + t(x.window.es, x.window.en))}</p>` : ""}${x.groups.map((g) => v3Card(g.list, g.x, x.open, x.popular)).join("")}</section>`).join("");
   const seg = `<div class="v3-seg" role="tablist"><button type="button" role="tab" data-v3view="menu" class="${U.view !== "elvi" ? "on" : ""}" aria-selected="${U.view !== "elvi"}">🍽️ ${t("Menú", "Menu")}</button><button type="button" role="tab" data-v3view="elvi" class="${U.view === "elvi" ? "on" : ""}" aria-selected="${U.view === "elvi"}"><span class="v3-dot"></span> Elvi</button></div>`;
@@ -407,25 +396,21 @@ if (V3) {
   document.addEventListener("click", (e) => {
     const vw = e.target.closest?.("[data-v3view]"); if (vw) { U.view = vw.dataset.v3view; render(); window.scrollTo(0, 0); return; }
     if (e.target.closest?.("[data-v3x]")) { U.v3x = !U.v3x; return; }
-    const sc = e.target.closest?.("[data-v3chk],[data-v3submit]");
-    if (sc) { if (sc.dataset.v3submit) { v3DryRun(); return; } U.sched = !U.sched; if (!U.sched) v3Closed(); if (U.sched) v3Say(t(`Listo, programamos tu pedido: ${U.store.schedule.es.replace(/^Programar para /, "")}. Solo puedes agregar lo que está disponible a esa hora.`, `OK, scheduling your order: ${U.store.schedule.en.replace(/^Schedule for /, "")}. Only items available then can be added.`)); render(); return; }
     const b = e.target.closest?.("[data-v3tab]"); if (!b) return;
     const el = document.getElementById(`s-${b.dataset.v3tab}`); if (!el) return;
     window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - v3Offset() - 6, behavior: v3Motion() });
   });
-  // closed / before-open: tapping a card explains instead of opening it
-  document.addEventListener("click", (e) => { if (!v3CanOrder() && e.target.closest?.("#ui1 .v3-card")) { e.stopImmediatePropagation(); e.preventDefault(); v3Closed(); } }, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.screen === "item") { U.screen = "home"; render(); } });
   setInterval(v3Line, 500);
   // store state re-evaluated every minute (server time)
-  setInterval(() => { fetch(`/api/${TENANT}/ui/catalog?v3=1`).then((r) => r.json()).then((c) => { U.store = v3Store(c.storeState) || U.store; U.popular = c.popular || U.popular; U.schedAvail = c.scheduleAvail || null; if (!U.store?.schedule) U.sched = false; if (U.screen === "home") render(); }).catch(() => {}); }, 60000);
+  setInterval(() => { fetch(`/api/${TENANT}/ui/catalog?v3=1`).then((r) => r.json()).then((c) => { U.store = v3Store(c.storeState) || U.store; U.popular = c.popular || U.popular; if (U.screen === "home") render(); }).catch(() => {}); }, 60000);
 }
 
 function v3CartHTML() {
   const b = B(); const cart = b?.state?.cart || [];
   if (!cart.length) return `<p class="v3-empty">${t("Vacía — agrega algo del menú o dímelo.", "Empty — add something from the menu or tell me.")}</p>`;
   const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
-  const when = U.sched && U.store?.schedule ? `<p class="v3-when">🗓 ${esc(t(U.store.schedule.es, U.store.schedule.en).replace(/^(Programar para|Schedule for) /, t("Recoger ", "Pickup ")))} · ${t("programado", "scheduled")}</p>` : "";
+  const when = "";
   const signin = CUST.me?.loggedIn ? "" : `<p class="cust-prompt"><button type="button" class="cust-link" data-cust="open">${t("Inicia sesión", "Sign in")}</button> ${t("para llenar tus datos y ver tus favoritos.", "to fill in your details and see your favorites.")}</p>`;
   return `${signin}${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="v3-cl tot"><span>Subtotal</span><b>${money(tot)}</b></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
 }
@@ -486,8 +471,8 @@ document.addEventListener("click", (e) => {
   if (!el || !el.closest("#ui1")) return;
   const d = el.dataset;
   if (d.cat !== undefined) { U.cat = Number(d.cat); U.prod = null; U.screen = "cat"; render(); window.scrollTo(0, 0); return; }
-  if (d.prod !== undefined) { if (el.classList.contains("is-closed")) return; U.prod = d.prod; U.screen = "prod"; render(); window.scrollTo(0, 0); return; }
-  if (d.item) { if (el.classList.contains("is-closed")) return; openItem(d.item); return; }
+  if (d.prod !== undefined) { U.prod = d.prod; U.screen = "prod"; render(); window.scrollTo(0, 0); return; }
+  if (d.item) { openItem(d.item); return; }
   if (d.dbl !== undefined) { const g = U.item.modifierGroups[Number(d.dbl)]; const s = U.dbl[g.id]; s.has(d.o) ? s.delete(d.o) : s.add(d.o); render(); return; }
   if (d.g !== undefined) { pick(Number(d.g), d.o); return; }
   if (d.step !== undefined) { U.step = d.step === "x" ? "x" : Number(d.step); render(); return; }
@@ -579,3 +564,54 @@ export {};
   });
   custLoad(); // one /api/cust/me at load (cookie is httpOnly, so ask the server)
 
+
+// ---------- time1: checkout timing step (ASAP / Programar · pickup / delivery) + pay ----------
+const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false };
+function tmLoad(f) { if (TM.opts[f] || TM.opts[f + "_l"]) return; TM.opts[f + "_l"] = 1;
+  fetch(`/api/${TENANT}/orders/timing?f=${f}`).then((r) => r.json()).then((j) => { TM.opts[f] = j; delete TM.opts[f + "_l"]; tmCheck(); if (U.screen === "receipt") render(); }).catch(() => { delete TM.opts[f + "_l"]; }); }
+function tmReq() { return TM.mode === "scheduled" && TM.at ? { mode: "scheduled", at: TM.at } : { mode: "asap" }; }
+function tmCheck() { const b = B(); const cart = b?.state?.cart || []; if (!cart.length) { TM.check = null; return; }
+  fetch(`/api/${TENANT}/orders/timing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fulfillment: TM.f, timing: tmReq(), cart: cart.map((l) => ({ id: l.item?.id, quantity: l.quantity })) }) })
+    .then((r) => r.json()).then((j) => { TM.check = j; if (U.screen === "receipt") render(); }).catch(() => {}); }
+function deliveryOn() { const rc = B()?.state?.runtimeConfig; return !!(rc?.deliveryEnabled && (rc.fulfillmentModes || []).includes("DELIVERY")); }
+function timingHTML() {
+  const o = TM.opts[TM.f]; tmLoad(TM.f); const cust = B()?.state?.customer || {};
+  const seg = `<div class="tm-seg"><button type="button" data-tmf="PICKUP" class="${TM.f === "PICKUP" ? "on" : ""}">🛍️ ${t("Recoger", "Pickup")}</button>${deliveryOn() ? `<button type="button" data-tmf="DELIVERY" class="${TM.f === "DELIVERY" ? "on" : ""}">🚗 ${t("Entrega", "Delivery")}</button>` : ""}</div>`;
+  if (!o?.asap) return `<div class="u1-rc tm">${seg}<p class="u1-mut">${t("Cargando horarios…", "Loading times…")}</p></div>`;
+  const D = TM.f === "DELIVERY", L = (x) => t(x.es, x.en);
+  const asapTxt = o.open
+    ? (D ? t(`Lo antes posible · llega en ~${o.prep + o.drive} min (${L(o.asap.label)})`, `ASAP · arrives in ~${o.prep + o.drive} min (${L(o.asap.label)})`) : t(`Lo antes posible · listo en ~${o.prep} min (${L(o.asap.label)})`, `ASAP · ready in ~${o.prep} min (${L(o.asap.label)})`))
+    : (D ? t(`Lo antes posible: llega ${L(o.asap.label)}`, `As soon as possible: arrives ${L(o.asap.label)}`) : t(`Lo antes posible: listo a las ${L(o.asap.label)}`, `As soon as possible: ready at ${L(o.asap.label)}`));
+  const days = o.days || []; const dd = days[Math.min(TM.day, Math.max(0, days.length - 1))];
+  const sched = TM.mode === "scheduled" && dd ? `<div class="tm-sched"><select data-tmday="1">${days.map((d, i) => `<option value="${i}" ${i === TM.day ? "selected" : ""}>${esc(L(d))}</option>`).join("")}</select><select data-tmat="1"><option value="">${t(D ? "Hora de entrega…" : "Hora para recoger…", D ? "Delivery time…" : "Pickup time…")}</option>${dd.slots.map((x) => `<option value="${esc(x.at)}" ${x.at === TM.at ? "selected" : ""}>${esc(L(x.label))}</option>`).join("")}</select></div>${D ? `<p class="u1-mut">${t(`Ventana de ±${o.pad} min: preparamos ${o.prep} min + ${o.drive} min de camino.`, `±${o.pad} min window: ${o.prep} min prep + ${o.drive} min drive.`)}</p>` : ""}` : "";
+  const ck = TM.check; const flag = ck && ck.ok === false ? `<div class="tm-flag">⚠️ ${esc(L(ck.error))}${(ck.unavailable || []).length ? `<br><small>${t("Quítalo o escoge otra hora.", "Remove it or pick another time.")}</small>` : ""}</div>` : "";
+  const fields = `<div class="tm-f"><input id="tm-name" placeholder="${t("Nombre", "Name")}" value="${esc(cust.name || "")}" autocomplete="name"><input id="tm-phone" type="tel" placeholder="${t("Teléfono", "Phone")}" value="${esc(cust.phone || "")}" autocomplete="tel"><input id="tm-email" type="email" placeholder="Email" value="${esc(cust.email || "")}" autocomplete="email">${D ? `<input id="tm-addr" placeholder="${t("Dirección de entrega", "Delivery address")}" value="${esc(cust.address || "")}" autocomplete="street-address">` : ""}</div>`;
+  const can = (B()?.state?.cart || []).length && !(ck && ck.ok === false) && !(TM.mode === "scheduled" && !TM.at) && !TM.busy;
+  return `<div class="u1-rc tm" id="tm-step">${seg}<p class="tm-h">${t("¿Para cuándo?", "When?")}</p>
+  <label class="tm-o"><input type="radio" name="tm" data-tmm="asap" ${TM.mode === "asap" ? "checked" : ""}> ${esc(asapTxt)}</label>
+  <label class="tm-o"><input type="radio" name="tm" data-tmm="scheduled" ${TM.mode === "scheduled" ? "checked" : ""}> 🗓 ${t("Programar", "Schedule")}</label>${sched}${flag}
+  ${D ? "" : `<p class="u1-mut">${t("Recoger en", "Pickup at")} Cocina Elvis · 101 W Walnut Ave, Unit B, Painesville · <a href="tel:+14405519122">(440) 551-9122</a></p>`}
+  ${fields}<p class="tm-err">${esc(TM.err)}</p><button type="button" class="u1-btn p v3-full" data-tmpay="1" ${can ? "" : "disabled"}>${TM.busy ? t("Abriendo pago…", "Opening checkout…") : t("Pagar con Square", "Pay with Square")}</button></div>`;
+}
+document.addEventListener("click", (e) => {
+  const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; tmLoad(TM.f); tmCheck(); render(); return; }
+  const m = e.target.closest?.("[data-tmm]"); if (m) { TM.mode = m.dataset.tmm; if (TM.mode === "asap") TM.at = ""; tmCheck(); render(); return; }
+  if (e.target.closest?.("[data-tmpay]")) { void tmPay(); }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.matches?.("[data-tmday]")) { TM.day = Number(e.target.value) || 0; TM.at = ""; render(); return; }
+  if (e.target.matches?.("[data-tmat]")) { TM.at = e.target.value; tmCheck(); render(); }
+});
+async function tmPay() {
+  const b = B(); if (!b) return; const v = (id) => (document.getElementById(id)?.value || "").trim();
+  const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
+  if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
+  if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
+  Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
+  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", addr]]) { const el = document.getElementById(k); if (el) el.value = x; }
+  b.state.fulfillment = TM.f; const sel = document.getElementById("fulfillment"); if (sel) sel.value = TM.f;
+  b.state.timing = tmReq(); TM.err = ""; TM.busy = true; render();
+  const r = b.checkout ? await b.checkout() : { ok: false, error: "checkout unavailable" };
+  TM.busy = false; if (!r.ok) { TM.err = r.error || t("No se pudo abrir el pago.", "Couldn't open checkout."); tmCheck(); render(); }
+}
+document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; });

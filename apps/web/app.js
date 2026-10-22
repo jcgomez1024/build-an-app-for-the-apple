@@ -3348,6 +3348,13 @@ function attachUiHandlers() {
       ui.reply.textContent = deliveryDisabledMessage();
     }
 
+    const r = await doCheckout();
+    if (!r.ok) ui.status.textContent = r.error;
+  });
+}
+
+// time1: one checkout path for the drawer form and the v3 timing step (elviBridge.checkout). Server validates timing.
+async function doCheckout() {
     try {
       const response = await fetch(`/api/${state.tenantSlug}/orders/checkout`, {
         method: "POST",
@@ -3369,6 +3376,7 @@ function attachUiHandlers() {
           })),
           fulfillment: state.fulfillment,
           customer: state.customer,
+          timing: state.timing || { mode: "asap" },
           metadata: {
             language: getEffectiveLanguage(),
             source: state.runtimeConfig.voiceOrderSource,
@@ -3385,10 +3393,10 @@ function attachUiHandlers() {
 
       const result = await response.json();
       window.location.href = result.checkoutUrl;
+      return { ok: true };
     } catch (error) {
-      ui.status.textContent = error instanceof Error ? error.message : "Checkout failed";
+      return { ok: false, error: error instanceof Error ? error.message : "Checkout failed" };
     }
-  });
 }
 
 async function startListening() {
@@ -6483,6 +6491,7 @@ window.elviBridge = {
     if (c?.name) { sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `The customer is signed in (verified phone). Their first name is ${c.name}. Greet them by name once.` }] } }); } },
   clearCustomer: () => { for (const k of ["name", "phone", "email"]) { state.customer[k] = ""; const el = document.getElementById(`customer-${k}`); if (el) el.value = ""; } },
   showFavorites: (fav) => showFavorites(fav),
+  checkout: () => doCheckout(),
   greet: (text) => { if (ui.reply) ui.reply.textContent = text; try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text }); } catch {} },
 };
 function menuCardAdd(item, quantity, modifiers) {

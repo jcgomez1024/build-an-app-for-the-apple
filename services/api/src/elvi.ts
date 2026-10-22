@@ -1,3 +1,4 @@
+import { storeState } from "./menu-v3.js";
 import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
@@ -515,7 +516,8 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
   if (JSON.stringify(actions) !== JSON.stringify(result.actions) && /^(added|agregado)\b/i.test(String(result.reply || ""))) {
     out = { ...out, reply: addReadback(actions, menu, language), audioBase64: undefined, audioMimeType: undefined };
   }
-  out = enforceSiteAvailability(out, menu, language);
+  // time1: while the store is closed / before opening, orders are for later — time-window items are checked at checkout instead
+  const st = storeState()?.state; if (st === "open" || st === "last_order" || !st) out = enforceSiteAvailability(out, menu, language);
   if (out !== result && out.reply !== result.reply) return out;
   if (!out.actions.some((a) => a.type === "add_item") && !out.pendingGuides?.length && heard) {
     try {
