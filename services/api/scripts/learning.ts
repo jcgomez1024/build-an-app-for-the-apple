@@ -5,7 +5,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(root, ".env") }); dotenv.config({ path: path.join(root, ".env.twilio") });
 const K = await import("../src/elvi-knowledge.ts");
 const L = await import("../src/learning.ts");
-const { scoreOrder, elviLines } = await import("../src/call-accuracy.ts");
+const { scoreOrder, elviLines, callerNamedSalsa } = await import("../src/call-accuracy.ts");
 const [cmd, arg, ...rest] = process.argv.slice(2);
 const dir = K.LEARN_DIR; fs.mkdirSync(dir, { recursive: true });
 const J = (f: string, d: any) => fs.writeFileSync(path.join(dir, f), JSON.stringify(d, null, 1));
@@ -82,7 +82,7 @@ async function replayer() {
     // a2: score exactly like /api/calls/accuracy — POS names, delivery fee line, included toppings (was: menu names → 40 on a perfect order)
     const lines: any[] = toPosLines(elviLines(r.cart || [], resolverMenu as any), posCat);
     if (r.fulfillment === "DELIVERY" && lines.length) lines.push(deliveryFeeLine(row.deliveryFeeCents ?? r.deliveryFeeCents));
-    return { score: scoreOrder(lines.map(withIncludedToppings), truth.map(withIncludedToppings)).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`), raw: r };
+    return { score: scoreOrder(lines.map(withIncludedToppings), truth.map(withIncludedToppings), { salsaNamed: callerNamedSalsa(row.turns || []) }).score, lines: lines.map((l: any) => `${l.quantity}× ${l.name} [${l.choices.join("; ")}]`), raw: r };
   };
   return { replay, resolverMenu, saveCache, tenant };
 }

@@ -39,7 +39,7 @@ import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadUnclear, setUnclear } from "./unclear.js";
 import { detectReadback } from "./staff-readback.js";
-import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, groupingScore, plateGroups, dedupeCombined, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, groupingScore, plateGroups, dedupeCombined, hasOrderContent, scoreOrder, callerNamedSalsa, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
@@ -1596,7 +1596,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       // ring real dishes as custom amounts (truth building swaps them for the spoken item); the Auditor flags them as possible ghosts.
       const ticket = m ? [...ticketLines(m.order), ...extra.flatMap((x) => ticketLines(x.order))] : exp ? elviLines(exp.cart, menu) : [];
       const unclear = loadUnclear()[c.callSid] || null; // unclear1: listed, never scored
-      const scored0 = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
+      const scored0 = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings), { salsaNamed: callerNamedSalsa((c as any).turns || []) }) : null; // sopesaso1: included toppings
       const scored = scored0; // unclear1: still scored (training uses it); excluded from accuracy numbers
       return {
         callSid: c.callSid, at: c.at, caller: c.caller, language: c.language || null, answered: c.answered ?? null, dialStatus: c.dialStatus || null,

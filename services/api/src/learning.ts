@@ -4,7 +4,7 @@ import fs from "node:fs";
 // learn2: labeled examples. Ground truth = what the CUSTOMER said: the staff ticket, corrected by the auditor's staff flags
 // (STAFF_MISSING adds what was said, STAFF_EXTRA removes what wasn't), so Elvi never learns a staff error.
 // PII stripped; files only under data/learning/ (gitignored).
-import { scoreOrder, type Line, type Miss } from "./call-accuracy.js";
+import { scoreOrder, callerNamedSalsa, type Line, type Miss } from "./call-accuracy.js";
 import { createHash } from "node:crypto";
 import { withIncludedToppings } from "./standard-toppings.js";
 
@@ -148,7 +148,8 @@ export function phoneExample(row: any): Example | null {
   if (!ov && rb.status !== "none") { const a = applyReadback(lines as any, rb); if (a.changed.length) { lines.splice(0, lines.length, ...(a.lines as any)); corrected.push(...a.changed); } }
   // replay3: score exactly like /api/calls/accuracy and the replay (included toppings count as present on both sides)
   const wit = (ls: any[]) => ls.map(withIncludedToppings as any) as Line[];
-  const elviS = scoreOrder(wit(row.elvi || []), wit(lines)), staffS = scoreOrder(wit(row.ticket.lines), wit(lines));
+  const sn = { salsaNamed: callerNamedSalsa(row.turns || []) }; // salsa1
+  const elviS = scoreOrder(wit(row.elvi || []), wit(lines), sn), staffS = scoreOrder(wit(row.ticket.lines), wit(lines), sn);
   const grade = gradeCall({ unclear: !!row.unclear, staffScore: staffS.score, readback: rb, truthLines: lines, overridden: !!ov, corrected });
   staffS.misses = customAmountMisses(staffS.misses, corrected);
   // case1e: reviewed coaching points replace the generic missed/extra pair for the corrected line

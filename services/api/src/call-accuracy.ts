@@ -151,15 +151,23 @@ function orderPhones(o: any): string[] {
 // variation id); the POS rings item "(QD) Quesadilla Dorada" + variation "(QD) REGULAR Dorada". Same dish.
 const sameItem = (a: Line, b: Line) => (a.variationId && a.variationId === b.variationId) || norm(a.baseName || a.name) === norm(b.baseName || b.name)
   || norm(a.baseName || a.name) === norm(b.name) || norm(a.name) === norm(b.baseName || b.name);
-// The included mild Salsa Asada isn't rung on the POS ticket, so it doesn't count either way.
+// The included mild Salsa Asada isn't rung on the POS ticket (staff skip it; it's packed anyway), so it doesn't count either way —
+// salsa1: unless the customer named a salsa; then salsa is scored normally on both sides.
 const IGNORABLE = /\bmild salsa asada\b/;
+const NEVER = /$^/;
+/** salsa1: did the caller name a salsa / sauce ("salsa verde", "hot sauce", "la roja")? */
+export const callerNamedSalsa = (turns: Array<{ speaker?: string; text?: string }> = []) =>
+  turns.some((t) => t.speaker === "caller" && /\bsalsas?\b|\bsauces?\b|\b(?:la|the)\s+(?:verde|roja|green|red)\b|\bpicante\b|\bhabanero\b|\bchipotle\b/iu.test(String(t.text || "")));
+/** choice1: same option, different label — POS "2 QUESO" vs online "QUESO / CHEESE" (count prefix, English half). */
+const optKey = (c: string) => { const n = norm(c).trim(); const k = norm(String(c || "").split(/\s+\/\s+/)[0]).trim().replace(/^\d+\s+(?=[a-z])/, ""); return k || n; };
 
 export type Miss = { kind: "missing_item" | "extra_item" | "quantity" | "choices" | "price"; ticket?: string; elvi?: string; detail: string };
 
 /** match2: non-item ticket lines (NO DRINK / NO BEBIDA, notes, $0 "no …" lines) are never scored. */
 export const isNonItemLine = (l: Line) => /^\s*(?:no\s+(?:bebida|drink|soda|refresco)s?\b|nota\b|note\b|notes\b|\*+\s*note)/i.test(String(l.baseName || l.name || ""))
   || (!Number(l.totalCents) && /^\s*no\b/i.test(String(l.baseName || l.name || "")));
-const choiceKey = (l: Line) => [...new Set(l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)))].sort().join("|");
+let IGN: RegExp = IGNORABLE;
+const choiceKey = (l: Line) => [...new Set(l.choices.map(optKey).filter((c) => c && !IGN.test(c)))].sort().join("|");
 /** Same item + same choices → one line with the summed quantity (split lines / duplicate ticket lines). */
 export function consolidate(lines: Line[]): Line[] {
   const out: Line[] = [];
@@ -175,7 +183,11 @@ const part = (l: Line, q: number): Line => ({ ...l, quantity: q, totalCents: Mat
 
 /** match2: score per ITEM (item 40, total quantity 20, choices 25 × exactly-matched units, price 15). Each unit is
  *  matched once: same choices first, then the closest choices, then the leftover is ONE quantity difference. */
-export function scoreOrder(elvi: Line[], ticket: Line[]): { score: number; misses: Miss[]; pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> } {
+export function scoreOrder(elvi: Line[], ticket: Line[], opts: { salsaNamed?: boolean } = {}): { score: number; misses: Miss[]; pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> } {
+  IGN = opts.salsaNamed ? NEVER : IGNORABLE;
+  try { return scoreOrder0(elvi, ticket); } finally { IGN = IGNORABLE; }
+}
+function scoreOrder0(elvi: Line[], ticket: Line[]): { score: number; misses: Miss[]; pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> } {
   const misses: Miss[] = [];
   const pairs: Array<{ ticket?: Line; elvi?: Line; points: number }> = [];
   // fee1: delivery fees are not items — delivery yes/no is the separate fulfillment check
@@ -199,11 +211,11 @@ export function scoreOrder(elvi: Line[], ticket: Line[]): { score: number; misse
     for (const t of tl) for (const e of el) { if (!t.q || !e.q || choiceKey(t.l) !== choiceKey(e.l)) continue; const m = Math.min(t.q, e.q); t.q -= m; e.q -= m; exact += m; pairs.push({ ticket: part(t.l, m), elvi: part(e.l, m), points: 100 }); }
     // 2) closest choices for the rest (choice flags, never a quantity flag)
     for (const t of tl) while (t.q) {
-      const tc = new Set(t.l.choices.map(norm));
-      const cand = el.filter((e) => e.q).sort((a, b) => b.l.choices.filter((c) => tc.has(norm(c))).length - a.l.choices.filter((c) => tc.has(norm(c))).length)[0];
+      const tc = new Set(t.l.choices.map(optKey));
+      const cand = el.filter((e) => e.q).sort((a, b) => b.l.choices.filter((c) => tc.has(optKey(c))).length - a.l.choices.filter((c) => tc.has(optKey(c))).length)[0];
       if (!cand) break;
       const m = Math.min(t.q, cand.q); t.q -= m; cand.q -= m;
-      const tcs = new Set(t.l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c))), ecs = new Set(cand.l.choices.map(norm).filter((c) => c && !IGNORABLE.test(c)));
+      const tcs = new Set(t.l.choices.map(optKey).filter((c) => c && !IGN.test(c))), ecs = new Set(cand.l.choices.map(optKey).filter((c) => c && !IGN.test(c)));
       const miss = [...tcs].filter((c) => !ecs.has(c)), extra = [...ecs].filter((c) => !tcs.has(c));
       misses.push({ kind: "choices", ticket: t.l.name, detail: `${t.l.name}${m > 1 ? ` (${m})` : ""}: ${miss.length ? `missed ${miss.join(", ")}` : ""}${miss.length && extra.length ? "; " : ""}${extra.length ? `extra ${extra.join(", ")}` : ""}` });
       const jac = (() => { const u = new Set([...tcs, ...ecs]); return u.size ? [...tcs].filter((c) => ecs.has(c)).length / u.size : 1; })();
