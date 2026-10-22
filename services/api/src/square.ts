@@ -1173,3 +1173,6 @@ export function cartSubtotalCents(cart: CartItem[], menu: MenuItem[]): number {
   }
   return t;
 }
+
+/** prof1: generic call for cust-profile.ts (the caller enforces the sandbox/production gate). */
+export function squareCall<T>(p: string, init: RequestInit, config: Partial<SquareRuntimeConfig>) { return squareRequest<T>(p, init, getSquareConfig(config)); }

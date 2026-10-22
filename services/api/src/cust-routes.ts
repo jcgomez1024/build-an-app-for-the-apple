@@ -5,7 +5,7 @@ import { CodeSender, CustomerLookup, toE164, sendAllowed, checkAllowed, signSess
 import { favoritesFor, type History } from "./favorites.js";
 import { phoneKey } from "./caller-memory.js";
 
-export type CustDeps = { sender: () => CodeSender; lookup: CustomerLookup; history: () => History; menu: () => Promise<any[]>; secure?: boolean };
+export type CustDeps = { sender: () => CodeSender; lookup: CustomerLookup; history: () => History; menu: () => Promise<any[]>; secure?: boolean; profileFor?: (p: string) => { cid: string; fn: string | null } | null };
 const ipOf = (req: Request) => String(req.headers["cf-connecting-ip"] || req.ip || "").slice(0, 64);
 const lang = (req: Request) => (req.body?.lang === "en" || req.query.lang === "en" ? "en" : "es") as "es" | "en";
 const SAME = { ok: true, sent: true }; // identical for every valid phone — never says whether a profile exists
@@ -35,7 +35,8 @@ export function registerCustRoutes(app: Express, d: CustDeps) {
   });
   app.post("/api/cust/logout", (_req, res) => { res.setHeader("Set-Cookie", clearCookie(d.secure !== false)); res.json({ ok: true }); });
   app.get("/api/cust/me", async (req, res) => {
-    const s = readSession(req.headers.cookie); if (!s) return res.json({ loggedIn: false });
+    let s = readSession(req.headers.cookie); if (!s) return res.json({ loggedIn: false });
+    if (!s.cid) { const h = d.profileFor?.(s.p); if (h) { const v = signSession({ p: s.p, cid: h.cid, fn: h.fn, em: s.em }); res.setHeader("Set-Cookie", cookieHeader(v, d.secure !== false)); s = readSession(`elvi_cust=${encodeURIComponent(v)}`)!; } } // prof1
     const L = lang(req), hist = d.history()[phoneKey(s.p)] || [];
     let fav: any = null; try { fav = favoritesFor(hist, await d.menu(), { name: s.fn, channel: "app", nudge: null }); } catch { fav = null; }
     res.json({

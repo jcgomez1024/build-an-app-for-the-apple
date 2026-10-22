@@ -45,7 +45,8 @@ import { shadowOrderFromTurns } from "./call-scoring.js";
 import { compareRow } from "./compare.js";
 import { feeOnPickup } from "./fee-check.js";
 import { registerCustRoutes } from "./cust-routes.js";
-import { twilioVerifySender } from "./cust-auth.js";
+import { twilioVerifySender, readSession, signSession, cookieHeader } from "./cust-auth.js";
+import { notePendingProfile, completeProfile, profileForPhone } from "./cust-profile.js";
 import { storeState, popularProducts as realPopular } from "./menu-v3.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly, findCustomerByPhoneReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
@@ -1214,6 +1215,7 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     markInternalPhone(req);
     const result = await createCheckout(req.body, sq);
+    try { notePendingProfile(readSession(req.headers.cookie), result.orderId, sq.env, req.body?.customer || {}); } catch { /* prof1 best effort */ }
     // learn2: the paid cart is the app session's ground truth (session log; no customer details)
     logTurn(orderSessionKey(req.body), { channel: "app", event: "checkout", paid: true, cart: (req.body?.cart || []).map((l: any) => ({ id: l.id, quantity: l.quantity, modifiers: (l.modifiers || []).map((m: any) => m.option) })) });
     clearOrderContext(orderSessionKey(req.body), "submitted");
@@ -1248,6 +1250,7 @@ app.post("/api/orders/checkout", async (req, res, next) => {
     if (!sq) { res.status(503).json({ error: CHECKOUT_CLOSED_MESSAGE, checkoutClosed: true }); return; }
     markInternalPhone(req);
     const result = await createCheckout(req.body, sq);
+    try { notePendingProfile(readSession(req.headers.cookie), result.orderId, sq.env, req.body?.customer || {}); } catch { /* prof1 best effort */ }
     clearOrderContext(orderSessionKey(req.body), "submitted");
     rememberPhoneOrderName(req);
     res.status(201).json(result);
@@ -1663,10 +1666,24 @@ app.get("/api/calls/:sid/audio", phoneAuth, (req, res) => {
 
 app.post("/api/square/webhooks", (req, res) => {
   console.log("Square webhook", JSON.stringify(req.body));
+  // prof1: payment events only TRIGGER a check; completeProfile re-reads the payment from Square before writing anything
+  const pay = req.body?.data?.object?.payment;
+  if (/^payment\.(created|updated)$/.test(String(req.body?.type || "")) && pay?.id && pay.status === "COMPLETED")
+    void completeProfile({ paymentId: String(pay.id) }, buildSquareConfig(resolveTenant(undefined))).catch(() => {});
   res.sendStatus(200);
 });
 
-app.get("/checkout/success", (_req, res) => {
+app.get("/checkout/success", async (req, res) => {
+  // prof1: confirmed checkout → maybe create the profile, and refresh the session so the next visit says "Hola"
+  try {
+    const orderId = typeof req.query.orderId === "string" ? req.query.orderId.slice(0, 64) : "";
+    const s = readSession(req.headers.cookie);
+    if (orderId && s && !s.cid) {
+      const d = await completeProfile({ orderId }, buildSquareConfig(resolveTenant(undefined)));
+      const h = profileForPhone(s.p);
+      if (d?.customerId && h) res.setHeader("Set-Cookie", cookieHeader(signSession({ p: s.p, cid: h.cid, fn: h.fn, em: s.em }), process.env.CUST_COOKIE_SECURE !== "0"));
+    }
+  } catch { /* never block the thank-you page */ }
   res.type("html").send("<h1>Gracias. Your Cocina Elvis order was received.</h1>");
 });
 
@@ -1735,7 +1752,7 @@ app.post(["/api/:tenant/favorites", "/api/favorites"], async (req, res, next) =>
 
 // cust1: verified-phone customer login (Twilio Verify; Square Customers Search read-only); own favorites only
 registerCustRoutes(app, { sender: () => twilioVerifySender(), lookup: (p) => findCustomerByPhoneReadOnly(p, buildSquareConfig(resolveTenant(undefined))), history: () => loadHistory(),
-  menu: async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[], secure: process.env.NODE_ENV === "production" || process.env.CUST_COOKIE_SECURE !== "0" });
+  menu: async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[], profileFor: (p) => profileForPhone(p), secure: process.env.NODE_ENV === "production" || process.env.CUST_COOKIE_SECURE !== "0" });
 setFavMenuLoader(async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[]);
 // learn2: nightly learning loop (2:30 AM ET): examples, self-eval, self-retry → pending queue. Runs as a child process.
 function scheduleNightlyLearning() {
