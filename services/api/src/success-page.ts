@@ -2,6 +2,7 @@
 // our own random token (ck) that maps to exactly one order id; Square's own query params are never trusted alone.
 import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
 import { squareCall } from "./square.js";
+import { optionLabel } from "./opt-i18n.js";
 const FILE = () => process.env.ORDER_TIMING_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/logs/order-timing.json");
 export type OrderRec = { orderId: string; f: "PICKUP" | "DELIVERY"; env: "sandbox" | "production"; scheduleType: "ASAP" | "SCHEDULED"; at: string; readyAt?: string;
   label: { es: string; en: string }; window: { from: string; to: string; es: string; en: string } | null; firstName: string | null; address: string | null; lang?: "es" | "en"; saved: number };
@@ -49,7 +50,7 @@ main{max-width:520px;margin:0 auto;padding:16px}.card{background:#fff;border-rad
     ? `<p class="mut">${t("Entrega", "Delivery")} · ${r.scheduleType === "SCHEDULED" ? t("programada", "scheduled") : t("lo antes posible", "ASAP")}</p><p class="when">${t("Llega entre", "Arrives")} ${esc(r.window ? t(r.window.es, r.window.en) : t(r.label.es, r.label.en))}</p>${r.address ? `<p>${esc(r.address)}</p>` : ""}`
     : `<p class="mut">${t("Para recoger", "Pickup")} · ${r.scheduleType === "SCHEDULED" ? t("programado", "scheduled") : t("lo antes posible", "ASAP")}</p><p class="when">${r.scheduleType === "SCHEDULED" ? `${t("Listo a las", "Ready at")} ${esc(t(r.label.es, r.label.en))}` : t(`Listo en aprox. ${prepMin} min`, `Ready in about ${prepMin} min`)}</p>`;
   const proc = v.state === "processing" ? `<p class="warn">⏳ ${t("Procesando tu pago… esta página se actualiza sola.", "Processing your payment… this page updates itself.")}</p>` : "";
-  const items = v.lines.map((l) => `<div class="l"><span>${esc(l.qty)} × ${esc(l.name)}${l.mods.length ? `<small>${esc(l.mods.join(", "))}</small>` : ""}</span><b>${money(l.cents)}</b></div>`).join("");
+  const items = v.lines.map((l) => `<div class="l"><span>${esc(l.qty)} × ${esc(l.name)}${l.mods.length ? `<small>${esc(l.mods.map((m) => optionLabel(m, lang)).join(", "))}</small>` : ""}</span><b>${money(l.cents)}</b></div>`).join("");
   return `${head}<div class="card elvi"><span class="dot"></span><div><h1>${t(`¡Gracias${fn}!`, `Thank you${fn}!`)}</h1><p>${v.state === "paid" ? t("Tu pedido está confirmado.", "Your order is confirmed.") : t("Recibimos tu pedido.", "We got your order.")}</p></div></div>
 <div class="card">${v.receipt ? `<p class="num">${t("Confirmación", "Confirmation")} <b>#${esc(v.receipt)}</b></p>` : ""}${proc}${when}</div>
 <div class="card">${items}<div class="l tot"><span>Total</span><span>${money(v.totalCents)}</span></div></div>${foot}`;

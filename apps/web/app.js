@@ -1444,6 +1444,8 @@ function rbOptionLabel(option, group, lang) {
     if (/^duro\b/i.test(raw)) return es ? "chicharrón duro" : "pork rinds";
     if (/^prensado\b/i.test(raw)) return es ? "chicharrón prensado" : "spicy pork";
   }
+  // i18n1: names without a "ES / EN" pair go through the shared translation map (apps/web/opt-i18n.js).
+  if (!raw.includes(" / ")) { const q = I18N()?.pair(option); if (q?.known) return (es ? q.es : q.en).toLowerCase(); }
   return label.toLowerCase();
 }
 
@@ -1553,6 +1555,37 @@ function rbFormat(input, lang) {
   return `${texts.join("; ")}.${total} ${es ? "¿Algo más?" : "Anything else?"}`;
 }
 
+const I18N = () => globalThis.ElviI18n || null;
+/* dflt1: say the choice we picked for them, and offer the switch:
+   "… It comes with mild asada salsa — want verde or another salsa instead?" / "… Viene con salsa asada — ¿la quieres verde u otra salsa?" */
+function defaultChoiceNote(lines, lang, userText = "") {
+  const es = lang === "es";
+  const said = ui4Plain(userText);
+  for (const line of lines || []) {
+    const groups = line?.item?.modifierGroups || [];
+    for (const m of line?.modifiers || []) {
+      const g = groups.find((x) => x.id === m.groupId || x.name === m.groupName);
+      if (!g || (g.maxSelections ?? 1) !== 1) continue;
+      const opt = ui4Plain(String(m.option).replace(/\(\+?\$[\d.]+\)/g, ""));
+      const isSalsa = /salsa/i.test(g.name || "");
+      const dflt = m.isDefault || (isSalsa && /^mild salsa asada$/.test(opt));
+      if (!dflt || (said && opt.split(" ").some((w) => w.length >= 4 && !UI4_GENERIC.has(w) && said.includes(w)))) continue;
+      const alts = (g.options || []).filter((o) => (o.name || o) !== m.option && !Number(o.priceDeltaCents || 0));
+      if (!alts.length) continue;
+      const cur = rbOptionLabel(m.option, g.name, lang);
+      const altName = alts.find((o) => /verde/i.test(o.name || o)) || alts[0];
+      const alt = isSalsa ? (String(altName.name || altName).match(/salsa\s+(\w+)/i)?.[1] || rbOptionLabel(altName.name || altName, g.name, lang)).toLowerCase() : rbOptionLabel(altName.name || altName, g.name, lang);
+      const word = isSalsa ? "salsa" : (es ? "opción" : "choice");
+      return es ? `Viene con ${cur} — ¿la quieres ${alt} u otra ${word}?` : `It comes with ${cur} — want ${alt} or another ${word} instead?`;
+    }
+  }
+  return "";
+}
+function withDefaultNote(text, lines, userText) {
+  const note = defaultChoiceNote(lines, getEffectiveLanguage() === "es" ? "es" : "en", userText);
+  if (!note || !text) return text;
+  return `${String(text).replace(/\s*(¿Algo más\?|Anything else\?)\s*$/, "").replace(/\.?\s*$/, ".")} ${note}`;
+}
 function shortAddReadback(lines) {
   const lang = getEffectiveLanguage() === "es" ? "es" : "en";
   const rows = lines.filter((line) => line?.item).map((line) => ({
@@ -2133,7 +2166,7 @@ async function resolvePendingComboTurnLocally(text) {
       ? notFound
       : (getEffectiveLanguage() === "es" ? "Listo." : "Done.");
     if (!result) state.lastUnavailableMessage = "";
-    const reply = (addedLines.length && output.ok !== false && shortAddReadback(addedLines)) || output.message || output.orderSummary || fallback;
+    const reply = (addedLines.length && output.ok !== false && withDefaultNote(shortAddReadback(addedLines), addedLines, text)) || output.message || output.orderSummary || fallback;
     ui.reply.textContent = formatCentsForSpeech(reply);
     completed = true;
     markLocalTurnReady();
@@ -5058,7 +5091,7 @@ async function finishGuideBuildLocally() {
 
   const modifiers = buildGuideModifiers();
   addCartItem(item, 1, modifiers);
-  const reply = shortAddReadback([{ item, quantity: 1, modifiers }]) || item.name;
+  const reply = withDefaultNote(shortAddReadback([{ item, quantity: 1, modifiers }]), [{ item, quantity: 1, modifiers }]) || item.name;
   clearCurrentGuideBuild();
   state.lastSelectedItem = item;
   renderCart();
@@ -6500,7 +6533,8 @@ function menuCardAdd(item, quantity, modifiers) {
   applyActions([{ type: "add_item", itemId: item.id, quantity, modifiers }]);
   const line = state.cart[state.cart.length - 1];
   const es = getEffectiveLanguage() !== "en";
-  const said = `${es ? "Agregué" : "Added"} ${shortAddReadback([{ item, quantity, modifiers }]) || item.name}. ${es ? "¿Algo más?" : "Anything else?"}`;
+  const rb = shortAddReadback([{ item, quantity, modifiers }]); // already ends with "Anything else?"
+  const said = `${es ? "Agregué" : "Added"} ${withDefaultNote(rb, [{ item, quantity, modifiers }]) || `${item.name}. ${es ? "¿Algo más?" : "Anything else?"}`}`;
   try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text: said }); } catch {}
   sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `The customer added from the menu: ${describeCartLine(line)}. Cart now has ${getCartItemCount()} item(s). Do not add it again.` }] } });
   if (ui.reply) ui.reply.textContent = said;

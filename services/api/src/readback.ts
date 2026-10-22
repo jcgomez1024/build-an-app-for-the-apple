@@ -6,6 +6,7 @@
  *   "8 tacos de comal: 4 pastor, 4 bistec. $31.99. ¿Algo más?"
  * apps/web/app.js carries a copy of this file's functions (search "fix10 read-back").
  */
+import { i18n as I18N } from "./opt-i18n.js";
 const KIND_EN: any = { comal: "comal", harina: "flour", taquero: "street", taquera: "street", homemade: "comal" };
 
 export function rbCleanOption(option: any) {
@@ -53,6 +54,8 @@ export function rbOptionLabel(option: any, group: any, lang: any) {
     if (/^duro\b/i.test(raw)) return es ? "chicharrón duro" : "pork rinds";
     if (/^prensado\b/i.test(raw)) return es ? "chicharrón prensado" : "spicy pork";
   }
+  // i18n1: names without a "ES / EN" pair go through the shared translation map (apps/web/opt-i18n.js).
+  if (!raw.includes(" / ")) { const q = I18N()?.pair(option); if (q?.known) return (es ? q.es : q.en).toLowerCase(); }
   return label.toLowerCase();
 }
 

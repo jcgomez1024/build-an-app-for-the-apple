@@ -94,7 +94,7 @@ test("menuv3: menuCardAdd = validate → applyActions → Elvi told (history + l
   const env = { state: { cart: [] as any[], chatFallbackHistory: [] as any[] }, ui: { reply: { textContent: "" } }, window: { dispatchEvent: (e: any) => log.push(["event", e.type]) }, CustomEvent: class { constructor(public type: string) {} },
     validateAddItemToolArgs: (a: any) => (a.itemId === "t1" && !a.modifiers.length ? { ok: false, requiredGroups: [{ groupName: "Meat" }] } : { ok: true }),
     applyActions: (acts: any[]) => { log.push(["apply", acts[0].type, acts[0].itemId]); env.state.cart.push({ id: acts[0].itemId }); },
-    getEffectiveLanguage: () => "es", shortAddReadback: () => "1 taco de pollo", describeCartLine: () => "1 Taco (Pollo)", getCartItemCount: () => env.state.cart.length,
+    getEffectiveLanguage: () => "es", shortAddReadback: () => "1 taco de pollo. ¿Algo más?", withDefaultNote: (t: string) => t, describeCartLine: () => "1 Taco (Pollo)", getCartItemCount: () => env.state.cart.length,
     sendWs: (m: any) => log.push(["ws", m.item.content[0].text]) };
   const run = new Function(...Object.keys(env), `${fn}; return menuCardAdd;`)(...Object.values(env));
   const miss = run({ id: "t1", name: "Taco" }, 1, []);

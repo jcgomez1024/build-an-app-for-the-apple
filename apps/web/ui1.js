@@ -62,6 +62,7 @@ function cleanOpt(name) {
   return String(name || "").replace(/\s*\(\s*[+-]?\$[\d.]+\s*\)/g, "").replace(/^\s*\*+\s*/, "").replace(/^\s*\([A-Za-z0-9]{1,4}\)\s*/, "").replace(/\s+/g, " ").trim();
 }
 function optLabel(name) {
+  if (globalThis.ElviI18n) return globalThis.ElviI18n.label(cleanOpt(name).replace(/^EXTRA\s+/i, "").replace(/^SIDE\s+/i, ""), lang()); // i18n1 (tile shows its +$ chip; no EXTRA/SIDE noise, as before)
   const c = cleanOpt(name).replace(/^EXTRA\s+/i, "").replace(/^SIDE\s+/i, "");
   const parts = c.split(" / ");
   return lang() === "es" ? parts[0] : (parts[1] || parts[0]);
@@ -123,6 +124,7 @@ function catMeta(cat) { const m = CATEGORY_PHOTO.find(([re]) => re.test(cat.name
 function render() {
   const root = $("#ui1-main");
   if (!root) return;
+  globalThis.__custRefresh?.(); // i18n1: header "Iniciar sesión" / "Sign in" follows the language
   document.documentElement.lang = lang();
   U.lang = lang();
   const sub = $("#ui1 .u1-head small"); if (sub) sub.textContent = V3 ? "101 W Walnut Ave · Painesville" : t("Pide con Elvi · Painesville", "Order with Elvi · Painesville");
@@ -528,6 +530,7 @@ export {};
   // cust1: phone login (code by SMS) — "Iniciar sesión" in the header + prompt at checkout. Session = httpOnly cookie.
   function custLabel() { const m = CUST.me; return m?.loggedIn ? (m.firstName ? `${t("Hola", "Hi")}, ${esc(m.firstName)}` : t("Mi cuenta", "My account")) : t("Iniciar sesión", "Sign in"); }
   function custRefreshLabel() { const b = document.getElementById("cust-btn"); if (b) b.innerHTML = custLabel(); }
+  globalThis.__custRefresh = custRefreshLabel;
   async function custLoad() {
     try { const r = await fetch(`/api/cust/me?lang=${lang()}`, { credentials: "same-origin" }); CUST.me = await r.json(); } catch { CUST.me = { loggedIn: false }; }
     custRefreshLabel(); if (CUST.me?.loggedIn) custApply();

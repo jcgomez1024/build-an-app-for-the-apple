@@ -1,6 +1,6 @@
 {
   "source": "https://www.cocinaelvis.com/app/store/api/v28/editor/users/129352762/sites/426206690500291198",
-  "fetchedAt": "2026-10-16T20:10:20.913Z",
+  "fetchedAt": "2026-10-22T15:57:21.914Z",
   "timezone": "America/New_York",
   "store": {
     "timezone": "America/New_York",
@@ -2210,7 +2210,7 @@
     {
       "squareId": "3DLZNMXAG27YXHBTIWNI7D6Q",
       "siteProductId": "106",
-      "popularity": 0.68,
+      "popularity": 1.04,
       "name": "3 Pack MEAL",
       "siteName": "3 Pack MEAL (ONLINE)",
       "categories": [
@@ -2707,7 +2707,7 @@
           "choices": [
             {
               "squareId": "REUETFJLKXWDXXEL6G73GLLZ",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 200,
               "preselected": false
             }
@@ -2838,7 +2838,7 @@
     {
       "squareId": "W45NJLFVBX7ZGSBBV2C3YFX3",
       "siteProductId": "107",
-      "popularity": 0.91,
+      "popularity": 0.82,
       "name": "4 Pack MEAL",
       "siteName": "4 Pack MEAL (ONLINE)",
       "categories": [
@@ -3475,7 +3475,7 @@
           "choices": [
             {
               "squareId": "WU2VXVGC63YW3ZBXT7G3K7OJ",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 300,
               "preselected": false
             }
@@ -4383,7 +4383,7 @@
           "choices": [
             {
               "squareId": "JSVVQOHFYCHSN7IA5Q66WMDH",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 300,
               "preselected": false
             }
@@ -4514,7 +4514,7 @@
     {
       "squareId": "X4CAHUB7FEKNTWKQGPCWOFPP",
       "siteProductId": "109",
-      "popularity": 0.93,
+      "popularity": 0.87,
       "name": "6 Pack MEAL",
       "siteName": "6 Pack MEAL (ONLINE)",
       "categories": [
@@ -5431,7 +5431,7 @@
           "choices": [
             {
               "squareId": "ZCD5NJQLU4PS7IWW26D73WFH",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 400,
               "preselected": false
             }
@@ -6644,7 +6644,7 @@
           "choices": [
             {
               "squareId": "SD5PN4WMVJ3LZKGGZMJEADWZ",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 500,
               "preselected": false
             }
@@ -8002,7 +8002,7 @@
     {
       "squareId": "ZJF5VYGGQ6D624FS4ZKYBMQY",
       "siteProductId": "143",
-      "popularity": 0.82,
+      "popularity": 1.29,
       "name": "8 Pack MEAL",
       "siteName": "8 Pack MEAL (ONLINE)",
       "categories": [
@@ -9199,7 +9199,7 @@
           "choices": [
             {
               "squareId": "C7SMNZIMWTI4FPFEBIB5TABN",
-              "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)",
+              "name": "DELUXE (Lechuga/Lettuce,Pico,Queso-Fresco,Crema/Sour Cream)",
               "priceCents": 500,
               "preselected": false
             }
