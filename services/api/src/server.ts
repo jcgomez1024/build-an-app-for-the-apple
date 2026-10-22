@@ -43,6 +43,7 @@ import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from 
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { compareRow } from "./compare.js";
+import { feeOnPickup } from "./fee-check.js";
 import { storeState, popularProducts as realPopular } from "./menu-v3.js";
 import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
@@ -1573,6 +1574,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         readback: (() => { const r = detectReadback((c.turns || []) as any); return { status: r.status, staffText: r.staffText || null, response: r.response || null }; })(), // readback1
         answeredBy: (c as any).answeredBy || (c.answered ? "unknown" : null), // readback1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
+        // feepick1: staff note only (not graded) — delivery fee rung on a ticket left as Pickup
+        feeOnPickup: m ? [m.order, ...extra.map((x) => x.order)].filter(feeOnPickup).map((o) => squareRefs(o).receiptNumber || String(o.id).slice(0, 6)) : [],
         // plate1: secondary — Elvi's per-person groups vs the tickets' plates (NO BEBIDA separators / separate tickets)
         grouping: m ? groupingScore(elvi as any[], plateGroups([m.order, ...extra.map((x) => x.order)])) : null,
         nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),

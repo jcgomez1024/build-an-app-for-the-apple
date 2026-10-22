@@ -45,7 +45,7 @@ async function build() {
     elviLiveVsToday: (() => { const cs = (data.calls || []).filter((r: any) => r.compare && !r.unclear && r.source !== "training" && r.compare.elviScore != null);
       const av = (a: number[]) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
       return { calls: cs.length, live: av(cs.map((r: any) => r.compare.elviLiveScore)), today: av(cs.map((r: any) => r.compare.elviScore)), staff: av(cs.map((r: any) => r.compare.staffScore).filter((x: any) => x != null)) }; })(),
-    voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk) });
+    voiceAccuracy: acc, staffPatterns: patterns, coaching: L.coachingPoints(patterns, wk), feeOnPickup: await feeOnPickupLast60().catch(() => null) });
   return { phone: phone as any[], app, data };
 }
 
@@ -248,6 +248,16 @@ async function replay3() {
 }
 
 /** replay1 <CallSid> [--runs N]: fresh replays of one call, printing each run's lines + score. Read-only (writes nothing). */
+/** feepick1: read-only Square (Orders Search + Payments GET) — delivery fee on tickets left as Pickup, last 60 days. */
+async function feeOnPickupLast60() {
+  const { searchOrdersReadOnly } = await import("../src/square.ts"); const { resolveTenant } = await import("../src/tenant.ts"); const { feeOnPickupReport } = await import("../src/fee-check.ts");
+  const t: any = resolveTenant(undefined); const cfg: any = { env: t.square.env, accessToken: t.square.accessToken, locationId: t.square.locationId, apiVersion: t.square.apiVersion };
+  const end = Date.now(), orders: any[] = []; for (let d = 0; d < 60; d++) orders.push(...await searchOrdersReadOnly(new Date(end - (d + 1) * 864e5).toISOString(), new Date(end - d * 864e5).toISOString(), cfg));
+  const base = cfg.env === "production" ? "https://connect.squareup.com" : "https://connect.squareupsandbox.com"; const pays: any[] = []; let cursor = "";
+  do { const u = new URL(base + "/v2/payments"); u.searchParams.set("begin_time", new Date(end - 60 * 864e5).toISOString()); u.searchParams.set("location_id", cfg.locationId); u.searchParams.set("limit", "100"); if (cursor) u.searchParams.set("cursor", cursor);
+    const r: any = await (await fetch(u, { headers: { Authorization: `Bearer ${cfg.accessToken}`, "Square-Version": cfg.apiVersion || "2024-10-17" } })).json(); pays.push(...(r.payments || [])); cursor = r.cursor || ""; } while (cursor);
+  return feeOnPickupReport(orders.filter((o) => o.state !== "DRAFT"), pays);
+}
 async function replay1() {
   const runs = Number(process.argv[process.argv.indexOf("--runs") + 1]) || 3;
   const data: any = await (await fetch("http://localhost:4000/api/calls/accuracy?days=90")).json();
