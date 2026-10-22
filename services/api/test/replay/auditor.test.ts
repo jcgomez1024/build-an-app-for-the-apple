@@ -62,3 +62,16 @@ test("auditor1 queue: idempotent, ELVI_MISS-only is a fix candidate (no ping), a
   assert.equal(ackFindings([f.id], file), 1); assert.equal(pendingFindings(file).length, 0);
   assert.doesNotMatch(fs.readFileSync(file, "utf8"), /(?<![A-Za-z0-9])\+?1?\d{10}(?!\d)|\(\d{3}\)\s*\d{3}-\d{4}/);
 });
+
+test("stop1: generic base name 'Quesadilla' said on the call → Elvi miss, never STAFF_EXTRA (synthetic)", () => {
+  const at = new Date(Date.now() - 2 * 3600_000).toISOString();
+  const tq = { variationId: "QCO", baseName: "Quesadilla", name: "Quesadilla · (QCO) Quesadilla de Comal / Homemade", quantity: 4, choices: ["(QCO) Quesadilla de Comal / Homemade", "Prensado / Spicy Pork"], totalCents: 2000 };
+  const r = { recordingSid: "RE_SYN", at, recordingSec: 40, turns: [
+    { speaker: "caller", text: "Me pone dos quesadillas de prensado." }, { speaker: "staff", text: "Eh, de maíz." },
+    { speaker: "caller", text: "Y otras dos quesadillas de prensado." } ],
+    elvi: [], ticket: { lines: [tq] }, pairs: [{ ticket: tq, elvi: null }] };
+  const out = auditCall(r)!;
+  assert.ok(!out.flags.some((f) => f.type === "STAFF_EXTRA"), JSON.stringify(out.flags));
+  assert.ok(out.flags.some((f) => f.type === "ELVI_MISS"));
+  assert.deepEqual(keywords("Quesadilla"), []);
+});

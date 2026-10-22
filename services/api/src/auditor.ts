@@ -28,7 +28,9 @@ export function keywords(name: string) {
 export const said = (text: string, name: string) => { const ca = conAddonSaid(text, name); if (ca !== null) return ca;
   // tw4938: an "on the side" option ("DELUXE ***APARTE / EVERTHING ON SIDE***") is said only when one turn asks for it on the
   // side AND names the toppings (deluxe / con todo / preparada) — "aparte, una porción de nachos" (= also) is not it.
-  if (/aparte|on side/i.test(name)) return String(text).split(/\n/).some((l) => /\b(aparte|on the side|por separado)\b/i.test(l) && /\b(deluxe|con todo|preparad[oa]s?|everything|todo aparte)\b/i.test(l) && !/\baparte,?\s+(un[oa]?|otr[oa]|la|el)\b/i.test(l)); const t = ` ${norm(text)} `; const k = keywords(name); return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
+  if (/aparte|on side/i.test(name)) return String(text).split(/\n/).some((l) => /\b(aparte|on the side|por separado)\b/i.test(l) && /\b(deluxe|con todo|preparad[oa]s?|everything|todo aparte)\b/i.test(l) && !/\baparte,?\s+(un[oa]?|otr[oa]|la|el)\b/i.test(l)); const t = ` ${norm(text)} `; let k = keywords(name);
+  // stop1: a generic base name ("Quesadilla", "Quesadilla Dorada") is all stop words → fall back to its own words, not "never said".
+  if (!k.length) k = [...new Set(norm(String(name).replace(/\*+/g, " ").replace(/\([^)]*\)/g, " ")).split(" ").filter((w) => w.length >= 4 && w !== "with" && w !== "extra" && w !== "regular" && w !== "order" && w !== "orden"))]; return k.length > 0 && k.some((w) => t.includes(` ${w.slice(0, Math.max(4, w.length - 1))}`)); };
 const isFee = (l: any) => /^delivery fee\b/i.test(String(l?.baseName || l?.name || ""));
 const isCustom = (l: any) => !String(l?.baseName || l?.name || "").trim() || (!l?.variationId && !isFee(l));
 
@@ -81,13 +83,13 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     if (t && (isFee(t) || isCustom(t))) continue;
     if (e && isFee(e)) continue;
     if (t && !e) {
-      if (said(all, t.baseName || t.name)) add("ELVI_MISS", `Elvi missed ${t.quantity} × ${t.name}`, `Elvi no captó ${t.quantity} × ${t.name}.`, `Elvi missed ${t.quantity} × ${t.name}.`);
+      if (said(all, t.baseName || t.name) || said(all, t.name)) add("ELVI_MISS", `Elvi missed ${t.quantity} × ${t.name}`, `Elvi no captó ${t.quantity} × ${t.name}.`, `Elvi missed ${t.quantity} × ${t.name}.`);
       else add("STAFF_EXTRA", `ticket item never mentioned: ${t.quantity} × ${t.name}`, `En el ticket hay ${t.quantity} × ${t.name}, pero nunca se mencionó en la llamada.`, `Ticket has ${t.quantity} × ${t.name}, never mentioned on the call.`);
       continue;
     }
     if (e && !t) {
       if (custom.some((c: any) => Math.abs(c.totalCents - e.totalCents) <= 1)) continue; // rung as the custom amount
-      if (said(all, e.baseName || e.name)) add("STAFF_MISSING", `said on call, not rung: ${e.quantity} × ${e.name}`, `Se pidió ${e.quantity} × ${e.name} en la llamada, pero no está en el ticket.`, `${e.quantity} × ${e.name} was ordered on the call but isn't on the ticket.`);
+      if (said(all, e.baseName || e.name) || said(all, e.name)) add("STAFF_MISSING", `said on call, not rung: ${e.quantity} × ${e.name}`, `Se pidió ${e.quantity} × ${e.name} en la llamada, pero no está en el ticket.`, `${e.quantity} × ${e.name} was ordered on the call but isn't on the ticket.`);
       else add("ELVI_MISS", `Elvi added ${e.quantity} × ${e.name}`, `Elvi agregó ${e.quantity} × ${e.name} que no está en el ticket.`, `Elvi added ${e.quantity} × ${e.name}, not on the ticket.`);
       continue;
     }
