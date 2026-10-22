@@ -21,3 +21,16 @@ test("fee1: nameless $8 on a combined ticket is the fee (not a ghost); elsewhere
 test("fee1: Delivery service charge = delivery", () => {
   assert.equal(ticketFulfillment({ line_items: [li("Taco", 1, 300)], service_charges: [{ name: "Delivery", amount_money: { amount: 299 } }] }).fulfillment, "DELIVERY");
 });
+test("fee1: delivery call ~4 PM, tickets rung 4:30–4:55, combined charged ~5:55 → linked once (150-min look-ahead, no double count)", async () => {
+  const { linkedTickets, dedupeCombined } = await import("../../src/call-accuracy.ts");
+  const ord = (id: string, at: string, items: any[], state = "COMPLETED") => ({ id, created_at: at, state, source: { name: "Point of Sale" }, tenders: [{ id: id.toUpperCase() + "xxxxxxxxxxxxxx" }], total_money: { amount: 1 }, line_items: items });
+  const dishes = ["Taco", "Torta", "Nachos"];
+  const parts = dishes.map((d, i) => ord(`p${i}`, `2026-01-03T21:${30 + i * 10}:00Z`, [li(d, 2, 300)], "CANCELED"));
+  const combined = ord("all", "2026-01-03T22:55:00Z", [...dishes.flatMap((d, i) => [...(i ? [NB()] : []), li(d, 2, 300)]), { ...li("Delivery Fee", 1, 800), variation_name: "Delivery 2" }]);
+  const elvi: any[] = dishes.map((d, i) => ({ itemId: d, baseName: d, name: d, quantity: 2, choices: [], totalCents: 600, ...(i ? { person: `p${i}` } : {}) }));
+  const call = { at: "2026-01-03T21:00:00Z", recordingSec: 600, turns: [{ speaker: "caller", text: "son tres órdenes, a domicilio por favor" }] };
+  const l = linkedTickets(call, elvi, parts[0], [...parts, combined]);
+  const kept = dedupeCombined([parts[0], ...l.map((x) => x.order)]);
+  assert.deepEqual(kept.map((o: any) => o.id), ["all"]);
+  assert.equal(scoreOrder(elvi, kept.flatMap(ticketLines)).score, 100);
+});

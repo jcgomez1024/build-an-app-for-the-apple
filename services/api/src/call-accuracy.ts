@@ -366,7 +366,10 @@ export function linkedTickets(call: { at: string; recordingSec?: number; talkSec
   if (!hasOrderContent(elvi) || !mentionsOtherOrders((call.turns || []) as any)) return out;
   // combine1: per-person tickets get rung over 10–20 min and the combined charge can land ~40 min after the last one, so look
   // further ahead (90 min; 120 for a known big-order repeat caller on a Saturday — that list is local data, never in git).
-  const ahead = (isSaturdayET(call.at) && repeatCaller((call as any).caller) ? 120 : 90) * 60_000;
+  // fee1: a delivery order is charged at delivery time (combined ticket ~2h after a ~4 PM call) → 150 min for delivery calls
+  // and known Saturday repeat callers
+  const isDelivery = (call as any).fulfillment === "DELIVERY" || /\b(?:a\s+domicilio|para\s+entrega|delivery|deliver)\b/i.test(((call.turns || []) as any[]).map((t) => t.text).join(" "));
+  const ahead = (isDelivery || (isSaturdayET(call.at) && repeatCaller((call as any).caller)) ? 150 : 90) * 60_000;
   const start = Date.parse(call.at) - MULTI_WINDOW_MS, end = Date.parse(call.at) + (call.recordingSec || call.talkSec || 0) * 1000 + ahead;
   const union = () => dedupeCombined([...(primary ? [primary] : []), ...out.map((x) => x.order)]).flatMap((o) => ticketLines(o));
   const bk = (l: any) => norm(String(l.baseName || l.name || "").split(" · ")[0]);
