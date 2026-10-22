@@ -117,11 +117,18 @@ export function deliveryFeeLine(feeCents?: number | null): Line {
 export const ENTRY_ERROR = /\bentry\s*error\b|\berror\s+de\s+(?:entrada|captura)\b/i;
 export const isCustomAmountLi = (li: any) => li?.item_type === "CUSTOM_AMOUNT" || (!li?.catalog_object_id && !/delivery|env[ií]o/i.test(String(li?.name || "")));
 export const isEntryError = (li: any) => isCustomAmountLi(li) && (ENTRY_ERROR.test(String(li?.name || "")) || ENTRY_ERROR.test(String(li?.note || "")));
+/** plate1: staff ring a $0 "NO BEBIDA / NO DRINK" item between plates/people (233 of ~3.7k orders in 60 days, 97% mid-ticket).
+ *  It's a separator, not an item: lines get a plate index and the marker itself is dropped. */
+export const PLATE_MARKER = /^\s*(?:no|sin)\s+bebida\b|^\s*no\s+drink\b/i;
+export const isPlateMarker = (li: any) => PLATE_MARKER.test(String(li?.name || "")) && !Number(li?.base_price_money?.amount || 0);
 export function ticketLines(order: any): Line[] {
-  return (order?.line_items || []).filter((li: any) => !isEntryError(li)).map((li: any) => {
+  let plate = 0; const L = (order?.line_items || []).filter((li: any) => !isEntryError(li));
+  const hasMarker = L.some(isPlateMarker);
+  return L.flatMap((li: any) => { if (isPlateMarker(li)) { plate++; return []; } return [{ li, plate }]; }).map(({ li, plate }: any) => {
     const q = Number(li.quantity) || 1;
     const total = Number(li.gross_sales_money?.amount ?? li.total_money?.amount ?? 0);
     return {
+      ...(hasMarker ? { plate } : {}),
       ...(isCustomAmountLi(li) && !String(li.name || "").trim().replace(/^custom amount$/i, "") ? { ghost: true } : {}),
       baseName: li.name, variationId: li.catalog_object_id, name: [li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
       // On the POS the tortilla/size is the variation; online it's a modifier. Count it as a choice either way.
@@ -325,29 +332,52 @@ export function candidateTickets(call: CallRecord & { customerName?: string | nu
   return out;
 }
 /** multi1: the caller orders for other people too ("dos órdenes", "para Juana…", "la de ella", "otra orden aparte"). */
-export const MULTI_ORDER_CUES = /\b(?:dos|tres|cuatro|2|3|4)\s+[oó]rdenes\b|\botra\s+orden\b|\b(?:la|el|en\s+la)\s+(?:orden\s+)?de\s+(?:ella|[ée]l|mi\s+\w+)\b|\bpara\s+(?:mi\s+(?:esposa|esposo|hij[oa]|herman[oa]|mam[aá]|pap[aá]|amig[oa]|compa\w*)|ella|[ée]l)\b|\bpara\s+\p{Lu}\p{Ll}{2,}|\b(?:separate|another)\s+order\b|\bfor\s+(?:my\s+\w+|her|him)\b/u;
+export const MULTI_ORDER_CUES = /\b(?:dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|[2-9]|1[0-9])\s+[oó]rdenes\b|\botra\s+orden\b|\b(?:la|el|en\s+la)\s+(?:orden\s+)?de\s+(?:ella|[ée]l|mi\s+\w+)\b|\bpara\s+(?:mi\s+(?:esposa|esposo|hij[oa]|herman[oa]|mam[aá]|pap[aá]|amig[oa]|compa\w*)|ella|[ée]l)\b|\bpara\s+\p{Lu}\p{Ll}{2,}|\b(?:separate|another)\s+order\b|\bfor\s+(?:my\s+\w+|her|him)\b/u;
 export const mentionsOtherOrders = (turns: Array<{ speaker: string; text: string }>) => MULTI_ORDER_CUES.test((turns || []).filter((t) => t.speaker === "caller").map((t) => t.text).join(" \n "));
 export const MULTI_WINDOW_MS = 45 * 60_000;
+export const isSaturdayET = (at: string) => new Date(at).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" }) === "Sat";
+/** local only: data/learning/repeat-callers.json = ["last 10 digits", …] of callers known for big multi-order calls */
+export function repeatCaller(phone?: string, file = "data/learning/repeat-callers.json"): boolean {
+  try { const d = String(phone || "").replace(/\D/g, "").slice(-10); return !!d && (JSON.parse(fs.readFileSync(file, "utf8")) as string[]).includes(d); } catch { return false; }
+}
 const refMatches = (o: any, ref: string) => { const r = String(ref || "").trim().replace(/^#/, "").toLowerCase(); const s = squareRefs(o); return !!r && (String(o.id).toLowerCase() === r || String(s.receiptNumber || "").toLowerCase() === r || String(s.paymentId || "").toLowerCase() === r); };
+/** combine1: big multi-person calls (e.g. Saturday 6–8 orders): staff ring one ticket per person, then CANCEL those and ring one
+ *  combined ticket that is charged. A ticket whose items all sit inside another linked, larger ticket is that combined
+ *  ticket's original — drop it so nothing is counted twice (keep the paid/larger one). */
+const itemSig = (o: any) => { const m = new Map<string, number>(); for (const l of ticketLines(o)) { const k = norm(String(l.name || "")); if (k) m.set(k, (m.get(k) || 0) + (Number(l.quantity) || 1)); } return m; };
+const within = (a: Map<string, number>, b: Map<string, number>) => [...a].every(([k, v]) => (b.get(k) || 0) >= v);
+export function dedupeCombined<T>(list: T[], get: (x: T) => any = (x: any) => x): T[] {
+  const sigs = list.map((x) => itemSig(get(x))), size = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
+  const rank = (i: number) => (get(list[i])?.state === "COMPLETED" ? 1e6 : 0) + size(sigs[i]);
+  // drop each original fully inside a bigger one; also drop a set of originals that together fit inside one combined ticket
+  const keep = list.map((_, i) => !list.some((__, j) => j !== i && size(sigs[i]) > 0 && within(sigs[i], sigs[j]) && (rank(j) > rank(i) || (rank(j) === rank(i) && j < i))));
+  return list.filter((_, i) => keep[i]);
+}
 /** multi1: extra tickets for one call — manual links (receipt # or order id) first, then, when the caller talks about other
  *  people's orders, unassigned POS tickets within ±45 min that make Elvi's order fit better (union score up, details agree). */
 export function linkedTickets(call: { at: string; recordingSec?: number; talkSec?: number; turns?: any[] }, elvi: Line[], primary: any | null, orders: any[], opts: { manual?: string[]; usedElsewhere?: Set<string> } = {}) {
   const out: Array<{ order: any; by: string }> = []; const have = new Set<string>(primary ? [String(primary.id)] : []);
   for (const ref of opts.manual || []) { const o = orders.find((x) => refMatches(x, ref)); if (o && !have.has(String(o.id))) { out.push({ order: o, by: "manual" }); have.add(String(o.id)); } }
   if (!hasOrderContent(elvi) || !mentionsOtherOrders((call.turns || []) as any)) return out;
-  const start = Date.parse(call.at) - MULTI_WINDOW_MS, end = Date.parse(call.at) + (call.recordingSec || call.talkSec || 0) * 1000 + MULTI_WINDOW_MS;
-  const union = () => [...(primary ? ticketLines(primary) : []), ...out.flatMap((x) => ticketLines(x.order))];
-  for (let k = 0; k < 3; k++) {
+  // combine1: per-person tickets get rung over 10–20 min and the combined charge can land ~40 min after the last one, so look
+  // further ahead (90 min; 120 for a known big-order repeat caller on a Saturday — that list is local data, never in git).
+  const ahead = (isSaturdayET(call.at) && repeatCaller((call as any).caller) ? 120 : 90) * 60_000;
+  const start = Date.parse(call.at) - MULTI_WINDOW_MS, end = Date.parse(call.at) + (call.recordingSec || call.talkSec || 0) * 1000 + ahead;
+  const union = () => dedupeCombined([...(primary ? [primary] : []), ...out.map((x) => x.order)]).flatMap((o) => ticketLines(o));
+  const bk = (l: any) => norm(String(l.baseName || l.name || "").split(" · ")[0]);
+  const mine = (lines: Line[]) => { const ks = new Set(lines.map(bk)); return elvi.filter((l) => ks.has(bk(l))); }; // only this person's part of Elvi's cart
+  for (let k = 0; k < 8; k++) { // N tickets per call (one per person), not just 2
     const base = scoreOrder(elvi, union()).score; let best: { o: any; gain: number } | null = null;
     for (const o of orders) {
       if (have.has(String(o.id)) || opts.usedElsewhere?.has(String(o.id)) || !isPosTicket(o)) continue;
       const t = Date.parse(o.created_at); if (!(t >= start && t <= end)) continue;
       const lines = ticketLines(o).filter((l) => String(l.name || "").trim()); if (!lines.length) continue;
-      if (itemOverlap(lines, elvi) < 0.5 || choiceAgreement(elvi, lines) < 0.25) continue; // its items must be things the caller ordered
+      if (itemOverlap(lines, elvi) < 0.5 || choiceAgreement(mine(lines), lines) < 0.25) continue; // its items must be things the caller ordered
       const gain = scoreOrder(elvi, [...union(), ...ticketLines(o)]).score - base;
       if (gain >= 5 && (!best || gain > best.gain)) best = { o, gain };
     }
-    if (!best) break; out.push({ order: best.o, by: "auto: other person's order + items + time (±45 min)" }); have.add(String(best.o.id));
+    if (!best) break; if (best.o.state === "CANCELED" && orders.some((x) => x !== best!.o && x.state === "COMPLETED" && have.has(String(x.id)) && within(itemSig(best!.o), itemSig(x)))) { have.add(String(best.o.id)); continue; }
+    out.push({ order: best.o, by: "auto: other person's order + items + time (±45 min)" }); have.add(String(best.o.id));
   }
   return out;
 }
@@ -413,3 +443,19 @@ export function squareRefs(order: any) {
     dashboardUrl: paymentId ? `https://app.squareup.com/dashboard/sales/transactions/${paymentId}` : null,
   };
 }
+
+/** plate1: secondary metric — how well Elvi's per-person groups match the ticket's plates (ticket order = tickets in sequence,
+ *  each ticket's NO BEBIDA plates). null when the ticket(s) have one plate only. Item accuracy stays the primary score. */
+export function groupingScore(elvi: any[], ticketGroups: any[][]): number | null {
+  const T = ticketGroups.filter((g) => g.length); if (T.length < 2) return null;
+  const key = (l: any) => norm(String(l.baseName || l.name || "").split(" · ")[0]);
+  const eg = new Map<string, any[]>(); for (const l of elvi) { const k = String(l.person ?? "_"); (eg.get(k) || eg.set(k, []).get(k)!).push(l); }
+  const E = [...eg.values()]; if (E.length < 2) return 0;
+  const qty = (g: any[]) => g.reduce((a, l) => a + (Number(l.quantity) || 1), 0); const total = T.reduce((a, g) => a + qty(g), 0) || 1;
+  const ov = (e: any[], t: any[]) => { const c = new Map<string, number>(); for (const l of t) c.set(key(l), (c.get(key(l)) || 0) + (Number(l.quantity) || 1)); let n = 0; for (const l of e) { const k = key(l), h = c.get(k) || 0, q = Math.min(h, Number(l.quantity) || 1); n += q; c.set(k, h - q); } return n; };
+  // greedy best pairing of Elvi groups to plates
+  const pairs: Array<[number, number, number]> = []; E.forEach((e, i) => T.forEach((t, j) => pairs.push([ov(e, t), i, j]))); pairs.sort((a, b) => b[0] - a[0]);
+  const ui = new Set<number>(), uj = new Set<number>(); let got = 0; for (const [n, i, j] of pairs) if (!ui.has(i) && !uj.has(j)) { ui.add(i); uj.add(j); got += n; }
+  return Math.round(got / total * 1000) / 10;
+}
+export function plateGroups(orders: any[]): any[][] { const out: any[][] = []; for (const o of orders) { const by = new Map<number, any[]>(); for (const l of ticketLines(o) as any[]) (by.get(l.plate || 0) || by.set(l.plate || 0, []).get(l.plate || 0)!).push(l); out.push(...by.values()); } return out; }

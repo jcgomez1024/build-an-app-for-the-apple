@@ -38,7 +38,7 @@ import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadUnclear, setUnclear } from "./unclear.js";
 import { detectReadback } from "./staff-readback.js";
-import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, groupingScore, plateGroups, dedupeCombined, hasOrderContent, scoreOrder, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
@@ -1542,7 +1542,9 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       const linked = linkedBy.get(c.callSid) || [];
       const m0 = followUp ? null : assigned.get(c.callSid) || null;
       const m = m0 || (linked[0] ? { order: linked[0].order, by: linked[0].by } : null);
-      const extra = linked.filter((x) => x.order !== m?.order);
+      // combine1: originals that sit inside a combined (charged) ticket are dropped — no double counting
+      const kept = new Set(dedupeCombined([...(m ? [m.order] : []), ...linked.map((x) => x.order)]));
+      const extra = linked.filter((x) => x.order !== m?.order && kept.has(x.order));
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m && !followUp ? expected[c.callSid] : undefined;
       // ghost1: a nameless custom amount is a possible Square ghost — not scored unless it equals one of Elvi's items (then it's that item rung as custom)
@@ -1571,6 +1573,8 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         readback: (() => { const r = detectReadback((c.turns || []) as any); return { status: r.status, staffText: r.staffText || null, response: r.response || null }; })(), // readback1
         answeredBy: (c as any).answeredBy || (c.answered ? "unknown" : null), // readback1
         // namecheck1: informational name accuracy (not in the item score, never a staff flag)
+        // plate1: secondary — Elvi's per-person groups vs the tickets' plates (NO BEBIDA separators / separate tickets)
+        grouping: m ? groupingScore(elvi as any[], plateGroups([m.order, ...extra.map((x) => x.order)])) : null,
         nameCheck: (() => { const heard = (c as any).elviName || shadowHeardName((c.turns || []) as any, (c as any).orderName); const tn = m && !isOnlineSq(m.order) ? squareTicketName(m.order) : null; return { heard, ticket: tn, result: m ? compareNames(heard, tn) : null }; })(),
         languageNotes: (c as any).languageNotes || [], savedLanguage: (() => { try { const s = savedLanguage(c.caller); return s.language ? { language: s.language, from: s.from, by: s.by || null, at: s.at || null } : null; } catch { return null; } })(), // lang2
         orderName: (c as any).orderName || null, customerName: c.customerName || null, noOrder: !hasOrderContent(elvi), // match1 orderNameFrom: (c as any).orderNameFrom || null, // ordername1

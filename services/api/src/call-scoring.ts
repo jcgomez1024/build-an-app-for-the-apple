@@ -365,6 +365,8 @@ export function statedTotal(text: string): { n: number; kind: string | null } | 
 export function personSwitch(text: string): string | null {
   const t = String(text || "");
   if (/\b(?:en\s+)?mi\s+orden\b|\b(?:en\s+)?la\s+m[ií]a\b|\ben\s+la\s+primera\b|\bpara\s+m[ií]\b|\bmy\s+order\b/iu.test(t)) return "me";
+  // plate1: "en otro plato", "por separado", "la otra orden", "en un plato aparte" → the next plate (plain "aparte" = "also", not a plate)
+  if (/\b(?:en\s+)?otro\s+plato\b|(?<!\p{L})(?:platos|[oó]rdenes|pedidos|bolsas)\s+(?:por\s+)?separad|\b(?:p[oó]ngalo|ponlo|p[oó]ngamel[oa]s?|ponga|va|van)\s+(?:por\s+)?separad|\b(?:la\s+)?otra\s+orden\b|\b(?:plato|orden)\s+aparte\b|\bseparate\s+(?:plates?|orders?|bags?)\b|\banother\s+(?:plate|order)\b/iu.test(t)) return "+";
   const m = /\b(?:para|for)\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t) || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t);
   if (m && !/^(Usted|Llevar|Aqu[ií]|Comer|Ahorita|Mañana|Hoy)$/u.test(m[1])) return m[1].toLowerCase() === "él" || m[1].toLowerCase() === "el" ? "él" : m[1];
   return null;
@@ -377,7 +379,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const steps: any[] = [];
   let lastTouched: Line | null = null;
   const touchedNow: Line[] = [];
-  let person: string | null = null; // multi1: per-person groups inside the one cart
+  let person: string | null = null, plateN = 0; // multi1: per-person groups inside the one cart
   const apply = (actions: any[] = []) => {
     for (const a of actions) {
       if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
@@ -412,7 +414,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     for (const l of targets) l.elviNotes = [...new Set([...(l.elviNotes || []), ...notes])];
   };
   const say = async (text: string, language: "es" | "en", source: string) => {
-    if (source === "caller" || source === "caller-retry") { const p = personSwitch(text); if (p) person = p; }
+    // multi2: "dos tacos de qué? Deshebrada. Deshebrada. Deshebrada." — the caller echoing staff's question + repeated word
+    if (source.startsWith("caller")) text = text.replace(/\b(de\s+)?qu[eé]\?\s*/giu, " ").replace(/\b(\p{L}+)(?:[.,]?\s+\1\b)+/giu, "$1").replace(/\s+/g, " ").trim() || text;
+    if (source === "caller" || source === "caller-retry") { const p = personSwitch(text); if (p === "+") person = `plato ${++plateN + 1}`; else if (p) person = p; }
     const r = await run(text, language, history.slice(-24));
     // suggest1: listen-only — staff, not Elvi, answer the caller, so Elvi's offer never becomes answerable here.
     const said = String(r?.reply || ""), offer = String(r?.offerText || "");
@@ -514,16 +518,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
   let pendingDish: string | null = null; // fix1136
-  let pendingDishes: string[] = []; let lastStaff = ""; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
+  let pendingDishes: string[] = []; let lastStaff = ""; const recentStaff: string[] = []; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
   const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
   // Phone staff fill in the details; accept Elvi's suggested choices for whatever is still open.
+  const optsOf = (reply: string) => (String(reply || "").match(/¿([^?]+)\?\s*$/u)?.[1] || "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what)\b/iu.test(x));
   const acceptOpen = async (lang: "es" | "en") => {
     for (let i = 0; i < 4 && asking(last); i++) {
-      const prev = String(last.reply || "");
+      const prev = String(last.reply || ""), n0 = cart.length;
       last = await say(lang === "es" ? "así está bien" : "that's fine", lang, "auto");
       autoAccepted = true;
+      // multi2: a required choice with no default ("Esquite: ¿Tajín o NO TAJIN?") was dropped on "así está bien" —
+      // take the first option offered instead of losing the item
+      if (cart.length === n0 && !asking(last) && !(last?.actions || []).length) { const o = optsOf(prev); if (o.length) { const item = (prev.match(/^([^:¿?]{3,60}):/u)?.[1] || "").trim(); last = await say(`${item ? item + ", " : ""}${o[0]}`, lang, "auto"); } break; }
       if (String(last.reply || "") === prev) break;
     }
   };
@@ -544,7 +552,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
-      lastStaff = t.text;
+      lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift();
       continue;
     }
     // case1d: staff "¿La gordita también quieres que lleve frijoles?" → "Sí…": beans on that gordita (option name resolved at the end)
@@ -575,6 +583,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     if (isClosing(t.text)) { steps.push({ source: "caller-closing", heard: t.text }); continue; }
+    // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
+    // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
+    // con todo"). Those answers used to be dropped as clarifications, so the question never closed and every later dish
+    // (the second person's order) was swallowed by it.
+    if (asking(last)) {
+      const nrm = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+      const q = nrm(String(last.reply || "")), b0 = nrm(t.text.replace(/[¿¡?.!,]+/gu, " "));
+      const meat = (b0.match(/\b(bistec|chorizo|asada|pastor|carnitas|cabeza|lengua|tripa|pollo|deshebrada|suadero|birria)\b/) || [])[1];
+      const confirm = /^\s*(?:eso\s+es|s[ií]|as[ií]|exacto|correcto|aj[aá])(?![\p{L}])/iu.test(t.text) && !dishesNamed(t.text).size;
+      const staffChoices = confirm && lastStaff && !/\?|¿/.test(lastStaff) ? lastStaff.replace(/\b(?:aj[aá]|okay|ok)\b[,.]?/giu, " ").replace(/\s+/g, " ").trim() : "";
+      if (meat && q.includes(meat) && b0.split(" ").filter(Boolean).length <= 3) { last = await say(t.text, t.language, "caller-answer"); steps.push({ source: "caller-answer", heard: t.text }); continue; }
+      if (staffChoices && FOOD.test(staffChoices) && !/\bcon\s+tod(?:it)?o\b/iu.test(t.text)) { last = await say(`${staffChoices}${/con\s+todo/i.test(t.text) ? ", con todo" : ""}`, t.language, "caller-staff-readback"); steps.push({ source: "caller-staff-readback", heard: t.text }); if (asking(last)) await acceptOpen(t.language); continue; }
+      // "con todo" / confirming staff's list → name the options from Elvi's own question (all of them for "con todo",
+      // otherwise the ones staff read back)
+      { const opts = (String(last.reply || "").match(/¿([^?]+)\?\s*$/u)?.[1] || "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what|regular|deluxe)\b/iu.test(x));
+        const staffRun = nrm(recentStaff.join(" "));
+        const pick = /\bcon\s+tod(?:it)?o\b|\bwith\s+everything\b/iu.test(t.text) ? opts.filter((o) => !/double|doble/i.test(o)) : confirm ? opts.filter((o) => staffRun.includes(nrm(o).split(" ")[0])) : [];
+        if (pick.length && !dishesNamed(t.text).size) { last = await say(pick.join(", "), t.language, "caller-answer"); steps.push({ source: "caller-answer", heard: t.text }); if (asking(last)) await acceptOpen(t.language); continue; } }
+      // a new dish while the old question is still open: take Elvi's suggestions for the open one first, then the new dish
+      { const asked = dishesNamed(String(last.reply || "")); if ([...dishesNamed(t.text)].some((k) => !asked.has(k))) await acceptOpen(t.language); }
+    }
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
     // aliases1: campechana / o mal now come from the shared list.
     const bare = applySharedAliases(t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim(), "phone");

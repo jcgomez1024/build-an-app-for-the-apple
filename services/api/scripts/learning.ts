@@ -74,8 +74,11 @@ async function replayer() {
       if (cache[k] && !opts.fresh) return cache[k]; // replay3: fresh = real AI answers, no cache
       const r: any = await live(t, language, history); const { audioBase64, audioMimeType, ...keep } = r || {}; cache[k] = keep; return keep;
     };
-    const runT = (opts as any).trace ? async (t: string, l: "es" | "en", h: any[]) => { const x: any = await run(t, l, h); console.log(`> ${t}\n    ${(x?.actions || []).map((a: any) => `${a.type} ${a.itemId || ""} q${a.quantity ?? ""} [${(a.modifiers || []).map((m: any) => m.option).join("; ")}]`).join(" | ")}`); return x; } : run;
-    const r: any = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), runT as any);
+    const runT = (opts as any).trace ? async (t: string, l: "es" | "en", h: any[]) => { const x: any = await run(t, l, h); console.log(`> ${t}\n    ${(x?.actions || []).map((a: any) => `${a.type} ${a.itemId || ""} q${a.quantity ?? ""} [${(a.modifiers || []).map((m: any) => m.option).join("; ")}]`).join(" | ")}\n    « ${String(x?.reply || "").slice(0, 140)}»`); return x; } : run;
+    // clock1: replay at the call's own time — at night/early morning "now" made time-windowed items (especiales) "not available"
+    // and Elvi refused them, so a replay's score depended on when it ran.
+    const prevNow = process.env.ELVI_SIMULATED_NOW; if (row.at && !prevNow) process.env.ELVI_SIMULATED_NOW = new Date(Date.parse(row.at) + 60_000).toISOString();
+    let r: any; try { r = await shadowOrderFromTurns((row.turns || []).map((t: any) => ({ ...t })), runT as any); } finally { if (prevNow === undefined) delete process.env.ELVI_SIMULATED_NOW; else process.env.ELVI_SIMULATED_NOW = prevNow; }
     // a2: score exactly like /api/calls/accuracy — POS names, delivery fee line, included toppings (was: menu names → 40 on a perfect order)
     const lines: any[] = toPosLines(elviLines(r.cart || [], resolverMenu as any), posCat);
     if (r.fulfillment === "DELIVERY" && lines.length) lines.push(deliveryFeeLine(row.deliveryFeeCents ?? r.deliveryFeeCents));
