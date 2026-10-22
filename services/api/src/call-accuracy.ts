@@ -455,7 +455,8 @@ export function squareRefs(order: any) {
 /** plate1: secondary metric — how well Elvi's per-person groups match the ticket's plates (ticket order = tickets in sequence,
  *  each ticket's NO BEBIDA plates). null when the ticket(s) have one plate only. Item accuracy stays the primary score. */
 export function groupingScore(elvi: any[], ticketGroups: any[][]): number | null {
-  const T = ticketGroups.filter((g) => g.length); if (T.length < 2) return null;
+  const fee = (l: any) => /^\s*delivery\s*fee\b/i.test(String(l?.baseName || l?.name || "")); // fee1: not part of any plate
+  const T = ticketGroups.map((g) => g.filter((l) => !fee(l))).filter((g) => g.length); if (T.length < 2) return null; elvi = elvi.filter((l) => !fee(l));
   const key = (l: any) => norm(String(l.baseName || l.name || "").split(" · ")[0]);
   const eg = new Map<string, any[]>(); for (const l of elvi) { const k = String(l.person ?? "_"); (eg.get(k) || eg.set(k, []).get(k)!).push(l); }
   const E = [...eg.values()]; if (E.length < 2) return 0;

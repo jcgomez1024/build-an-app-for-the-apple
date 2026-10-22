@@ -34,3 +34,20 @@ test("fee1: delivery call ~4 PM, tickets rung 4:30–4:55, combined charged ~5:5
   assert.deepEqual(kept.map((o: any) => o.id), ["all"]);
   assert.equal(scoreOrder(elvi, kept.flatMap(ticketLines)).score, 100);
 });
+// fixture shaped like the Saturday clusters (no PII): simulated 4:00 PM ET call, 7 per-person tickets rung 4:39–4:54 and later
+// CANCELED, combined ticket (all items, NO BEBIDA separators, "Delivery Fee · Delivery 2" $8) created/charged ~5:55 PM ET.
+test("fee1: Saturday cluster fixture — 7 canceled per-person tickets + combined $8-delivery ticket ~2h later", async () => {
+  const { linkedTickets, dedupeCombined, plateGroups, groupingScore } = await import("../../src/call-accuracy.ts");
+  const { ticketFulfillment } = await import("../../src/delivery.ts");
+  const ord = (id: string, at: string, items: any[], state = "COMPLETED") => ({ id, created_at: at, state, source: { name: "Point of Sale" }, tenders: [{ id: id.toUpperCase() + "xxxxxxxxxxxxxx" }], total_money: { amount: 1 }, fulfillments: [{ type: "PICKUP" }], line_items: items });
+  const plates = [["Taco", 3], ["Torta", 2], ["Burrito", 1], ["Quesadilla", 2], ["Gordita", 2], ["Nachos", 1], ["Taco", 2]] as Array<[string, number]>;
+  const parts = plates.map(([d, q], i) => ord(`s${i}`, `2026-01-03T21:${String(39 + i * 2).padStart(2, "0")}:00Z`, [li(d, q, 300)], "CANCELED"));
+  const combined = ord("final", "2026-01-03T22:55:00Z", [...plates.flatMap(([d, q], i) => [...(i ? [NB()] : []), li(d, q, 300)]), { ...li("Delivery Fee", 1, 800), variation_name: "Delivery 2" }]);
+  const elvi: any[] = plates.map(([d, q], i) => ({ itemId: d, baseName: d, name: d, quantity: q, choices: [], totalCents: 300 * q, ...(i ? { person: `persona ${i + 1}` } : {}) }));
+  const call = { at: "2026-01-03T21:00:00Z", recordingSec: 900, turns: [{ speaker: "caller", text: "van a ser siete órdenes para entrega a domicilio" }] };
+  const kept = dedupeCombined([parts[0], ...linkedTickets(call, elvi, parts[0], [...parts, combined]).map((x) => x.order)]);
+  assert.deepEqual(kept.map((o: any) => o.id), ["final"]);
+  assert.equal(scoreOrder(elvi, kept.flatMap(ticketLines)).score, 100);
+  assert.equal(groupingScore(elvi, plateGroups(kept)), 100);
+  assert.equal(ticketFulfillment(combined).fulfillment, "DELIVERY");
+});
