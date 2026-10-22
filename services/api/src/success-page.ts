@@ -4,7 +4,7 @@ import fs from "node:fs"; import path from "node:path"; import { fileURLToPath }
 import { squareCall } from "./square.js";
 const FILE = () => process.env.ORDER_TIMING_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/logs/order-timing.json");
 export type OrderRec = { orderId: string; f: "PICKUP" | "DELIVERY"; env: "sandbox" | "production"; scheduleType: "ASAP" | "SCHEDULED"; at: string; readyAt?: string;
-  label: { es: string; en: string }; window: { from: string; to: string; es: string; en: string } | null; firstName: string | null; address: string | null; saved: number };
+  label: { es: string; en: string }; window: { from: string; to: string; es: string; en: string } | null; firstName: string | null; address: string | null; lang?: "es" | "en"; saved: number };
 const load = (): Record<string, OrderRec> => { try { return JSON.parse(fs.readFileSync(FILE(), "utf8")); } catch { return {}; } };
 export function saveOrderRec(token: string, r: Omit<OrderRec, "saved">) {
   const j = load(); j[token] = { ...r, saved: Date.now() };
@@ -23,7 +23,7 @@ export async function fetchView(rec: OrderRec, cfg: any, call: typeof squareCall
     receipt = p.receipt_number || String(pid).slice(0, 4).toUpperCase();
     state = p.status === "COMPLETED" ? "paid" : p.status === "FAILED" || p.status === "CANCELED" ? "failed" : "processing"; } catch { state = "processing"; } }
   if (o.state === "CANCELED") state = "failed";
-  const lines = (o.line_items || []).filter((l: any) => !/^no bebida/i.test(l.name || "")).map((l: any) => ({ name: String(l.name || "").replace(/^\[TEST\]\s*/, "").replace(/\s*\(online\)/i, ""), qty: String(l.quantity || "1"), mods: (l.modifiers || []).map((m: any) => String(m.name || "")).filter(Boolean), cents: Number(l.total_money?.amount || 0) }));
+  const lines = (o.line_items || []).filter((l: any) => !/^no bebida/i.test(l.name || "")).map((l: any) => ({ name: String(l.name || "").replace(/^\[TEST\]\s*/, "").replace(/\s*\(online\)/i, ""), qty: String(l.quantity || "1"), mods: (l.modifiers || []).length ? l.modifiers.map((m: any) => String(m.name || "")).filter(Boolean) : (String(l.note || "").match(/modifiers:\s*(.+)$/i)?.[1] || "").split(/\s*[,;]\s*/).filter(Boolean), /* e2e1: sandbox lines carry choices in the note */ cents: Number(l.total_money?.amount || 0) }));
   return { state, receipt, lines, totalCents: Number(o.total_money?.amount || 0), rec };
 }
 

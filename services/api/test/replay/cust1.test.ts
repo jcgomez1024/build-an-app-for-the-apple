@@ -20,7 +20,7 @@ const post = (u: string, b: any, h: any = {}) => fetch(u, { method: "POST", head
 test("session sign/read, tamper, expiry", () => {
   const v = A.signSession({ p: known, cid: "C", fn: "Ana", em: null });
   assert.equal(A.readSession(`${A.COOKIE}=${encodeURIComponent(v)}`)?.fn, "Ana");
-  assert.equal(A.readSession(`${A.COOKIE}=${encodeURIComponent(v.replace(/.$/, (c) => (c === "a" ? "b" : "a")))}`), null);
+  assert.equal(A.readSession(`${A.COOKIE}=${encodeURIComponent(v.replace(/^./, (c) => (c === "e" ? "f" : "e")))}`), null);
   assert.equal(A.readSession(`${A.COOKIE}=${encodeURIComponent(v)}`, Date.now() + 31 * 86400e3), null);
   assert.match(A.cookieHeader(v), /HttpOnly; SameSite=Lax; Max-Age=2592000; Secure/);
 });

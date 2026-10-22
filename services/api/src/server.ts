@@ -1223,7 +1223,7 @@ async function checkTiming(req: express.Request, tenant: ReturnType<typeof resol
 }
 function rememberOrderTiming(token: string, orderId: string, env: "sandbox" | "production", body: any, tc: any) {
   try { saveOrderRec(token, { orderId, env, f: body.fulfillment === "DELIVERY" ? "DELIVERY" : "PICKUP", scheduleType: tc.scheduleType, at: tc.at, readyAt: tc.readyAt, label: tc.label, window: tc.window || null,
-    firstName: String(body.customer?.name || "").trim().split(/\s+/)[0]?.slice(0, 30) || null, address: body.fulfillment === "DELIVERY" ? String(body.customer?.address || "").slice(0, 200) || null : null }); } catch { /* best effort */ }
+    firstName: String(body.customer?.name || "").trim().split(/\s+/)[0]?.slice(0, 30) || null, address: body.fulfillment === "DELIVERY" ? String(body.customer?.address || "").slice(0, 200) || null : null, lang: body.metadata?.language === "en" ? "en" : "es" }); } catch { /* best effort */ }
 }
 app.get("/api/:tenant/orders/timing", (req, res) => {
   const f = req.query.f === "DELIVERY" ? "DELIVERY" : "PICKUP";
@@ -1715,8 +1715,9 @@ app.post("/api/square/webhooks", (req, res) => {
 
 app.get("/checkout/success", async (req, res) => {
   // success1: ck (our random token) → exactly one order; fetched from Square in the env it was created in (sandbox unless live)
-  const lang: "es" | "en" = req.query.lang === "en" || req.query.lang === "es" ? (req.query.lang as any) : /^en/i.test(String(req.headers["accept-language"] || "")) ? "en" : "es";
   const rec = typeof req.query.ck === "string" ? recByToken(req.query.ck) : null;
+  // e2e1: the language the customer ordered in wins over the browser header
+  const lang: "es" | "en" = req.query.lang === "en" || req.query.lang === "es" ? (req.query.lang as any) : rec?.lang || (/^en/i.test(String(req.headers["accept-language"] || "")) ? "en" : "es");
   let view: any = null;
   if (rec && (rec.env === "sandbox" || checkoutLive())) {
     const cfg = rec.env === "production" ? buildSquareConfig(resolveTenant(undefined)) : { env: "sandbox", accessToken: process.env.SQUARE_SANDBOX_ACCESS_TOKEN, locationId: process.env.SQUARE_SANDBOX_LOCATION_ID };

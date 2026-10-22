@@ -68,6 +68,8 @@ test("success page: only by token; paid / processing / failed; es+en", async () 
   assert.match(S.renderSuccess(v, "en", "/x"), /Thank you, Prueba!.*/s); assert.match(S.renderSuccess(v, "en", "/x"), /Back to menu/);
   const pv = await S.fetchView(rec, {}, call("APPROVED")); assert.equal(pv.state, "processing"); assert.match(S.renderSuccess(pv, "es", "/x"), /Procesando/); assert.match(S.renderSuccess(pv, "es", "/x"), /http-equiv="refresh"/);
   assert.equal((await S.fetchView(rec, {}, call("FAILED"))).state, "failed");
+  const sb = (async (p: string) => p.startsWith("/v2/orders") ? { order: { tenders: [{ payment_id: "P" }], line_items: [{ name: "[TEST] Tacos Dorados", quantity: "1", note: "Tacos Dorados ordered by voice | Voice modifiers: Bistec / Steak", total_money: { amount: 1400 } }] } } : { payment: { status: "COMPLETED" } }) as any;
+  assert.deepEqual((await S.fetchView(rec, {}, sb)).lines[0].mods, ["Bistec / Steak"], "sandbox note modifiers");
   assert.doesNotMatch(S.renderSuccess(null, "es", "/x"), /Taco/);
 });
 test("webhook signature: valid / invalid / unconfigured (trusted only while sandbox)", () => {

@@ -368,9 +368,7 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
         redirect_url: `${runtime.appPublicUrl}/checkout/success${/^[A-Za-z0-9_-]{16,64}$/.test(String((input as any).successToken || "")) ? `?ck=${(input as any).successToken}` : ""}`,
         ask_for_shipping_address: false
       },
-      pre_populated_data: {
-        buyer_email: input.customer.email
-      },
+      // e2e1: Square rejects buyer_email together with an order fulfillment (CONFLICTING_PARAMETERS); the email rides on the fulfillment recipient.
       payment_note: `${runtime.businessName} ${input.fulfillment.toLowerCase()} voice order${input.fulfillment === "DELIVERY" ? ` | DELIVERY TO: ${input.customer.address}` : ""} | ${voiceOrderNote}`.slice(0, 500)
     })
   }, runtime);
