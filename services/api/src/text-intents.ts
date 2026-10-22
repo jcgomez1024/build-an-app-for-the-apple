@@ -79,8 +79,10 @@ export function stripLeadFiller(text: string) {
 export function normalizeSpokenCatalogAliases(text: string) {
   // aliases1: shared phone+app spoken aliases (data/aliases/aliases.json) run first.
   // aceite1: "quesadilla(s) de bistec en aceite / frita(s)" = the fried (QD) Quesadilla Dorada, not a comal quesadilla.
+  // relleno1: speech-to-text spellings of "chiles rellenos" ("chili rainos", "chile reyenos", "chilly rellanos")
+  const relleno = (x: string) => x.replace(/\bchil(?:i|e|ly|lie)?(e?s)?[\s-]+(?:r[ae]i?y?[e]?n[oa]s|re[ly]{1,2}[ae]n[oa]s|rey[ae]n[oa]s|rain[oa]s|rayn?[oa]s|reinos|rellen[oa]s?)\b/giu, "chiles rellenos");
   const fried = (x: string) => x.replace(/\b(quesadillas?)\b((?:\s+(?!y\b|and\b)[\p{L}]+){0,4}?)\s+(?:en\s+aceite|fritas?|frit[oa]s?)\b/giu, (_m, q: string, mid: string) => `${q} ${/s$/i.test(q) ? "doradas" : "dorada"}${mid}`);
-  return applySharedAliases(fried(stripLeadFiller(String(text || ""))), "app")
+  return applySharedAliases(relleno(fried(stripLeadFiller(String(text || "")))), "app")
     .replace(/\b[oh]?orchatas?\b/gi, "horchata") // horchata1: STT "orchata"
     // cheyenne1: "hecha a mano" / "de hecha mano" / "handmade" = the Comal (homemade) tortilla
     .replace(/(?:(?:de\s+)?(?:la\s+)?(?:tortilla\s+)?(?:grande\s+)?)?\bhech[oa]s?\s+(?:a\s+)?mano\b|\bhand\s*-?\s*made\b|\bmade\s+by\s+hand\b/gi, "de comal")

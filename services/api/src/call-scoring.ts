@@ -184,6 +184,8 @@ export function carryAskedQty(acts: any[], text: string, prevCustomer: string, a
 export const isClosing = (t: string) => {
   let s = t.trim();
   if (!s || FOOD.test(s)) return false;
+  // orders1: "that's it, I'd like five orders" sets a count — not a goodbye
+  if (/\b(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:orders?|[oó]rdenes|more|m[aá]s)\b/iu.test(s)) return false;
   const body = s.replace(/^(?:bueno|ok(?:ay)?|listo|perfecto|sale|alright|great|sí|si|yes)[,.!]?\s+/iu, "").trim();
   if (body && body !== s && body.length > 8) s = body;
   return CLOSING.test(s) && !FOOD.test(s);
@@ -554,7 +556,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     } else merged.push({ ...t });
   }
   turns = merged;
-  for (const t of turns) {
+  for (let t of turns) {
     if (t.speaker !== "caller") {
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
       noteFulfillment(t.text);
@@ -590,6 +592,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     if (isClosing(t.text)) { steps.push({ source: "caller-closing", heard: t.text }); continue; }
+    // orders1: "I would like five orders" with one dish on the order and none named → that dish, five of them
+    { const W: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+      const m = t.text.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:orders?|[oó]rdenes)\b/iu);
+      const n = m ? (W[m[1].toLowerCase()] ?? Number(m[1])) : 0;
+      const food = cart.filter((l) => !DRINK.test(String(l.itemId).replace(/[-_]/g, " ")));
+      if (n >= 1 && n <= 20 && food.length === 1 && !dishesNamed(t.text).size && !FOOD.test(t.text)) {
+        food[0].quantity = n; steps.push({ source: "caller-orders-count", heard: t.text }); continue;
+      } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
     // con todo"). Those answers used to be dropped as clarifications, so the question never closed and every later dish
@@ -626,7 +636,33 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
     if (cart.length && isCountOnly(t.text)) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
-    if (fulfillmentIn(t.text) && !FOOD.test(t.text) && !DRINK.test(applySharedAliases(t.text, "phone"))) { steps.push({ source: "caller-fulfillment", heard: t.text }); continue; }
+    if (fulfillmentIn(t.text) && !FOOD.test(t.text) && !DRINK.test(applySharedAliases(t.text, "phone"))) {
+      // pickup1: "can I order some for pickup — that'd be, yes, please. flour." — the pickup cue is noted, the answer after it still counts
+      const rest = t.text.replace(/^.*?\b(?:pick[\s-]?up|to\s+go|para\s+llevar|(?:pasar\s+a\s+)?recoger|delivery|a\s+domicilio)\b[\s,.!?]*/iu, "").trim();
+      steps.push({ source: "caller-fulfillment", heard: t.text });
+      if (!(asking(last) && rest && rest !== t.text && /\p{L}{3,}/u.test(rest))) continue;
+      t = { ...t, text: rest };
+    }
+    // yesopt1: staff asked a yes/no about one of the options Elvi is waiting on ("You like a rice and beans?") → "yes, please.
+    // flour." = that option plus the rest of the answer
+    if (asking(last) && /\?\s*$/.test(lastStaff)) {
+      const m = t.text.match(/^(?:(?:that'?d\s+be|it'?d\s+be|ok(?:ay)?|este|pues)[,\s]*)*(?:s[ií]|yes|yeah|yep|sure|aj[aá]|claro)\b[,.!\s]*(?:(?:please|por\s+favor)[,.!\s]*)?(.*)$/iu);
+      if (m && !dishesNamed(t.text).size) {
+        const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+        const st = fold(lastStaff);
+        const ws = (o: string) => fold(o).split(/[^a-z]+/).filter((w) => w.length >= 4 && !/^(solo|only|with|con|and)$/.test(w));
+        const qOpts = String(last.reply || "").replace(/^[^:¿?]{3,60}:\s*/u, "").split(/[?¿]/u).flatMap((q) => q.replace(/^\s*(?:y|and)\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u)).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what)\b/iu.test(x));
+        const scored = qOpts.map((o) => ({ o, n: ws(o).filter((w) => new RegExp(`\\b${w}`).test(st)).length, all: ws(o).length }));
+        const best = scored.filter((x) => x.n >= 1).sort((a, b) => b.n - a.n || a.all - b.all)[0];
+        if (best && scored.filter((x) => x.n === best.n).length === 1) {
+          const tail = m[1].replace(/[.!]+$/u, "").trim();
+          const dish = (String(last.reply || "").match(/^([^:¿?]{3,60}):/u)?.[1] || "").trim();
+          last = await say(`${dish ? dish + ", " : ""}${best.o}${tail ? ", " + tail : ""}`, t.language, "caller-yes-option"); steps.push({ source: "caller-yes-option", heard: t.text });
+          if (asking(last)) await acceptOpen(t.language);
+          continue;
+        }
+      }
+    }
     if (cart.length && /^(comal|harina|flour|homemade|ma[ií]z|corn|campechana|bistec|chorizo|asada|pastor|al\s*pastor|bistec y chorizo)$/iu.test(bare) && !(asking(last) && String(last.reply || "").toLowerCase().includes(bare.toLowerCase()))) {
       steps.push({ source: "caller-clarify", heard: t.text }); continue;
     }
