@@ -12,3 +12,14 @@ test("std1: '2 QUESO' matches Elvi's 'QUESO / CHEESE' (no miss either way)", () 
   const f = auditCall(row(["QUESO / CHEESE"]))!.flags.map((x) => x.detail).join("|");
   assert.ok(!/QUESO/i.test(f), f);
 });
+test("std2: a $0 protein rung but never said still flags; a single-option-group default doesn't", async () => {
+  const { setStdMenu } = await import("../../src/call-accuracy.js");
+  const o = { line_items: [{ name: "Torta", catalog_object_id: "V2", quantity: "1", gross_sales_money: { amount: 900 },
+    modifiers: [{ name: "Pollo / Chicken", total_price_money: { amount: 0 } }, { name: "Pan Telera", total_price_money: { amount: 0 } }] }] };
+  setStdMenu([{ squareVariationId: "V2", modifierGroups: [{ options: [{ name: "Pollo / Chicken" }, { name: "Bistec / Steak" }] }, { options: [{ name: "Pan Telera" }] }] }]);
+  const t = ticketLines(o)[0]; const e = { name: "Torta", quantity: 1, choices: [], unitCents: 900, totalCents: 900 };
+  const f = auditCall({ recordingSid: "RE2", at: new Date(0).toISOString(), recordingSec: 60, turns: [{ speaker: "caller", text: "una torta por favor" }], elvi: [e], ticket: { lines: [t] }, pairs: [{ ticket: t, elvi: e }] })!
+    .flags.filter((x) => x.type === "STAFF_EXTRA").map((x) => x.detail).join("|");
+  setStdMenu([]);
+  assert.ok(/Pollo/.test(f), f); assert.ok(!/Telera/.test(f), f);
+});

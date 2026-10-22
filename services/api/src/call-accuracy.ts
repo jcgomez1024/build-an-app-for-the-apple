@@ -121,6 +121,13 @@ export const isEntryError = (li: any) => isCustomAmountLi(li) && (ENTRY_ERROR.te
  *  It's a separator, not an item: lines get a plate index and the marker itself is dropped. */
 export const PLATE_MARKER = /^\s*(?:no|sin)\s+bebida\b|^\s*no\s+drink\b/i;
 export const isPlateMarker = (li: any) => PLATE_MARKER.test(String(li?.name || "")) && !Number(li?.base_price_money?.amount || 0);
+// std2: variationId → options that are the only choice in their modifier group (true defaults). Set from the live menu.
+const STD_SINGLE = new Map<string, Set<string>>();
+export function setStdMenu(menu: any[] = []) {
+  STD_SINGLE.clear();
+  for (const m of menu) { const s = new Set<string>(); for (const g of m?.modifierGroups || []) if ((g.options || []).length === 1) s.add(norm(optName(g.options[0])));
+    if (s.size && m?.squareVariationId) STD_SINGLE.set(String(m.squareVariationId), s); }
+}
 export function ticketLines(order: any): Line[] {
   let plate = 0; const L = (order?.line_items || []).filter((li: any) => !isEntryError(li));
   const hasMarker = L.some(isPlateMarker);
@@ -135,8 +142,10 @@ export function ticketLines(order: any): Line[] {
       baseName: isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, variationId: li.catalog_object_id, name: [isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
       // On the POS the tortilla/size is the variation; online it's a modifier. Count it as a choice either way.
       quantity: q, choices: [...(li.variation_name && li.variation_name !== "Regular" ? [String(li.variation_name)] : []), ...(li.modifiers || []).map((m: any) => String(m.name || ""))],
-      // std1: $0 modifiers are standard/included choices (e.g. "2 QUESO" on a platillo), never an extra charge
-      freeChoices: (li.modifiers || []).filter((m: any) => !Number(m.total_price_money?.amount ?? m.base_price_money?.amount ?? 0)).map((m: any) => String(m.name || "")), unitCents: Math.round(total / q), totalCents: total
+      // std2: a $0 modifier is standard/included only when it's a true default — a count-prefixed label ("2 QUESO") or the only
+      // option of its group on this item. A $0 protein/choice that was rung but never said still flags.
+      freeChoices: (li.modifiers || []).filter((m: any) => !Number(m.total_price_money?.amount ?? m.base_price_money?.amount ?? 0))
+        .map((m: any) => String(m.name || "")).filter((n: string) => /^\s*\d+\s+\S/.test(n) || !!STD_SINGLE.get(String(li.catalog_object_id || ""))?.has(norm(n))), unitCents: Math.round(total / q), totalCents: total
     };
   });
 }

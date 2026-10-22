@@ -39,7 +39,7 @@ import { followUpFor } from "./call-accuracy.js";
 import { buildOnlineLearning, writeOnlineLearning } from "./online-learning.js";
 import { loadUnclear, setUnclear } from "./unclear.js";
 import { detectReadback } from "./staff-readback.js";
-import { loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, groupingScore, plateGroups, dedupeCombined, hasOrderContent, scoreOrder, callerNamedSalsa, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
+import { setStdMenu, loadCalls, elviLines, ticketLines, matchTicket, assignTickets, linkedTickets, groupingScore, plateGroups, dedupeCombined, hasOrderContent, scoreOrder, callerNamedSalsa, trend, callsDir, loadExpected, saveExpected, nameMatchForCall } from "./call-accuracy.js";
 import { planCallerName, saveCallerName, cleanFirstName, savedCallerName } from "./caller-memory.js";
 import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
@@ -1545,6 +1545,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
     const tenant = resolveTenant(undefined);
     const cfg = buildSquareConfig(tenant);
     const menu = await getFullMenu(cfg);
+    setStdMenu(menu); // std2
     const calls = loadCalls(days);
     const expected = loadExpected();
     let orders: any[] = [];
