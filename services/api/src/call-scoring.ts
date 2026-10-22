@@ -374,6 +374,19 @@ export function personSwitch(text: string): string | null {
   return null;
 }
 
+/** staffpick1: which of Elvi's offered options did staff state (not ask)? Exactly one match or null.
+ *  "normal(es)/sencilla" = REGULAR, "preparada" = DELUXE, "street" = Taquero, "flour" = Harina, "homemade/hecha a mano" = Comal. */
+export function staffPick(opts: string[], staffSaid: string): string | null {
+  const f = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  const said = f(staffSaid).replace(/\bnormal(?:es)?\b|\bsencill[ao]s?\b/g, " regular ").replace(/\bpreparad[ao]s?\b/g, " deluxe ")
+    .replace(/\bstreet\b/g, " taquero ").replace(/\bflour\b/g, " harina ").replace(/\bhomemade\b|\bhecha a mano\b/g, " comal ");
+  if (!said.trim() || opts.length < 2) return null;
+  const GENERIC = new Set(["taco", "tacos", "quesadilla", "qd", "dorada", "con", "de", "la", "el", "y", "x", "or", "o", "solo", "and"]);
+  const keys = opts.map((o) => f(o).replace(/\([^)]*\)/g, " ").split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w)));
+  const stem = (w: string) => w.replace(/(?:es|s|a|o)$/, "");
+  const hit = opts.filter((_, i) => keys[i].length && keys[i].some((w) => new RegExp(`\\b${stem(w)}(?:[aoe]s?|s)?\\b`).test(said)));
+  return hit.length === 1 ? hit[0] : null;
+}
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
   const cart: Line[] = [];
@@ -527,7 +540,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
   let pendingDish: string | null = null; // fix1136
-  let pendingDishes: string[] = []; let lastStaff = ""; const recentStaff: string[] = []; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
+  let pendingDishes: string[] = []; let lastStaff = ""; const recentStaff: string[] = []; let staffSince: string[] = []; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
   const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
@@ -561,7 +574,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
-      lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift();
+      lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift(); staffSince.push(t.text);
       continue;
     }
     // case1d: staff "¿La gordita también quieres que lleve frijoles?" → "Sí…": beans on that gordita (option name resolved at the end)
@@ -600,6 +613,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (n >= 1 && n <= 20 && food.length === 1 && !dishesNamed(t.text).size && !FOOD.test(t.text)) {
         food[0].quantity = n; steps.push({ source: "caller-orders-count", heard: t.text }); continue;
       } }
+    // staffpick1: Elvi's open choice ("¿Taco Comal, Taco Harina o Taco Taquero?", "¿REGULAR Dorada o DELUXE Preparada?") that
+    // staff settled out loud since the caller last spoke ("Taco normal, taquero.", "Normales.") is answered with staff's pick.
+    // Callers rarely repeat the option name, so the question stayed open and swallowed the rest of the order (5:22 PM call).
+    { const said = staffSince.flatMap((x) => x.split(/(?<=[.!])\s+|¿[^?]*\?/u)).filter((x) => x.trim() && !/\?/.test(x)).join(" ");
+      staffSince = [];
+      const qs = asking(last) ? (String(last.reply || "").match(/¿[^?¿]+\?/gu) || []) : [];
+      const pick = qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null;
+      if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
     // con todo"). Those answers used to be dropped as clarifications, so the question never closed and every later dish

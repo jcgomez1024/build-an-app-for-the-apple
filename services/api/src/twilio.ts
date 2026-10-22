@@ -528,6 +528,7 @@ const talkSecByCall = new Map<string, number>(); // link15: talk/recording secon
 const ORDER_SPEECH = /\b(?:tacos?|burritos?|quesadillas?|doradas?|gorditas?|tortas?|enchiladas?|tamales?|sopes?|sopesazos?|huaraches?|tostadas?|chilaquiles|menudo|pozole|birrias?|nachos|elotes?|esquites?|horchatas?|jamaicas?|aguas?|jarritos?|sodas?|platillos?|platos?|combos?|ordenes|orders?|bistec|chorizo|lengua|pastor|carnitas|cabeza|pollo|asada|suadero|tripa|costilla)\b/iu;
 export function timeOnlyLinkOk(t: { talkSec?: number | null; transcript?: string; lines?: unknown[] }): boolean {
   if (t.talkSec != null && t.talkSec < 15) return false;
+  if (t.lines === undefined && t.transcript === undefined) return true; // no speech info given: only the length gate applies
   return (t.lines?.length || 0) > 0 || ORDER_SPEECH.test(String(t.transcript || ""));
 }
 export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[]): { order: any; by: string } | null {
