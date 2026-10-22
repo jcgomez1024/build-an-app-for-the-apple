@@ -63,7 +63,7 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
   }
   const tLines = r.ticket.lines || [];
   const custom = tLines.filter(isCustom);
-  for (const c of custom) add("CUSTOM_AMOUNT", `custom amount ${money(c.totalCents)}`, `El ticket tiene un monto libre sin nombre de ${money(c.totalCents)} (debe ser un artículo del catálogo).`, `Ticket has an unnamed custom amount of ${money(c.totalCents)} (should be a catalog item).`);
+  for (const c of custom) add("CUSTOM_AMOUNT", `custom amount ${money(c.totalCents)}`, `El ticket tiene un monto libre sin nombre de ${money(c.totalCents)}: posible monto fantasma de Square (aparece al reabrir tickets guardados), no un artículo — bórrelo o márquelo "Entry Error".`, `Ticket has an unnamed custom amount of ${money(c.totalCents)}: likely a Square ghost amount (appears when a saved ticket is reopened), not an item — delete it or name it "Entry Error".`);
   // Delivery fee vs our distance rule ($5 ≤4 mi, $8 4-10 mi).
   const feeLine = tLines.find(isFee);
   if (delivery && !feeLine) add("DELIVERY_FEE_MISSING", "delivery call, no Delivery Fee line", "Entrega a domicilio sin cargo de envío en el ticket.", "Delivery order with no delivery fee on the ticket.");

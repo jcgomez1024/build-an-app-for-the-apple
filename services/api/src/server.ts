@@ -1545,7 +1545,9 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       const extra = linked.filter((x) => x.order !== m?.order);
       // Training calls with no Square ticket can be scored against an order Carlos typed by hand.
       const exp = !m && !followUp ? expected[c.callSid] : undefined;
-      const ticket = m ? [...ticketLines(m.order), ...extra.flatMap((x) => ticketLines(x.order))] : exp ? elviLines(exp.cart, menu) : [];
+      // ghost1: a nameless custom amount is a possible Square ghost — not scored unless it equals one of Elvi's items (then it's that item rung as custom)
+      const ticket = (m ? [...ticketLines(m.order), ...extra.flatMap((x) => ticketLines(x.order))] : exp ? elviLines(exp.cart, menu) : [])
+        .filter((l: any) => !l.ghost || elvi.some((e: any) => Math.abs(Number(e.totalCents) - Number(l.totalCents)) <= 1));
       const unclear = loadUnclear()[c.callSid] || null; // unclear1: listed, never scored
       const scored0 = m || exp ? scoreOrder(elvi.map(withIncludedToppings), ticket.map(withIncludedToppings)) : null; // sopesaso1: included toppings
       const scored = scored0; // unclear1: still scored (training uses it); excluded from accuracy numbers

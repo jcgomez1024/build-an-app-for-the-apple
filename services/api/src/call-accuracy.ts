@@ -112,11 +112,17 @@ export function deliveryFeeLine(feeCents?: number | null): Line {
   return { baseName: "Delivery Fee", name: `Delivery Fee · ${v}`, quantity: 1, choices: [v], unitCents: fee, totalCents: fee };
 }
 
+/** ghost1: Square POS re-adds random custom amounts when a saved/open ticket is reopened; staff delete them or name them
+ *  "Entry Error". Those are not items: Entry Error lines are dropped, other nameless custom amounts are marked ghost. */
+export const ENTRY_ERROR = /\bentry\s*error\b|\berror\s+de\s+(?:entrada|captura)\b/i;
+export const isCustomAmountLi = (li: any) => li?.item_type === "CUSTOM_AMOUNT" || (!li?.catalog_object_id && !/delivery|env[ií]o/i.test(String(li?.name || "")));
+export const isEntryError = (li: any) => isCustomAmountLi(li) && (ENTRY_ERROR.test(String(li?.name || "")) || ENTRY_ERROR.test(String(li?.note || "")));
 export function ticketLines(order: any): Line[] {
-  return (order?.line_items || []).map((li: any) => {
+  return (order?.line_items || []).filter((li: any) => !isEntryError(li)).map((li: any) => {
     const q = Number(li.quantity) || 1;
     const total = Number(li.gross_sales_money?.amount ?? li.total_money?.amount ?? 0);
     return {
+      ...(isCustomAmountLi(li) && !String(li.name || "").trim().replace(/^custom amount$/i, "") ? { ghost: true } : {}),
       baseName: li.name, variationId: li.catalog_object_id, name: [li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
       // On the POS the tortilla/size is the variation; online it's a modifier. Count it as a choice either way.
       quantity: q, choices: [...(li.variation_name && li.variation_name !== "Regular" ? [String(li.variation_name)] : []), ...(li.modifiers || []).map((m: any) => String(m.name || ""))], unitCents: Math.round(total / q), totalCents: total
