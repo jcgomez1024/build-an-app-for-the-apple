@@ -313,7 +313,7 @@ export function sameDishMore(input: ElviRequest): ElviResponse | null {
   return { language, engine: "xai", reply: addReadback(fresh, menu, language), actions: fresh } as any;
 }
 /** alex1: "¿tiene chilaquiles?" asks if we sell it — answer, don't ring one. */
-const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
+const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh|(?:el\s+d[ií]a\s+de\s+)?hoy|ahorita|today|right\s+now)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
 // alex1: "Y en otro … este," + "en vez de huevos bistec" = another of the last dish with that meat (no extra egg).
 // alex1: "¿tiene chilaquiles?" … "deme uno con," — the dish was just asked about; ring one plain and let them finish.
 export function oneOfAskedDish(input: ElviRequest): ElviResponse | null {
@@ -348,7 +348,16 @@ export function insteadOfEggs(input: ElviRequest): ElviResponse | null {
 }
 
 export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
-  const t = String(input.transcript || "").trim(); const m = AVAIL_Q.exec(t); if (!m) return null;
+  const t = String(input.transcript || "").trim();
+  // avail2 (Oct 22 10:33): "¿tienen X?" … "¿Y agua de Jamaica?" — a bare "y/and + dish" right after an availability
+  // question is the same question (no quantity, no order verb), not an order. The order comes later ("un agua … grande").
+  const prevCust = (input.history || []).filter((h: any) => h.role === "customer").slice(-1)[0]?.text || "";
+  if (AVAIL_Q.test(String(prevCust).trim()) && /^[\s¿¡,.]*(?:y|and)\s+(?!(?:me|nos|le)\b)[^?]{2,40}\??\s*$/iu.test(t) && t.split(/\s+/).length <= 6
+    && !/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|one|two|three|four|quiero|dame|deme|ponme|p[oó]ngame|agr[eé]g|want|give|add)\b/i.test(t)) {
+    const es = input.language !== "en";
+    return { language: input.language, engine: "xai", reply: es ? "Sí, también tenemos. ¿Le preparo algo?" : "Yes, we have that too. What can I get you?", actions: [] } as any;
+  }
+  const m = AVAIL_Q.exec(t); if (!m) return null;
   if (/\b(\d+|dos|tres|cuatro|cinco|two|three|four)\b/i.test(m[1])) return null;
   const es = input.language === "es";
   return { language: input.language, engine: "xai", reply: es ? "Sí, sí tenemos. ¿Cuántos le preparo?" : "Yes, we do. How many would you like?", actions: [] } as any;
@@ -525,7 +534,8 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
       const r: any = resolvePackMealRequest(pinnedMenu(req.text, menu) as any, req) || resolveEspecialRequest(pinnedMenu(req.text, menu) as any, req) || resolveMenuRequest(pinnedMenu(req.text, menu) as any, req);
       const id = r?.selectedItem?.itemId || r?.actions?.find((a: any) => a?.type === "add_item")?.itemId;
       const item = id && menu.find((m) => m.id === id);
-      const hours = item ? unavailableNowReply(item, item.squareCatalogObjectId, language) : null;
+      // avail2: before opening / after close the order is for later (time1) — don't refuse time-window dishes here either
+      const hours = item && (st === "open" || st === "last_order" || !st) ? unavailableNowReply(item, item.squareCatalogObjectId, language) : null;
       if (hours) return { ...out, reply: hours, audioBase64: undefined, audioMimeType: undefined };
     } catch { /* keep the reply */ }
   }

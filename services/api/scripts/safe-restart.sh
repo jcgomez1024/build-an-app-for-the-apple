@@ -9,9 +9,13 @@
 # Usage: scripts/safe-restart.sh [--check | --dry-run]
 #   --check   : only report busy/idle (exit 0 idle / 1 busy)
 #   --dry-run : run the compile gate and report what would happen; never restarts
-# Test hooks (env): ELVI_RESTART_CMD, ELVI_HEALTH_URL, ELVI_SNAPSHOT_DIR, ELVI_SKIP_IDLE=1
+# Test hooks (env, only with ELVI_RESTART_TEST=1): ELVI_RESTART_CMD, ELVI_HEALTH_URL, ELVI_SNAPSHOT_DIR, ELVI_SKIP_IDLE=1
 cd "$(dirname "$0")/.." || exit 1
 API_DIR=$(pwd)
+# restart2b: test hooks only with ELVI_RESTART_TEST=1 (a leftover export once pointed a real restart at a fake service)
+if [ "$ELVI_RESTART_TEST" != 1 ]; then
+  for v in ELVI_RESTART_CMD ELVI_HEALTH_URL ELVI_SNAPSHOT_DIR ELVI_SKIP_IDLE ELVI_HEALTH_WAIT; do [ -n "${!v}" ] && echo "ignoring $v (set ELVI_RESTART_TEST=1 to use test hooks)"; unset $v; done
+fi
 IDLE_MIN=${ELVI_ORDER_IDLE_MIN:-5}; MAX_WAIT=${ELVI_RESTART_MAX_WAIT:-1800}
 HEALTH_URL=${ELVI_HEALTH_URL:-http://localhost:4000/health}; HEALTH_WAIT=${ELVI_HEALTH_WAIT:-30}
 SNAP=${ELVI_SNAPSHOT_DIR:-"$HOME/Library/Application Support/CocinaElvis/restart-snapshots"}

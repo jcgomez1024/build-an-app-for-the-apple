@@ -970,7 +970,7 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
       const add = (r?.actions || []).find((a: any) => a?.type === "add_item");
       const pickedId = add?.itemId || r?.selectedItem?.itemId;
       const it: any = pickedId && (items as any[]).find((m: any) => m.id === pickedId);
-      const blocked = it ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null;
+      const blocked = it && storeLive() ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null; // avail2: closed → order for later
       if (blocked) {
         r.ok = false; r.reason = "outside_website_hours"; r.actions = []; r.message = blocked;
         r.instruction = "Nothing was added to the cart. Do not say added. Say this message.";
@@ -1190,7 +1190,7 @@ app.post("/api/menu/resolve", async (req, res, next) => {
       const add = (r?.actions || []).find((a: any) => a?.type === "add_item");
       const pickedId = add?.itemId || r?.selectedItem?.itemId;
       const it: any = pickedId && (items as any[]).find((m: any) => m.id === pickedId);
-      const blocked = it ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null;
+      const blocked = it && storeLive() ? unavailableNowReply(it, it.squareCatalogObjectId, input.language) : null; // avail2: closed → order for later
       if (blocked) {
         r.ok = false; r.reason = "outside_website_hours"; r.actions = []; r.message = blocked;
         r.instruction = "Nothing was added to the cart. Do not say added. Say this message.";
@@ -1258,6 +1258,8 @@ app.post("/api/:tenant/orders/checkout", async (req, res, next) => {
 });
 
 /** appdelivery1: phone fees only for internal (localhost, no tunnel headers) phone orders; a web body can't claim them. */
+/** avail2/time1: time-window refusals only while the store is open (closed/before open = ordering for later). */
+function storeLive() { const st = storeState()?.state; return !st || st === "open" || st === "last_order"; }
 function markInternalPhone(req: express.Request) {
   const b = req.body || {}; delete b.__internalPhone;
   const host = String(req.headers.host || "").split(":")[0];
