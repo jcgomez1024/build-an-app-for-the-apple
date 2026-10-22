@@ -16,6 +16,7 @@ const B = () => window.elviBridge || null;
 // Spanish first (most callers); follows the EN/ES pills once a language is picked in app.js.
 const lang = () => (B()?.state?.language ? (B().lang() === "en" ? "en" : "es") : "es");
 const t = (es, en) => (lang() === "es" ? es : en);
+const CUST = { me: null, step: "phone", phone: "", err: "", greeted: false }; // cust1
 
 // ---------- photos ----------
 const PRODUCT_PHOTO = {"Gordita":"gordita.jpg","Quesadilla":"quesadilla.jpg","Medium Fiesta Platter":"medium-fiesta-platter.jpg","Large Fiesta Platter":"large-fiesta-platter.jpg","Extras":"extras.jpg","3 Pack MEAL":"3-pack-meal.jpg","4 Pack MEAL":"4-pack-meal.jpg","5 Pack MEAL":"5-pack-meal.jpg","6 Pack MEAL":"6-pack-meal.jpg","Aguas Frescas":"aguas-frescas.jpg","7 Pack MEAL":"7-pack-meal.jpg","Esquite Elvis":"esquite-elvis.jpg","Taco":"taco.jpg","Chilaquiles con Huevo":"chilaquiles-con-huevo.jpg","Birria de Chivo / Goat Birria":"birria-de-chivo-goat-birria.jpg","Mole Tradicional Platillo":"mole-tradicional-platillo.jpg","Rice / Beans Fiesta Pan":"rice-beans-fiesta-pan.jpg","Fiesta Fajitas":"fiesta-fajitas.jpg","Chiles Rellenos Platillo / Stuffed Poblano Pepper":"chiles-rellenos-platillo-stuffed-poblano-pepper.jpg","8 Pack MEAL":"8-pack-meal.jpg","Enchiladas":"enchiladas.jpg","Menudo":"menudo.jpg","Coca Cola / Pepsi":"coca-cola-pepsi.jpg","Jarrito":"jarrito.jpg","Dips":"dips.jpg","Sangria / Fanta / Squirt / Sprite":"sangria-fanta-squirt-sprite.jpg","Agua or Mineral":"agua-or-mineral.jpg","Ceviche":"ceviche.jpg","Pozole Rojo / Red Pozole":"pozole-rojo-red-pozole.jpg","Traditional Elvis Bowl":"traditional-elvis-bowl.jpg","Nachos Elvis":"nachos-elvis.jpg","Queso Birrias":"queso-birrias.jpg","Platillo de Guisado":"platillo-de-guisado.jpg","Tacos Dorados":"tacos-dorados.jpg","Tortillas":"tortillas.jpg","Torta":"torta.jpg","Tacos al Vapor / Steamed Tacos":"tacos-al-vapor-steamed-tacos.jpg","Huarache Elvis":"huarache-elvis.jpg","Fajitas Elvis":"fajitas-elvis.jpg","Burrito":"burrito.jpg","Sides":"sides.jpg","Platillo Filete de Pescado":"platillo-filete-de-pescado.jpg","Sopesaso Elvis":"sopesaso-elvis.jpg","(QD) Quesadilla Dorada":"qd-quesadilla-dorada.jpg","COMBO Quesadillas":"combo-quesadillas.jpg","COMBO Tacos":"combo-tacos.jpg","COMBO Tortas":"combo-tortas.jpg","COMBO Gorditas":"combo-gorditas.jpg","COMBO Mix":"combo-mix.jpg","COMBO Burrito":"combo-burrito.jpg","Coctel de Camarones / Shrimp Cocktail":"coctel-de-camarones-shrimp-cocktail.jpg","Filete de Pescado / Fish":"filete-de-pescado-fish.jpg","Elvis Dip":"elvis-dip.jpg","Chimichanga":"chimichanga.jpg","Small Fiesta Platter":"small-fiesta-platter.jpg","Pambazo Elvis":"pambazo-elvis.jpg"};
@@ -425,7 +426,8 @@ function v3CartHTML() {
   if (!cart.length) return `<p class="v3-empty">${t("Vacía — agrega algo del menú o dímelo.", "Empty — add something from the menu or tell me.")}</p>`;
   const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
   const when = U.sched && U.store?.schedule ? `<p class="v3-when">🗓 ${esc(t(U.store.schedule.es, U.store.schedule.en).replace(/^(Programar para|Schedule for) /, t("Recoger ", "Pickup ")))} · ${t("programado", "scheduled")}</p>` : "";
-  return `${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="v3-cl tot"><span>Subtotal</span><b>${money(tot)}</b></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
+  const signin = CUST.me?.loggedIn ? "" : `<p class="cust-prompt"><button type="button" class="cust-link" data-cust="open">${t("Inicia sesión", "Sign in")}</button> ${t("para llenar tus datos y ver tus favoritos.", "to fill in your details and see your favorites.")}</p>`;
+  return `${signin}${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="v3-cl tot"><span>Subtotal</span><b>${money(tot)}</b></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
 }
 function v3ElviHTML() { return `<section class="v3-elvi"><div class="v3-elvi-card"><span class="v3-dot big"></span><div><b>Elvi</b><small>${t("Pide hablando o tocando el menú", "Order by talking or tapping the menu")}</small></div></div><p class="v3-elvi-line" id="v3-elvi-line"></p><h3>🛒 ${t("Tu orden", "Your order")}</h3>${v3CartHTML()}</section>`; }
 function v3Side() {
@@ -506,7 +508,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-lang]"))
 function mount() {
   const shell = document.createElement("div");
   shell.id = "ui1";
-  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1>${V3 ? '<span id="v3-pill" class="v3-pill"></span>' : ""}<div id="ui1-halo-slot"></div></header>
+  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1>${V3 ? '<span id="v3-pill" class="v3-pill"></span>' : ""}<button type="button" id="cust-btn" class="cust-btn" data-cust="open">${custLabel()}</button><div id="ui1-halo-slot"></div></header>
   <main id="ui1-main"></main><div id="ui1-toast" class="u1-toast"></div><div class="u1-bottom"><div id="ui1-cart" class="u1-cart is-empty"></div><div id="ui1-bar" class="u1-bar"></div></div>`;
   document.body.prepend(shell);
   document.body.classList.add("ui1"); if (V3) document.body.classList.add("v3");
@@ -533,4 +535,47 @@ export {};
     window.addEventListener("resize", measure); setInterval(measure, 1500);
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", start) : setTimeout(start, 300);
+
 })();
+
+  // cust1: phone login (code by SMS) — "Iniciar sesión" in the header + prompt at checkout. Session = httpOnly cookie.
+  function custLabel() { const m = CUST.me; return m?.loggedIn ? (m.firstName ? `${t("Hola", "Hi")}, ${esc(m.firstName)}` : t("Mi cuenta", "My account")) : t("Iniciar sesión", "Sign in"); }
+  function custRefreshLabel() { const b = document.getElementById("cust-btn"); if (b) b.innerHTML = custLabel(); }
+  async function custLoad() {
+    try { const r = await fetch(`/api/cust/me?lang=${lang()}`, { credentials: "same-origin" }); CUST.me = await r.json(); } catch { CUST.me = { loggedIn: false }; }
+    custRefreshLabel(); if (CUST.me?.loggedIn) custApply();
+  }
+  function custApply() {
+    const m = CUST.me, b = B(); if (!m?.loggedIn) return; if (!b?.setCustomer) { if ((CUST.tries = (CUST.tries || 0) + 1) < 20) setTimeout(custApply, 500); return; }
+    b.setCustomer?.({ name: m.firstName || "", phone: m.phone ? m.phone.replace(/^\+1/, "") : "", email: m.email || "" });
+    if (m.favorites?.kind) b.showFavorites?.(m.favorites);
+    else if (m.firstName && !CUST.greeted) { CUST.greeted = true; b.greet?.(t(`¡Hola, ${m.firstName}! ¿Qué se te antoja hoy?`, `Hi, ${m.firstName}! What are you craving today?`)); }
+  }
+  function custSheet() {
+    const m = CUST.me, st = CUST.step || "phone";
+    const body = m?.loggedIn
+      ? `<h3>${custLabel()}</h3>${(m.pastOrders || []).length ? `<p class="cust-sub">${t("Pedidos anteriores", "Past orders")}</p>${m.pastOrders.map((o) => `<div class="cust-past"><small>${esc(new Date(o.at).toLocaleDateString(lang() === "es" ? "es-US" : "en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }))}</small> ${esc(o.lines.join(", "))}</div>`).join("")}` : `<p class="cust-sub">${t("Aún no vemos pedidos anteriores con este número.", "No past orders with this number yet.")}</p>`}
+         ${m.favorites?.offers?.length ? `<p class="cust-sub">${t("Lo de siempre", "Your usual")}</p>${m.favorites.offers.map((o, i) => `<button type="button" class="cust-fav" data-cust="fav" data-i="${i}">${esc(o.label)} · ${money(o.cents)}</button>`).join("")}` : ""}
+         <button type="button" class="cust-out" data-cust="logout">${t("Cerrar sesión", "Sign out")}</button>`
+      : st === "code"
+        ? `<h3>${t("Escribe el código", "Enter the code")}</h3><p class="cust-sub">${t("Te mandamos un código de 6 dígitos por mensaje.", "We texted you a 6-digit code.")}</p><input id="cust-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"><button type="button" class="cust-go" data-cust="verify">${t("Entrar", "Sign in")}</button><button type="button" class="cust-link" data-cust="back">${t("Cambiar número", "Change number")}</button>`
+        : `<h3>${t("Iniciar sesión", "Sign in")}</h3><p class="cust-sub">${t("Con tu número de teléfono. Te mandamos un código por mensaje.", "With your phone number. We'll text you a code.")}</p><input id="cust-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(440) 555-0123" value="${esc(CUST.phone || "")}"><button type="button" class="cust-go" data-cust="send">${t("Enviar código", "Send code")}</button><p class="cust-fine">${t("Pueden aplicar tarifas de mensajes.", "Msg & data rates may apply.")}</p>`;
+    let el = document.getElementById("cust-sheet");
+    if (!el) { el = document.createElement("div"); el.id = "cust-sheet"; el.className = "v3-sheet-bg"; document.body.appendChild(el); }
+    el.innerHTML = `<div class="v3-sheet cust-box" role="dialog" aria-modal="true"><button type="button" class="cust-x" data-cust="close" aria-label="close">×</button>${body}<p id="cust-err" class="cust-err">${esc(CUST.err || "")}</p></div>`;
+    el.style.display = "";
+  }
+  async function custPost(path, body) { const r = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, lang: lang() }) }); return { ok: r.ok, j: await r.json().catch(() => ({})) }; }
+  document.addEventListener("click", async (e) => {
+    const a = e.target.closest("[data-cust]"); if (!a) return; e.preventDefault(); const act = a.dataset.cust; CUST.err = "";
+    if (act === "open") return custSheet();
+    if (act === "close") { const el = document.getElementById("cust-sheet"); if (el) el.style.display = "none"; return; }
+    if (act === "back") { CUST.step = "phone"; return custSheet(); }
+    if (act === "send") { CUST.phone = document.getElementById("cust-phone")?.value || ""; const r = await custPost("/api/cust/start", { phone: CUST.phone }); if (r.ok) CUST.step = "code"; else CUST.err = r.j.error || "Error"; return custSheet(); }
+    if (act === "verify") { const r = await custPost("/api/cust/verify", { phone: CUST.phone, code: document.getElementById("cust-code")?.value || "" }); if (!r.ok) { CUST.err = r.j.error || "Error"; return custSheet(); }
+      CUST.step = "phone"; await custLoad(); const el = document.getElementById("cust-sheet"); if (el) el.style.display = "none"; render(); return; }
+    if (act === "fav") { const o = CUST.me?.favorites?.offers?.[Number(a.dataset.i)]; const b = B(); if (o && b) { b.showFavorites?.({ ...CUST.me.favorites, offers: [o] }); document.querySelector("#fav-offers .fav-offer")?.click(); } const el = document.getElementById("cust-sheet"); if (el) el.style.display = "none"; return; }
+    if (act === "logout") { await custPost("/api/cust/logout", {}); CUST.me = { loggedIn: false }; B()?.clearCustomer?.(); custRefreshLabel(); const el = document.getElementById("cust-sheet"); if (el) el.style.display = "none"; render(); }
+  });
+  custLoad(); // one /api/cust/me at load (cookie is httpOnly, so ask the server)
+

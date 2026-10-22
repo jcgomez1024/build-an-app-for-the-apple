@@ -1139,6 +1139,15 @@ export async function findCustomerGivenNameReadOnly(phoneE164: string, config?: 
   return (c?.given_name || c?.nickname || "").trim() || null;
 }
 
+/** cust1: Read-only Customers Search by phone → id, given name, email (for a VERIFIED phone only). */
+export async function findCustomerByPhoneReadOnly(phoneE164: string, config?: Partial<SquareRuntimeConfig>): Promise<{ id: string; givenName: string | null; email: string | null } | null> {
+  const cfg = getSquareConfig(config);
+  const r = await squareRequest<{ customers?: Array<{ id: string; given_name?: string; nickname?: string; email_address?: string; updated_at?: string }> }>(
+    "/v2/customers/search", { method: "POST", body: JSON.stringify({ limit: 5, query: { filter: { phone_number: { exact: phoneE164 } }, sort: { field: "CREATED_AT", order: "DESC" } } }) }, cfg);
+  const c = (r.customers || []).find((x) => x.given_name || x.nickname) || r.customers?.[0];
+  return c ? { id: c.id, givenName: (c.given_name || c.nickname || "").trim().split(/\s+/)[0] || null, email: c.email_address || null } : null;
+}
+
 // ticketno1: read-only payment receipt (receipt_number + public receipt_url), cached per payment.
 const receiptCache = new Map<string, { receiptNumber: string | null; receiptUrl: string | null }>();
 export async function paymentReceiptReadOnly(paymentId: string, config?: Partial<SquareRuntimeConfig>) {

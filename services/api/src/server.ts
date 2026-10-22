@@ -44,8 +44,10 @@ import { onCallerNameSaved, setFavMenuLoader } from "./twilio.js";
 import { shadowOrderFromTurns } from "./call-scoring.js";
 import { compareRow } from "./compare.js";
 import { feeOnPickup } from "./fee-check.js";
+import { registerCustRoutes } from "./cust-routes.js";
+import { twilioVerifySender } from "./cust-auth.js";
 import { storeState, popularProducts as realPopular } from "./menu-v3.js";
-import { searchOrdersReadOnly, findCustomerGivenNameReadOnly } from "./square.js";
+import { searchOrdersReadOnly, findCustomerGivenNameReadOnly, findCustomerByPhoneReadOnly } from "./square.js";
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey, savedLanguage } from "./caller-memory.js";
 import { isOnlineOrder as isOnlineSq } from "./call-accuracy.js";
@@ -1731,6 +1733,9 @@ app.post(["/api/:tenant/favorites", "/api/favorites"], async (req, res, next) =>
   } catch (e) { next(e); }
 });
 
+// cust1: verified-phone customer login (Twilio Verify; Square Customers Search read-only); own favorites only
+registerCustRoutes(app, { sender: () => twilioVerifySender(), lookup: (p) => findCustomerByPhoneReadOnly(p, buildSquareConfig(resolveTenant(undefined))), history: () => loadHistory(),
+  menu: async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[], secure: process.env.NODE_ENV === "production" || process.env.CUST_COOKIE_SECURE !== "0" });
 setFavMenuLoader(async () => (await getMenu(buildSquareConfig(resolveTenant(undefined)))) as any[]);
 // learn2: nightly learning loop (2:30 AM ET): examples, self-eval, self-retry → pending queue. Runs as a child process.
 function scheduleNightlyLearning() {

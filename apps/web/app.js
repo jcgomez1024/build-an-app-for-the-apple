@@ -6478,6 +6478,12 @@ window.elviBridge = {
   // v3menu: a menu-card add goes through Elvi's own add step (same validation + applyActions as her add_item tool),
   // and Elvi is told about it (typed history + live voice session) so her follow-ups and "otro igual" keep working.
   addFromMenu: (item, quantity = 1, modifiers = []) => menuCardAdd(item, quantity, modifiers),
+  // cust1: verified login → prefill checkout + tell Elvi the name; own favorites offers
+  setCustomer: (c) => { for (const k of ["name", "phone", "email"]) if (c?.[k]) { state.customer[k] = c[k]; const el = document.getElementById(`customer-${k}`); if (el && !el.value) el.value = c[k]; }
+    if (c?.name) { sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `The customer is signed in (verified phone). Their first name is ${c.name}. Greet them by name once.` }] } }); } },
+  clearCustomer: () => { for (const k of ["name", "phone", "email"]) { state.customer[k] = ""; const el = document.getElementById(`customer-${k}`); if (el) el.value = ""; } },
+  showFavorites: (fav) => showFavorites(fav),
+  greet: (text) => { if (ui.reply) ui.reply.textContent = text; try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text }); } catch {} },
 };
 function menuCardAdd(item, quantity, modifiers) {
   const check = validateAddItemToolArgs({ itemId: item?.id, quantity, modifiers });
@@ -6587,6 +6593,12 @@ async function checkFavorites(phoneRaw) {
   try {
     const r = await fetch(`/api/${state.tenantSlug}/favorites`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, language: getEffectiveLanguage(), orderSessionId: state.orderSessionId }) });
     const fav = await r.json().catch(() => ({}));
+    showFavorites(fav);
+  } catch {}
+}
+// cust1: same offers UI for a verified session's own favorites (greeting may use the customer's first name)
+function showFavorites(fav) {
+  try {
     if (!fav?.kind || !fav.greeting) return;
     ui.reply.textContent = fav.greeting;
     state.chatFallbackHistory = Array.isArray(state.chatFallbackHistory) ? state.chatFallbackHistory : [];

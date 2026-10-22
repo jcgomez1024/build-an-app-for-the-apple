@@ -179,3 +179,17 @@ body.v3 .v3-pill{margin-right:50px}
 .v3-card{min-width:0;box-sizing:border-box}
 @media (min-width:960px){.v3-sec{grid-template-columns:repeat(2,minmax(0,1fr))}body.v3 .v3-pill{margin-right:56px}}
 @media (max-width:959px){body.v3 .u1-head{gap:8px;padding:8px 10px}body.v3 .u1-head .u1-logo{width:38px;height:38px}body.v3 .u1-head h1{font-size:15px;overflow:hidden}body.v3 .u1-head h1 small{font-size:10px}body.v3 .v3-pill{margin-right:46px;max-width:40vw;font-size:10.5px;flex:none}}
+
+/* cust1: sign-in button + sheet (same v3 colors) */
+.cust-btn{margin-left:auto;margin-right:8px;border:1px solid rgba(255,255,255,.35);background:transparent;color:inherit;border-radius:999px;padding:5px 11px;font:600 13px/1 inherit;cursor:pointer;white-space:nowrap}
+.cust-box{max-width:420px;padding:20px 18px 16px;position:relative}
+.cust-box h3{margin:0 0 6px}
+.cust-box input{width:100%;box-sizing:border-box;font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid #ccc;margin:8px 0}
+.cust-go,.cust-fav,.cust-out{display:block;width:100%;margin:6px 0;padding:11px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
+.cust-go,.cust-fav{background:var(--v3-accent,#c8102e);color:#fff}
+.cust-out{background:#eee;color:#333}
+.cust-link{background:none;border:0;color:var(--v3-accent,#c8102e);font-weight:700;cursor:pointer;padding:0}
+.cust-x{position:absolute;top:6px;right:10px;border:0;background:none;font-size:24px;cursor:pointer}
+.cust-sub{opacity:.8;margin:6px 0}.cust-fine{font-size:12px;opacity:.6}.cust-err{color:#c8102e;min-height:1em;margin:4px 0 0}
+.cust-past{font-size:14px;margin:4px 0}.cust-prompt{font-size:14px;margin:4px 0 10px}
+@media (max-width:959px){.cust-btn{padding:4px 8px;font-size:12px}}
