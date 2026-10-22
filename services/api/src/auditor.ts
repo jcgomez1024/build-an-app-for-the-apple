@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { norm } from "./call-accuracy.js";
+import { norm, optKey } from "./call-accuracy.js";
 
 export const AUDITOR_DIR = process.env.ELVI_AUDITOR_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/auditor");
 export const FINDINGS_FILE = path.join(AUDITOR_DIR, "findings.jsonl");
@@ -95,13 +95,16 @@ export function auditCall(r: any, nowMs = Date.now()): { flags: Flag[]; final: b
     }
     if (!t || !e) continue;
     const tc = (t.choices || []).filter((c: string) => !IGNORE.test(norm(c))), ec = (e.choices || []).filter((c: string) => !IGNORE.test(norm(c)));
-    const tOnly = tc.filter((c: string) => !ec.some((x: string) => norm(x) === norm(c))), eOnly = ec.filter((c: string) => !tc.some((x: string) => norm(x) === norm(c)));
+    // std1: same option under another label (POS "2 QUESO" vs online "QUESO / CHEESE") is the same choice
+    const tOnly = tc.filter((c: string) => !ec.some((x: string) => optKey(x) === optKey(c))), eOnly = ec.filter((c: string) => !tc.some((x: string) => optKey(x) === optKey(c)));
+    const free = new Set(((t as any).freeChoices || []).map(norm));
     for (const c of tOnly) {
       if (isStandardTopping(t.baseName || t.name, c) || isStandardTopping(e.baseName || e.name, c)) continue; // sopesaso1: included
       // tw4938: the ticket line's own variation ("(QD) DELUXE Preparada" in "Quesadilla Dorada · (QD) DELUXE Preparada") is the
       // item staff rang, not an unmentioned add-on: same variation → nothing; Elvi rang another variation → her miss.
       if (norm(t.name).includes(norm(c))) { if (!norm(e.name).includes(norm(c))) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`); continue; }
       if (said(all, c)) add("ELVI_MISS", `${t.name}: Elvi missed ${c}`, `${t.name}: Elvi no captó «${c}».`, `${t.name}: Elvi missed "${c}".`);
+      else if (free.has(norm(c))) continue; // std1: a $0 standard/included modifier isn't an add-on or extra charge
       else add("STAFF_EXTRA", `${t.name}: ${c} never mentioned`, `${t.name}: el ticket tiene «${c}», pero nunca se mencionó en la llamada.`, `${t.name}: ticket has "${c}", never mentioned on the call.`);
     }
     for (const c of eOnly) {

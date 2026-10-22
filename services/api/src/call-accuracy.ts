@@ -84,7 +84,7 @@ export const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD"
 const digits10 = (p: string) => String(p || "").replace(/\D/g, "").slice(-10);
 const optName = (o: any) => (typeof o === "object" && o ? o.name : String(o || ""));
 
-export type Line = { baseName?: string; variationId?: string; itemId?: string; name: string; quantity: number; choices: string[]; unitCents: number; totalCents: number };
+export type Line = { baseName?: string; variationId?: string; itemId?: string; name: string; quantity: number; choices: string[]; freeChoices?: string[]; unitCents: number; totalCents: number };
 
 /** Elvi's shadow cart → priced lines (base price + each chosen option's price delta). */
 export function elviLines(cart: any[] = [], menu: MenuItem[]): Line[] {
@@ -134,7 +134,9 @@ export function ticketLines(order: any): Line[] {
       ...(isCustomAmountLi(li) && !String(li.name || "").trim().replace(/^custom amount$/i, "") && !(bigOrDelivery && Number(li.base_price_money?.amount) === 800) ? { ghost: true } : {}),
       baseName: isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, variationId: li.catalog_object_id, name: [isCustomAmountLi(li) && !String(li.name || "").trim() && bigOrDelivery && Number(li.base_price_money?.amount) === 800 ? "Delivery Fee" : li.name, li.variation_name && li.variation_name !== "Regular" ? li.variation_name : ""].filter(Boolean).join(" · "),
       // On the POS the tortilla/size is the variation; online it's a modifier. Count it as a choice either way.
-      quantity: q, choices: [...(li.variation_name && li.variation_name !== "Regular" ? [String(li.variation_name)] : []), ...(li.modifiers || []).map((m: any) => String(m.name || ""))], unitCents: Math.round(total / q), totalCents: total
+      quantity: q, choices: [...(li.variation_name && li.variation_name !== "Regular" ? [String(li.variation_name)] : []), ...(li.modifiers || []).map((m: any) => String(m.name || ""))],
+      // std1: $0 modifiers are standard/included choices (e.g. "2 QUESO" on a platillo), never an extra charge
+      freeChoices: (li.modifiers || []).filter((m: any) => !Number(m.total_price_money?.amount ?? m.base_price_money?.amount ?? 0)).map((m: any) => String(m.name || "")), unitCents: Math.round(total / q), totalCents: total
     };
   });
 }
@@ -159,7 +161,7 @@ const NEVER = /$^/;
 export const callerNamedSalsa = (turns: Array<{ speaker?: string; text?: string }> = []) =>
   turns.some((t) => t.speaker === "caller" && /\bsalsas?\b|\bsauces?\b|\b(?:la|the)\s+(?:verde|roja|green|red)\b|\bpicante\b|\bhabanero\b|\bchipotle\b/iu.test(String(t.text || "")));
 /** choice1: same option, different label — POS "2 QUESO" vs online "QUESO / CHEESE" (count prefix, English half). */
-const optKey = (c: string) => { const n = norm(c).trim(); const k = norm(String(c || "").split(/\s+\/\s+/)[0]).trim().replace(/^\d+\s+(?=[a-z])/, ""); return k || n; };
+export const optKey = (c: string) => { const n = norm(c).trim(); const k = norm(String(c || "").split(/\s+\/\s+/)[0]).trim().replace(/^\d+\s+(?=[a-z])/, ""); return k || n; };
 
 export type Miss = { kind: "missing_item" | "extra_item" | "quantity" | "choices" | "price"; ticket?: string; elvi?: string; detail: string };
 
