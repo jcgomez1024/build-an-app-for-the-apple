@@ -521,8 +521,16 @@ const squareLinksFile = path.join(logDir, "square-links.json");
 function loadSquareLinks(): Record<string, SquareRef> { try { return JSON.parse(fs.readFileSync(squareLinksFile, "utf8")); } catch { return {}; } }
 export function squareLinkFor(callSid: string): SquareRef | null { return loadSquareLinks()[callSid] || null; }
 let lastSquareLink = 0;
+const talkSecByCall = new Map<string, number>(); // link15: talk/recording seconds per call
 /** Pick the Square order for a call: phone match, or ticket name = caller's name, or the only order rung up right after. */
-export function pickSquareOrder(t: { at: string; caller: string; name: string | null }, orders: any[]): { order: any; by: string } | null {
+/** link15: a time-only guess ("only ticket in 20 min") needs a real ordering call — at least ~15 s of talk and some order
+ *  speech (a dish word or an Elvi line). A 5 s "Bueno. Bueno." test call must never grab the next walk-in's ticket. */
+const ORDER_SPEECH = /\b(?:tacos?|burritos?|quesadillas?|doradas?|gorditas?|tortas?|enchiladas?|tamales?|sopes?|sopesazos?|huaraches?|tostadas?|chilaquiles|menudo|pozole|birrias?|nachos|elotes?|esquites?|horchatas?|jamaicas?|aguas?|jarritos?|sodas?|platillos?|platos?|combos?|ordenes|orders?|bistec|chorizo|lengua|pastor|carnitas|cabeza|pollo|asada|suadero|tripa|costilla)\b/iu;
+export function timeOnlyLinkOk(t: { talkSec?: number | null; transcript?: string; lines?: unknown[] }): boolean {
+  if (t.talkSec != null && t.talkSec < 15) return false;
+  return (t.lines?.length || 0) > 0 || ORDER_SPEECH.test(String(t.transcript || ""));
+}
+export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[]): { order: any; by: string } | null {
   const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";
   const empty = (o: any) => !(o?.line_items || []).length && !Number(o?.total_money?.amount || 0); // followup1: never link $0 / no-item orders
   const online = (o: any) => /online|website|ecom/i.test(String(o?.source?.name || ""));
@@ -533,7 +541,7 @@ export function pickSquareOrder(t: { at: string; caller: string; name: string | 
   const byName = first ? win.filter((o) => String(o.ticket_name || "").trim().split(/\s+/)[0]?.toLowerCase() === first) : [];
   if (byName.length === 1) return { order: byName[0], by: "ticket name" };
   const soon = win.filter((o) => !online(o) && Date.parse(o.created_at) <= at + 20 * 60000); // followup1: POS tickets only
-  if (soon.length === 1) return { order: soon[0], by: "only ticket in 20 min" };
+  if (soon.length === 1 && timeOnlyLinkOk(t)) return { order: soon[0], by: "only ticket in 20 min" };
   return null;
 }
 export async function linkSquareTickets(force = false) {
@@ -548,7 +556,7 @@ export async function linkSquareTickets(force = false) {
   const used = new Set(Object.values(links).map((l) => l.orderId));
   let changed = false;
   for (const t of todo) {
-    const pick = pickSquareOrder(t, orders.filter((o) => !used.has(o.id)));
+    const pick = pickSquareOrder({ ...t, talkSec: talkSecByCall.get(t.callSid) ?? null }, orders.filter((o) => !used.has(o.id)));
     if (!pick) continue;
     const r = squareRefs(pick.order);
     const rc = r.paymentId ? await paymentReceiptReadOnly(r.paymentId) : null;
@@ -1683,6 +1691,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
       talk.set(a.callSid, sec);
       const status = String(req.body?.DialCallStatus || "") || (sec > 0 ? "completed" : "");
       // No bridge (caller already gone / taken by another counter tab) is not a missed call: the queue result decides that.
+      if (sec > 0) talkSecByCall.set(a.callSid, Math.max(sec, talkSecByCall.get(a.callSid) || 0));
       if (status === "completed" || status === "answered" || sec > 0) logCall({ event: "answered", callSid: a.callSid, caller: a.from, dialStatus: status || "completed", durationSec: sec, via: req.query.via === "desk" ? "desk" : "counter" });
       else logCall({ event: "agent_no_bridge", callSid: a.callSid, agentCallSid: agent, dialStatus: status });
     }
@@ -2008,6 +2017,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));
         // namecheck1: Elvi's shadow order always carries the name she heard (practice for live orders).
         try { const hn = heardShadowName(result.turns as any, heardOrderName); if (hn && result.elviOrder) (result.elviOrder as any).customerName = hn; } catch {}
+        if (Number(RecordingDuration) > 0) talkSecByCall.set(CallSid, Math.max(Number(RecordingDuration), talkSecByCall.get(CallSid) || 0));
         logCall({ event: "recording", callSid: CallSid, caller, name, greetingLanguage: callLang.get(CallSid), recordingSid: RecordingSid, durationSec: RecordingDuration, file: path.relative(apiRoot, file), segments: files.length, callerChannel, lines, ticketPhase: ticket.phase, ...result });
       } catch (e) {
         logCall({ event: "recording_error", callSid: CallSid, caller, recordingSid: RecordingSid, error: e instanceof Error ? e.message : String(e) });
