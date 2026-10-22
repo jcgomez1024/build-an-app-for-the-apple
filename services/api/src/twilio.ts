@@ -1076,6 +1076,11 @@ export function lineRingMode(line: string): RingMode {
 }
 export const deskFallbackCells = () => process.env.TWILIO_DESK_FALLBACK_CELLS === "1";
 /** Ring phones for this line right now. Desk-only line: none, unless the fallback flag is on and the desk is offline. */
+/** rering1: re-ring immediately after a ring leg times out / is busy / fails on its own (not canceled by us),
+ *  when no other leg is still ringing and the caller hasn't hit max wait. */
+export function shouldReRing(status: string, canceledByUs: boolean, otherLegsRinging: boolean, waitedSec: number, maxWait: number): boolean {
+  return /^(no-answer|busy|failed)$/.test(status) && !canceledByUs && !otherLegsRinging && waitedSec < maxWait - 5;
+}
 export function ringNumbersFor(line: string, deskOnline: boolean): string[] {
   const p = lineRingPlan(line);
   const own = new Set(phoneLines().map((l) => d10(l.number)));
@@ -1781,6 +1786,13 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     deskAtPrompt.get(custSid)?.delete(ringSid);
     const ours = ringCanceled.delete(ringSid);
     logCall({ event: "ring_end", callSid: custSid, ringCallSid: ringSid, ringTo: req.body?.To, status: req.body?.CallStatus, canceledByUs: ours, durationSec: req.body?.CallDuration });
+    // rering1: the waiting hold is a ~60 s ringback loop, so waiting for /hold to re-ring left callers in silence
+    // (no phone ringing) for ~40 s after a leg timed out. Re-ring right away while the caller still waits.
+    const w = waiting.get(custSid);
+    if (w && lastBase && shouldReRing(st, ours, !!legs?.size, (Date.now() - w.at) / 1000, maxWaitSec())) {
+      logCall({ event: "rering", callSid: custSid, afterStatus: st, waitSec: Math.round((Date.now() - w.at) / 1000) });
+      void startRings(lastBase, w);
+    }
     res.sendStatus(204);
   });
 
