@@ -87,6 +87,7 @@ export function conflictsWith(have: string[], add: string): string | null {
   if (/con frijoles|with beans/i.test(add)) return find(/frijoles refritos|refried beans/i);
   return null;
 }
+const norm = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim();
 export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): { lines: Line[]; corrected: string[] } {
   let gt = ticket.map(clone); const corrected: string[] = []; const used = new Set<Line>();
   for (const f of flags.filter((x) => STAFF.test(x.type))) {
@@ -108,7 +109,12 @@ export function groundTruth(ticket: Line[], elvi: Line[], flags: Flag[] = []): {
       // alex1: no exact total (staff typed their own price) — when the nameless lines and the voice-only items are the same
       // count, pair them in price order (cheapest custom ↔ cheapest voice item)
       if (!pick && i >= 0) { const blanks = ticket.filter((l) => !String(l.name || "").trim()).map((l) => l.totalCents).sort((x, y) => x - y); const all = [...said].sort((x, y) => x.totalCents - y.totalCents);
-        if (blanks.length === all.length) { const c = all[blanks.indexOf(cents)]; if (c && !used.has(c)) pick = c; } }
+        if (blanks.length === all.length) { const c = all[blanks.indexOf(cents)]; if (c && !used.has(c)) pick = c; }
+        // reg1: more voice-only items than nameless lines (Elvi also rang a stray dish) — use the dishes the Auditor heard
+        // "said on call, not rung" when they cover every nameless line, again in price order
+        else if (blanks.length < all.length) { const heard = flags.map((x: any) => /said on call, not rung: \d+ × (.+)$/.exec(String(x.detail || ""))?.[1]).filter(Boolean).map((n: any) => norm(String(n)));
+          const fit = all.filter((e) => heard.some((h: string) => norm(String(e.baseName || e.name || "")).startsWith(h) || h.startsWith(norm(String(e.baseName || e.name || "")))));
+          if (fit.length >= blanks.length) { const c = fit[blanks.indexOf(cents)]; if (c && !used.has(c)) pick = c; } } }
       if (i >= 0 && pick) { used.add(pick); gt.splice(i, 1, clone(pick)); corrected.push(`custom amount → ${pick.baseName || pick.name}`); }
       // ghost1: nothing spoken is left to explain it (every voice-only item already paired) → a likely Square ghost amount (reopened saved ticket); not part of the order
       else if (i >= 0 && !said.some((e) => !used.has(e))) { gt.splice(i, 1); corrected.push(`custom amount $${m[1]} ignored (possible Square ghost)`); }

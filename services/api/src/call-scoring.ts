@@ -461,6 +461,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // tw4938: a turn that names a dish re-sends earlier lines of a dish it never names ("serían esos tres y una quesadilla
     // preparada" → the 3 tacos came back with Deluxe) — those lines are already rung, not new.
     const named = dishesNamed(text);
+    // reg1: "A uno agrégamele bistec" — the "-le" verb adds to a dish already rung; a brand-new dish the caller never named
+    // (Elvi rang a Huarache) is not an order.
+    if (source !== "auto" && cart.length && /\b(?:agr[eé]g|p[oó]n|[eé]ch|p[oó]ng)\p{L}*l[eo]s?\b/iu.test(text)) {
+      const tn = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+      for (let i = acts.length - 1; i >= 0; i--) { const a = acts[i]; if (a.type !== "add_item") continue;
+        const w = String(a.itemId || "").toLowerCase().replace(/^sq-/, "").split("-").filter((x: string) => x.length > 3 && !/^(elvis|drink|regular)$/.test(x));
+        if (w.length && !w.some((x: string) => tn.includes(x.slice(0, 5))) && !cart.some((l) => l.itemId === a.itemId)) acts.splice(i, 1); } }
     // tw4938: "Eh. Y" (no dish, meat or choice word) changed nothing — Elvi's update moved a bistec onto the tripa taco.
     if (source === "caller" && !FOOD.test(text) && !MEAT_WORDS.test(text) && !/\b(con|sin|deluxe|todo|preparad\w*|extra|aparte|harina|comal|ma[ií]z|taquer\w*|grande|chico|regular|doble|double|with|without|no)\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "update_item") acts.splice(i, 1);
@@ -601,8 +608,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const staffRun = nrm(recentStaff.join(" "));
         const pick = /\bcon\s+tod(?:it)?o\b|\bwith\s+everything\b/iu.test(t.text) ? opts.filter((o) => !/double|doble/i.test(o)) : confirm ? opts.filter((o) => staffRun.includes(nrm(o).split(" ")[0])) : [];
         if (pick.length && !dishesNamed(t.text).size) { last = await say(pick.join(", "), t.language, "caller-answer"); steps.push({ source: "caller-answer", heard: t.text }); if (asking(last)) await acceptOpen(t.language); continue; } }
-      // a new dish while the old question is still open: take Elvi's suggestions for the open one first, then the new dish
-      { const asked = dishesNamed(String(last.reply || "")); if ([...dishesNamed(t.text)].some((k) => !asked.has(k))) await acceptOpen(t.language); }
+      // (a new dish while an old question is open no longer auto-accepts the old one: "Me pone gordita" → "una quesadilla"
+      // rang a meatless gordita; the caller comes back to it)
     }
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
     // aliases1: campechana / o mal now come from the shared list.
