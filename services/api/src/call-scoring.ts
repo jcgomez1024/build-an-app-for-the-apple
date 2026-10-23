@@ -321,6 +321,7 @@ export const STAFF_VOICE = /^[¿¡\s]*(?:¿\s*)?(?:cu[aá]nt[oa]s?\s+\p{L}+\s+(?
 export const isCountOnly = (text: string) => !FOOD.test(text) && !orderResidue(text, null).replace(new RegExp(`(?<![\\p{L}])(?:${QTY.slice(3, -1)}|y|and)(?![\\p{L}])`, "giu"), "").trim();
 const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 export const spokenCount = (phrase: string) => { const w = String(phrase || "").trim().split(/\s+/)[0]?.toLowerCase() || ""; return /^\d+$/.test(w) ? Number(w) : COUNT[w] || 0; };
+export const EXTRAS_ID = "sq-extras-mild-salsa-asada-2oz-T6PGNT"; // Extras item; variation picked by option
 export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
 
 type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[]; posSize?: "small" };
@@ -670,7 +671,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const yes = /\b(yes|yeah|yep|sure|s[ií]|aj[aá])\b/iu.test(t.text);
         const m2 = t.text.match(/\b(\d|one|two|three|four|una?|dos|tres|cuatro)\s+(?:of\s+)?(?:those|them|these|esos?|esas?|de\s+es[oa]s)\b/iu);
         if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} Extras: Cebolla y Chiles Asados (grilled onions and peppers side)`;
-          last = await say(said2, t.language, "staff-offer-yes"); steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; sideOffer = ""; continue; } }
+          const n0s = cart.length; last = await say(said2, t.language, "staff-offer-yes");
+          // side1: the yes rings exactly the Extras side — drop whatever the model added (salsa, a 2nd gordita) and ring the side.
+          { const q = ({ one: 1, un: 1, una: 1, two: 2, dos: 2, three: 3, tres: 3, four: 4, cuatro: 4 } as Record<string, number>)[String(m2?.[1] || "1").toLowerCase()] || Number(m2?.[1]) || 1;
+            cart.splice(n0s); cart.push({ type: "add_item", itemId: EXTRAS_ID, quantity: q, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] } as any); } steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; sideOffer = ""; continue; } }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
