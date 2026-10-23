@@ -618,6 +618,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // wrap1 (Paco): "Sí, sería todo. Serían tres órdenes en total" is a wrap-up count, never a re-add of a dish already rung
     if (source !== "auto" && /\b(?:ser[ií]a\s+todo|es\s+todo|en\s+total|that'?s\s+(?:all|it))\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && cart.some((l) => l.itemId === acts[i].itemId)) acts.splice(i, 1);
+    // queso1 (Ali): "dos gorditas de (puro) queso" = (GD) Gordita filled with melted cheese, not the (QGD) cheese-dough gordita
+    if (/\bgorditas?\b[\s,.]*(?:de\s+)?(?:puro\s+|pur[ao]\s+|solo\s+|nom[aá]s\s+)?queso\b(?!\s+(?:fresco|gordita))/iu.test(text))
+      for (const a of acts) if (a.type === "add_item" && /^sq-gordita-/i.test(a.itemId)) {
+        const ms = a.modifiers || [];
+        const hasMeat = ms.some((m: any) => !/salsa/i.test(m.option) && new RegExp(MEAT_LIST, "i").test(m.option));
+        const q = ms.find((m: any) => /\(QGD\)/.test(m.option));
+        if (q && !hasMeat) a.modifiers = [...ms.filter((m: any) => m !== q), { ...q, option: "(GD) Gordita" }, { ...q, groupId: undefined, groupName: "(B) Q Carnes / Meats", step: "(B) Q Carnes / Meats", option: " Queso Derretido / Melted Cheese" }];
+      }
     // close1: a closing line that names no dish ("sería todo", "gracias", "bye") never adds an item
     if (source !== "auto" && !dishesNamed(text).size && /\b(?:ser[ií]a\s+todo|eso\s+es\s+todo|es\s+todo|gracias|thank(?:s|\s+you)|bye|adi[oó]s|that'?s\s+(?:all|it))\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
