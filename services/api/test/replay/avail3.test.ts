@@ -78,7 +78,7 @@ test("mix1: 'bistec con chorizo' is one mixed line", () => {
   const b: any[] = [{ ...acts[0], modifiers: [{ option: "Bistec / Steak" }] }, { type: "add_item", itemId: "sq-q", quantity: 2, modifiers: [{ option: "Chorizo / Mexican Sausage" }] }];
   mixMeats(b, "tres de bistec y dos de chorizo"); assert.equal(b.length, 2);
 });
-import { rewriteCallerText } from "../../src/call-scoring.js";
+import { rewriteCallerText, prepMergedCallerTurns } from "../../src/call-scoring.js";
 test("or1: the corrected count wins", () => {
   assert.equal(rewriteCallerText("Dos tacos de bistec, o tres tacos de bistec."), "tres tacos de bistec.");
   assert.equal(rewriteCallerText("dos, o tres tacos de pollo"), "tres tacos de pollo");
@@ -89,5 +89,10 @@ test("each1: two of a dish, one of each meat", () => {
     "if I get one flour steak quesadilla deluxe, cilantro and one flour chorizo quesadilla deluxe, cilantro.");
 });
 test("chips1: chips con pico is the dip", () => {
-  assert.equal(rewriteCallerText("me le puede poner dos chips con, pico, porfa"), "me le puede poner dos Pico de Gallo con Chips (dip), porfa");
+  assert.equal(rewriteCallerText("me le puede poner dos chips con, pico, porfa"), "me le puede poner dos Dips Pico de Gallo con Chips, porfa");
+});
+test("desk2: dish-less order refers to the asked dish", () => {
+  const m = [{speaker:"caller",text:"Eh, tiene nachos"},{speaker:"caller",text:"¿me puede preparar una?"},{speaker:"caller",text:"a nombre de Testo"},{speaker:"caller",text:"de testo, ajá"},{speaker:"caller",text:"uno de buche"}] as any;
+  prepMergedCallerTurns(m);
+  assert.match(m[1].text, /una orden de nachos/); assert.equal(m[3].text, ""); assert.equal(m[4].text, "uno de buche");
 });

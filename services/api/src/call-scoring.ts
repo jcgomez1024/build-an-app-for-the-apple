@@ -415,8 +415,20 @@ export function rewriteCallerText(text: string): string {
       return `one ${ad ? ad + " " : ""}${a} ${one}${r ? " " + r : ""} and one ${ad ? ad + " " : ""}${b} ${one}${r ? " " + r : ""}.`;
     });
   // chips1 (Noé): "dos chips con pico" is the Dips item Pico de Gallo con Chips, not a bowl
-  s = s.replace(/\b(?:chips|totopos)\s+con,?\s+(?:el\s+)?pico(?:\s+de\s+gallo)?\b|\bpico(?:\s+de\s+gallo)?\s+(?:con|and|with)\s+chips\b/giu, "Pico de Gallo con Chips (dip)");
+  s = s.replace(/\b(?:chips|totopos)\s+con,?\s+(?:el\s+)?pico(?:\s+de\s+gallo)?\b|\bpico(?:\s+de\s+gallo)?\s+(?:con|and|with)\s+chips\b/giu, "Dips Pico de Gallo con Chips");
   return s;
+}
+export function prepMergedCallerTurns(merged: { speaker: string; text: string }[]): void {
+  // desk2 (Julio): "¿tiene nachos?" → "¿me puede preparar una?" — the dish-less order is for the dish the caller just asked about
+  { let lastDish = ""; let givenName = "";
+    for (const t of merged) { if (t.speaker !== "caller") continue;
+      const d = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?)\b/iu);
+      if (d) { lastDish = d[1]; continue; }
+      { const nm = t.text.match(/\ba\s+nombre\s+de\s+(\p{L}+)/iu); if (nm) givenName = nm[1].toLowerCase();
+        const w = t.text.toLowerCase().replace(/[^\p{L}\s]/gu, " ").split(/\s+/).filter(Boolean);
+        if (!nm && givenName && w.includes(givenName) && w.every(x => x === givenName || /^(de|aj[aá]|s[ií]|ok(ay)?|es|a|nombre)$/.test(x))) { t.text = ""; continue; } } // desk2: name echo "de julio, ajá"
+      if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(un[oa]?|dos|tres)\b/iu.test(t.text))
+        t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(?:un[oa]?|dos|tres))\b/iu, `$1 orden de ${lastDish}`); } }
 }
 export const DORADA_DELUXE_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", DORADA_REG_ID = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
 /** mix1: "tres de bistec con chorizo" is ONE line with both meats (mixed), not 3 bistec + 2 chorizo (Paco). "y" stays separate. */
@@ -651,13 +663,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     } else merged.push({ ...t });
   }
   for (const t of merged) if (t.speaker === "caller") t.text = rewriteCallerText(t.text); // or1/each1
-  // desk2 (Julio): "¿tiene nachos?" → "¿me puede preparar una?" — the dish-less order is for the dish the caller just asked about
-  { let lastDish = "";
-    for (const t of merged) { if (t.speaker !== "caller") continue;
-      const d = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?)\b/iu);
-      if (d) { lastDish = d[1]; continue; }
-      if (lastDish && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(un[oa]?|dos|tres)\b/iu.test(t.text))
-        t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(?:un[oa]?|dos|tres))\b/iu, `$1 orden de ${lastDish}`); } }
+  prepMergedCallerTurns(merged);
   turns = merged;
   const merged0 = turns;
   for (let t of turns) {
