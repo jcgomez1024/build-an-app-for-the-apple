@@ -1119,6 +1119,7 @@ async function chatWithRealtimeAgent(
   runtime: XaiRuntimeConfig
 ): Promise<ElviResponse> {
   const instructions = buildRealtimeInstructions(input.language, input.menu, input.history || []);
+  if (!/api\.x\.ai/.test(runtime.baseUrl)) return await chatWithTextAgent(input, runtime, instructions);
   const voice = ((input.language === "es" ? process.env.XAI_VOICE_ID_ES : process.env.XAI_VOICE_ID) || "Eve").toLowerCase();
   const sampleRate = Number(process.env.XAI_TTS_SAMPLE_RATE || 24000);
 
@@ -2117,4 +2118,26 @@ export async function chatWithElviAudio(input: ElviAudioRequest, runtimeConfig?:
   const finalAudio = withSalsaDefault(result, String((result as any).customerTranscript || ""), (((input as any).resolverMenu || (input as any).menu || []) as MenuItem[]), (result.language || (input as any).language) as Language);
   recordLastAdd((input as any).sessionKey, finalAudio.actions);
   return finalAudio;
+}
+
+/** Test-only: same instructions + tools over plain chat completions (local Ollama / NVIDIA replays). Live calls never use this. */
+async function chatWithTextAgent(input: ElviRequest, runtime: XaiRuntimeConfig, instructions: string): Promise<ElviResponse> {
+  const tools = (buildRealtimeTools() as any[]).map((t: any) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  const messages: any[] = [{ role: "system", content: instructions }, { role: "user", content: input.transcript }];
+  const actionCalls: unknown[] = []; let text = "";
+  for (let round = 0; round < 5; round++) {
+    const r = await fetch(`${runtime.baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${runtime.apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model: runtime.model, temperature: 0, messages, tools, max_tokens: 2000 }) });
+    const j: any = await r.json(); if (!r.ok) throw new Error(JSON.stringify(j).slice(0, 300));
+    const m = j.choices[0].message; messages.push(m);
+    if (m.content) text += String(m.content).replace(/<think>[\s\S]*?<\/think>/g, "");
+    if (!m.tool_calls?.length) break;
+    for (const c of m.tool_calls) {
+      const res: any = handleRealtimeToolCall(c.function.name, typeof c.function.arguments === "string" ? c.function.arguments : JSON.stringify(c.function.arguments));
+      if (res.action) actionCalls.push(res.action);
+      messages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(res.output) });
+    }
+  }
+  const reply = enforceOrderTakerReply(text.trim(), input.language) || defaultReply(input.language);
+  return { language: input.language, reply, actions: sanitizeActions(actionCalls, input.menu), engine: "xai", rawJson: JSON.stringify({ language: input.language, reply, actions: actionCalls }) } as ElviResponse;
 }

@@ -62,12 +62,12 @@ async function replayer() {
   // a3: deterministic replays — each turn's result is cached by (code version, text after slang, memory hit, history).
   // Same code + same memory → same answer every night; a candidate only changes the turns it touches (and those after).
   const { createHash } = await import("node:crypto");
-  const head = (() => { try { return execSync("git rev-parse HEAD", { cwd: root }).toString().trim(); } catch { return "nogit"; } })();
+  const head = (() => { try { return execSync("git rev-parse HEAD", { cwd: root }).toString().trim(); } catch { return "nogit"; } })() + (process.env.REPLAY_BACKEND && process.env.REPLAY_BACKEND !== "xai" ? ":" + process.env.REPLAY_BACKEND + ":" + (process.env.REPLAY_MODEL || "") : "");
   const cf = path.join(dir, "replay-cache.json"); let cache: Record<string, any> = {}; try { const c = JSON.parse(fs.readFileSync(cf, "utf8")); if (c.head === head) cache = c.turns || {}; } catch { /* fresh */ }
   const saveCache = () => fs.writeFileSync(cf, JSON.stringify({ head, turns: cache }));
   const replay = async (row: any, truth: any[], opts: { fresh?: boolean } = {}) => {
     const key = `learn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const live = (t: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: t.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: key } as any, { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model } as any);
+    const live = (t: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: t.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: key } as any, replayBackend(tenant) as any);
     const run = async (t: string, language: "es" | "en", history: any[]) => {
       const tt = K.rewriteSlang(t), hit = K.recall(tt, resolverMenu);
       const k = createHash("sha256").update(JSON.stringify([tt, language, history, hit?.map((h) => h.memoryId) || null])).digest("hex");
@@ -303,4 +303,12 @@ export function validProposal(o: any, caller: string, menu: any[]): any | null {
     return { kind: "clause", dish: K.dishOf(item.name) || fold(o.dish), key, phrase: key.join(" "), item: item.name, choices, quantity: null };
   }
   return null;
+}
+
+// Test-only model backend: REPLAY_BACKEND=xai (default) | local (Ollama) | nvidia. Never used on live calls.
+function replayBackend(tenant: any) {
+  const b = process.env.REPLAY_BACKEND || "xai";
+  if (b === "local") return { apiKey: "ollama", baseUrl: "http://localhost:11434/v1", model: process.env.REPLAY_MODEL || "qwen3:8b" };
+  if (b === "nvidia") return { apiKey: process.env.NVIDIA_API_KEY, baseUrl: "https://integrate.api.nvidia.com/v1", model: process.env.REPLAY_MODEL || "nvidia/nemotron-3-ultra-550b-a55b" };
+  return { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model };
 }
