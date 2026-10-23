@@ -320,7 +320,13 @@ export function pickVariation<T extends MenuItem>(text: string, items: T[]): T[]
   for (const w of concepts(siteProductFor(items[0].squareCatalogObjectId)?.name || "")) shared.add(w);
   const scoreOf = (set: Set<string>) => [...set].filter((w) => !shared.has(w) && said.has(w)).length - (set.has("solo") && !shared.has("solo") && !said.has("solo") ? 2 : 0);
   const scored = items.map((i, n) => ({ i, s: scoreOf(sets[n]) })).sort((a, b) => b.s - a.s);
-  if (scored[0].s <= 0) return items;
+  if (scored[0].s <= 0) {
+    // coctel2: nothing tells them apart, but the caller named the plain option outright
+    // ("Coctel de Camarón / Shrimp", "nada más camarón") -> the one option with nothing extra.
+    const plainOnes = items.filter((_, n) => [...sets[n]].every((w) => shared.has(w)));
+    if (plainOnes.length === 1 && [...sets[items.indexOf(plainOnes[0])]].some((w) => said.has(w)) && (/\b(solo|nada mas|solamente|just|only)\b/.test(plain(text)) || /\/\s*shrimp\b(?!\s+and)/i.test(text))) return plainOnes;
+    return items;
+  }
   // Keep every option that fits best, in website order (the first is what the site preselects).
   const top = items.filter((i) => scored.some((x) => x.i === i && x.s === scored[0].s));
   if (top.length < 2) return top;

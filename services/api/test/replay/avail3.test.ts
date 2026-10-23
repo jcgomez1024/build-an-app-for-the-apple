@@ -125,3 +125,13 @@ test("coctel1: aliases + dish-less 'me pone uno' after 'tiene coctel de camarón
   const m: any[] = [{ speaker: "caller", text: "Eh, tiene coctel de camarón" }, { speaker: "caller", text: "Me pone uno" }];
   prepMergedCallerTurns(m); assert.match(m[1].text, /pone uno orden de coctel de camarón/i);
 });
+
+import { pickVariation, loadSiteCatalog } from "../../src/site-catalog.js";
+test("coctel2: 'Coctel de Camaron / Shrimp' / 'nada más camarón' picks the plain shrimp sku; bare dish still asks", () => {
+  const p: any = loadSiteCatalog()!.products.find((x: any) => /^Coctel de Camarones/.test(x.name));
+  const items: any[] = p.skus.map((k: any, n: number) => ({ id: `c${n}`, name: k.name, squareCatalogObjectId: p.squareId, squareVariationId: k.squareId }));
+  assert.equal(pickVariation("Eh, Coctel de Camaron / Shrimp Sí", items).length, 1);
+  assert.match(pickVariation("nada más camarón", items)[0].name, /Shrimp$/);
+  assert.equal(pickVariation("un coctel", items).length, 2);
+  assert.equal(pickVariation("coctel de camarón con pulpo", items).length, 1);
+});

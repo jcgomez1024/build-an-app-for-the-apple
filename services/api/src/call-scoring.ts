@@ -603,6 +603,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // wrap1 (Paco): "Sí, sería todo. Serían tres órdenes en total" is a wrap-up count, never a re-add of a dish already rung
     if (source !== "auto" && /\b(?:ser[ií]a\s+todo|es\s+todo|en\s+total|that'?s\s+(?:all|it))\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && cart.some((l) => l.itemId === acts[i].itemId)) acts.splice(i, 1);
+    // close1: a closing line that names no dish ("sería todo", "gracias", "bye") never adds an item
+    if (source !== "auto" && !dishesNamed(text).size && /\b(?:ser[ií]a\s+todo|eso\s+es\s+todo|es\s+todo|gracias|thank(?:s|\s+you)|bye|adi[oó]s|that'?s\s+(?:all|it))\b/iu.test(text))
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
+    // confirm1 (Alan): "Eh, coctel de camarón, sí" right after it was rung confirms that line — not a second order
+    {
+      const adds = acts.filter((a: any) => a.type === "add_item");
+      if (source !== "auto" && adds.length === 1 && lastAdded && adds[0].itemId === lastAdded.itemId && cart.includes(lastAdded) && (Number(adds[0].quantity) || 1) === 1
+        && !/\b(?:otr[oa]s?|m[aá]s|tambi[eé]n|another|more|extra|un[oa]?|dos|tres|cuatro|cinco|two|three|four|\d+)\b/iu.test(text)
+        && /\b(?:s[ií]|yes|ok(?:ay)?|eso|correcto|exacto)\b/iu.test(text)) acts.splice(acts.indexOf(adds[0]), 1);
+    }
     // mix2 (Paco): staff-pick re-runs "Quesadilla Comal" alone, so read "bistec con chorizo" from the caller's last turn
     mixMeats(acts, source === "staff-pick" ? `${text} ${[...history].reverse().find((h) => h.role === "customer" && h.text !== text)?.text || ""}` : text);
     apply(acts);

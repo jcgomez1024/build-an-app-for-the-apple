@@ -14,7 +14,7 @@ export const ALIASES_FILE = process.env.ELVI_ALIASES_FILE
 let cache: Alias[] = [];
 // coctel1 (Alan): built-in rules (code, so they ship with a restart — never via the live-reloaded JSON)
 export const BUILTIN_ALIASES: Alias[] = compileAliases([
-  { id: "coctel1-name", match: String.raw`\bc[oó]ctel(?:es)?\s+de\s+camar[oó]n(?!es\s*\/)(?:es)?\b|\bshrimp\s+c[oó]ctel\b(?!\s*\()`, to: "Coctel de Camarones / Shrimp Cocktail", scope: ["phone", "app"] },
+  { id: "coctel1-name", match: String.raw`\bc[oó]ctel(?:es)?\s+de\s+camar[oó]n(?!es\s*\/|\s*\/)(?:es)?\b(?!\s*\/)|\bshrimp\s+c[oó]ctel\b(?!\s*\()`, to: "Coctel de Camarones / Shrimp Cocktail", scope: ["phone", "app"] },
   { id: "coctel1-variant", match: String.raw`\b(?:nada\s+m[aá]s|s[oó]lo|solamente|just|only)\s+(?:el\s+|de\s+|the\s+)?(?:c[oó]ctel(?!\s+de\s+camar)|camar[oó]n(?:es)?|shrimp)\b(?!\s*(?:y|and|con|with)\s+(?:pulpo|calamar))`, to: "Coctel de Camaron / Shrimp", scope: ["phone", "app"], forbids: String.raw`pulpo|calamar|octopus` },
 ]);
 let loadedMtime = -1;
