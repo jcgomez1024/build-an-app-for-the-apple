@@ -7,7 +7,7 @@ const runner = (seen: string[]) => async (text: string) => { seen.push(text);
   if (/arroz|rice/i.test(text)) return { reply: "Arroz agregado.", actions: [{ type: "add_item", itemId: "sq-rice", quantity: 1, modifiers: [] }] };
   if (/taco/i.test(text)) return { reply: "Dos tacos. ¿Algo más?", actions: [{ type: "add_item", itemId: "sq-taco", quantity: 2, modifiers: [] }] };
   return { reply: "¿Algo más?", actions: [] }; };
-for (const [q, lang] of [["¿tienen arroz?", "es"], ["¿hay arroz hoy?", "es"], ["do you have rice?", "en"], ["you got rice today?", "en"]]) {
+for (const [q, lang] of [["¿tienen arroz?", "es"], ["¿hay arroz hoy?", "es"], ["do you have rice?", "en"], ["you got rice today?", "en"], ["is rice available?", "en"], ["is that available?", "en"], ["do you guys have rice?", "en"], ["do you still have rice?", "en"], ["¿está disponible el arroz?", "es"], ["¿tienen disponible arroz?", "es"], ["¿manejan arroz?", "es"]]) {
   test(`avail3: '${q}' adds no rice`, async () => {
     const seen: string[] = [];
     const r: any = await shadowOrderFromTurns([T("caller", q, 0, lang), T("staff", "Sí.", 2), T("caller", "dame dos tacos de asada", 4), T("staff", "¿Algo más?", 6), T("caller", "es todo, gracias", 8)], runner(seen) as any);
