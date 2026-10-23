@@ -101,3 +101,17 @@ test("mix2: staff-pick split merges with caller's 'bistec con chorizo'", () => {
   mixMeats(acts, "Quesadilla Comal tres de bistec con chorizo");
   assert.equal(acts.length, 1); assert.equal(acts[0].quantity, 3);
 });
+test("decline1/restate1: a decline adds nothing; a restated pair sets counts", async () => {
+  const Q = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+  const add = (q: number, meat: string) => ({ type: "add_item", itemId: Q, quantity: q, modifiers: [{ option: "(QD) DELUXE Preparada" }, { option: meat }] });
+  const answers: Record<string, any> = {
+    "tres quesadillas doradas preparadas de pollo": { actions: [add(1, "Pollo / Chicken")] },
+    "dos de pollo, una de bistec": { actions: [add(2, "Pollo / Chicken"), add(1, "Bistec / Steak")] },
+    "No, así está bien": { actions: [{ type: "add_item", itemId: "sq-torta-4GNTTE", quantity: 1, modifiers: [] }] },
+  };
+  const turns: any[] = [{ speaker: "staff", start: 0, end: 1, text: "Cocina Elvis, ¿qué le preparamos?", language: "es" }];
+  Object.keys(answers).forEach((text, i) => turns.push({ speaker: "caller", start: i * 10 + 2, end: i * 10 + 4, text, language: "es" }, { speaker: "staff", start: i * 10 + 5, end: i * 10 + 6, text: "Muy bien.", language: "es" }));
+  const r: any = await shadowOrderFromTurns(turns, (async (t: string) => answers[t] || { actions: [] }) as any);
+  const q = r.cart.filter((l: any) => l.itemId === Q).map((l: any) => l.quantity).sort();
+  assert.deepEqual(q, [1, 2]); assert.ok(!r.cart.some((l: any) => /torta/.test(l.itemId)));
+});

@@ -580,6 +580,23 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // prep1: "una quesadilla preparada … de las doradas" is the DELUXE Preparada Dorada, not the Regular (Luisa)
     if (/\bpreparad[oa]s?\b|\bdeluxe\b/iu.test(text) && !/\bregular(?:es)?\b|\bsin\s+preparar\b/iu.test(text))
       for (const a of acts as any[]) if (a.type === "add_item" && a.itemId === DORADA_REG_ID) { a.itemId = DORADA_DELUXE_ID; a.modifiers = (a.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
+    // prep2 (Linda): a bare "preparadas" answer makes every Regular Dorada already rung the Deluxe Preparada
+    if (source !== "auto" && /^\W*(?:\p{L}+[.,]?\s+){0,3}preparad[oa]s\W*$/iu.test(text) && !/regular/iu.test(text)) {
+      for (const l of cart as any[]) if (l.itemId === DORADA_REG_ID) { l.itemId = DORADA_DELUXE_ID; l.modifiers = (l.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "remove_item" || (acts[i].type === "add_item" && /dorada/i.test(String(acts[i].itemId)))) acts.splice(i, 1);
+    }
+    // restate1 (Linda): "dos de pollo y una de bistec" restating lines already rung sets their count; it is not a re-add
+    if (source !== "auto" && !/\b(?:otr[oa]s?|m[aá]s|tambi[eé]n|another|more|extra)\b/iu.test(text)) {
+      const meats = (x: any) => (x.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/salsa/i.test(o) && new RegExp(MEAT_LIST, "i").test(o)).sort().join("|");
+      const adds = acts.filter((a: any) => a.type === "add_item");
+      const hits = adds.map((a: any) => (cart as any[]).find((l) => l.itemId === a.itemId && meats(l) && meats(l) === meats(a)));
+      if (adds.length >= 2 && hits.some(Boolean) && new Set(hits.filter(Boolean)).size === hits.filter(Boolean).length) {
+        adds.forEach((a: any, k: number) => { if (hits[k]) { hits[k].quantity = Number(a.quantity) || 1; acts.splice(acts.indexOf(a), 1); } });
+      }
+    }
+    // decline1 (Linda): "no, hecho está bien" names no dish — a decline never adds an item
+    if (source !== "auto" && !dishesNamed(text).size && /\bno\b/iu.test(text) && /\b(?:est[aá]\s+bien|nada\s+m[aá]s|es\s+todo|that'?s\s+(?:fine|it|all))\b/iu.test(text))
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
     // wrap1 (Paco): "Sí, sería todo. Serían tres órdenes en total" is a wrap-up count, never a re-add of a dish already rung
     if (source !== "auto" && /\b(?:ser[ií]a\s+todo|es\s+todo|en\s+total|that'?s\s+(?:all|it))\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && cart.some((l) => l.itemId === acts[i].itemId)) acts.splice(i, 1);
