@@ -96,3 +96,8 @@ test("desk2: dish-less order refers to the asked dish", () => {
   prepMergedCallerTurns(m);
   assert.match(m[1].text, /una orden de nachos/); assert.equal(m[3].text, ""); assert.equal(m[4].text, "uno de buche");
 });
+test("mix2: staff-pick split merges with caller's 'bistec con chorizo'", () => {
+  const acts: any[] = [{ type: "add_item", itemId: "q", quantity: 3, modifiers: [{ option: "Bistec / Steak" }, { option: "Mild Salsa Asada" }] }, { type: "add_item", itemId: "q", quantity: 2, modifiers: [{ option: "Chorizo / Mexican Sausage" }, { option: "Mild Salsa Asada" }] }];
+  mixMeats(acts, "Quesadilla Comal tres de bistec con chorizo");
+  assert.equal(acts.length, 1); assert.equal(acts[0].quantity, 3);
+});

@@ -321,6 +321,7 @@ export const STAFF_VOICE = /^[¿¡\s]*(?:¿\s*)?(?:cu[aá]nt[oa]s?\s+\p{L}+\s+(?
 export const isCountOnly = (text: string) => !FOOD.test(text) && !orderResidue(text, null).replace(new RegExp(`(?<![\\p{L}])(?:${QTY.slice(3, -1)}|y|and)(?![\\p{L}])`, "giu"), "").trim();
 const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 export const spokenCount = (phrase: string) => { const w = String(phrase || "").trim().split(/\s+/)[0]?.toLowerCase() || ""; return /^\d+$/.test(w) ? Number(w) : COUNT[w] || 0; };
+export const DIPS_ID = "sq-dips-MAIPCN";
 export const EXTRAS_ID = "sq-extras-mild-salsa-asada-2oz-T6PGNT"; // Extras item; variation picked by option
 export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
 
@@ -436,7 +437,7 @@ export function mixMeats(acts: any[], text: string) {
   const m = String(text || "").match(new RegExp(`\\b(${MEAT_LIST})\\s+con\\s+(${MEAT_LIST})\\b`, "iu"));
   if (!m) return;
   const a0 = m[1].toLowerCase(), b0 = m[2].toLowerCase();
-  const meatOf = (a: any) => (a.modifiers || []).map((x: any) => String(x.option).toLowerCase()).filter((o: string) => new RegExp(MEAT_LIST, "i").test(o));
+  const meatOf = (a: any) => (a.modifiers || []).map((x: any) => String(x.option).toLowerCase()).filter((o: string) => !/salsa/i.test(o) && new RegExp(MEAT_LIST, "i").test(o)); // mix2: "Mild Salsa Asada" is not a meat
   const i = acts.findIndex((a) => a.type === "add_item" && meatOf(a).length === 1 && meatOf(a)[0].includes(a0));
   const j = acts.findIndex((a, k) => k !== i && a.type === "add_item" && i >= 0 && a.itemId === acts[i].itemId && meatOf(a).length === 1 && meatOf(a)[0].includes(b0));
   if (i < 0 || j < 0) return;
@@ -579,7 +580,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // prep1: "una quesadilla preparada … de las doradas" is the DELUXE Preparada Dorada, not the Regular (Luisa)
     if (/\bpreparad[oa]s?\b|\bdeluxe\b/iu.test(text) && !/\bregular(?:es)?\b|\bsin\s+preparar\b/iu.test(text))
       for (const a of acts as any[]) if (a.type === "add_item" && a.itemId === DORADA_REG_ID) { a.itemId = DORADA_DELUXE_ID; a.modifiers = (a.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
-    mixMeats(acts, text);
+    // wrap1 (Paco): "Sí, sería todo. Serían tres órdenes en total" is a wrap-up count, never a re-add of a dish already rung
+    if (source !== "auto" && /\b(?:ser[ií]a\s+todo|es\s+todo|en\s+total|that'?s\s+(?:all|it))\b/iu.test(text))
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && cart.some((l) => l.itemId === acts[i].itemId)) acts.splice(i, 1);
+    // mix2 (Paco): staff-pick re-runs "Quesadilla Comal" alone, so read "bistec con chorizo" from the caller's last turn
+    mixMeats(acts, source === "staff-pick" ? `${text} ${[...history].reverse().find((h) => h.role === "customer" && h.text !== text)?.text || ""}` : text);
     apply(acts);
     if (process.env.SHADOW_DEBUG) console.error("[shadow]", source, "|", text, "|", JSON.stringify(acts.map((a: any) => [a.type, String(a.itemId || "").slice(3, 30), a.quantity, (a.modifiers || []).map((m: any) => m.option).filter((o: string) => !/salsa asada/i.test(o)).join("+")])), "| cart", cart.length);
     // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
@@ -950,6 +955,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     && turns.some((t) => t.speaker === "caller" && /\b(?:sour\s+cream|crema)\b/iu.test(t.text))
     && !cart.some((l: any) => l.itemId === EXTRAS_ID && (l.modifiers || []).some((m: any) => /crema/i.test(String(m.option)))))
     cart.push({ itemId: EXTRAS_ID, quantity: 1, modifiers: [{ step: "Extras options", option: "Crema / Sour Cream 2oz" }] } as any);
+  // chips1b (Noé): "dos chips con pico" → Dips · Pico de Gallo con Chips at the spoken count, when Elvi left it out
+  { const ct = turns.filter((t) => t.speaker === "caller").map((t) => rewriteCallerText(t.text)).find((x) => /Dips Pico de Gallo con Chips/.test(x));
+    if (ct && !cart.some((l: any) => l.itemId === DIPS_ID)) { const m = ct.match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?Dips Pico`, "iu"));
+      cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(groups.length ? { groups } : {}) };
