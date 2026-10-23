@@ -573,7 +573,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // larry1: "you got quesadilla today?" / "¿tienen birria hoy?" asks what's available; it isn't an order line (it opened a
   // quesadilla question that swallowed the Queso Birrias and the rest of the call).
   // …only when the caller names that dish again later ("do you have plate x today?" → "can I order some" still needs it).
-  turns = turns.filter((t, i) => !(t.speaker === "caller" && (() => { const d = dishNoun(t.text); return !!d && turns.slice(i + 1).some((u) => u.speaker === "caller" && u.text.toLowerCase().includes(d)); })() && /^\W*(?:(?:hey|so|and|oh)[,\s]+)?(?:(?:do\s+)?you(?:\s+guys)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|tienen|hay|tiene)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
+  // avail2: any availability question ("¿tienen arroz?", "do you have X?") is never an order line, whether or not the dish is named again.
+  turns = turns.filter((t, i) => !(t.speaker === "caller" && !(() => { const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); return !!nx && !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$/iu.test(nx.text); })() && !/\b(?:quiero|dame|deme|me\s+da|I'?ll\s+take|I'?ll\s+have|can\s+I\s+(?:get|have|order)|let\s+me\s+get|I\s+want|give\s+me|me\s+pones?)\b/iu.test(t.text) && /^\W*(?:(?:hey|so|and|oh|y|oye)[,\s]+)?(?:(?:do\s+)?you(?:\s+guys)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|tienen|hay|tiene)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
@@ -655,7 +656,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const off = (sideOfferAge <= 2 ? sideOffer : "").match(/\b(?:want|quieres?|gusta)\b[^?]*?\b((?:grilled\s+)?onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?(?:\s+asados?)?)\b[^?]*\?/iu);
         const yes = /\b(yes|yeah|yep|sure|s[ií]|aj[aá])\b/iu.test(t.text);
         const m2 = t.text.match(/\b(\d|one|two|three|four|una?|dos|tres|cuatro)\s+(?:of\s+)?(?:those|them|these|esos?|esas?|de\s+es[oa]s)\b/iu);
-        if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} cebolla y chiles asados`;
+        if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} Extras: Cebolla y Chiles Asados (grilled onions and peppers side)`;
           last = await say(said2, t.language, "staff-offer-yes"); steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; sideOffer = ""; continue; } }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
@@ -819,6 +820,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const opt = cart.flatMap((l) => (l.itemId === y.line.itemId ? l.modifiers || [] : [])).find((m: any) => re.test(String(m.option)));
     if (opt) y.line.modifiers = [...(y.line.modifiers || []), { ...opt }];
   }
+  // qbcomal1: Queso Birrias with no tortilla named by the caller defaults to comal (QCO), as staff rings it — never Taquera.
+  if (!turns.some((t) => t.speaker === "caller" && /\b(taquer[oa]s?|street|chiquit[oa]s?)\b/iu.test(t.text)))
+    for (const l of cart as any[]) l.modifiers = (l.modifiers || []).map((m: any) => /^\s*\(QST\)[^]*queso birria/i.test(String(m.option || "")) ? { ...m, option: "(QCO) 3 x Queso Birrias Comal / Homemade con Consome/Broth" } : m);
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(groups.length ? { groups } : {}) };
