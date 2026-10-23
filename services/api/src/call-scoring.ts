@@ -433,6 +433,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (source.startsWith("caller")) text = text.replace(/\b(de\s+)?qu[eé]\?\s*/giu, " ").replace(/\b(\p{L}+)(?:[.,]?\s+\1\b)+/giu, "$1").replace(/\s+/g, " ").trim() || text;
     if (source === "caller" || source === "caller-retry") { const p = personSwitch(text); if (p === "+") person = `plato ${++plateN + 1}`; else if (p) person = p; }
     const r = await run(text, language, history.slice(-24));
+    // larry1: "eight of your steak quesadillas" → Elvi asks the tortilla → "flour": the answer keeps the count of the turn that asked.
+    { const pa = history[history.length - 1]?.text || "", pc = history[history.length - 2]?.text || "";
+      const NUM: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+      const NRE = /\b(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/i;
+      const mq = /\?\s*$/.test(pa) && !/algo más|anything else/i.test(pa) ? pc.match(NRE) : null;
+      const noun = mq ? dishNoun(pc) : "";
+      if (mq && noun && !NRE.test(text)) { const n = NUM[mq[1].toLowerCase()] ?? Number(mq[1]);
+        if (n >= 2 && n <= 30) for (const a of (r?.actions || []) as any[]) if (a.type === "add_item" && (Number(a.quantity) || 1) === 1 && String(a.itemId).toLowerCase().includes(String(noun).toLowerCase().replace(/s$/, ""))) a.quantity = n; } }
     // suggest1: listen-only — staff, not Elvi, answer the caller, so Elvi's offer never becomes answerable here.
     const said = String(r?.reply || ""), offer = String(r?.offerText || "");
     history.push({ role: "customer", text }, { role: "assistant", text: offer && said.endsWith(offer) ? said.slice(0, -offer.length).trim() : said });
@@ -451,7 +459,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
     // alex1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
     // burrito2: same for the scorer's own "así está bien" auto-accept turn (it never orders anything new)
-    const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah)(?=[\s,.!]|$)/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
+    const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah|yep|yup|sure|go ahead|all right|alright|that'?s fine|fine)(?=[\s,.!]|$)/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
     const sig = (x: any) => `${x.itemId}|${(x.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/salsa asada/i.test(o)).sort().join(",")}`;
     const acts = (r?.actions || []).filter((a: any) => a.type !== "checkout").filter((a: any) => !(a.type === "add_item" && (((confirming || source === "auto") && (cart.some((l) => sig(l) === sig(a)) || (/\bunos\b.*\botros\b/i.test(text) && cart.some((l) => l.itemId === a.itemId)))) || (/^\s*(dos|2|two) huevos\W*$/i.test(text) && cart.some((l) => /huevo/i.test(String(l.itemId)))))))
       .map((a: any) => (a.type === "add_item" && /en vez de (los )?huevos|instead of (the )?eggs/i.test(text) ? { ...a, modifiers: (a.modifiers || []).filter((m: any) => !/extra huevo/i.test(String(m.option))) } : a)).flatMap((a: any) => {
@@ -561,6 +569,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // Join consecutive caller utterances until staff speaks, then split by item.
   // fix1136: staff speech bleeding into the caller channel ("¿Cuántas quesadillas quería, güero?") is staff, not an order.
   turns = turns.map((t) => t.speaker === "caller" && STAFF_VOICE.test(t.text) ? { ...t, speaker: "staff" as Speaker } : t);
+  // larry1: "you got quesadilla today?" / "¿tienen birria hoy?" asks what's available; it isn't an order line (it opened a
+  // quesadilla question that swallowed the Queso Birrias and the rest of the call).
+  // …only when the caller names that dish again later ("do you have plate x today?" → "can I order some" still needs it).
+  turns = turns.filter((t, i) => !(t.speaker === "caller" && (() => { const d = dishNoun(t.text); return !!d && turns.slice(i + 1).some((u) => u.speaker === "caller" && u.text.toLowerCase().includes(d)); })() && /^\W*(?:(?:hey|so|and|oh)[,\s]+)?(?:(?:do\s+)?you(?:\s+guys)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|tienen|hay|tiene)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
@@ -627,8 +639,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!pick && !selfPick) {
         const nf = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
         const movedOn = /\b(anything else|something else|algo mas|otra cosa|name for the order|nombre)\b/.test(nf(rawStaff)) || /\b(that is it|that's it|thats it|that's all|nothing else|es todo|eso es todo|nada mas|seria todo)\b/.test(nf(t.text));
-        const tq = movedOn ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina)\b/i.test(x))) : null;
-        if (tq) pick = tq.find((x) => /\b(corn|comal|maiz)\b/i.test(x)) || null;
+        // larry1: a bare "yeah / that's fine" to a tortilla question (Queso Birrias loop) also takes the house default.
+        const affirm = /^\s*(yeah|yep|yup|yes|ok(?:ay)?|sure|fine|that'?s fine|si|aja|esta bien|asi esta bien)\b/.test(nf(t.text)) && !dishesNamed(t.text).size;
+        const tq = movedOn || affirm ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
+        if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
       }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat

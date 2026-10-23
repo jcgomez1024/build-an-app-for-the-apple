@@ -2126,9 +2126,15 @@ async function chatWithTextAgent(input: ElviRequest, runtime: XaiRuntimeConfig, 
   const messages: any[] = [{ role: "system", content: instructions }, { role: "user", content: input.transcript }];
   const actionCalls: unknown[] = []; let text = "";
   for (let round = 0; round < 5; round++) {
-    const r = await fetch(`${runtime.baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${runtime.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ model: runtime.model, temperature: 0, messages, tools, max_tokens: 2000 }) });
-    const j: any = await r.json(); if (!r.ok) throw new Error(JSON.stringify(j).slice(0, 300));
+    let r: Response | undefined; let j: any;
+    for (let a = 0; a < 4; a++) {
+      r = await fetch(`${runtime.baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${runtime.apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ model: runtime.model, temperature: 0, messages, tools, max_tokens: 2000 }) });
+      j = await r.json().catch(() => ({}));
+      if (r.ok || (r.status < 500 && r.status !== 429)) break;
+      await new Promise((res) => setTimeout(res, 2000 * (a + 1)));
+    }
+    if (!r!.ok) throw new Error(JSON.stringify(j).slice(0, 300));
     const m = j.choices[0].message; messages.push(m);
     if (m.content) text += String(m.content).replace(/<think>[\s\S]*?<\/think>/g, "");
     if (!m.tool_calls?.length) break;
