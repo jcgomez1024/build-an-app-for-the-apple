@@ -54,3 +54,10 @@ test("dish1: 'una orden de tacos' then 'me da cuatro de tripa y cuatro de costil
   const r: any = await shadowOrderFromTurns([T("caller", "Buenas tardes, quería poner una orden de tacos.", 0), T("caller", "Diga, ah, me da cuatro de tripa y cuatro de costilla.", 2), T("staff", "¿Algo más?", 4), T("caller", "Sería todo.", 6)], run as any);
   assert.equal(r.cart.reduce((a: number, l: any) => a + l.quantity, 0), 8, seen.join(" | "));
 });
+test("size1: 'A regular.' to the size question resizes the burrito, not a 2nd one", async () => {
+  const run = async (text: string) => /regular/i.test(text)
+    ? { reply: "¿Algo más?", actions: [{ type: "add_item", itemId: "sq-burrito-X", quantity: 1, modifiers: [{ step: "Size", option: "Regular '10" }] }] }
+    : /burrito/i.test(text) ? { reply: "¿Regular o grande?", actions: [{ type: "add_item", itemId: "sq-burrito-X", quantity: 1, modifiers: [{ step: "Size", option: "Grande '12" }] }] } : { reply: "¿Algo más?", actions: [] };
+  const r: any = await shadowOrderFromTurns([T("caller", "Y un burrito de pollo.", 0), T("staff", "¿Lo quieres regular o grande?", 2), T("caller", "A regular.", 4), T("staff", "Muy bien.", 6), T("caller", "Sería todo.", 8)], run as any);
+  assert.equal(r.cart.length, 1); assert.equal(r.cart[0].modifiers[0].option, "Regular '10");
+});
