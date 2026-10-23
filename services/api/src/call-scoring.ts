@@ -594,6 +594,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         adds.forEach((a: any, k: number) => { if (hits[k]) { hits[k].quantity = Number(a.quantity) || 1; acts.splice(acts.indexOf(a), 1); } });
       }
     }
+    // pickup1 (Julio): "yo paso a recogerlo" is pickup talk — "paso" is not a Pambazo
+    if (source !== "auto" && !dishesNamed(text).size && /\bpaso\s+(?:a\s+)?(?:recoger|por)|\brecoger(?:lo|la|los)?\b|\bpick\s+(?:it\s+)?up\b/iu.test(text))
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
     // decline1 (Linda): "no, hecho está bien" names no dish — a decline never adds an item
     if (source !== "auto" && !dishesNamed(text).size && /\bno\b/iu.test(text) && /\b(?:est[aá]\s+bien|nada\s+m[aá]s|es\s+todo|that'?s\s+(?:fine|it|all))\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
