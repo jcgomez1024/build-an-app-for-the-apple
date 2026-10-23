@@ -21,8 +21,13 @@ const LEAD = /^(?:[\s,.!]*(?:no|nop|nope|s[ií]|yes|yeah|ok(?:ay)?|bueno|pues|es
 const PHRASE = /(?<![\p{L}])(?:(?:es\s+|est[aá]\s+|sigue\s+)?al?\s+nombre\s+de|mi\s+nombre\s+es|me\s+llamo|soy|es\s+para|para|ponle|p[oó]ngalo\s+a|it'?s\s+under|under(?:\s+the\s+name)?|put\s+it\s+under|my\s+name\s+is|i'?m|it'?s|es)\s+/iu;
 const TAIL = /[\s,.!]*(?:gracias|thanks?|thank you|por favor|please)?[\s.!?]*$/iu;
 /** A name in a short answer ("Ana", "a nombre de Ana López", "no, es Luis"). Null for yes/no or junk. */
+// name3p1: third-person name inside a longer answer ("es una señora que trabaja conmigo, se llama Ana.")
+const THIRD = /(?<![\p{L}])(?:se\s+llama|(?:her|his|the)\s+name\s+is|el\s+nombre\s+es)\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/gu;
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
+  const th = [...s.matchAll(THIRD)].pop();
+  if (th && !NOT_NAMES.test(th[1].split(" ")[0])) { const n = cleanFullName(th[1]); if (n) return n; }
+  if (/^\s*¿[^?]*\?\s*$/u.test(s) && STAFF_ASK.test(s)) return null; // name3p1: a name question is not a name
   const ph = s.match(new RegExp(PHRASE.source + "(.+)$", "iu"));
   s = ph ? ph[1] : s.replace(LEAD, "");
   s = s.replace(TAIL, "").replace(/[.,!?¿¡"“”]/g, " ").replace(/\s+/g, " ").trim();
@@ -65,6 +70,15 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     // rec1: the transcript can put the answer just BEFORE the ask (overlap): "…sería todo. Zed." / "¿Tu nombre?"
     const prev = turns[i - 1];
     if (prev?.speaker === "caller") { const last = prev.text.trim().split(/(?<=[.!?])\s+/).pop() || ""; const n = last.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(last) ? nameFromAnswer(last) : null; if (n) return n; }
+  }
+  // name3p1: diarization can put the staff's "¿tu nombre?" inside a caller turn; read what follows it
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "caller") continue;
+    const m = turns[i].text.match(STAFF_ASK);
+    if (!m || m.index == null) continue;
+    const after = turns[i].text.slice(m.index + m[0].length).replace(/^[\s?¿.,]+/, "");
+    const n = after ? nameFromAnswer(after) : null;
+    if (n) return n;
   }
   return null;
 }
