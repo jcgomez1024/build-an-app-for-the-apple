@@ -85,7 +85,7 @@ export function normalizeSpokenCatalogAliases(text: string) {
   return applySharedAliases(relleno(fried(stripLeadFiller(String(text || "")))), "app")
     .replace(/\b[oh]?orchatas?\b/gi, "horchata") // horchata1: STT "orchata"
     // larry1: "the quesadilla with the dip/dippy / to dip / with consomé" = Queso Birrias; "quesabirria(s)" too.
-    .replace(/\bquesadillas?\s+(?:with|con)\s+(?:the\s+|el\s+)?(?:dippy|dip(?:ping)?(?:\s+(?:sauce|stuff))?|stuff\s+to\s+dip(?:\s+in(?:\s+it)?)?|consom[eé]|broth|caldito)\b(?:[,\s]+the\s+stuff\s+to\s+dip(?:\s+in(?:\s+it)?)?)?/gi, "Queso Birrias")
+    .replace(/\bquesadillas?\s+(?:with|con)\s+(?:the\s+|el\s+)?(?:dippy|dip(?:ping)?(?:\s+(?:sauce|stuff))?|stuff\s+to\s+dip(?:\s+in(?:\s+it)?)?|consom[eé]|broth|caldito)\b(?:[,\s]+the\s+stuff\s+to\s+dip(?:\s+in(?:\s+it)?)?)?/gi, "Queso Birrias de comal")
     .replace(/\bquesa\s?birrias?\b/gi, "Queso Birrias")
     // larry1: grilled onions and peppers side = Extras "Cebolla y Chiles Asados".
     .replace(/\b(?:grilled\s+)?onions?\s+(?:and|&|y)\s+(?:green\s+)?peppers?\b|\bcebollas?\s+y\s+chiles?(?:\s+asados?)?\b/gi, "cebolla y chiles asados")

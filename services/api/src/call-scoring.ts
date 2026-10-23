@@ -654,7 +654,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const yes = /\b(yes|yeah|yep|sure|s[ií]|aj[aá])\b/iu.test(t.text);
         const m2 = t.text.match(/\b(\d|one|two|three|four|una?|dos|tres|cuatro)\s+(?:of\s+)?(?:those|them|these|esos?|esas?|de\s+es[oa]s)\b/iu);
         if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} cebolla y chiles asados`;
-          last = await say(said2, t.language, "staff-offer-yes"); steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); } }
+          last = await say(said2, t.language, "staff-offer-yes"); steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; continue; } }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
