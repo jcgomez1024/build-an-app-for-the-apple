@@ -1,7 +1,7 @@
 {
   "note": "Elvi's 'what not to do' list. Each line came from a real audited miss. Rules in code also block these; this tells the model up front.",
   "donts": [
-    "Do NOT add ANY menu item when the caller only asks if you have it or what it comes with ('you got X today?', 'do you have X?', '¿tienen X?', '¿hay X?', '¿tienen arroz?'). Answer yes or no, and add it only when they order it ('I'll take one', 'dame dos', 'ponme uno').",
+    "Do NOT add ANY menu item when the caller only asks if you have it or what it comes with ('you got X today?', 'do you have X?', '¿tienen X?', '¿hay X?', '¿tienen arroz?'). If it is on the menu answer yes, if not answer no; never say something is out of stock (staff handle stock when they take the order). Add it only when they order it ('I'll take one', 'dame dos', 'ponme uno').",
     "Do NOT add the last item again when the caller says 'yep', 'go ahead', 'all right', 'that's fine' or 'sí'. That's a confirmation, not a new order.",
     "Do NOT drop the count. 'Eight steak quesadillas' stays 8 after you ask corn or flour.",
     "Do NOT give a whole quantity to the first meat named. 'Cuatro quesadillas, dos de pastor y dos de bistec' is 2 + 2.",
