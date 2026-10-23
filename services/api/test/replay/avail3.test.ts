@@ -66,3 +66,15 @@ test("meatsplit1: 'Can I get one steak and one chorizo?' splits the 2 quesadilla
   const r: any = await shadowOrderFromTurns([T("caller", "if I get two flour steak quesadillas deluxe,", 0, "en"), T("staff", "Okay.", 2), T("caller", "Can I get one steak and one chorizo?", 4, "en"), T("staff", "Anything else?", 6), T("caller", "that's it, thanks", 8, "en")], run as any);
   assert.deepEqual(r.cart.map((l: any) => [l.quantity, l.modifiers[1].option]), [[1, "Bistec / Steak"], [1, "Chorizo / Mexican Sausage"]]);
 });
+import { mixMeats } from "../../src/call-scoring.js";
+test("mix1: 'bistec con chorizo' is one mixed line", () => {
+  const acts: any[] = [
+    { type: "add_item", itemId: "sq-q", quantity: 3, modifiers: [{ step: "t", option: "Comal" }, { step: "m", option: "Bistec / Steak" }] },
+    { type: "add_item", itemId: "sq-q", quantity: 2, modifiers: [{ step: "t", option: "Comal" }, { step: "m", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  mixMeats(acts, "tres quesadillas de bistec con chorizo");
+  assert.equal(acts.length, 1); assert.equal(acts[0].quantity, 3);
+  assert.deepEqual(acts[0].modifiers.map((m: any) => m.option), ["Comal", "Bistec / Steak", "Chorizo / Mexican Sausage"]);
+  const b: any[] = [{ ...acts[0], modifiers: [{ option: "Bistec / Steak" }] }, { type: "add_item", itemId: "sq-q", quantity: 2, modifiers: [{ option: "Chorizo / Mexican Sausage" }] }];
+  mixMeats(b, "tres de bistec y dos de chorizo"); assert.equal(b.length, 2);
+});

@@ -342,9 +342,14 @@ export function mergeMods(old: any[], add: any[]): any[] {
  *  order. No shadow order for those ("are your beans vegetarian?" must not become a burrito). */
 const ASKS_TO_ORDER = /\b(?:i(?:'d| would)?\s+(?:like|want|wanna|need|get|take|have)|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|give\s+me|(?:to\s+)?(?:place|make)\s+an?\s+order|order|para\s+(?:hacer|ordenar|llevar)|(?:me\s+)?(?:da|das|dé|puede|podría|pone|pones|regala)s?\s+(?:un|una|dos|tres|cuatro|\d)|quiero|quisiera|me\s+gustar[ií]a|ordenar|pedido|pedir|dame|deme|mándame|for\s+(?:pickup|delivery)|to\s+go)\b/iu;
 const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|l[aá]cteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|hours?|horario|open|abiertos?|cierran|close|price|precio|cu[aá]nto\s+cuesta|how\s+much)\b/iu;
+// desk1 (Julio): "¿me puede preparar una?" is an order, and staff taking one ("¿al nombre de quién?", "dame unos quince minutos",
+// "entonces te tengo…") means the call is not info-only — "¿De qué carne hay?" had dropped every caller turn.
+const ASKS_TO_ORDER2 = /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner|mandar|tomar|apartar)\b|\bme\s+(?:prepara|hace|manda|aparta)s?\b/iu;
+const STAFF_TOOK_ORDER = /\ba?l?\s*nombre\s+de\s+qui[eé]n\b|\bqu[eé]\s+nombre\b|\b(?:dame|deme|d[eé]jame)\s+(?:unos?\s+)?\w+\s+minutos\b|\bentonces\s+(?:te\s+)?tengo\b|\btienes\s+una\s+orden\b|\bte\s+voy\s+a\s+dar\b|\bname\s+for\s+(?:the|your)\s+order\b|\bgive\s+me\s+(?:like\s+|about\s+)?\w+\s+minutes\b|\bso\s+i\s+(?:got|have)\b/iu;
 export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string }>): boolean {
   const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text);
   if (!caller.length) return false;
+  if (caller.some((t) => ASKS_TO_ORDER2.test(t)) || turns.some((t) => t.speaker === "staff" && STAFF_TOOK_ORDER.test(t.text))) return false;
   const all = caller.join(" ");
   return !caller.some((t) => ASKS_TO_ORDER.test(t)) && INFO_Q.test(all) && /\?|^\s*(?:are|is|do|does|can|what|which|how|tienen|es|son|lleva|hay)\b/imu.test(all);
 }
@@ -394,6 +399,19 @@ export function staffPick(opts: string[], staffSaid: string): string | null {
   const stem = (w: string) => w.replace(/(?:es|s|a|o)$/, "");
   const hit = opts.filter((_, i) => keys[i].length && keys[i].some((w) => new RegExp(`\\b${stem(w)}(?:[aoe]s?|s)?\\b`).test(said)));
   return hit.length === 1 ? hit[0] : null;
+}
+/** mix1: "tres de bistec con chorizo" is ONE line with both meats (mixed), not 3 bistec + 2 chorizo (Paco). "y" stays separate. */
+export function mixMeats(acts: any[], text: string) {
+  const m = String(text || "").match(new RegExp(`\\b(${MEAT_LIST})\\s+con\\s+(${MEAT_LIST})\\b`, "iu"));
+  if (!m) return;
+  const a0 = m[1].toLowerCase(), b0 = m[2].toLowerCase();
+  const meatOf = (a: any) => (a.modifiers || []).map((x: any) => String(x.option).toLowerCase()).filter((o: string) => new RegExp(MEAT_LIST, "i").test(o));
+  const i = acts.findIndex((a) => a.type === "add_item" && meatOf(a).length === 1 && meatOf(a)[0].includes(a0));
+  const j = acts.findIndex((a, k) => k !== i && a.type === "add_item" && i >= 0 && a.itemId === acts[i].itemId && meatOf(a).length === 1 && meatOf(a)[0].includes(b0));
+  if (i < 0 || j < 0) return;
+  const extra = (acts[j].modifiers || []).filter((x: any) => String(x.option).toLowerCase().includes(b0));
+  acts[i] = { ...acts[i], quantity: Math.max(Number(acts[i].quantity) || 1, Number(acts[j].quantity) || 1), modifiers: [...(acts[i].modifiers || []), ...extra] };
+  acts.splice(j, 1);
 }
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
@@ -519,7 +537,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // tw4938: "dos quesadillas doradas … preparadas" → one line came back at qty 1; the spoken count is the quantity.
     { const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:y|e|and|me\s+das|dame|quiero)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
       if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && named.has(kindOfItem(adds[0].itemId) || "")) adds[0].quantity = n; }
+    mixMeats(acts, text);
     apply(acts);
+    if (process.env.SHADOW_DEBUG) console.error("[shadow]", source, "|", text, "|", JSON.stringify(acts.map((a: any) => [a.type, String(a.itemId || "").slice(3, 30), a.quantity, (a.modifiers || []).map((m: any) => m.option).filter((o: string) => !/salsa asada/i.test(o)).join("+")])), "| cart", cart.length);
     // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
     if (SMALL_SOPE.test(applySharedAliases(text, "phone"))) for (const l of touchedNow) if (/sopes[ae]so/i.test(l.itemId)) l.posSize = "small";
     const added = acts.filter((a: any) => a.type === "add_item");
