@@ -5,7 +5,7 @@ import { withConTodo, withConAddons } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { favoriteAnswer } from "./favorites.js";
 import { recall as recallMemory, rewriteSlang } from "./elvi-knowledge.js";
-import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion } from "./order-name.js";
+import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion, thirdPersonName, markOrderOnlyName } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
 import type { MenuItem } from "./menu.js";
@@ -2028,6 +2028,7 @@ export function phoneOrderNameTurn(input: ElviRequest, lastReply: string, DONE: 
   if (q) {
     const r = resolveNameAnswer(said, q, po.savedName);
     if (!r) return out(ASK_NAME[lang]);
+    if (thirdPersonName(said)) markOrderOnlyName(r.name); // name3p2: order only, not the caller's record
     return out(nameAckText(lang, cleanFirstName(r.name) || r.name), r.name);
   }
   // Correction right after the thank-you ("no, es a nombre de …").

@@ -15,3 +15,15 @@ test("name3p1: staff ask merged into caller turn", () => {
   ];
   assert.equal(nameFromTranscript(turns), "Zuleima");
 });
+import { thirdPersonName, nameFromTranscriptInfo, markOrderOnlyName, isOrderOnlyName, rememberOrderName } from "../../src/order-name.js";
+test("name3p2: third-person name is order-only", () => {
+  assert.equal(thirdPersonName("es para mi compañera, se llama Zuleima"), "Zuleima");
+  assert.equal(thirdPersonName("me llamo Zuleima"), null);
+  const t = [{ speaker: "staff" as const, text: "¿A nombre de quién?" }, { speaker: "caller" as const, text: "es para una señora del trabajo, se llama Zuleima." }];
+  assert.deepEqual(nameFromTranscriptInfo(t), { name: "Zuleima", thirdPerson: true });
+  assert.deepEqual(nameFromTranscriptInfo([{ speaker: "staff", text: "¿A nombre de quién?" }, { speaker: "caller", text: "Testo" }]), { name: "Testo", thirdPerson: false });
+  markOrderOnlyName("Quirina");
+  assert.equal(isOrderOnlyName("quirina"), true);
+  assert.equal(isOrderOnlyName("Quirina", Date.now() + 31 * 60_000), false);
+  assert.deepEqual(rememberOrderName("+15550000000", "Quirina"), { saved: false, reason: "third-person" });
+});

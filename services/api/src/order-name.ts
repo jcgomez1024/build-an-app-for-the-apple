@@ -23,6 +23,15 @@ const TAIL = /[\s,.!]*(?:gracias|thanks?|thank you|por favor|please)?[\s.!?]*$/i
 /** A name in a short answer ("Ana", "a nombre de Ana López", "no, es Luis"). Null for yes/no or junk. */
 // name3p1: third-person name inside a longer answer ("es una señora que trabaja conmigo, se llama Ana.")
 const THIRD = /(?<![\p{L}])(?:se\s+llama|(?:her|his|the)\s+name\s+is|el\s+nombre\s+es)\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/gu;
+/** name3p2: the name in a third-person answer ("se llama Ana") — for the order only, never the caller's record. */
+export function thirdPersonName(text: string): string | null {
+  const th = [...String(text || "").matchAll(THIRD)].pop();
+  return th && !NOT_NAMES.test(th[1].split(" ")[0]) ? cleanFullName(th[1]) || null : null;
+}
+const orderOnly = new Map<string, number>(); // folded first name → marked-at ms
+const foldName = (n: string) => (cleanFirstName(n) || n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+export function markOrderOnlyName(name: string, now = Date.now()) { orderOnly.set(foldName(name), now); }
+export function isOrderOnlyName(name: string, now = Date.now()): boolean { const t = orderOnly.get(foldName(name)); return t != null && now - t < 30 * 60_000; }
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
   const th = [...s.matchAll(THIRD)].pop();
@@ -55,6 +64,7 @@ export function wrapUpNameQuestion(lang: Lang, saved: string | null | undefined)
 }
 /** Save the order name as Elvi-heard ("elvi"); a staff-entered (manual) name is never overwritten. */
 export function rememberOrderName(phone: string, name: string): { saved: boolean; reason: string } {
+  if (isOrderOnlyName(name)) return { saved: false, reason: "third-person" }; // name3p2
   const plan = planCallerName(phone, name, "elvi");
   if (!plan.save) return { saved: false, reason: plan.reason };
   const saved = saveCallerName(phone, name, "elvi");
@@ -106,3 +116,11 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
 }
 /** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
 export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
+/** name3p2: same, plus whether the caller gave it in the third person (then it must not be saved to their phone). */
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean } | null {
+  const name = nameFromTranscript(turns);
+  if (!name) return null;
+  const f = foldName(name);
+  const thirdPerson = turns.some((t) => t.speaker === "caller" && (() => { const n = thirdPersonName(t.text); return !!n && foldName(n) === f; })());
+  return { name, thirdPerson };
+}
