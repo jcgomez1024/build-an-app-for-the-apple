@@ -38,3 +38,19 @@ test("split1: 'tres quesadillas doradas, una de bistec y dos de pollo' splits th
   assert.equal(p.length, 2, JSON.stringify(p)); assert.match(p[0], /^una quesadillas doradas de bistec/); assert.match(p[1], /^dos quesadillas doradas de pollo/);
   assert.deepEqual(splitItems("tres tacos, una de pastor"), ["tres tacos, una de pastor"]);
 });
+test("order3: 'la tercera orden serían tres de bistec con chorizo' rings 3 more of the last dish", async () => {
+  const seen: string[] = [];
+  const run = async (text: string) => { seen.push(text);
+    if (/quesadilla/i.test(text)) return { reply: "¿Algo más?", actions: [{ type: "add_item", itemId: "sq-quesadilla-X", quantity: /tres/i.test(text) ? 3 : 2, modifiers: [{ step: "Carne", option: /bistec/i.test(text) ? "Bistec" : "Tripa" }] }] };
+    return { reply: "¿Algo más?", actions: [] }; };
+  const r: any = await shadowOrderFromTurns([T("caller", "dos quesadillas de tripa", 0), T("staff", "¿Algo más?", 2), T("caller", "Y la, y la tercera orden serían tres de, de bistec con chorizo.", 4), T("staff", "¿Algo más?", 6), T("caller", "es todo, gracias", 8)], run as any);
+  assert.equal(r.cart.length, 2, seen.join(" | "));
+});
+test("dish1: 'una orden de tacos' then 'me da cuatro de tripa y cuatro de costilla' → 2 taco lines of 4", async () => {
+  const seen: string[] = [];
+  const run = async (text: string) => { seen.push(text);
+    if (/tacos? de (tripa|costilla)/i.test(text)) return { reply: "¿Algo más?", actions: [{ type: "add_item", itemId: "sq-taco-X", quantity: 4, modifiers: [{ step: "Carne", option: /tripa/i.test(text) ? "Tripa" : "Costilla" }] }] };
+    return { reply: "¿Qué tacos?", actions: [] }; };
+  const r: any = await shadowOrderFromTurns([T("caller", "Buenas tardes, quería poner una orden de tacos.", 0), T("caller", "Diga, ah, me da cuatro de tripa y cuatro de costilla.", 2), T("staff", "¿Algo más?", 4), T("caller", "Sería todo.", 6)], run as any);
+  assert.equal(r.cart.reduce((a: number, l: any) => a + l.quantity, 0), 8, seen.join(" | "));
+});

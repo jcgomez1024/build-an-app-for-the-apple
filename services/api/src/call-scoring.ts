@@ -597,6 +597,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     } else merged.push({ ...t });
   }
   turns = merged;
+  const merged0 = turns;
   for (let t of turns) {
     if (t.speaker !== "caller") {
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
@@ -791,6 +792,21 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "caller-meat-expanded", heard: t.text, asked, expanded });
       continue;
     }
+    // order3: "Y la tercera orden serían tres de bistec con chorizo" — a numbered order with only "N de MEAT" is another of the
+    // last dish (Paco's 3rd quesadilla order was dropped).
+    { const m = t.text.match(/\b(?:primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|otra)\s+orden\s+(?:ser[ií]an?|es|son|ser[aá]n?|de)\s+(.*)$/iu);
+      const lastDish = [...cart].reverse().map((l: any) => dishNoun(String(l.itemId).replace(/^sq-/, "").replace(/-/g, " "))).find(Boolean);
+      if (m && !FOOD.test(m[1]) && MEAT_WORDS.test(m[1]) && lastDish) t = { ...t, text: m[1].replace(new RegExp(`^(${QTY})\\s+(?:de,?\\s+)+`, "iu"), `$1 ${lastDish}s de `) }; }
+    // dish1b: same, merged into one turn ("…una orden de tacos. Diga, me da cuatro de tripa y cuatro de costilla").
+    { const m = t.text.match(/\b(?:una?\s+)?orden\s+de\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|tostadas|tamales|enchiladas|flautas)\b/iu);
+      if (m && !cart.length) { const tail = t.text.slice((m.index || 0) + m[0].length);
+        if (!FOOD.test(tail) && new RegExp(`\\b${QTY}\\s+de\\s+\\p{L}`, "iu").test(tail))
+          t = { ...t, text: tail.replace(/^[\s.,]*(?:diga,?\s*)?(?:ah,?\s*)?/iu, "").replace(new RegExp(`\\b(${QTY})\\s+de\\s+(?=\\p{L})`, "giu"), `$1 ${m[1].toLowerCase()} de `) }; } }
+    // dish1: "quería poner una orden de tacos" → "me da cuatro de tripa y cuatro de costilla": the counts are of that dish.
+    { const prevC = [...merged0].reverse().find((u) => u !== t && u.speaker === "caller" && u.start < t.start);
+      const ctx = prevC && FOOD.test(prevC.text) && !/\b(dos|tres|cuatro|cinco|seis|siete|ocho|two|three|four|five|six|\d+)\b/i.test(prevC.text) ? dishNoun(prevC.text) : "";
+      if (ctx && !cart.length && !FOOD.test(t.text) && new RegExp(`(?:^|\\s)(?:me\\s+da|dame|quiero|give me)?\\s*${QTY}\\s+de\\s+\\p{L}`, "iu").test(t.text))
+        t = { ...t, text: t.text.replace(new RegExp(`\\b(${QTY})\\s+de\\s+(?=\\p{L})`, "giu"), `$1 ${ctx}s de `) }; }
     for (const raw of splitItems(cleanPhrase(t.text))) {
       let piece = cleanPhrase(raw).replace(TOKENS, " ").replace(/\b(?:para\s+)?(?:un\s+)?pedido\s*$/iu, "").replace(/\s{2,}/g, " ").trim();
       if (!piece) continue;
