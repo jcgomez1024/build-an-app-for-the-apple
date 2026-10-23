@@ -61,3 +61,8 @@ test("size1: 'A regular.' to the size question resizes the burrito, not a 2nd on
   const r: any = await shadowOrderFromTurns([T("caller", "Y un burrito de pollo.", 0), T("staff", "¿Lo quieres regular o grande?", 2), T("caller", "A regular.", 4), T("staff", "Muy bien.", 6), T("caller", "Sería todo.", 8)], run as any);
   assert.equal(r.cart.length, 1); assert.equal(r.cart[0].modifiers[0].option, "Regular '10");
 });
+test("meatsplit1: 'Can I get one steak and one chorizo?' splits the 2 quesadillas just rung", async () => {
+  const run = async (text: string) => /quesadilla/i.test(text) ? { reply: "¿Algo más?", actions: [{ type: "add_item", itemId: "sq-q", quantity: 2, modifiers: [{ step: "T", option: "(QHR) Quesadilla Harina / Flour" }, { step: "M", option: "Bistec / Steak" }] }] } : { reply: "Anything else?", actions: [{ type: "add_item", itemId: "sq-q", quantity: 2, modifiers: [] }] };
+  const r: any = await shadowOrderFromTurns([T("caller", "if I get two flour steak quesadillas deluxe,", 0, "en"), T("staff", "Okay.", 2), T("caller", "Can I get one steak and one chorizo?", 4, "en"), T("staff", "Anything else?", 6), T("caller", "that's it, thanks", 8, "en")], run as any);
+  assert.deepEqual(r.cart.map((l: any) => [l.quantity, l.modifiers[1].option]), [[1, "Bistec / Steak"], [1, "Chorizo / Mexican Sausage"]]);
+});

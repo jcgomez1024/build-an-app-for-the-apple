@@ -796,6 +796,18 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "caller-meat-expanded", heard: t.text, asked, expanded });
       continue;
     }
+    // meatsplit1: "two flour steak quesadillas deluxe" → "Can I get one steak and one chorizo?" splits the line just rung by meat
+    // (Bree) instead of adding two more.
+    { const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^costilla$/i, "Costilla / Beef Rib"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^buche$/i, "Buche / Pork Stomach"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^prensado$/i, "Prensado / Spicy Pork"]];
+      const W: Record<string, number> = { one: 1, una: 1, uno: 1, un: 1, two: 2, dos: 2, three: 3, tres: 3 };
+      const prev = cart[cart.length - 1] as any; const body = t.text.replace(/^.*?\b(?:can i get|could i get|get|me da|dame)\s+/iu, "").replace(/[?.!]+\s*$/, "");
+      const parts = [...body.matchAll(/\b(one|una?|uno|two|dos|three|tres)\s+(?:de\s+|of\s+)?([\p{L}]+(?:\s+pastor)?)/giu)];
+      const mi = prev ? (prev.modifiers || []).findIndex((m: any) => MEAT_OPT.some(([, o]) => String(m.option).startsWith(o.split(" (")[0]))) : -1;
+      if (prev && mi >= 0 && !FOOD.test(t.text) && parts.length >= 2 && parts.every((p) => MEAT_OPT.some(([re]) => re.test(p[2])))
+        && parts.reduce((a, p) => a + W[p[1].toLowerCase()], 0) === (prev.quantity || 1) && body.replace(/\b(one|una?|uno|two|dos|three|tres|and|y|of|de)\b|[\p{L}]+/giu, (w) => parts.some((p) => p[2].toLowerCase() === w.toLowerCase()) || /^(one|una?|uno|two|dos|three|tres|and|y|of|de)$/i.test(w) ? "" : "X").replace(/[\s,]/g, "") === "") {
+        cart.pop();
+        for (const p of parts) { const opt = MEAT_OPT.find(([re]) => re.test(p[2]))![1]; const mods = [...prev.modifiers]; mods[mi] = { ...mods[mi], option: opt }; cart.push({ ...prev, quantity: W[p[1].toLowerCase()], modifiers: mods }); }
+        steps.push({ source: "meat-split", heard: t.text }); continue; } }
     // order3: "Y la tercera orden serían tres de bistec con chorizo" — a numbered order with only "N de MEAT" is another of the
     // last dish (Paco's 3rd quesadilla order was dropped).
     { const m = t.text.match(/\b(?:primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|otra)\s+orden\s+(?:ser[ií]an?|es|son|ser[aá]n?|de)\s+(.*)$/iu);
