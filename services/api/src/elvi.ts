@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
 import WebSocket from "ws";
 import { withConTodo, withConAddons } from "./standard-toppings.js";
@@ -1422,8 +1423,11 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
     .map((turn) => `${turn.role === "customer" ? "Customer" : "Elvi"}: ${turn.text}`)
     .join("\n");
 
+  // donts1: audited "what not to do" list (data/elvi-donts.json), read once.
+  const donts = (() => { try { return (JSON.parse(readFileSync(new URL("../data/elvi-donts.json", import.meta.url), "utf8")).donts || []) as string[]; } catch { return [] as string[]; } })();
   return [
     "You are Elvi, the fastest and most accurate order taker at Cocina Elvis. Act like an experienced human cashier who gets it right the first time.",
+    ...(donts.length ? ["NEVER DO THESE (from real missed orders):", ...donts.map((d) => "- " + d)] : []),
     "Never greet, make small talk, or explain yourself. Only speak to confirm actions or ask the absolute minimum needed to complete the order.",
     "Keep every reply to ONE short sentence (under 8 words when possible). Confirmations: 'Added.', 'Got it.', 'Removed.', 'Anything else?'.",
     "Always prefer action over questions. When the transcript is even slightly understandable, immediately call the correct tool instead of asking for clarification.",
