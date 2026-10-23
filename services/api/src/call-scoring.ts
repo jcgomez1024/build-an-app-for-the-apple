@@ -573,6 +573,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // larry1: "you got quesadilla today?" / "¿tienen birria hoy?" asks what's available; it isn't an order line (it opened a
   // quesadilla question that swallowed the Queso Birrias and the rest of the call).
   // …only when the caller names that dish again later ("do you have plate x today?" → "can I order some" still needs it).
+  // avail4: "Sí, y me da, ¿tienen como arroz, como una side de arroz?" — a trailing ¿tienen/hay/manejan …? clause with no count is a
+  // question; strip it, and drop the turn if only filler is left (the order comes on the next turn: "me da una side de arroz").
+  turns = turns.flatMap((t) => { if (t.speaker !== "caller") return [t];
+    const m = t.text.match(/^(.*?)[,\s]*¿\s*(?:tienen|hay|manejan|tiene|est[aá]\s+disponible)\b[^?¿]*\?\s*$/iu);
+    if (!m || !m[1].trim() || /\b(\d+|dos|tres|cuatro|cinco)\b/iu.test(t.text.slice(m[1].length))) return [t];
+    const rest = m[1].trim(); return dishesNamed(rest).size || /\b\d+\b/.test(rest) ? [{ ...t, text: rest }] : []; });
   // avail2: any availability question ("¿tienen arroz?", "do you have X?") is never an order line, whether or not the dish is named again.
   turns = turns.filter((t, i) => !(t.speaker === "caller" && !(() => { const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); return !!nx && !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$/iu.test(nx.text); })() && !/\b(?:quiero|dame|deme|me\s+da|I'?ll\s+take|I'?ll\s+have|can\s+I\s+(?:get|have|order)|let\s+me\s+get|I\s+want|give\s+me|me\s+pones?)\b/iu.test(t.text) && /^\W*(?:(?:hey|so|and|oh|y|oye)[,\s]+)?(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
   const merged: CallTurn[] = [];

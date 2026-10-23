@@ -27,3 +27,8 @@ test("qbcomal1: Queso Birrias with no tortilla named → comal (QCO); 'street' k
   const b: any = await shadowOrderFromTurns([T("caller", "one queso birrias street please", 0, "en"), T("staff", "Anything else?", 2), T("caller", "that's it, thanks", 4, "en")], mk(qst) as any);
   assert.match(b.cart[0].modifiers[0].option, /^\(QST\)/);
 });
+test("avail4: 'Sí, y me da, ¿tienen como arroz…?' then 'me da una side de arroz' → 1 rice", async () => {
+  const seen: string[] = [];
+  const r: any = await shadowOrderFromTurns([T("caller", "dame dos tacos de asada", 0), T("staff", "¿Algo más?", 2), T("caller", "Sí, y me da, ¿tienen como arroz, como una side de arroz?", 4), T("staff", "Sí.", 6), T("caller", "Ok, me da una side de arroz.", 8), T("staff", "¿Algo más?", 10), T("caller", "es todo, gracias", 12)], runner(seen) as any);
+  assert.equal(r.cart.filter((l: any) => l.itemId === "sq-rice").reduce((a: number, l: any) => a + l.quantity, 0), 1, seen.join(" | "));
+});
