@@ -634,6 +634,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // staffpick2: if the caller answers the open choice themselves this turn ("Ajá, de comal"), let their turn answer it.
       const selfPick = qs.map((q) => staffPick(optsOf(q), t.text)).find(Boolean) || null;
       let pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
+      // larry1: staff's yes/no check ("Flour, right?" / "¿De harina?") + caller "Yep" answers the open tortilla choice.
+      if (!pick && !selfPick && /^\W*(yep|yup|yes|yeah|uh-?huh|correct|right|s[ií]|aj[aá]|exacto|eso)\b/iu.test(t.text)) {
+        const tw = (rawStaff.match(/\b(flour|harina|corn|comal|ma[ií]z|taquer[ao]|street)\b[^?]*\?/iu) || [])[1];
+        if (tw) { const want = /flour|harina/i.test(tw) ? /flour|harina/i : /taquer|street/i.test(tw) ? /taquer|street/i : /comal|homemade|ma[ií]z/i;
+          pick = qs.map((q) => optsOf(q).find((o) => want.test(o))).find(Boolean) || null; } }
       // tortdef1 (Nico 11:40): an unanswered tortilla-type question must not block the item. Once the order moves on (staff
       // "anything else / algo más / name", or caller "that is it / es todo"), take the house default — corn/comal, as staff rings it.
       if (!pick && !selfPick) {
@@ -644,6 +649,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const tq = movedOn || affirm ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
         if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
       }
+      // larry1: staff offers a side ("you want onions and peppers?") → caller "yes… two of those": ring that side.
+      { const off = rawStaff.match(/\b(?:want|quieres?|gusta)\b[^?]*?\b((?:grilled\s+)?onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?(?:\s+asados?)?)\b[^?]*\?/iu);
+        const yes = /\b(yes|yeah|yep|sure|s[ií]|aj[aá])\b/iu.test(t.text);
+        const m2 = t.text.match(/\b(\d|one|two|three|four|una?|dos|tres|cuatro)\s+(?:of\s+)?(?:those|them|these|esos?|esas?|de\s+es[oa]s)\b/iu);
+        if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} cebolla y chiles asados`;
+          last = await say(said2, t.language, "staff-offer-yes"); steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); } }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,

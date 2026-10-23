@@ -2134,6 +2134,11 @@ async function chatWithTextAgent(input: ElviRequest, runtime: XaiRuntimeConfig, 
       if (r.ok || (r.status < 500 && r.status !== 429)) break;
       await new Promise((res) => setTimeout(res, 2000 * (a + 1)));
     }
+    if (!r!.ok && /nvidia/.test(runtime.baseUrl) && process.env.REPLAY_FALLBACK !== "0") {
+      // NVIDIA down / rate-limited: fall back to the local Qwen on this Mac (test replays only).
+      console.error(`[replay] NVIDIA ${r!.status}; falling back to local Qwen`);
+      return await chatWithTextAgent(input, { ...runtime, apiKey: "ollama", baseUrl: "http://localhost:11434/v1", model: process.env.REPLAY_FALLBACK_MODEL || "qwen3:8b" }, instructions);
+    }
     if (!r!.ok) throw new Error(JSON.stringify(j).slice(0, 300));
     const m = j.choices[0].message; messages.push(m);
     if (m.content) text += String(m.content).replace(/<think>[\s\S]*?<\/think>/g, "");
