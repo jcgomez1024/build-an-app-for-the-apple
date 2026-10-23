@@ -545,7 +545,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
   // Phone staff fill in the details; accept Elvi's suggested choices for whatever is still open.
-  const optsOf = (reply: string) => (String(reply || "").match(/¿([^?]+)\?\s*$/u)?.[1] || "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what)\b/iu.test(x));
+  const optsOf = (reply: string) => (String(reply || "").match(/(?:¿([^?¿]+)|([^?¿]+))\?\s*$/u)?.slice(1).find(Boolean) || "").replace(/^[^:]*:\s*/u, "").replace(/^\s*and\s+/iu, "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what)\b/iu.test(x));
   const acceptOpen = async (lang: "es" | "en") => {
     for (let i = 0; i < 4 && asking(last); i++) {
       const prev = String(last.reply || ""), n0 = cart.length;
@@ -616,12 +616,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // staffpick1: Elvi's open choice ("¿Taco Comal, Taco Harina o Taco Taquero?", "¿REGULAR Dorada o DELUXE Preparada?") that
     // staff settled out loud since the caller last spoke ("Taco normal, taquero.", "Normales.") is answered with staff's pick.
     // Callers rarely repeat the option name, so the question stayed open and swallowed the rest of the order (5:22 PM call).
-    { const said = staffSince.flatMap((x) => x.split(/(?<=[.!])\s+|¿[^?]*\?/u)).filter((x) => x.trim() && !/\?/.test(x)).join(" ");
+    { const rawStaff = staffSince.join(" "); const said = staffSince.flatMap((x) => x.split(/(?<=[.!])\s+|¿[^?]*\?/u)).filter((x) => x.trim() && !/\?/.test(x)).join(" ");
       staffSince = [];
-      const qs = asking(last) ? (String(last.reply || "").match(/¿[^?¿]+\?/gu) || []) : [];
+      const qs = asking(last) ? (String(last.reply || "").match(/(?:¿[^?¿]+|[^.!?¿:]+)\?/gu) || []) : [];
       // staffpick2: if the caller answers the open choice themselves this turn ("Ajá, de comal"), let their turn answer it.
       const selfPick = qs.map((q) => staffPick(optsOf(q), t.text)).find(Boolean) || null;
-      const pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
+      let pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
+      // tortdef1 (Nico 11:40): an unanswered tortilla-type question must not block the item. Once the order moves on (staff
+      // "anything else / algo más / name", or caller "that is it / es todo"), take the house default — corn/comal, as staff rings it.
+      if (!pick && !selfPick) {
+        const nf = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+        const movedOn = /\b(anything else|something else|algo mas|otra cosa|name for the order|nombre)\b/.test(nf(rawStaff)) || /\b(that is it|that's it|thats it|that's all|nothing else|es todo|eso es todo|nada mas|seria todo)\b/.test(nf(t.text));
+        const tq = movedOn ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina)\b/i.test(x))) : null;
+        if (tq) pick = tq.find((x) => /\b(corn|comal|maiz)\b/i.test(x)) || null;
+      }
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
@@ -637,7 +645,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (staffChoices && FOOD.test(staffChoices) && !/\bcon\s+tod(?:it)?o\b/iu.test(t.text)) { last = await say(`${staffChoices}${/con\s+todo/i.test(t.text) ? ", con todo" : ""}`, t.language, "caller-staff-readback"); steps.push({ source: "caller-staff-readback", heard: t.text }); if (asking(last)) await acceptOpen(t.language); continue; }
       // "con todo" / confirming staff's list → name the options from Elvi's own question (all of them for "con todo",
       // otherwise the ones staff read back)
-      { const opts = (String(last.reply || "").match(/¿([^?]+)\?\s*$/u)?.[1] || "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what|regular|deluxe)\b/iu.test(x));
+      { const opts = (String(last.reply || "").match(/(?:¿([^?¿]+)|([^?¿]+))\?\s*$/u)?.slice(1).find(Boolean) || "").replace(/^[^:]*:\s*/u, "").replace(/^\s*and\s+/iu, "").replace(/^\s*y\s+/iu, "").split(/\s*,\s*|\s+o\s+|\s+or\s+/u).map((x) => x.trim()).filter((x) => x && !/^(qu[eé]|what|regular|deluxe)\b/iu.test(x));
         const staffRun = nrm(recentStaff.join(" "));
         const pick = /\bcon\s+tod(?:it)?o\b|\bwith\s+everything\b/iu.test(t.text) ? opts.filter((o) => !/double|doble/i.test(o)) : confirm ? opts.filter((o) => staffRun.includes(nrm(o).split(" ")[0])) : [];
         if (pick.length && !dishesNamed(t.text).size) { last = await say(pick.join(", "), t.language, "caller-answer"); steps.push({ source: "caller-answer", heard: t.text }); if (asking(last)) await acceptOpen(t.language); continue; } }
