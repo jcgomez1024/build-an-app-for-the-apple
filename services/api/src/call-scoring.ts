@@ -423,13 +423,13 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
   // desk2 (Julio): "¿tiene nachos?" → "¿me puede preparar una?" — the dish-less order is for the dish the caller just asked about
   { let lastDish = ""; let givenName = "";
     for (const t of merged) { if (t.speaker !== "caller") continue;
-      const d = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?)\b/iu);
+      const d = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu);
       if (d) { lastDish = d[1]; continue; }
       { const nm = t.text.match(/\ba\s+nombre\s+de\s+(\p{L}+)/iu); if (nm) givenName = nm[1].toLowerCase();
         const w = t.text.toLowerCase().replace(/[^\p{L}\s]/gu, " ").split(/\s+/).filter(Boolean);
         if (!nm && givenName && w.includes(givenName) && w.every(x => x === givenName || /^(de|aj[aá]|s[ií]|ok(ay)?|es|a|nombre)$/.test(x))) { t.text = ""; continue; } } // desk2: name echo "de julio, ajá"
-      if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(un[oa]?|dos|tres)\b/iu.test(t.text))
-        t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner)\s+(?:un[oa]?|dos|tres))\b/iu, `$1 orden de ${lastDish}`); } }
+      if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(un[oa]?|dos|tres)\b\s*(?:,?\s*(?:porfa|por\s+favor|please))?\s*[.?!]*\s*$/iu.test(t.text))
+        t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres))\b/iu, `$1 orden de ${lastDish}`); } }
 }
 export const DORADA_DELUXE_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", DORADA_REG_ID = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
 /** mix1: "tres de bistec con chorizo" is ONE line with both meats (mixed), not 3 bistec + 2 chorizo (Paco). "y" stays separate. */

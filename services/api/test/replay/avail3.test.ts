@@ -116,3 +116,12 @@ test("decline1/restate1: a decline adds nothing; a restated pair sets counts", a
   const q = r.cart.filter((l: any) => l.itemId === Q).map((l: any) => l.quantity).sort();
   assert.deepEqual(q, [1, 2]); assert.ok(!r.cart.some((l: any) => /torta|pambazo/.test(l.itemId)));
 });
+test("coctel1: aliases + dish-less 'me pone uno' after 'tiene coctel de camarón'", async () => {
+  const { applySharedAliases } = await import("../../src/aliases.ts");
+  assert.equal(applySharedAliases("tiene coctel de camarón", "phone"), "tiene Coctel de Camarones / Shrimp Cocktail");
+  assert.equal(applySharedAliases(applySharedAliases("tiene coctel de camarón", "phone"), "phone"), "tiene Coctel de Camarones / Shrimp Cocktail");
+  assert.equal(applySharedAliases("Eh, nada más el coctel", "phone"), "Eh, Coctel de Camaron / Shrimp");
+  assert.equal(applySharedAliases("solo camarón y pulpo", "phone"), "solo camarón y pulpo");
+  const m: any[] = [{ speaker: "caller", text: "Eh, tiene coctel de camarón" }, { speaker: "caller", text: "Me pone uno" }];
+  prepMergedCallerTurns(m); assert.match(m[1].text, /pone uno orden de coctel de camarón/i);
+});
