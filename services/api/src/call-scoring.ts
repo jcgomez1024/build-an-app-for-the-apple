@@ -619,7 +619,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     { const said = staffSince.flatMap((x) => x.split(/(?<=[.!])\s+|¿[^?]*\?/u)).filter((x) => x.trim() && !/\?/.test(x)).join(" ");
       staffSince = [];
       const qs = asking(last) ? (String(last.reply || "").match(/¿[^?¿]+\?/gu) || []) : [];
-      const pick = qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null;
+      // staffpick2: if the caller answers the open choice themselves this turn ("Ajá, de comal"), let their turn answer it.
+      const selfPick = qs.map((q) => staffPick(optsOf(q), t.text)).find(Boolean) || null;
+      const pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
