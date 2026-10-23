@@ -123,6 +123,13 @@ export function splitItems(text: string): string[] {
     stripped = next;
   }
   if (!stripped) stripped = text;
+  // split1: "tres quesadillas doradas, una de bistec y dos de pollo" — the total splits across meats (not 3 of the first meat).
+  { const n = (w: string) => ({ un: 1, una: 1, uno: 1, one: 1, a: 1, an: 1 } as Record<string, number>)[w.toLowerCase()] || QTY_N[w.toLowerCase()] || Number(w) || 0;
+    const m = stripped.match(new RegExp(`^(.*?)\\b(${QTY})\\s+([\\p{L}][\\p{L} ]{2,40}?)\\s*,\\s*(${QTY}\\s+(?:de|of)\\s+.+)$`, "iu"));
+    if (m && !/\b(?:de|of)\b/iu.test(m[3])) { const parts = m[4].split(new RegExp(`\\s*(?:,|\\by\\b|\\band\\b)\\s*(?=${QTY}\\s+(?:de|of)\\s)`, "iu")).map((x) => x.trim()).filter(Boolean);
+      const qs = parts.map((x) => n(x.split(/\s+/)[0])); const total = n(m[2]);
+      if (parts.length >= 2 && total > 1 && qs.every((q) => q > 0) && qs.reduce((a, b) => a + b, 0) === total)
+        stripped = `${m[1]}${parts.map((x) => x.replace(/^(\S+)\s+(de|of)\s+/iu, `$1 ${m[3].trim()} $2 `)).join(", y ").replace(/,\s*,/g, ",").replace(/,(\s*,\s*y)/g, "$1")}`; } }
   const parts = stripped.split(new RegExp(`\\s*(?:,|;|\\by\\b|\\band\\b|\\btambién\\b|\\balso\\b|\\bplus\\b)\\s+(?=(?:(?:me\\s+)?(?:das|da|pones|give me|get me|add)\\s+)?${QTY}\\s+\\p{L})`, "giu"));
   // fix21: "una de chorizo, una de tepa y otra de buche" continues the same dish — rejoin those pieces.
   const out: string[] = [];
@@ -580,7 +587,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (!m || !m[1].trim() || /\b(\d+|dos|tres|cuatro|cinco)\b/iu.test(t.text.slice(m[1].length))) return [t];
     const rest = m[1].trim(); return dishesNamed(rest).size || /\b\d+\b/.test(rest) ? [{ ...t, text: rest }] : []; });
   // avail2: any availability question ("¿tienen arroz?", "do you have X?") is never an order line, whether or not the dish is named again.
-  turns = turns.filter((t, i) => !(t.speaker === "caller" && !(() => { const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); return !!nx && !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$/iu.test(nx.text); })() && !/\b(?:quiero|dame|deme|me\s+da|I'?ll\s+take|I'?ll\s+have|can\s+I\s+(?:get|have|order)|let\s+me\s+get|I\s+want|give\s+me|me\s+pones?)\b/iu.test(t.text) && /^\W*(?:(?:hey|so|and|oh|y|oye)[,\s]+)?(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
+  turns = turns.filter((t, i) => !(t.speaker === "caller" && !(() => { const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); return !!nx && !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$/iu.test(nx.text); })() && !/\b(?:quiero|dame|deme|me\s+da|I'?ll\s+take|I'?ll\s+have|can\s+I\s+(?:get|have|order)|let\s+me\s+get|I\s+want|give\s+me|me\s+pones?)\b/iu.test(t.text) && /^\W*(?:(?:hey|so|and|oh|y|oye|ah|am|um|uh|s[ií]|bueno|disculpe|ok(?:ay)?)[,.\s]+){0,3}(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text) && !/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text)));
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];

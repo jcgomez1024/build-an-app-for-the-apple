@@ -7,7 +7,7 @@ const runner = (seen: string[]) => async (text: string) => { seen.push(text);
   if (/arroz|rice/i.test(text)) return { reply: "Arroz agregado.", actions: [{ type: "add_item", itemId: "sq-rice", quantity: 1, modifiers: [] }] };
   if (/taco/i.test(text)) return { reply: "Dos tacos. ¿Algo más?", actions: [{ type: "add_item", itemId: "sq-taco", quantity: 2, modifiers: [] }] };
   return { reply: "¿Algo más?", actions: [] }; };
-for (const [q, lang] of [["¿tienen arroz?", "es"], ["¿hay arroz hoy?", "es"], ["do you have rice?", "en"], ["you got rice today?", "en"], ["is rice available?", "en"], ["is that available?", "en"], ["do you guys have rice?", "en"], ["do you still have rice?", "en"], ["¿está disponible el arroz?", "es"], ["¿tienen disponible arroz?", "es"], ["¿manejan arroz?", "es"]]) {
+for (const [q, lang] of [["¿tienen arroz?", "es"], ["¿hay arroz hoy?", "es"], ["do you have rice?", "en"], ["you got rice today?", "en"], ["is rice available?", "en"], ["is that available?", "en"], ["do you guys have rice?", "en"], ["do you still have rice?", "en"], ["¿está disponible el arroz?", "es"], ["¿tienen disponible arroz?", "es"], ["¿manejan arroz?", "es"], ["Ah, ¿tienen arroz?", "es"]]) {
   test(`avail3: '${q}' adds no rice`, async () => {
     const seen: string[] = [];
     const r: any = await shadowOrderFromTurns([T("caller", q, 0, lang), T("staff", "Sí.", 2), T("caller", "dame dos tacos de asada", 4), T("staff", "¿Algo más?", 6), T("caller", "es todo, gracias", 8)], runner(seen) as any);
@@ -31,4 +31,10 @@ test("avail4: 'Sí, y me da, ¿tienen como arroz…?' then 'me da una side de ar
   const seen: string[] = [];
   const r: any = await shadowOrderFromTurns([T("caller", "dame dos tacos de asada", 0), T("staff", "¿Algo más?", 2), T("caller", "Sí, y me da, ¿tienen como arroz, como una side de arroz?", 4), T("staff", "Sí.", 6), T("caller", "Ok, me da una side de arroz.", 8), T("staff", "¿Algo más?", 10), T("caller", "es todo, gracias", 12)], runner(seen) as any);
   assert.equal(r.cart.filter((l: any) => l.itemId === "sq-rice").reduce((a: number, l: any) => a + l.quantity, 0), 1, seen.join(" | "));
+});
+test("split1: 'tres quesadillas doradas, una de bistec y dos de pollo' splits the 3 across meats", async () => {
+  const { splitItems } = await import("../../src/call-scoring.ts");
+  const p = splitItems("tres quesadillas doradas, una de bistec y dos de pollo.");
+  assert.equal(p.length, 2, JSON.stringify(p)); assert.match(p[0], /^una quesadillas doradas de bistec/); assert.match(p[1], /^dos quesadillas doradas de pollo/);
+  assert.deepEqual(splitItems("tres tacos, una de pastor"), ["tres tacos, una de pastor"]);
 });
