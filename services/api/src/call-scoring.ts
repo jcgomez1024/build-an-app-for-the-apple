@@ -420,6 +420,21 @@ export function rewriteCallerText(text: string): string {
   return s;
 }
 export function prepMergedCallerTurns(merged: { speaker: string; text: string }[]): void {
+  // fixmeat1 (Jesús): "de chorizo, que diga, perdón, del pastor" — the self-correction replaces the meat
+  const FIXW = String.raw`(?:que\s+diga|perd[oó]n|digo|mejor|no+)`;
+  for (const t of merged) if (t.speaker === "caller")
+    t.text = t.text.replace(new RegExp(String.raw`\bde\s+(?:${MEAT_LIST}|pastor)\s*,?\s*${FIXW}(?:\s*,?\s*${FIXW})*\s*,?\s*(?:de\s+|del\s+)?(al\s+pastor|pastor|${MEAT_LIST})\b`, "iu"), (_m, y) => `de ${/^pastor$/i.test(y) ? "al pastor" : y}`);
+  // combo1 (Jesús): "el combo de las gorditas" is the COMBO Gorditas item, not the quesadilla combo just talked about
+  for (const t of merged) if (t.speaker === "caller")
+    t.text = t.text.replace(/\b(?:un\s*,?\s*)?(?:el\s+|un\s+)?combo\s+de\s+(?:las\s+|los\s+)?(gorditas|tacos|tortas|quesadillas|burritos?)\b/giu, (_m, d) => `un COMBO ${d[0].toUpperCase()}${d.slice(1).toLowerCase()}`);
+  // split2 (Jesús): "una quesadilla …, y me puede dar el combo de las gorditas …" is two orders in one merged turn;
+  // a tortilla answer (harina/maíz) inside the gordita part belongs to the quesadilla (gorditas are corn only).
+  for (let i = 0; i < merged.length; i++) { const t = merged[i]; if (t.speaker !== "caller") continue;
+    const m = t.text.match(/^(.*\bquesadillas?\b.*?),?\s+y\s+(me\s+(?:puede|puedes|podr[ií]a)\s+dar\b.*\bgorditas?\b.*)$/isu);
+    if (!m) continue;
+    let [a, b] = [m[1], m[2]]; const tort = b.match(/\bde\s+(harina|ma[ií]z)\b/iu);
+    if (tort) { b = b.replace(tort[0], " "); a = a.replace(/\bquesadillas?\b/iu, (q) => `${q} de ${tort[1]}`); }
+    t.text = a; merged.splice(i + 1, 0, { ...t, text: b }); i++; }
   // desk2 (Julio): "¿tiene nachos?" → "¿me puede preparar una?" — the dish-less order is for the dish the caller just asked about
   { let lastDish = ""; let givenName = "";
     for (const t of merged) { if (t.speaker !== "caller") continue;

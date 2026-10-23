@@ -135,3 +135,12 @@ test("coctel2: 'Coctel de Camaron / Shrimp' / 'nada más camarón' picks the pla
   assert.equal(pickVariation("un coctel", items).length, 2);
   assert.equal(pickVariation("coctel de camarón con pulpo", items).length, 1);
 });
+
+test("fixmeat1/split2/combo1 (Jesús): self-correction replaces the meat; quesadilla and gordita combo split", () => {
+  const m = [{ speaker: "caller", text: "una quesadilla de chorizo, que diga, perdón, del pastor, y me puede dar un, el combo de las gorditas Ah, de harina Sí" }];
+  prepMergedCallerTurns(m);
+  assert.equal(m.length, 2);
+  assert.equal(m[0].text, "una quesadilla de harina de al pastor");
+  assert.match(m[1].text, /COMBO Gorditas/);
+  assert.doesNotMatch(m[1].text, /harina|chorizo/);
+});
