@@ -12,5 +12,6 @@ test("hours1: out-of-window dorada is refused, not a Regular/Deluxe question", (
     "quiero una quesadilla dorada preparada de bistec con cabeza", menu as any, "es");
   assert.doesNotMatch(r.reply, /regular o deluxe/i);
   assert.match(r.reply, /7:59/);
+  assert.match(r.reply, /comal/i); assert.match(r.reply, /tacos/i); assert.doesNotMatch(r.reply, /regular/i);
   assert.equal(r.actions.filter((a: any) => a.type === "add_item").length, 0);
 });

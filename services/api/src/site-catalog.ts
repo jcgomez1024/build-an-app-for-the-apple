@@ -145,6 +145,11 @@ export function unavailableNowReply(item: { name: string }, squareItemId: string
   const a = itemAvailability(squareItemId, now);
   if (a.available || !a.window) return null;
   const name = item.name.replace(/\s*\([A-Z]{1,4}\)\s*/g, " ").trim();
+  // dorada1 (Carlos 10/23): after the Especial window every Quesadilla Dorada (Regular and Deluxe Preparada) is off —
+  // say so once and offer comal quesadillas or tacos (Deluxe too), never the Regular Dorada.
+  if (/\bdorad[ao]s?\b|\(QD\)/i.test(item.name)) return language === "es"
+    ? `Las quesadillas doradas ${a.today ? `hoy solo están disponibles ${a.today}` : `solo están disponibles ${a.window.es}`}. Le puedo ofrecer quesadillas de comal o tacos, también deluxe. ¿Qué le pongo, o algo más?`
+    : `Quesadilla Doradas ${a.today ? `are only available ${a.today} today` : `are only available ${a.window.en}`}. I can offer comal quesadillas or tacos, deluxe too. What would you like, or anything else?`;
   return language === "es"
     ? `${name} ${a.today ? `hoy solo está disponible ${a.today}` : `solo está disponible ${a.window.es}`}. No lo agregué. ¿Algo más?`
     : `${name} ${a.today ? `is only available ${a.today} today` : `is only available ${a.window.en}`}. I didn't add it. Anything else?`;
