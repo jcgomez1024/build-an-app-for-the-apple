@@ -25,8 +25,15 @@ const TAIL = /[\s,.!]*(?:gracias|thanks?|thank you|por favor|please)?[\s.!?]*$/i
 const THIRD = /(?<![\p{L}])(?:se\s+llama|(?:her|his|the)\s+name\s+is|el\s+nombre\s+es)\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/gu;
 /** name3p2: the name in a third-person answer ("se llama Ana") — for the order only, never the caller's record. */
 export function thirdPersonName(text: string): string | null {
-  const th = [...String(text || "").matchAll(THIRD)].pop();
-  return th && !NOT_NAMES.test(th[1].split(" ")[0]) ? cleanFullName(th[1]) || null : null;
+  const s = String(text || "");
+  const th = [...s.matchAll(THIRD)].pop();
+  if (th && !NOT_NAMES.test(th[1].split(" ")[0])) return cleanFullName(th[1]) || null;
+  // name3p3 / luis1 (Carlos via Auditor): "para Luis" / "es para Luis" / "la va a recoger Luis" →
+  // Square ticket/pickup name ONLY — never the caller's repeat-caller identity.
+  const pick = s.match(/(?<![\p{L}])(?:(?:es\s+)?para\s+|la\s+va\s+a\s+recoger(?:\s+(?:el|la|un[oa]?))?\s+|lo\s+recoge\s+|la\s+recoge\s+|pickup\s+(?:under\s+|for\s+)?|under\s+(?:the\s+name\s+)?)(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u);
+  if (pick && !/^(llevar|hoy|ma[nñ]ana|ahora|recoger|pickup|entrega|domicilio|pedido|orden|un|una|el|la|los|las|mi|tu|su|unos?|unas?)\b/iu.test(pick[1]) && !NOT_NAMES.test(pick[1].split(" ")[0]))
+    return cleanFullName(pick[1]) || null;
+  return null;
 }
 const orderOnly = new Map<string, number>(); // folded first name → marked-at ms
 const foldName = (n: string) => (cleanFirstName(n) || n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

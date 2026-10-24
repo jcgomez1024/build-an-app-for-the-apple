@@ -27,3 +27,17 @@ test("name3p2: third-person name is order-only", () => {
   assert.equal(isOrderOnlyName("Quirina", Date.now() + 31 * 60_000), false);
   assert.deepEqual(rememberOrderName("+15550000000", "Quirina"), { saved: false, reason: "third-person" });
 });
+
+test("name3p3: para [Name] is third-person pickup/ticket only", () => {
+  assert.equal(thirdPersonName("para Luis"), "Luis");
+  assert.equal(thirdPersonName("es para Luis"), "Luis");
+  assert.equal(thirdPersonName("para llevar"), null);
+  assert.equal(thirdPersonName("la va a recoger Luis"), "Luis");
+  assert.equal(thirdPersonName("lo recoge Ana"), "Ana");
+  assert.equal(thirdPersonName("para mañana"), null);
+  assert.equal(nameFromAnswer("para Luis"), "Luis");
+  const t = [{ speaker: "staff" as const, text: "¿A nombre de quién?" }, { speaker: "caller" as const, text: "para Luis" }];
+  assert.deepEqual(nameFromTranscriptInfo(t), { name: "Luis", thirdPerson: true });
+  markOrderOnlyName("Luis");
+  assert.deepEqual(rememberOrderName("+14402318180", "Luis"), { saved: false, reason: "third-person" });
+});

@@ -419,6 +419,18 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
     let mods = [...a.modifiers]; const on = (re: RegExp) => mods.some((m) => re.test(String(m.option)));
     if (/\bsin frijol/.test(t)) mods = mods.filter((m) => !/frijol|beans/i.test(String(m.option)));
     if (on(/\(QGD\)|queso gordita/i) && !/derretid|melted|extra (de )?queso|mas queso/.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
+    // quesitorta1: spoken "queso torta(s)" forces (QTO); not (TO)+Queso Derretido
+    {
+      const itemT = menu.find((i: any) => i.id === a.itemId);
+      if (itemT && /^torta$/i.test(String(itemT.name).trim()) && /\bqueso\s+tortas?\b/.test(recentWide)) {
+        const hit = (itemT.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => ({ g, o }))).find(({ o }: any) => /\(QTO\)/i.test(String(o.name)));
+        if (hit) {
+          mods = mods.filter((m) => !/^\s*\((?:TO|QTO)\)/i.test(String(m.option)));
+          mods.unshift({ step: hit.g.name, option: hit.o.name });
+          if (!/derretid|melted|extra (de )?queso|mas queso/.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
+        }
+      }
+    }
     if (on(/con frijoles|with beans/i) && !/refrit/.test(t)) mods = mods.filter((m) => !/frijoles refritos|refried beans/i.test(String(m.option)) || /con frijoles|with beans/i.test(String(m.option)));
     // case1e: "de chicharrón dorada … de maíz" — dorada/frita is the Quesadilla Dorada (corn, fried), not a comal tortilla
     const item0 = menu.find((i: any) => i.id === a.itemId);

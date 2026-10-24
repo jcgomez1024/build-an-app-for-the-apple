@@ -411,7 +411,19 @@
         "app"
       ],
       "example": "cuatro quesitortas de bistec con frijol",
-      "source": "Zuleika CA802db3 10/24: quesitorta = (QTO) Queso Torta, not Sides Frijoles",
+      "source": "Suleika CA802db3 10/24: quesitorta = (QTO) Queso Torta, not Sides Frijoles",
+      "approved": "Carlos 2026-10-24"
+    },
+    {
+      "id": "docena1",
+      "match": "\\b(?:una?\\s+)?docena\\s+de\\s+tortillas?\\b",
+      "to": "12 x Tortilla Comal",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "y una docena de tortilla",
+      "source": "Luis CA181080 10/24: standalone Tortillas 12 x Comal, not menudo EXTRA dozen",
       "approved": "Carlos 2026-10-24"
     }
   ]

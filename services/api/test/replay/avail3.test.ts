@@ -144,3 +144,30 @@ test("fixmeat1/split2/combo1 (Jesús): self-correction replaces the meat; quesad
   assert.match(m[1].text, /COMBO Gorditas/);
   assert.doesNotMatch(m[1].text, /harina|chorizo/);
 });
+
+test("cecilia1: tienen menudo → dos órdenes con pata stamps dish and qty", async () => {
+  const MEN = "sq-menudo-con-pata";
+  const seen: string[] = [];
+  const run = async (t: string) => {
+    seen.push(t);
+    if (/menudo/i.test(t) && /\b(dos|2)\b/i.test(t)) return { actions: [{ type: "add_item", itemId: MEN, quantity: 2, modifiers: [{ option: "Con Pata" }, { option: "Corn Tortillas" }], readback: "2 menudo con pata" }] };
+    if (/menudo/i.test(t)) return { actions: [{ type: "add_item", itemId: MEN, quantity: 1, modifiers: [{ option: "Con Pata" }], readback: "1 menudo" }] };
+    return { actions: [] };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "¿sí tienen menudo?", language: "es" },
+    { speaker: "staff", start: 2, end: 3, text: "Sí, tenemos menudo.", language: "es" },
+    { speaker: "caller", start: 4, end: 5, text: "me puede preparar dos órdenes, por favor, con pata?", language: "es" },
+    { speaker: "staff", start: 6, end: 7, text: "¿Algo más?", language: "es" },
+    { speaker: "caller", start: 8, end: 9, text: "es todo, gracias", language: "es" },
+  ] as any, run as any);
+  assert.ok(seen.some((s) => /menudo/i.test(s) && /\b(dos|2)\b/i.test(s)), `expected dos menudo in say(); got ${JSON.stringify(seen)}`);
+  const q = r.cart.filter((l: any) => /menudo/i.test(l.itemId)).reduce((a: number, l: any) => a + (l.quantity || 1), 0);
+  assert.equal(q, 2);
+});
+
+test("desk2: menudo dos órdenes con pata", () => {
+  const m = [{ speaker: "caller", text: "¿sí tienen menudo?" }, { speaker: "caller", text: "me puede preparar dos órdenes, por favor, con pata?" }] as any;
+  prepMergedCallerTurns(m);
+  assert.match(m[1].text, /dos\s+[oó]rdenes?\s+de\s+menudos?/i);
+});

@@ -1,4 +1,4 @@
-// quesitorta1 / intro1 / asados1 / multi3 — Zuleika CA802db3 + Enrique CA00cedc (10/24 morning)
+// quesitorta1 / intro1 / asados1 / multi3 — Suleika CA802db3 + Enrique CA00cedc (10/24 morning)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 process.env.ELVI_SIMULATED_NOW = "2026-10-24T10:33:00-04:00";
@@ -37,4 +37,9 @@ test("dishesNamed: menudo and mole are dishes (multi3)", () => {
 
 test("asados1: EXTRAS_ID constant still points at Extras", () => {
   assert.match(EXTRAS_ID, /extras/i);
+});
+
+test("quesitorta1: dishesNamed is only queso torta (not also torta)", () => {
+  const s = dishesNamed(cleanPhrase("cuatro quesitortas de bistec con frijol"));
+  assert.deepEqual([...s], ["queso torta"]);
 });
