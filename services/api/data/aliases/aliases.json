@@ -15,6 +15,20 @@
       "approved": "Carlos 2026-10-19"
     },
     {
+      "id": "pomal-comal",
+      "match": "\\bpomal\\b",
+      "to": "comal",
+      "langs": [
+        "es",
+        "en"
+      ],
+      "channels": [
+        "phone"
+      ],
+      "example": "quesadillas del pomal de buche",
+      "source": "transcript CAd25680 (Cris — STT pomal=comal)"
+    },
+    {
       "id": "sopesazo",
       "match": "\\bsopesazo(s?)\\b",
       "to": "sopesaso$1",
