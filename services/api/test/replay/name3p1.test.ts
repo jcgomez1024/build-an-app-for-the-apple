@@ -21,8 +21,8 @@ test("name3p2: third-person name is order-only", () => {
   assert.equal(thirdPersonName("me llamo Zuleima"), null);
   const t = [{ speaker: "staff" as const, text: "¿A nombre de quién?" }, { speaker: "caller" as const, text: "es para una señora del trabajo, se llama Zuleima." }];
   assert.deepEqual(nameFromTranscriptInfo(t), { name: "Zuleima", thirdPerson: true, source: "staff-ask" });
-  // shannon1: bare answer to name-for-order is ticket/pickup only (thirdPerson/source staff-ask)
-  assert.deepEqual(nameFromTranscriptInfo([{ speaker: "staff", text: "¿A nombre de quién?" }, { speaker: "caller", text: "Testo" }]), { name: "Testo", thirdPerson: true, source: "staff-ask" });
+  // Bare answer to name-for-order = customer (not thirdPerson). Pickup-only needs para/for/recoger.
+  assert.deepEqual(nameFromTranscriptInfo([{ speaker: "staff", text: "¿A nombre de quién?" }, { speaker: "caller", text: "Testo" }]), { name: "Testo", thirdPerson: false, source: "staff-ask" });
   markOrderOnlyName("Quirina");
   assert.equal(isOrderOnlyName("quirina"), true);
   assert.equal(isOrderOnlyName("Quirina", Date.now() + 31 * 60_000), false);

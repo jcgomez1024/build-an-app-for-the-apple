@@ -35,6 +35,8 @@ export function thirdPersonName(text: string): string | null {
     return cleanFullName(pick[1]) || null;
   const pickBy = s.match(/(?<![\p{L}])(\p{Lu}[\p{L}'-]+)(?:\s+\p{Lu}[\p{L}'-]+)?\s+(?:is|will\s+(?:be\s+)?)\s+(?:picking\s+up|coming\s+(?:by|in)\s+for\s+(?:it|the\s+order))/u);
   if (pickBy && !NOT_NAMES.test(pickBy[1]) ) return cleanFullName(pickBy[1]) || null;
+  // luis7895 (Carlos 10/24): "De Luis." after ¿nombre de quién? is the customer — NOT third-person.
+  // Pickup-only stays para/for/recoger/picking-up above.
   return null;
 }
 const orderOnly = new Map<string, number>(); // folded first name → marked-at ms
@@ -80,7 +82,7 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
-const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*\?|your\s+name|\bname\s*\?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name)/iu;
+const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*\?|your\s+name|\bname\s*\?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name)/iu;
 /** Listen-only: the caller's answer right after the staff asked for the name. */
 export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -140,8 +142,8 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   const name = fromAsk || fromVoc;
   if (!name) return null;
   const f = foldName(name);
+  // Pickup-only: para/for/recoger/picking-up. Bare "Chuy." / "De Luis." after name-ask = customer (ticket + name log).
   const thirdPerson = turns.some((t) => t.speaker === "caller" && (() => { const n = thirdPersonName(t.text); return !!n && foldName(n) === f; })());
-  // shannon1: answer to "name for the order" / "¿a nombre de quién?" is ticket/pickup only (even a bare "Shannon").
   const source: "staff-ask" | "vocative" = fromAsk ? "staff-ask" : "vocative";
-  return { name, thirdPerson: thirdPerson || source === "staff-ask", source };
+  return { name, thirdPerson, source };
 }

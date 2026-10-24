@@ -425,6 +425,18 @@
       "example": "y una docena de tortilla",
       "source": "Luis CA181080 10/24: standalone Tortillas 12 x Comal, not menudo EXTRA dozen",
       "approved": "Carlos 2026-10-24"
+    },
+    {
+      "id": "menus1",
+      "match": "\\b((?:un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\\d+)\\s+)men[uú]s?\\b",
+      "to": "$1menudos",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "¿Me podría encargar tres menús, por favor?",
+      "source": "Chuy CA656a1405 10/24: 'tres menús' must be menudo, not Pack MEAL",
+      "approved": "Carlos 2026-10-24"
     }
   ]
 }

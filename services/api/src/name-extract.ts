@@ -34,8 +34,8 @@ export async function extractNameLLM(turns: CallTurn[]): Promise<(Extracted & { 
   const sys = "You read phone-order transcripts from a Mexican restaurant (Spanish/English). Find the name for the ORDER (ticket/pickup name). " +
     "Cues: staff asks '¿a nombre de quién?' / 'name for the order?' and the CALLER answers; or the CALLER says 'soy Juan', 'habla María', 'a nombre de Pedro', 'it's for Mike', 'para Shannon', 'for Shannon'. " +
     "Never return the staff member's name, the restaurant's name (Cocina Elvis, Elvi), a food item, or a name the caller only mentions about someone else unless it is the order name. " +
-    "role = 'self' ONLY if the caller clearly identifies THEMSELVES ('soy', 'habla', 'me llamo', 'this is', 'my name is') — NOT merely answering 'name for the order' with a bare name; " +
-    "'pickup_other' if the name is for the ticket/pickup person: answer to 'name for the order' / '¿a nombre de quién?' with no self-ID cue, OR 'para X', 'for X', 'va a recoger', 'lo recoge', 'is picking up', 'picking up for', 'para mi esposa/esposo/hijo/mamá', 'for my wife/husband/son/mom', third person 'ella', 'él'. Shannon-style: staff said sir/buddy and caller answered 'Shannon' for the order → pickup_other; " +
+    "role = 'self' when the caller gives THEIR order/customer name: answering 'name for the order' / '¿a nombre de quién?' / '¿el nombre de quién…?' with a bare name or 'De Luis' / 'De Ana', OR self-ID cues ('soy', 'habla', 'me llamo', 'this is', 'my name is'); " +
+    "'pickup_other' ONLY for third-person pickup phrasing: 'para X', 'for X', 'la va a recoger', 'lo/la recoge', 'is picking up', 'picking up for', 'para mi esposa/esposo/hijo/mamá', 'for my wife/husband/son/mom', third person 'ella'/'él'/'se llama' about someone else; " +
     "'unclear' if you cannot tell. " +
     "speaker = 'caller' if the caller said the name, 'staff_confirmed' if staff repeated a name the caller had just given, 'staff' if only staff said it, 'none' if no name. " +
     "name = the most common standard spelling of that name in a Spanish/English context (speech-to-text may misspell it, e.g. 'Llesenia' → 'Yesenia', 'Hose' → 'José'). " +
@@ -132,7 +132,7 @@ function lev(a: string, b: string): number {
 }
 
 
-/** shannon1: name appears only as the answer to "name for the order" / "¿a nombre de quién?", with no self-ID cue on caller turns. */
+/** Name appears only as the answer to a name-for-order ask, with no self-ID cue. (Carlos 10/24: that is still the customer — not auto pickup_other.) */
 export function orderNameAskOnly(turns: CallTurn[], name: string): boolean {
   const f = firstFold(name);
   if (!f) return false;
@@ -163,8 +163,11 @@ export async function learnReadbackName(opts: {
   const ex = await extractNameLLM(opts.turns);
   if (!ex) return { action: "skip", reason: "llm-error" };
   if (ex.name && !nameInTranscript(opts.turns, ex.name, ex.speaker) && !evidenceSupports(opts.turns, ex.name, ex.evidence, ex.speaker)) return { action: "skip", reason: "name-not-in-transcript", name: ex.name, evidence: ex.evidence, speaker: ex.speaker, confidence: ex.confidence, usage: ex.usage };
-  // shannon1: hard rule — staff-ask order name without self-ID cues is never caller contact identity.
-  if (ex.name && ex.role === "self" && orderNameAskOnly(opts.turns, ex.name)) ex.role = "pickup_other";
+  // Pickup-other only when third-person pickup cues are present (para/for/recoger). Bare / "De X" after name-ask = self (customer).
+  if (ex.name && ex.role === "self") {
+    const cue = opts.turns.some((t) => t.speaker === "caller" && /(?<![\p{L}])(?:(?:es\s+)?para\s+|(?:it'?s\s+)?for\s+|la\s+va\s+a\s+recoger|lo\s+recoge|la\s+recoge|picking\s+up|pickup\s+for|se\s+llama)\b/iu.test(t.text));
+    if (cue) ex.role = "pickup_other";
+  }
   let orders: any[] = [];
   try { orders = opts.orders ? await opts.orders() : []; } catch { /* no boost without Square */ }
   const d = decideReadback(opts.caller, ex, ticketNamesInWindow(orders, opts.at, opts.durSec), opts.bestTicketName?.(orders) ?? null);

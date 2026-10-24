@@ -8,7 +8,8 @@ import path from "node:path";
 import os from "node:os";
 
 /** Fixture: CAa2b5a38efd2b73dbe8fe1606e3f2fb0e — Thu Oct 22 2026 ~1:43 PM ET, phone …6490.
- * Staff asked "name for the order"; caller said "Shannon". Shannon = pickup, not caller (staff: sir/buddy). */
+ * Staff asked "name for the order"; caller said "Shannon". Carlos 10/24: that is the customer/order name (ticket + name log),
+ * not auto pickup-only. Pickup-only stays "for/para Shannon" / picking-up phrasing. */
 const SHANNON_TURNS = [
   { speaker: "staff" as const, text: "cocina, Eli, buenas tardes." },
   { speaker: "caller" as const, text: "Yes, you have, chili rainos today?" },
@@ -26,15 +27,17 @@ const SHANNON_TURNS = [
   { speaker: "caller" as const, text: "Okay, thank you." },
 ];
 
-test("shannon1: staff-ask 'Shannon' is ticket/pickup only, not caller contact", () => {
+test("shannon1: staff-ask bare 'Shannon' is customer order name (not auto pickupOnly)", () => {
   const info = nameFromTranscriptInfo(SHANNON_TURNS);
   assert.equal(info?.name, "Shannon");
   assert.equal(info?.source, "staff-ask");
-  assert.equal(info?.thirdPerson, true);
+  assert.equal(info?.thirdPerson, false); // Carlos 10/24: answering name-for-order = customer
   assert.equal(orderNameAskOnly(SHANNON_TURNS as any, "Shannon"), true);
   const d = decideReadback("+14408976490", { name: "Shannon", role: "self", confidence: 0.95, evidence: "Shannon.", speaker: "caller" }, []);
-  // Even if LLM said self, learnReadbackName would coerce via orderNameAskOnly; decide with pickup_other:
-  const d2 = decideReadback("+14408976490", { name: "Shannon", role: "pickup_other", confidence: 0.95, evidence: "Shannon.", speaker: "caller" }, []);
+  assert.equal(d.action, "save"); // or skip if plan refuses — not pickup
+  assert.notEqual(d.action, "pickup");
+  // Explicit pickup_other (para/for path) still picks up only:
+  const d2 = decideReadback("+14408976490", { name: "Shannon", role: "pickup_other", confidence: 0.95, evidence: "for Shannon", speaker: "caller" }, []);
   assert.equal(d2.action, "pickup");
   assert.equal(d2.reason, "pickup-other");
 });

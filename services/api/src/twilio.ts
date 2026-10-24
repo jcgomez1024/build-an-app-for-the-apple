@@ -1989,18 +1989,20 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         segments.set(CallSid, { turns: result.turns, files, at: Date.now() });
         let name: string | null = callNames.get(CallSid) ?? ticketsByCall.get(CallSid)?.name ?? null;
         try { if (!name) name = await callerName(caller, findName, 2500); } catch { /* no name */ }
-        // ordername1 / shannon1 (Carlos via Auditor): answer to "name for the order" / "¿a nombre de quién?" /
-        // "para X" / "la va a recoger" → Square ticket + lastPickupName ONLY. Never callers.json contact identity.
+        // ordername1 (Carlos 10/24): bare / "De X" after name-ask → ticket + customer name log.
+        // Pickup-only (lastPickupName, not contact): "para X" / "for X" / "la va a recoger" / picking-up.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
         const heardOrderName = heardInfo?.name || null;
         if (heardOrderName) {
-          const pickupOnly = !!heardInfo?.thirdPerson || heardInfo?.source === "staff-ask";
+          // Customer: bare name / "De Luis." after name-ask. Pickup-only: para/for/recoger (thirdPerson).
+          const pickupOnly = !!heardInfo?.thirdPerson;
           let savedNow = false;
           if (pickupOnly) {
             try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
             markOrderOnlyName(heardOrderName);
           } else if (!isTrainingCaller(caller)) {
-            savedNow = rememberHeardNameIfNone(caller, heardOrderName); // vocative self-address only
+            savedNow = rememberHeardNameIfNone(caller, heardOrderName);
+            if (!savedNow) { try { savePickupName(caller, heardOrderName); } catch { /* best effort */ } } // still remember ticket name on phone
           }
           logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly });
           name = cleanFirstName(heardOrderName) || name;
