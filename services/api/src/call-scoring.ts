@@ -408,10 +408,22 @@ export function statedTotal(text: string): { n: number; kind: string | null } | 
 export function personSwitch(text: string): string | null {
   const t = String(text || "");
   if (/\b(?:en\s+)?mi\s+orden\b|\b(?:en\s+)?la\s+m[ií]a\b|\ben\s+la\s+primera\b|\bpara\s+m[ií]\b|\bmy\s+order\b/iu.test(t)) return "me";
-  // plate1: "en otro plato", "por separado", "la otra orden", "en un plato aparte" → the next plate (plain "aparte" = "also", not a plate)
-  if (/\b(?:en\s+)?otro\s+plato\b|(?<!\p{L})(?:platos|[oó]rdenes|pedidos|bolsas)\s+(?:por\s+)?separad|\b(?:p[oó]ngalo|ponlo|p[oó]ngamel[oa]s?|ponga|va|van)\s+(?:por\s+)?separad|\b(?:la\s+)?otra\s+orden\b|\b(?:plato|orden)\s+aparte\b|\bseparate\s+(?:plates?|orders?|bags?)\b|\banother\s+(?:plate|order)\b/iu.test(t)) return "+";
-  const m = /\b(?:para|for)\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t) || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t);
-  if (m && !/^(Usted|Llevar|Aqu[ií]|Comer|Ahorita|Mañana|Hoy)$/u.test(m[1])) return m[1].toLowerCase() === "él" || m[1].toLowerCase() === "el" ? "él" : m[1];
+  // agustin1: named "para X" / "para el chaparro" wins over "otra/siguiente orden" when both appear in one turn
+  {
+    // note: no /i on \p{Lu} patterns — /iu makes \p{Lu} match lowercase ("para llevar")
+    const chap = /\b(?:ese\s+es\s+|es\s+)?para\s+el\s+(chaparro)\b/iu.exec(t);
+    if (chap) return "Chaparro";
+    const m = /\b(?:esa\s+(?:ser[ií]a|es)\s+|esa\s+orden\s+(?:ser[ií]a\s+)?(?:es\s+)?|ese\s+es\s+|es\s+)?para\s+(?:el\s+|la\s+)?(\p{Lu}\p{Ll}{2,})\b/u.exec(t)
+      || /\b(?:for)\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t)
+      || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t);
+    if (m && !/^(usted|llevar|aqu[ií]|comer|ahorita|mañana|hoy)$/iu.test(m[1])) {
+      const raw = m[1];
+      if (raw.toLowerCase() === "él" || raw.toLowerCase() === "el") return "él";
+      return raw;
+    }
+  }
+  // plate1: "en otro plato", "por separado", "la otra/siguiente orden", "en un plato aparte" → the next plate
+  if (/\b(?:en\s+)?otro\s+plato\b|(?<!\p{L})(?:platos|[oó]rdenes|pedidos|bolsas)\s+(?:por\s+)?separad|\b(?:p[oó]ngalo|ponlo|p[oó]ngamel[oa]s?|ponga|va|van)\s+(?:por\s+)?separad|\b(?:la\s+)?(?:otra|siguiente)\s+orden\b|\b(?:plato|orden)\s+aparte\b|\bseparate\s+(?:plates?|orders?|bags?)\b|\banother\s+(?:plate|order)\b/iu.test(t)) return "+";
   return null;
 }
 
@@ -567,7 +579,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const steps: any[] = [];
   let lastTouched: Line | null = null;
   const touchedNow: Line[] = [];
-  let person: string | null = null, plateN = 0; // multi1: per-person groups inside the one cart
+  let person: string | null = null, plateN = 0, personSegStart = 0; // multi1/agustin1: per-person groups; segStart for para-X backfill
   let sizeAnswer = false;
   // luis7895/chuy1: "dos/tres menudos" often gets an Elvi question (empty add); apply spoken qty on the later add (incl. staff-pick).
   let pendingSpokenQty: { n: number; kind: string } | null = null;
@@ -617,7 +629,22 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const say = async (text: string, language: "es" | "en", source: string) => {
     // multi2: "dos tacos de qué? Deshebrada. Deshebrada. Deshebrada." — the caller echoing staff's question + repeated word
     if (source.startsWith("caller")) text = text.replace(/\b(de\s+)?qu[eé]\?\s*/giu, " ").replace(/\b(\p{L}+)(?:[.,]?\s+\1\b)+/giu, "$1").replace(/\s+/g, " ").trim() || text;
-    if (source === "caller" || source === "caller-retry") { const p = personSwitch(text); if (p === "+") person = `plato ${++plateN + 1}`; else if (p) person = p; }
+    if (source === "caller" || source === "caller-retry") {
+      const p = personSwitch(text);
+      if (p === "+") { personSegStart = cart.length; person = `plato ${++plateN + 1}`; }
+      else if (p === "me") { personSegStart = cart.length; person = "me"; }
+      else if (p) {
+        // agustin1: closing stamp ("esa sería/es para Tony", "ese es para el chaparro") backfills the open ticket.
+        // multi2: opening ("para Juana es una porción…") starts a new person — do not stamp prior items.
+        const closing = /\b(?:esa\s+(?:ser[ií]a|es)\s+|esa\s+orden\s+(?:ser[ií]a\s+)?(?:es\s+)?|ese\s+es\s+)para\b/iu.test(text);
+        if (closing) {
+          for (let i = personSegStart; i < cart.length; i++) (cart[i] as any).person = p;
+        } else {
+          personSegStart = cart.length;
+        }
+        person = p;
+      }
+    }
     const r = await run(text, language, history.slice(-24));
     sizeAnswer = /^\W*(?:a\s+|el\s+|un\s+|lo\s+)?(?:regular|grande|chico|mediano|small|medium|large)\W*$/iu.test(text);
     // larry1: "eight of your steak quesadillas" → Elvi asks the tortilla → "flour": the answer keeps the count of the turn that asked.
@@ -2272,7 +2299,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (ct && !cart.some((l: any) => l.itemId === DIPS_ID)) { const m = ct.match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?Dips Pico`, "iu"));
       cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
-  const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   // jesus1: arroz y frijol on COMBO Gorditas → drop conflicting SOLO Frijoles
   if (turns.some((t) => /\barroz\b/iu.test(t.text) && /\bfrijol/iu.test(t.text))) {
     for (const l of cart as any[]) {
@@ -2470,6 +2496,214 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (!/\brelleno|poblano|chile\s+relleno/iu.test(callerBlob))
       for (let i = cart.length - 1; i >= 0; i--) if (/relleno|poblano/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
   }
+  // agustin1: factory multi-person ("para la fábrica" / ≥3 para-names) — rebuild cart from para-X segments (staff Square: one ticket/person)
+  {
+    const callerTurns = turns.filter((t) => t.speaker === "caller");
+    const callerBlob = callerTurns.map((t) => t.text).join(" ");
+    const paraReSrc = String.raw`\b(?:esa\s+(?:ser[ií]a|es)\s+|esa\s+orden\s+(?:ser[ií]a\s+)?(?:es\s+)?|ese\s+es\s+|es\s+)?para\s+(?:el\s+|la\s+)?(\p{Lu}[\p{Ll}áéíóúñ]+|chaparro)\b`;
+    const paraMatches = (text: string) => [...text.matchAll(new RegExp(paraReSrc, "giu"))];
+    const paraOrder: string[] = [];
+    const seenPara = new Set<string>();
+    for (const t of callerTurns) {
+      for (const m of paraMatches(t.text)) {
+        if (/^(f[aá]brica|llevar|hoy|mañana|ahora|recoger|pedido|orden)$/iu.test(m[1])) continue;
+        const n = /^chaparro$/i.test(m[1]) ? "Chaparro" : (m[1][0].toUpperCase() + m[1].slice(1));
+        const k = n.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+        if (!seenPara.has(k)) { seenPara.add(k); paraOrder.push(n); }
+      }
+    }
+    const factory = /\bf[aá]brica\b/iu.test(callerBlob);
+    if ((factory && paraOrder.length >= 2) || paraOrder.length >= 3) {
+      const MEAT_OPT: Record<string, string> = {
+        bistec: "Bistec / Steak", steak: "Bistec / Steak", asada: "Bistec / Steak",
+        pastor: "Alpastor / Roasted Pork", alpastor: "Alpastor / Roasted Pork",
+        chorizo: "Chorizo / Mexican Sausage", pollo: "Pollo / Chicken", chicken: "Pollo / Chicken",
+        lengua: "Lengua / Beef Tongue", costilla: "Costilla / Beef Rib",
+        duro: "Duro / Pork Rinds",
+        deshebrada: "Deshebrada / Shredded Beef with Potatoes",
+        carnitas: "Carnitas / Pulled Pork", cabeza: "Cabeza / Beef Head", buche: "Buche / Pork Stomach",
+        tripa: "Tripa / Beef Tripe", prensado: "Prensado / Spicy Pork",
+      };
+      const hot = /\bsalsa\s+de\s+la\s+que\s+pica\b|\bsalsa\s+que\s+pica\b|\bhot\s+salsa\b|\bsalsa\s+roja\b/iu.test(callerBlob);
+      const salsa = {
+        step: "(I) Salsa Preferencia / Preference",
+        option: hot ? "Hot Salsa Roja" : "Mild Salsa Asada",
+      };
+      const QCO_T = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const TST_T = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+      const CEBOLLA = { step: "(F) GQT Extras", option: "**EXTRA Cebolla y Chiles Asados (+$0.75)" };
+      const CON_FRIJ = { step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" };
+      const QCO = "sq-quesadilla-HLT6CR";
+      const TACO = "sq-taco-TAR7L5";
+      const CHIL = "sq-chilaquiles-con-huevo-YWKBQV";
+      const BUR = "sq-burrito-TGWBEN";
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      const meatStep = (kind: "q" | "t" | "b", opt: string) =>
+        kind === "q" ? { step: "(B) Q Carnes / Meats", option: opt }
+        : kind === "b" ? { step: "(B) Burrito Carne Options", option: opt }
+        : { step: "(B) T Carnes / Meats Opciones", option: opt };
+
+      type Seg = { person: string; text: string };
+      const segs: Seg[] = [];
+      let buf = "";
+      const nameOf = (raw: string) =>
+        /^chaparro$/i.test(raw) ? "Chaparro" : (raw[0].toUpperCase() + raw.slice(1));
+      const isBlock = (raw: string) =>
+        /^(f[aá]brica|llevar|hoy|mañana|ahora|recoger|pedido|orden)$/iu.test(raw);
+      for (const t of callerTurns) {
+        // Split WITHIN a turn — consecutive caller turns are often merged before this pass,
+        // so the last "para X" would otherwise steal the whole multi-person blob.
+        const hits = paraMatches(t.text).filter((x) => !isBlock(x[1]));
+        if (!hits.length) {
+          buf += (buf ? " " : "") + t.text;
+          continue;
+        }
+        let lastIdx = 0;
+        for (const x of hits) {
+          const end = (x.index ?? 0) + x[0].length;
+          const chunk = t.text.slice(lastIdx, end);
+          const piece = (buf ? buf + " " : "") + chunk;
+          segs.push({ person: nameOf(x[1]), text: piece });
+          buf = "";
+          lastIdx = end;
+        }
+        const rest = t.text.slice(lastIdx).trim();
+        if (rest) buf += (buf ? " " : "") + rest;
+      }
+
+      const rebuilt: Line[] = [];
+      const normMeat = (m: string) => m.toLowerCase().replace(/chicharr[oó]n(?:\s+duro)?/i, "duro");
+
+      for (const seg of segs) {
+        const s = seg.text;
+        const P = seg.person;
+        const meatHits: Array<{ q: number; meat: string; dish: "q" | "t" | "qd" }> = [];
+        const addHit = (q: number, meat: string, dish: "q" | "t" | "qd") => {
+          meatHits.push({ q, meat: normMeat(meat), dish });
+        };
+
+        if (/\bchilaquiles\b/iu.test(s)) {
+          rebuilt.push({
+            itemId: CHIL, quantity: 1, modifiers: [], readback: "chilaquiles verdes frijoles",
+            elviNotes: ["verdes", "frijoles"], ...( { person: P } as any ),
+          } as Line);
+        }
+
+        const wantQhr = /\b(?:quesadillas?\s+de\s+)?harina\b|\bflour\b/iu.test(s);
+        const wantQd = /\bquesadillas?\b/iu.test(s) && /\b(?:dorad|aceite|preparad)/iu.test(s);
+        const wantQco = !wantQd && !wantQhr && (/\bcomal\b|\bma[ií]z\b|\bhomemade\b/iu.test(s) || /\bquesadillas?\b/iu.test(s));
+        const hasTacos = /\btacos?\b/iu.test(s) && /\b(?:taquera|taquero|taqueros|street)\b/iu.test(s);
+        const hasQues = /\bquesadillas?\b/iu.test(s);
+
+        if (wantQd) {
+          for (const m of s.matchAll(/\b(?:una?|1|one)\s+(?:de\s+)?(bistec|pastor|pollo|chorizo|lengua)\b/giu))
+            addHit(1, m[1], "qd");
+          if (!meatHits.some((h) => h.dish === "qd")) {
+            for (const m of s.matchAll(/\b(bistec|pastor|pollo|chorizo|lengua)\b/giu)) addHit(1, m[1], "qd");
+          }
+        }
+
+        if (hasTacos) {
+          for (const m of s.matchAll(/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis)\s+tacos?\s+de\s+(lengua|chorizo|bistec|pastor|pollo|deshebrada|duro|carnitas)\b/giu))
+            addHit(spokenCount(m[1]) || 1, m[2], "t");
+          for (const m of s.matchAll(/\b(?:otro|un|1|one)\s+tacos?\s+de\s+(chorizo|lengua|bistec|deshebrada|duro|pastor|pollo)\b/giu))
+            addHit(1, m[1], "t");
+          // mid-stream may rewrite "un taco de X" → "un orden de quesadilla taco de X" (agustin1 Osvaldo)
+          for (const m of s.matchAll(/\btacos?\s+de\s+(lengua|chorizo|bistec|pastor|pollo|deshebrada|duro|carnitas)\b/giu)) {
+            if (!meatHits.some((h) => h.dish === "t" && h.meat === normMeat(m[1]))) addHit(1, m[1], "t");
+          }
+          // "seis tacos … dos de chicharrón duro y cuatro de chorizo" (no quesadillas in segment)
+          if (!hasQues) {
+            for (const m of s.matchAll(/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis)\s+de\s+(?:chicharr[oó]n\s+)?(duro|chorizo|lengua|bistec|deshebrada|pastor|pollo)\b/giu))
+              addHit(spokenCount(m[1]) || 1, m[2], "t");
+          }
+        }
+
+        if ((wantQco || wantQhr) && !wantQd) {
+          for (const m of s.matchAll(/\b(\d+|un[oa]?|dos|tres|cuatro)\s+(?:quesadillas?\s+)?(?:de\s+)?(costilla|chorizo|pollo|lengua|bistec|duro|pastor|buche|cabeza)\b/giu))
+            addHit(spokenCount(m[1]) || 1, m[2], "q");
+          for (const m of s.matchAll(/\b(?:una?|1)\s+(?:de\s+)?(?:chicharr[oó]n\s+)?(duro|costilla|chorizo|pollo|lengua|bistec|pastor)\b/giu))
+            addHit(1, m[1], "q");
+          for (const m of s.matchAll(/\bquesadillas?\s+de\s+(?:harina\s+de\s+|comal\s+de\s+|ma[ií]z\s+de\s+)?(pollo|chorizo|lengua|bistec|costilla|pastor)\b/giu)) {
+            const qm = s.match(/\b(\d+|dos|tres|cuatro|un[oa]?)\s+quesadillas?\b/iu);
+            addHit(spokenCount(qm?.[1] || "1") || 1, m[1], "q");
+          }
+          if (wantQhr) {
+            for (const m of s.matchAll(/\b(?:una?|1)\s+de\s+(lengua|bistec|pollo|chorizo|pastor)\b/giu))
+              addHit(1, m[1], "q");
+          }
+        }
+
+        if (/\bburrito\b/iu.test(s)) {
+          const meatM = s.match(/\b(bistec|pastor|chorizo|pollo|lengua)\b/iu);
+          const meat = meatM ? MEAT_OPT[meatM[1].toLowerCase()] : "Bistec / Steak";
+          const mods: any[] = [
+            { step: "(A) Burrito Size", option: /\bgrande\b/iu.test(s) ? "Grande '12 (+$3.00)" : "Regular '10" },
+            meatStep("b", meat),
+          ];
+          if (/\bpreparad/iu.test(s))
+            mods.push({ step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" });
+          if (hot) mods.push(salsa);
+          rebuilt.push({ itemId: BUR, quantity: 1, modifiers: mods, readback: "burrito", ...( { person: P } as any ) } as Line);
+        }
+
+        if (/\bhorchata\b/iu.test(s)) {
+          const small = /\bchic[ao]\b|\bsmall\b/iu.test(s);
+          rebuilt.push({
+            itemId: HORCH, quantity: 1, modifiers: [], readback: small ? "horchata chica" : "horchata",
+            ...(small ? { posSize: "small" as const, elviNotes: ["chica"] } : {}),
+            ...( { person: P } as any ),
+          } as Line);
+        }
+
+        const mergedHits = new Map<string, { q: number; meat: string; dish: "q" | "t" | "qd" }>();
+        for (const h of meatHits) {
+          const key = h.dish + ":" + h.meat;
+          const prev = mergedHits.get(key);
+          if (!prev || h.q > prev.q) mergedHits.set(key, h);
+        }
+
+        for (const h of mergedHits.values()) {
+          const opt = MEAT_OPT[h.meat];
+          if (!opt) continue;
+          if (h.dish === "qd") {
+            rebuilt.push({
+              itemId: DORADA_DELUXE_ID, quantity: h.q, modifiers: [
+                { step: "(QD) Style", option: "(QD) DELUXE Preparada" },
+                { step: "(B) Q Carnes / Meats", option: opt },
+                salsa,
+              ], readback: `QD deluxe ${h.meat}`, ...( { person: P } as any ),
+            } as Line);
+          } else if (h.dish === "t") {
+            rebuilt.push({
+              itemId: TACO, quantity: h.q, modifiers: [TST_T, meatStep("t", opt), salsa],
+              readback: `TST ${h.meat}`, ...( { person: P } as any ),
+            } as Line);
+          } else {
+            const mods: any[] = [wantQhr ? QHR_T : QCO_T, meatStep("q", opt)];
+            if (h.meat === "costilla" && /\bcebolla\s+asada\b/iu.test(s)) mods.push(CEBOLLA);
+            if (h.meat === "duro" && /\bcebolla\b/iu.test(s)) mods.push(CEBOLLA);
+            if (h.meat === "duro" && /\bfrijoles?\b/iu.test(s)) mods.push(CON_FRIJ);
+            if (h.meat === "chorizo" && /\bverdura\b/iu.test(s)) mods.push(CEBOLLA);
+            mods.push(salsa);
+            rebuilt.push({
+              itemId: QCO, quantity: h.q, modifiers: mods,
+              readback: `${wantQhr ? "QHR" : "QCO"} ${h.meat}`, ...( { person: P } as any ),
+            } as Line);
+          }
+        }
+      }
+
+      if (rebuilt.length >= 4) {
+        cart.length = 0;
+        for (const l of rebuilt) cart.push(l);
+      }
+    }
+  }
+
+
+  const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

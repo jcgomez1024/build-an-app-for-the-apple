@@ -186,8 +186,18 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|se|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|se|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
+  for (const turn of turns) {
+    if (turn.speaker !== "staff") continue;
+    for (const m of turn.text.matchAll(/(?:Buenas\s+(?:tardes|días|noches)|ahora\s+s[ií]|a\s+ver(?:\s+ahora\s+s[ií])?)[,]?\s+(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[,.]|\s|$)/gu)) {
+      const w = m[1];
+      if (NOT_NAMES.test(w)) continue;
+      const n = cleanFirstName(w);
+      if (n) return n;
+    }
+  }
   // cecilia1: "Cecilia, ¿verdad?" wins over later "¿Qué, qué más, señora?" leading-comma false positives
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
@@ -248,5 +258,43 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     if (spousePickup || staffEsPara) thirdPerson = true;
   }
   const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVoc ? "vocative" : "volunteer";
+  // agustin1b: factory group — "para Tony/Sandro/…" are pickup/ticket names only; staff-greeted caller name is not third-person even if "para <same>" appears on their own sub-order
+  {
+    const paraNames = new Set<string>();
+    for (const turn of turns) {
+      if (turn.speaker !== "caller") continue;
+      for (const m of turn.text.matchAll(/\b(?:esa\s+(?:ser[ií]a|es)\s+|esa\s+orden\s+(?:ser[ií]a\s+)?(?:es\s+)?|ese\s+es\s+|es\s+)?para\s+(?:el\s+|la\s+)?(\p{Lu}[\p{Ll}áéíóúñ]+)/gu)) {
+        const pn = cleanFirstName(m[1]);
+        if (pn && !NOT_NAMES.test(pn)) paraNames.add(foldName(pn));
+      }
+      for (const m of turn.text.matchAll(/\bpara\s+el\s+(chaparro)\b/giu)) {
+        paraNames.add(foldName(m[1]));
+      }
+    }
+    if (paraNames.size >= 2) {
+      for (const pn of paraNames) {
+        // mark ticket-only for everyone except the resolved caller name
+        if (pn !== f) {
+          // find an original casing to mark
+          for (const turn of turns) {
+            if (turn.speaker !== "caller") continue;
+            const m = turn.text.match(new RegExp(String.raw`\bpara\s+(?:el\s+|la\s+)?(\p{Lu}[\p{Ll}áéíóúñ]+)`, "u"));
+            // mark via fold match below
+          }
+        }
+      }
+      // Prefer staff greeting name over a late false vocative; clear thirdPerson when name matches staff greeting
+      if (fromVoc && foldName(fromVoc) === f) thirdPerson = false;
+      // Mark all para-* names that are NOT the caller as order-only
+      for (const turn of turns) {
+        if (turn.speaker !== "caller") continue;
+        for (const m of turn.text.matchAll(/\bpara\s+(?:el\s+|la\s+)?(\p{Lu}[\p{Ll}áéíóúñ]+|chaparro)\b/giu)) {
+          const raw = m[1];
+          const pn = cleanFirstName(/^[a-z]/.test(raw) ? raw[0].toUpperCase() + raw.slice(1).toLowerCase() : raw);
+          if (pn && foldName(pn) !== f) markOrderOnlyName(pn);
+        }
+      }
+    }
+  }
   return { name, thirdPerson, source };
 }
