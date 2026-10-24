@@ -401,6 +401,18 @@
       ],
       "example": "y una quesidita de chicharrón duro",
       "source": "STT mishearing of gordita (8:03 PM 10/23 call)"
+    },
+    {
+      "id": "quesitorta1",
+      "match": "\\bquesi\\s*-?\\s*torta(s?)\\b",
+      "to": "queso torta$1",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "cuatro quesitortas de bistec con frijol",
+      "source": "Zuleika CA802db3 10/24: quesitorta = (QTO) Queso Torta, not Sides Frijoles",
+      "approved": "Carlos 2026-10-24"
     }
   ]
 }

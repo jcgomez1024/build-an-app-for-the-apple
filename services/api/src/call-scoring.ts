@@ -163,7 +163,7 @@ export function cleanPhrase(text: string): string {
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|tortas?|combo|enchiladas?|tamales?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|moles?|platillos?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
 /** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
@@ -315,8 +315,14 @@ export function expandMeatAnswer(pendingDish: string, answer: string): string[] 
   const dish = pendingDish.replace(new RegExp(`^${QTY}\\s+`, "iu"), "").replace(/[,.\s]+$/u, "").trim();
   return parts.map((x) => { const q = (x.match(qtyRe) || [])[1]; return `${q || dishQty} ${dish} ${x.replace(qtyRe, "")}`.trim(); });
 }
-const ORDER_INTENT = /^[¿¡\s]*(?:(?:s[ií]|oh|hola|bueno|eh|em|ehm|um|uh|este)[,.\s]+)*(?:(?:buenos\s+d[ií]as|buenas\s+(?:tardes|noches))[,.\s]+)?(?:(?:se\s+)?(?:puedo|podr[ií]a|puede|quiero|quisiera|me\s+gustar[ií]a)\s+(?:hacer|poner|dejar|ordenar|pedir)(?:\s+(?:una?|mi)\s+(?:orden|pedido))?|(?:hacer|poner|dejar)\s+(?:una?|mi)\s+(?:orden|pedido)|can\s+i\s+(?:place|make|put\s+in)\s+an?\s+order|i(?:'d|\s+would)\s+like\s+to\s+(?:place\s+an\s+)?order)\b[?.!,\s]*/iu;
+const ORDER_INTENT = /^[¿¡\s]*(?:(?:s[ií]|oh|hola|bueno|eh|em|ehm|um|uh|este)[,.\s]+)*(?:(?:buenos\s+d[ií]as|buenas\s+(?:tardes|noches))[,.\s]+)?(?:(?:se\s+)?(?:puedo|podr[ií]a|puede|quiero|quisiera|me\s+gustar[ií]a)\s+(?:hacer|poner|dejar|ordenar|pedir)(?:\s+(?:una?|mi)\s+(?:orden|pedido))?|(?:hacer|poner|dejar)\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+(?:hacer|poner|dejar)(?:\s+(?:una?|mi))?\s+(?:orden|pedido)|para\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+hacer\b|can\s+i\s+(?:place|make|put\s+in)\s+an?\s+order|i(?:'d|\s+would)\s+like\s+to\s+(?:place\s+an\s+)?order)\b(?:[?.!,\s]|\b(?:por\s+favor|please)\b)*/iu;
 const ORDER_QTY_DISH = /\p{L}{3,}/u;
+export const isOrderIntro = (text: string) => {
+  const c = cleanPhrase(text);
+  if (FOOD.test(text) || !ORDER_INTENT.test(c)) return false;
+  const rest = c.replace(ORDER_INTENT, "").replace(/\b(?:por\s+favor|please|gracias|thanks)\b/giu, "").trim();
+  return !ORDER_QTY_DISH.test(rest);
+};
 export const STAFF_VOICE = /^[¿¡\s]*(?:¿\s*)?(?:cu[aá]nt[oa]s?\s+\p{L}+\s+(?:quer[ií]a|quiere|quieres|va\s+a\s+querer)|qu[eé]\s+m[aá]s|qu[eé]\s+le\s+(?:vamos\s+a\s+)?(?:pongo|ponemos|damos)|de\s+qu[eé]\s+(?:las?|los?)\s+quiere|algo\s+m[aá]s)\b[^.!]*\?/iu;
 export const isCountOnly = (text: string) => !FOOD.test(text) && !orderResidue(text, null).replace(new RegExp(`(?<![\\p{L}])(?:${QTY.slice(3, -1)}|y|and)(?![\\p{L}])`, "giu"), "").trim();
 const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
@@ -355,8 +361,8 @@ export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string 
   return !caller.some((t) => ASKS_TO_ORDER.test(t)) && INFO_Q.test(all) && /\?|^\s*(?:are|is|do|does|can|what|which|how|tienen|es|son|lleva|hay)\b/imu.test(all);
 }
 // tw4938: which dish kinds a phrase names, and which kind a menu item is (by its id).
-const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b/iu],
-  ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu]];
+const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["queso torta", /\bqueso\s+tortas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b/iu],
+  ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu], ["menudo", /\bmenudos?\b/iu], ["mole", /\bmoles?\b/iu], ["platillo", /\bplatillos?\b/iu]];
 export const dishesNamed = (text: string) => new Set(DISH_KINDS.filter(([, re]) => re.test(String(text || ""))).map(([k]) => k));
 export const kindOfItem = (itemId: string) => { const id = String(itemId || "").toLowerCase(); const hit = DISH_KINDS.find(([k]) => id.includes(k)); return hit ? hit[0] : null; };
 const MEAT_LIST = "bistec|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripa|prensado|duro|lengua|suadero|deshebrada|picadillo|nopales|vegetal|campechana|costilla";
@@ -820,6 +826,18 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           // side1: the yes rings exactly the Extras side — drop whatever the model added (salsa, a 2nd gordita) and ring the side.
           { const q = ({ one: 1, un: 1, una: 1, two: 2, dos: 2, three: 3, tres: 3, four: 4, cuatro: 4 } as Record<string, number>)[String(m2?.[1] || "1").toLowerCase()] || Number(m2?.[1]) || 1;
             cart.splice(n0s); cart.push({ itemId: EXTRAS_ID, quantity: q, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] } as any); } steps.push({ source: "staff-offer-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; sideOffer = ""; continue; } }
+      // asados1 (Zuleika CA802db3): "cebollita y chilito aparte / tostaditos" or staff "de los asados" + caller sí
+      // → Extras Cebolla y Chiles Asados on the side (not Platillo de Guisado).
+      { const asadosAsk = /\b(?:cebollitas?|cebollas?)\b/iu.test(t.text) && /\b(?:chilitos?|chiles?)\b/iu.test(t.text)
+          && /\b(?:aparte|por\s+separado|separad|tostaditos?|asados?)\b/iu.test(t.text + " " + lastStaff + " " + recentStaff.join(" "));
+        const staffAsados = /\bde\s+los\s+asados\b/iu.test(lastStaff + " " + recentStaff.join(" "));
+        const yesAsados = staffAsados && /^\W*(?:s[ií]|yes|yeah|yep|ok(?:ay)?|aj[aá]|claro|por\s+favor)(?:\W|$)/iu.test(t.text) && !dishesNamed(t.text).size;
+        if ((asadosAsk || yesAsados) && !/platillo|guisado/iu.test(t.text)) {
+          if (!cart.some((l: any) => l.itemId === EXTRAS_ID && (l.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m.option))))) {
+            cart.push({ itemId: EXTRAS_ID, quantity: 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] } as any);
+          }
+          steps.push({ source: "caller-asados-side", heard: t.text.slice(0, 80) }); lastStaff = ""; continue;
+        } }
       // pablo1: caller answered the tortilla choice themselves ("Taqueros") while a bare meat list was pending —
       // ring the pending dish with that tortilla, don't leave "Taqueros" to fall through alone (drops one meat line).
       if (!pick && selfPick && pendingDish && /\b(comal|harina|flour|taquer|street|ma[ií]z|corn)\b/i.test(selfPick)) {
@@ -947,7 +965,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // re-add earlier dishes from history (the doubled tacos/quesadillas/Cokes on the 10:36 call).
     // fix1136: "¿Puedo hacer una orden?" / "quiero ordenar" / "can I place an order" asks to order, it isn't a dish.
     // Sent to Elvi it opened a phantom "Torta: ¿Bistec…?" question that swallowed the next answers.
-    if (!FOOD.test(t.text) && ORDER_INTENT.test(cleanPhrase(t.text)) && !ORDER_QTY_DISH.test(cleanPhrase(t.text).replace(ORDER_INTENT, ""))) { steps.push({ source: "caller-intro", heard: t.text }); continue; }
+    if (isOrderIntro(t.text)) { steps.push({ source: "caller-intro", heard: t.text }); continue; }
     // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
     if (cart.length && isCountOnly(t.text)) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
@@ -1057,6 +1075,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const ctx = prevC && FOOD.test(prevC.text) && !/\b(dos|tres|cuatro|cinco|seis|siete|ocho|two|three|four|five|six|\d+)\b/i.test(prevC.text) ? dishNoun(prevC.text) : "";
       if (ctx && !cart.length && !FOOD.test(t.text) && new RegExp(`(?:^|\\s)(?:me\\s+da|dame|quiero|give me)?\\s*${QTY}\\s+de\\s+\\p{L}`, "iu").test(t.text))
         t = { ...t, text: t.text.replace(new RegExp(`\\b(${QTY})\\s+de\\s+(?=\\p{L})`, "giu"), `$1 ${ctx}s de `) }; }
+    // multi3 (Enrique CA00cedc): still asking tortillas/size for the last item and the caller names the NEXT dish
+    // ("también va a ser un mole") → take the house default, then process the new item (don't swallow mole).
+    if (asking(last) && dishesNamed(t.text).size) {
+      const qtxt = String(last.reply || "");
+      const tortillaQ = /\b(comal|corn|ma[ií]z|harina|flour|taquer|street|tortilla)\b/i.test(qtxt)
+        && /\b(o|or)\b/i.test(qtxt) && optsOf(qtxt).length >= 2;
+      const pendingKind = (qtxt.match(/^([^:¿?]{3,60}):/u)?.[1] || "").toLowerCase();
+      const named = [...dishesNamed(t.text)];
+      const isNew = named.some((k) => k && pendingKind && !pendingKind.includes(k) && !(k === "queso torta" && pendingKind.includes("torta")));
+      if (tortillaQ && isNew) await acceptOpen(t.language);
+    }
     for (const raw of splitItems(cleanPhrase(t.text))) {
       let piece = cleanPhrase(raw).replace(TOKENS, " ").replace(/\b(?:para\s+)?(?:un\s+)?pedido\s*$/iu, "").replace(/\s{2,}/g, " ").trim();
       if (!piece) continue;
