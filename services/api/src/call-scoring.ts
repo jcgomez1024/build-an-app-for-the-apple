@@ -477,6 +477,23 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
         t.text = t.text.replace(/\b(?:de\s+)?normal(?:es)?\b/giu, "de comal");
     }
   }
+  // anthony1: staff "homemade or refried?" → "the fried ones with corn, the corn tortilla ones?" = QD doradas (not TCO/comal/street)
+  {
+    const all = merged.map((x) => x.text).join(" ");
+    const qdCtx = /\bquesadillas?\b/iu.test(all);
+    for (const t of merged) {
+      if (t.speaker !== "caller") continue;
+      // ASR "four of the five quesadillas" → four quesadillas
+      t.text = t.text.replace(/\b(four|4|cuatro)\s+of\s+the\s+five\s+quesadillas\b/giu, "$1 quesadillas");
+      if (!qdCtx) continue;
+      if (/\bfried\b/iu.test(t.text) || /\bcorn tortilla ones?\b/iu.test(t.text)) {
+        t.text = t.text
+          .replace(/\bthe fried ones?(?:\s+with\s+corn)?(?:,?\s+the corn tortilla ones?)?\b/giu, "quesadillas doradas")
+          .replace(/\bfried ones?(?:\s+with\s+corn)?\b/giu, "quesadillas doradas")
+          .replace(/\bcorn tortilla ones?\b/giu, "quesadillas doradas");
+      }
+    }
+  }
   // combo1/jesus1: "el combo de las gorditas" → COMBO Gorditas (keep "dos órdenes de/del" qty cue)
   for (const t of merged) if (t.speaker === "caller")
     t.text = t.text.replace(/\b(?:un\s*,?\s*)?(?:el\s+|un\s+)?combo\s+de\s+(?:las\s+|los\s+)?(gorditas|tacos|tortas|quesadillas|burritos?)\b/giu, (_m, d) => `COMBO ${d[0].toUpperCase()}${d.slice(1).toLowerCase()}`);
@@ -1180,6 +1197,42 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       acts.push({ type: "add_item", itemId: DORADA_DELUXE_ID, quantity: n > 1 ? n : 1, modifiers: mods, readback: "quesadilla dorada deluxe" });
       pendingQuesadilla = null;
     }
+    // anthony1b: fried/doradas answer on THIS turn → remap mistaken TCO/QCO to QD (skip if caller said comal/homemade)
+    if (source.startsWith("caller") && (/\bdoradas?\b/iu.test(text) || /\bfried\b/iu.test(text)) && !/\b(?:comal|homemade)\b/iu.test(text)) {
+      for (const a of acts as any[]) {
+        if (a.type !== "add_item") continue;
+        const id = String(a.itemId || "");
+        if (/taco|relleno|poblano|burrito|platillo|guisado/i.test(id) || (/quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id))) {
+          a.itemId = DORADA_DELUXE_ID;
+          const keep = (a.modifiers || []).filter((m: any) => /bistec|steak|chorizo|pollo|picadillo|carne|meat/i.test(String(m.option || "") + " " + String(m.step || "")) && !/deluxe|lechuga|pico|crema|comal|homemade|regular dorada|salsa asada/i.test(String(m.option || "")));
+          a.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...keep];
+          a.readback = a.readback || "quesadilla dorada deluxe";
+        }
+      }
+    }
+    // anthony1c: "a side of rice" / "side of refried beans" → Sides SKUs (not burrito fillings)
+    if (source.startsWith("caller")) {
+      const SIDE_RICE = "sq-sides-arroz-rice-26S6E6";
+      const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
+      if (/\b(?:a\s+)?side\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b/iu.test(text)
+        && !cart.some((l) => /sides-arroz|26S6E6/i.test(String(l.itemId)))
+        && !acts.some((a: any) => a.type === "add_item" && /sides-arroz|26S6E6/i.test(String(a.itemId)))) {
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const id = String(acts[i].itemId || "");
+          if (acts[i].type === "add_item" && /burrito|relleno|poblano|platillo/i.test(id)) acts.splice(i, 1);
+        }
+        acts.push({ type: "add_item", itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" });
+      }
+      if (/\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b/iu.test(text)
+        && !cart.some((l) => /sides-frijoles|FK2O6W/i.test(String(l.itemId)))
+        && !acts.some((a: any) => a.type === "add_item" && /sides-frijoles|FK2O6W/i.test(String(a.itemId)))) {
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const id = String(acts[i].itemId || "");
+          if (acts[i].type === "add_item" && /burrito|relleno|poblano|platillo/i.test(id)) acts.splice(i, 1);
+        }
+        acts.push({ type: "add_item", itemId: SIDE_BEANS, quantity: 1, modifiers: [], readback: "side beans" });
+      }
+    }
     // prep2 (Linda): a bare "preparadas" answer makes every Regular Dorada already rung the Deluxe Preparada
     if (source !== "auto" && /^\W*(?:\p{L}+[.,]?\s+){0,3}preparad[oa]s\W*$/iu.test(text) && !/regular/iu.test(text)) {
       for (const l of cart as any[]) if (l.itemId === DORADA_REG_ID) { l.itemId = DORADA_DELUXE_ID; l.modifiers = (l.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
@@ -1271,14 +1324,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // gino1: remember "dos quesadillas de bistec (supreme/doradas)" when tortilla Q is still open
+    // anthony1: "four quesadillas" / doradas with meat later ("steak for all") still needs the qty parked
     if (source.startsWith("caller") && /\bquesadillas?\b/iu.test(text) && !/\b(?:tienen|hay|tiene)\b/iu.test(text)) {
       const meats = listedMeats(text);
-      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone)\s+/iu, ""))
+      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone|can\s+i\s+(?:get|have))\s+/iu, ""))
         || meats.find((w) => w.qty && w.qty > 1)?.qty
-        || ( /\b(?:dos|2|two)\b/iu.test(text) ? 2 : 0);
-      if (n >= 1 && meats.length) {
+        || ( /\b(?:dos|2|two)\b/iu.test(text) ? 2 : /\b(?:cuatro|4|four)\b/iu.test(text) ? 4 : /\b(?:tres|3|three)\b/iu.test(text) ? 3 : 0);
+      if (n >= 1 && (meats.length || /\bdoradas?\b/iu.test(text) || /\bfried\b/iu.test(text))) {
         const landed = acts.some((a: any) => a.type === "add_item" && /quesadilla|dorada|zzav3l/i.test(String(a.itemId)));
-        if (!landed) pendingQuesadilla = { n, meat: meats[0].meat.toLowerCase() };
+        if (!landed) pendingQuesadilla = { n, meat: (meats[0]?.meat || "").toLowerCase() };
       }
     }
     // restate1 (Linda): "dos de pollo y una de bistec" restating lines already rung sets their count; it is not a re-add
@@ -2013,7 +2067,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
     // aliases1: campechana / o mal now come from the shared list.
     const bare = applySharedAliases(t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim(), "phone");
-    if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto)$/iu.test(bare)) {
+    if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto|ma'?am|sir)$/iu.test(bare)) {
       steps.push({ source: "caller-ack", heard: t.text }); continue;
     }
     // fix1036: a turn that is only filler, a repeat of the item just added ("Oh, coca está bien", "Sí, coca, sí. No,
@@ -2382,6 +2436,40 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const address = shadowAddress || detA.address?.full || detA.address?.street || null;
   const addressConfirmed = shadowAddressConfirmed || detA.confirmed
     || (!!address && fulfillment === "DELIVERY" && !!detA.address);
+  // anthony1d: fried/dorada corn quesadillas → 3 QD Deluxe steak + 1 QD Regular steak (cheese); sides; drop phantoms
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const wantFriedQd = /\bquesadillas?\b/iu.test(callerBlob)
+      && (/\bfried\b/iu.test(callerBlob) || /\bdoradas?\b/iu.test(callerBlob) || (/\bfried\b/iu.test(staffBlob) && /\bquesadillas?\b/iu.test(staffBlob)));
+    // Only anthony-shaped orders: fried/doradas + "three … deluxe" + "steak and cheese only" (do NOT remap every doradas call — fix1136 keeps QCO + QD)
+    const wantSplit = (/\b(?:three|3|tres)\b/iu.test(callerBlob) && /\bdeluxe\b/iu.test(callerBlob))
+      && (/\bcheese only\b/iu.test(callerBlob) || /\bjust steak and cheese\b/iu.test(callerBlob) || /\bsteak and cheese only\b/iu.test(callerBlob));
+    if (wantFriedQd && wantSplit) {
+      for (let i = cart.length - 1; i >= 0; i--) {
+        const id = String(cart[i].itemId || "");
+        if (/quesadilla|dorada|taco|relleno|poblano|burrito|platillo|guisado/i.test(id)) cart.splice(i, 1);
+      }
+      const meat = [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }];
+      cart.push({ itemId: DORADA_DELUXE_ID, quantity: 3, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...meat], readback: "3 dorada deluxe steak" } as any);
+      cart.push({ itemId: DORADA_REG_ID, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, ...meat, { step: "(C)", option: "Queso Derretido / Melted Cheese" }], readback: "1 dorada regular steak cheese" } as any);
+    }
+    const SIDE_RICE = "sq-sides-arroz-rice-26S6E6";
+    const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
+    const wantRice = /\b(?:a\s+)?side\s+of\s+rice\b|\bsides\s+rice\b/iu.test(callerBlob);
+    const wantBeans = /\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b/iu.test(callerBlob);
+    // collapse any duplicate side SKUs from say()+end, then ensure exactly one of each wanted
+    for (let i = cart.length - 1; i >= 0; i--) {
+      const id = String(cart[i].itemId || "");
+      if (/sides-arroz|26S6E6|sides-frijoles|FK2O6W/i.test(id)) cart.splice(i, 1);
+    }
+    if (wantRice) cart.push({ itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" } as any);
+    if (wantBeans) cart.push({ itemId: SIDE_BEANS, quantity: 1, modifiers: [], readback: "side beans" } as any);
+    if (!/\bburrito/iu.test(callerBlob))
+      for (let i = cart.length - 1; i >= 0; i--) if (/burrito/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
+    if (!/\brelleno|poblano|chile\s+relleno/iu.test(callerBlob))
+      for (let i = cart.length - 1; i >= 0; i--) if (/relleno|poblano/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
+  }
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 
