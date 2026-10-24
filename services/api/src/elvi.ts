@@ -588,6 +588,8 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
     if (a.type !== "add_item") continue;
     // Size/kind already chosen in the follow-up questions.
     if (variationChosen) continue;
+    // hours1 (8:03 PM call): a dish outside its website hours is refused once below — never ask its Regular/Deluxe first
+    { const st0 = storeState()?.state; const it0 = menu.find((m) => m.id === a.itemId); if (it0 && (st0 === "open" || st0 === "last_order" || !st0) && unavailableNowReply(it0, it0.squareCatalogObjectId, language)) continue; }
     const q: any = variationQuestion({ ok: true, actions: [a] }, menu, heard, language);
     if (q?.reason === "choose_variation") {
       actions = actions.filter((x) => x !== a);
