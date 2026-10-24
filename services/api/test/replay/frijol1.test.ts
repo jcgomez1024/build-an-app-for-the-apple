@@ -80,3 +80,65 @@ test("pablo1: listedMeats + meatFragment cover qty de meat and De tripa", () => 
   assert.deepEqual(listedMeats("cuatro de tripa y cuatro de costilla").map((x) => [x.meat, x.qty]), [["tripa", 4], ["costilla", 4]]);
   assert.equal(meatFragment("De tripa."), "De tripa");
 });
+
+test("frijol1: solo frijol y queso sets beans+melted on quesadillas and keeps tres", async () => {
+  const T = (speaker: "caller" | "staff", text: string, start: number): CallTurn => ({ speaker, start, end: start + 1, text, language: "es" });
+  const qAdd = { type: "add_item", itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [
+    { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla de Comal / Homemade" },
+    { step: "(B) Q Carnes / Meats", option: "Queso Derretido / Melted Cheese" },
+  ] };
+  const run = async (text: string) => {
+    if (/tres quesadillas|quesadillas del comal|quesadillas de comal/i.test(text)) return { reply: "Tres del comal. ¿De qué?", actions: [qAdd] };
+    return { reply: "¿Algo más?", actions: [] };
+  };
+  const r: any = await shadowOrderFromTurns([
+    T("caller", "Me puedes dar tres quesadillas, pero solo sería este...", 0),
+    T("staff", "Tres quesadillas del del comal.", 2),
+    T("caller", "sí. Solo nomás, este, le pone frijol y queso.", 4),
+    T("staff", "Okay. Entonces te tengo tres quesadillas del comal, de frijol", 6),
+    T("caller", "Con frijol y queso.", 8),
+    T("staff", "Ajá, ¿queso derretido o queso de desboronar?", 10),
+    T("caller", "Sí, de derretido.", 12),
+  ], run as any);
+  const qs = r.cart.filter((l: any) => /quesadilla/i.test(l.itemId));
+  assert.equal(qs.length, 1, JSON.stringify(r.cart));
+  assert.equal(qs[0].quantity, 3, "keep tres");
+  const opts = (qs[0].modifiers || []).map((m: any) => m.option);
+  assert.ok(opts.some((o: string) => /Frijoles Refritos/i.test(o)), opts.join("; "));
+  assert.ok(opts.some((o: string) => /Queso Derretido/i.test(o)), opts.join("; "));
+  assert.ok(!opts.some((o: string) => /Queso Fresco/i.test(o)), opts.join("; "));
+});
+
+test("frijol1: toppings sí never invents phantom burritos", async () => {
+  const T = (speaker: "caller" | "staff", text: string, start: number): CallTurn => ({ speaker, start, end: start + 1, text, language: "es" });
+  const burrito = { type: "add_item", itemId: "sq-burrito-TGWBEN", quantity: 1, modifiers: [
+    { step: "(A) Burrito Size", option: "Regular '10" },
+    { step: "(B) Burrito Carne Options", option: "Pollo / Chicken" },
+    { step: "(B) Burrito Carne Options", option: "Chile Relleno De Queso / Cheese Chile Relleno" },
+  ] };
+  const phantom = { type: "add_item", itemId: "sq-burrito-TGWBEN", quantity: 1, modifiers: [
+    { step: "(A) Burrito Size", option: "Grande '12" },
+    { step: "(B) Burrito Carne Options", option: "Bistec / Steak" },
+  ] };
+  const run = async (text: string) => {
+    if (/burrito de pollo/i.test(text)) return { reply: "Burrito de pollo.", actions: [burrito] };
+    if (/con todo|arroz frijoles/i.test(text)) return { reply: "Ok.", actions: [phantom, phantom] };
+    return { reply: "¿Algo más?", actions: [] };
+  };
+  const r: any = await shadowOrderFromTurns([
+    T("caller", "Y un burrito de pollo.", 0),
+    T("staff", "Un burrito de pollo. ¿Regular o grande?", 2),
+    T("caller", "A regular.", 4),
+    T("staff", "Muy bien.", 6),
+    T("caller", "Sería todo.", 8),
+    T("staff", "Arroz, frijoles, queso fresco, crema, cilantro y cebolla, ¿está bien?", 10),
+    T("caller", "sí. Ah, nueve", 12),
+  ], run as any);
+  const burs = r.cart.filter((l: any) => /burrito/i.test(l.itemId));
+  assert.equal(burs.length, 1, JSON.stringify(r.cart));
+  const opts = (burs[0].modifiers || []).map((m: any) => m.option);
+  assert.ok(opts.some((o: string) => /Pollo/i.test(o)));
+  assert.ok(!opts.some((o: string) => /relleno/i.test(o)), "strip chile relleno: " + opts.join("; "));
+  assert.ok(opts.some((o: string) => /Arroz/i.test(o)) || opts.some((o: string) => /Crema/i.test(o)), opts.join("; "));
+  assert.ok(!opts.some((o: string) => /Grande|Bistec/i.test(o)), opts.join("; "));
+});

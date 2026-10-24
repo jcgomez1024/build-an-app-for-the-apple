@@ -862,38 +862,57 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // frijol1 (Paco): staff lists burrito fillings ("Arroz, frijoles, queso fresco, crema, cilantro y cebolla, ¿está bien?")
-    // → caller "sí" = con todo on the burrito just rung (not a bare ack that drops the toppings).
-    // Note: JS \b fails after í (\w is ASCII-only), so use (?:\W|$) after sí; frijoles? covers singular+plural.
+    // → caller "sí" = con todo on the burrito just rung. NEVER send that turn to the model — "sí. Ah, nueve"
+    // invented 2× Grande Bistec burritos (NV 44). JS \b fails after í, so (?:\W|$) after sí; frijoles? = plural.
     { const staffAsk = (lastStaff || recentStaff.join(" ") || "").trim();
       const toppingsAsk = /\b(arroz|rice)\b/i.test(staffAsk) && /\bfrijoles?\b|\bbeans?\b/i.test(staffAsk) && /\b(crema|queso|cebolla|cilantro)\b/i.test(staffAsk) && /\?\s*$/.test(staffAsk);
       const yes = /^\W*(?:s[ií]|yes|yeah|yep|ok(?:ay)?|aj[aá]|claro|esta\s+bien|asi\s+esta\s+bien)(?:\W|$)/iu.test(t.text) && !dishesNamed(t.text).size;
-      const lastBurrito = [...cart].reverse().find((l) => /burrito/i.test(String(l.itemId)) || /burrito/i.test(String((l as any).name || "")));
-      if (toppingsAsk && yes && lastBurrito) {
-        const n0 = cart.length;
-        last = await say("con todo", t.language, "staff-toppings-yes");
-        // Prefer updating the existing burrito rather than adding a 2nd one if the model re-adds.
-        if (cart.length > n0) {
-          const added = cart.slice(n0);
-          const fillMods = added.flatMap((l) => (l.modifiers || []).filter((m: any) => /arroz|frijol|queso fresco|crema|cebolla|cilantro/i.test(String(m.option))));
-          cart.splice(n0);
-          if (fillMods.length) {
-            const have = new Set((lastBurrito.modifiers || []).map((m: any) => String(m.option)));
-            lastBurrito.modifiers = [...(lastBurrito.modifiers || []), ...fillMods.filter((m: any) => !have.has(String(m.option)))];
+      if (toppingsAsk && yes) {
+        const isBurrito = (l: Line) => kindOfItem(l.itemId) === "burrito" || /burrito/i.test(String(l.itemId))
+          || (l.modifiers || []).some((m: any) => /Regular\s*['"]?10|Grande\s*['"]?12/i.test(String(m.option)));
+        const lastBurrito = [...cart].reverse().find(isBurrito);
+        const FILL = ["Arroz / Rice", "Frijoles Refritos / Refried Beans", "Queso Fresco / Cheese", "Crema / Sour Cream", "Cebolla / Onion", "Cilantro"];
+        if (lastBurrito) {
+          const n0 = cart.length;
+          last = await say("el burrito con todo, arroz frijoles queso fresco crema cilantro y cebolla", t.language, "staff-toppings-yes");
+          // Drop every newly added line (phantoms). Keep only filling options for the burrito we already had.
+          const added = cart.length > n0 ? cart.splice(n0) : [];
+          const fillRe = /arroz|frijol|queso fresco|crema|cebolla|cilantro/i;
+          const fromModel = added.flatMap((l) => (l.modifiers || []).filter((m: any) => fillRe.test(String(m.option))));
+          const have = new Set((lastBurrito.modifiers || []).map((m: any) => String(m.option)));
+          for (const m of fromModel) if (!have.has(String(m.option))) { lastBurrito.modifiers = [...(lastBurrito.modifiers || []), m]; have.add(String(m.option)); }
+          // If the model still gave nothing useful, stamp the house burrito fillings directly.
+          if (![...have].some((o) => fillRe.test(o))) {
+            for (const opt of FILL) if (!have.has(opt)) { lastBurrito.modifiers = [...(lastBurrito.modifiers || []), { step: "(C) Burrito Options", option: opt }]; have.add(opt); }
           }
-        } else {
-          // Model answered without actions — force fillings onto the last burrito via a dedicated say if needed.
-          last = await say("el burrito con todo", t.language, "staff-toppings-yes");
-          if (cart.length > n0) {
-            const added = cart.slice(n0);
-            const fillMods = added.flatMap((l) => (l.modifiers || []).filter((m: any) => /arroz|frijol|queso fresco|crema|cebolla|cilantro/i.test(String(m.option))));
-            cart.splice(n0);
-            if (fillMods.length) {
-              const have = new Set((lastBurrito.modifiers || []).map((m: any) => String(m.option)));
-              lastBurrito.modifiers = [...(lastBurrito.modifiers || []), ...fillMods.filter((m: any) => !have.has(String(m.option)))];
-            }
+          // frijol1: strip Chile Relleno the model stacked on a meat burrito when the caller never said relleno.
+          if (!(lastStaff + " " + t.text).match(/relleno/i)) {
+            lastBurrito.modifiers = (lastBurrito.modifiers || []).filter((m: any) => !/relleno/i.test(String(m.option)));
           }
         }
         steps.push({ source: "staff-toppings-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; continue;
+      }
+    }
+    // frijol1 (Paco): "solo frijol y queso" / "frijol y queso" + derretido on quesadillas — set meats, keep the spoken qty.
+    { const frijolQueso = /\b(?:solo\s+)?(?:nom[aá]s\s+)?(?:este[,.]?\s+)?(?:le\s+pone\s+)?frijol(?:es)?\s+y\s+queso\b/iu.test(t.text)
+        || (/\bfrijol(?:es)?\b/iu.test(t.text) && /\bqueso\b/iu.test(t.text) && /\b(solo|nom[aá]s|derretido)\b/iu.test(t.text));
+      if (frijolQueso && !/burrito|taco|torta|gordita/iu.test(t.text)) {
+        const qIdx = cart.map((l, i) => (kindOfItem(l.itemId) === "quesadilla" || /quesadilla/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+        if (qIdx.length) {
+          const meatStep = "(B) Q Carnes / Meats";
+          const want = ["Frijoles Refritos / Refried Beans", "Queso Derretido / Melted Cheese"];
+          // Staff readback often re-adds the same quesadillas — collapse to one line with the spoken qty.
+          const keepMods = (l: Line) => (l.modifiers || []).filter((m: any) => !/carne|meat/i.test(String(m.step || m.groupName || "")) && !/frijol|queso derretido|queso fresco|bistec|pollo|pastor|chorizo|tripa|asada/i.test(String(m.option)));
+          const base = cart[qIdx[0]];
+          const tortilla = keepMods(base);
+          const ctx = [...recentStaff, t.text, ...steps.slice(-8).map((x: any) => String(x.heard || ""))].join(" ");
+          const qm = ctx.match(/\b(tres|3|three)\s+quesadillas?\b/iu);
+          const qty = qm ? 3 : Math.max(...qIdx.map((i) => Number(cart[i].quantity) || 1));
+          base.quantity = qty;
+          base.modifiers = [...tortilla, ...want.map((option) => ({ step: meatStep, option }))];
+          for (const i of qIdx.slice(1).reverse()) cart.splice(i, 1);
+          steps.push({ source: "caller-frijol-queso", heard: t.text.slice(0, 80) }); lastStaff = ""; continue;
+        }
       }
     }
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
