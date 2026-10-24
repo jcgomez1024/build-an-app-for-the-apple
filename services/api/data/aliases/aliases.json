@@ -263,13 +263,13 @@
     },
     {
       "id": "ful-me-lo-traen",
-      "match": "\\b(?:me\\s+)?(?:lo|la|los|las)\\s+(?:traen|mandan|env[ií]an|pueden\\s+(?:traer|mandar|llevar)|podr[ií]an\\s+(?:traer|mandar|llevar))\\b|\\b(?:tr[aá]iganmel[oa]s?|m[aá]ndenmel[oa]s?)\\b|\\bme\\s+(?:lo|la|los|las)\\s+llevan\\s+a\\b",
+      "match": "\\b(?:me\\s+)?(?:lo|la|los|las)\\s+(?:traen|mandan|env[ií]an|puedes?\\s+(?:traer|mandar|llevar|enviar)|pueden?\\s+(?:traer|mandar|llevar|enviar)|podr[ií]an?\\s+(?:traer|mandar|llevar|enviar))\\b|\\b(?:tr[aá]iganmel[oa]s?|m[aá]ndenmel[oa]s?)\\b|\\bme\\s+(?:lo|la|los|las)\\s+llevan\\s+a\\b",
       "to": "__DELIVERY__",
-      "example": "¿me lo traen? / me lo mandan a la casa",
+      "example": "¿me lo traen? / me lo mandan / ¿me los puedes enviar?",
       "scope": [
         "fulfillment"
       ],
-      "source": "delivery1 (Carlos 2026-10-19)",
+      "source": "delivery1 (Carlos 2026-10-19); alejandro1 (2026-10-24)",
       "approved": "Carlos 2026-10-19"
     },
     {

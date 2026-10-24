@@ -295,7 +295,7 @@ export function orderResidue(text: string, lastItemId?: string | null) {
 }
 /** fix1136: Elvi asked "¿de qué carne?" about "cuatro quesadillas de comal"; the caller answers "dos de chorizo y dos de
  *  bistec" (or just "de chicharrón prensado"). Rebuild full dish phrases so each part keeps the dish + tortilla. */
-const MEAT_WORDS = /\b(?:bistec|steak|asada|pastor|chorizo|pollo|chicken|carnitas|cabeza|buche|tripa|prensado|duro|chicharr[oó]n|lengua|suadero|campechana|costilla|frijoles?|beans|queso|cheese)\b/iu;
+const MEAT_WORDS = /\b(?:bistec|steak|asada|pastor|chorizo|pollo|chicken|carnitas|cabeza|buche|tripas?|prensado|duro|chicharr[oó]n|lengua|suadero|campechana|costillas?|frijoles?|beans|queso|cheese)\b/iu;
 /** case1c: a dish named with no meat/choices ("Me pone gordita", "una quesadilla"). */
 export function isBareDish(piece: string): boolean {
   const p = cleanPhrase(piece);
@@ -307,12 +307,16 @@ const dishPhrase = (d: string) => { const n = dishNoun(d); return /^(quesadilla|
 export function meatFragment(text: string): string | null {
   const a = cleanPhrase(text);
   if (FOOD.test(a) || !MEAT_WORDS.test(a)) return null;
-  const m = a.match(/\bde\s+(?:bistec|steak|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripa|prensado|duro|chicharr[oó]n|lengua|suadero|campechana|costilla)\b.*$/iu);
+  // alejandro1: "una de tripas y una de bistec" — match from first meat (plural tripas/costillas OK)
+  const m = a.match(/\bde\s+(?:bistec|steak|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripas?|prensado|duro|chicharr[oó]n|lengua|suadero|campechana|costillas?)\b.*$/iu);
   if (!m) return null;
-  return m[0].replace(/\b(?:me\s+)?(?:le\s+)?(?:pone|pones|ponga)\b/giu, "con").replace(/\b(?:l[ao]s\s+dos|ambos|ambas|both)\b/giu, "").replace(/[¿?]+.*$/u, "").replace(/\bcon\s+con\b/giu, "con").replace(/\s{2,}/g, " ").replace(/[,.\s]+$/u, "").trim();
+  return m[0].replace(/\b(?:me\s+)?(?:le\s+)?(?:pone|pones|ponga)\b/giu, "con").replace(/\b(?:l[ao]s\s+dos|ambos|ambas|both)\b/giu, "").replace(/[¿?]+.*$/u, "").replace(/\bcon\s+con\b/giu, "con").replace(/\b(tripa)s\b/giu, "$1").replace(/\b(costilla)s\b/giu, "$1").replace(/\s{2,}/g, " ").replace(/[,.\s]+$/u, "").trim();
 }
 export function expandMeatAnswer(pendingDish: string, answer: string): string[] | null {
-  const a = cleanPhrase(answer).replace(/[.?!,;\s]+$/u, "").trim();
+  // alejandro1: strip "o que me pones" / stutter "una de, una de X" so multi-meat splits parse
+  let a = cleanPhrase(answer).replace(/[.?!,;\s]+$/u, "").trim();
+  a = a.replace(/^(?:o\s+que\s+)?(?:me\s+)?(?:pones?|ponga|ponme|das?|dame|deme|quiero)\s+/iu, "").trim();
+  a = a.replace(/\buna\s+de\s*,\s*/giu, "").replace(/(?<!\p{L})uj[uú](?!\p{L})/giu, "").replace(/[.?!,;\s]+$/u, "").replace(/\s{2,}/g, " ").trim();
   if (!a || FOOD.test(a)) return null;
   const qtyRe = new RegExp(`^(${QTY})\\s+(?=de\\s)`, "iu");
   const parts = a.split(new RegExp(`\\s*(?:,|\\by\\b|\\band\\b)\\s*(?=(?:${QTY}\\s+)?de\\s)`, "iu")).map((x) => x.trim()).filter(Boolean);
@@ -377,19 +381,21 @@ export const dishesNamed = (text: string) => {
   return s;
 };
 export const kindOfItem = (itemId: string) => { const id = String(itemId || "").toLowerCase(); const hit = DISH_KINDS.find(([k]) => id.includes(k)); return hit ? hit[0] : null; };
-const MEAT_LIST = "bistec|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripa|prensado|duro|lengua|suadero|deshebrada|picadillo|nopales|vegetal|campechana|costilla";
+const MEAT_LIST = "bistec|asada|pastor|chorizo|pollo|carnitas|cabeza|buche|tripas?|prensado|duro|lengua|suadero|deshebrada|picadillo|nopales|vegetal|campechana|costillas?";
+const normListedMeat = (m: string) => String(m || "").toLowerCase().replace(/^(tripa)s$/, "$1").replace(/^(costilla)s$/, "$1");
 const lineHasMeat = (l: { modifiers?: any[] }, meat: string) => (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option)));
 const tortillaWordOf = (l: { modifiers?: any[] }) => { const o = (l.modifiers || []).map((m: any) => String(m.option)).join(" "); return /taquer|street/i.test(o) ? " taquero" : /harina|flour/i.test(o) ? " de harina" : /comal|homemade/i.test(o) ? " de comal" : ""; };
 /** tw4938: meats the caller listed for the dish being ordered ("uno de bistec … y tripa", "otra tripa") — each one is a line. */
 export function listedMeats(text: string): Array<{ meat: string; another: boolean; qty?: number }> {
   const t = cleanPhrase(text), out: Array<{ meat: string; another: boolean; qty?: number }> = [];
   const re = new RegExp(String.raw`\b(?:(un[oa]|otr[oa]|y)\s+(?:de\s+|m[aá]s\s+de\s+)?(?:al\s+)?)(${MEAT_LIST})\b`, "giu");
-  for (const m of t.matchAll(re)) { const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue; if (/^y$/i.test(m[1]) && new RegExp(String.raw`\bde\s+(?:${MEAT_LIST})\s*$`, "iu").test(t.slice(0, m.index))) continue; /* "de bistec y chorizo" = one mixed item */ out.push({ meat: m[2].toLowerCase(), another: /^otr/i.test(m[1]), qty: /^un/i.test(m[1]) ? 1 : undefined }); }
+  for (const m of t.matchAll(re)) { const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue; if (/^y$/i.test(m[1]) && new RegExp(String.raw`\bde\s+(?:${MEAT_LIST})\s*$`, "iu").test(t.slice(0, m.index))) continue; /* "de bistec y chorizo" = one mixed item */ out.push({ meat: normListedMeat(m[2]), another: /^otr/i.test(m[1]), qty: /^un/i.test(m[1]) ? 1 : undefined }); }
   // pablo1: "cuatro de tripa y cuatro de costilla" / "cuatro tacos de tripa" — qty (+ optional dish) + de + meat.
   { const seen = new Set(out.map((x) => x.meat));
-    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?)\s+)?(?:(?:taquero|comal|harina|street|dorad\w*|preparad\w*)\s+)?de\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu");
+    // alejandro1: "una quesadilla de comal de tripa" — optional "de" before tortilla word
+    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?)\s+)?(?:(?:de\s+)?(?:taquero|comal|harina|street|dorad\w*|preparad\w*)\s+)?de\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu");
     for (const m of t.matchAll(re2)) {
-      const meat = m[2].toLowerCase(); if (seen.has(meat)) continue;
+      const meat = normListedMeat(m[2]); if (seen.has(meat)) continue;
       const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue;
       seen.add(meat); out.push({ meat, another: out.length > 0, qty: spokenCount(m[1]) || undefined });
     }
@@ -808,12 +814,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // julio1 (CA1c0a9921): "dos quesadillas de comal" + "una de duro, una de prensado" — model returns [] forever; force QCO lines.
     if (source.startsWith("caller") && !acts.some((a: any) => a.type === "add_item" && /quesadilla/i.test(String(a.itemId)))) {
       let meats = listedMeats(text);
-      // rewritten "una quesadilla de comal de duro" — listedMeats misses comal between dish and meat
-      if (!meats.length && dishesNamed(text).has("quesadilla")) {
-        meats = [...text.matchAll(new RegExp(String.raw`\bde\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu"))].map((m) => ({ meat: m[1].toLowerCase(), another: false, qty: 1 as number | undefined }));
+      // rewritten "una quesadilla de comal de duro/tripa" — listedMeats may miss meat after tortilla word
+      { const deMeats = [...text.matchAll(new RegExp(String.raw`\bde\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu"))].map((m) => ({ meat: normListedMeat(m[1]), another: false, qty: 1 as number | undefined }));
+        if (dishesNamed(text).has("quesadilla") && deMeats.length > meats.length) meats = deMeats;
+        else if (!meats.length && dishesNamed(text).has("quesadilla")) meats = deMeats;
       }
       const recentCaller = history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" ");
+      // alejandro1: staff "dos quesadillas de comal, ¿de qué…?" must count even when caller meat turn has no "comal"
+      const staffComal = /\b(?:comal|pomal)\b/iu.test(lastStaff || "") || /\b(?:comal|pomal)\b/iu.test(recentStaff.join(" "));
       const comalCtx = /\b(?:comal|pomal)\b/iu.test(text) || /\b(?:comal|pomal)\b/iu.test(prevCaller) || /\b(?:comal|pomal)\b/iu.test(recentCaller)
+        || staffComal
         // cris1: "No, de normal" rejects staff "doradas" → comal (not QD dorada)
         || (/\b(?:normal|sencill)/iu.test(text) && /\bdorad/iu.test(prevReply));
       const qCtx = dishesNamed(text).has("quesadilla") || dishesNamed(prevCaller).has("quesadilla") || dishesNamed(recentCaller).has("quesadilla");
@@ -823,10 +833,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const MEAT_OPT: Array<[RegExp, string]> = [
           [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
           [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^buche$/i, "Buche / Pork Stomach"],
-          [/^costilla$/i, "Costilla / Beef Rib"],
+          [/^costillas?$/i, "Costilla / Beef Rib"],
           [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"],
           [/^picadillo$/i, "Picadillo / Ground Beef"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
-          [/^tripa$/i, "Tripa / Beef Tripe"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
+          [/^tripas?$/i, "Tripa / Beef Tripe"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         ];
         // julio1c: "una de X, una de Y" → one each; carlos1: "dos quesadillas de tripa al comal" → qty 2 on that meat
         const meatSplit = /\buna\s+(?:quesadilla(?:\s+de\s+comal)?\s+)?de\s+/iu.test(text) && meats.length >= 2;
@@ -864,6 +874,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         for (const l of cart) {
           if (kindOfItem(l.itemId) !== "quesadilla") continue;
           if (!/comal|QCO|homemade/i.test((l.modifiers || []).map((m: any) => m.option).join(" "))) continue;
+          // julio1/alejandro1: expand halves ("…de duro" then "…de prensado") — do not strip a prior split line's meat
+          const opts = (l.modifiers || []).map((m: any) => String(m.option));
+          const lineMeats = opts.filter((o) => meatRe.test(o) && !/salsa/i.test(o));
+          if (!lineMeats.some((o) => want.some((w) => o.toLowerCase().includes(w)))) continue;
           l.modifiers = (l.modifiers || []).filter((m: any) => {
             const o = String(m.option);
             if (!(meatRe.test(o) && !/salsa/i.test(o))) return true;
@@ -883,7 +897,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       const MEAT_OPT: Array<[RegExp, string]> = [
         [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
-        [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"],
+        [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
         [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
       ];
@@ -1030,12 +1044,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const MEAT_OPT_J: Array<[RegExp, string]> = [
           [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
           [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^buche$/i, "Buche / Pork Stomach"],
+          [/^costillas?$/i, "Costilla / Beef Rib"],
           [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"],
           [/^picadillo$/i, "Picadillo / Ground Beef"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
+          [/^tripas?$/i, "Tripa / Beef Tripe"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         ];
         let splitMeats = listedMeats(text).map((w: any) => w.meat.toLowerCase());
         if (splitMeats.length < 2) {
-          splitMeats = [...text.matchAll(/\buna\s+(?:quesadilla(?:\s+de\s+comal)?\s+)?de\s+([\p{L}]+)/giu)].map((m) => m[1].toLowerCase());
+          splitMeats = [...text.matchAll(/\buna\s+(?:quesadilla(?:\s+de\s+comal)?\s+)?de\s+([\p{L}]+)/giu)].map((m) => normListedMeat(m[1]));
         }
         const qAdds = acts.filter((a: any) => a.type === "add_item" && /quesadilla/i.test(String(a.itemId)));
         if (splitMeats.length >= 2 && qAdds.length >= 2) {
@@ -1059,7 +1075,29 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             a.quantity = 1;
           });
         } else if (splitMeats.length >= 2 && qAdds.length === 1) {
-          // model collapsed both meats onto one line — leave force-add path / meatsplit; strip extras later on cart
+          // alejandro1/julio1d: model collapsed "una de tripa y una de bistec" onto one QCO — explode to one line per meat
+          const base = qAdds[0];
+          const baseMods = (Array.isArray(base.modifiers) ? base.modifiers : []).filter((m: any) => {
+            const o = String(m.option || "");
+            if (/\b(?:mild\s+)?salsa\b|cebolla|chiles?\s+asado|frijoles?|crema|lechuga|queso\s+fresco|guacamole/i.test(o)) return false;
+            return !MEAT_OPT_J.some(([, opt]) => o.startsWith(opt.split(" /")[0]) || o.startsWith(opt.split(" (")[0]));
+          });
+          const hasComal = /comal|homemade|QCO/i.test((base.modifiers || []).map((m: any) => String(m.option)).join(" "))
+            || /\bcomal\b/iu.test(text);
+          const tortMod = hasComal
+            ? { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }
+            : null;
+          const idx = acts.indexOf(base);
+          const replacements: any[] = [];
+          for (const meat of splitMeats) {
+            const wantOpt = MEAT_OPT_J.find(([re]) => re.test(meat))?.[1];
+            if (!wantOpt) continue;
+            const mods = [...baseMods];
+            if (tortMod && !mods.some((m: any) => /Q Tortilla|comal|harina|taquer/i.test(String(m.step) + String(m.option)))) mods.unshift(tortMod);
+            mods.push({ step: "(B) Q Carnes / Meats", option: wantOpt });
+            replacements.push({ ...base, quantity: 1, modifiers: mods, readback: `quesadilla ${hasComal ? "comal " : ""}${meat}` });
+          }
+          if (replacements.length >= 2) acts.splice(idx, 1, ...replacements);
         }
       }
       // julio1e: plain comal meat lines never include Mild Salsa / toppings unless caller said preparada/salsa/asados
@@ -1276,7 +1314,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const meats = listedMeats(text);
         const MEAT_OPT: Array<[RegExp, string]> = [
           [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
-          [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"],
+          [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
           [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         ];
         const TACO = "sq-taco-TAR7L5";
@@ -1316,7 +1354,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       const MEAT_OPT: Array<[RegExp, string]> = [
         [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
-        [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"],
+        [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
         [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
       ];
@@ -1401,7 +1439,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (!(a.modifiers || []).some((m: any) => meatRe.test(String(m.option)) && !/salsa|frijol|bean|queso/i.test(String(m.option)))) {
           const mm = text.match(new RegExp(String.raw`\bde\s+(?:al\s+)?(${MEAT_LIST})\b`, "iu"));
           if (mm) {
-            const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
+            const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
             const opt = MEAT_OPT.find(([re]) => re.test(mm[1]))?.[1];
             if (opt) a.modifiers = [...(a.modifiers || []), { step: "(B) Q Carnes / Meats", option: opt }];
           }
@@ -1557,7 +1595,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       if (parts.length >= 2 && tacoAdds.length === 1) {
         const a0 = tacoAdds[0];
-        const MEAT_OPT: Array<[RegExp, string]> = [[/^lengua$/i, "Lengua / Beef Tongue"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
+        const MEAT_OPT: Array<[RegExp, string]> = [[/^lengua$/i, "Lengua / Beef Tongue"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
         const baseMods = (a0.modifiers || []).filter((m: any) => !new RegExp(MEAT_LIST, "i").test(String(m.option)) || /salsa/i.test(String(m.option)));
         const mk = (meat: string) => {
           const opt = MEAT_OPT.find(([re]) => re.test(meat))?.[1];
@@ -1578,7 +1616,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           if (kindOfItem(cart[i].itemId) === "taco" && meatsOf(cart[i]).length >= 2) cart.splice(i, 1);
         }
         if (!acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)))) {
-          const MEAT_OPT: Array<[RegExp, string]> = [[/^lengua$/i, "Lengua / Beef Tongue"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
+          const MEAT_OPT: Array<[RegExp, string]> = [[/^lengua$/i, "Lengua / Beef Tongue"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
           const TACO = "sq-taco-TAR7L5";
           for (const meat of parts) {
             const opt = MEAT_OPT.find(([re]) => re.test(meat))?.[1];
@@ -1657,7 +1695,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const sope = [...cart].reverse().find((l) => /sopes[ae]so/i.test(l.itemId));
         const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
         if (sope && mm) {
-          const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
+          const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
           const opt = MEAT_OPT.find(([re]) => re.test(mm[1]))?.[1];
           if (opt && !(sope.modifiers || []).some((m: any) => new RegExp(mm[1], "i").test(String(m.option))))
             sope.modifiers = [...(sope.modifiers || []), { step: "(B) Q Carnes / Meats", option: opt }];
@@ -1827,6 +1865,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
       lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift(); staffSince.push(t.text);
+      // alejandro1: staff "dos quesadillas de comal, ¿de qué…?" stamps tortilla for later meat-fragment force-add
+      { const tw = [...cleanPhrase(t.text).matchAll(/\b(?:de\s+)?(ma[ií]z|comal|harina|flour|taquer[ao]s?)\b/giu)].pop();
+        if (tw && /\bquesadillas?\b/iu.test(t.text)) lastTortilla = /taquer/i.test(tw[1]) ? "de taquero" : `de ${tw[1]}`; }
       continue;
     }
     // case1d: staff "¿La gordita también quieres que lleve frijoles?" → "Sí…": beans on that gordita (option name resolved at the end)
@@ -2166,7 +2207,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         // case1e: keep the dish-type word the fragment cut off ("De chicharrón. ¿De chicharrón dorada o …?")
         const kind = (cleanPhrase(t.text).match(/\b(dorad[ao]s?|frit[ao]s?)\b/iu) || [])[1];
         const head = fragQty > 1 ? `${fragQty} ${dishNoun(d)}s` : dishPhrase(d);
-        const phrase = `${head} ${frag}${kind && !new RegExp(kind, "i").test(frag) ? " " + kind : ""}`.trim();
+        // alejandro1: keep comal/harina from pending dish, lastTortilla, or staff ask
+        const tort =
+          /\bcomal\b/iu.test(d) ? " de comal" :
+          /\b(?:harina|flour)\b/iu.test(d) ? " de harina" :
+          /\btaquer/iu.test(d) ? " de taquero" :
+          lastTortilla ? (lastTortilla.startsWith("de ") ? ` ${lastTortilla}` : ` de ${lastTortilla}`) :
+          /\bcomal\b/iu.test(lastStaff + " " + recentStaff.join(" ")) ? " de comal" :
+          /\b(?:harina|flour)\b/iu.test(lastStaff + " " + recentStaff.join(" ")) ? " de harina" : "";
+        // tort AFTER meat fragment — "quesadilla de comal de tripa" makes listedMeats drop tripa
+        const phrase = `${head} ${frag}${tort}${kind && !new RegExp(kind, "i").test(frag) ? " " + kind : ""}`.trim();
         if (pendingDish && dishNoun(pendingDish) === dishNoun(d)) pendingDish = null;
         const nb = cart.length;
         last = await say(phrase, t.language, "caller-meat-fragment");
@@ -2204,7 +2254,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // meatsplit1: "two flour steak quesadillas deluxe" → "Can I get one steak and one chorizo?" splits the line just rung by meat
     // (Bree) instead of adding two more.
-    { const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^costilla$/i, "Costilla / Beef Rib"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^buche$/i, "Buche / Pork Stomach"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"]];
+    { const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^costillas?$/i, "Costilla / Beef Rib"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^cabeza$/i, "Cabeza / Beef Head"], [/^buche$/i, "Buche / Pork Stomach"], [/^lengua$/i, "Lengua / Beef Tongue"], [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"]];
       const W: Record<string, number> = { one: 1, una: 1, uno: 1, un: 1, two: 2, dos: 2, three: 3, tres: 3 };
       const prev = cart[cart.length - 1] as any; const body = t.text.replace(/^.*?\b(?:can i get|could i get|get|me da|dame)\s+/iu, "").replace(/[?.!]+\s*$/, "");
       const parts = [...body.matchAll(/\b(one|una?|uno|two|dos|three|tres)\s+(?:de\s+|of\s+)?([\p{L}]+(?:\s+pastor)?)/giu)];
