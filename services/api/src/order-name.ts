@@ -105,6 +105,13 @@ const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
+    // cecilia1: "Cecilia, ¿verdad?" / "¿Cecilia, verdad?" — staff confirming the caller's name
+    for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,\s*¿?\s*verdad\s*\??/gu)) {
+      const w = m[1];
+      if (NOT_NAMES.test(w)) continue;
+      const n = cleanFirstName(w);
+      if (n) return n;
+    }
     for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[.!?]|\s*$)/gu)) { // cleanup1: not before a comma
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
