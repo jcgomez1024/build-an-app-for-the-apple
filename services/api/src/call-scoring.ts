@@ -2749,7 +2749,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const preferReg = saidReg && /\b(?:no|regulares?)\b/iu.test(callerBlob);
       const keepId = preferReg ? DORADA_REG_ID : DORADA_DELUXE_ID;
       const meatKey = (l: any) => (l.modifiers || []).map((m: any) => String(m.option).replace(/\s*\(\+?\$[\d.]+\)\s*$/u, "").trim())
-        .filter((o: string) => /carne|meat|bistec|chorizo|picadillo|pollo|buche|tripa|lengua|pastor|carnitas|asada|prensado|duro|cabeza|costilla/i.test(o)).map((o) => o.toLowerCase()).sort().join("|");
+        .filter((o: string) => /carne|meat|bistec|chorizo|picadillo|pollo|buche|tripa|lengua|pastor|carnitas|asada|prensado|duro|cabeza|costilla/i.test(o)).map((o: string) => o.toLowerCase()).sort().join("|");
       const groups = new Map<string, number[]>();
       for (const i of dorIdx) {
         const k = meatKey(cart[i]);
