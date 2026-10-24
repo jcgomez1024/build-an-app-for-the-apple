@@ -390,6 +390,17 @@
       "example": "extra cheese melted please",
       "source": "addons1: (C) Con / With paid add-ons",
       "approved": "Carlos 2026-10-20"
+    },
+    {
+      "id": "quesidita",
+      "match": "\\bquesidita(s?)\\b",
+      "to": "gordita$1",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "y una quesidita de chicharrón duro",
+      "source": "STT mishearing of gordita (8:03 PM 10/23 call)"
     }
   ]
 }
