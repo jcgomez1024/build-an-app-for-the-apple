@@ -179,7 +179,7 @@ export function isRestatement(text: string, a: any, cart: any[], sig: (x: any) =
 }
 export function carryAskedQty(acts: any[], text: string, prevCustomer: string, answering: boolean) {
   if (!answering || !prevCustomer) return;
-  const m = prevCustomer.match(/\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|\d+)\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|sopesa[sz]os|huaraches|tostadas|tamales|enchiladas)\b/i);
+  const m = prevCustomer.match(/\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|\d+)\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|sopesa[sz]os|huaraches|tostadas|tamales|enchiladas|menudos|moles|platillos)\b/i);
   if (!m) return;
   const n = QTY_N[m[1].toLowerCase()] || Number(m[1]); if (!(n > 1)) return;
   const first = text.split(/[.;!?]|\s+y\s+(?:tambi[eé]n\s+)?|\s+and\s+/i)[0] || "";
@@ -491,6 +491,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const touchedNow: Line[] = [];
   let person: string | null = null, plateN = 0; // multi1: per-person groups inside the one cart
   let sizeAnswer = false;
+  // luis7895/chuy1: "dos/tres menudos" often gets an Elvi question (empty add); apply spoken qty on the later add (incl. staff-pick).
+  let pendingSpokenQty: { n: number; kind: string } | null = null;
   const apply = (actions: any[] = []) => {
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
@@ -610,6 +612,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (adds.length) { const ik = kindOfItem(adds[0].itemId) || "";
         const kindOk = named.has(ik) || (ik === "torta" && named.has("queso torta"));
         if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && kindOk) adds[0].quantity = n; } }
+    // luis7895/chuy1: remember spoken N+dish when Elvi asked instead of adding; apply on the next matching add (staff-pick / Con pata).
+    { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos|moles|platillos)\b`, "iu"));
+      const n = m ? spokenCount(m[1]) : 0;
+      const kinds = [...dishesNamed(text)];
+      if (n > 1 && kinds.length === 1 && !acts.some((a: any) => a.type === "add_item")) pendingSpokenQty = { n, kind: kinds[0] };
+      else if (acts.some((a: any) => a.type === "add_item")) {
+        for (const a of acts) {
+          if (a.type !== "add_item" || (Number(a.quantity) || 1) !== 1) continue;
+          const ik = kindOfItem(a.itemId) || "";
+          if (pendingSpokenQty && ik === pendingSpokenQty.kind) { a.quantity = pendingSpokenQty.n; pendingSpokenQty = null; }
+          else if (n > 1 && kinds.length === 1 && ik === kinds[0]) a.quantity = n;
+        }
+      }
+    }
     // harina1: "una quesadilla de harina de bistec" is a flour quesadilla, never the Dorada just rung (Luisa)
     if (/\bquesadillas?\s+de\s+harina\b|\bflour\s+(?:\p{L}+\s+)?quesadillas?\b/iu.test(text) && !/dorad/iu.test(text) && acts.some((a: any) => a.type === "add_item" && /dorada/i.test(String(a.itemId)))) {
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && /dorada/i.test(String(acts[i].itemId))) acts.splice(i, 1);
