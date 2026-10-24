@@ -121,11 +121,8 @@ export function displayedWindows(categoryHours: Hours, catalog = loadSiteCatalog
 }
 
 /** phone1 (Carlos 10/24): online pickup+prep windows (11:20 starts) are website-only. Voice/Elvi uses raw
- *  category day/hours (e.g. Menudo Sat/Sun from category open), except Quesadilla Dorada which keeps the
- *  displayed Especial window already set for phone (hours1/dorada1). */
-const isDoradaProduct = (product: SiteProduct | null | undefined) =>
-  !!product && /\bdorad[ao]s?\b|\(QD\)/i.test(`${product.name} ${product.siteName || ""}`);
-
+ *  category day/hours from restaurant/category open — including Quesadilla Dorada Regular + Deluxe (Carlos 10/24).
+ *  Web/online keeps displayedWindows (pickup+prep). */
 function rawCategoryWindows(categoryHours: Hours) {
   const out: Record<string, Array<{ start: number; end: number }>> = {};
   for (const d of DAYS) {
@@ -146,7 +143,7 @@ export function itemAvailability(squareItemId: string | undefined, now = current
   if (!cats.length || cats.some((c) => !c.customTimes || !c.hours)) return { available: true };
   const { day, minutes } = storeNow(now, catalog.store?.timezone || catalog.timezone);
   const prep = catalog.store?.prepMinutes || 0;
-  const phone = opts?.channel === "phone" && !isDoradaProduct(product);
+  const phone = opts?.channel === "phone";
   const windows = cats.map((c) => phone ? rawCategoryWindows(c.hours!) : displayedWindows(c.hours!, catalog));
   const at = phone ? minutes : minutes + prep;
   const open = windows.some((w) => (w[day] || []).some((x) => at >= x.start && at <= x.end));

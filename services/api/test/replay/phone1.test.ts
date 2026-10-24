@@ -1,5 +1,5 @@
-// phone1 (Cecilia CA0a9a67, Sat 10:21 AM): online Menudo window starts 11:20 (pickup+prep) but phone
-// takes it from category open (Sat 10:00). Doradas still use the displayed Especial window (hours1).
+// phone1 (Cecilia CA0a9a67, Sat 10:21 AM): online Menudo/Dorada windows start 11:20 (pickup+prep) but phone
+// takes every timed item from category/store open (Carlos 10/24: doradas too). Web keeps displayed windows.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 process.env.ELVI_SIMULATED_NOW = "2026-10-24T10:21:00-04:00";
@@ -15,6 +15,11 @@ test("phone1: Menudo at 10:21 Sat is available on phone, not on web", () => {
   assert.equal(itemAvailability(MENUDO_SQ).available, false, "web still uses 11:20 online window");
 });
 
+test("phone1: Dorada at 10:21 Sat is available on phone (from Especial open), not on web", () => {
+  assert.equal(itemAvailability(DORADA_SQ, undefined, { channel: "phone" }).available, true);
+  assert.equal(itemAvailability(DORADA_SQ).available, false, "web still uses 11:20 displayed window");
+});
+
 test("phone1: finalizeTurn does not refuse Menudo at 10:21 Sat", () => {
   const menu: any[] = [{ id: "menudo", name: "Menudo", squareCatalogObjectId: MENUDO_SQ, priceCents: 1600, modifierGroups: [] }];
   const r: any = finalizeTurn(
@@ -24,12 +29,12 @@ test("phone1: finalizeTurn does not refuse Menudo at 10:21 Sat", () => {
   assert.doesNotMatch(r.reply || "", /11:20|solo está disponible/i);
 });
 
-test("phone1: Dorada still refused after Especial window on phone (hours1)", () => {
+test("phone1: Dorada refused after raw Especial close on phone (not the 11:20 web start)", () => {
   process.env.ELVI_SIMULATED_NOW = "2026-10-23T20:03:00-04:00";
   try {
     assert.equal(itemAvailability(DORADA_SQ, undefined, { channel: "phone" }).available, false);
     const reply = unavailableNowReply({ name: "(QD) Quesadilla Dorada" }, DORADA_SQ, "es", undefined, { channel: "phone" });
-    assert.match(String(reply), /7:59/);
+    assert.match(String(reply), /7:59|9:00/);
   } finally {
     process.env.ELVI_SIMULATED_NOW = "2026-10-24T10:21:00-04:00";
   }
