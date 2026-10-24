@@ -66,7 +66,9 @@ export function nameFromAnswer(text: string): string | null {
   }
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
-  if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|muchas|thanks|nada|todo|eso|de)$/iu.test(words[0])) return null;
+  if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|muchas|thanks|nada|todo|eso|de|ser[ií]a|qu[eé]|algo)$/iu.test(words[0])) return null;
+  // suleika1/close1: "Sería todo" / "Nada más" are closings, never a name
+  if (words.some((w) => /^(todo|nada|m[aá]s)$/iu.test(w))) return null;
   // rec1: "Okay, está bien, gracias" is not a name
   if (words.some((w) => /^(est[aá]|bien|perfecto|vale|claro|listo|sale|[aá]ndale|correcto|igualmente|fine|good|great|alright|sure|right|perfect)$/iu.test(w))) return null;
   // carlos1: "Okay, muchas gracias" → leftover "muchas" (or "muchas gracias") is gratitude, never a name
@@ -111,7 +113,12 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     let aNombreDe: string | null = null;
     for (const t of turns.slice(i + 1, i + 10)) {
       if (t.speaker === "caller") {
-        const n = nameFromAnswer(t.text);
+        let n = nameFromAnswer(t.text);
+        // suleika1: after ¿Tu nombre?, "¿Zuleika?" is the answer (gino1 bare ¿Guino? only blocked outside ask)
+        if (!n) {
+          const bare = t.text.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*\?\s*$/u);
+          if (bare && !NOT_NAMES.test(bare[1].split(" ")[0])) n = cleanFullName(bare[1]);
+        }
         if (n) {
           lastCaller = n;
           // carlos1: prefer explicit "A nombre de Carlos" over later gratitude leftovers
@@ -124,7 +131,9 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       if (t.speaker === "staff") {
         const echo =
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
-          t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu);
+          t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu) ||
+          // suleika1: "Dame … veinte, Zuleika, por favor."
+          t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,?\s*(?:por\s+favor|please)\s*[.]?\s*$/u);
         if (echo && !NOT_NAMES.test(echo[1])) {
           const n = cleanFirstName(echo[1]);
           // gino1: last staff confirm wins (Gino over earlier ¿Guino?)
@@ -140,8 +149,9 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     if (staffEcho && lastCaller) {
       const a = foldName(staffEcho), b = foldName(lastCaller);
       if (a === b) return staffEcho;
-      const close = a.slice(0, 2) === b.slice(0, 2) || a.includes(b.slice(0, 3)) || b.includes(a.slice(0, 3));
-      if (close) return staffEcho; // Guino → Gino
+      const close = a.slice(0, 2) === b.slice(0, 2) || a.includes(b.slice(0, 3)) || b.includes(a.slice(0, 3))
+        || (a[0] === b[0] && Math.abs(a.length - b.length) <= 1); // gino1: Guino → Gino
+      if (close) return staffEcho;
     }
     if (lastCaller) return lastCaller;
     if (staffEcho) return staffEcho;
@@ -176,17 +186,20 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|se|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|se|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  // cecilia1: "Cecilia, ¿verdad?" wins over later "¿Qué, qué más, señora?" leading-comma false positives
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
-    // cecilia1: "Cecilia, ¿verdad?" / "¿Cecilia, verdad?" — staff confirming the caller's name
     for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,\s*¿?\s*verdad\s*\??/gu)) {
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
       const n = cleanFirstName(w);
       if (n) return n;
     }
+  }
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "staff") continue;
     for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[.!?]|\s*$)/gu)) { // cleanup1: not before a comma
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
