@@ -171,3 +171,12 @@ test("desk2: menudo dos órdenes con pata", () => {
   prepMergedCallerTurns(m);
   assert.match(m[1].text, /dos\s+[oó]rdenes?\s+de\s+menudos?/i);
 });
+
+test("avail2: Oiga, disculpe, ¿sí tienen menudo? stamps onto dos órdenes", () => {
+  const m = [
+    { speaker: "caller", text: "Oiga, disculpe, ¿sí tienen menudo?" },
+    { speaker: "caller", text: "O, ¿me puede preparar dos órdenes, por favor, con pata?" },
+  ] as any;
+  prepMergedCallerTurns(m);
+  assert.ok(m.some((x: any) => /menudo/i.test(x.text) && /dos\s+[oó]rdenes?/i.test(x.text)), JSON.stringify(m));
+});
