@@ -180,3 +180,168 @@ test("avail2: Oiga, disculpe, ¿sí tienen menudo? stamps onto dos órdenes", ()
   prepMergedCallerTurns(m);
   assert.ok(m.some((x: any) => /menudo/i.test(x.text) && /dos\s+[oó]rdenes?/i.test(x.text)), JSON.stringify(m));
 });
+
+test("cecilia1b: same-turn tienen menudo + dos órdenes stamps dish", () => {
+  const m = [{ speaker: "caller", text: "Oiga, disculpe, ¿sí tienen menudo? O, ¿me puede preparar dos órdenes, por favor, con pata?" }] as any;
+  prepMergedCallerTurns(m);
+  assert.match(m[0].text, /dos\s+[oó]rdenes?\s+de\s+menudos?/i);
+});
+
+test("cecilia1c: pendingSpokenQty beats staff-pick Tortillas (4) qty", async () => {
+  const MEN = "sq-menudo-con-pata";
+  let n = 0;
+  const run = async (t: string) => {
+    n++;
+    if (/menudo/i.test(t) && /\b(dos|2)\b/i.test(t)) return { reply: "¿Con pata o con tortillas?", actions: [] };
+    if (/4 x|Tortillas?\s*\(4\)|Con Pata Menudo/i.test(t))
+      return { actions: [{ type: "add_item", itemId: MEN, quantity: 4, modifiers: [{ option: "Con Pata" }, { option: "4 x (Corn) Comal Tortilla" }], readback: "4 menudo" }], reply: "¿Algo más?" };
+    if (/menudo|pata|tortilla/i.test(t))
+      return { actions: [{ type: "add_item", itemId: MEN, quantity: 1, modifiers: [{ option: "4 x (Corn) Comal Tortilla" }], readback: "1 menudo" }], reply: "¿Con pata?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "Oiga, disculpe, ¿sí tienen menudo?", language: "es" },
+    { speaker: "staff", start: 2, end: 3, text: "Sí.", language: "es" },
+    { speaker: "caller", start: 4, end: 5, text: "O, ¿me puede preparar dos órdenes, por favor, con pata?", language: "es" },
+    { speaker: "staff", start: 6, end: 7, text: "Menudo: 4 x (Corn) Comal Tortilla, o Con Pata Menudo 32oz y Tortillas (4)?", language: "es" },
+    { speaker: "caller", start: 8, end: 9, text: "Con pata.", language: "es" },
+    { speaker: "staff", start: 10, end: 11, text: "¿Algo más?", language: "es" },
+    { speaker: "caller", start: 12, end: 13, text: "Ándale, pues.", language: "es" },
+  ] as any, run as any);
+  const q = r.cart.filter((l: any) => /menudo/i.test(l.itemId)).reduce((a: number, l: any) => a + (l.quantity || 1), 0);
+  assert.equal(q, 2, `expected 2 menudo, got ${q}: ${JSON.stringify(r.cart)}`);
+});
+
+test("jamaica1c: Jamaica turn drops water spam and rings Jamaica", async () => {
+  const JAM = "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG";
+  const WATER = "sq-drink-agua-water-bottle-H4VXU2";
+  const run = async (t: string) => {
+    if (/jamaica/i.test(t)) return { actions: [{ type: "add_item", itemId: WATER, quantity: 11, modifiers: [], readback: "11 water" }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "Me pone una de Jamaica, por favor.", language: "es" },
+  ] as any, run as any);
+  assert.equal(r.cart.filter((l: any) => /water/i.test(l.itemId)).length, 0, JSON.stringify(r.cart));
+  assert.ok(r.cart.some((l: any) => /jamaica/i.test(l.itemId)), JSON.stringify(r.cart));
+});
+
+test("cecilia1e: con pata stamps EXTRA Pata on menudo add", async () => {
+  const MEN = "sq-menudo-con-pata-menudo-32oz";
+  const run = async (t: string) => {
+    if (/menudo/i.test(t)) return { actions: [{ type: "add_item", itemId: MEN, quantity: 2, modifiers: [{ option: "4 x (Corn) Comal Tortilla" }], readback: "2 menudo" }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "dos menudos con pata", language: "es" },
+  ] as any, run as any);
+  const men = r.cart.find((l: any) => /menudo/i.test(l.itemId));
+  assert.ok(men, JSON.stringify(r.cart));
+  assert.ok((men.modifiers || []).some((m: any) => /EXTRA Pata|pata/i.test(String(m.option))), JSON.stringify(men));
+});
+
+test("quesitorta1b: de bistec stamps Bistec on queso torta", async () => {
+  const TOR = "sq-torta-4GNTTE";
+  const run = async (t: string) => {
+    if (/torta|queso/i.test(t)) return { actions: [{ type: "add_item", itemId: TOR, quantity: 4, modifiers: [{ option: "(QTO) Queso Torta (+$0.50)" }, { option: "**Con Frijoles / With Beans (+$0.50)" }], readback: "4 queso torta" }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "cuatro queso tortas de bistec con frijol", language: "es" },
+  ] as any, run as any);
+  const line = r.cart.find((l: any) => /torta/i.test(l.itemId));
+  assert.ok(line);
+  assert.ok((line.modifiers || []).some((m: any) => /Bistec/i.test(String(m.option))), JSON.stringify(line));
+});
+
+// juan1 (CAc2720f): availability / list-back / size-info ≠ order; sopes normales = small; sí→deluxe; bare chorizo stays on sopes.
+test("juan1/avail2: list-back gorditas qué más and size ask add nothing", async () => {
+  const seen: string[] = [];
+  const run = async (text: string) => {
+    seen.push(text);
+    if (/gordita/i.test(text)) return { actions: [{ type: "add_item", itemId: "sq-gordita", quantity: 1, modifiers: [{ option: "Chorizo / Mexican Sausage" }] }], reply: "Gordita." };
+    if (/sopesaso|sope/i.test(text)) return { actions: [{ type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [] }], reply: "¿De qué?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Una quesadilla dorada de huevo, por favor.", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿Te gustaría preparada deluxe?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "sí, por favor.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "¿qué me dijiste que tenés también gorditas, qué más?", start: 7, end: 8, language: "es" },
+    { speaker: "staff", text: "Gorditas, guaraches, sopes.", start: 9, end: 10, language: "es" },
+    { speaker: "caller", text: "¿Los sopes son grandes o son chicos?", start: 11, end: 12, language: "es" },
+    { speaker: "staff", text: "Del que gustes.", start: 13, end: 14, language: "es" },
+    { speaker: "caller", text: "No, ¿me puedes poner dos sopes de los normales, por favor?", start: 15, end: 16, language: "es" },
+    { speaker: "staff", text: "sopes normales del chico, ¿de qué te gustarían?", start: 17, end: 18, language: "es" },
+    { speaker: "caller", text: "de chorizo, por favor.", start: 19, end: 20, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 21, end: 22, language: "es" },
+  ] as any, run as any);
+  assert.ok(!seen.some((s) => /gordita/i.test(s) && /qu[eé]\s+m[aá]s|tenés|dijiste/i.test(s)), "list-back must not reach model as order: " + JSON.stringify(seen));
+  assert.ok(!r.cart.some((l: any) => /gordita/i.test(String(l.itemId))), JSON.stringify(r.cart));
+});
+
+test("juan1: sopes de los normales → posSize small (Sope Elvis)", async () => {
+  const run = async () => ({ reply: "¿De qué?", actions: [{ type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [] }] });
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "dos sopes de los normales, por favor", start: 1, end: 2, language: "es" },
+  ] as any, run as any);
+  assert.equal(r.cart[0]?.posSize, "small", JSON.stringify(r.cart[0]));
+});
+
+test("juan1/prep3: sí to preparada deluxe upgrades REG dorada", async () => {
+  const REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+  const DEL = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+  const run = async (t: string) => {
+    if (/quesadilla|dorada|huevo/i.test(t))
+      return { actions: [{ type: "add_item", itemId: REG, quantity: 1, modifiers: [{ option: "(QD) REGULAR Dorada" }, { option: "Huevo con Chile / Spicy Egg" }] }], reply: "¿REGULAR o DELUXE?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Una quesadilla dorada de huevo, por favor.", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿Te gustaría preparada deluxe?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "sí, por favor.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 7, end: 8, language: "es" },
+  ] as any, run as any);
+  assert.equal(r.cart.length, 1, JSON.stringify(r.cart));
+  assert.equal(r.cart[0].itemId, DEL);
+});
+
+test("juan1: bare de chorizo does not add gordita when last dish is sope", async () => {
+  let n = 0;
+  const run = async (t: string) => {
+    n++;
+    if (/sopesaso|sope/i.test(t)) return { actions: [{ type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [] }], reply: "¿De qué carne?" };
+    if (/chorizo/i.test(t)) return { actions: [
+      { type: "add_item", itemId: "sq-gordita", quantity: 1, modifiers: [{ option: "Chorizo / Mexican Sausage" }] },
+      { type: "update_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [{ option: "Chorizo / Mexican Sausage" }] },
+    ], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "dos sopes chicos", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿De qué te gustarían?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "de chorizo, por favor.", start: 5, end: 6, language: "es" },
+  ] as any, run as any);
+  assert.ok(!r.cart.some((l: any) => /gordita/i.test(String(l.itemId))), JSON.stringify(r.cart));
+  assert.ok(r.cart.some((l: any) => /sopesaso/i.test(String(l.itemId))), JSON.stringify(r.cart));
+});
+
+test("enrique1: force-add menudo con pata and mole when model returns empty", async () => {
+  const run = async (t: string) => {
+    if (/tienen\s+mole|\?/.test(t) && /mole/i.test(t) && /tienen|hay/i.test(t)) return { actions: [], reply: "Sí." };
+    if (/quesadilla|buche/i.test(t)) return { actions: [{ type: "add_item", itemId: "sq-quesadilla", quantity: 1, modifiers: [{ option: "(QCO) Quesadilla de Comal / Homemade" }, { option: "Buche / Pork Stomach" }] }], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿Algo más?" }; // empty for menudo/mole
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "va a ser un menudo con pata.", start: 1, end: 2, language: "es" },
+    { speaker: "caller", text: "¿tienen mole?", start: 3, end: 4, language: "es" },
+    { speaker: "staff", text: "Sí, claro.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "también va a ser un mole entonces, por favor.", start: 7, end: 8, language: "es" },
+    { speaker: "caller", text: "y también una quesadilla de buche.", start: 9, end: 10, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 11, end: 12, language: "es" },
+  ] as any, run as any);
+  assert.ok(r.cart.some((l: any) => /menudo/i.test(String(l.itemId))), "menudo: " + JSON.stringify(r.cart));
+  assert.ok(r.cart.some((l: any) => /mole/i.test(String(l.itemId))), "mole: " + JSON.stringify(r.cart));
+  const men = r.cart.find((l: any) => /menudo/i.test(String(l.itemId)));
+  assert.ok((men.modifiers || []).some((m: any) => /pata/i.test(String(m.option))), JSON.stringify(men));
+});

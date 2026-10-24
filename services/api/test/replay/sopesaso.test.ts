@@ -92,6 +92,8 @@ test("sopesize1: shared aliases — sope/sopes → sopesaso; chiquito/pequeño/s
   assert.equal(applySharedAliases("two small sopes", "phone"), "two chico sopesasos");
   assert.equal(applySharedAliases("un sopesote de asada", "phone"), "un sopesaso de asada");
   assert.equal(applySharedAliases("una sopa chiquita", "phone"), "una sopa chiquita"); // only around sopes
+  assert.equal(applySharedAliases("dos sopes de los normales", "phone"), "dos sopesasos chicos"); // juan1
+  assert.equal(applySharedAliases("sopes normales", "phone"), "sopesasos chicos");
 });
 
 test("sopesize1: POS size — default 10” (even 'un sope'/'dos sopes'); small: 1 = Sope Elvis $8, 2 = 2 x Sopes Elvis $15", async () => {

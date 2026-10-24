@@ -53,6 +53,19 @@
       "approved": "Carlos 2026-10-20"
     },
     {
+      "id": "sope-normal",
+      "match": "\\b(?:de\\s+los\\s+)?normal(?:es)?\\b|\\bregulares?\\b",
+      "to": "chicos",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\bsop(?:es?|es[ae]sos?|es[ae]zos?)\\b",
+      "example": "dos sopes de los normales / sopes normales",
+      "source": "juan1: normales/regulares sopes = Sope Elvis (small), not Sopesaso 10\"",
+      "approved": "Carlos 2026-10-24"
+    },
+    {
       "id": "sope",
       "match": "\\bsope(s?)\\b",
       "to": "sopesaso$1",
