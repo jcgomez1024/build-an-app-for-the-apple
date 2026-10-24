@@ -379,6 +379,11 @@ test("enrique1: force-add menudo con pata and mole when model returns empty", as
   assert.ok(r.cart.some((l: any) => /mole/i.test(String(l.itemId))), "mole: " + JSON.stringify(r.cart));
   const men = r.cart.find((l: any) => /menudo/i.test(String(l.itemId)));
   assert.ok((men.modifiers || []).some((m: any) => /pata/i.test(String(m.option))), JSON.stringify(men));
+  // enrique1b: house defaults when force-adding
+  assert.ok((men.modifiers || []).some((m: any) => /corn.*comal|comal.*tortilla/i.test(String(m.option))), "menudo tortillas: " + JSON.stringify(men));
+  const mol = r.cart.find((l: any) => /mole/i.test(String(l.itemId)));
+  assert.ok((mol.modifiers || []).some((m: any) => /arroz|rice/i.test(String(m.option))), "mole arroz: " + JSON.stringify(mol));
+  assert.ok((mol.modifiers || []).some((m: any) => /tortilla/i.test(String(m.option))), "mole tortillas: " + JSON.stringify(mol));
 });
 
 test("alex1/aceite: de aceite preparadas → QD Deluxe not comal; later una de comal stays QCO", async () => {
@@ -418,3 +423,45 @@ test("victor1: barbacoa avail ≠ order; una orden de birria force-adds", async 
   assert.ok(r.cart.some((l: any) => /birria/i.test(String(l.itemId))), "birria missing: " + JSON.stringify(r.cart));
 });
 
+test("julio1: force-add QCO duro + prensado when model returns empty", async () => {
+  const run = async () => ({ actions: [], reply: "¿De qué?" });
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "¿Me puede poner dos quesadillas de comal, porfa?", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "A ver, permíteme…", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "Okay.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "Muy bien.", start: 7, end: 8, language: "es" },
+    { speaker: "staff", text: "Dos quesadillas de comal, ¿de qué, joven?", start: 9, end: 10, language: "es" },
+    { speaker: "caller", text: "Sí, va a ser una de duro y una de prensado.", start: 11, end: 12, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 13, end: 14, language: "es" },
+  ] as any, run as any);
+  const qs = r.cart.filter((l: any) => /quesadilla/i.test(String(l.itemId)));
+  assert.ok(qs.length >= 2, "expected 2 QCO: " + JSON.stringify(r.cart));
+  assert.ok(qs.some((l: any) => (l.modifiers || []).some((m: any) => /duro/i.test(String(m.option)))), "duro: " + JSON.stringify(qs));
+  assert.ok(qs.some((l: any) => (l.modifiers || []).some((m: any) => /prensado/i.test(String(m.option)))), "prensado: " + JSON.stringify(qs));
+  assert.ok(qs.every((l: any) => (l.modifiers || []).some((m: any) => /comal/i.test(String(m.option)))), "comal: " + JSON.stringify(qs));
+  assert.ok(qs.every((l: any) => (Number(l.quantity) || 1) === 1), "qty1: " + JSON.stringify(qs));
+  assert.ok(qs.every((l: any) => !(l.modifiers || []).some((m: any) => /salsa/i.test(String(m.option)))), "no salsa: " + JSON.stringify(qs));
+  const meats = qs.map((l: any) => (l.modifiers || []).filter((m: any) => /duro|prensado/i.test(String(m.option))).map((m: any) => m.option));
+  assert.ok(meats.every((m: any) => m.length === 1), "one meat each: " + JSON.stringify(meats));
+});
+
+test("juan1c: force-add Sope Elvis when model returns empty on sopes normales", async () => {
+  const run = async (t: string) => {
+    if (/huevo|dorada|deluxe/i.test(t)) return { actions: [{ type: "add_item", itemId: "sq-qd-deluxe", quantity: 1, modifiers: [{ option: "(QD) DELUXE Preparada" }, { option: "Huevo con Chile / Spicy Egg" }] }], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿De qué?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Una quesadilla dorada de huevo, por favor.", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿Te gustaría preparada deluxe?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "Sí.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "No, ¿me puedes poner dos sopes de los normales, por favor?", start: 7, end: 8, language: "es" },
+    { speaker: "staff", text: "sopes normales del chico, ¿de qué te gustarían?", start: 9, end: 10, language: "es" },
+    { speaker: "caller", text: "chorizo, por favor.", start: 11, end: 12, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 13, end: 14, language: "es" },
+  ] as any, run as any);
+  const sope = r.cart.find((l: any) => /sopesaso/i.test(String(l.itemId)));
+  assert.ok(sope, "sope missing: " + JSON.stringify(r.cart));
+  assert.equal(Number(sope.quantity) || 1, 2, JSON.stringify(sope));
+  assert.equal(sope.posSize, "small", JSON.stringify(sope));
+  assert.ok((sope.modifiers || []).some((m: any) => /chorizo/i.test(String(m.option))), "chorizo: " + JSON.stringify(sope));
+});

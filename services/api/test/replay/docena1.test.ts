@@ -64,3 +64,25 @@ test("luis1: para Luis is ticket-only third person", () => {
     { speaker: "caller", text: "para Luis." },
   ]), { name: "Luis", thirdPerson: true, source: "staff-ask" });
 });
+
+test("luis181b: drop phantom 6-pack when caller asked for a dozen", async () => {
+  const MEN = "sq-menudo-tortillas";
+  const TOR6 = "sq-tortillas-6-x-tortilla-comal-handmade-XXXX";
+  const run = async (t: string) => {
+    const s = applySharedAliases(t, "phone");
+    const acts: any[] = [];
+    if (/menudo/i.test(s)) acts.push({ type: "add_item", itemId: MEN, quantity: 1, modifiers: [{ option: "4 x (Corn) Comal Tortilla" }] });
+    if (/12 x Tortilla Comal|docena|tortilla/i.test(s)) {
+      acts.push({ type: "add_item", itemId: "sq-tortillas-12-comal", quantity: 1, modifiers: [] });
+      acts.push({ type: "add_item", itemId: TOR6, quantity: 1, modifiers: [] }); // phantom
+    }
+    return { actions: acts, reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "Un menudo sin pata", language: "es" },
+    { speaker: "caller", start: 2, end: 3, text: "y una docena de tortilla.", language: "es" },
+  ] as any, run as any);
+  assert.ok(r.cart.some((l: any) => /menudo/i.test(l.itemId)), JSON.stringify(r.cart));
+  assert.ok(r.cart.some((l: any) => /12|tortilla/i.test(l.itemId) && !/6-x-tortilla/i.test(l.itemId)), "dozen: " + JSON.stringify(r.cart));
+  assert.ok(!r.cart.some((l: any) => /6-x-tortilla|tortillas-6/i.test(l.itemId)), "phantom 6: " + JSON.stringify(r.cart));
+});

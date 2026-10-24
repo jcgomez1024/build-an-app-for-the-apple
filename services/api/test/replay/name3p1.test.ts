@@ -49,3 +49,18 @@ test("name3p3: English for/picking-up is ticket only", () => {
   assert.equal(thirdPersonName("Shannon is picking up"), "Shannon");
   assert.equal(thirdPersonName("picking up for Shannon"), "Shannon");
 });
+
+test("miguel1: mi esposo + staff es para + name → ticket/pickup only", () => {
+  const t = [
+    { speaker: "caller" as const, text: "va a ser un menudo con pata." },
+    { speaker: "caller" as const, text: "Nada más, señorita, pasa ahí mi esposo, ¿en cuánto tiempo?" },
+    { speaker: "staff" as const, text: "Ah, es para" },
+    { speaker: "caller" as const, text: "Miguel Gutiérrez." },
+    { speaker: "staff" as const, text: "Miguel Gutiérrez. Okay." },
+  ];
+  const info = nameFromTranscriptInfo(t);
+  assert.ok(info, "name missing");
+  assert.match(info!.name, /Miguel/i);
+  assert.equal(info!.thirdPerson, true);
+  assert.equal(info!.source, "staff-ask");
+});

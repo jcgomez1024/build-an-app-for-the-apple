@@ -117,6 +117,12 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     const n = after ? nameFromAnswer(after) : null;
     if (n) return n;
   }
+  // miguel1: staff "Ah, es para" (incomplete) → next caller "Miguel Gutiérrez" is the pickup name
+  for (let i = 0; i < turns.length - 1; i++) {
+    if (turns[i].speaker !== "staff" || !/\bes\s+para\s*$/iu.test(turns[i].text.trim())) continue;
+    const n = nameFromAnswer(turns[i + 1].text);
+    if (n && turns[i + 1].speaker === "caller") return n;
+  }
   return null;
 }
 /** Listen-only: save the heard name only when the number has no saved name. */
@@ -129,7 +135,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
@@ -166,7 +172,13 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   if (!name) return null;
   const f = foldName(name);
   // Pickup-only: para/for/recoger/picking-up. Bare "Chuy." / "De Luis." after name-ask = customer (ticket + name log).
-  const thirdPerson = turns.some((t) => t.speaker === "caller" && (() => { const n = thirdPersonName(t.text); return !!n && foldName(n) === f; })());
+  let thirdPerson = turns.some((t) => t.speaker === "caller" && (() => { const n = thirdPersonName(t.text); return !!n && foldName(n) === f; })());
+  // miguel1 (CA807990d6): "pasa ahí mi esposo" + staff "Ah, es para" + "Miguel Gutiérrez" → ticket/pickup only, never caller contact.
+  if (!thirdPerson) {
+    const spousePickup = turns.some((t) => t.speaker === "caller" && /\b(?:mi\s+)?(?:esposo|esposa|marido|mujer|husband|wife)\b/iu.test(t.text));
+    const staffEsPara = turns.some((t, i) => t.speaker === "staff" && /\bes\s+para\b/iu.test(t.text) && (!/\bes\s+para\s+\p{Lu}/u.test(t.text) || foldName(thirdPersonName(t.text) || "") === f) && turns.slice(i).some((u) => u.speaker === "caller" && foldName(nameFromAnswer(u.text) || "") === f));
+    if (spousePickup || staffEsPara) thirdPerson = true;
+  }
   const source: "staff-ask" | "vocative" = fromAsk ? "staff-ask" : "vocative";
   return { name, thirdPerson, source };
 }
