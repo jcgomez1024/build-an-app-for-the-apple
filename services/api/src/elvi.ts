@@ -2132,12 +2132,12 @@ async function chatWithTextAgent(input: ElviRequest, runtime: XaiRuntimeConfig, 
   const actionCalls: unknown[] = []; let text = "";
   for (let round = 0; round < 5; round++) {
     let r: Response | undefined; let j: any;
-    for (let a = 0; a < 4; a++) {
+    for (let a = 0; a < 8; a++) {
       r = await fetch(`${runtime.baseUrl}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${runtime.apiKey}`, "content-type": "application/json" },
         body: JSON.stringify({ model: runtime.model, temperature: 0, messages, tools, max_tokens: 2000 }) });
       j = await r.json().catch(() => ({}));
       if (r.ok || (r.status < 500 && r.status !== 429)) break;
-      await new Promise((res) => setTimeout(res, 2000 * (a + 1)));
+      await new Promise((res) => setTimeout(res, (r!.status === 429 ? 10000 : 2000) * (a + 1)));
     }
     if (!r!.ok && /nvidia/.test(runtime.baseUrl) && process.env.REPLAY_FALLBACK !== "0") {
       // NVIDIA down / rate-limited: fall back to the local Qwen on this Mac (test replays only).
