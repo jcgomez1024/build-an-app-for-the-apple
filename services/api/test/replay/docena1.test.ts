@@ -62,5 +62,5 @@ test("luis1: para Luis is ticket-only third person", () => {
   assert.deepEqual(nameFromTranscriptInfo([
     { speaker: "staff", text: "¿a qué nombre sería la orden?" },
     { speaker: "caller", text: "para Luis." },
-  ]), { name: "Luis", thirdPerson: true });
+  ]), { name: "Luis", thirdPerson: true, source: "staff-ask" });
 });

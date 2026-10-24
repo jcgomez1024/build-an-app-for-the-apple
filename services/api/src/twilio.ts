@@ -3,14 +3,14 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { nameFromTranscriptInfo, rememberHeardNameIfNone } from "./order-name.js";
+import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName } from "./order-name.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import express from "express";
-import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual } from "./caller-memory.js";
+import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual, savePickupName} from "./caller-memory.js";
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
@@ -1989,13 +1989,20 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         segments.set(CallSid, { turns: result.turns, files, at: Date.now() });
         let name: string | null = callNames.get(CallSid) ?? ticketsByCall.get(CallSid)?.name ?? null;
         try { if (!name) name = await callerName(caller, findName, 2500); } catch { /* no name */ }
-        // ordername1 (listen-only): the name the caller gave when staff asked "¿a nombre de quién?" → ticket + log;
-        // saved as an Elvi-heard name only if this number has no saved name (staff-entered always wins).
+        // ordername1 / shannon1 (Carlos via Auditor): answer to "name for the order" / "¿a nombre de quién?" /
+        // "para X" / "la va a recoger" → Square ticket + lastPickupName ONLY. Never callers.json contact identity.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
         const heardOrderName = heardInfo?.name || null;
         if (heardOrderName) {
-          const savedNow = !heardInfo?.thirdPerson && !isTrainingCaller(caller) && rememberHeardNameIfNone(caller, heardOrderName); // name3p2
-          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: "staff-ask", savedToMemory: savedNow });
+          const pickupOnly = !!heardInfo?.thirdPerson || heardInfo?.source === "staff-ask";
+          let savedNow = false;
+          if (pickupOnly) {
+            try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
+            markOrderOnlyName(heardOrderName);
+          } else if (!isTrainingCaller(caller)) {
+            savedNow = rememberHeardNameIfNone(caller, heardOrderName); // vocative self-address only
+          }
+          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly });
           name = cleanFirstName(heardOrderName) || name;
           callNames.set(CallSid, name);
           void sendNameFollowUp(CallSid, name).catch(() => {}); // smsname1

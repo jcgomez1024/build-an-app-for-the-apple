@@ -31,11 +31,11 @@ export async function extractNameLLM(turns: CallTurn[]): Promise<(Extracted & { 
   const key = process.env.XAI_API_KEY;
   if (!key || !turns.length) return null;
   const transcript = turns.map((t) => `${t.speaker === "caller" ? "CALLER" : "STAFF"}: ${t.text}`).join("\n").slice(0, 8000);
-  const sys = "You read phone-order transcripts from a Mexican restaurant (Spanish/English). Find the CUSTOMER's own first name (the caller). " +
-    "Cues: staff asks '¿a nombre de quién?' / 'name for the order?' and the CALLER answers; or the CALLER says 'soy Juan', 'habla María', 'a nombre de Pedro', 'it's for Mike'. " +
+  const sys = "You read phone-order transcripts from a Mexican restaurant (Spanish/English). Find the name for the ORDER (ticket/pickup name). " +
+    "Cues: staff asks '¿a nombre de quién?' / 'name for the order?' and the CALLER answers; or the CALLER says 'soy Juan', 'habla María', 'a nombre de Pedro', 'it's for Mike', 'para Shannon', 'for Shannon'. " +
     "Never return the staff member's name, the restaurant's name (Cocina Elvis, Elvi), a food item, or a name the caller only mentions about someone else unless it is the order name. " +
-    "role = 'self' if the caller identifies THEMSELVES ('soy', 'habla', 'me llamo', 'this is', 'my name is') or gives the order name with no third-party cue; " +
-    "'pickup_other' if the name belongs to someone else who will pick up or the order is for them ('va a recoger', 'lo recoge', 'is picking up', 'para mi esposa/esposo/hijo/mamá', 'for my wife/husband/son/mom', third person 'ella', 'él'); " +
+    "role = 'self' ONLY if the caller clearly identifies THEMSELVES ('soy', 'habla', 'me llamo', 'this is', 'my name is') — NOT merely answering 'name for the order' with a bare name; " +
+    "'pickup_other' if the name is for the ticket/pickup person: answer to 'name for the order' / '¿a nombre de quién?' with no self-ID cue, OR 'para X', 'for X', 'va a recoger', 'lo recoge', 'is picking up', 'picking up for', 'para mi esposa/esposo/hijo/mamá', 'for my wife/husband/son/mom', third person 'ella', 'él'. Shannon-style: staff said sir/buddy and caller answered 'Shannon' for the order → pickup_other; " +
     "'unclear' if you cannot tell. " +
     "speaker = 'caller' if the caller said the name, 'staff_confirmed' if staff repeated a name the caller had just given, 'staff' if only staff said it, 'none' if no name. " +
     "name = the most common standard spelling of that name in a Spanish/English context (speech-to-text may misspell it, e.g. 'Llesenia' → 'Yesenia', 'Hose' → 'José'). " +
@@ -131,6 +131,27 @@ function lev(a: string, b: string): number {
   return d[a.length][b.length];
 }
 
+
+/** shannon1: name appears only as the answer to "name for the order" / "¿a nombre de quién?", with no self-ID cue on caller turns. */
+export function orderNameAskOnly(turns: CallTurn[], name: string): boolean {
+  const f = firstFold(name);
+  if (!f) return false;
+  const ASK = /(a\s+nombre\s+de\s+qui[eé]n|name\s+for\s+the\s+order|what(?:'s| is)\s+(?:the|your)\s+name|under\s+what\s+name|tu\s+nombre|su\s+nombre|qu[eé]\s+nombre)/iu;
+  const SELF = /(?<![\p{L}])(?:me\s+llamo|mi\s+nombre\s+es|soy\s+|habla\s+|this\s+is\s+|my\s+name\s+is|i'?m\s+)\p{L}/iu;
+  let sawAsk = false, answeredAsk = false;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker === "staff" && ASK.test(t.text)) {
+      sawAsk = true;
+      for (const n of turns.slice(i + 1, i + 3)) {
+        if (n.speaker === "caller" && (` ${fold(n.text)} `.includes(` ${f} `))) answeredAsk = true;
+      }
+    }
+    if (t.speaker === "caller" && SELF.test(t.text) && (` ${fold(t.text)} `.includes(` ${f} `))) return false;
+  }
+  return sawAsk && answeredAsk;
+}
+
 export async function learnReadbackName(opts: {
   caller: string; turns: CallTurn[]; at: string; durSec?: number; training?: boolean; dry?: boolean;
   orders?: () => Promise<any[]>; bestTicketName?: (orders: any[]) => string | null;
@@ -142,6 +163,8 @@ export async function learnReadbackName(opts: {
   const ex = await extractNameLLM(opts.turns);
   if (!ex) return { action: "skip", reason: "llm-error" };
   if (ex.name && !nameInTranscript(opts.turns, ex.name, ex.speaker) && !evidenceSupports(opts.turns, ex.name, ex.evidence, ex.speaker)) return { action: "skip", reason: "name-not-in-transcript", name: ex.name, evidence: ex.evidence, speaker: ex.speaker, confidence: ex.confidence, usage: ex.usage };
+  // shannon1: hard rule — staff-ask order name without self-ID cues is never caller contact identity.
+  if (ex.name && ex.role === "self" && orderNameAskOnly(opts.turns, ex.name)) ex.role = "pickup_other";
   let orders: any[] = [];
   try { orders = opts.orders ? await opts.orders() : []; } catch { /* no boost without Square */ }
   const d = decideReadback(opts.caller, ex, ticketNamesInWindow(orders, opts.at, opts.durSec), opts.bestTicketName?.(orders) ?? null);

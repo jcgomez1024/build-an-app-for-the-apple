@@ -2043,7 +2043,7 @@ export function phoneOrderNameTurn(input: ElviRequest, lastReply: string, DONE: 
   if (q) {
     const r = resolveNameAnswer(said, q, po.savedName);
     if (!r) return out(ASK_NAME[lang]);
-    if (thirdPersonName(said)) markOrderOnlyName(r.name); // name3p2: order only, not the caller's record
+    markOrderOnlyName(r.name); // shannon1 / name3p2: answer to name-for-order = ticket/pickup only, never caller contact
     return out(nameAckText(lang, cleanFirstName(r.name) || r.name), r.name);
   }
   // Correction right after the thank-you ("no, es a nombre de …").

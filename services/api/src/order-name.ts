@@ -28,11 +28,13 @@ export function thirdPersonName(text: string): string | null {
   const s = String(text || "");
   const th = [...s.matchAll(THIRD)].pop();
   if (th && !NOT_NAMES.test(th[1].split(" ")[0])) return cleanFullName(th[1]) || null;
-  // name3p3 / luis1 (Carlos via Auditor): "para Luis" / "es para Luis" / "la va a recoger Luis" →
-  // Square ticket/pickup name ONLY — never the caller's repeat-caller identity.
-  const pick = s.match(/(?<![\p{L}])(?:(?:es\s+)?para\s+|la\s+va\s+a\s+recoger(?:\s+(?:el|la|un[oa]?))?\s+|lo\s+recoge\s+|la\s+recoge\s+|pickup\s+(?:under\s+|for\s+)?|under\s+(?:the\s+name\s+)?)(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u);
-  if (pick && !/^(llevar|hoy|ma[nñ]ana|ahora|recoger|pickup|entrega|domicilio|pedido|orden|un|una|el|la|los|las|mi|tu|su|unos?|unas?)\b/iu.test(pick[1]) && !NOT_NAMES.test(pick[1].split(" ")[0]))
+  // name3p3 / luis1 / shannon1 (Carlos via Auditor): "para Luis" / "for Shannon" / "la va a recoger" /
+  // "Shannon is picking up" → Square ticket/pickup name ONLY — never caller contact identity.
+  const pick = s.match(/(?<![\p{L}])(?:(?:es\s+)?para\s+|(?:it'?s\s+)?for\s+|la\s+va\s+a\s+recoger(?:\s+(?:el|la|un[oa]?))?\s+|lo\s+recoge\s+|la\s+recoge\s+|picking\s+up\s+(?:under\s+|for\s+)?|pickup\s+(?:under\s+|for\s+)?|under\s+(?:the\s+name\s+)?)(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u);
+  if (pick && !/^(llevar|hoy|ma[nñ]ana|ahora|recoger|pickup|entrega|domicilio|pedido|orden|un|una|el|la|los|las|mi|tu|su|unos?|unas?|me|here|pickup|tonight|today|tomorrow)\b/iu.test(pick[1]) && !NOT_NAMES.test(pick[1].split(" ")[0]))
     return cleanFullName(pick[1]) || null;
+  const pickBy = s.match(/(?<![\p{L}])(\p{Lu}[\p{L}'-]+)(?:\s+\p{Lu}[\p{L}'-]+)?\s+(?:is|will\s+(?:be\s+)?)\s+(?:picking\s+up|coming\s+(?:by|in)\s+for\s+(?:it|the\s+order))/u);
+  if (pickBy && !NOT_NAMES.test(pickBy[1]) ) return cleanFullName(pickBy[1]) || null;
   return null;
 }
 const orderOnly = new Map<string, number>(); // folded first name → marked-at ms
@@ -101,6 +103,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
 }
 /** Listen-only: save the heard name only when the number has no saved name. */
 export function rememberHeardNameIfNone(phone: string, name: string): boolean {
+  if (isOrderOnlyName(name)) return false; // shannon1 / name3p2: ticket/pickup only
   if (savedCallerName(phone)) return false;
   const saved = saveCallerName(phone, name, "elvi");
   if (saved) onNameSaved?.(phone, saved, "elvi");
@@ -131,10 +134,14 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
 /** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
 export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
 /** name3p2: same, plus whether the caller gave it in the third person (then it must not be saved to their phone). */
-export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean } | null {
-  const name = nameFromTranscript(turns);
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" } | null {
+  const fromAsk = nameFromStaffAsk(turns);
+  const fromVoc = fromAsk ? null : nameFromStaffVocative(turns);
+  const name = fromAsk || fromVoc;
   if (!name) return null;
   const f = foldName(name);
   const thirdPerson = turns.some((t) => t.speaker === "caller" && (() => { const n = thirdPersonName(t.text); return !!n && foldName(n) === f; })());
-  return { name, thirdPerson };
+  // shannon1: answer to "name for the order" / "¿a nombre de quién?" is ticket/pickup only (even a bare "Shannon").
+  const source: "staff-ask" | "vocative" = fromAsk ? "staff-ask" : "vocative";
+  return { name, thirdPerson: thirdPerson || source === "staff-ask", source };
 }
