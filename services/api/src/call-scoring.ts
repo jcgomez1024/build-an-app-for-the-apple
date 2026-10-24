@@ -132,11 +132,17 @@ export function splitItems(text: string): string[] {
         stripped = `${m[1]}${parts.map((x) => x.replace(/^(\S+)\s+(de|of)\s+/iu, `$1 ${m[3].trim()} $2 `)).join(", y ").replace(/,\s*,/g, ",").replace(/,(\s*,\s*y)/g, "$1")}`; } }
   const parts = stripped.split(new RegExp(`\\s*(?:,|;|\\by\\b|\\band\\b|\\btambién\\b|\\balso\\b|\\bplus\\b)\\s+(?=(?:(?:me\\s+)?(?:das|da|pones|give me|get me|add)\\s+)?${QTY}\\s+\\p{L})`, "giu"));
   // fix21: "una de chorizo, una de tepa y otra de buche" continues the same dish — rejoin those pieces.
+  // jose1: "deme dos, dos de quesadillas, dos de pollo" — deme-N + dish + N-de-meat stay one order (else invent never sees deme+pollo).
   const out: string[] = [];
   for (const raw of parts) {
     const piece = raw.trim();
     if (!piece) continue;
-    if (out.length && /^(?:una?|uno|otra?|otro|another|one)\s+de\s+[\p{L}]/iu.test(piece)) {
+    if (out.length && /(?:dame|deme|me\s+(?:da|das|pone)|quiero)\s+(?:\d+|dos|tres|cuatro|cinco|seis|siete|ocho)\s*$/iu.test(out[out.length - 1])) {
+      out[out.length - 1] = `${out[out.length - 1]}, ${piece}`;
+      continue;
+    }
+    if (out.length && /^(?:una?|uno|otr[oa]|another|one|\d+|dos|tres|cuatro|cinco|seis|siete|ocho)\s+de\s+[\p{L}]/iu.test(piece)
+      && !/\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?)\b/iu.test(piece)) {
       out[out.length - 1] = `${out[out.length - 1]}, ${piece}`;
       continue;
     }
@@ -274,7 +280,7 @@ export function removalNotesIn(text: string): string[] {
 const lineHasDeluxe = (l: any) => (l?.modifiers || []).some((m: any) => /\bDELUXE\b/i.test(String(m?.option || "")) && !/^\s*regular\b/i.test(String(m?.option || "")));
 
 // fix1036 (real call 2026-10-20 10:36): words that never order anything on their own.
-const FILLER = /(?<![\p{L}\p{N}])(?:s[ií]|no|oh|ah|okay|ok|okey|bueno|pues|este|creo\s+que|yo\s+creo|est[aá]\s+bien|as[ií]\s+est[aá]\s+bien|eso|ser[ií]a|todo|nada\s+m[aá]s|gracias|claro|perfecto|listo|ya|mhm|aj[aá]|that'?s|it|fine|yes|yeah|good|all)(?![\p{L}\p{N}])/giu;
+const FILLER = /(?<![\p{L}\p{N}])(?:s[ií]|no|oh|ah|okay|ok|okey|bueno|pues|este|o\s+sea|perd[oó]n|sorry|creo\s+que|yo\s+creo|est[aá]\s+bien|as[ií]\s+est[aá]\s+bien|eso|ser[ií]a|todo|nada\s+m[aá]s|gracias|claro|perfecto|listo|ya|mhm|aj[aá]|that'?s|it|fine|yes|yeah|good|all)(?![\p{L}\p{N}])/giu;
 const DRINK = /\b(?:coca(?:\s+cola)?|coke|pepsi|sprite|fanta|jarritos?|horchata|jamaica|tamarindo|agua|soda|refresco|diet)\b/iu;
 const ORDER_QTY = new RegExp(`\\b(?:${QTY.slice(3, -1)})\\b`, "iu");
 const TOKENS = /__(?:DELIVERY|PICKUP|FOR_HERE)__/g;
@@ -437,6 +443,10 @@ export function rewriteCallerText(text: string): string {
     });
   // chips1 (Noé): "dos chips con pico" is the Dips item Pico de Gallo con Chips, not a bowl
   s = s.replace(/\b(?:chips|totopos)\s+con,?\s+(?:el\s+)?pico(?:\s+de\s+gallo)?\b|\bpico(?:\s+de\s+gallo)?\s+(?:con|and|with)\s+chips\b/giu, "Dips Pico de Gallo con Chips");
+  // jose1: ASR truncates "quesadillas" → "quesad" ("dos de quesad, dos de pollo")
+  s = s.replace(/\bquesad\b/giu, "quesadillas");
+  // jose1: ASR "Vité"/"vite" for vista/bistec (also bare "de Vité." after the dish turn)
+  s = s.replace(/\bde\s+vit[eé](?!\p{L})/giu, "de bistec");
   return s;
 }
 export function prepMergedCallerTurns(merged: { speaker: string; text: string }[]): void {
@@ -710,13 +720,22 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       for (const a of r2?.actions || []) if (a.type === "add_item" && named.has(kindOfItem(a.itemId) || "")) acts.push(a);
     }
     // tw4938: "dos quesadillas doradas … preparadas" → one line came back at qty 1; the spoken count is the quantity.
-    { let n = spokenCount(cleanPhrase(text).replace(/^\s*(?:y|e|and|me\s+das|dame|quiero)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
+    { let n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
       // qty4: "una orden de cuatro quesadillas" — the count next to the dish noun beats the "una orden" in front (Noé)
       { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
       if (adds.length) { const ik = kindOfItem(adds[0].itemId) || "";
         const kindOk = named.has(ik) || (ik === "torta" && named.has("queso torta"));
         if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && kindOk
           && !/\b(?:otr[oa]s?|another)\b/iu.test(text) && !statedTotal(text)) adds[0].quantity = n; } }
+    // jose1: "deme dos, dos de quesad, dos de pollo" — listedMeats qty beats model qty 1 on the matching meat line
+    if (source.startsWith("caller")) {
+      const want = listedMeats(text);
+      for (const a of acts as any[]) {
+        if (a.type !== "add_item") continue;
+        const hit = want.find((w) => w.qty && w.qty > 1 && lineHasMeat(a, w.meat));
+        if (hit && (Number(a.quantity) || 1) < hit.qty!) a.quantity = hit.qty!;
+      }
+    }
     // luis7895/chuy1: remember spoken N+dish when Elvi asked instead of adding; apply on the next matching add (staff-pick / Con pata).
     { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
       const n = m ? spokenCount(m[1]) : 0;
@@ -823,7 +842,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && /\b(?:quesadillas?|preparad[oa]s?|doradas?)\b/iu.test(text)
       && !/\b(?:tienen|hay|tiene|ten[eé]s|vende|de\s+comal)\b/iu.test(text)
       && !acts.some((a: any) => a.type === "add_item" && /dorada|zzav3l|deluxe/i.test(String(a.itemId)))) {
-      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:y|e|and|me\s+das|dame|quiero|me\s+pone)\s+/iu, "")) || 1;
+      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone)\s+/iu, "")) || 1;
       const meats = listedMeats(text);
       const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^picadillo$/i, "Picadillo / Ground Beef"], [/^buche$/i, "Buche / Pork Stomach"]];
       const mods: any[] = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }];
@@ -890,6 +909,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // close1: a short closing line that names no dish (Bree: a long merged turn ending in "thank you" still carries her order) ("sería todo", "gracias", "bye", Cecilia: "Ándale, pues") never adds an item
     if (source !== "auto" && !dishesNamed(text).size && text.trim().split(/\s+/).length <= 10 && /\b(?:ser[ií]a\s+todo|eso\s+es\s+todo|es\s+todo|gracias|thank(?:s|\s+you)|bye|adi[oó]s|that'?s\s+(?:all|it)|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu.test(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
+    // jose1: count-confirm / filler only ("Seis. Sí, seis. Perdón", "O sea… menos") — not bare size/side answers
+    if (source.startsWith("caller") && cart.length && !dishesNamed(text).size && !listedMeats(text).length && !MEAT_WORDS.test(text) && !FOOD.test(text)) {
+      const t0 = text.trim();
+      const countConfirm = /^(?:(?:s[ií]|yes|ok(?:ay)?|bueno|este|o\s+sea)[,.\s]*)*(?:\d+|dos|tres|cuatro|cinco|seis|siete|ocho)(?:[,.\s]+(?:s[ií]|yes|ok(?:ay)?|bueno))*(?:[,.\s]*(?:perd[oó]n|sorry|excuse\s+me))?[.!\s]*$/iu.test(t0);
+      const menosJunk = /\b(?:o\s+sea|okay|ok)\b/iu.test(t0) && /\bmenos\b/iu.test(t0) && !/\b(?:dame|deme|quiero)\b/iu.test(t0);
+      const emptyThanks = /^(?:solo\s+voy\s+a\b|nada)\b/iu.test(t0);
+      if (countConfirm || menosJunk || emptyThanks)
+        for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
+    }
     // confirm1 (Alan): "Eh, coctel de camarón, sí" right after it was rung confirms that line — not a second order
     {
       const adds = acts.filter((a: any) => a.type === "add_item");
@@ -963,9 +991,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       for (const l of mine) for (const w of want) if (lineHasMeat(l, w.meat)) have.set(w.meat, (have.get(w.meat) || 0) + (Number(l.quantity) || 1));
       for (const w of want) {
         if ((have.get(w.meat) || 0) > 0) { have.set(w.meat, have.get(w.meat)! - 1); continue; }
-        const ref = refFor(); if (!ref || (!w.another && !mine.length)) continue;
+        const ref = refFor();
+        // jose1: "deme dos, dos de quesad, dos de pollo" after QCO bistec — invent missing meat even when this turn added nothing
+        const orderMore = !!(w.qty && w.qty > 1 && /\b(?:dame|deme|me\s+(?:da|das|pone)|quiero|tambi[eé]n|another|more|otra|otro)\b/iu.test(text));
+        if (!ref || (!w.another && !mine.length && !orderMore)) continue;
         const k = kindOfItem(ref.itemId)!;
-        await say(`${w.qty && w.qty > 1 ? w.qty + " " : ""}${dishPhrase(k)}${tortillaWordOf(ref)} de ${w.meat}`, language, "caller-meat-listed");
+        await say(`${w.qty && w.qty > 1 ? `${w.qty} ${dishNoun(k)}s` : dishPhrase(k)}${tortillaWordOf(ref)} de ${w.meat}`, language, "caller-meat-listed");
       }
       // tw4938: "serían esos tres" — the caller's total for the dish; drop later exact repeats beyond it (a meat said twice).
       const st = statedTotal(text); const kind = st?.kind || (kinds.size === 1 ? [...kinds][0] : null);
@@ -1070,8 +1101,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   for (const t of turns) {
     const prev = merged[merged.length - 1];
     // pickup1: never merge an avail probe into the following order/answer turn (keeps yesopt path)
+    // jose1: don't glue a no-food thanks/filler turn into the next "deme dos … de pollo" order
+    const joseOrderFollow = prev && prev.speaker === "caller" && t.speaker === "caller"
+      && !FOOD.test(prev.text) && !MEAT_WORDS.test(prev.text)
+      && (FOOD.test(t.text) || listedMeats(t.text).some((w) => !!w.qty && w.qty > 1))
+      && /\b(?:dame|deme|me\s+(?:da|das|pone)|quiero)\b/iu.test(t.text);
     if (prev && prev.speaker === "caller" && t.speaker === "caller" && !(prev as any).availOnly && !(t as any).availOnly
-      && !isClosing(t.text) && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
+      && !isClosing(t.text) && !joseOrderFollow && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });
   }
@@ -1386,13 +1422,19 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         continue;
       }
       const pick = both ? [...pendingDishes] : [pendingDishes.find((d) => askedNoun && dishNoun(d) === askedNoun) || pendingDishes[0]];
+      // jose1: "dos de pollo" in a meat-fragment turn keeps spoken qty (dishPhrase is always "una")
+      const fragMeat = (frag.match(new RegExp(MEAT_LIST, "iu")) || [])[0]?.toLowerCase() || "";
+      const fragQty = fragMeat ? (listedMeats(t.text).find((w) => w.meat === fragMeat && w.qty && w.qty > 1)?.qty || 0) : 0;
       for (const d of pick) {
         pendingDishes = pendingDishes.filter((x) => x !== d);
         // case1e: keep the dish-type word the fragment cut off ("De chicharrón. ¿De chicharrón dorada o …?")
         const kind = (cleanPhrase(t.text).match(/\b(dorad[ao]s?|frit[ao]s?)\b/iu) || [])[1];
-        const phrase = `${dishPhrase(d)} ${frag}${kind && !new RegExp(kind, "i").test(frag) ? " " + kind : ""}`.trim();
+        const head = fragQty > 1 ? `${fragQty} ${dishNoun(d)}s` : dishPhrase(d);
+        const phrase = `${head} ${frag}${kind && !new RegExp(kind, "i").test(frag) ? " " + kind : ""}`.trim();
         if (pendingDish && dishNoun(pendingDish) === dishNoun(d)) pendingDish = null;
+        const nb = cart.length;
         last = await say(phrase, t.language, "caller-meat-fragment");
+        if (fragQty > 1 && cart.length === nb + 1 && (Number(cart[nb].quantity) || 1) !== fragQty) cart[nb].quantity = fragQty;
         // the tortilla the caller already chose this call ("De maíz") answers a repeat tortilla question
         if (asking(last) && lastTortilla && /comal|harina|taquera|tortilla/i.test(String(last.reply || ""))) last = await say(lastTortilla, t.language, "caller-meat-fragment-tortilla");
         if (asking(last)) await acceptOpen(t.language);

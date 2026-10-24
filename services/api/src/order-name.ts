@@ -92,9 +92,10 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     let staffEcho: string | null = null;
     for (const t of turns.slice(i + 1, i + 8)) {
       if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) lastCaller = n; }
-      // victor1/alex1: staff echo after junk ASR — only "Name, okey/okay" or "Name. Capital…" (not "Dame quince…")
+      // victor1/alex1/jose1: staff echo after junk ASR — "Name, okey/okay", "Name. Capital…", or "Name, dame/deme … minutos"
+      // (not bare "Dame quince…" — dame/deme are NOT_NAMES; name must lead the turn)
       if (t.speaker === "staff" && !staffEcho) {
-        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}])/u);
+        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u);
         if (echo && !NOT_NAMES.test(echo[1])) {
           const n = cleanFirstName(echo[1]);
           if (n) staffEcho = n;

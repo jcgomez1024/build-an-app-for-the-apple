@@ -152,6 +152,19 @@
       "approved": "Carlos 2026-10-19"
     },
     {
+      "id": "vite-bistec",
+      "match": "\\bde\\s+vit[eé](?!\\p{L})",
+      "to": "de bistec",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\b(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|sopesasos?|huaraches?|pambazos?)\\b",
+      "example": "seis quesadillas de Vité",
+      "source": "transcript CA2ee850 (STT mishearing vista/bistec)",
+      "approved": "Carlos 2026-10-24"
+    },
+    {
       "id": "chopack",
       "match": "\\bcho\\s*-?\\s*packs?\\b",
       "to": "8 pack",
