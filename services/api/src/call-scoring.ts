@@ -1365,10 +1365,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // jesus1: taco "solo / sin nada" → strip salsa (plain)
     if (source.startsWith("caller") && /\b(?:solo|sin\s+nada|plain)\b/iu.test(text)) {
-      const stripSalsa = (mods: any[] | undefined) => (mods || []).filter((m: any) => !/salsa/i.test(String(m.option)));
-      for (const a of acts) if ((a.type === "add_item" || a.type === "update_item") && /taco/i.test(String(a.itemId))) a.modifiers = stripSalsa(a.modifiers);
+      const stripSalsa = (mods?: any[]) => (mods || []).filter((m: any) => !/salsa/i.test(String(m.option)));
+      for (const a of acts) if ((a.type === "add_item" || a.type === "update_item") && /taco/i.test(String(a.itemId))) a.modifiers = stripSalsa(a.modifiers || []);
       const lastTaco = [...cart].reverse().find((l) => kindOfItem(l.itemId) === "taco");
-      if (lastTaco) lastTaco.modifiers = stripSalsa(lastTaco.modifiers);
+      if (lastTaco) lastTaco.modifiers = stripSalsa(lastTaco.modifiers || []);
     }
 
     // carlos1: auto-accept never stacks a second meat or re-adds a dish already rung
