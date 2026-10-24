@@ -894,10 +894,25 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // frijol1 (Paco): "solo frijol y queso" / "frijol y queso" + derretido on quesadillas — set meats, keep the spoken qty.
+    // When the cart is still empty (staff hasn't rung them), create the spoken qty of comal quesadillas first.
+    // "Sí, de derretido" after a frijol readback also stamps both meats (it used to LLM-add cheese-only).
     { const frijolQueso = /\b(?:solo\s+)?(?:nom[aá]s\s+)?(?:este[,.]?\s+)?(?:le\s+pone\s+)?frijol(?:es)?\s+y\s+queso\b/iu.test(t.text)
         || (/\bfrijol(?:es)?\b/iu.test(t.text) && /\bqueso\b/iu.test(t.text) && /\b(solo|nom[aá]s|derretido)\b/iu.test(t.text));
-      if (frijolQueso && !/burrito|taco|torta|gordita/iu.test(t.text)) {
-        const qIdx = cart.map((l, i) => (kindOfItem(l.itemId) === "quesadilla" || /quesadilla/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+      const frijolCtx = /\bfrijol/i.test([...recentStaff, lastStaff, t.text].join(" "));
+      const derretidoOnly = /\bderretido\b/iu.test(t.text) && frijolCtx && !dishesNamed(t.text).size && !/burrito|taco|torta|gordita/iu.test(t.text);
+      if ((frijolQueso || derretidoOnly) && !/burrito|taco|torta|gordita/iu.test(t.text)) {
+        let qIdx = cart.map((l, i) => (kindOfItem(l.itemId) === "quesadilla" || /quesadilla/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+        if (!qIdx.length && (frijolQueso || derretidoOnly)) {
+          const ctx = [...recentStaff, lastStaff, t.text, ...steps.slice(-8).map((x: any) => String(x.heard || ""))].join(" ");
+          const qm = ctx.match(/\b(una?|dos|tres|cuatro|cinco|one|two|three|four|five|\d+)\s+quesadillas?\b/iu);
+          const qty = qm ? (spokenCount(qm[1]) || Number(qm[1]) || 3) : 3;
+          last = await say(`${qty} quesadillas del comal`, t.language, "caller-frijol-queso");
+          qIdx = cart.map((l, i) => (kindOfItem(l.itemId) === "quesadilla" || /quesadilla/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+          if (!qIdx.length) {
+            cart.push({ itemId: "sq-quesadilla-HLT6CR", quantity: qty, modifiers: [{ step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }] } as Line);
+            qIdx = [cart.length - 1];
+          }
+        }
         if (qIdx.length) {
           const meatStep = "(B) Q Carnes / Meats";
           const want = ["Frijoles Refritos / Refried Beans", "Queso Derretido / Melted Cheese"];
@@ -906,14 +921,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           const base = cart[qIdx[0]];
           const tortilla = keepMods(base);
           const ctx = [...recentStaff, t.text, ...steps.slice(-8).map((x: any) => String(x.heard || ""))].join(" ");
-          const qm = ctx.match(/\b(tres|3|three)\s+quesadillas?\b/iu);
-          const qty = qm ? 3 : Math.max(...qIdx.map((i) => Number(cart[i].quantity) || 1));
+          const qm = ctx.match(/\b(una?|dos|tres|cuatro|cinco|one|two|three|four|five|\d+)\s+quesadillas?\b/iu);
+          const qty = qm ? (spokenCount(qm[1]) || Number(qm[1]) || 3) : Math.max(...qIdx.map((i) => Number(cart[i].quantity) || 1));
           base.quantity = qty;
           base.modifiers = [...tortilla, ...want.map((option) => ({ step: meatStep, option }))];
           for (const i of qIdx.slice(1).reverse()) cart.splice(i, 1);
           steps.push({ source: "caller-frijol-queso", heard: t.text.slice(0, 80) }); lastStaff = ""; continue;
         }
       }
+    }
+    // name1 (Paco): staff "¿a qué nombre sería la orden?" → "de Paco" is only the name — never a new burrito/taco.
+    { const nameAsk = /\b(?:a\s+qu[eé]\s+nombre|qu[eé]\s+nombre|nombre\s+(?:ser[ií]a|para|de)|name\s+for\s+(?:the|your)\s+order|under\s+what\s+name)\b/iu.test(lastStaff);
+      const nameAns = /^\W*(?:de\s+|a\s+nombre\s+de\s+|under\s+|for\s+)?(\p{L}{2,24})\W*$/iu.test(t.text)
+        && !FOOD.test(t.text) && !dishesNamed(t.text).size && !/\b\d+\b/.test(t.text);
+      if (nameAsk && nameAns) { steps.push({ source: "caller-name", heard: t.text.slice(0, 80) }); lastStaff = ""; continue; }
     }
     // fix23: bare acks / one-word answers to staff ("Sí.", "comal", "Campechana.") are not new dishes.
     // aliases1: campechana / o mal now come from the shared list.

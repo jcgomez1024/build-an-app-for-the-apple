@@ -142,3 +142,59 @@ test("frijol1: toppings sí never invents phantom burritos", async () => {
   assert.ok(opts.some((o: string) => /Arroz/i.test(o)) || opts.some((o: string) => /Crema/i.test(o)), opts.join("; "));
   assert.ok(!opts.some((o: string) => /Grande|Bistec/i.test(o)), opts.join("; "));
 });
+
+test("frijol1: frijol+queso with empty cart creates 3 comal quesadillas with both meats", async () => {
+  const T = (speaker: "caller" | "staff", text: string, start: number): CallTurn => ({ speaker, start, end: start + 1, text, language: "es" });
+  const run = async (text: string) => {
+    if (/quesadillas? del comal/i.test(text) && !/frijol|queso|derretido/i.test(text)) {
+      return { reply: "Tres quesadillas.", actions: [{ type: "add_item", itemId: "sq-quesadilla-HLT6CR", quantity: 3, modifiers: [
+        { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" },
+      ] }] };
+    }
+    return { reply: "¿Algo más?", actions: [] };
+  };
+  const r: any = await shadowOrderFromTurns([
+    T("caller", "Me puedes dar tres quesadillas, pero solo sería este...", 0),
+    T("staff", "Tres quesadillas del del comal.", 2),
+    T("caller", "sí. Solo nomás, este, le pone frijol y queso.", 4),
+    T("staff", "Okay. Entonces te tengo tres quesadillas del comal, de frijol", 6),
+    T("caller", "Con frijol y queso.", 8),
+    T("staff", "Ajá, ¿queso derretido o queso de desboronar?", 10),
+    T("caller", "Sí, de derretido.", 12),
+  ], run as any);
+  const qs = r.cart.filter((l: any) => /quesadilla/i.test(l.itemId));
+  assert.equal(qs.length, 1, JSON.stringify(r.cart));
+  assert.equal(qs[0].quantity, 3);
+  const opts = (qs[0].modifiers || []).map((m: any) => m.option);
+  assert.ok(opts.some((o: string) => /Frijoles Refritos/i.test(o)), opts.join("; "));
+  assert.ok(opts.some((o: string) => /Queso Derretido/i.test(o)), opts.join("; "));
+});
+
+test("name1: 'de Paco' after name ask never adds a burrito", async () => {
+  const T = (speaker: "caller" | "staff", text: string, start: number): CallTurn => ({ speaker, start, end: start + 1, text, language: "es" });
+  const burrito = { type: "add_item", itemId: "sq-burrito-TGWBEN", quantity: 1, modifiers: [
+    { step: "(A) Burrito Size", option: "Regular '10" },
+    { step: "(B) Burrito Carne Options", option: "Pollo / Chicken" },
+  ] };
+  const phantom = { type: "add_item", itemId: "sq-burrito-TGWBEN", quantity: 1, modifiers: [
+    { step: "(A) Burrito Size", option: "Regular '10" },
+    { step: "(B) Burrito Carne Options", option: "Pollo / Chicken" },
+    { step: "(C) Burrito Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream)" },
+  ] };
+  const run = async (text: string) => {
+    if (/burrito de pollo/i.test(text)) return { reply: "Burrito.", actions: [burrito] };
+    if (/paco/i.test(text)) return { reply: "Ok.", actions: [phantom] };
+    return { reply: "¿Algo más?", actions: [] };
+  };
+  const r: any = await shadowOrderFromTurns([
+    T("caller", "Y un burrito de pollo.", 0),
+    T("staff", "Un burrito de pollo. ¿Regular o grande?", 2),
+    T("caller", "A regular.", 4),
+    T("staff", "Muy bien. ¿A qué nombre sería la orden?", 6),
+    T("caller", "de Paco.", 8),
+  ], run as any);
+  const burs = r.cart.filter((l: any) => /burrito/i.test(l.itemId));
+  assert.equal(burs.length, 1, JSON.stringify(r.cart));
+  const opts = (burs[0].modifiers || []).map((m: any) => m.option);
+  assert.ok(!opts.some((o: string) => /DELUXE/i.test(o)), opts.join("; "));
+});
