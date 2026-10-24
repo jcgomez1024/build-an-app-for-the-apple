@@ -74,3 +74,20 @@ test("ordername1: Square order carries the name (ticket_name + recipient display
   const f: any = buildFulfillment({ cart: [], fulfillment: "PICKUP", customer: { name: "alfa bravo" } } as any);
   assert.equal(f.pickup_details.recipient.display_name, "Alfa Bravo");
 });
+
+test("alex1/victor1 names: Nombre. Wally→Alex; Listo→staff Víctor echo", () => {
+  const alex = [
+    { speaker: "staff" as const, text: "Nombre." },
+    { speaker: "caller" as const, text: "Wally." },
+    { speaker: "staff" as const, text: "¿Cómo?" },
+    { speaker: "caller" as const, text: "Alex." },
+    { speaker: "staff" as const, text: "Alex. Si necesito por lo menos unos veinte minutos." },
+  ];
+  assert.equal(on.nameFromTranscript(alex), "Alex");
+  const victor = [
+    { speaker: "staff" as const, text: "Okey, ¿el nombre de quién sería?" },
+    { speaker: "caller" as const, text: "Listo." },
+    { speaker: "staff" as const, text: "Víctor, okey, Víctor, te tengo una orden de birria." },
+  ];
+  assert.equal(on.nameFromTranscript(victor), "Víctor");
+});

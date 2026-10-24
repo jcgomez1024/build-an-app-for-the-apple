@@ -450,6 +450,26 @@
       "example": "¿Me podría encargar tres menús, por favor?",
       "source": "Chuy CA656a1405 10/24: 'tres menús' must be menudo, not Pack MEAL",
       "approved": "Carlos 2026-10-24"
+    },
+    {
+      "id": "aceite-dorada",
+      "match": "\\bquesadillas?\\s+de\\s+aceite\\b",
+      "to": "quesadillas doradas",
+      "channels": [
+        "phone"
+      ],
+      "example": "Me pone dos quesadillas de aceite de bistec preparadas",
+      "source": "Alex CA7c2f7c 10/24: de aceite preparada = QD Deluxe not comal"
+    },
+    {
+      "id": "aceite-dorada-phrase",
+      "match": "\\bde\\s+aceite\\s+preparad[oa]s?\\b",
+      "to": "dorada deluxe preparada",
+      "channels": [
+        "phone"
+      ],
+      "example": "una quesadilla de chorizo con bistec de aceite preparadas",
+      "source": "Alex CA7c2f7c 10/24"
     }
   ]
 }

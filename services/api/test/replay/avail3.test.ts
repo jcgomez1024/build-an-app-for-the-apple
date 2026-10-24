@@ -326,6 +326,41 @@ test("juan1: bare de chorizo does not add gordita when last dish is sope", async
   assert.ok(r.cart.some((l: any) => /sopesaso/i.test(String(l.itemId))), JSON.stringify(r.cart));
 });
 
+
+test("juan1b: pendingSmallSope — size on ask turn, small applied when sope lands later", async () => {
+  const run = async (t: string) => {
+    // meat answer may be expanded to "…sopesasos chicos de chorizo" — prefer chorizo branch
+    if (/chorizo/i.test(t)) return { actions: [{ type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [{ option: "Chorizo / Mexican Sausage" }] }], reply: "¿Algo más?" };
+    if (/sopesaso|sope/i.test(t) && /chico|normal/i.test(t)) return { actions: [], reply: "¿De qué carne?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "dos sopes de los normales, por favor", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿De qué te gustarían?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "de chorizo, por favor.", start: 5, end: 6, language: "es" },
+  ] as any, run as any);
+  const sope = r.cart.find((l: any) => /sopesaso/i.test(String(l.itemId)));
+  assert.ok(sope, JSON.stringify(r.cart));
+  assert.equal(sope.posSize, "small", JSON.stringify(sope));
+  assert.ok((sope.modifiers || []).some((m: any) => /chorizo/i.test(String(m.option))), "chorizo stamped: " + JSON.stringify(sope));
+});
+
+test("juan1b: drop phantom tortilla pack when caller never said tortillas", async () => {
+  const TOR = "sq-tortillas-6-x-tortilla-comal-handmade-XXXX";
+  const run = async (t: string) => {
+    if (/sopesaso|sope/i.test(t)) return { actions: [
+      { type: "add_item", itemId: "sq-sopesaso-elvis", quantity: 2, modifiers: [] },
+      { type: "add_item", itemId: TOR, quantity: 1, modifiers: [] },
+    ], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "dos sopes chicos de chorizo", start: 1, end: 2, language: "es" },
+  ] as any, run as any);
+  assert.ok(!r.cart.some((l: any) => /tortilla/i.test(String(l.itemId))), JSON.stringify(r.cart));
+  assert.equal(r.cart.length, 1);
+});
+
 test("enrique1: force-add menudo con pata and mole when model returns empty", async () => {
   const run = async (t: string) => {
     if (/tienen\s+mole|\?/.test(t) && /mole/i.test(t) && /tienen|hay/i.test(t)) return { actions: [], reply: "Sí." };
@@ -345,3 +380,41 @@ test("enrique1: force-add menudo con pata and mole when model returns empty", as
   const men = r.cart.find((l: any) => /menudo/i.test(String(l.itemId)));
   assert.ok((men.modifiers || []).some((m: any) => /pata/i.test(String(m.option))), JSON.stringify(men));
 });
+
+test("alex1/aceite: de aceite preparadas → QD Deluxe not comal; later una de comal stays QCO", async () => {
+  const DEL = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+  const QCO = "sq-quesadilla-comal";
+  const run = async (t: string) => {
+    if (/aceite|dorada|deluxe|preparad/i.test(t) && /quesadilla/i.test(t))
+      return { actions: [{ type: "add_item", itemId: QCO, quantity: /dos|2/i.test(t) ? 2 : 1, modifiers: [{ option: "(QCO) Quesadilla de Comal / Homemade" }, { option: "Bistec / Steak" }] }], reply: "¿Algo más?" };
+    if (/comal/i.test(t) && /quesadilla|de\s+comal/i.test(t))
+      return { actions: [{ type: "add_item", itemId: QCO, quantity: /dos|2/i.test(t) ? 2 : 1, modifiers: [{ option: "(QCO) Quesadilla de Comal / Homemade" }, { option: /picadillo/i.test(t) ? "Picadillo / Ground Beef" : "Bistec / Steak" }] }], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Me pone dos quesadillas de aceite de bistec preparadas.", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "¿Qué más?", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "una quesadilla de chorizo con bistec de aceite preparadas también. Aparte.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "Y una de comal.", start: 7, end: 8, language: "es" },
+    { speaker: "staff", text: "¿De qué?", start: 9, end: 10, language: "es" },
+    { speaker: "caller", text: "De bistec con chorizo.", start: 11, end: 12, language: "es" },
+    { speaker: "caller", text: "Y me pone aparte dos quesadillas de comal de picadillo.", start: 13, end: 14, language: "es" },
+  ] as any, run as any);
+  const deluxe = r.cart.filter((l: any) => l.itemId === DEL);
+  assert.ok(deluxe.length >= 1, "expected QD Deluxe: " + JSON.stringify(r.cart));
+  assert.ok(deluxe.some((l: any) => (Number(l.quantity) || 1) >= 2) || deluxe.reduce((a: number, l: any) => a + (Number(l.quantity) || 1), 0) >= 2, "qty2 bistec deluxe");
+});
+
+test("victor1: barbacoa avail ≠ order; una orden de birria force-adds", async () => {
+  const seen: string[] = [];
+  const run = async (t: string) => { seen.push(t); return { actions: [], reply: "¿Algo más?" }; };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", text: "De, este, sí tiene barbacoa.", start: 1, end: 2, language: "es" },
+    { speaker: "staff", text: "No, pura birria.", start: 3, end: 4, language: "es" },
+    { speaker: "caller", text: "Ahí está bien, parece una orden de birria.", start: 5, end: 6, language: "es" },
+    { speaker: "caller", text: "Sería todo.", start: 7, end: 8, language: "es" },
+  ] as any, run as any);
+  assert.ok(!seen.some((s) => /barbacoa/i.test(s)), "avail must not reach model: " + JSON.stringify(seen));
+  assert.ok(r.cart.some((l: any) => /birria/i.test(String(l.itemId))), "birria missing: " + JSON.stringify(r.cart));
+});
+

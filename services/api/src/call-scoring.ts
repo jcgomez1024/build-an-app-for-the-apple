@@ -163,7 +163,7 @@ export function cleanPhrase(text: string): string {
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|moles?|platillos?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|moles?|platillos?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
 /** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
@@ -362,7 +362,7 @@ export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string 
 }
 // tw4938: which dish kinds a phrase names, and which kind a menu item is (by its id).
 const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["queso torta", /\bqueso\s+tortas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b/iu],
-  ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu], ["menudo", /\bmenudos?\b/iu], ["mole", /\bmoles?\b/iu], ["platillo", /\bplatillos?\b/iu], ["tortilla", /\btortillas?\b/iu]];
+  ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu], ["menudo", /\bmenudos?\b/iu], ["mole", /\bmoles?\b/iu], ["platillo", /\bplatillos?\b/iu], ["birria", /\bbirrias?\b/iu], ["tortilla", /\btortillas?\b/iu]];
 export const dishesNamed = (text: string) => {
   const s = new Set(DISH_KINDS.filter(([, re]) => re.test(String(text || ""))).map(([k]) => k));
   // quesitorta1: "queso tortas" also matches /tortas?/ — keep only the queso-torta kind
@@ -499,6 +499,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let sizeAnswer = false;
   // luis7895/chuy1: "dos/tres menudos" often gets an Elvi question (empty add); apply spoken qty on the later add (incl. staff-pick).
   let pendingSpokenQty: { n: number; kind: string } | null = null;
+  let pendingSmallSope = false; // juan1: "sopes de los normales/chicos" said before the line lands
   const apply = (actions: any[] = []) => {
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
@@ -647,6 +648,22 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (!have) acts.push({ type: "add_item", itemId: "sq-mole-tradicional-platillo-4THFAW", quantity: 1, modifiers: [], readback: "mole" });
       }
     }
+    // victor1 (CA7c79ab): "una orden de birria" after barbacoa avail → add Birria; avail-only ("¿tiene barbacoa?") stays out via isAvailQ.
+    if (source.startsWith("caller") && /\bbirrias?\b/iu.test(text)
+      && /\b(?:orden(?:es)?|order|quiero|dame|deme|me\s+da|pon(?:me|ga)?|va\s+a\s+ser|un[oa]?|parece)\b/iu.test(text)
+      && !/\b(?:tienen|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible|barbacoa)\b/iu.test(text)) {
+      const have = cart.some((l) => /birria/i.test(String(l.itemId)))
+        || acts.some((a: any) => a.type === "add_item" && /birria/i.test(String(a.itemId)));
+      if (!have) acts.push({ type: "add_item", itemId: "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD", quantity: 1, modifiers: [], readback: "orden de birria" });
+    }
+    // juan1: never invent standalone tortilla PACKS when caller never said tortillas/docena (not menudo "…y-tortillas-4").
+    if (source.startsWith("caller") && !/\b(?:tortillas?|docena|dozen)\b/iu.test(text) && !/\b(?:tortillas?|docena|dozen)\b/iu.test(prevCaller)) {
+      for (let i = acts.length - 1; i >= 0; i--) {
+        const a = acts[i];
+        const id = String(a.itemId || "");
+        if (a.type === "add_item" && /(?:^|-)tortillas?-\d+-x-tortilla|(?:^|-)(?:\d+-x-)?tortilla-(?:comal|taquera|harina)/i.test(id) && !/menudo|mole|platillo|birria/i.test(id)) acts.splice(i, 1);
+      }
+    }
     // qty1: "dos de bistec" right after 2 bistec were rung (no dish noun, no más/otros) restates that line — not 2 more
     for (let i = acts.length - 1; i >= 0; i--) if (isRestatement(text, acts[i], cart, sig)) acts.splice(i, 1);
     // tw4938: a turn that names a dish re-sends earlier lines of a dish it never names ("serían esos tres y una quesadilla
@@ -771,6 +788,46 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // prep1: "una quesadilla preparada … de las doradas" is the DELUXE Preparada Dorada, not the Regular (Luisa)
     if (/\bpreparad[oa]s?\b|\bdeluxe\b/iu.test(text) && !/\bregular(?:es)?\b|\bsin\s+preparar\b/iu.test(text))
       for (const a of acts as any[]) if (a.type === "add_item" && a.itemId === DORADA_REG_ID) { a.itemId = DORADA_DELUXE_ID; a.modifiers = (a.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
+    // aceite1 (Alex CA7c2f7c): "quesadillas de aceite … preparadas" (alias→doradas) = QD Deluxe, not comal.
+    // "una de comal" later is a separate QCO line — do not remap that turn.
+    if (source.startsWith("caller")
+      && (/\baceite\b/iu.test(text) || (/\bdoradas?\b/iu.test(text) && /\b(?:preparad[oa]s?|deluxe)\b/iu.test(text)))
+      && /\b(?:quesadillas?|preparad[oa]s?|deluxe|doradas?)\b/iu.test(text)
+      && !/\b(?:de\s+)?comal\b/iu.test(text.replace(/aceite[^,.]*preparad\w*|doradas?[^,.]*preparad\w*/iu, " "))) {
+      for (const a of acts as any[]) {
+        if (a.type !== "add_item") continue;
+        const id = String(a.itemId || "");
+        const isQco = /quesadilla/i.test(id) && /comal|qco|homemade/i.test(id + " " + (a.modifiers || []).map((m: any) => m.option).join(" "));
+        const isReg = id === DORADA_REG_ID || /regular.?dorada/i.test(id + " " + (a.modifiers || []).map((m: any) => m.option).join(" "));
+        if (isQco || isReg || (/quesadilla/i.test(id) && !/dorada|deluxe|zzav3l/i.test(id))) {
+          a.itemId = DORADA_DELUXE_ID;
+          const mods = (a.modifiers || []).filter((m: any) => !/\(QCO\)|comal|homemade|REGULAR Dorada|DELUXE Preparada/i.test(String(m.option)));
+          mods.unshift({ step: "(QD) Style", option: "(QD) DELUXE Preparada" });
+          a.modifiers = mods;
+          a.readback = a.readback || "quesadilla dorada deluxe";
+        }
+      }
+    }
+    // aceite1b: force-add QD Deluxe when model returned [] on aceite/dorada preparada order.
+    if (source.startsWith("caller")
+      && (/\baceite\b/iu.test(text) || (/\bdoradas?\b/iu.test(text) && /\bpreparad[oa]s?\b/iu.test(text)))
+      && /\b(?:quesadillas?|preparad[oa]s?|doradas?)\b/iu.test(text)
+      && !/\b(?:tienen|hay|tiene|ten[eé]s|vende|de\s+comal)\b/iu.test(text)
+      && !acts.some((a: any) => a.type === "add_item" && /dorada|zzav3l|deluxe/i.test(String(a.itemId)))) {
+      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:y|e|and|me\s+das|dame|quiero|me\s+pone)\s+/iu, "")) || 1;
+      const meats = listedMeats(text);
+      const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^picadillo$/i, "Picadillo / Ground Beef"], [/^buche$/i, "Buche / Pork Stomach"]];
+      const mods: any[] = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }];
+      for (const w of meats.length ? meats : []) {
+        const opt = MEAT_OPT.find(([re]) => re.test(w.meat))?.[1];
+        if (opt) mods.push({ step: "(B) Q Carnes / Meats", option: opt });
+      }
+      if (!meats.length) {
+        const mm = text.match(/\b(bistec|chorizo|asada|picadillo|pollo|buche)\b/iu);
+        if (mm) { const opt = MEAT_OPT.find(([re]) => re.test(mm[1]))?.[1]; if (opt) mods.push({ step: "(B) Q Carnes / Meats", option: opt }); }
+      }
+      acts.push({ type: "add_item", itemId: DORADA_DELUXE_ID, quantity: n > 1 ? n : 1, modifiers: mods, readback: "quesadilla dorada deluxe" });
+    }
     // prep2 (Linda): a bare "preparadas" answer makes every Regular Dorada already rung the Deluxe Preparada
     if (source !== "auto" && /^\W*(?:\p{L}+[.,]?\s+){0,3}preparad[oa]s\W*$/iu.test(text) && !/regular/iu.test(text)) {
       for (const l of cart as any[]) if (l.itemId === DORADA_REG_ID) { l.itemId = DORADA_DELUXE_ID; l.modifiers = (l.modifiers || []).map((m: any) => /REGULAR Dorada/i.test(String(m.option)) ? { ...m, option: "(QD) DELUXE Preparada" } : m); }
@@ -854,8 +911,34 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     mixMeats(acts, source === "staff-pick" ? `${text} ${[...history].reverse().find((h) => h.role === "customer" && h.text !== text)?.text || ""}` : text);
     apply(acts);
     if (process.env.SHADOW_DEBUG) console.error("[shadow]", source, "|", text, "|", JSON.stringify(acts.map((a: any) => [a.type, String(a.itemId || "").slice(3, 30), a.quantity, (a.modifiers || []).map((m: any) => m.option).filter((o: string) => !/salsa asada/i.test(o)).join("+")])), "| cart", cart.length);
-    // sopesize1: default size is the 10”; only an explicit "chico(s)" on this turn picks the small POS sizes.
-    if (SMALL_SOPE.test(applySharedAliases(text, "phone"))) for (const l of touchedNow) if (/sopes[ae]so/i.test(l.itemId)) l.posSize = "small";
+    // sopesize1/juan1: default size is the 10”; explicit chico/normales/regulares (or a pending small) picks Sope Elvis.
+    { const saidSmall = SMALL_SOPE.test(applySharedAliases(text, "phone"));
+      if (saidSmall) pendingSmallSope = true;
+      const sopeTouched = touchedNow.filter((l) => /sopes[ae]so/i.test(l.itemId));
+      if ((saidSmall || pendingSmallSope) && sopeTouched.length) {
+        for (const l of sopeTouched) l.posSize = "small";
+        pendingSmallSope = false;
+      }
+      // juan1: bare meat answer after sopes — stamp spoken meat onto last sope if model left it off / piled onto wrong dish
+      if (source.startsWith("caller") && !dishesNamed(text).size && MEAT_WORDS.test(text) && !FOOD.test(text)) {
+        const sope = [...cart].reverse().find((l) => /sopes[ae]so/i.test(l.itemId));
+        const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
+        if (sope && mm) {
+          const MEAT_OPT: Array<[RegExp, string]> = [[/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripa$/i, "Tripa / Beef Tripe"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^carnitas$/i, "Carnitas / Pulled Pork"], [/^buche$/i, "Buche / Pork Stomach"]];
+          const opt = MEAT_OPT.find(([re]) => re.test(mm[1]))?.[1];
+          if (opt && !(sope.modifiers || []).some((m: any) => new RegExp(mm[1], "i").test(String(m.option))))
+            sope.modifiers = [...(sope.modifiers || []), { step: "(B) Q Carnes / Meats", option: opt }];
+          // strip that meat off non-sope lines this turn invented/updated
+          for (const l of cart) {
+            if (/sopes[ae]so/i.test(l.itemId)) continue;
+            if (!(l.modifiers || []).some((m: any) => new RegExp(mm[1], "i").test(String(m.option)))) continue;
+            // only strip if this kind was not named earlier as wanting that meat alone
+            if (/dorada|gordita|quesadilla|torta/i.test(l.itemId))
+              l.modifiers = (l.modifiers || []).filter((m: any) => !new RegExp(mm[1], "i").test(String(m.option)));
+          }
+        }
+      }
+    }
     const added = acts.filter((a: any) => a.type === "add_item");
     if (added.length) lastAdded = cart[cart.length - 1] || null;
     if (source !== "auto") attributeRemovals(text, wasLast);
@@ -935,6 +1018,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text) && !/\b(?:qu[eé]\s+m[aá]s|me\s+dijiste|what\s+else)\b/iu.test(t.text)) return false;
       if (/^\W*(?:(?:hey|so|and|oh|y|oye|oiga|mire|diga|ah|am|um|uh|s[ií]|bueno|disculpe|perd[oó]n|ok(?:ay)?|qu[eé])[,.\s]+){0,5}\W*(?:s[ií][,.\s]+)?(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|ten[eé]s|vende[ns]?|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text)) return true;
       if (/\b(?:qu[eé]\s+m[aá]s|me\s+dijiste\s+que\s+ten|what\s+else\s+(?:do\s+you\s+)?have|you\s+(?:also\s+)?(?:said\s+you\s+)?have)\b/iu.test(t.text)) return true;
+      // victor1/avail: "De, este, sí tiene barbacoa." — availability, not an order (no ?/hoy required).
+      if (/^\W*(?:(?:de|este|ah|oh|am|um|eh|s[ií]|bueno|pues|oye)[,.\s]+){0,6}\W*(?:s[ií][,.\s]+)?(?:tiene|tienen|ten[eé]s|hay|vende[ns]?|manejan)\b\s+[\p{L}\s]{2,40}\W*$/iu.test(t.text)) return true;
       if (/^\W*(?:(?:los?|las?)\s+)?(?:sopes?|gorditas?|tacos?|quesadillas?|tortas?|huaraches?|guaraches?)\s+(?:son|est[aá]n|are)\s+/iu.test(t.text)) return true;
       return false;
     };

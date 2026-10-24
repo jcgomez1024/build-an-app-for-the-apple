@@ -82,12 +82,25 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
-const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*\?|your\s+name|\bname\s*\?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name)/iu;
+const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+name|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
 /** Listen-only: the caller's answer right after the staff asked for the name. */
 export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff" || !STAFF_ASK.test(turns[i].text)) continue;
-    for (const t of turns.slice(i + 1, i + 3)) if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) return n; }
+    // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
+    let lastCaller: string | null = null;
+    for (const t of turns.slice(i + 1, i + 8)) {
+      if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) lastCaller = n; }
+      // victor1/alex1: staff echo after junk ASR ("Listo." → "Víctor, okey" / "Alex. Si necesito…")
+      if (t.speaker === "staff") {
+        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*[,.]|\s+)/u);
+        if (echo && !NOT_NAMES.test(echo[1])) {
+          const n = cleanFirstName(echo[1]);
+          if (n) return lastCaller || n;
+        }
+      }
+    }
+    if (lastCaller) return lastCaller;
     // rec1: the transcript can put the answer just BEFORE the ask (overlap): "…sería todo. Zed." / "¿Tu nombre?"
     const prev = turns[i - 1];
     if (prev?.speaker === "caller") { const last = prev.text.trim().split(/(?<=[.!?])\s+/).pop() || ""; const n = last.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(last) ? nameFromAnswer(last) : null; if (n) return n; }
@@ -113,7 +126,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta)$/iu;
+const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
@@ -125,6 +138,13 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
       if (n) return n;
     }
     for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[.!?]|\s*$)/gu)) { // cleanup1: not before a comma
+      const w = m[1];
+      if (NOT_NAMES.test(w)) continue;
+      const n = cleanFirstName(w);
+      if (n) return n;
+    }
+    // victor1: "Víctor, okey, Víctor, te tengo…" — name leads the staff turn
+    for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,/gu)) {
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
       const n = cleanFirstName(w);
