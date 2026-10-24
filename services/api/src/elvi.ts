@@ -577,11 +577,12 @@ export function resolveFollowUp(heard: string, history: ConversationTurn[] | und
 }
 
 /**
- * Last step for every channel (chat, voice text, voice audio): the website's rules win.
- * EXTRA add-ons only when asked for, and nothing outside the website's hours (e.g. Menudo on a Thursday),
- * including when the model just answered without adding.
+ * Last step for phone/Elvi (chat, voice text, voice audio). EXTRA add-ons only when asked for.
+ * phone1: online pickup+prep windows stay on the website; voice uses phone category/day rules
+ * (Menudo from category open on Sat/Sun). Doradas keep the displayed Especial window (hours1).
  */
 export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem[], language: Language, variationChosen = false): ElviResponse {
+  const phoneOpts = { channel: "phone" as const };
   let actions = rescoreSingleChoices(dropUnaskedExtras(result.actions, heard), menu, heard);
   // Multi-option dish the caller didn't specify (the model added "ceviche" as fish): ask, like the website.
   for (const a of actions) {
@@ -589,7 +590,7 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
     // Size/kind already chosen in the follow-up questions.
     if (variationChosen) continue;
     // hours1 (8:03 PM call): a dish outside its website hours is refused once below — never ask its Regular/Deluxe first
-    { const st0 = storeState()?.state; const it0 = menu.find((m) => m.id === a.itemId); if (it0 && (st0 === "open" || st0 === "last_order" || !st0) && unavailableNowReply(it0, it0.squareCatalogObjectId, language)) continue; }
+    { const st0 = storeState()?.state; const it0 = menu.find((m) => m.id === a.itemId); if (it0 && (st0 === "open" || st0 === "last_order" || !st0) && unavailableNowReply(it0, it0.squareCatalogObjectId, language, undefined, phoneOpts)) continue; }
     const q: any = variationQuestion({ ok: true, actions: [a] }, menu, heard, language);
     if (q?.reason === "choose_variation") {
       actions = actions.filter((x) => x !== a);
@@ -602,7 +603,7 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
     out = { ...out, reply: addReadback(actions, menu, language), audioBase64: undefined, audioMimeType: undefined };
   }
   // time1: while the store is closed / before opening, orders are for later — time-window items are checked at checkout instead
-  const st = storeState()?.state; if (st === "open" || st === "last_order" || !st) out = enforceSiteAvailability(out, menu, language);
+  const st = storeState()?.state; if (st === "open" || st === "last_order" || !st) out = enforceSiteAvailability(out, menu, language, undefined, phoneOpts);
   if (out !== result && out.reply !== result.reply) return out;
   if (!out.actions.some((a) => a.type === "add_item") && !out.pendingGuides?.length && heard) {
     try {
@@ -611,7 +612,7 @@ export function finalizeTurn(result: ElviResponse, heard: string, menu: MenuItem
       const id = r?.selectedItem?.itemId || r?.actions?.find((a: any) => a?.type === "add_item")?.itemId;
       const item = id && menu.find((m) => m.id === id);
       // avail2: before opening / after close the order is for later (time1) — don't refuse time-window dishes here either
-      const hours = item && (st === "open" || st === "last_order" || !st) ? unavailableNowReply(item, item.squareCatalogObjectId, language) : null;
+      const hours = item && (st === "open" || st === "last_order" || !st) ? unavailableNowReply(item, item.squareCatalogObjectId, language, undefined, phoneOpts) : null;
       if (hours) return { ...out, reply: hours, audioBase64: undefined, audioMimeType: undefined };
     } catch { /* keep the reply */ }
   }

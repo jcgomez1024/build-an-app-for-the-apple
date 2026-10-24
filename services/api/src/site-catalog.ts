@@ -120,12 +120,25 @@ export function displayedWindows(categoryHours: Hours, catalog = loadSiteCatalog
   return out;
 }
 
-/**
- * An item is limited only when every website category it's in has custom hours
- * (an item also listed in an always-on category is always available). It can be ordered now when
- * the earliest pickup (now + prep time) falls inside what the site displays for today.
- */
-export function itemAvailability(squareItemId: string | undefined, now = currentTime()): { available: boolean; window?: { en: string; es: string }; today?: string } {
+/** phone1 (Carlos 10/24): online pickup+prep windows (11:20 starts) are website-only. Voice/Elvi uses raw
+ *  category day/hours (e.g. Menudo Sat/Sun from category open), except Quesadilla Dorada which keeps the
+ *  displayed Especial window already set for phone (hours1/dorada1). */
+const isDoradaProduct = (product: SiteProduct | null | undefined) =>
+  !!product && /\bdorad[ao]s?\b|\(QD\)/i.test(`${product.name} ${product.siteName || ""}`);
+
+function rawCategoryWindows(categoryHours: Hours) {
+  const out: Record<string, Array<{ start: number; end: number }>> = {};
+  for (const d of DAYS) {
+    out[d] = [];
+    for (const w of categoryHours[d] || []) {
+      const open = toMin(w.open), close = toMin(w.close);
+      if (close - 1 >= open) out[d].push({ start: open, end: close - 1 });
+    }
+  }
+  return out;
+}
+
+export function itemAvailability(squareItemId: string | undefined, now = currentTime(), opts?: { channel?: "phone" | "web" }): { available: boolean; window?: { en: string; es: string }; today?: string } {
   const catalog = loadSiteCatalog();
   const product = siteProductFor(squareItemId);
   if (!catalog || !product) return { available: true };
@@ -133,16 +146,17 @@ export function itemAvailability(squareItemId: string | undefined, now = current
   if (!cats.length || cats.some((c) => !c.customTimes || !c.hours)) return { available: true };
   const { day, minutes } = storeNow(now, catalog.store?.timezone || catalog.timezone);
   const prep = catalog.store?.prepMinutes || 0;
-  const windows = cats.map((c) => displayedWindows(c.hours!, catalog));
-  const pickupAt = minutes + prep;
-  const open = windows.some((w) => (w[day] || []).some((x) => pickupAt >= x.start && pickupAt <= x.end));
+  const phone = opts?.channel === "phone" && !isDoradaProduct(product);
+  const windows = cats.map((c) => phone ? rawCategoryWindows(c.hours!) : displayedWindows(c.hours!, catalog));
+  const at = phone ? minutes : minutes + prep;
+  const open = windows.some((w) => (w[day] || []).some((x) => at >= x.start && at <= x.end));
   const describe = (es: boolean) => DAYS.flatMap((d) => windows.flatMap((w) => (w[d] || []).map((x) => `${DAY_NAMES[d][es ? 1 : 0]} ${fmtMin(x.start)}–${fmtMin(x.end)}`))).join(", ");
   const today = windows.flatMap((w) => (w[day] || []).map((x) => `${fmtMin(x.start)} - ${fmtMin(x.end)}`)).join(", ");
   return { available: open, window: { en: describe(false), es: describe(true) }, today };
 }
 
-export function unavailableNowReply(item: { name: string }, squareItemId: string | undefined, language: "en" | "es", now = currentTime()) {
-  const a = itemAvailability(squareItemId, now);
+export function unavailableNowReply(item: { name: string }, squareItemId: string | undefined, language: "en" | "es", now = currentTime(), opts?: { channel?: "phone" | "web" }) {
+  const a = itemAvailability(squareItemId, now, opts);
   if (a.available || !a.window) return null;
   const name = item.name.replace(/\s*\([A-Z]{1,4}\)\s*/g, " ").trim();
   // dorada1 (Carlos 10/23): after the Especial window every Quesadilla Dorada (Regular and Deluxe Preparada) is off —
@@ -156,12 +170,12 @@ export function unavailableNowReply(item: { name: string }, squareItemId: string
 }
 
 /** Drop add_items the website wouldn't sell right now; say why instead of "added". */
-export function enforceSiteAvailability<T extends { reply: string; actions: any[] }>(result: T, menu: MenuItem[], language: "en" | "es", now = currentTime()): T {
+export function enforceSiteAvailability<T extends { reply: string; actions: any[] }>(result: T, menu: MenuItem[], language: "en" | "es", now = currentTime(), opts?: { channel?: "phone" | "web" }): T {
   const blocked: string[] = [];
   const actions = (result.actions || []).filter((action) => {
     if (action?.type !== "add_item") return true;
     const item = menu.find((m) => m.id === action.itemId);
-    const reply = item ? unavailableNowReply(item, item.squareCatalogObjectId, language, now) : null;
+    const reply = item ? unavailableNowReply(item, item.squareCatalogObjectId, language, now, opts) : null;
     if (reply) blocked.push(reply);
     return !reply;
   });

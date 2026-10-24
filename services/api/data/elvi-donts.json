@@ -11,6 +11,8 @@
     "Do NOT treat 'almuerzo(s)' as a menu item. It means lunch.",
     "Do NOT add drinks, sides or items nobody asked for.",
     "Do NOT say an item is not on the menu before checking aliases (tacos de comal de tripa = Taco Comal with Tripa; quesadilla with the dip = Queso Birrias; taquitos = street tacos; flautas = tacos dorados).",
-    "Do NOT ignore staff: when staff confirms or corrects ('Flour, right?' then 'yep'), staff's version is the order."
+    "Do NOT ignore staff: when staff confirms or corrects ('Flour, right?' then 'yep'), staff's version is the order.",
+    "Do NOT refuse weekend Menudo (or other phone-day specials) just because the website's online window starts at 11:20 — on phone calls those items are available from the category/store open that day. Doradas still follow their Especial window end.",
+    "Do NOT add ANY item after a goodbye or closing phrase ('Ándale, pues', 'órale', 'sería todo', 'gracias', 'that's it', 'bye'). Those never change the order."
   ]
 }
