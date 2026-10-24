@@ -47,10 +47,23 @@ export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
   const th = [...s.matchAll(THIRD)].pop();
   if (th && !NOT_NAMES.test(th[1].split(" ")[0])) { const n = cleanFullName(th[1]); if (n) return n; }
+  // jesus1: "¿Ves, Jesús, por favor?" / "Ves, Jesús" — strip discourse filler before the real name
+  s = s.replace(/^\s*[¿¡]?\s*(?:ves|vea|mira|oye|oiga|diga|dime)\s*[,.]?\s+/iu, "");
+  // Soft request with a name: "¿Jesús, por favor?" (after Ves strip) is an answer; bare ¿Guino? stays a question (gino1)
+  {
+    const soft = s.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*,?\s*(?:por\s+favor|please)\s*\?\s*$/u);
+    if (soft && !NOT_NAMES.test(soft[1].split(" ")[0])) { const n = cleanFullName(soft[1]); if (n) return n; }
+  }
   if (/^\s*¿[^?]*\?\s*$/u.test(s)) return null; // name3p1/gino1: a name question (¿Guino?) is not a name answer
   const ph = s.match(new RegExp(PHRASE.source + "(.+)$", "iu"));
   s = ph ? ph[1] : s.replace(LEAD, "");
-  s = s.replace(TAIL, "").replace(/[.,!?¿¡"“”]/g, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(TAIL, "").replace(/[.,!?¿¡"“”']/g, " ").replace(/\s+/g, " ").trim();
+  // jesus1: drop leading filler tokens still stuck on ("Ves Jesús" → "Jesús")
+  {
+    const ws = s.split(" ").filter(Boolean);
+    while (ws.length && /^(ves|vea|mira|oye|oiga|diga|dime)$/iu.test(ws[0])) ws.shift();
+    s = ws.join(" ");
+  }
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
   if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|muchas|thanks|nada|todo|eso|de)$/iu.test(words[0])) return null;
@@ -59,6 +72,8 @@ export function nameFromAnswer(text: string): string | null {
   // carlos1: "Okay, muchas gracias" → leftover "muchas" (or "muchas gracias") is gratitude, never a name
   if (words.every((w) => /^(muchas|gracias|thanks?|thank|you|ok(?:ay)?|please|porfa|por|favor|de|nada|igualmente)$/iu.test(w))) return null;
   if (NOT_NAMES.test(words[0])) return null;
+  // joseA1: "Ah, es en" / bare prepositions are not names
+  if (words.length === 1 && words[0].length <= 2) return null;
   return cleanFullName(words.join(" "));
 }
 /** Caller's answer to a name question → the order name (confirmed or corrected), or null to ask again. */
@@ -161,7 +176,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|se|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;
@@ -191,10 +206,24 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
 /** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
 export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
 /** name3p2: same, plus whether the caller gave it in the third person (then it must not be saved to their phone). */
-export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" } | null {
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" } | null {
   const fromAsk = nameFromStaffAsk(turns);
   const fromVoc = fromAsk ? null : nameFromStaffVocative(turns);
-  const name = fromAsk || fromVoc;
+  // joseA1: volunteered "Es José Acevedo" — prefer full volunteer over staff vocative ("Gracias, José")
+  let fromVol: string | null = null;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
+    if (!/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy)\s+\S+/iu.test(t.text)) continue;
+    if (/\bes\s+para\b/iu.test(t.text)) continue; // pickup-only
+    const n = nameFromAnswer(t.text);
+    // joseA1: "Ah, es en" → null/En lose to "Es José Acevedo"
+    if (!n || n.trim().length < 3 || NOT_NAMES.test(n.split(/\s+/)[0])) continue;
+    if (!/^\p{Lu}/u.test(n)) continue;
+    if (!fromVol || n.split(/\s+/).length > fromVol.split(/\s+/).length || (n.split(/\s+/).length === fromVol.split(/\s+/).length && n.length > fromVol.length))
+      fromVol = n;
+  }
+  const name = fromAsk || fromVol || fromVoc;
   if (!name) return null;
   const f = foldName(name);
   // Pickup-only: para/for/recoger/picking-up. Bare "Chuy." / "De Luis." after name-ask = customer (ticket + name log).
@@ -205,6 +234,6 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     const staffEsPara = turns.some((t, i) => t.speaker === "staff" && /\bes\s+para\b/iu.test(t.text) && (!/\bes\s+para\s+\p{Lu}/u.test(t.text) || foldName(thirdPersonName(t.text) || "") === f) && turns.slice(i).some((u) => u.speaker === "caller" && foldName(nameFromAnswer(u.text) || "") === f));
     if (spousePickup || staffEsPara) thirdPerson = true;
   }
-  const source: "staff-ask" | "vocative" = fromAsk ? "staff-ask" : "vocative";
+  const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVoc ? "vocative" : "volunteer";
   return { name, thirdPerson, source };
 }

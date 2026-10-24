@@ -62,7 +62,11 @@ function fmt(a: Omit<Address, "full">): Address {
 }
 /** Every street address heard in one piece of text, in order. */
 export function addressesIn(text: string): Address[] {
-  const t = String(text || "");
+  // joseA1: STT "127 Morse, Morse Avenue" → "127 Morse Avenue"
+  let t = String(text || "").replace(
+    /\b(\d{1,6})\s+([a-záéíóúñ.'-]+)\s*,\s*\2\s+(street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd)\b/giu,
+    "$1 $2 $3",
+  );
   const out: Array<{ at: number; a: Address }> = [];
   for (const m of t.matchAll(ADDR_EN)) {
     const words = m[2].trim().split(/\s+/);

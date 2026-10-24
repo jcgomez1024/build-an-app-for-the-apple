@@ -165,6 +165,18 @@
       "approved": "Carlos 2026-10-24"
     },
     {
+      "id": "carnita-carnitas",
+      "match": "\\bcarnita\\b(?!s)",
+      "to": "carnitas",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "una de chorizo y la otra de carnita",
+      "source": "transcript CAdd6ef2 (Jesús — STT/colloquial carnita)",
+      "approved": "Carlos 2026-10-24"
+    },
+    {
       "id": "chopack",
       "match": "\\bcho\\s*-?\\s*packs?\\b",
       "to": "8 pack",

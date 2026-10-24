@@ -2,7 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
-import { fulfillmentIn, detectFulfillment } from "./delivery.js";
+import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -465,9 +465,9 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
   const FIXW = String.raw`(?:que\s+diga|perd[oó]n|digo|mejor|no+)`;
   for (const t of merged) if (t.speaker === "caller")
     t.text = t.text.replace(new RegExp(String.raw`\bde\s+(?:${MEAT_LIST}|pastor)\s*,?\s*${FIXW}(?:\s*,?\s*${FIXW})*\s*,?\s*(?:de\s+|del\s+)?(al\s+pastor|pastor|${MEAT_LIST})\b`, "iu"), (_m, y) => `de ${/^pastor$/i.test(y) ? "al pastor" : y}`);
-  // combo1 (Jesús): "el combo de las gorditas" is the COMBO Gorditas item, not the quesadilla combo just talked about
+  // combo1/jesus1: "el combo de las gorditas" → COMBO Gorditas (keep "dos órdenes de/del" qty cue)
   for (const t of merged) if (t.speaker === "caller")
-    t.text = t.text.replace(/\b(?:un\s*,?\s*)?(?:el\s+|un\s+)?combo\s+de\s+(?:las\s+|los\s+)?(gorditas|tacos|tortas|quesadillas|burritos?)\b/giu, (_m, d) => `un COMBO ${d[0].toUpperCase()}${d.slice(1).toLowerCase()}`);
+    t.text = t.text.replace(/\b(?:un\s*,?\s*)?(?:el\s+|un\s+)?combo\s+de\s+(?:las\s+|los\s+)?(gorditas|tacos|tortas|quesadillas|burritos?)\b/giu, (_m, d) => `COMBO ${d[0].toUpperCase()}${d.slice(1).toLowerCase()}`);
   // split2 (Jesús): "una quesadilla …, y me puede dar el combo de las gorditas …" is two orders in one merged turn;
   // a tortilla answer (harina/maíz) inside the gordita part belongs to the quesadilla (gorditas are corn only).
   for (let i = 0; i < merged.length; i++) { const t = merged[i]; if (t.speaker !== "caller") continue;
@@ -522,6 +522,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let pendingSpokenQty: { n: number; kind: string } | null = null;
   let pendingQuesadilla: { n: number; meat: string } | null = null; // gino1: "dos quesadillas de bistec" before aceite/preparadas
   let pendingSmallSope = false; // juan1: "sopes de los normales/chicos" said before the line lands
+  let shadowAddress: string | null = null;
+  let shadowAddressConfirmed = false;
   const apply = (actions: any[] = []) => {
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
@@ -533,6 +535,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       } else if (a.type === "remove_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) cart.splice(i, 1);
+      } else if (a.type === "set_address" && a.address) {
+        // joseA1: set_address means the address was captured — mark confirmed for shadow/scoring
+        shadowAddress = String(a.address);
+        shadowAddressConfirmed = true;
       }
     }
   };
@@ -892,7 +898,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // tw4938: "dos quesadillas doradas … preparadas" → one line came back at qty 1; the spoken count is the quantity.
     { let n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
       // qty4: "una orden de cuatro quesadillas" — the count next to the dish noun beats the "una orden" in front (Noé)
-      { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
+      { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
       if (adds.length) { const ik = kindOfItem(adds[0].itemId) || "";
         const kindOk = named.has(ik) || (ik === "torta" && named.has("queso torta"));
         // luis181c: "12 x Tortilla Comal" pack SKU — spokenCount("12") must not inflate the pack to qty 12
@@ -910,7 +916,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // luis7895/chuy1: remember spoken N+dish when Elvi asked instead of adding; apply on the next matching add (staff-pick / Con pata).
-    { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
+    { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
       const n = m ? spokenCount(m[1]) : 0;
       const kinds = [...dishesNamed(text)];
       let appliedPending = false;
@@ -1292,8 +1298,78 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         acts.splice(i, 1);
       }
     }
+    // joseA1: "Sí, no se preocupe" is reassurance while staff types — never an order
+    if (source.startsWith("caller") && /\bno\s+(?:se|te)\s+preocup/iu.test(text) && !FOOD.test(text) && !DRINK.test(text) && !ORDER_QTY.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" || acts[i].type === "update_item") acts.splice(i, 1);
+    }
     // mix2 (Paco): staff-pick re-runs "Quesadilla Comal" alone, so read "bistec con chorizo" from the caller's last turn
     mixMeats(acts, source === "staff-pick" ? `${text} ${[...history].reverse().find((h) => h.role === "customer" && h.text !== text)?.text || ""}` : text);
+
+    // joseA1: after mixMeats merged bistec+chorizo, apply spoken "tres tortas" qty (qty block ran before merge)
+    if (source.startsWith("caller")) {
+      const tm = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?tortas?\b`, "iu"));
+      const tn = tm ? spokenCount(tm[1]) : 0;
+      if (tn > 1) {
+        const tortaActs = acts.filter((a: any) => a.type === "add_item" && /torta/i.test(String(a.itemId)));
+        if (tortaActs.length === 1 && (Number(tortaActs[0].quantity) || 1) < tn) tortaActs[0].quantity = tn;
+      }
+    }
+    // jesus1: COMBO Gorditas — force spoken qty, chorizo+carnitas meats, arroz+frijol (drop conflicting SOLO Frijoles)
+    if (source.startsWith("caller")) {
+      const comboActs = acts.filter((a: any) => a.type === "add_item" && /combo.*gordita/i.test(String(a.itemId)));
+      const qtyM = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:gorditas?|combo)\b`, "iu"));
+      const cq = qtyM ? spokenCount(qtyM[1]) : 0;
+      const saidChorizo = /\bchorizo\b/iu.test(text);
+      const saidCarnitas = /\bcarnitas?\b/iu.test(text);
+      const saidArrozFrijol = (/\barroz\b/iu.test(text) && /\bfrijol/iu.test(text))
+        || ( /^\s*(s[ií]|yes|aj[aá]|ok)\b/iu.test(text) && /arroz.*frijol|frijol.*arroz|arroz\s+y\s+frijol/iu.test(prevReply) );
+      const meatOpts = [
+        { step: "B", option: "1 x Chorizo / Mexican Sausage" },
+        { step: "B", option: "1 x Carnitas / Pulled Pork" },
+      ];
+      const sideOpts = [
+        { step: "C", option: "1 x Arroz / Rice" },
+        { step: "C", option: "1 x Frijoles Refritos / Refried Beans" },
+      ];
+      const ensureCombo = (l: any) => {
+        let mods = [...(l.modifiers || [])];
+        if (saidChorizo && saidCarnitas) {
+          for (const mo of meatOpts) {
+            const key = mo.option.replace(/^\d+\s*x\s*/i, "").split(" /")[0];
+            if (!mods.some((m: any) => new RegExp(key, "i").test(String(m.option)))) mods.push(mo);
+          }
+        }
+        if (saidArrozFrijol) {
+          mods = mods.filter((m: any) => !/SOLO\s+Frijoles/i.test(String(m.option)));
+          for (const so of sideOpts) {
+            const key = so.option.replace(/^\d+\s*x\s*/i, "").split(" /")[0];
+            if (!mods.some((m: any) => new RegExp(key, "i").test(String(m.option)))) mods.push(so);
+          }
+        }
+        l.modifiers = mods;
+        if (cq > 1 && (Number(l.quantity) || 1) < cq) l.quantity = cq;
+      };
+      for (const a of comboActs) ensureCombo(a);
+      // meats/sides/qty on a later turn — patch cart combos
+      if ((saidChorizo && saidCarnitas) || saidArrozFrijol || cq > 1) {
+        for (const l of cart) if (/combo.*gordita/i.test(String(l.itemId))) ensureCombo(l);
+      }
+      // bump qty 2 from earlier "dos órdenes … combo/gorditas" when this turn only adds meats
+      if (saidChorizo && saidCarnitas) {
+        const prior = [...history].reverse().find((h) => h.role === "customer" && /\b(?:dos|2|two)\b/iu.test(h.text) && /gorditas?|combo/iu.test(h.text));
+        if (prior) {
+          for (const l of cart) if (/combo.*gordita/i.test(String(l.itemId)) && (Number(l.quantity) || 1) < 2) l.quantity = 2;
+          for (const a of comboActs) if ((Number(a.quantity) || 1) < 2) a.quantity = 2;
+        }
+      }
+    }
+    // jesus1: taco "solo / sin nada" → strip salsa (plain)
+    if (source.startsWith("caller") && /\b(?:solo|sin\s+nada|plain)\b/iu.test(text)) {
+      const stripSalsa = (mods: any[]) => (mods || []).filter((m: any) => !/salsa/i.test(String(m.option)));
+      for (const a of acts) if ((a.type === "add_item" || a.type === "update_item") && /taco/i.test(String(a.itemId))) a.modifiers = stripSalsa(a.modifiers);
+      const lastTaco = [...cart].reverse().find((l) => kindOfItem(l.itemId) === "taco");
+      if (lastTaco) lastTaco.modifiers = stripSalsa(lastTaco.modifiers);
+    }
 
     // carlos1: auto-accept never stacks a second meat or re-adds a dish already rung
     if (source === "auto") {
@@ -1384,6 +1460,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     apply(acts);
+    // joseA1: capture street from caller text when model skipped set_address (merged agua+address+horchata turn)
+    if (source.startsWith("caller") && !shadowAddress) {
+      const hit = addressesIn(text)[0];
+      if (hit) { shadowAddress = hit.full || hit.street; shadowAddressConfirmed = true; }
+    }
     // gino1f: drop dual-meat taco lines whenever matching single-meat tacos already exist (model re-adds after split)
     {
       const meatRe = new RegExp(MEAT_LIST, "i");
@@ -2071,6 +2152,100 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
-  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(groups.length ? { groups } : {}) };
+  // jesus1: arroz y frijol on COMBO Gorditas → drop conflicting SOLO Frijoles
+  if (turns.some((t) => /\barroz\b/iu.test(t.text) && /\bfrijol/iu.test(t.text))) {
+    for (const l of cart as any[]) {
+      if (!/combo.*gordita/i.test(String(l.itemId))) continue;
+      l.modifiers = (l.modifiers || []).filter((m: any) => !/SOLO\s+Frijoles/i.test(String(m.option)));
+      const haveA = (l.modifiers || []).some((m: any) => /arroz|rice/i.test(String(m.option)));
+      const haveF = (l.modifiers || []).some((m: any) => /frijol|bean/i.test(String(m.option)) && !/SOLO/i.test(String(m.option)));
+      if (!haveA) l.modifiers = [...(l.modifiers || []), { step: "C", option: "1 x Arroz / Rice" }];
+      if (!haveF) l.modifiers = [...(l.modifiers || []), { step: "C", option: "1 x Frijoles Refritos / Refried Beans" }];
+    }
+  }
+  // jesus1: consolidate "dos órdenes … combo gorditas" + chorizo+carnitas — one line qty 2, drop stray plain gorditas
+  {
+    const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+    const wantCombo2 = /\b(?:dos|2|two)\b/iu.test(callerBlob) && /gorditas?/iu.test(callerBlob) && /combo/iu.test(callerBlob);
+    const wantMeats = /\bchorizo\b/iu.test(callerBlob) && /\bcarnitas?\b/iu.test(callerBlob);
+    if (wantCombo2) {
+      const idxs = (cart as any[]).map((l, i) => (/combo.*gordita/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+      if (idxs.length) {
+        const keep = (cart as any[])[idxs[0]];
+        keep.quantity = 2;
+        let mods = [...(keep.modifiers || [])].filter((m: any) => !/SOLO\s+Frijoles/i.test(String(m.option)));
+        // drop deluxe unless caller asked
+        if (!/\bdeluxe\b/iu.test(callerBlob)) mods = mods.filter((m: any) => !/deluxe/i.test(String(m.option)));
+        if (wantMeats) {
+          for (const mo of [
+            { step: "B", option: "1 x Chorizo / Mexican Sausage" },
+            { step: "B", option: "1 x Carnitas / Pulled Pork" },
+          ]) {
+            const key = mo.option.replace(/^\d+\s*x\s*/i, "").split(" /")[0];
+            if (!mods.some((m: any) => new RegExp(key, "i").test(String(m.option)))) mods.push(mo);
+          }
+        }
+        // dedupe meat options (LLM sometimes doubles chorizo)
+        const seen = new Set<string>();
+        mods = mods.filter((m: any) => {
+          const k = String(m.option || "").toLowerCase().replace(/^\d+\s*x\s*/i, "").split(" /")[0].trim();
+          if (/chorizo|carnitas|arroz|frijol|bean|rice|gordita|salsa|deluxe/i.test(k) === false) return true;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        keep.modifiers = mods;
+        for (let j = idxs.length - 1; j >= 1; j--) (cart as any[]).splice(idxs[j], 1);
+      }
+      // stray plain gordita when only combo+taco ordered
+      if (wantCombo2 && !/\b(?:una?|1|one)\s+gorditas?\b/iu.test(callerBlob.replace(/combo[^.]{0,40}gorditas?/giu, ""))) {
+        for (let i = (cart as any[]).length - 1; i >= 0; i--) {
+          const l = (cart as any[])[i];
+          if (/gordita/i.test(String(l.itemId)) && !/combo/i.test(String(l.itemId))) (cart as any[]).splice(i, 1);
+        }
+      }
+    }
+  }
+  // jesus1: invent TCO carnitas taco when caller ordered it and model omitted
+  {
+    const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+    const staffBlob = turns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" ");
+    const wantTaco = /\btacos?\b/iu.test(callerBlob) && /\bcarnitas?\b/iu.test(callerBlob);
+    const comal = /\bcomal\b|\bTCO\b/iu.test(callerBlob + " " + staffBlob);
+    const plain = /\b(?:solo|sin\s+nada|plain)\b/iu.test(callerBlob);
+    const hasTaco = (cart as any[]).some((l) => /taco/i.test(String(l.itemId)) && !/combo/i.test(String(l.itemId)));
+    if (wantTaco && !hasTaco) {
+      const mods: any[] = [
+        { step: "B", option: "Carnitas / Pulled Pork" },
+      ];
+      if (comal) mods.unshift({ step: "A", option: "(TCO) Tortilla Comal / Homemade" });
+      if (!plain) mods.push({ step: "S", option: "Mild Salsa Asada" });
+      (cart as any[]).push({ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: mods });
+    } else if (wantTaco && plain) {
+      for (const l of cart as any[]) {
+        if (/taco/i.test(String(l.itemId)) && !/combo/i.test(String(l.itemId)))
+          l.modifiers = (l.modifiers || []).filter((m: any) => !/salsa/i.test(String(m.option)));
+      }
+    }
+  }
+  // joseA1: collapse duplicate horchata 32oz lines to qty 1 when caller asked for one
+  {
+    const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+    if (/horchata/iu.test(callerBlob)) {
+      const idxs = (cart as any[]).map((l, i) => (/horchata|orchata/i.test(String(l.itemId)) ? i : -1)).filter((i) => i >= 0);
+      if (idxs.length > 1) {
+        const keep = (cart as any[])[idxs[0]];
+        keep.quantity = 1;
+        for (let j = idxs.length - 1; j >= 1; j--) (cart as any[]).splice(idxs[j], 1);
+      }
+    }
+  }
+  // joseA1: prefer set_address capture; else transcript detectAddress.
+  // When set_address ran → confirmed. When delivery + caller address heard → confirmed (staff may not read back).
+  const detA = detectAddress(turns as any);
+  const address = shadowAddress || detA.address?.full || detA.address?.street || null;
+  const addressConfirmed = shadowAddressConfirmed || detA.confirmed
+    || (!!address && fulfillment === "DELIVERY" && !!detA.address);
+  return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 
