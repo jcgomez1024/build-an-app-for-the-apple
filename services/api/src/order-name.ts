@@ -47,15 +47,18 @@ export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
   const th = [...s.matchAll(THIRD)].pop();
   if (th && !NOT_NAMES.test(th[1].split(" ")[0])) { const n = cleanFullName(th[1]); if (n) return n; }
-  if (/^\s*¿[^?]*\?\s*$/u.test(s) && STAFF_ASK.test(s)) return null; // name3p1: a name question is not a name
+  if (/^\s*¿[^?]*\?\s*$/u.test(s)) return null; // name3p1/gino1: a name question (¿Guino?) is not a name answer
   const ph = s.match(new RegExp(PHRASE.source + "(.+)$", "iu"));
   s = ph ? ph[1] : s.replace(LEAD, "");
   s = s.replace(TAIL, "").replace(/[.,!?¿¡"“”]/g, " ").replace(/\s+/g, " ").trim();
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
-  if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|thanks|nada|todo|eso)$/iu.test(words[0])) return null;
+  if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|muchas|thanks|nada|todo|eso|de)$/iu.test(words[0])) return null;
   // rec1: "Okay, está bien, gracias" is not a name
   if (words.some((w) => /^(est[aá]|bien|perfecto|vale|claro|listo|sale|[aá]ndale|correcto|igualmente|fine|good|great|alright|sure|right|perfect)$/iu.test(w))) return null;
+  // carlos1: "Okay, muchas gracias" → leftover "muchas" (or "muchas gracias") is gratitude, never a name
+  if (words.every((w) => /^(muchas|gracias|thanks?|thank|you|ok(?:ay)?|please|porfa|por|favor|de|nada|igualmente)$/iu.test(w))) return null;
+  if (NOT_NAMES.test(words[0])) return null;
   return cleanFullName(words.join(" "));
 }
 /** Caller's answer to a name question → the order name (confirmed or corrected), or null to ask again. */
@@ -90,23 +93,46 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
     let lastCaller: string | null = null;
     let staffEcho: string | null = null;
-    for (const t of turns.slice(i + 1, i + 8)) {
-      if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) lastCaller = n; }
-      // victor1/alex1/jose1: staff echo after junk ASR — "Name, okey/okay", "Name. Capital…", or "Name, dame/deme … minutos"
-      // (not bare "Dame quince…" — dame/deme are NOT_NAMES; name must lead the turn)
-      if (t.speaker === "staff" && !staffEcho) {
-        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u);
+    let aNombreDe: string | null = null;
+    for (const t of turns.slice(i + 1, i + 10)) {
+      if (t.speaker === "caller") {
+        const n = nameFromAnswer(t.text);
+        if (n) {
+          lastCaller = n;
+          // carlos1: prefer explicit "A nombre de Carlos" over later gratitude leftovers
+          if (/(?:a\s+nombre\s+de|mi\s+nombre\s+es|me\s+llamo|my\s+name\s+is)\s+/iu.test(t.text)) aNombreDe = n;
+        }
+      }
+      // victor1/alex1/jose1/gino1: staff echo after junk ASR —
+      // "Name, okey/okay", "Name. Capital…", "Name, Name.", "Name, dame … minutos",
+      // or mid-turn "Okay, muy bien, Name. Dame unos minutos."
+      if (t.speaker === "staff") {
+        const echo =
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
+          t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu);
         if (echo && !NOT_NAMES.test(echo[1])) {
           const n = cleanFirstName(echo[1]);
+          // gino1: last staff confirm wins (Gino over earlier ¿Guino?)
           if (n) staffEcho = n;
         }
       }
     }
+    // carlos1: "A nombre de X" beats a later junk/gratitude turn
+    if (aNombreDe) return aNombreDe;
+    // gino1: staff echo/confirm ("Gino, Gino." / "Okay, muy bien, Gino") beats unclear caller ASR ("Guino")
+    // Only override when names are close (shared stem) — not "Luis" vs filler "Entonces" from "muy bien, entonces…"
+    if (staffEcho && !lastCaller) return staffEcho;
+    if (staffEcho && lastCaller) {
+      const a = foldName(staffEcho), b = foldName(lastCaller);
+      if (a === b) return staffEcho;
+      const close = a.slice(0, 2) === b.slice(0, 2) || a.includes(b.slice(0, 3)) || b.includes(a.slice(0, 3));
+      if (close) return staffEcho; // Guino → Gino
+    }
     if (lastCaller) return lastCaller;
+    if (staffEcho) return staffEcho;
     // rec1: the transcript can put the answer just BEFORE the ask (overlap): "…sería todo. Zed." / "¿Tu nombre?"
     const prev = turns[i - 1];
     if (prev?.speaker === "caller") { const last = prev.text.trim().split(/(?<=[.!?])\s+/).pop() || ""; const n = last.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(last) ? nameFromAnswer(last) : null; if (n) return n; }
-    if (staffEcho) return staffEcho;
   }
   // name3p1: diarization can put the staff's "¿tu nombre?" inside a caller turn; read what follows it
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -135,7 +161,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|uh|um|hmm|aja|aj[aá]|uy|ay|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;

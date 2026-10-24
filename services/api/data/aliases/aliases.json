@@ -483,6 +483,27 @@
       ],
       "example": "una quesadilla de chorizo con bistec de aceite preparadas",
       "source": "Alex CA7c2f7c 10/24"
+    },
+    {
+      "id": "gino1-en-aceite",
+      "match": "\\ben\\s+aceite\\b",
+      "to": "de aceite",
+      "flags": "giu",
+      "scope": [
+        "phone"
+      ],
+      "requires": "quesadill|aceite|preparad|dorad|comal|harina|tortilla"
+    },
+    {
+      "id": "gino1-supreme-to-deluxe",
+      "match": "\\bsupreme\\b",
+      "to": "doradas deluxe preparadas",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "quesadill"
     }
   ]
 }
