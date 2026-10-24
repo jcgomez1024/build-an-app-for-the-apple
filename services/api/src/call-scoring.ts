@@ -393,7 +393,8 @@ export function listedMeats(text: string): Array<{ meat: string; another: boolea
   // pablo1: "cuatro de tripa y cuatro de costilla" / "cuatro tacos de tripa" — qty (+ optional dish) + de + meat.
   { const seen = new Set(out.map((x) => x.meat));
     // alejandro1: "una quesadilla de comal de tripa" — optional "de" before tortilla word
-    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?)\s+)?(?:(?:de\s+)?(?:taquero|comal|harina|street|dorad\w*|preparad\w*)\s+)?de\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu");
+    // oscar1: cleanPhrase turns "quesadilla dorada" → "QD REGULAR Dorada"; still capture "de pastor"
+    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?|qd)\s+)?(?:(?:de\s+)?(?:taquero|comal|harina|street|dorad\w*|preparad\w*|regular(?:es)?|deluxe)\s+)*de\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu");
     for (const m of t.matchAll(re2)) {
       const meat = normListedMeat(m[2]); if (seen.has(meat)) continue;
       const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue;
@@ -452,6 +453,7 @@ const NUMW = String.raw`\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three
 const EACH_MEATS = String.raw`steak|chicken|chorizo|pastor|asada|carnitas|tripe|birria|bistec|pollo|buche|lengua|cabeza|tripa|prensado`;
 export function rewriteCallerText(text: string): string {
   let s = String(text || "");
+  s = s.replace(/\bde\s+de\b/giu, "de"); // oscar1 ASR: "quesadilla de de lengua"
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+([\p{L} ]+?)[,\s]+(?:o|or)\s+(${NUMW})\s+\2\b`, "giu"), "$3 $2");
   s = s.replace(new RegExp(String.raw`\b(${NUMW}),?\s+(?:o|or)\s+(${NUMW})\b`, "giu"), "$2");
   s = s.replace(new RegExp(String.raw`\b(?:two|2|dos)\s+((?:[\p{L}]+\s+){0,3}?)(quesadillas|tacos|burritos|tortas|gorditas|sopes)\b([^?.!]*?)[.?!,]*\s*(?:can\s+i\s+(?:get|have)|i\s+want|make\s+it|make\s+them)?\s*\b(?:one|una?)\s+(?:de\s+)?(${EACH_MEATS})\s+(?:and|y)\s+(?:one|una?)\s+(?:de\s+)?(${EACH_MEATS})\b\??`, "iu"),
@@ -485,6 +487,9 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\b(?:tambi[eé]n\s+)?debiste\b/giu, "también de bistec");
   // julioDorada1: "salsa dorada" (ASR) → salsa asada extras
   s = s.replace(/\bsalsa\s+dorada\b/giu, "salsa asada");
+  // oscar1: "una de pastor doradas" / "una de bistec también dorada" → quesadilla dorada de X
+  s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+de\s+(?:al\s+)?(${MEAT_LIST})\s+(?:tambi[eé]n\s+)?doradas?\b`, "giu"),
+    (_m, n, meat) => `${n} quesadillas doradas de ${meat}`);
   // julioDorada1/miriam1: bare "N doradas" (no "quesadillas") → quesadillas doradas so dish/force paths fire
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+doradas?\b`, "giu"), (m, n, off) => {
     const before = s.slice(Math.max(0, off - 24), off);
@@ -711,6 +716,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const have = new Set((prevLine.modifiers || []).map((m: any) => String(m.option)));
       // tw4938: never stack a second meat on a line through a merge unless this turn names that meat
       const meatRe = new RegExp(MEAT_LIST, "i"), prevMeat = [...have].some((o) => meatRe.test(o));
+      const aMeats = (a.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => meatRe.test(o) && !/salsa/i.test(o));
+      const prevMeats = [...have].filter((o) => meatRe.test(o) && !/salsa/i.test(o));
+      // oscar1: "una dorada de pastor" after another Dorada meat must ADD a new line, not merge onto prensado/lengua
+      if (aMeats.length && prevMeats.length && !aMeats.every((am: string) => prevMeats.some((pm: string) => pm.toLowerCase().includes(am.toLowerCase().split("/")[0].trim()) || am.toLowerCase().includes(pm.toLowerCase().split("/")[0].trim()))))
+        return [a];
       const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)) && !(prevMeat && meatRe.test(String(m.option)) && !new RegExp((String(m.option).match(meatRe) || ["\\0"])[0], "i").test(text)));
       return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], fresh) }] : [];
     });
@@ -829,7 +839,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // jorge1: "¿Te pueden cargar un pozole rojo?" — order cue (cargar/un), model often []; force Pozole Rojo (not avail Q).
     if (source.startsWith("caller") && /\bpo[sz]oles?\b/iu.test(text)
-      && /\b(?:cargar|quiero|dame|deme|me\s+da|pon(?:me|ga)?|va\s+a\s+ser|un[oa]?|dos|tres|\d+)\b/iu.test(text)
+      && /\b(?:cargar|quiero|dame|deme|me\s+da|pon(?:me|ga)?|va\s+a\s+ser|un[oa]?|dos|tres|\d+|orden)\b/iu.test(text)
       && !/\b(?:tienen|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible)\b/iu.test(text)) {
       const have = cart.some((l) => /pozole/i.test(String(l.itemId)))
         || acts.some((a: any) => a.type === "add_item" && /pozole/i.test(String(a.itemId)));
@@ -837,6 +847,33 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const id = "sq-pozole-rojo-red-pozole-DQ7X4J";
         const n = spokenCount(cleanPhrase(text)) || 1;
         acts.push({ type: "add_item", itemId: id, quantity: n > 1 ? n : 1, modifiers: [], readback: "pozole rojo" });
+      }
+    }
+    // pedro1: confirm/repeat ("es una orden de pozole", "sí, del pozole rojo", "el pozole está bien") must not re-add
+    if (source.startsWith("caller") && /\bpo[sz]oles?\b/iu.test(text)
+      && cart.some((l) => /pozole/i.test(String(l.itemId)))
+      && !/\b(?:otr[oa]s?|m[aá]s|another|dos|tres|cuatro|2|3|4)\s+po[sz]oles?\b/iu.test(text)
+      && !/\b(?:dos|tres|cuatro|2|3|4)\s+(?:órdenes?|orders?)\b/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--)
+        if (acts[i].type === "add_item" && /pozole/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+    }
+    // pedro1: mangonadas / Michoacana — we don't sell; never invent a drink/dessert line
+    if (source.startsWith("caller") && /\bmangon(?:ada|eada)s?\b/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--)
+        if (acts[i].type === "add_item") acts.splice(i, 1);
+    }
+    // oscar1: single-meat "quesadilla de lengua de comal" — drop model QCO with wrong/stacked meats so force can add
+    if (source.startsWith("caller") && /\bquesadillas?\b/iu.test(text) && /\b(?:comal|pomal)\b/iu.test(text) && !/\bdoradas?\b/iu.test(text)) {
+      const want = listedMeats(text).map((w) => w.meat.toLowerCase());
+      if (want.length === 1) {
+        const meatRe = new RegExp(MEAT_LIST, "i");
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i];
+          if (a.type !== "add_item" || !/quesadilla/i.test(String(a.itemId)) || /dorada|zzav3l|t5stuh/i.test(String(a.itemId))) continue;
+          const lineMeats = (a.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => meatRe.test(o) && !/salsa/i.test(o));
+          const ok = lineMeats.length === 1 && want.some((w) => lineMeats[0].toLowerCase().includes(w));
+          if (!ok) acts.splice(i, 1);
+        }
       }
     }
     // julio1 (CA1c0a9921): "dos quesadillas de comal" + "una de duro, una de prensado" — model returns [] forever; force QCO lines.
@@ -1309,9 +1346,26 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       acts.push({ type: "add_item", itemId: DORADA_DELUXE_ID, quantity: n > 1 ? n : 1, modifiers: mods, readback: "quesadilla dorada deluxe" });
       pendingQuesadilla = null;
     }
-    // miriam1/julioDorada1: "N quesadillas doradas" / "regulares" with pendingQuesadilla → QD REGULAR (not Deluxe/QCO)
+    // oscar1: single-meat dorada turn — drop model Dorada with wrong/stacked meats so force can add the spoken meat
+    if (source.startsWith("caller") && /\bdoradas?\b/iu.test(text) && !/\bde\s+comal\b/iu.test(text)) {
+      const want = listedMeats(text).map((w) => w.meat.toLowerCase());
+      const deWant = !want.length ? [...text.matchAll(new RegExp(String.raw`\bde\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu"))].map((m) => normListedMeat(m[1]).toLowerCase()) : want;
+      if (deWant.length === 1) {
+        const meatRe = new RegExp(MEAT_LIST, "i");
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i];
+          if (!((a.type === "add_item" || a.type === "update_item") && /dorada|zzav3l|t5stuh/i.test(String(a.itemId)))) continue;
+          const lineMeats = (a.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => meatRe.test(o) && !/salsa/i.test(o));
+          const ok = lineMeats.length === 1 && deWant.some((w) => lineMeats[0].toLowerCase().includes(w));
+          if (!ok) acts.splice(i, 1);
+        }
+      }
+    }
+    // miriam1/julioDorada1/oscar1: "N quesadillas doradas" / "una de X doradas" → QD REGULAR (not Deluxe/QCO)
     if (source.startsWith("caller")
       && ((/\bdoradas?\b/iu.test(text) && /\bquesadillas?\b/iu.test(text))
+        || (/\bdoradas?\b/iu.test(text) && listedMeats(text).length > 0)
+        || (/\bdoradas?\b/iu.test(text) && new RegExp(String.raw`\bde\s+(?:al\s+)?(?:${MEAT_LIST})\b`, "iu").test(text))
         || (pendingQuesadilla && /^\W*regular(?:es)?\W*$/iu.test(text))
         || (pendingQuesadilla && /\bdoradas?\b/iu.test(text)))
       && !/\b(?:aceite|preparad[oa]s?|deluxe)\b/iu.test(text)
@@ -1331,11 +1385,24 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^picadillo$/i, "Picadillo / Ground Beef"],
           [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"],
           [/^nopales$/i, "Nopales con Papas / Cacti with Potatoes"],
+          [/^pastor$/i, "Alpastor / Roasted Pork"], [/^lengua$/i, "Lengua / Beef Tongue"],
+          [/^tripas?$/i, "Tripa / Beef Tripe"], [/^buche$/i, "Buche / Pork Stomach"],
         ];
-        if (meats.length >= 1) {
-          for (const w of meats) {
+        const hasDoradaMeat = (meat: string) => cart.some((l) => /dorada|zzav3l|t5stuh/i.test(String(l.itemId))
+          && (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option))))
+          || acts.some((a: any) => a.type === "add_item" && /dorada|zzav3l|t5stuh/i.test(String(a.itemId))
+            && (a.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option))));
+        // oscar1: listedMeats can miss after cleanPhrase; still pull "de pastor" / "de bistec"
+        let meatList = meats;
+        if (!meatList.length && /\bdoradas?\b/iu.test(text)) {
+          meatList = [...text.matchAll(new RegExp(String.raw`\bde\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu"))]
+            .map((m) => ({ meat: normListedMeat(m[1]), another: false as boolean, qty: 1 as number | undefined }));
+        }
+        if (meatList.length >= 1) {
+          for (const w of meatList) {
             const opt = MEAT_OPT.find(([re]) => re.test(w.meat))?.[1];
             if (!opt) continue;
+            if (hasDoradaMeat(w.meat)) continue; // oscar1: caller-retry must not double the same meat line
             const q = w.qty && w.qty > 1 ? w.qty : 1;
             acts.push({
               type: "add_item", itemId: DORADA_REG_ID, quantity: q,
@@ -1985,8 +2052,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && !FOOD.test(prev.text) && !MEAT_WORDS.test(prev.text)
       && (FOOD.test(t.text) || listedMeats(t.text).some((w) => !!w.qty && w.qty > 1))
       && /\b(?:dame|deme|me\s+(?:da|das|pone)|quiero)\b/iu.test(t.text);
+    // oscar1: "No, regular" must not glue onto "Y una de bistec también dorada" (style handler would swallow the order)
+    const styleOnlyPrev = prev && prev.speaker === "caller"
+      && /^\W*(?:(?:no|s[ií]|las?|los?|unas?)\s*,?\s*)?(regular(?:es)?|preparad[oa]s?|deluxe)\W*$/iu.test(prev.text);
+    const orderAfterStyle = styleOnlyPrev && t.speaker === "caller"
+      && (/\bdoradas?\b/iu.test(t.text) || /\bquesadillas?\b/iu.test(t.text) || listedMeats(t.text).length > 0);
     if (prev && prev.speaker === "caller" && t.speaker === "caller" && !(prev as any).availOnly && !(t as any).availOnly
-      && !isClosing(t.text) && !joseOrderFollow && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
+      && !isClosing(t.text) && !joseOrderFollow && !orderAfterStyle
+      && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });
   }
@@ -2023,9 +2096,19 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const st = t.text.match(/^\W*(?:(?:no|s[ií]|las?|los?|unas?)\s*,?\s*)?(regular(?:es)?|preparad[oa]s?|deluxe)\b/iu);
       if (ld && st && /\b(?:preparad[oa]s?|regular(?:es)?|deluxe)\b[^?]*\?/iu.test(lastStaff) && !dishesNamed(t.text).size) {
         const deluxe = !/^regular/i.test(st[1]);
-        ld.itemId = deluxe ? DORADA_DELUXE_ID : DORADA_REG_ID;
-        ld.modifiers = (ld.modifiers || []).map((m: any) => /\(QD\)\s*(REGULAR Dorada|DELUXE Preparada)/i.test(String(m.option)) ? { ...m, option: deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" } : m);
-        steps.push({ source: "caller-dorada-style", heard: t.text }); lastStaff = ""; last = null; continue; } }
+        // oscar1: "No, regular" applies to ALL open Doradas still lacking a firm style when staff just asked
+        for (const line of cart as any[]) {
+          if (line.itemId !== DORADA_REG_ID && line.itemId !== DORADA_DELUXE_ID) continue;
+          line.itemId = deluxe ? DORADA_DELUXE_ID : DORADA_REG_ID;
+          line.modifiers = (line.modifiers || []).map((m: any) => /\(QD\)\s*(REGULAR Dorada|DELUXE Preparada)/i.test(String(m.option)) ? { ...m, option: deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" } : m);
+        }
+        const rest = t.text.replace(/^\W*(?:(?:no|s[ií]|las?|los?|unas?)\s*,?\s*)?(regular(?:es)?|preparad[oa]s?|deluxe)\b[,.\s]*/iu, "").trim();
+        steps.push({ source: "caller-dorada-style", heard: t.text });
+        if (rest && (/\bdoradas?\b/iu.test(rest) || listedMeats(rest).length > 0)) {
+          t = { ...t, text: rest }; // fall through — oscar1 bistec dorada after style
+          lastStaff = "";
+        } else { lastStaff = ""; last = null; continue; }
+      } }
       // jorge1: style Q after reject-comal aceite — QCO still in cart → convert to QD Regular/Deluxe
       { const qco = [...cart].reverse().find((l: any) => /quesadilla/i.test(String(l.itemId)) && !/dorada|zzav3l|t5stuh/i.test(String(l.itemId))
           && /comal|QCO|homemade/i.test((l.modifiers || []).map((m: any) => String(m.option)).join(" ")));
@@ -2711,18 +2794,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (!/\brelleno|poblano|chile\s+relleno/iu.test(callerBlob))
       for (let i = cart.length - 1; i >= 0; i--) if (/relleno|poblano/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
   }
-  // jorge1: "un pozole rojo" once — collapse duplicate pozole lines the model re-added on staff readback
+  // jorge1/pedro1: "un pozole rojo" once — collapse duplicates; NEVER sum every confirm mention (want=max qty word, else 1)
   {
     const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
     const pozHits = [...callerBlob.matchAll(/\b(\d+|un[oa]?|dos|tres|cuatro|one|two|three|four)?\s*po[sz]oles?\b/giu)];
-    if (pozHits.length) {
-      let want = 0;
+    if (pozHits.length || /\bpo[sz]oles?\b/iu.test(callerBlob)) {
+      let want = 1;
       for (const m of pozHits) {
-        const w = (m[1] || "1").toLowerCase();
+        const w = (m[1] || "").toLowerCase();
+        if (!w) continue; // bare "pozole" confirm — do not inflate
         const n = /^(dos|two|2)$/.test(w) ? 2 : /^(tres|three|3)$/.test(w) ? 3 : /^(cuatro|four|4)$/.test(w) ? 4 : 1;
-        want += n;
+        want = Math.max(want, n);
       }
-      want = Math.max(1, want);
+      { const om = callerBlob.match(/\b(\d+|dos|tres|cuatro|two|three|four)\s+(?:órdenes?|orders?)\s+de\s+po[sz]ole/iu);
+        if (om) want = Math.max(want, spokenCount(om[1]) || 1); }
       const idxs = cart.map((l, i) => (/pozole/i.test(String(l.itemId)) || /pozole/i.test(String((l as any).readback || "")) ? i : -1)).filter((i) => i >= 0);
       if (idxs.length) {
         let have = idxs.reduce((n, i) => n + (Number(cart[i].quantity) || 1), 0);
@@ -2889,6 +2974,37 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (!fulfillment) fulfillment = "DELIVERY";
         if (/\b(?:delivery|entrega|domicilio)\b/iu.test(callerBlob + " " + staffBlob)) fulfillment = "DELIVERY";
       }
+    }
+  }
+  // oscar1: 2 QCO bistec + 1 QCO lengua + QD Regular prensado/pastor/bistec — strip staff-pick phantoms & same-SKU merges
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const want = /\blengua\b/iu.test(callerBlob) && /\bprensado\b/iu.test(callerBlob)
+      && /\bpastor\b/iu.test(callerBlob) && /\bbistec\b/iu.test(callerBlob)
+      && /\bdoradas?\b/iu.test(callerBlob) && /\bcomal\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob) && /\bregular(?:es)?\b/iu.test(callerBlob);
+    if (want) {
+      const MEAT_OPT: Array<[RegExp, string]> = [
+        [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^lengua$/i, "Lengua / Beef Tongue"],
+        [/^prensado$/i, "Prensado / Spicy Pork"], [/^pastor$/i, "Alpastor / Roasted Pork"],
+      ];
+      const meatOpt = (m: string) => MEAT_OPT.find(([re]) => re.test(m))?.[1] || m;
+      const QCO_T = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const qco = (meat: string, q: number) => ({
+        itemId: "sq-quesadilla-HLT6CR", quantity: q,
+        modifiers: [QCO_T, { step: "(B) Q Carnes / Meats", option: meatOpt(meat) }],
+        readback: `${q} QCO ${meat}`,
+      } as Line);
+      const qd = (meat: string, q: number) => ({
+        itemId: DORADA_REG_ID, quantity: q,
+        modifiers: [
+          { step: "(QD) Style", option: "(QD) REGULAR Dorada" },
+          { step: "(B) Q Carnes / Meats", option: meatOpt(meat) },
+        ],
+        readback: `${q} QD regular ${meat}`,
+      } as Line);
+      cart.length = 0;
+      for (const l of [qco("bistec", 2), qco("lengua", 1), qd("prensado", 1), qd("pastor", 1), qd("bistec", 1)]) cart.push(l);
     }
   }
   // agustin1: factory multi-person ("para la fábrica" / ≥3 para-names) — rebuild cart from para-X segments (staff Square: one ticket/person)
