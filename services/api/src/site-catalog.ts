@@ -676,7 +676,21 @@ export function fixBurritoFillings<T extends { type: string; itemId?: string; mo
   // "con todo sin cebolla" / "with everything but no onion": drop the named fillings.
   const negated = FILLINGS.filter((f) => new RegExp(`\\b(?:sin|no|without|but\\s+no|except|menos|hold\\s+the)\\s+(?:(?:el|la|los|las|the|de|y|ni|or|nor)\\s+)?(?:\\w+\\s+(?:y|ni|and|or|nor)\\s+)?(?:${f.re})\\b`).test(said));
   const isNegated = (opt: string) => negated.some((f) => f.key.test(cleanOpt(opt).replace(/^\W*double\s+/i, "")));
-  if (!conTodo && !FILLINGS.some((f) => new RegExp(`\\b(${f.re})\\b`).test(said))) return actions;
+  // frijol1 (Paco): "burrito de pollo" must not keep Chile Relleno the model stacked on — strip when a real meat
+  // was named and "relleno" was not, even if no filling words were said (otherwise the early return left it on).
+  const realMeat = /\b(pollo|chicken|bistec|asada|steak|pastor|chorizo|carnitas|cabeza|buche|tripa|lengua|suadero|costilla)\b/.test(said);
+  const stripRelleno = realMeat && !/\brelleno\b/.test(said);
+  if (!conTodo && !FILLINGS.some((f) => new RegExp(`\\b(${f.re})\\b`).test(said))) {
+    if (!stripRelleno) return actions;
+    return actions.map((a: any) => {
+      if (a?.type !== "add_item") return a;
+      const item = (menu || []).find((m: any) => m.id === a.itemId);
+      const meatG: any = (item?.modifierGroups || []).find((g: any) => /carne|meat/i.test(g.name));
+      if (!meatG || !(item?.modifierGroups || []).some((g: any) => /burrito\s+(combo\s+)?options/i.test(g.name))) return a;
+      const groupOf = (m: any) => (item.modifierGroups || []).find((g: any) => g.id === m.groupId || g.name === m.step || g.name === m.groupName);
+      return { ...a, modifiers: (a.modifiers || []).filter((m: any) => !(groupOf(m) === meatG && /relleno/i.test(String(m.option)))) };
+    });
+  }
   const saysDeluxe = /\b(deluxe|de\s+lujo|preparad[oa])\b/.test(said);
   return actions.map((a: any) => {
     if (a?.type !== "add_item") return a;
@@ -709,7 +723,7 @@ export function fixBurritoFillings<T extends { type: string; itemId?: string; mo
     const meatPicks = mods.filter((m) => groupOf(m) === meatG);
     const fillingMeat = (m: any) => wanted.some((w) => w.key.test(cleanOpt(m.option)));
     const meatWord = FILLINGS.find((f) => new RegExp(`\\b(?:burrito|bowl)s?\\s+(?:\\w+\\s+)?de\\s+(${f.re})\\b`).test(said));
-    if (meatWord && !/relleno/.test(said)) mods = mods.filter((m) => !(groupOf(m) === meatG && /relleno/i.test(m.option)));
+    if ((meatWord || stripRelleno) && !/relleno/.test(said)) mods = mods.filter((m) => !(groupOf(m) === meatG && /relleno/i.test(m.option)));
     if (meatWord) {
       wanted.splice(0, wanted.length, ...wanted.filter((w) => w.key !== meatWord.key));
       mods = mods.filter((m) => !(groupOf(m) === fill && meatWord.key.test(cleanOpt(String(m.option).replace(/^\W*double\s+/i, "")))));
@@ -741,6 +755,11 @@ export const meatOptSaid = (optName: string, said: string) => {
   if (/chorizo/.test(clean) && /\b(chorizo|campechana)\b/.test(said)) return true; // fix23: campechana = bistec+chorizo
   if (/al\s*pastor|alpastor/.test(clean) && /\b(al\s*pastor|alpastor|pastor)\b/.test(said)) return true;
   if (/tripas?/.test(clean) && /\b(tripas?|tepa|tipa|trepa)\b/.test(said)) return true; // fix21 STT
+  // frijol1 (Paco): singular "frijol" / "frijolitos" must match Frijoles Refritos (stem "frijole" missed "frijol").
+  if (/frijol/.test(clean) && /\b(frijol(?:es|itos)?|beans?)\b/.test(said)) return true;
+  // frijol1: bare "queso" (no fresco/desboronar) = melted cheese, not queso fresco — both stems matched "queso".
+  if (/queso\s+fresco|fresco\s+cheese/.test(clean) && /\bqueso\b/.test(said) && !/\b(fresco|desboronar|crumb)\b/.test(said)) return false;
+  if (/queso\s+derretido|melted\s+cheese/.test(clean) && /\b(queso|derretido|melted)\b/.test(said) && !/\bfresco\b/.test(said)) return true;
   // Skip glue words so "Shredded Beef with Potatoes" does not match every "with …" order (fix20).
   const stop = new Set(["with", "and", "con", "de", "del", "la", "el", "los", "las", "the", "of", "y", "a", "an", "or", "para", "por"]);
   const [es, en] = clean.split("/").map((s) => s.trim());
