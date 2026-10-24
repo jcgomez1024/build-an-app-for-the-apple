@@ -89,14 +89,15 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     if (turns[i].speaker !== "staff" || !STAFF_ASK.test(turns[i].text)) continue;
     // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
     let lastCaller: string | null = null;
+    let staffEcho: string | null = null;
     for (const t of turns.slice(i + 1, i + 8)) {
       if (t.speaker === "caller") { const n = nameFromAnswer(t.text); if (n) lastCaller = n; }
-      // victor1/alex1: staff echo after junk ASR ("Listo." → "Víctor, okey" / "Alex. Si necesito…")
-      if (t.speaker === "staff") {
-        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*[,.]|\s+)/u);
+      // victor1/alex1: staff echo after junk ASR — only "Name, okey/okay" or "Name. Capital…" (not "Dame quince…")
+      if (t.speaker === "staff" && !staffEcho) {
+        const echo = t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}])/u);
         if (echo && !NOT_NAMES.test(echo[1])) {
           const n = cleanFirstName(echo[1]);
-          if (n) return lastCaller || n;
+          if (n) staffEcho = n;
         }
       }
     }
@@ -104,6 +105,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     // rec1: the transcript can put the answer just BEFORE the ask (overlap): "…sería todo. Zed." / "¿Tu nombre?"
     const prev = turns[i - 1];
     if (prev?.speaker === "caller") { const last = prev.text.trim().split(/(?<=[.!?])\s+/).pop() || ""; const n = last.split(/\s+/).length <= 2 && /^\p{Lu}/u.test(last) ? nameFromAnswer(last) : null; if (n) return n; }
+    if (staffEcho) return staffEcho;
   }
   // name3p1: diarization can put the staff's "¿tu nombre?" inside a caller turn; read what follows it
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -126,7 +128,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
+const NOT_NAMES = /^(mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "staff") continue;

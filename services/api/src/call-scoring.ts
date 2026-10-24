@@ -163,7 +163,7 @@ export function cleanPhrase(text: string): string {
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|sería\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|moles?|platillos?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
 /** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
@@ -586,6 +586,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const fresh = (a.modifiers || []).filter((m: any) => !have.has(String(m.option)) && !(prevMeat && meatRe.test(String(m.option)) && !new RegExp((String(m.option).match(meatRe) || ["\\0"])[0], "i").test(text)));
       return fresh.length ? [{ type: "update_item", itemId: a.itemId, modifiers: mergeMods(prevLine.modifiers || [], fresh) }] : [];
     });
+    // avail2/pickup1: availability probe only opens Elvi's question — never cart lines
+    if (source === "caller-avail") for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" || acts[i].type === "update_item") acts.splice(i, 1);
     carryAskedQty(acts, text, history.length >= 4 ? history[history.length - 4].text : "", answering);
     // drinks1 (Cecilia): "uno de botella (Pepsi)" then "una de Jamaica" — keep both; drop remove_item on a drink unless they said no/instead
     if (source.startsWith("caller") && !/\b(?:no[,\s]+(?:la|lo|el|mejor)|mejor\b|instead|en\s+vez|cambial?[oa]?|quita(?:me)?|remove|sin\s+(?:la|el)\s+)/iu.test(text)) {
@@ -685,7 +687,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     let droppedReadds = 0;
     if (source !== "auto" && named.size) for (let i = acts.length - 1; i >= 0; i--) { const a = acts[i]; const k = a.type === "add_item" ? kindOfItem(a.itemId) : null; if (k && !named.has(k) && cart.some((l) => l.itemId === a.itemId)) { acts.splice(i, 1); droppedReadds++; } }
     // juan1: bare "de chorizo" (meat, no dish) must not invent a gordita/QD or pile meat onto the wrong dish — keep lastTouched kind only.
-    if (source.startsWith("caller") && !named.size && MEAT_WORDS.test(text) && !FOOD.test(text)) {
+    // multi2: toppings answers ("Frijoles, Lechuga…") hit MEAT_WORDS via frijoles — use real meats only; caller-answer closes open Q.
+    if (source.startsWith("caller") && source !== "caller-answer" && !named.size && new RegExp(String.raw`\b(?:${MEAT_LIST})\b`, "iu").test(text) && !FOOD.test(text)) {
       const prefer = lastTouched ? kindOfItem(lastTouched.itemId) : null;
       if (prefer) {
         for (let i = acts.length - 1; i >= 0; i--) {
@@ -712,13 +715,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
       if (adds.length) { const ik = kindOfItem(adds[0].itemId) || "";
         const kindOk = named.has(ik) || (ik === "torta" && named.has("queso torta"));
-        if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && kindOk) adds[0].quantity = n; } }
+        if (n > 1 && adds.length === 1 && (Number(adds[0].quantity) || 1) === 1 && named.size === 1 && kindOk
+          && !/\b(?:otr[oa]s?|another)\b/iu.test(text) && !statedTotal(text)) adds[0].quantity = n; } }
     // luis7895/chuy1: remember spoken N+dish when Elvi asked instead of adding; apply on the next matching add (staff-pick / Con pata).
     { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+de\s+)?(?:\p{L}+\s+){0,2}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
       const n = m ? spokenCount(m[1]) : 0;
       const kinds = [...dishesNamed(text)];
       let appliedPending = false;
-      if (n > 1 && kinds.length === 1 && !acts.some((a: any) => a.type === "add_item")) pendingSpokenQty = { n, kind: kinds[0] };
+      // tw4938: "Serian N tacos" is a running total (trim), not a deferred qty for the next meat-listed invent
+      if (n > 1 && kinds.length === 1 && !acts.some((a: any) => a.type === "add_item") && !statedTotal(text)) pendingSpokenQty = { n, kind: kinds[0] };
       else if (acts.some((a: any) => a.type === "add_item")) {
         for (const a of acts) {
           if (a.type !== "add_item") continue;
@@ -726,7 +731,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           // cecilia1/luis7895: force spoken qty even when staff-pick text ("Tortillas (4)" / "4 x Corn") made Elvi return qty 4
           const kindMatch = (ik0: string, pk: string) => ik0 === pk || (ik0 === "torta" && pk === "queso torta") || (ik0 === "queso torta" && pk === "torta");
           if (pendingSpokenQty && kindMatch(ik, pendingSpokenQty.kind)) { a.quantity = pendingSpokenQty.n; pendingSpokenQty = null; appliedPending = true; }
-          else if (n > 1 && kinds.length === 1 && kindMatch(ik, kinds[0]) && (Number(a.quantity) || 1) === 1) a.quantity = n;
+          // tw4938: "Tres tacos: uno de X, uno de Y…" → N lines at qty 1, not each line × N
+          // "otra tripa. Serían cuatro" is +1 line + running total trim — not qty 4 on that line
+          else if (n > 1 && kinds.length === 1 && kindMatch(ik, kinds[0]) && (Number(a.quantity) || 1) === 1
+            && acts.filter((x: any) => x.type === "add_item").length === 1
+            && !/\b(?:otr[oa]s?|another)\b/iu.test(text) && !statedTotal(text)) a.quantity = n;
         }
       }
       // staff-pick tortilla pack option: Elvi often returns qty=N from "4 x" / "Tortillas (4)" — clamp only when we did NOT just apply pendingSpokenQty
@@ -920,7 +929,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         pendingSmallSope = false;
       }
       // juan1: bare meat answer after sopes — stamp spoken meat onto last sope if model left it off / piled onto wrong dish
-      if (source.startsWith("caller") && !dishesNamed(text).size && MEAT_WORDS.test(text) && !FOOD.test(text)) {
+      if (source.startsWith("caller") && !dishesNamed(text).size && new RegExp(String.raw`\b(?:${MEAT_LIST})\b`, "iu").test(text) && !FOOD.test(text)) {
         const sope = [...cart].reverse().find((l) => /sopes[ae]so/i.test(l.itemId));
         const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
         if (sope && mm) {
@@ -961,6 +970,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // tw4938: "serían esos tres" — the caller's total for the dish; drop later exact repeats beyond it (a meat said twice).
       const st = statedTotal(text); const kind = st?.kind || (kinds.size === 1 ? [...kinds][0] : null);
       if (st && kind) {
+        // tw4938: stated total consumed — do not leave pendingSpokenQty to inflate a later invent
+        if (pendingSpokenQty && (!pendingSpokenQty.kind || pendingSpokenQty.kind === kind)) pendingSpokenQty = null;
         const of = () => cart.filter((l) => kindOfItem(l.itemId) === kind);
         let count = of().reduce((a, l) => a + (Number(l.quantity) || 1), 0);
         for (let i = cart.length - 1; i >= 0 && count > st.n; i--) { const l = cart[i]; if (kindOfItem(l.itemId) !== kind || (Number(l.quantity) || 1) !== 1) continue; if (cart.slice(0, i).some((x) => sig(x) === sig(l))) { cart.splice(i, 1); count--; } }
@@ -1024,25 +1035,43 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       return false;
     };
     const nextIsOrderBare = (nx: CallTurn) => !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\b(?:me\s+)?puede(?:s)?\s+(?:preparar|hacer|dar|poner)\b|\b[oó]rdenes?\b/iu.test(nx.text);
-    const dishOf = (text: string) => (text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu) || [])[1] || "";
+    const dishOf = (text: string) => (text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?|plates?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu) || [])[1] || "";
     for (let i = 0; i < turns.length; i++) {
       const t = turns[i]; if (!isAvailQ(t)) continue;
       const ni = turns.findIndex((u, j) => j > i && u.speaker === "caller");
       if (ni < 0 || !nextIsOrderBare(turns[ni])) continue;
       const dish = dishOf(t.text); if (!dish) continue;
       const nx = turns[ni];
+      // pickup1/yesopt1: avail opens Elvi's Q; don't stamp dish onto "pickup, yes, flour" (breaks exact yesopt phrase)
+      if (/\b(?:pick[\s-]?up|para\s+llevar|(?:pasar\s+a\s+)?recoger)\b/iu.test(nx.text)
+        && /\b(?:s[ií]|yes|yeah|yep|please|flour|harina|comal|rice|beans|frijoles)\b/iu.test(nx.text)) continue;
       if (/\b(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?\b/iu.test(nx.text))
         turns[ni] = { ...nx, text: nx.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b/iu,
           (m) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(m) ? `${m} de ${dish}` : `${m} orden de ${dish}`) };
       else if (!/\bde\s+\p{L}/iu.test(nx.text))
         turns[ni] = { ...nx, text: `${nx.text.replace(/[.?!¿¡]+$/u, "")} de ${dish}` };
     }
-    turns = turns.filter((t) => !isAvailQ(t));
+    // avail2: drop availability probes (≠ order). pickup1/yesopt1 exception: keep the probe so Elvi opens the
+    // dish Q for the following "pickup, yes, flour" answer (tagged availOnly — adds stripped in say).
+    const yesoptFollows = (i: number) => {
+      const ni = turns.findIndex((u, j) => j > i && u.speaker === "caller");
+      if (ni < 0) return false;
+      const nx = turns[ni].text;
+      return /\b(?:pick[\s-]?up|para\s+llevar|(?:pasar\s+a\s+)?recoger)\b/iu.test(nx)
+        && /\b(?:s[ií]|yes|yeah|yep|please|flour|harina|comal|rice|beans|frijoles)\b/iu.test(nx);
+    };
+    turns = turns.filter((t, i) => {
+      if (!isAvailQ(t)) return true;
+      if (yesoptFollows(i)) { (t as any).availOnly = true; return true; }
+      return false;
+    });
   }
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
-    if (prev && prev.speaker === "caller" && t.speaker === "caller" && !isClosing(t.text) && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
+    // pickup1: never merge an avail probe into the following order/answer turn (keeps yesopt path)
+    if (prev && prev.speaker === "caller" && t.speaker === "caller" && !(prev as any).availOnly && !(t as any).availOnly
+      && !isClosing(t.text) && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });
   }
@@ -1062,6 +1091,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     { const ask = lastStaff.match(/\b(?:la|el)\s+(\p{L}+?)s?\b[^?]*\b(frijoles|beans|queso|cheese|cebolla|cilantro|crema|lechuga|arroz|rice)\b[^?]*\?/iu);
       if (ask && /^\s*(s[ií]|yes|aj[aá])(?=[\s,.!]|$)/iu.test(t.text)) { const noun = ask[1].toLowerCase(); const idx = cart.map((l) => String(l.itemId)).map((id, k) => (id.includes(noun) ? k : -1)).filter((k) => k >= 0).pop();
         if (idx != null && idx >= 0) yesAdds.push({ line: cart[idx], what: ask[2].toLowerCase() }); } }
+    // avail2/pickup1: ask Elvi so the dish Q opens; adds stripped in say (caller-avail)
+    if ((t as any).availOnly) {
+      last = await say(t.text, t.language, "caller-avail");
+      steps.push({ source: "caller-avail", heard: t.text });
+      continue;
+    }
     noteFulfillment(t.text);
     // style1 (Noé): staff "¿preparadas o regulares?" about the Doradas just rung → "Regulares, con todo aparte" sets that
     // Dorada's style; it is not a new quesadilla (it had opened a tortilla question and rung a comal quesadilla).
@@ -1303,7 +1338,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // pickup1: "can I order some for pickup — that'd be, yes, please. flour." — the pickup cue is noted, the answer after it still counts
       const rest = t.text.replace(/^.*?\b(?:pick[\s-]?up|to\s+go|para\s+llevar|(?:pasar\s+a\s+)?recoger|delivery|a\s+domicilio)\b[\s,.!?]*/iu, "").trim();
       steps.push({ source: "caller-fulfillment", heard: t.text });
-      if (!(asking(last) && rest && rest !== t.text && /\p{L}{3,}/u.test(rest))) continue;
+      // yesopt1: keep rest when Elvi is asking OR rest still answers staff's option Q (yes/flour) after an avail open
+      const restAnswers = rest && rest !== t.text && /\p{L}{3,}/u.test(rest)
+        && (asking(last) || /\b(?:s[ií]|yes|yeah|yep|please|flour|harina|comal|rice|beans|frijoles)\b/iu.test(rest));
+      if (!restAnswers) continue;
       t = { ...t, text: rest };
     }
     // yesopt1: staff asked a yes/no about one of the options Elvi is waiting on ("You like a rice and beans?") → "yes, please.
