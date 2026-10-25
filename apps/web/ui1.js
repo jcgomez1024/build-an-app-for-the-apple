@@ -856,15 +856,51 @@ async function payFromConfirm() {
   await tmPay();
 }
 
+/** Soft Hablar invite — capsule label (mic / speak-to-Elvi gate). Sheet keeps its own step asks. */
+function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }
+function listeningAck() { return t("Te escucho — dime.", "I'm listening — go ahead."); }
 function syncLoucap(st) {
   const cap = document.getElementById("loucap"); if (!cap) return;
   const s = st || document.getElementById("elvi-halo")?.dataset?.state || "idle";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
   const lt = cap.querySelector(".lt");
-  if (lt) lt.textContent = t("Hablar con Elvi", "Talk to Elvi");
-  cap.setAttribute("aria-label", lt?.textContent || "Hablar con Elvi");
+  if (lt) {
+    if (s === "listening") lt.textContent = t("Te escucho…", "I'm listening…");
+    else if (s === "speaking") lt.textContent = t("Elvi habla…", "Elvi speaking…");
+    else if (s === "thinking") lt.textContent = t("Un momento…", "One moment…");
+    else if (s === "error") lt.textContent = t("Activa el micrófono", "Allow microphone");
+    else lt.textContent = softHablarInvite(); // idle = soft invite (not step asks)
+  }
+  cap.setAttribute("aria-label", lt?.textContent || softHablarInvite());
   cap.classList.remove("hide"); // carlos-ux: Hablar stays visible (no Elvi-view hide)
+}
+function mirrorHeard(line) {
+  try { B()?.greet?.(line); } catch {}
+  const r = document.querySelector("#assistant-reply"); if (r) r.textContent = line;
+  const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
+}
+/** Hablar entry: mic permission → listening → spoken + visible "you can talk" confirm. */
+async function beginHablar() {
+  const b = B();
+  syncLoucap("listening");
+  const ack = listeningAck();
+  mirrorHeard(ack);
+  try {
+    if (b?.startVoice) await b.startVoice();
+    else b?.toggleVoice?.();
+  } catch (err) {
+    console.warn("[warm1c] Hablar mic", err);
+    syncLoucap("error");
+    const msg = t("Activa el micrófono para hablar conmigo.", "Allow the mic so you can talk to me.");
+    mirrorHeard(msg);
+    try { await b?.speak?.(msg); } catch {}
+    return false;
+  }
+  // Spoken confirmation he can talk (TTS); capsule already shows Te escucho…
+  try { await b?.speak?.(ack); } catch (e) { console.warn("[warm1c] Hablar ack TTS", e); }
+  syncLoucap("listening");
+  return true;
 }
 // carlos-ux: Hablar language gate — only when session lang unknown
 function langKnown() {
@@ -903,12 +939,8 @@ function openLangGate() {
     const mode = btn.dataset.langpick === "en" ? "en" : "es";
     closeLangGate();
     try { B()?.setLanguage?.(mode); } catch {}
-    // Alexa-style: language pick → listen immediately (no second Hablar tap)
-    setTimeout(() => {
-      try { B()?.startVoice?.().catch(() => B()?.toggleVoice?.()); }
-      catch { try { B()?.toggleVoice?.(); } catch {} }
-      syncLoucap("listening");
-    }, 50);
+    // Alexa-style: language pick → mic + listening + spoken confirm (no second Hablar tap)
+    setTimeout(() => { void beginHablar(); }, 50);
   });
 }
 function talkOrBarge() {
@@ -916,8 +948,7 @@ function talkOrBarge() {
   const speaking = b?.isSpeaking?.() || document.getElementById("elvi-halo")?.dataset?.state === "speaking";
   if (speaking) { bargeIn("tap"); return; }
   if (!langKnown()) { openLangGate(); return; }
-  try { b?.startVoice?.().catch(() => b?.toggleVoice?.()); }
-  catch { try { b?.toggleVoice?.(); } catch {} }
+  void beginHablar();
 }
 function bargeIn(why) {
   const b = B();
@@ -928,12 +959,7 @@ function bargeIn(why) {
   const cap = document.getElementById("loucap");
   if (mic) { mic.classList.add("barge-flash"); setTimeout(() => mic.classList.remove("barge-flash"), 500); }
   if (cap) { cap.classList.add("barge-flash"); setTimeout(() => cap.classList.remove("barge-flash"), 500); }
-  const line = t("Te escucho — dime.", "I'm listening — go ahead.");
-  try { b?.greet?.(line); } catch {}
-  const r = document.getElementById("assistant-reply"); if (r) r.textContent = line;
-  try { b?.startVoice?.(); } catch {}
-  syncLoucap("listening");
-  const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
+  void beginHablar();
   console.log("[ux1] bargeIn", why);
   return true;
 }
@@ -945,8 +971,8 @@ function mountLoucap() {
   btn.className = "loucap";
   btn.id = "loucap";
   btn.dataset.state = "idle";
-  btn.setAttribute("aria-label", t("Hablar con Elvi", "Talk to Elvi"));
-  btn.innerHTML = `<span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt">${t("Hablar con Elvi", "Talk to Elvi")}</span>`;
+  btn.setAttribute("aria-label", softHablarInvite());
+  btn.innerHTML = `<span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt">${softHablarInvite()}</span>`;
   btn.addEventListener("click", (e) => { e.preventDefault(); talkOrBarge(); });
   document.body.appendChild(btn);
   const halo = document.getElementById("elvi-halo");
