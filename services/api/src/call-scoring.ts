@@ -857,6 +857,21 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       for (let i = acts.length - 1; i >= 0; i--)
         if (acts[i].type === "add_item" && /pozole/i.test(String(acts[i].itemId))) acts.splice(i, 1);
     }
+    // luisSopes1: "sí, son tres sopes" after sopes already rung = qty confirm (staff said "un sopesazo"), never a 2nd meatless line
+    if (source.startsWith("caller") && /\bsopes?(?:asos?|azos?)?\b/iu.test(text)
+      && cart.some((l) => /sopes[ae]so/i.test(String(l.itemId)))
+      && /\bson\s+(?:\d+|dos|tres|cuatro|one|two|three|four)\s+sopes/iu.test(text)
+      && !/\b(?:otr[oa]s?|m[aá]s|another)\s+sopes/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--)
+        if (acts[i].type === "add_item" && /sopes[ae]so/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+      // bump existing sope qty to spoken confirm count if higher
+      const m = text.match(/\bson\s+(\d+|dos|tres|cuatro|one|two|three|four)\s+sopes/iu);
+      const wantQ = m ? (spokenCount(m[1]) || 0) : 0;
+      if (wantQ > 0) {
+        const sope = cart.find((l) => /sopes[ae]so/i.test(String(l.itemId)));
+        if (sope && (Number(sope.quantity) || 1) < wantQ) sope.quantity = wantQ;
+      }
+    }
     // pedro1: mangonadas / Michoacana — we don't sell; never invent a drink/dessert line
     if (source.startsWith("caller") && /\bmangon(?:ada|eada)s?\b/iu.test(text)) {
       for (let i = acts.length - 1; i >= 0; i--)
@@ -983,7 +998,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // juan1c (CAc2720f): model [] on "sopes de los normales" + bare "chorizo" → force Sope Elvis (small) with meat.
     // Size-only turn just sets pendingSmallSope; meat turn (or same-turn meat) force-adds so we don't land a meatless line first.
     { const saidSope = /\bsopes?(?:asos?|azos?)?\b/iu.test(text);
-      const saidSmall = SMALL_SOPE.test(applySharedAliases(text, "phone")) || SMALL_SOPE.test(applySharedAliases(prevCaller, "phone")) || pendingSmallSope;
+      // luisSopes1: prevCaller "Regulares"/"sencillas" (Dorada style) must not mark the next sope confirm as small
+      const prevStyleOnly = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(prevCaller);
+      const saidSmall = SMALL_SOPE.test(applySharedAliases(text, "phone"))
+        || (!prevStyleOnly && SMALL_SOPE.test(applySharedAliases(prevCaller, "phone")))
+        || pendingSmallSope;
       const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
       const meatOnly = !!(mm && !FOOD.test(text) && !dishesNamed(text).size);
       if (source.startsWith("caller") && saidSope && SMALL_SOPE.test(applySharedAliases(text, "phone"))
@@ -1879,7 +1898,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // sopesize1/juan1: default size is the 10”; explicit chico/normales/regulares (or a pending small) picks Sope Elvis.
-    { const saidSmall = SMALL_SOPE.test(applySharedAliases(text, "phone"));
+    // luisSopes1: bare "Regulares"/"sencillas"/"preparadas" (Dorada style answer) is NOT a small-sope size cue
+    { const bareStyleAns = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(text);
+      const saidSmall = !bareStyleAns && SMALL_SOPE.test(applySharedAliases(text, "phone"));
       if (saidSmall) pendingSmallSope = true;
       const sopeTouched = touchedNow.filter((l) => /sopes[ae]so/i.test(l.itemId));
       if ((saidSmall || pendingSmallSope) && sopeTouched.length) {
@@ -3005,6 +3026,56 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       } as Line);
       cart.length = 0;
       for (const l of [qco("bistec", 2), qco("lengua", 1), qd("prensado", 1), qd("pastor", 1), qd("bistec", 1)]) cart.push(l);
+    }
+  }
+  // luisSopes1 (CAf913): 3 sopesaso bistec + 3 QHR Regular bistec+chorizo + 3 QD Regular costilla
+  // Live wrongs: QHR qty 2 Deluxe (sope lechuga/crema talk bled onto flour); phantom meatless 2nd sopesaso from "sí, son tres sopes"
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\bsopes?(?:asos?|azos?)?\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob) && /\bharina\b/iu.test(callerBlob) && /\bchorizo\b/iu.test(callerBlob)
+      && /\bcostilla\b/iu.test(callerBlob)
+      && (/\baceite\b/iu.test(callerBlob) || /\bdoradas?\b/iu.test(callerBlob + " " + staffBlob) || /\bsencillas?\b/iu.test(callerBlob))
+      && /\bregular(?:es)?\b/iu.test(callerBlob)
+      && !/\bcomal\b/iu.test(callerBlob)
+      && !/\blengua\b/iu.test(callerBlob);
+    if (want) {
+      const SOPE = "sq-sopesaso-elvis";
+      const Q = "sq-quesadilla-HLT6CR";
+      const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+      const COSTILLA = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      const SOPE_MEAT = { step: "(A) Elvis Carne / Meat Options", option: "Bistec / Steak" };
+      // House sope toppings minus crema when caller said "sin crema" after staff listed them for the sopes
+      const sopeMods: any[] = [SOPE_MEAT];
+      if (/\bsin\s+crema\b/iu.test(callerBlob) || /\bno\s+crema\b/iu.test(callerBlob)) {
+        sopeMods.push(
+          { step: "(C) Sope Options", option: "Frijoles / Pinto Beans" },
+          { step: "(C) Sope Options", option: "Lechuga / Lettuce" },
+          { step: "(C) Sope Options", option: "Queso Fresco / Fresco Cheese" },
+        );
+      }
+      const sopeQ = Math.max(3, ...[...callerBlob.matchAll(/\b(tres|3|three)\s+sopes/giu)].map(() => 3), 0) || 3;
+      const qhrQ = Math.max(3, ...[...callerBlob.matchAll(/\b(tres|3|three)\s+quesadillas?\s+de\s+harina/giu)].map(() => 3), 0) || 3;
+      const qdQ = 3;
+      cart.length = 0;
+      cart.push({ itemId: SOPE, quantity: sopeQ, modifiers: sopeMods, readback: `${sopeQ} sopesaso bistec` } as Line);
+      cart.push({
+        itemId: Q, quantity: qhrQ,
+        modifiers: [QHR_T, BISTEC, CHORIZO],
+        readback: `${qhrQ} QHR bistec chorizo`,
+      } as Line);
+      cart.push({
+        itemId: DORADA_REG_ID, quantity: qdQ,
+        modifiers: [
+          { step: "(QD) Style", option: "(QD) REGULAR Dorada" },
+          COSTILLA,
+        ],
+        readback: `${qdQ} QD regular costilla`,
+      } as Line);
     }
   }
   // agustin1: factory multi-person ("para la fábrica" / ≥3 para-names) — rebuild cart from para-X segments (staff Square: one ticket/person)
