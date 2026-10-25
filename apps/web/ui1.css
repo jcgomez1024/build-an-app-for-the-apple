@@ -271,6 +271,20 @@ body.v3 .v3-pill{margin-right:50px}
 .loucap .orbit::after{content:"";position:absolute;inset:-4px;border-radius:inherit;background:inherit;filter:blur(7px);opacity:.45;-webkit-mask:none;mask:none}
 .loucap:not([data-state=idle]) .orbit{opacity:.25;animation-duration:9s}
 @media (prefers-reduced-motion:reduce){.loucap .orbit{animation:none}}
+
+/* m29 condensed Siri-style halo while listening/thinking (SPEC §2g) */
+#loucap.loucap[data-state=listening],#loucap.loucap[data-state=thinking]{
+  width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;border-radius:50%;
+  animation:none;transition:width .28s ease,padding .28s ease,border-radius .28s ease}
+#loucap.loucap[data-state=listening] .lt,#loucap.loucap[data-state=listening] .inv,
+#loucap.loucap[data-state=thinking] .lt,#loucap.loucap[data-state=thinking] .inv{display:none!important}
+#loucap.loucap[data-state=listening] .e3d,#loucap.loucap[data-state=thinking] .e3d{margin:0;transform:scale(1.25)}
+#loucap.loucap[data-state=listening] .orbit,#loucap.loucap[data-state=thinking] .orbit{
+  opacity:.9!important;animation-duration:3.2s!important;border-radius:50%}
+#loucap.loucap[data-state=listening]::before,#loucap.loucap[data-state=thinking]::before{display:none}
+#loucap.loucap[data-state=listening]::after,#loucap.loucap[data-state=thinking]::after{border-radius:50%}
+#loucap.loucap{transition:width .28s ease,padding .28s ease,border-radius .28s ease}
+
 /* Soft-bounce kept on idle invite */
 #loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
 #ux1-bottom.bottom.gating #loucap,.bottom.gating .loucap{animation:none!important}

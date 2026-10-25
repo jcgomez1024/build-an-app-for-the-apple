@@ -532,6 +532,7 @@ function v3RenderSheet() {
     if (el) el.innerHTML = "";
     document.body.classList.remove("v3-sheet-on","sheet-open");
     if (U._v3AskKey) { U._v3AskKey = null; try { B()?.stopAudio?.(); } catch {} }
+    clearSheetVoiceContext();
     return;
   }
   if (!el) { el = document.createElement("div"); el.id = "v3-sheet-wrap"; document.getElementById("ui1")?.appendChild?.(el); }
@@ -541,6 +542,8 @@ function v3RenderSheet() {
   if (!U.v3focused) { U.v3focused = true; setTimeout(() => el.querySelector?.(".v3-foot button")?.focus?.(), 0); }
   // warm1: HEAR the current unfinished required step (TTS); bubble already mirrors via v3LeadAsk
   v3LeadAsk();
+  // m29: keep voice session grounded in open sheet while Hablar is live
+  if (HABLAR_LIVE || B()?.isVoiceLive?.()) pushSheetVoiceContext();
 }
 
 // ---------- live updates from chat / voice (app.js applyActions + renderCart) ----------
@@ -863,26 +866,113 @@ async function payFromConfirm() {
   await tmPay();
 }
 
+
+/** m29 §2g — sheet-context for Hablar: current item + every visible option; never deny sheet options. */
+let HABLAR_LIVE = false;
+function sheetIsOpen() {
+  return Boolean(V3 && U.screen === "item" && U.item && document.body.classList.contains("v3-sheet-on"));
+}
+function sheetVoiceContext() {
+  if (!U.item || U.screen !== "item") return null;
+  const it = U.item;
+  const gs = it.modifierGroups || [];
+  const miss = missingStep();
+  const stepGi = miss !== undefined ? miss : (typeof U.step === "number" ? U.step : 0);
+  const stepG = gs[stepGi] || gs[0];
+  const groups = gs.map((g, i) => {
+    const selected = Object.keys(U.sel[g.id] || {});
+    const opts = baseOptions(g).map((o) => ({ name: o.name || o, label: optLabel(o.name || o), priceDeltaCents: Number(o.priceDeltaCents || 0) }));
+    return {
+      id: g.id,
+      name: g.name,
+      label: groupLabel(g),
+      required: minOf(g) > 0,
+      selected,
+      selectedLabels: selected.map(optLabel),
+      options: opts,
+      unfinished: minOf(g) > 0 && !selected.length
+    };
+  });
+  const allOptions = groups.flatMap((g) => g.options.map((o) => o.name));
+  const allOptionLabels = groups.flatMap((g) => g.options.map((o) => o.label));
+  const nm = itemName(it);
+  return {
+    active: true,
+    itemId: it.id,
+    itemName: nm,
+    itemNameRaw: it.name,
+    itemNameEs: it.nameEs || it.name,
+    step: (stepGi || 0) + 1,
+    totalSteps: Math.max(1, steps().main.length || gs.length || 1),
+    stepName: stepG ? groupLabel(stepG) : "",
+    stepId: stepG?.id || "",
+    completedSelections: groups.filter((g) => g.selected.length).flatMap((g) => g.selectedLabels.map((l) => `${g.label}: ${l}`)),
+    currentOptions: stepG ? baseOptions(stepG).map((o) => o.name || o) : [],
+    groups,
+    options: allOptions,
+    optionLabels: allOptionLabels,
+    phase: stepG ? groupLabel(stepG) : "customize"
+  };
+}
+function sheetContextOpener() {
+  if (!U.item || U.screen !== "item") return null;
+  const nm = itemName(U.item);
+  const gs = U.item.modifierGroups || [];
+  const miss = missingStep();
+  const gi = miss !== undefined ? miss : (typeof U.step === "number" ? U.step : 0);
+  const g = gs[gi] || gs[0];
+  const ask = g ? v3Ask(g) : t("¿Qué te gustaría?", "What would you like?");
+  return t(`Estamos armando tu ${nm}. `, `We're building your ${nm}. `) + ask;
+}
+function pushSheetVoiceContext() {
+  const ctx = sheetVoiceContext();
+  window.ELVI_CTX = ctx
+    ? { item: ctx.itemName, options: ctx.options, optionLabels: ctx.optionLabels, step: ctx.stepName, groups: ctx.groups, itemId: ctx.itemId }
+    : null;
+  try {
+    const b = B();
+    if (ctx) b?.setSheetBuild?.(ctx);
+    else b?.clearSheetBuild?.();
+  } catch (e) { console.warn("[m29] sheet ctx", e); }
+  return ctx;
+}
+function clearSheetVoiceContext() {
+  window.ELVI_CTX = null;
+  try { B()?.clearSheetBuild?.(); } catch {}
+}
+
 /** Soft Hablar invite — capsule (mic / speak-to-Elvi gate). Softlang gate when lang unknown (m27 §2e). */
 function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }
 function hablarLabel() { return t("Hablar con Elvi", "Talk to Elvi"); }
 function listeningAck() { return t("Te escucho — dime.", "I'm listening — go ahead."); }
 function syncLoucap(st) {
   const cap = document.getElementById("loucap"); if (!cap) return;
-  const s = st || document.getElementById("elvi-halo")?.dataset?.state || "idle";
+  const halo = document.getElementById("elvi-halo")?.dataset?.state || "idle";
+  const voiceLive = Boolean(B()?.isVoiceLive?.());
+  // Drop sticky live once VAD stopped and Elvi isn't speaking
+  if (HABLAR_LIVE && !voiceLive && !B()?.isSpeaking?.() && halo === "idle") HABLAR_LIVE = false;
+  const live = HABLAR_LIVE || voiceLive;
+  // m29: while Hablar is live, don't snap back to idle invite after TTS → keep condensed listening
+  let s = st || halo;
+  if (!st && live && (s === "idle" || !s)) s = "listening";
+  if (!st && live && s === "speaking" && !B()?.isSpeaking?.()) s = "listening";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
   const lab = cap.querySelector(".lt .lab");
   const inv = cap.querySelector(".lt .inv");
+  // Fallback short labels (hidden by CSS when condensed listening/thinking)
   if (lab && inv) {
-    if (s === "listening") { lab.textContent = t("Te escucho…", "I'm listening…"); inv.textContent = t("Habla cuando quieras", "Go ahead — I'm here"); }
+    if (s === "listening") { lab.textContent = t("Te escucho", "Listening"); inv.textContent = ""; }
     else if (s === "speaking") { lab.textContent = t("Elvi habla…", "Elvi speaking…"); inv.textContent = softHablarInvite(); }
-    else if (s === "thinking") { lab.textContent = t("Un momento…", "One moment…"); inv.textContent = softHablarInvite(); }
+    else if (s === "thinking") { lab.textContent = t("Un momento…", "One moment…"); inv.textContent = ""; }
     else if (s === "error") { lab.textContent = t("Activa el micrófono", "Allow microphone"); inv.textContent = softHablarInvite(); }
     else { lab.textContent = hablarLabel(); inv.textContent = softHablarInvite(); }
   }
-  cap.setAttribute("aria-label", (lab?.textContent || hablarLabel()) + " — " + softHablarInvite());
-  cap.classList.toggle("invite", s === "idle" && !document.getElementById("ux1-bottom")?.classList.contains("gating"));
+  const aria = (s === "listening" || s === "thinking")
+    ? t("Escuchando", "Listening") + " — " + hablarLabel()
+    : (lab?.textContent || hablarLabel()) + " — " + softHablarInvite();
+  cap.setAttribute("aria-label", aria);
+  cap.classList.toggle("invite", s === "idle" && !live && !document.getElementById("ux1-bottom")?.classList.contains("gating"));
   cap.classList.remove("hide");
 }
 function mirrorHeard(line) {
@@ -891,25 +981,59 @@ function mirrorHeard(line) {
   const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
 }
 /** Hablar entry: mic permission → listening → spoken + visible "you can talk" confirm. */
-async function beginHablar() {
+async function beginHablar(opts = {}) {
   const b = B();
+  const fromBarge = Boolean(opts.fromBarge);
   closeSoftLangGate();
+  HABLAR_LIVE = true;
   syncLoucap("listening");
-  const ack = listeningAck();
-  mirrorHeard(ack);
+  const sheetOpen = sheetIsOpen();
+  if (sheetOpen) pushSheetVoiceContext();
+  else clearSheetVoiceContext();
+
   try {
     if (b?.startVoice) await b.startVoice();
     else b?.toggleVoice?.();
   } catch (err) {
-    console.warn("[m27] Hablar mic", err);
+    console.warn("[m29] Hablar mic", err);
+    HABLAR_LIVE = false;
     syncLoucap("error");
     const msg = t("Activa el micrófono para hablar conmigo.", "Allow the mic so you can talk to me.");
     mirrorHeard(msg);
     try { await b?.speak?.(msg); } catch {}
     return false;
   }
-  try { await b?.speak?.(ack); } catch (e) { console.warn("[m27] Hablar ack TTS", e); }
+
+  // m29: barge while speaking → Te escucho; after settle with sheet → item opener
+  if (fromBarge) {
+    const ack = listeningAck();
+    mirrorHeard(ack);
+    try { await b?.speak?.(ack); } catch (e) { console.warn("[m29] barge ack", e); }
+    syncLoucap("listening");
+    if (sheetIsOpen()) {
+      pushSheetVoiceContext();
+      const opener = sheetContextOpener();
+      if (opener) {
+        mirrorHeard(opener);
+        try { await b?.speak?.(opener); } catch (e) { console.warn("[m29] sheet opener after barge", e); }
+        syncLoucap("listening");
+      }
+    }
+    return true;
+  }
+
+  // Sheet open → grounded opener (Estamos armando tu …); else Te escucho
+  if (sheetOpen) {
+    const opener = sheetContextOpener() || listeningAck();
+    mirrorHeard(opener);
+    try { await b?.speak?.(opener); } catch (e) { console.warn("[m29] sheet opener", e); }
+  } else {
+    const ack = listeningAck();
+    mirrorHeard(ack);
+    try { await b?.speak?.(ack); } catch (e) { console.warn("[m29] Hablar ack TTS", e); }
+  }
   syncLoucap("listening");
+  try { b?.setAvatarListening?.(); } catch {}
   return true;
 }
 function langKnown() {
@@ -967,7 +1091,7 @@ function bargeIn(why) {
   const cap = document.getElementById("loucap");
   if (mic) { mic.classList.add("barge-flash"); setTimeout(() => mic.classList.remove("barge-flash"), 500); }
   if (cap) { cap.classList.add("barge-flash"); setTimeout(() => cap.classList.remove("barge-flash"), 500); }
-  void beginHablar();
+  void beginHablar({ fromBarge: true });
   console.log("[ux1] bargeIn", why);
   return true;
 }

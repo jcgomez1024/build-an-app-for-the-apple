@@ -68,6 +68,7 @@ const state = {
   xaiTokenExpiresAt: 0,
   xaiTokenRefreshTimer: null,
   lastOrderContextDigest: "",
+  uiSheetBuild: null, // m29: v3 customize sheet context for Hablar
   micChunkBuffer: [],
   activeResponseId: "",
   activeReplyText: "",
@@ -304,7 +305,7 @@ function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
       if (state.localTtsAudio === audio) {
         state.localTtsAudio = null;
         state.elviSpeaking = false;
-        if (!state.turnInFlight) setAvatarState("idle");
+        if (!state.turnInFlight) setAvatarState(state.vadRunning || state.autoListen ? "listening" : "idle");
       }
       resolve();
     };
@@ -312,7 +313,7 @@ function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
       if (state.localTtsAudio === audio) {
         state.localTtsAudio = null;
         state.elviSpeaking = false;
-        if (!state.turnInFlight) setAvatarState("idle");
+        if (!state.turnInFlight) setAvatarState(state.vadRunning || state.autoListen ? "listening" : "idle");
       }
       reject(new Error("xAI local audio playback failed"));
     };
@@ -320,7 +321,7 @@ function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
       if (state.localTtsAudio === audio) {
         state.localTtsAudio = null;
         state.elviSpeaking = false;
-        if (!state.turnInFlight) setAvatarState("idle");
+        if (!state.turnInFlight) setAvatarState(state.vadRunning || state.autoListen ? "listening" : "idle");
       }
       reject(error);
     });
@@ -1236,6 +1237,9 @@ function getResilientElviInstructions(language) {
     "- 'Got it, let's clarify the second taco.'\n\n" +
     "Language: Match the customer's selected language exactly. " + langLock + "\n\n" +
     `Current order state (authoritative): ${buildOrderStateSnapshot()}. Use this as the latest truth, especially after reconnects or mid-build changes.` +
+    (state.uiSheetBuild && state.uiSheetBuild.active
+      ? `\n\nSHEET-CONTEXT RULE (HARD — m29): The customer has the customize sheet open for "${state.uiSheetBuild.itemName}". You are building THAT item. Visible options on the sheet: ${(state.uiSheetBuild.optionLabels || state.uiSheetBuild.options || []).join(", ")}. NEVER say an option is missing / not on the menu / unavailable if it is in that list (e.g. Deluxe Preparada on Quesadilla Dorada). Map unclear speech to sheet options first, then the wider menu, then ask a clarifying question — never a denial. Current step: ${state.uiSheetBuild.stepName || ""}. Already selected: ${(state.uiSheetBuild.completedSelections || []).join("; ") || "none"}.`
+      : "") +
     (state.currentBuildGuide
       ? (() => {
           const guide = state.currentBuildGuide;
@@ -1338,6 +1342,30 @@ function buildOrderStateSnapshot() {
   let buildText = "none";
   let buildJson = "";
 
+  // m29: open v3 customize sheet is authoritative while Hablar is mid-build
+  if (state.uiSheetBuild && state.uiSheetBuild.active) {
+    const s = state.uiSheetBuild;
+    buildText = `CUSTOMIZING_SHEET_OPEN building ${s.itemName} step ${s.step}/${s.totalSteps} (${s.stepName || ""})`;
+    const compact = {
+      item: s.itemName,
+      itemId: s.itemId,
+      step: s.step,
+      total: s.totalSteps,
+      stepName: s.stepName,
+      done: s.completedSelections || [],
+      options: s.currentOptions || [],
+      allSheetOptions: s.options || [],
+      allSheetOptionLabels: s.optionLabels || [],
+      groups: (s.groups || []).map((g) => ({
+        name: g.label || g.name,
+        required: g.required,
+        unfinished: g.unfinished,
+        selected: g.selectedLabels || g.selected || [],
+        options: (g.options || []).map((o) => o.label || o.name)
+      }))
+    };
+    buildJson = ` | sheetBuild=${JSON.stringify(compact)} | RULE: Never say an option is unavailable if it appears in allSheetOptions/groups — those are on the open sheet. Map ambiguous speech to sheet options first.`;
+  } else {
   const freshProgress = normalizeBuildProgress(state.lastBuildProgress || state.pendingComboState || state.modifierDraft);
   if (freshProgress && freshProgress.active) {
     buildText = `building ${freshProgress.itemName} step ${freshProgress.step}/${freshProgress.totalSteps} (${freshProgress.stepName || freshProgress.phase || ""})`;
@@ -1368,6 +1396,7 @@ function buildOrderStateSnapshot() {
     const total = (m.groups && m.groups.length) || 1;
     buildText = `customizing ${m.item?.name || "item"} step ${step}/${total}`;
   }
+  } // end non-sheetBuild branch
 
   return `fulfillment=${state.fulfillment}; itemCount=${getCartItemCount()}; cart=${cartText}; lastAdded=${lastText}; customer=${customerText}; activeBuild=${buildText}${buildJson}`;
 }
@@ -1752,7 +1781,10 @@ function syncRealtimeOrderContext() {
       phone: state.customer.phone,
       email: state.customer.email,
       address: state.customer.address
-    }
+    },
+    sheet: state.uiSheetBuild && state.uiSheetBuild.active
+      ? { id: state.uiSheetBuild.itemId, step: state.uiSheetBuild.stepName, done: state.uiSheetBuild.completedSelections }
+      : null
   });
 
   if (digest === state.lastOrderContextDigest) {
@@ -6596,6 +6628,46 @@ window.elviBridge = {
   haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
   hasSelectedLanguage,
   setLanguage: (mode) => setLanguageMode(mode),
+  // m29: v3 item sheet → live voice context (never deny visible options)
+  setSheetBuild: (ctx) => {
+    state.uiSheetBuild = ctx && ctx.active ? ctx : null;
+    if (ctx && ctx.active) {
+      state.lastBuildProgress = {
+        active: true,
+        itemName: ctx.itemName,
+        step: ctx.step,
+        totalSteps: ctx.totalSteps,
+        stepName: ctx.stepName,
+        completedSelections: ctx.completedSelections || [],
+        currentOptions: ctx.currentOptions || [],
+        phase: ctx.phase || "sheet"
+      };
+      try {
+        sendWs({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "system",
+            content: [{
+              type: "input_text",
+              text: `SHEET OPEN — building ${ctx.itemName} (id=${ctx.itemId}). Current step: ${ctx.stepName}. Selected: ${(ctx.completedSelections || []).join("; ") || "none"}. ALL options visible on this sheet (NEVER deny any of these): ${(ctx.optionLabels || ctx.options || []).join(", ")}. Groups: ${JSON.stringify((ctx.groups || []).map((g) => ({ name: g.label || g.name, required: g.required, unfinished: g.unfinished, selected: g.selectedLabels || [], options: (g.options || []).map((o) => o.label || o.name) })))}. Map speech to these options first.`
+            }]
+          }
+        });
+      } catch {}
+      try {
+        state.lastOrderContextDigest = ""; // force refresh
+        syncRealtimeOrderContext();
+        sendWs(buildSessionUpdatePayload());
+      } catch {}
+    }
+  },
+  clearSheetBuild: () => {
+    state.uiSheetBuild = null;
+    try { sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: "Customize sheet closed. No longer mid-build on a sheet item — resume normal menu ordering." }] } }); } catch {}
+  },
+  isVoiceLive: () => Boolean(state.vadRunning || state.autoListen),
+  setAvatarListening: () => { try { setAvatarState("listening"); } catch {} },
   startVoice: () => {
     if (!hasSelectedLanguage()) {
       if (!isV3MenuUi()) {

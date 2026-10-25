@@ -198,3 +198,9 @@ Mock: demo button **Confirm** → `demoConfirm()` seeds a burrito (+ drink) and 
 - Keeps `.loucap.invite` soft-bounce + “Yo te puedo ayudar / I can help you” line.
 - **Hablar stays visible/tappable over item sheet & cart** (`body:has(.sheet.show) .bottom` / `.sheet-open` / `v3-sheet-on` z-index 62) so mic can be granted mid-flow without going back to start.
 - Shot: `shots/m28-hablar-rotate-hue.png` (still; rotation is animated live).
+
+## 2g. Sheet-context Elvi + condensed Siri-style halo while listening (Carlos 10/25 — m29)
+**Sheet-context rule (hard):** If Hablar is activated while an item sheet is open, Elvi is *building that item*. Her context = open item name + every option on the sheet (`ELVI_CTX {item, options, step}`) + current selections. She must **never** say an option is missing/not on the menu if it is visible on the open sheet (e.g. Quesadilla Dorada **Deluxe Preparada**). Unknown/ambiguous phrase → map against sheet options first, then menu, then ask a clarifying question — never a denial.
+- Opener = current item + next unfinished required step: ES “Estamos armando tu Quesadilla Dorada. ¿Te gustaría Regular o Deluxe Preparada?” / EN “We're building your Quesadilla Dorada. Would you like Regular or Deluxe Preparada?”
+- **Activated Hablar capsule:** idle = full label + invite + orbit. listening/thinking → collapse to **52px** orb+orbit only (orbit opacity .9, 3.2s); ~280ms transition. Barge-in while speaking → “Te escucho — dime.”; after settle with sheet open → item opener.
+- Shot: `shots/m29-sheet-context-condensed-halo.png`
