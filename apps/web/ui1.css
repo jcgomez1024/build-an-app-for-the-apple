@@ -320,7 +320,8 @@ body.ux1-gating .bottom-bar,body.ux1-gating .v3-ebar{display:none!important}
 /* m35: Hablar is sole voice entry — hide legacy soft-ring mic + compact Elvi bar */
 body.v3 #mic-wrap,body.v3 #listen-button,body.ui1 #mic-wrap,body.ui1 #listen-button{display:none!important}
 body.v3 .v3-ebar,.v3-ebar{display:none!important}
-body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
+/* m35c: bottom .lang-group removed — header ES/EN only */
+body.v3 .bottom-bar .lang-group,body.ui1 .bottom-bar .lang-group,.bottom-bar .lang-group{display:none!important}
 body.v3 .controls-row{gap:12px;justify-content:flex-end}
 @media (min-width:960px){#ux1-bottom.bottom{display:none!important}}
 

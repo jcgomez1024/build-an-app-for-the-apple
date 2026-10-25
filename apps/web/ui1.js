@@ -1471,7 +1471,8 @@ function pickSoftLang(mode) {
 }
 function syncHeaderLangPills() {
   const L = lang();
-  document.querySelectorAll(".u1-head .lang [data-lang], .lang-group [data-lang]").forEach((p) => {
+  // m35c: header ES/EN only (bottom .lang-group removed)
+  document.querySelectorAll(".u1-head .lang [data-lang]").forEach((p) => {
     p.classList.toggle("pill-active", p.dataset.lang === L);
   });
 }
