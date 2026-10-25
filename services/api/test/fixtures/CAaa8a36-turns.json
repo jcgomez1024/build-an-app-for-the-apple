@@ -1,0 +1,170 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.52,
+    "end": 2.561,
+    "text": "Coffee and Arby's, buenas noches.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.642,
+    "end": 3.842,
+    "text": "Hello.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 5.421,
+    "end": 5.682,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.902,
+    "end": 8.684,
+    "text": "Hey, I want to get, some nachos.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.724,
+    "end": 15.964,
+    "text": "Sure, what kind of meat do you want on the nachos?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 16.807,
+    "end": 19.948,
+    "text": "I want double steak, double trigo,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 21.449,
+    "end": 23.17,
+    "text": "onion, and beans only.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 24.307,
+    "end": 28.888,
+    "text": "Okay, so double meat, chorizo and steak.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 29.752,
+    "end": 35.655,
+    "text": "Yeah, double steak, double trigo, onions and, onions and beans only.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 36.69,
+    "end": 38.07,
+    "text": "Onions and beans.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 40.191,
+    "end": 43.652,
+    "text": "You don't want lettuce, okay.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.217,
+    "end": 42.317,
+    "text": "No,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 43.478,
+    "end": 43.558,
+    "text": "no,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 44.518,
+    "end": 45.579,
+    "text": "just tell them it's for Daryl.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.633,
+    "end": 47.333,
+    "text": "Okay, zero.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.22,
+    "end": 48.38,
+    "text": "Yeah.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 53.815,
+    "end": 54.795,
+    "text": "Okay, I got it.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.202,
+    "end": 56.323,
+    "text": "Yeah. All right, thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.955,
+    "end": 57.376,
+    "text": "Thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.424,
+    "end": 58.865,
+    "text": "How long? Fifteen?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 60.841,
+    "end": 63.368,
+    "text": "give me like fifteen minutes, so.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 64.374,
+    "end": 64.935,
+    "text": "Okay, thank",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 65.614,
+    "end": 66.115,
+    "text": "Thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 66.878,
+    "end": 67.099,
+    "text": "you.",
+    "language": "en"
+  }
+]

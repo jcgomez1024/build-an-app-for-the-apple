@@ -31,7 +31,7 @@ export function thirdPersonName(text: string): string | null {
   if (th && !NOT_NAMES.test(th[1].split(" ")[0])) return cleanFullName(th[1]) || null;
   // name3p3 / luis1 / shannon1 (Carlos via Auditor): "para Luis" / "for Shannon" / "la va a recoger" /
   // "Shannon is picking up" → Square ticket/pickup name ONLY — never caller contact identity.
-  const pick = s.match(/(?<![\p{L}])(?:(?:es\s+)?para\s+|(?:it'?s\s+)?for\s+|la\s+va\s+a\s+recoger(?:\s+(?:el|la|un[oa]?))?\s+|lo\s+recoge\s+|la\s+recoge\s+|picking\s+up\s+(?:under\s+|for\s+)?|pickup\s+(?:under\s+|for\s+)?|under\s+(?:the\s+name\s+)?)(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u);
+  const pick = s.match(/(?<![\p{L}])(?:(?:es\s+)?para\s+|(?:it'?s\s+)?for\s+|la\s+va\s+a\s+recoger(?:\s+(?:el|la|un[oa]?))?\s+|lo\s+recoge\s+|la\s+recoge\s+|picking\s+up\s+(?:under\s+|for\s+)?|pickup\s+(?:under\s+|for\s+)?|under\s+(?:the\s+name\s+)?)(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/iu);
   if (pick && !/^(llevar|hoy|ma[nñ]ana|ahora|recoger|pickup|entrega|domicilio|pedido|orden|un|una|el|la|los|las|mi|tu|su|unos?|unas?|me|here|pickup|tonight|today|tomorrow)\b/iu.test(pick[1]) && !NOT_NAMES.test(pick[1].split(" ")[0]))
     return cleanFullName(pick[1]) || null;
   const pickBy = s.match(/(?<![\p{L}])(\p{Lu}[\p{L}'-]+)(?:\s+\p{Lu}[\p{L}'-]+)?\s+(?:is|will\s+(?:be\s+)?)\s+(?:picking\s+up|coming\s+(?:by|in)\s+for\s+(?:it|the\s+order))/u);
@@ -73,6 +73,11 @@ export function markOrderOnlyName(name: string, now = Date.now()) { orderOnly.se
 export function isOrderOnlyName(name: string, now = Date.now()): boolean { const t = orderOnly.get(foldName(name)); return t != null && now - t < 30 * 60_000; }
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
+  // daryl1 / shannon1 class: "it's for Daryl" / "for Shannon" / "para Luis" → bare name (never "For Daryl")
+  {
+    const tp = thirdPersonName(s);
+    if (tp) return tp;
+  }
   const th = [...s.matchAll(THIRD)].pop();
   if (th && !NOT_NAMES.test(th[1].split(" ")[0])) { const n = cleanFullName(th[1]); if (n) return n; }
   // josePickup1: "sería nombre de José" must yield José (thirdPersonName marks pickupOnly)
@@ -162,7 +167,7 @@ export function nameFromAnswer(text: string): string | null {
       .replace(/,?\s*(?:¿\s*)?(?:do\s+you\s+(?:have|deliver)|is\s+there\s+delivery|delivery\b).*$/iu, "")
       .replace(/\s+/g, " ").trim();
   }
-  const words = s.split(" ").filter(Boolean);
+  let words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
   // callback1: "era para unos, para…" / "unos para" = relay/pickup-for-others, never caller identity
   if (/\b(?:era|es|ser[ií]a)\s+para\s+unos?\b/iu.test(s) || /^unos?\s+para\b/iu.test(s) || /^para\s+unos?\b/iu.test(s)) return null;
@@ -185,6 +190,9 @@ export function nameFromAnswer(text: string): string | null {
   if (NOT_NAMES.test(words[0])) return null;
   // joseA1: "Ah, es en" / bare prepositions are not names
   if (words.length === 1 && words[0].length <= 2) return null;
+  // daryl1: strip leftover leading For/Para so ticket is "Daryl" not "For Daryl"
+  while (words.length >= 2 && /^(?:for|para)$/iu.test(words[0])) words = words.slice(1);
+  if (!words.length || NOT_NAMES.test(words[0])) return null;
   return cleanFullName(words.join(" "));
 }
 /** Caller's answer to a name question → the order name (confirmed or corrected), or null to ask again. */
@@ -413,8 +421,16 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
       || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
     // English volunteer: "Yeah, it's Josh." / "I'm Josh" / "my name is Josh" (josh1 CAaaa9a2)
     if (!seriaNombre && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy|my\s+name\s+is|i'?m|it'?s)\s+\S+/iu.test(t.text)) continue;
-    if (/\bes\s+para\b/iu.test(t.text)) continue; // pickup-only
-    const n = seriaNombre ? (thirdPersonName(t.text) || nameFromAnswer(t.text)) : nameFromAnswer(t.text);
+    // pickup-only: es para / it's for / just tell them it's for X (daryl1) — never "For X" identity
+    if (/\bes\s+para\b/iu.test(t.text) || /\bit'?s\s+for\b/iu.test(t.text)) {
+      const n = thirdPersonName(t.text);
+      if (n && n.trim().length >= 2 && !NOT_NAMES.test(n.split(/\s+/)[0]) && /^\p{Lu}/u.test(n)) {
+        if (!fromVol || n.split(/\s+/).length > fromVol.split(/\s+/).length || (n.split(/\s+/).length === fromVol.split(/\s+/).length && n.length > fromVol.length))
+          fromVol = n;
+      }
+      continue;
+    }
+    const n = seriaNombre ? (thirdPersonName(t.text) || nameFromAnswer(t.text)) : (thirdPersonName(t.text) || nameFromAnswer(t.text));
     // joseA1: "Ah, es en" → null/En lose to "Es José Acevedo"
     if (!n || n.trim().length < 3 || NOT_NAMES.test(n.split(/\s+/)[0])) continue;
     if (!/^\p{Lu}/u.test(n)) continue;

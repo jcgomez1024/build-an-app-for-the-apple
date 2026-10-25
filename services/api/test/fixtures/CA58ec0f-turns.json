@@ -1,0 +1,282 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.3,
+    "end": 1.22,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 2.72,
+    "end": 4.161,
+    "text": "Hola, ¿me gustaría poner una orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 4.741,
+    "end": 6.182,
+    "text": "Ah, claro, ¿qué te voy a poner?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 7.081,
+    "end": 9.081,
+    "text": "¿Me puede poner una quesitota de lengua?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 9.863,
+    "end": 12.304,
+    "text": "Cla, claro, una quesito de lengua.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.704,
+    "end": 14.344,
+    "text": "¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 16.142,
+    "end": 19.783,
+    "text": "Una quesadilla de Vitéz, pero de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 20.566,
+    "end": 22.006,
+    "text": "Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 22.703,
+    "end": 25.164,
+    "text": "Sí, una de comal, de esas de aceite, ¿sí sabes de las cuales hablo?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 27.168,
+    "end": 28.668,
+    "text": "No, de ese ya no tenemos.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 29.784,
+    "end": 30.844,
+    "text": "Oh, yo no traen de esas.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 30.429,
+    "end": 35.01,
+    "text": "Ya se nos, no, ya se nos acabó el materia, bueno, la masa para esas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.165,
+    "end": 38.785,
+    "text": "Eh, nomás pongamos una, una quesadilla de harina, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 39.732,
+    "end": 40.992,
+    "text": "Okay, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 44.286,
+    "end": 46.547,
+    "text": "Y una, y una sopa de lata.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 47.314,
+    "end": 50.155,
+    "text": "Okay, una coca de lata, muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.528,
+    "end": 55.848,
+    "text": "Échame un taco de",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.548,
+    "end": 59.249,
+    "text": "También de, ah, de lengua,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 60.309,
+    "end": 61.25,
+    "text": "pero me le pone que,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 60.399,
+    "end": 61.019,
+    "text": "Del comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 62.43,
+    "end": 66.492,
+    "text": "no, un un papel ese de tortilla taquera y me le pone, sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 64.741,
+    "end": 65.221,
+    "text": "Taquero.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 68.063,
+    "end": 68.283,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 69.373,
+    "end": 73.555,
+    "text": "Y me le pone queso, queso de quesadilla encima también, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 74.495,
+    "end": 75.496,
+    "text": "Mejor una quesadilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 74.606,
+    "end": 76.187,
+    "text": "Okey, como queso derretido.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 77.116,
+    "end": 85.76,
+    "text": "Hey. Okay. De lengua.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 78.188,
+    "end": 81.25,
+    "text": "Okey, entonces te le voy a poner como una quesadilla taquera.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 83.211,
+    "end": 84.191,
+    "text": "¿De qué me dijiste?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 86.853,
+    "end": 87.973,
+    "text": "Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.861,
+    "end": 89.502,
+    "text": "Sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 90.395,
+    "end": 102.962,
+    "text": "Entonces tengo una torta, una quesitorta de lengua, una quesadilla de harina de bistec, una Pepsi de lata, perdón, una coca de lata. Y una quesadilla taquera de lengua.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 105.344,
+    "end": 106.785,
+    "text": "¿A qué nombre sería la orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 109.207,
+    "end": 109.528,
+    "text": "¿Perdón?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 111.81,
+    "end": 114.952,
+    "text": "Kevin, okey, Kevin, dame unos quince minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 116.094,
+    "end": 116.594,
+    "text": "¿Quiero cierre?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 117.715,
+    "end": 119.396,
+    "text": "Ah, cerramos a las nueve.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 120.457,
+    "end": 120.777,
+    "text": "Okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 121.518,
+    "end": 122.659,
+    "text": "Okey, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 121.998,
+    "end": 123.519,
+    "text": "Gracias.",
+    "language": "es"
+  }
+]

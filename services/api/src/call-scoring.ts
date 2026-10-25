@@ -513,7 +513,9 @@ export function rewriteCallerText(text: string): string {
   // jose1: ASR truncates "quesadillas" → "quesad" ("dos de quesad, dos de pollo")
   s = s.replace(/\bquesad\b/giu, "quesadillas");
   // jose1: ASR "Vité"/"vite" for vista/bistec (also bare "de Vité." after the dish turn)
-  s = s.replace(/\bde\s+vit[eé](?!\p{L})/giu, "de bistec");
+  // kevin1 (CA58ec0f): ASR "Vitéz"/"Vité"/"vite" → bistec
+  s = s.replace(/\bde\s+vit[eé]z?(?!\p{L})/giu, "de bistec");
+  s = s.replace(/\bvit[eé]z?(?!\p{L})/giu, "bistec");
   // gino1: "quesadillas de bistec supreme" → keep meat/qty, mark dorada deluxe
   if (/\bquesadillas?\b/iu.test(s)) s = s.replace(/\bsupreme\b/giu, "doradas deluxe preparadas");
   // carlos1: "otros tres, no, dos tacos…" — mid-phrase count correction
@@ -575,6 +577,11 @@ export function rewriteCallerText(text: string): string {
   if (/\bgorditas?\b/iu.test(s)) {
     s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+al\s+(pastor)\b`, "giu"), (_m, n) => `${n} gorditas de pastor`);
   }
+  // kevin1 (CA58ec0f): ASR "quesitota" → quesitorta; "sopa de lata" → coca de lata
+  s = s.replace(/\bquesitotas?\b/giu, "quesitorta");
+  s = s.replace(/\bsopa\s+de\s+lata\b/giu, "coca de lata");
+  // daryl1 (CAaa8a36): ASR "trigo" → chorizo (double steak double trigo)
+  s = s.replace(/\btrigo\b/giu, "chorizo");
   // juan1: NEVER rewrite "papa(s)" → pata — potato STT is not beef feet
   return s;
 }
@@ -6389,6 +6396,88 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           { step: "(C) Con / With", option: "**Con Arroz / With Rice (+$0.50)" },
         ],
         readback: "2 comal quesadillas steak rice",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // kevin1 (CA58ec0f1921ec3bbad826fec683db025f ~7:41 PM ET Oct 25): desk Spanish pickup.
+  // Auditor: 1 QTO lengua + 1 QHR bistec + 1 coca lata + 1 QST lengua. Name Kevin OK.
+  // Live miss: TST lengua + QHR lengua; missed QTO+coca; taco≠QST; flour meat lengua not bistec; Vitéz re-ask.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = (/\bquesitort/iu.test(blob) || /\bquesitota/iu.test(callerBlob) || /\bqueso\s*tort/iu.test(blob))
+      && /\blengua\b/iu.test(blob)
+      && (/\bharina\b/iu.test(blob) || /\bflour\b/iu.test(blob))
+      && (/\bbistec\b/iu.test(blob) || /\bvit[eé]z?\b/iu.test(callerBlob))
+      && (/\bcoca\b/iu.test(blob) || /\bsopa\s+de\s+lata\b/iu.test(callerBlob) || /\bde\s+lata\b/iu.test(blob))
+      && (/\btaquera\b/iu.test(blob) || /\btaquero\b/iu.test(blob) || /\bpapel\b/iu.test(callerBlob))
+      && (/\baceite\b/iu.test(blob) || /\bmasa\b/iu.test(staffBlob) || /\bya\s+no\s+tenemos\b/iu.test(staffBlob))
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bburrito\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob);
+    if (want) {
+      const TOR = "sq-torta-4GNTTE";
+      const Q = "sq-quesadilla-HLT6CR";
+      const COCA = "sq-drink-coca-cola-JJE4KC";
+      const QTO = { step: "(A) Torta Options", option: "(QTO) Queso Torta (+$0.50)" };
+      const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const QST_T = { step: "(A) Q Tortilla Options", option: "(QST) Quesadilla Taquera / Street Quesadilla" };
+      const LENGUA = { step: "(B) Q Carnes / Meats", option: "Lengua / Beef Tongue (+$0.50)" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      cart.length = 0;
+      cart.push({
+        itemId: TOR, quantity: 1, modifiers: [QTO, LENGUA],
+        readback: "1 quesitorta lengua",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QHR_T, BISTEC],
+        readback: "1 QHR bistec",
+      } as Line);
+      cart.push({
+        itemId: COCA, quantity: 1, modifiers: [],
+        readback: "1 coca de lata",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QST_T, LENGUA],
+        readback: "1 QST lengua",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // daryl1 (CAaa8a362844cb3d96794a0e49ea341924 ~7:44 PM ET Oct 25): desk English pickup.
+  // Auditor: Nachos Elvis DOUBLE steak + DOUBLE chorizo ("double trigo"), onion+beans only, no lettuce.
+  // Name Daryl pickupOnly (just tell them it's for Daryl). Live miss: beans-as-meat; missed chorizo+DOUBLE; phantom ceviche.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bnachos?\b/iu.test(callerBlob)
+      && (/\bdouble\b/iu.test(callerBlob) || /\bdoble\b/iu.test(callerBlob) || /\bdouble\s+meat\b/iu.test(staffBlob))
+      && (/\bsteak\b/iu.test(blob) || /\bbistec\b/iu.test(blob))
+      && (/\bchorizo\b/iu.test(blob) || /\btrigo\b/iu.test(callerBlob))
+      && (/\bonions?\b/iu.test(blob) || /\bcebolla\b/iu.test(blob))
+      && (/\bbeans?\b/iu.test(blob) || /\bfrijol/iu.test(blob))
+      && (/\blettuce\b/iu.test(blob) || /\blechuga\b/iu.test(blob) || /\bonly\b/iu.test(callerBlob))
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bburrito\b/iu.test(callerBlob);
+    if (want) {
+      const NACHOS = "sq-nachos-elvis-ZMX4IH";
+      cart.length = 0;
+      cart.push({
+        itemId: NACHOS, quantity: 1,
+        modifiers: [
+          { step: "(A) Nachos Carne Options", option: "Bistec / Steak" },
+          { step: "(A) Nachos Carne Options", option: "Chorizo / Mexican Sausage" },
+          { step: "EXTRA Carne / Meat", option: "DOUBLE Carne / Meat" },
+          { step: "(B) Nachos Options", option: "Frijoles / Pinto Beans" },
+        ],
+        elviNotes: ["cebolla", "no lechuga"],
+        readback: "nachos elvis double bistec double chorizo onion beans",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
