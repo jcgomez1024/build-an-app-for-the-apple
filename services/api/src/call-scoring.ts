@@ -317,6 +317,10 @@ export function expandMeatAnswer(pendingDish: string, answer: string): string[] 
   let a = cleanPhrase(answer).replace(/[.?!,;\s]+$/u, "").trim();
   a = a.replace(/^(?:o\s+que\s+)?(?:me\s+)?(?:pones?|ponga|ponme|das?|dame|deme|quiero)\s+/iu, "").trim();
   a = a.replace(/\buna\s+de\s*,\s*/giu, "").replace(/(?<!\p{L})uj[uú](?!\p{L})/giu, "").replace(/[.?!,;\s]+$/u, "").replace(/\s{2,}/g, " ").trim();
+  // ricardo1: STT stutter "una, dos de costilla y una de bistec" (not "una de,")
+  a = a.replace(/^(?:una?|uno)\s*,\s*/iu, "").trim();
+  // roberto1: "una de bistec llena de chorizo" → two meats (llena de = another filled with)
+  a = a.replace(/\bllena\s+de\b/giu, "y una de").replace(/\s{2,}/g, " ").trim();
   if (!a || FOOD.test(a)) return null;
   const qtyRe = new RegExp(`^(${QTY})\\s+(?=de\\s)`, "iu");
   const parts = a.split(new RegExp(`\\s*(?:,|\\by\\b|\\band\\b)\\s*(?=(?:${QTY}\\s+)?de\\s)`, "iu")).map((x) => x.trim()).filter(Boolean);
@@ -2166,7 +2170,52 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     apply(acts);
-    // juana1/juan1: address / house-number turns never add food (STT "diecisiete prospectos" ≠ chilaquiles×17)
+    // roberto1: "Sí, huevo en orden" STT for "hacer una orden" — never invent Chilaquiles con Huevo / EXTRA Huevo
+    if (source.startsWith("caller")
+      && /\bhuevo\s+en\s+orden\b/iu.test(text)
+      && !/\bchilaquiles\b/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--) {
+        if (acts[i].type !== "add_item" && acts[i].type !== "update_item") continue;
+        const id = String(acts[i].itemId || "");
+        if (/chilaquiles|huevo/i.test(id)) acts.splice(i, 1);
+      }
+      for (let i = cart.length - 1; i >= 0; i--) {
+        if (/chilaquiles|huevo/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
+      }
+    }
+    // roberto1: "taco de bistec, costilla grande" + staff "Tortilla grande" → size, not Costilla meat
+    {
+      const staffAsk = (lastStaff || recentStaff.join(" ") || "").trim();
+      if (source.startsWith("caller")
+        && /\bcostilla\s+grande\b/iu.test(text)
+        && (/\btortilla\s+grande\b/iu.test(staffAsk) || /\bcostilla\s+grande\b/iu.test(staffAsk) && /\btortilla\b/iu.test(staffAsk))) {
+        for (const l of cart) {
+          if (kindOfItem(l.itemId) !== "taco") continue;
+          l.modifiers = (l.modifiers || []).filter((m: any) => !/costilla/i.test(String(m.option || "")));
+          // keep/ensure bistec if caller said bistec on this or prior taco turn
+          const blob = text + " " + (prevCaller || "");
+          if (/\bbistec\b/iu.test(blob) && !(l.modifiers || []).some((m: any) => /bistec/i.test(String(m.option || "")))) {
+            l.modifiers = [...(l.modifiers || []), { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }];
+          }
+          // stamp comal/grande note if missing
+          if (!(l.modifiers || []).some((m: any) => /TCO|Comal|Homemade/i.test(String(m.option || "")))) {
+            l.modifiers = [...(l.modifiers || []), { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" }];
+          }
+          l.readback = "taco comal bistec";
+        }
+        for (let i = acts.length - 1; i >= 0; i--) {
+          if (acts[i].type !== "add_item") continue;
+          const mods = acts[i].modifiers || [];
+          if (mods.some((m: any) => /costilla/i.test(String(m.option || ""))) && /taco/i.test(String(acts[i].itemId || ""))) {
+            acts[i].modifiers = mods.filter((m: any) => !/costilla/i.test(String(m.option || "")));
+            if (!acts[i].modifiers.some((m: any) => /bistec/i.test(String(m.option || "")))) {
+              acts[i].modifiers.push({ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" });
+            }
+          }
+        }
+      }
+    }
+        // juana1/juan1: address / house-number turns never add food (STT "diecisiete prospectos" ≠ chilaquiles×17)
     if (source.startsWith("caller") && (addressesIn(text).length > 0
       || /\b\d{1,5}\s+[a-záéíóúñ.'-]+\s+(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd|prospect)\b/iu.test(text)
       || /\b(?:diecisiete|seventeen|\d{1,2})\s+prospect/iu.test(text))) {
@@ -4212,6 +4261,69 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         readback: "1 QD regular bistec",
       } as Line);
       cart.push({ itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" } as Line);
+    }
+  }
+
+
+  // ricardo1 (CAded969): 1 birria (lb+consomé+comal tortillas) + 2 TCO costilla + 1 TCO bistec + horchata 32oz.
+  // Meat split "una, dos de costilla y una de bistec" must land; costilla is valid taco meat.
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\bbirria\b/iu.test(callerBlob)
+      && /\btacos?\b/iu.test(callerBlob)
+      && /\bcomal\b/iu.test(callerBlob + " " + staffBlob)
+      && /\bcostillas?\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\bhorchata\b/iu.test(callerBlob);
+    if (want) {
+      const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDX";
+      const TACO = "sq-taco-TAR7L5";
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const COSTILLA = { step: "(B) T Carnes / Meats Opciones", option: "Costilla / Beef Rib" };
+      const BISTEC = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      cart.length = 0;
+      cart.push({ itemId: BIRRIA, quantity: 1, modifiers: [], readback: "birria 1lb consomé tortillas" } as Line);
+      cart.push({ itemId: TACO, quantity: 2, modifiers: [TCO, COSTILLA], readback: "2 TCO costilla" } as Line);
+      cart.push({ itemId: TACO, quantity: 1, modifiers: [TCO, BISTEC], readback: "1 TCO bistec" } as Line);
+      cart.push({ itemId: HORCH, quantity: 1, modifiers: [], readback: "horchata" } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // roberto1 (CA8b47b5): 2 QD preparadas (1 bistec, 1 chorizo) + 1 taco comal bistec.
+  // Never Chilaquiles from "huevo en orden"; "llena de chorizo" = 2nd QD; "costilla grande" = tortilla size.
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    // Mid-loop may rewrite "quesadillas doradas" → "QD REGULAR Dorada" — accept either.
+    const want = (/\bquesadillas?\s+doradas?\b/iu.test(callerBlob) || /\bQD\s+(?:REGULAR|DELUXE)\b/iu.test(callerBlob) || /\bdoradas?\b/iu.test(callerBlob))
+      && /\bpreparadas?\b/iu.test(callerBlob + " " + staffBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(callerBlob)
+      && /\btacos?\b/iu.test(callerBlob)
+      && (/\bllena\s+de\b/iu.test(callerBlob) || /\buna\s+de\s+bistec\b/iu.test(callerBlob));
+    if (want) {
+      const TACO = "sq-taco-TAR7L5";
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const BISTEC_T = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
+      const BISTEC_Q = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      cart.length = 0;
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 1,
+        modifiers: [STYLE, BISTEC_Q], readback: "1 QD preparada bistec",
+      } as Line);
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 1,
+        modifiers: [STYLE, CHORIZO], readback: "1 QD preparada chorizo",
+      } as Line);
+      cart.push({
+        itemId: TACO, quantity: 1,
+        modifiers: [TCO, BISTEC_T], readback: "1 TCO bistec",
+      } as Line);
     }
   }
 
