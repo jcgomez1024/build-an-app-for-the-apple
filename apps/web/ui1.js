@@ -1430,18 +1430,39 @@ function closeSoftLangGate() {
 }
 function openSoftLangGate() {
   const bot = document.getElementById("ux1-bottom"); if (!bot) return;
+  const already = bot.classList.contains("gating");
   bot.classList.add("gating");
   document.body.classList.add("ux1-gating");
   document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.remove("on"));
   const cap = document.getElementById("loucap");
   if (cap) { cap.classList.remove("invite"); cap.dataset.state = "idle"; }
-  console.log("[m27] softlang gate open");
+  // m35b: Elvi voices the soft ES|EN ask (matches .sl-q); skip re-TTS if already open
+  const askEs = "¿Español o English?";
+  const askEn = "Spanish or English?";
+  // Prefer bilingual soft caption (UI); fall back EN if browser hints English
+  let ask = askEs;
+  let speakLang = "es";
+  try {
+    const nav = String(navigator.language || navigator.userLanguage || "").toLowerCase();
+    if (nav.startsWith("en")) { ask = askEn; speakLang = "en"; }
+  } catch {}
+  try {
+    const bub = document.getElementById("haloBub");
+    if (bub) { bub.textContent = ask; bub.classList.add("show"); }
+  } catch {}
+  if (!already) {
+    void (async () => {
+      try { await B()?.speak?.(ask, { language: speakLang }); } catch (e) { console.warn("[m35b] softlang TTS", e); }
+    })();
+  }
+  console.log("[m35b] softlang gate open" + (already ? " (already)" : " + TTS"));
 }
 function pickSoftLang(mode) {
   const m = mode === "en" ? "en" : "es";
   document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.toggle("on", p.dataset.l === m));
-  // Selected = session language for everything (persist via setLanguage)
-  try { B()?.setLanguage?.(m); } catch {}
+  // m35b: stop softlang ask TTS; quiet setLanguage → mic on (no welcome stack)
+  try { B()?.stopAudio?.(); } catch {}
+  try { B()?.setLanguage?.(m, { quiet: true }); } catch {}
   syncHeaderLangPills();
   setTimeout(() => {
     closeSoftLangGate();

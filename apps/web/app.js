@@ -538,10 +538,21 @@ function updateLanguageGate() {
     ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
     startLanguagePromptLoop();
   }
-  // v3: skip boot language nag — Hablar capsule shows "Selecciona tu idioma…" only if lang unknown
+  // m35b: v3 idle menu — no language prompt card/pills before Hablar
+  if (!selected && ui.reply && v3) {
+    const t = String(ui.reply.textContent || "");
+    if (
+      t === LANGUAGE_PROMPT_BILINGUAL
+      || t === LANGUAGE_PROMPT_EN
+      || t === LANGUAGE_PROMPT_ES
+      || /Please select your preferred language|Por favor selecciona tu idioma/.test(t)
+    ) {
+      ui.reply.textContent = "";
+    }
+  }
 }
 
-function setLanguageMode(mode) {
+function setLanguageMode(mode, opts = {}) {
   state.language = mode === "es" ? "es" : "en";
   try { localStorage.setItem("elvi.lang", state.language); } catch {}
   stopLanguagePromptLoop();
@@ -573,6 +584,9 @@ function setLanguageMode(mode) {
         console.error("[VOICE] Failed to start realtime after language selection:", err);
       });
   }
+
+  // m35b: softlang Hablar pick → mic on (quiet); header pills keep welcome TTS
+  if (opts && opts.quiet) return;
 
   // Optional short welcome using proper xAI voice (after session is ready)
   setTimeout(() => {
@@ -3597,8 +3611,11 @@ function attachUiHandlers() {
     // Mic button: first tap activates adaptive (hands-free) mode; tap again to stop.
     ui.listenButton.addEventListener("click", () => {
     if (!hasSelectedLanguage()) {
-      ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
-      startLanguagePromptLoop();
+      // m35b: v3 — Hablar softlang owns the gate; no chunky bilingual card
+      if (!isV3MenuUi()) {
+        ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+        startLanguagePromptLoop();
+      }
       return;
     }
     // ux1 barge-in: while Elvi is speaking, yield to listening (cancel TTS)
@@ -3670,8 +3687,11 @@ function attachUiHandlers() {
     event.preventDefault();
     autoSelectLanguageFromText(ui.promptInput.value.trim());
     if (!hasSelectedLanguage()) {
-      ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
-      startLanguagePromptLoop();
+      // m35b: v3 typedock — no bilingual nag; Hablar softlang is the voice gate
+      if (!isV3MenuUi()) {
+        ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+        startLanguagePromptLoop();
+      }
       return;
     }
     const text = ui.promptInput.value.trim();
@@ -4205,8 +4225,11 @@ function sendUserTurn(text, options = {}) {
   }
 
   if (!hasSelectedLanguage()) {
-    ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
-    startLanguagePromptLoop();
+    // m35b: v3 — skip chunky bilingual; Hablar softlang is the gate
+    if (!isV3MenuUi()) {
+      ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+      startLanguagePromptLoop();
+    }
     return false;
   }
 
@@ -6929,11 +6952,11 @@ window.elviBridge = {
   // ux1: Hablar / barge-in — cancel TTS and yield to listening
   stopAudio: () => { try { stopCurrentAudio(); } catch {} },
   // warm1: sheet step asks must be HEARD (xAI TTS / speakLocalText), bubble mirrors
-  speak: (text, opts) => { try { return speakLocalText(String(text || ""), getEffectiveLanguage(), opts || {}); } catch (e) { return Promise.resolve(); } },
+  speak: (text, opts) => { try { const o = opts || {}; const L = (o.language === "es" || o.language === "en") ? o.language : getEffectiveLanguage(); return speakLocalText(String(text || ""), L, o); } catch (e) { return Promise.resolve(); } },
   isSpeaking: () => !!state.elviSpeaking,
   haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
   hasSelectedLanguage,
-  setLanguage: (mode) => setLanguageMode(mode),
+  setLanguage: (mode, opts) => setLanguageMode(mode, opts || {}),
   // m29: v3 item sheet → live voice context (never deny visible options)
   onSheetUtterance: (text) => {
     try { return typeof window.__elviSheetAnswer === "function" ? !!window.__elviSheetAnswer(text) : false; } catch { return false; }
