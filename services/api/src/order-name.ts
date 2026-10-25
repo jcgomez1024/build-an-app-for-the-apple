@@ -63,7 +63,7 @@ export function nameFromAnswer(text: string): string | null {
   }
   if (/^\s*¿[^?]*\?\s*$/u.test(s)) return null; // name3p1/gino1: a name question (¿Guino?) is not a name answer
   // jorge1: price/time questions must never become a name ("Okey, ¿cuánto sería?" → junk "Ey Cuánto Sería")
-  if (/\b(?:cu[aá]nto|how\s+much|cuanto)\b/iu.test(s) || /\b(?:en\s+)?(?:cu[aá]nto\s+tiempo|how\s+long|minutos?)\b/iu.test(s)) return null;
+  if (/\b(?:cu[aá]nto|cu[aá]l|qui[eé]n|d[oó]nde|cu[aá]ndo|which|who|what|where|when|how|how\s+much|cuanto)\b/iu.test(s) || /\b(?:en\s+)?(?:cu[aá]nto\s+tiempo|how\s+long|minutos?)\b/iu.test(s)) return null;
   // rodolfo1: end-of-call ASR "Sí, sí sé Apple." / bare "Sé" is never a name (callers.json keeps Rodolfo)
   if (/\bs[eé]\b/iu.test(s) && (/\bapple\b/iu.test(s) || /^\s*s[eé]\s*$/iu.test(s) || /\bs[eé]\s+\p{Lu}/u.test(s))) return null;
   if (/[¿?]/.test(s) && /\b(?:ser[ií]a|cuesta|cost|price|precio|tiempo)\b/iu.test(s)) return null;

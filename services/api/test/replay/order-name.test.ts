@@ -91,3 +91,17 @@ test("alex1/victor1 names: Nombre. Wally→Alex; Listo→staff Víctor echo", ()
   ];
   assert.equal(on.nameFromTranscript(victor), "Víctor");
 });
+
+test("vocative Cuál / interrogatives are not names", async () => {
+  const { nameFromTranscriptInfo, nameFromStaffVocative } = await import("../../src/order-name.ts");
+  const { cleanFirstName } = await import("../../src/caller-memory.ts");
+  const turns = [
+    { speaker: "caller" as const, text: "Sí, bueno, buenos días. Oye, ¿cuánto tiempo hay que pedir el plato grande de tacos, que se llama fiesta," },
+    { speaker: "staff" as const, text: "¿Cuál, joven? Oh, sí, joven." },
+    { speaker: "caller" as const, text: "el que tienen en el menú?" },
+  ];
+  assert.equal(nameFromStaffVocative(turns), null);
+  assert.equal(nameFromTranscriptInfo(turns), null);
+  assert.equal(cleanFirstName("Cuál"), null);
+  assert.equal(cleanFirstName("Quién"), null);
+});

@@ -543,6 +543,20 @@
         "app"
       ],
       "requires": "quesadill"
+    },
+    {
+      "id": "menos1-stt-menudo",
+      "match": "\\bmenos\\b",
+      "to": "menudo",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "requires": "\\b(?:orden(?:es)?|quiero|dame|deme|encargar|pon(?:me|ga)?|un[oa]?|una)\\b",
+      "forbids": "\\b(?:o\\s+sea|okay|ok)\\b.*\\bmenos\\b|\\bmenos\\s+(?:de|que|precio|caro|barato)\\b|\\bcon\\s+todo\\s+menos\\b",
+      "example": "Una orden de menos dos",
+      "source": "Miriam CA477ac6 10/25: STT 'menos' for menudo → Elvi rang torta",
+      "approved": "Carlos 2026-10-25"
     }
   ]
 }

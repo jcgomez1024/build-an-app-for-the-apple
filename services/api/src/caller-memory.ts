@@ -142,7 +142,7 @@ export function savedLanguage(phoneRaw: string): { language: "es" | "en" | null;
 export function cleanFirstName(raw: string | null | undefined): string | null {
   const first = String(raw || "").trim().split(/[\s,]+/)[0] || "";
   if (!/^[\p{L}][\p{L}'’-]{1,19}$/u.test(first)) return null;
-  if (/^(cliente|customer|guest|test|prueba|unknown|desconocido|cocina|elvis|mr|mrs|ms|sr|sra|srta|dr|n\/?a|none|na|xx+)$/i.test(first)) return null;
+  if (/^(cliente|customer|guest|test|prueba|unknown|desconocido|cocina|elvis|mr|mrs|ms|sr|sra|srta|dr|n\/?a|none|na|xx+|cu[aá]l|qui[eé]n|qu[eé]|d[oó]nde|cu[aá]ndo|c[oó]mo|cu[aá]nto|which|who|what|where|when|how)$/i.test(first)) return null;
   return first.toLocaleLowerCase("es").replace(/(^|[-'’])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es"));
 }
 

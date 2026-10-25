@@ -529,7 +529,9 @@ const ORDER_SPEECH = /\b(?:tacos?|burritos?|quesadillas?|doradas?|gorditas?|tort
 export function timeOnlyLinkOk(t: { talkSec?: number | null; transcript?: string; lines?: unknown[] }): boolean {
   if (t.talkSec != null && t.talkSec < 15) return false;
   if (t.lines === undefined && t.transcript === undefined) return true; // no speech info given: only the length gate applies
-  return (t.lines?.length || 0) > 0 || ORDER_SPEECH.test(String(t.transcript || ""));
+  // birria1/Carlos 10/25: when cart lines are known, require a real order — empty-cart inquiries must not steal "only ticket in 20 min".
+  if (t.lines !== undefined) return (t.lines?.length || 0) > 0;
+  return ORDER_SPEECH.test(String(t.transcript || ""));
 }
 export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[]): { order: any; by: string } | null {
   const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";

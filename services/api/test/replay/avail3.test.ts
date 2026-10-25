@@ -226,10 +226,10 @@ test("jamaica1c: Jamaica turn drops water spam and rings Jamaica", async () => {
   assert.ok(r.cart.some((l: any) => /jamaica/i.test(l.itemId)), JSON.stringify(r.cart));
 });
 
-test("cecilia1e: con pata stamps EXTRA Pata on menudo add", async () => {
-  const MEN = "sq-menudo-con-pata-menudo-32oz";
+test("cecilia1e: con pata → Con Pata SKU, no EXTRA Pata unless asked", async () => {
+  const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
   const run = async (t: string) => {
-    if (/menudo/i.test(t)) return { actions: [{ type: "add_item", itemId: MEN, quantity: 2, modifiers: [{ option: "4 x (Corn) Comal Tortilla" }], readback: "2 menudo" }], reply: "ok" };
+    if (/menudo/i.test(t)) return { actions: [{ type: "add_item", itemId: CON, quantity: 2, modifiers: [{ option: "4 x (Corn) Comal Tortilla" }, { step: "EXTRA", option: "EXTRA Pata / Beef Feet (+$3.00)" }], readback: "2 menudo" }], reply: "ok" };
     return { actions: [], reply: "ok" };
   };
   const r: any = await shadowOrderFromTurns([
@@ -237,7 +237,20 @@ test("cecilia1e: con pata stamps EXTRA Pata on menudo add", async () => {
   ] as any, run as any);
   const men = r.cart.find((l: any) => /menudo/i.test(l.itemId));
   assert.ok(men, JSON.stringify(r.cart));
-  assert.ok((men.modifiers || []).some((m: any) => /EXTRA Pata|pata/i.test(String(m.option))), JSON.stringify(men));
+  assert.ok(/con-pata|con_pata/i.test(String(men.itemId)), JSON.stringify(men));
+  assert.ok(!(men.modifiers || []).some((m: any) => /EXTRA Pata|beef\s+feet/i.test(String(m.option))), `must not auto EXTRA: ${JSON.stringify(men)}`);
+});
+
+test("cecilia1e: extra pata keeps EXTRA Pata modifier", async () => {
+  const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+  const run = async () => ({ actions: [], reply: "ok" });
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "un menudo con pata y extra pata", language: "es" },
+  ] as any, run as any);
+  const men = r.cart.find((l: any) => /menudo/i.test(l.itemId));
+  assert.ok(men, JSON.stringify(r.cart));
+  assert.ok(/con-pata|con_pata/i.test(String(men.itemId)));
+  assert.ok((men.modifiers || []).some((m: any) => /EXTRA Pata|beef\s+feet/i.test(String(m.option))), JSON.stringify(men));
 });
 
 test("quesitorta1b: de bistec stamps Bistec on queso torta", async () => {
@@ -378,7 +391,8 @@ test("enrique1: force-add menudo con pata and mole when model returns empty", as
   assert.ok(r.cart.some((l: any) => /menudo/i.test(String(l.itemId))), "menudo: " + JSON.stringify(r.cart));
   assert.ok(r.cart.some((l: any) => /mole/i.test(String(l.itemId))), "mole: " + JSON.stringify(r.cart));
   const men = r.cart.find((l: any) => /menudo/i.test(String(l.itemId)));
-  assert.ok((men.modifiers || []).some((m: any) => /pata/i.test(String(m.option))), JSON.stringify(men));
+  assert.ok(/con-pata|con_pata/i.test(String(men.itemId)), "Con Pata SKU: " + JSON.stringify(men));
+  assert.ok(!(men.modifiers || []).some((m: any) => /EXTRA Pata|beef\s+feet/i.test(String(m.option))), "no auto EXTRA: " + JSON.stringify(men));
   // enrique1b: house defaults when force-adding
   assert.ok((men.modifiers || []).some((m: any) => /corn.*comal|comal.*tortilla/i.test(String(m.option))), "menudo tortillas: " + JSON.stringify(men));
   const mol = r.cart.find((l: any) => /mole/i.test(String(l.itemId)));

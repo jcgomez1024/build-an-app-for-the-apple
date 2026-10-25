@@ -17,3 +17,8 @@ test("phone match is not gated", () => {
   const o = { ...order, fulfillments: [{ pickup_details: { recipient: { phone_number: "+15550000001" } } }] };
   assert.equal(pickSquareOrder({ ...base, talkSec: 5, transcript: "" }, [o])?.by, "phone");
 });
+
+test("empty-cart inquiry (birria Q) does not steal only ticket in 20 min", () => {
+  assert.equal(timeOnlyLinkOk({ talkSec: 40, lines: [], transcript: "¿venden birria?" }), false);
+  assert.equal(pickSquareOrder({ ...base, talkSec: 40, lines: [], transcript: "CALLER: Disculpe, ¿venden birria?" }, [order]), null);
+});
