@@ -3592,8 +3592,10 @@ function validateAddItemToolArgs(args) {
 }
 
 function attachUiHandlers() {
-  // Mic button: first tap activates adaptive (hands-free) mode; tap again to stop.
-  ui.listenButton.addEventListener("click", () => {
+  // m35: soft-ring #mic removed — Hablar capsule is sole voice entry. Guard legacy wiring.
+  if (ui.listenButton) {
+    // Mic button: first tap activates adaptive (hands-free) mode; tap again to stop.
+    ui.listenButton.addEventListener("click", () => {
     if (!hasSelectedLanguage()) {
       ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
       startLanguagePromptLoop();
@@ -3642,6 +3644,7 @@ function attachUiHandlers() {
     ui.listenButton.addEventListener("pointerup", clearHold);
     ui.listenButton.addEventListener("pointerleave", clearHold);
     ui.listenButton.addEventListener("pointercancel", clearHold);
+  }
   }
 
   // Cart drawer
@@ -6638,7 +6641,7 @@ function startAdaptiveListen() {
   state.recognitionPaused = false;
   state.localTranscript = "";
   startBrowserRecognition();
-  ui.listenButton.classList.add("adaptive-active");
+  ui.listenButton?.classList.add("adaptive-active");
   ui.status.textContent = "Ready…";
 
   return navigator.mediaDevices.getUserMedia({
@@ -6823,7 +6826,7 @@ function stopAdaptiveListen() {
     }
     state.stream = null;
   }
-  ui.listenButton.classList.remove("adaptive-active");
+  ui.listenButton?.classList.remove("adaptive-active");
   ui.status.textContent = "Connected";
   setAvatarState("idle");
 }

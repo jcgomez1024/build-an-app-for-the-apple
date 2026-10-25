@@ -311,7 +311,8 @@ function renderBar() {
   if (U.screen === "receipt") { bar.innerHTML = `<button class="u1-btn s" data-go="home">${t("Menú", "Menu")}</button><button class="u1-btn s" data-read="1">🔊 ${t("Leer otra vez", "Read again")}</button>`; return; }
   if (V3) { const when = t("Ver orden", "View order");
     document.body.classList.toggle("v3-cart0", !n);
-    bar.innerHTML = `<button class="u1-btn p v3-cartbar" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${esc(when)}<span>${money(tot)}</span></button><div class="v3-ebar"><span class="v3-dot"></span><div><small>Elvi</small><p id="v3-line"></p></div></div>`; return; }
+    // m35: drop compact Elvi bar (v3-ebar) — Hablar capsule carries the invite; cart bar only
+    bar.innerHTML = `<button class="u1-btn p v3-cartbar" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${esc(when)}<span>${money(tot)}</span></button>`; return; }
   bar.innerHTML = `<button class="u1-btn p" data-go="receipt" ${n ? "" : "disabled"}>🛒 ${n} · ${money(tot)} — ${t("Ver orden", "View order")}</button>`;
 }
 function modsText(line) {

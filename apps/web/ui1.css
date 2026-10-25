@@ -310,20 +310,19 @@ body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-she
 .softlang .sl-pill:active,.softlang .sl-pill:hover{background:rgba(20,113,214,.28);color:#fff;box-shadow:inset 0 0 0 1px #4aa3ff}
 .softlang .sl-pill.on{background:linear-gradient(180deg,#4aa3ff,#1471d6);color:#fff;box-shadow:0 0 0 1px #4aa3ff,0 0 14px rgba(74,163,255,.6);animation:none}
 #ux1-bottom.bottom.gating #loucap,.bottom.gating .loucap{animation:none!important}
-/* During gate: hide Type-your-order dock + heavy mic row */
+/* During gate: hide Type-your-order dock (m35: mic already gone) */
 body.ux1-gating .bottom-bar,body.ux1-gating .v3-ebar{display:none!important}
 /* Header quiet ES|EN (manual override anytime) */
 .u1-head .lang{display:inline-flex;gap:4px;padding:3px;border-radius:999px;background:rgba(11,16,32,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);flex:none;margin-left:4px}
 .u1-head .lang .pill{padding:4px 10px;font-size:11px;letter-spacing:.08em;background:transparent;border:0;color:rgba(255,255,255,.85);box-shadow:none}
 .u1-head .lang .pill:hover{background:rgba(255,255,255,.18);color:#fff}
 .u1-head .lang .pill.pill-active{background:rgba(255,255,255,.95);color:#1471d6;box-shadow:0 0 0 1px #fff,0 0 10px rgba(74,163,255,.45)}
-/* Soften heavy gradient mic on v3 (Hablar is the voice gate) */
-body.v3 .mic-btn{width:46px;height:46px;background:rgba(11,16,32,.75);box-shadow:0 0 0 1px rgba(74,163,255,.4),0 4px 14px rgba(0,0,0,.25)}
-body.v3 .mic-wrap{width:52px;height:52px}
+/* m35: Hablar is sole voice entry — hide legacy soft-ring mic + compact Elvi bar */
+body.v3 #mic-wrap,body.v3 #listen-button,body.ui1 #mic-wrap,body.ui1 #listen-button{display:none!important}
+body.v3 .v3-ebar,.v3-ebar{display:none!important}
 body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
+body.v3 .controls-row{gap:12px;justify-content:flex-end}
 @media (min-width:960px){#ux1-bottom.bottom{display:none!important}}
-
-#listen-button{min-width:46px;min-height:46px}
 
 /* Confirm beat (before Square) + Para la cocina */
 #ux1-confirm.v3-sheet-bg{z-index:70}
