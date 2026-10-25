@@ -17,7 +17,7 @@ export type DeliveryProfile = { unitNote?: string; instructions?: string; photo?
 export type SavedAddress = { address: string; street: string; firstUsedAt: string; lastUsedAt: string; uses: number };
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
-const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi)\b/i;
+const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi|hasta(\s+luego)?|nos\s+vemos|good\s*bye|bye(\s*bye)?|cu[ií]date|chao|chau|adi[oó]s)\b/i;
 /** Full name as typed, trimmed and Title Cased; null for junk (digits only, Receipt/Cliente/Guest/TO GO, 1 letter, >40 chars). */
 export function cleanFullName(raw: string | null | undefined): string | null {
   const s = String(raw || "").replace(/\s+/g, " ").trim();
