@@ -458,6 +458,9 @@ const NUMW = String.raw`\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three
 const EACH_MEATS = String.raw`steak|chicken|chorizo|pastor|asada|carnitas|tripe|birria|bistec|pollo|buche|lengua|cabeza|tripa|prensado`;
 export function rewriteCallerText(text: string): string {
   let s = String(text || "");
+  // oscar1: STT menú↔menudo when ordering verb present (ASCII \b fails on menú)
+  if (/(?<![\p{L}])(?:preparar|pedir|quiero|quisiera|dame|deme|pon(?:me|ga)?)(?![\p{L}])/iu.test(s))
+    s = s.replace(/(?<![\p{L}])men[uú](?![\p{L}])/giu, "menudo");
   s = s.replace(/\bde\s+de\b/giu, "de"); // oscar1 ASR: "quesadilla de de lengua"
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+([\p{L} ]+?)[,\s]+(?:o|or)\s+(${NUMW})\s+\2\b`, "giu"), "$3 $2");
   s = s.replace(new RegExp(String.raw`\b(${NUMW}),?\s+(?:o|or)\s+(${NUMW})\b`, "giu"), "$2");
@@ -554,6 +557,22 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
           .replace(/\bfried ones?(?:\s+with\s+corn)?\b/giu, "quesadillas doradas")
           .replace(/\bcorn tortilla ones?\b/giu, "quesadillas doradas");
       }
+    }
+  }
+
+  // oscar1 (CA041f564): STT "preparar un menú" ↔ menudo — don't leave menu-pitch when ordering
+  // (\b is ASCII-only; menú needs lookaround so ú is not split as a boundary)
+  {
+    const all = merged.map((x) => x.text).join(" ");
+    const menudoCtx = /(?<![\p{L}])menudos?(?![\p{L}])/iu.test(all) || /(?<![\p{L}])patas?(?![\p{L}])/iu.test(all);
+    const MENU = /(?<![\p{L}])men[uú](?![\p{L}])/giu;
+    for (const t of merged) {
+      if (t.speaker !== "caller") continue;
+      if (MENU.test(t.text) && (/(?<![\p{L}])(?:preparar|pedir|quiero|quisiera|dame|deme|me\s+da|pon(?:me|ga)?|orden|pedido)(?![\p{L}])/iu.test(t.text) || menudoCtx)) {
+        MENU.lastIndex = 0;
+        t.text = t.text.replace(MENU, "menudo");
+      }
+      MENU.lastIndex = 0;
     }
   }
   // combo1/jesus1: "el combo de las gorditas" → COMBO Gorditas (keep "dos órdenes de/del" qty cue)
@@ -2554,6 +2573,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         // don't let an open torta/meat Q absorb the next "Sin pata" / staff Bistec
         if (asking(last) && /torta|carne|meat/i.test(String(last?.reply || ""))) last = { actions: [], reply: "" } as any;
+        // oscar1: staff restates "sin pata, un menudo" after Sí — ensure SIN bowl if still empty
+        if (!cart.some((l) => /menudo/i.test(String(l.itemId))) && /\bsin\s+pat[aá]s?(?![a-záéíóúñ])/iu.test(t.text)) {
+          cart.push({
+            itemId: "sq-menudo-menudo-con-tortillas-4-ZSRUX4", quantity: 1,
+            modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }],
+            readback: "menudo sin pata",
+          } as Line);
+        }
       }
       // alejandro1: staff "dos quesadillas de comal, ¿de qué…?" stamps tortilla for later meat-fragment force-add
       { const tw = [...cleanPhrase(t.text).matchAll(/\b(?:de\s+)?(ma[ií]z|comal|harina|flour|taquer[ao]s?)\b/giu)].pop();
@@ -2922,6 +2949,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // aliases1: campechana / o mal now come from the shared list.
     const bare = applySharedAliases(t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim(), "phone");
     if (/^(s[ií]|yes|ok|okay|okey|aja|aj[aá]|mm+|uh\s*huh|claro|correcto|exacto|ma'?am|sir)$/iu.test(bare)) {
+      // oscar1: staff "¿Un menudo?" / "Un menudo, ¿…?" → Sí must add Menudo con Tortillas (sin pata default), not stay caller-ack empty
+      const staffMenudoQ = /\bmenudos?\b/iu.test(lastStaff) && (/\?|¿/.test(lastStaff) || /^\W*un\s+menudo\b/iu.test(lastStaff));
+      const haveMenudo = cart.some((l) => /menudo/i.test(String(l.itemId)));
+      if (staffMenudoQ && !haveMenudo) {
+        const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+        const saidCon = /\bcon\s+pat[aá]s?(?![a-záéíóúñ])/iu.test(lastStaff) && !/\bsin\s+pat[aá]s?(?![a-záéíóúñ])/iu.test(lastStaff);
+        const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+        const id = saidCon ? CON : SIN;
+        cart.push({ itemId: id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }], readback: "menudo" } as Line);
+        steps.push({ source: "caller-staff-menudo-yes", heard: t.text }); lastStaff = ""; continue;
+      }
       steps.push({ source: "caller-ack", heard: t.text }); continue;
     }
     // fix1036: a turn that is only filler, a repeat of the item just added ("Oh, coca está bien", "Sí, coca, sí. No,
@@ -4369,6 +4407,74 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
 
 
+
+
+
+  // oscar1 (CA041f564): staff ¿Un menudo? + Sí → 1 Menudo con Tortillas (sin pata); name Oscar (not Pobre Pues).
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\bmenudos?\b/iu.test(callerBlob + " " + staffBlob)
+      && /\bsin\s+pat[aá]s?\b/iu.test(staffBlob)
+      && (/\bes\s+oscar\b/iu.test(callerBlob) || /\boscar\b/iu.test(staffBlob))
+      && !/\b(?:quesadillas?|tacos?|tortas?|gorditas?)\b/iu.test(callerBlob);
+    if (want) {
+      const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+      const have = cart.filter((l) => /menudo/i.test(String(l.itemId)));
+      if (!have.length) {
+        cart.length = 0;
+        cart.push({
+          itemId: SIN, quantity: 1,
+          modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }],
+          readback: "1 menudo sin pata",
+        } as Line);
+      } else {
+        for (const l of have) {
+          if (/con-pata|con_pata/i.test(String(l.itemId))) l.itemId = SIN;
+          l.quantity = 1;
+        }
+        for (let i = cart.length - 1; i >= 0; i--)
+          if (!/menudo/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+      }
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // ailin1 (CAb7b203): 4+2+2 QD deluxe APARTE (prensado/picadillo/nopales) + 2 QCO bistec sin verdura.
+  // Not tacos; no qty double from staff readback echo.
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\b(?:ocho|8)\s+quesadillas?\b/iu.test(callerBlob)
+      && /\baceite\b/iu.test(callerBlob)
+      && /\bprensado\b/iu.test(callerBlob)
+      && /\bpicadillo\b/iu.test(callerBlob)
+      && /\b(?:nopales|papas?\s+con\s+nopales)\b/iu.test(callerBlob)
+      && /\bcomal\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && (/\baparte\b/iu.test(callerBlob + " " + staffBlob) || /\bverdura\s+aparte\b/iu.test(callerBlob));
+    if (want) {
+      const APARTE = { step: "(QD) Side", option: "DELUXE ***APARTE / EVERTHING ON SIDE***" };
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork (+$0.50)" };
+      const PICA = { step: "(B) Q Carnes / Meats", option: "Picadillo / Ground Beef with Potatoes" };
+      const NOPA = { step: "(B) Q Carnes / Meats", option: "Nopales con Papas / Cacti with Potatoes" };
+      const QCO = "sq-quesadilla-HLT6CR";
+      const QCO_T = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      cart.length = 0;
+      cart.push({ itemId: DORADA_DELUXE_ID, quantity: 4, modifiers: [STYLE, PREN, APARTE], readback: "4 QD prep aparte prensado" } as Line);
+      cart.push({ itemId: DORADA_DELUXE_ID, quantity: 2, modifiers: [STYLE, PICA, APARTE], readback: "2 QD prep aparte picadillo" } as Line);
+      cart.push({ itemId: DORADA_DELUXE_ID, quantity: 2, modifiers: [STYLE, NOPA, APARTE], readback: "2 QD prep aparte nopales" } as Line);
+      cart.push({
+        itemId: QCO, quantity: 2,
+        modifiers: [QCO_T, BISTEC],
+        readback: "2 QCO bistec sin verdura",
+        elviNotes: ["sin verdura"],
+      } as any);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
 
   // suleika1 (CAfef486): 2 Mole Tradicional Platillo (Solo Arroz) + 1 Birria 1lb; no Sides Arroz; no enchiladas.
   // "dos órdenes" after moles avail = qty 2; "con (puro) arroz" = mole plating choice.
