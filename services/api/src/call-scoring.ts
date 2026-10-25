@@ -959,7 +959,30 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             }
           } else if (saidConPata && hasSin && !hasCon && bareUnoPata) {
             acts.push({ type: "add_item", itemId: CON, quantity: 1, modifiers: conMods, readback: "menudo" });
-          } else if (saidSinPata && hasCon && !hasSin) {
+          } else if (saidSinPata && hasCon && (barePataAnswer || !bareUnoPata)) {
+            // adriana1: model named Con Pata on "sin pata" → convert ALL to Tortillas (SIN); keep spoken qty
+            for (const l of haveCart) {
+              if (/menudo/i.test(String(l.itemId))) {
+                l.itemId = SIN;
+                l.modifiers = (l.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata|beef\s+feet|extra\s*carne/i.test(String(m.option)));
+                if (!(l.modifiers || []).some((m: any) => /tortilla/i.test(String(m.option)))) l.modifiers = [...(l.modifiers || []), tortMod];
+              }
+            }
+            for (const a of haveActs) {
+              if (/menudo/i.test(String(a.itemId))) {
+                a.itemId = SIN;
+                a.readback = "menudo"; // keep after convert (do not splice away model lines we rewrote)
+                a.modifiers = (a.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata|beef\s+feet|extra\s*carne/i.test(String(m.option)));
+                if (!(a.modifiers || []).some((m: any) => /tortilla/i.test(String(m.option)))) a.modifiers = [...(a.modifiers || []), tortMod];
+              }
+            }
+            const mqSin = text.match(new RegExp(String.raw`\b(${NUMW})\s+menudos?\b`, "iu"));
+            const qSin = mqSin ? (spokenCount(mqSin[1]) || 0) : 0;
+            if (qSin > 1) {
+              for (const l of haveCart) if (/menudo/i.test(String(l.itemId))) l.quantity = qSin;
+              for (const a of haveActs) if (/menudo/i.test(String(a.itemId))) a.quantity = qSin;
+            }
+          } else if (saidSinPata && hasCon && !hasSin && bareUnoPata) {
             acts.push({ type: "add_item", itemId: SIN, quantity: 1, modifiers: [tortMod], readback: "menudo" });
           } else if (!(saidConPata && hasSin) && !(saidSinPata && hasCon)) {
             // single-SKU clarify (luis181d): rewrite existing bowl(s)
@@ -1002,21 +1025,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           acts.push({ type: "add_item", itemId: id, quantity: Math.max(1, qMen), modifiers: mods, readback: "menudo" });
         }
       }
-      // suleika1/enrique1: mole platillo; "dos órdenes" after moles avail = qty 2 (not enchiladas)
+      // suleika1/enrique1/adriana1: mole platillo; "dos órdenes" after moles = qty 2; "un platillo de mole" = qty 1 (never menudo "dos"/tortilla "4")
       if ((/\bmoles?\b/iu.test(text) || (/\b(?:[oó]rdenes?|orders?)\b/iu.test(text) && /\bmoles?\b/iu.test(history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" "))))
         && /\b(?:va\s+a\s+ser|tambi[eé]n|quiero|dame|deme|me\s+da|me\s+das|pon(?:me|ga)?|un[oa]?|dos|tres|\d+)\b/iu.test(text)) {
         const have = cart.some((l) => /mole/i.test(String(l.itemId)))
           || acts.some((a: any) => a.type === "add_item" && /mole/i.test(String(a.itemId)));
         const om = text.match(/\b(\d+|dos|tres|cuatro|two|three|four)\s+(?:[oó]rdenes?|orders?)\b/iu);
-        const q = om ? (spokenCount(om[1]) || 1) : (spokenCount(cleanPhrase(text)) || 1);
-        // enrique1b: Solo Arroz + 3 corn tortillas (Square house defaults when caller never chose)
-        if (!have) acts.push({ type: "add_item", itemId: "sq-mole-tradicional-platillo-4THFAW", quantity: q > 1 ? q : 1, modifiers: [
+        const pm = text.match(new RegExp(String.raw`\b(${NUMW})\s+(?:platillos?\s+de\s+)?moles?\b`, "iu"))
+          || text.match(new RegExp(String.raw`\b(${NUMW})\s+platillos?\b`, "iu"));
+        // adriana1: only trust N next to órdenes/mole/platillo — never spokenCount(full text) (picks "dos"/"4")
+        const spokenMole = om ? (spokenCount(om[1]) || 1) : (pm ? (spokenCount(pm[1]) || 1) : 0);
+        const moleMods = [
           { step: "(A) Mole Sides", option: "Solo Arroz / Rice" },
           { step: "(B) Mole Tortillas", option: "3 x (Corn) Corn Tortilla" },
-        ], readback: q > 1 ? `${q} mole` : "mole" });
-        else if (q > 1) {
-          for (const l of cart) if (/mole/i.test(String(l.itemId)) && (Number(l.quantity) || 1) < q) l.quantity = q;
-          for (const a of acts) if (a.type === "add_item" && /mole/i.test(String(a.itemId)) && (Number(a.quantity) || 1) < q) a.quantity = q;
+        ];
+        if (!have) {
+          const q = spokenMole || 1;
+          acts.push({ type: "add_item", itemId: "sq-mole-tradicional-platillo-4THFAW", quantity: q, modifiers: moleMods,
+            readback: q > 1 ? `${q} mole` : "mole" });
+        } else if (spokenMole > 0) {
+          for (const l of cart) if (/mole/i.test(String(l.itemId))) l.quantity = spokenMole;
+          for (const a of acts) if (a.type === "add_item" && /mole/i.test(String(a.itemId))) a.quantity = spokenMole;
         }
       }
     }
@@ -2459,6 +2488,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             && !history.some((h) => h.role === "customer" && /\b[gh]uaraches?\b/iu.test(h.text)))
             cart.splice(i, 1);
       }
+      // adriana1/miriam2: drop phantom torta when caller never said torta (cerdos greeting / model invent)
+      {
+        const saidTorta = /\btortas?\b/iu.test(text)
+          || history.some((h) => h.role === "customer" && /\btortas?\b/iu.test(h.text));
+        if (!saidTorta) {
+          for (let i = acts.length - 1; i >= 0; i--)
+            if ((acts[i].type === "add_item" || acts[i].type === "update_item") && /torta/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+          for (let i = cart.length - 1; i >= 0; i--)
+            if (/torta/i.test(String(cart[i].itemId)) && !/menudo/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+        }
+      }
     }
     const added = acts.filter((a: any) => a.type === "add_item");
     if (added.length) lastAdded = cart[cart.length - 1] || null;
@@ -2635,6 +2675,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
       lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift(); staffSince.push(t.text);
+      // adriana1: staff "¿Cerdos también?" is pork/avail chatter — not a torta order
+      if (/\bcerdos?\b/iu.test(t.text)) {
+        const allC = turns.filter((u) => u.speaker === "caller").map((u) => u.text).join(" ");
+        if (!/\btortas?\b/iu.test(allC)) {
+          for (let i = cart.length - 1; i >= 0; i--) if (/torta/i.test(String(cart[i].itemId)) && !/menudo/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+          if (asking(last) && /torta|carne|meat/i.test(String(last?.reply || ""))) last = { actions: [], reply: "" } as any;
+        }
+      }
       // miriam2: staff "Un menudo, ¿con pata o sin pata?" — confirm menudo; drop phantom torta if caller never said torta
       if (/\bmenudos?\b/iu.test(t.text) && /\b(?:con\s+pata|sin\s+pata)\b/iu.test(t.text)) {
         const allC = turns.filter((u) => u.speaker === "caller").map((u) => u.text).join(" ");
