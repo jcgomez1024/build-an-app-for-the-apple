@@ -1,0 +1,98 @@
+[
+  {
+    "speaker": "staff",
+    "text": "Cocina Elvis."
+  },
+  {
+    "speaker": "caller",
+    "text": "Hola, buenas noches."
+  },
+  {
+    "speaker": "staff",
+    "text": "Buenas noches."
+  },
+  {
+    "speaker": "caller",
+    "text": "hola, para hacer un pedido."
+  },
+  {
+    "speaker": "staff",
+    "text": "Ah, sí, dígame."
+  },
+  {
+    "speaker": "caller",
+    "text": "¿Tienes tacos?"
+  },
+  {
+    "speaker": "staff",
+    "text": "Claro."
+  },
+  {
+    "speaker": "caller",
+    "text": "¿De qué es que tienes?"
+  },
+  {
+    "speaker": "staff",
+    "text": "Tenemos de bistec, cabeza, carnita, chorizo, costilla, po, ah, no, hay pollo, al pastor, buche, lengua, tripa."
+  },
+  {
+    "speaker": "caller",
+    "text": "Me pone de de costilla, me pone tres."
+  },
+  {
+    "speaker": "staff",
+    "text": "De costilla te pongo tres. Muy bien. Del comal, ¿verdad?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Me pone otros tres de bizco."
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí, por favor."
+  },
+  {
+    "speaker": "staff",
+    "text": "Ajá. Otros tres, ¿de qué me dijiste? Perdón."
+  },
+  {
+    "speaker": "caller",
+    "text": "Este, bistec."
+  },
+  {
+    "speaker": "staff",
+    "text": "De bistec. Muy bien, ¿algo más?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Nada más."
+  },
+  {
+    "speaker": "staff",
+    "text": "Ok, ¿a qué nombre sería la orden?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Raúl."
+  },
+  {
+    "speaker": "staff",
+    "text": "Raúl, ok, Raúl, te tengo tres tacos del comal de costilla y tres tacos de comal de biste."
+  },
+  {
+    "speaker": "caller",
+    "text": "Ajá, correcto."
+  },
+  {
+    "speaker": "staff",
+    "text": "Ok, dame unos quince minutos."
+  },
+  {
+    "speaker": "caller",
+    "text": "Okay. What place, let me say that."
+  },
+  {
+    "speaker": "staff",
+    "text": "Gracias."
+  }
+]

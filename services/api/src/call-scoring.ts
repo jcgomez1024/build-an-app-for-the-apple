@@ -534,6 +534,8 @@ export function rewriteCallerText(text: string): string {
   // juanTst1: ASR "cinco de viste" / "de viste" → bistec; "dos sabos de horchata" → vasos
   s = s.replace(/\bde\s+viste(?!\p{L})/giu, "de bistec");
   s = s.replace(/\bviste(?!\p{L})/giu, "bistec");
+  // raul2 (CA06ecc4): ASR "bizco" for bistec ("otros tres de bizco")
+  s = s.replace(/\bbizco\b/giu, "bistec");
   s = s.replace(/\bsabos\b/giu, "vasos");
   // julioDorada1: "salsa dorada" (ASR) → salsa asada extras
   s = s.replace(/\bsalsa\s+dorada\b/giu, "salsa asada");
@@ -2656,7 +2658,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const named = listedMeats(text).map((w) => w.meat.toLowerCase());
       const tacoAdds = acts.filter((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)));
       // After splitItems, each piece is "un taco taquero de X" — strip extra meats the model stacked
-      if (named.length === 1 && /\btaco/i.test(text) && tacoAdds.length) {
+      // raul2 (CA06ecc4): "otros tres de bistec/bizco" (no "taco" word) after a TCO line — prior meat must not stick
+      const tacoCtx = /\btaco/i.test(text)
+        || cart.some((l) => kindOfItem(l.itemId) === "taco")
+        || /\botr[oa]s?\s+(?:\d+|dos|tres|cuatro|cinco|seis)\s+de\s+/iu.test(text);
+      if (named.length === 1 && tacoCtx && tacoAdds.length) {
         const meatRe = new RegExp(MEAT_LIST, "i");
         const singular = /\bun\s+taco\b/iu.test(text) && !/\b(?:dos|tres|cuatro|\d+)\s+tacos?\b/iu.test(text);
         for (const a of tacoAdds) {
@@ -2741,6 +2747,35 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
+    // raul2 (CA06ecc4): before apply — strip prior-line meat from dual-meat taco adds (keep only the new meat)
+    {
+      const meatRe = new RegExp(MEAT_LIST, "i");
+      const meatsOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option).toLowerCase())
+        .filter((o: string) => meatRe.test(o) && !/salsa/i.test(o)).map((o: string) => o.split(" /")[0].trim());
+      const singles = new Set<string>();
+      for (const l of cart) {
+        if (kindOfItem(l.itemId) !== "taco") continue;
+        const ms = meatsOf(l);
+        if (ms.length === 1) singles.add(ms[0]);
+      }
+      const hitSingle = (m: string) => [...singles].some((s) => s.includes(m) || m.includes(s));
+      if (singles.size) {
+        for (const a of acts) {
+          if (a.type !== "add_item" || !/taco/i.test(String(a.itemId || ""))) continue;
+          const ms = meatsOf(a);
+          if (ms.length < 2) continue;
+          if (ms.every((m: string) => hitSingle(m))) continue; // gino1f drops after apply
+          const fresh = ms.filter((m: string) => !hitSingle(m));
+          if (!fresh.length) continue;
+          a.modifiers = (a.modifiers || []).filter((m: any) => {
+            const o = String(m.option);
+            if (!(meatRe.test(o) && !/salsa/i.test(o))) return true;
+            const key = o.toLowerCase().split(" /")[0].trim();
+            return fresh.some((f: string) => key.includes(f) || f.includes(key));
+          });
+        }
+      }
+    }
     apply(acts);
     // roberto1: "Sí, huevo en orden" STT for "hacer una orden" — never invent Chilaquiles con Huevo / EXTRA Huevo
     if (source.startsWith("caller")
@@ -2804,7 +2839,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const hit = addressesIn(text)[0];
       if (hit) { shadowAddress = hit.full || hit.street; shadowAddressConfirmed = true; }
     }
-    // gino1f: drop dual-meat taco lines whenever matching single-meat tacos already exist (model re-adds after split)
+    // gino1f / raul2 (CA06ecc4): dual-meat taco — drop when every meat already has a single line;
+    // else strip meats that already have their own single line (prior-line meat carried onto the next qty/meat change).
     {
       const meatRe = new RegExp(MEAT_LIST, "i");
       const meatsOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option).toLowerCase()).filter((o: string) => meatRe.test(o) && !/salsa/i.test(o)).map((o: string) => o.split(" /")[0].trim());
@@ -2814,11 +2850,23 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const ms = meatsOf(l);
         if (ms.length === 1) singles.add(ms[0]);
       }
-      if (singles.size >= 2) {
+      const hitSingle = (m: string) => [...singles].some((s) => s.includes(m) || m.includes(s));
+      if (singles.size) {
         for (let i = cart.length - 1; i >= 0; i--) {
           if (kindOfItem(cart[i].itemId) !== "taco") continue;
           const ms = meatsOf(cart[i]);
-          if (ms.length >= 2 && ms.every((m: string) => [...singles].some((s) => s.includes(m) || m.includes(s)))) cart.splice(i, 1);
+          if (ms.length < 2) continue;
+          if (ms.every((m: string) => hitSingle(m))) { cart.splice(i, 1); continue; }
+          const fresh = ms.filter((m: string) => !hitSingle(m));
+          if (!fresh.length) continue;
+          cart[i].modifiers = (cart[i].modifiers || []).filter((m: any) => {
+            const o = String(m.option);
+            if (!(meatRe.test(o) && !/salsa/i.test(o))) return true;
+            const key = o.toLowerCase().split(" /")[0].trim();
+            return fresh.some((f: string) => key.includes(f) || f.includes(key));
+          });
+          const left = meatsOf(cart[i]);
+          cart[i].readback = `${cart[i].quantity || 1} taco ${left.join("+")}`;
         }
       }
     }
