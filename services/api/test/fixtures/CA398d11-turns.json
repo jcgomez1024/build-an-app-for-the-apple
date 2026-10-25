@@ -1,0 +1,135 @@
+[
+  {
+    "speaker": "staff",
+    "start": 2.181,
+    "end": 3.321,
+    "text": "Sí, buenas tardes, cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 4.161,
+    "end": 7.062,
+    "text": "Buenas tardes, voy por una orden, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 7.543,
+    "end": 8.804,
+    "text": "Claro, ¿cómo es que le vamos a poner?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.943,
+    "end": 10.443,
+    "text": "¿Carlos era?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.404,
+    "end": 13.784,
+    "text": "¿Carlos?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.586,
+    "end": 14.926,
+    "text": "Perdón, sí, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 15.065,
+    "end": 16.405,
+    "text": "¿No eres Carlos? ¿Eres Carlos?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 17.067,
+    "end": 17.507,
+    "text": "Sí, soy yo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.666,
+    "end": 28.929,
+    "text": "dime Carlos. Ay, bueno hombre, era, como la como el comerciante, ¿te acuerdas? Hey. Mira, y por favor, este,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 23.789,
+    "end": 38.853,
+    "text": "Sí, sí, hay cuatro gorditas van a ser, mano, de costilla. ¿Qué más, Felipe? Dos,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 30.029,
+    "end": 34.491,
+    "text": "ponme unas, que sean unas cuatro de, unas gorditas, por favor, de costillas, si tienes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 38.332,
+    "end": 42.373,
+    "text": "Ajá, y y ponme dos al pastor, por favor, así regulares.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 42.634,
+    "end": 44.034,
+    "text": "dos, dos gorditas más del pastor.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 44.614,
+    "end": 46.355,
+    "text": "Al pastor, así sin preparar, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.655,
+    "end": 47.395,
+    "text": "Sí, ¿qué más, mano?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.075,
+    "end": 49.816,
+    "text": "Nada más, ella es todo, por favor, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 49.076,
+    "end": 51.596,
+    "text": "Okay, dame unos veinte minutos, Felipe, si me haces el favor, ¿está bien?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 52.178,
+    "end": 54.161,
+    "text": "That would be, absolutely. Yeah.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.777,
+    "end": 53.497,
+    "text": "Vámonos, gracias.",
+    "language": "es"
+  }
+]

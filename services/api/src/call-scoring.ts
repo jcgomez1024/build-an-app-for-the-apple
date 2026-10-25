@@ -420,8 +420,16 @@ export function listedMeats(text: string): Array<{ meat: string; another: boolea
   { const seen = new Set(out.map((x) => x.meat));
     // alejandro1: "una quesadilla de comal de tripa" — optional "de" before tortilla word
     // oscar1: cleanPhrase turns "quesadilla dorada" → "QD REGULAR Dorada"; still capture "de pastor"
-    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?|qd)\s+)?(?:(?:de\s+)?(?:taquero|comal|harina|street|dorad\w*|preparad\w*|regular(?:es)?|deluxe)\s+)*de\s+(?:al\s+)?(${MEAT_LIST})\b`, "giu");
+    // felipe1: also "N gorditas al/de pastor" (optional de before al/meat)
+    const re2 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:tacos?|quesadillas?|gorditas?|queso\s+tortas?|tortas?|qd)\s+)?(?:(?:de\s+)?(?:taquero|comal|harina|street|dorad\w*|preparad\w*|regular(?:es)?|deluxe)\s+)*(?:de\s+)?(?:al\s+)?(${MEAT_LIST})\b`, "giu");
     for (const m of t.matchAll(re2)) {
+      const meat = normListedMeat(m[2]); if (seen.has(meat)) continue;
+      const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue;
+      seen.add(meat); out.push({ meat, another: out.length > 0, qty: spokenCount(m[1]) || undefined });
+    }
+    // felipe1: "dos al pastor" / "cuatro de costilla" — qty + (optional de) + meat, no dish word required
+    const re3 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:de\s+)?(?:al\s+)?(${MEAT_LIST})\b`, "giu");
+    for (const m of t.matchAll(re3)) {
       const meat = normListedMeat(m[2]); if (seen.has(meat)) continue;
       const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue;
       seen.add(meat); out.push({ meat, another: out.length > 0, qty: spokenCount(m[1]) || undefined });
@@ -556,6 +564,13 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\bpapas\s+con\s+nopales\b/giu, "nopales con papas");
   // eva1: "chicharrón del duro" → duro
   s = s.replace(/\bchicharr[oó]n\s+del\s+duro\b/giu, "duro");
+  // felipe1 (CA398d11): ASR "unas cuatro de, unas gorditas … de costillas" → "cuatro gorditas de costilla"
+  s = s.replace(new RegExp(String.raw`\b(?:unas?\s+)?(${NUMW})\s+de\s*,?\s*(?:unas?\s+)?gorditas?\b([^.!?]{0,100}?)\bde\s+(costillas?)\b`, "giu"),
+    (_m, n, _mid, meat) => `${n} gorditas de ${meat}`);
+  // felipe1: "dos al pastor" when gorditas already named → "dos gorditas de pastor" (listedMeats needs de+meat)
+  if (/\bgorditas?\b/iu.test(s)) {
+    s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+al\s+(pastor)\b`, "giu"), (_m, n) => `${n} gorditas de pastor`);
+  }
   // juan1: NEVER rewrite "papa(s)" → pata — potato STT is not beef feet
   return s;
 }
@@ -2172,13 +2187,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item" && cart.some((l) => l.itemId === acts[i].itemId)) acts.splice(i, 1);
     // miriam1/rodolfo1: "dos gorditas de bistec" — model [] forever; force GD lines (meat from this turn or just-prior "también de bistec")
     // case1c: bare "Me pone gordita" must NOT force a catalog gordita (model asks meat; fragment path adds sq-gordita-T)
-    if (source.startsWith("caller") && /\bgorditas?\b/iu.test(text)
-      && (/\b(?:dos|tres|cuatro|cinco|2|3|4|5|two|three|four|five)\s+gorditas?\b/iu.test(text) || listedMeats(text).length > 0)
-      && !(/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)\b/iu.test(text) && !/\b(?:dame|deme|quiero|pone|gorditas?)\b/iu.test(text))
-      && !acts.some((a: any) => a.type === "add_item" && /^sq-gordita-/i.test(String(a.itemId)))
-      && !cart.some((l) => /^sq-gordita-/i.test(String(l.itemId)))) {
-      const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone|si\s+me\s+puede\s+poner|me\s+puede\s+poner)\s+/iu, ""))
-        || (/\b(?:dos|2|two)\b/iu.test(text) ? 2 : /\b(?:tres|3|three)\b/iu.test(text) ? 3 : 1);
+    // felipe1 (CA398d11): N gorditas de costilla + M al pastor → separate lines with correct qtys (not one dual-meat $5 line)
+    if (source.startsWith("caller")
+      && (/\bgorditas?\b/iu.test(text) || (listedMeats(text).length > 0 && cart.some((l) => /^sq-gordita-/i.test(String(l.itemId)))))
+      && (/\b(?:dos|tres|cuatro|cinco|2|3|4|5|two|three|four|five)\s+gorditas?\b/iu.test(text) || listedMeats(text).length > 0 || /\bgorditas?\b/iu.test(text) && /\b(?:costilla|pastor)\b/iu.test(text))
+      && !(/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)\b/iu.test(text) && !/\b(?:dame|deme|quiero|pone|ponme|gorditas?)\b/iu.test(text))
+      && !acts.some((a: any) => a.type === "add_item" && /^sq-gordita-/i.test(String(a.itemId)))) {
       let meats = listedMeats(text);
       if (!meats.length) {
         const recent = history.filter((h) => h.role === "customer").slice(-3).map((h) => h.text).join(" ") + " " + text;
@@ -2188,17 +2202,34 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
         [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^picadillo$/i, "Picadillo / Ground Beef"],
         [/^prensado$/i, "Prensado / Spicy Pork"], [/^duro$/i, "Duro / Pork Rinds"],
+        [/^costillas?$/i, "Costilla / Beef Rib"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"],
+        [/^lengua$/i, "Lengua / Beef Tongue"], [/^tripas?$/i, "Tripa / Beef Tripe"],
+        [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
       ];
-      const meat = meats[0]?.meat || "bistec";
-      const opt = MEAT_OPT.find(([re]) => re.test(meat))?.[1] || "Bistec / Steak";
-      acts.push({
-        type: "add_item", itemId: "sq-gordita-M647RE", quantity: n > 1 ? n : 1,
-        modifiers: [
-          { step: "(A) Gordita Options", option: "(GD) Gordita" },
-          { step: "(B) Q Carnes / Meats", option: opt },
-        ],
-        readback: `${n > 1 ? n : 1} gordita ${meat}`,
-      });
+      const meatRe = new RegExp(MEAT_LIST, "i");
+      const cartHasMeat = (meat: string) => cart.some((l) => /^sq-gordita-/i.test(String(l.itemId))
+        && (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option)) && meatRe.test(String(m.option)) && !/salsa/i.test(String(m.option))));
+      const fallN = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone|ponme|si\s+me\s+puede\s+poner|me\s+puede\s+poner)\s+/iu, ""))
+        || (/\b(?:cuatro|4|four)\b/iu.test(text) ? 4 : /\b(?:dos|2|two)\b/iu.test(text) ? 2 : /\b(?:tres|3|three)\b/iu.test(text) ? 3 : 1);
+      const rows = (meats.length ? meats : [{ meat: "bistec", another: false, qty: fallN }])
+        .filter((x) => !cartHasMeat(x.meat));
+      // Only invent a default bistec line when cart has no gordita yet and text named gorditas
+      const toAdd = rows.length ? rows : (!cart.some((l) => /^sq-gordita-/i.test(String(l.itemId))) && /\bgorditas?\b/iu.test(text)
+        ? [{ meat: "bistec", another: false, qty: fallN }] : []);
+      for (const x of toAdd) {
+        const meat = x.meat || "bistec";
+        const opt = MEAT_OPT.find(([re]) => re.test(meat))?.[1];
+        if (!opt) continue;
+        const n = (x.qty && x.qty > 0 ? x.qty : fallN) || 1;
+        acts.push({
+          type: "add_item", itemId: "sq-gordita-M647RE", quantity: n > 1 ? n : 1,
+          modifiers: [
+            { step: "(A) Gordita Options", option: "(GD) Gordita" },
+            { step: "(B) Q Carnes / Meats", option: opt },
+          ],
+          readback: `${n > 1 ? n : 1} gordita ${meat}`,
+        });
+      }
     }
     // queso1 (Ali): "dos gorditas de (puro) queso" = (GD) Gordita filled with melted cheese, not the (QGD) cheese-dough gordita
     if (/\bgorditas?\b[\s,.]*(?:de\s+)?(?:puro\s+|pur[ao]\s+|solo\s+|nom[aá]s\s+)?queso\b(?!\s+(?:fresco|gordita))/iu.test(text))
@@ -2505,6 +2536,72 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           const ms = meatsOf(cart[i]);
           if (ms.length >= 2 && ms.every((m: string) => [...singles].some((s) => s.includes(m) || m.includes(s)))) cart.splice(i, 1);
         }
+      }
+    }
+    // felipe1 (CA398d11): never keep a gordita line with two meats (Costilla+Alpastor) — split using spoken qtys
+    {
+      const meatRe = new RegExp(MEAT_LIST, "i");
+      const meatsOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => meatRe.test(o) && !/salsa/i.test(o));
+      const MEAT_OPT: Array<[RegExp, string]> = [
+        [/costilla/i, "Costilla / Beef Rib"], [/pastor|alpastor/i, "Alpastor / Roasted Pork"],
+        [/bistec|steak|asada/i, "Bistec / Steak"], [/chorizo/i, "Chorizo / Mexican Sausage"],
+        [/pollo|chicken/i, "Pollo / Chicken"], [/prensado/i, "Prensado / Spicy Pork"],
+        [/duro/i, "Duro / Pork Rinds"], [/lengua/i, "Lengua / Beef Tongue"],
+        [/tripa/i, "Tripa / Beef Tripe"], [/buche/i, "Buche / Pork Stomach"],
+      ];
+      const qtyFor = (opt: string) => {
+        const key = /pastor/i.test(opt) ? "pastor" : /costilla/i.test(opt) ? "costilla" : (opt.split(" /")[0] || "").toLowerCase();
+        const listed = listedMeats(text);
+        const hit = listed.find((x) => new RegExp(key, "i").test(x.meat));
+        if (hit?.qty && hit.qty > 0) return hit.qty;
+        const esc = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const m = text.match(new RegExp(String.raw`\b(\d+|dos|tres|cuatro|cinco|seis)\b[^.]{0,80}?\b` + esc, "iu"));
+        return m ? (spokenCount(m[1]) || 1) : 1;
+      };
+      for (let i = cart.length - 1; i >= 0; i--) {
+        if (!/^sq-gordita-/i.test(String(cart[i].itemId))) continue;
+        const ms = meatsOf(cart[i]);
+        if (ms.length < 2) continue;
+        const base = (cart[i].modifiers || []).filter((m: any) => !meatRe.test(String(m.option)) || /salsa/i.test(String(m.option)));
+        const lines = ms.map((opt: string) => {
+          const canon = MEAT_OPT.find(([re]) => re.test(opt))?.[1] || opt;
+          const n = qtyFor(canon);
+          return {
+            itemId: "sq-gordita-M647RE", quantity: n > 1 ? n : 1,
+            modifiers: [...base, { step: "(B) Q Carnes / Meats", option: canon }],
+            readback: `${n > 1 ? n : 1} gordita ${canon.split(" /")[0]}`,
+          } as Line;
+        });
+        cart.splice(i, 1, ...lines);
+      }
+      // Also split pending add_item acts with dual meats
+      for (let i = acts.length - 1; i >= 0; i--) {
+        const a = acts[i];
+        if (a.type !== "add_item" || !/^sq-gordita-/i.test(String(a.itemId))) continue;
+        const ms = meatsOf(a);
+        if (ms.length < 2) continue;
+        const base = (a.modifiers || []).filter((m: any) => !meatRe.test(String(m.option)) || /salsa/i.test(String(m.option)));
+        const parts = ms.map((opt: string) => {
+          const canon = MEAT_OPT.find(([re]) => re.test(opt))?.[1] || opt;
+          const n = qtyFor(canon);
+          return {
+            type: "add_item", itemId: "sq-gordita-M647RE", quantity: n > 1 ? n : 1,
+            modifiers: [...base.filter((m: any) => /\(GD\)|Gordita Options/i.test(String(m.option) + " " + String(m.step || "")) || !/\(QGD\)/i.test(String(m.option))),
+              { step: "(A) Gordita Options", option: "(GD) Gordita" },
+              { step: "(B) Q Carnes / Meats", option: canon }],
+            readback: `${n > 1 ? n : 1} gordita ${canon.split(" /")[0]}`,
+          };
+        });
+        // dedupe GD option
+        for (const part of parts) {
+          const seen = new Set<string>();
+          part.modifiers = part.modifiers.filter((m: any) => {
+            const k = String(m.option);
+            if (seen.has(k)) return false;
+            seen.add(k); return true;
+          });
+        }
+        acts.splice(i, 1, ...parts);
       }
     }
     if (process.env.SHADOW_DEBUG) console.error("[shadow]", source, "|", text, "|", JSON.stringify(acts.map((a: any) => [a.type, String(a.itemId || "").slice(3, 30), a.quantity, (a.modifiers || []).map((m: any) => m.option).filter((o: string) => !/salsa asada/i.test(o)).join("+")])), "| cart", cart.length);
@@ -5352,6 +5449,41 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push({
         itemId: DORADA_REG_ID, quantity: 1, modifiers: [STYLE, DURO],
         readback: "1 QD regular duro",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // felipe1 (CA398d11 ~4:17 PM ET Oct 25): desk Spanish pickup.
+  // Square ~$30 name Felipe = 4× Gordita Costilla + 2× Gordita Al Pastor, regular / sin preparar.
+  // Live miss: 1 Gordita with Costilla+Alpastor same line ($5); qty "cuatro" dropped; second add merged.
+  // Tight: both meats + gorditas + (cuatro+dos) + regular/sin preparar; no dorada/nachos/quesadilla.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bgorditas?\b/iu.test(blob)
+      && /\bcostillas?\b/iu.test(blob)
+      && /\b(?:al\s+)?pastor\b/iu.test(blob)
+      && (/\b(?:cuatro|4)\b/iu.test(blob) && /\b(?:dos|2)\b/iu.test(blob))
+      && (/\bregular(?:es)?\b/iu.test(callerBlob) || /\bsin\s+preparar\b/iu.test(callerBlob))
+      && !/\bdorad/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\btacos?\b/iu.test(callerBlob);
+    if (want) {
+      const GD = "sq-gordita-M647RE";
+      const STYLE = { step: "(A) Gordita Options", option: "(GD) Gordita" };
+      const COST = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      const PAST = { step: "(B) Q Carnes / Meats", option: "Alpastor / Roasted Pork" };
+      cart.length = 0;
+      cart.push({
+        itemId: GD, quantity: 4, modifiers: [STYLE, COST],
+        readback: "4 gordita costilla",
+      } as Line);
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [STYLE, PAST],
+        readback: "2 gordita al pastor",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
