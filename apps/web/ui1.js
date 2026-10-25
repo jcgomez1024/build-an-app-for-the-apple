@@ -562,6 +562,11 @@ window.addEventListener("elvi:actions", (e) => {
     if (!item) continue;
     const tile = document.getElementById(`u1-it-${a.itemId}`);
     if (tile) { tile.classList.add("pulse"); setTimeout(() => tile.classList.remove("pulse"), 1600); }
+    // m30: voice completed an item while customize sheet open → drive picks, agregando, close → menu home
+    if (sheetIsOpen()) {
+      void elviCompleteSheetAfterVoiceAdd(a);
+      continue;
+    }
     const said = B()?.readback?.([{ item, quantity: a.quantity || 1, modifiers: a.modifiers || [] }]) || "";
     showToast(item, a.modifiers || [], said);
   }
@@ -940,6 +945,150 @@ function clearSheetVoiceContext() {
   window.ELVI_CTX = null;
   try { B()?.clearSheetBuild?.(); } catch {}
 }
+
+/** m30 §2h — Elvi finishes open sheet: drive picks → agregando → close → menu home */
+function cartQty() {
+  const cart = B()?.state?.cart || [];
+  return cart.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+}
+function plainOpt(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+function findModForGroup(g, mods) {
+  const list = Array.isArray(mods) ? mods : [];
+  let hit = list.find((m) => m.groupId && m.groupId === g.id);
+  if (hit) return hit;
+  hit = list.find((m) => m.groupName && (m.groupName === g.name || plainOpt(m.groupName) === plainOpt(g.name)));
+  if (hit) return hit;
+  const opts = baseOptions(g);
+  for (const m of list) {
+    const po = plainOpt(m.option);
+    const o = opts.find((x) => plainOpt(x.name) === po || plainOpt(x.name).includes(po) || po.includes(plainOpt(optLabel(x.name))));
+    if (o) return { ...m, option: o.name, optionId: o.id };
+  }
+  return null;
+}
+function pickForElvi(gi, name) {
+  if (!U.item) return;
+  const g = U.item.modifierGroups[gi]; if (!g) return;
+  const sel = U.sel[g.id] || (U.sel[g.id] = {});
+  const mx = maxOf(g);
+  if (mx === 1) {
+    for (const k of Object.keys(sel)) delete sel[k];
+    U.dbl[g.id]?.clear?.();
+  }
+  sel[name] = Math.max(1, Number(sel[name] || 0) || 1);
+  U.last[g.id] = name;
+  const miss = missingStep();
+  if (miss !== undefined) U.step = miss;
+  render();
+}
+function highlightElviPick(gi, name) {
+  const g = U.item?.modifierGroups?.[gi]; if (!g) return null;
+  const opts = baseOptions(g);
+  const oi = opts.findIndex((o) => o.name === name);
+  const tile = oi >= 0 ? document.getElementById(`u1-o-${gi}-${oi}`) : null;
+  if (tile) {
+    tile.classList.add("elvi-pick");
+    try { tile.scrollIntoView({ block: "center", behavior: "smooth" }); } catch {}
+    setTimeout(() => tile.classList.remove("elvi-pick"), 900);
+  }
+  return tile;
+}
+function closeItemSheetToHome({ bump = true, toastItem = null, toastMods = null, toastSaid = "" } = {}) {
+  clearSheetVoiceContext();
+  U._v3AskKey = null;
+  U.v3focused = false;
+  U.item = null;
+  U.screen = "home";
+  document.body.classList.remove("v3-sheet-on", "sheet-open");
+  const wrap = document.getElementById("v3-sheet-wrap");
+  if (wrap) wrap.innerHTML = "";
+  render();
+  try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+  if (toastItem) showToast(toastItem, toastMods || [], toastSaid || (itemName(toastItem) + " · " + t("agregado", "added")));
+  if (bump) {
+    const bar = document.querySelector(".v3-cartbar") || document.getElementById("ui1-bar");
+    if (bar) {
+      bar.classList.add("bump");
+      setTimeout(() => bar.classList.remove("bump"), 600);
+    }
+  }
+}
+async function elviDrivePicksFromMods(mods) {
+  if (!U.item || U.screen !== "item") return;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const gs = U.item.modifierGroups || [];
+  const { main, extra } = steps();
+  const order = [...main, ...extra];
+  const used = new Set();
+  for (const gi of order) {
+    const g = gs[gi]; if (!g) continue;
+    const m = findModForGroup(g, mods);
+    if (!m || !m.option) continue;
+    const name = m.option;
+    const key = g.id + "::" + name;
+    if (used.has(key)) continue;
+    used.add(key);
+    const already = Boolean(U.sel[g.id]?.[name]);
+    if (!already) pickForElvi(gi, name);
+    else render();
+    highlightElviPick(gi, name);
+    await wait(650);
+  }
+}
+async function elviCompleteSheetAfterVoiceAdd(action) {
+  if (U._elviCompleting) return;
+  if (!sheetIsOpen() || !U.item) return;
+  U._elviCompleting = true;
+  const b = B();
+  const sheetItem = U.item;
+  const mods = Array.isArray(action?.modifiers) ? action.modifiers : [];
+  const addedItem =
+    (action?.itemId && (U.menu.find((m) => m.id === action.itemId) || B()?.state?.menu?.find((m) => m.id === action.itemId))) ||
+    sheetItem;
+  const same =
+    !action?.itemId ||
+    action.itemId === sheetItem.id ||
+    (stateUiSheetItemId() && action.itemId === stateUiSheetItemId());
+  const nm = itemName(same ? sheetItem : addedItem);
+  try {
+    try { b?.stopAudio?.(); } catch {}
+    // Drive open-sheet tiles only when voice completed THIS sheet item
+    if (same && mods.length) await elviDrivePicksFromMods(mods);
+
+    const sayAdd = t(`Ok, agregando tu ${nm} al carrito.`, `Ok, adding this to your cart.`);
+    mirrorHeard(sayAdd);
+    try { await b?.speak?.(sayAdd); } catch (e) { console.warn("[m30] agregando TTS", e); }
+    await new Promise((r) => setTimeout(r, 280));
+
+    // Hard rule: never leave customer on customize sheet after voice complete
+    closeItemSheetToHome({
+      bump: true,
+      toastItem: same ? sheetItem : addedItem,
+      toastMods: mods,
+      toastSaid: `${nm} · ${t("agregado", "added")}`
+    });
+    HABLAR_LIVE = false;
+    syncLoucap("idle");
+
+    const n = cartQty();
+    const sayDone = t(
+      `Listo, agregué tu ${nm}. Ya tienes ${n} en tu orden — ¿qué más se te antoja?`,
+      `Done — added your ${nm}. You have ${n} in your order — what else sounds good?`
+    );
+    mirrorHeard(sayDone);
+    try { await b?.speak?.(sayDone); } catch (e) { console.warn("[m30] listo TTS", e); }
+    syncLoucap("idle");
+    try { b?.setAvatarListening?.(); } catch {}
+  } finally {
+    U._elviCompleting = false;
+  }
+}
+function stateUiSheetItemId() {
+  try { return B()?.state?.uiSheetBuild?.itemId || null; } catch { return null; }
+}
+
 
 /** Soft Hablar invite — capsule (mic / speak-to-Elvi gate). Softlang gate when lang unknown (m27 §2e). */
 function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }

@@ -355,3 +355,9 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 .ux1-conf-say{display:flex;gap:10px;align-items:flex-start;background:#fff;border:2px solid #bfe9d1;border-radius:16px;padding:10px 12px;margin:0 0 10px;font-size:14px;font-weight:600}
 .ux1-conf-say .v3-dot{width:36px;height:36px;flex:none}
 .ux1-cash-ok{background:#e6f7ec;border:2px solid #2fd47a;border-radius:14px;padding:14px;margin:12px 0;font-weight:600}
+
+
+/* m30 Elvi-driven pick highlight + cart bump (SPEC §2h) */
+.u1-tile.elvi-pick,.u1-opt.elvi-pick{box-shadow:0 0 0 2px #1471d6,0 0 14px rgba(20,113,214,.35)!important;transition:box-shadow .25s}
+.v3-cartbar.bump,#ui1-bar .v3-cartbar.bump,#ui1-bar.bump{animation:cbump .5s ease}
+@keyframes cbump{40%{transform:scale(1.04)}}

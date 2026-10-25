@@ -204,3 +204,8 @@ Mock: demo button **Confirm** → `demoConfirm()` seeds a burrito (+ drink) and 
 - Opener = current item + next unfinished required step: ES “Estamos armando tu Quesadilla Dorada. ¿Te gustaría Regular o Deluxe Preparada?” / EN “We're building your Quesadilla Dorada. Would you like Regular or Deluxe Preparada?”
 - **Activated Hablar capsule:** idle = full label + invite + orbit. listening/thinking → collapse to **52px** orb+orbit only (orbit opacity .9, 3.2s); ~280ms transition. Barge-in while speaking → “Te escucho — dime.”; after settle with sheet open → item opener.
 - Shot: `shots/m29-sheet-context-condensed-halo.png`
+
+## 2h. Complete-item handoff — Elvi finishes the sheet, adds, returns to menu home (Carlos 10/25 — m30)
+**Problem:** voice order on an open sheet added correctly but left the customer on the customize sheet.
+**Flow (hard):** (1) Elvi drives sheet picks in required order with `.elvi-pick` highlight (~650ms). (2) Speak “Ok, agregando tu {item} al carrito.” / “Ok, adding this to your cart.” (3) Add → close sheet → scroll menu home → cart bump. (4) “Listo, agregué tu {item}. Ya tienes {n} en tu orden — ¿qué más se te antoja?” Never leave customer on customize sheet after voice complete.
+- Shot: `shots/m30-post-add-menu-home.png`
