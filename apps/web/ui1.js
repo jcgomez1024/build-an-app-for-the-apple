@@ -1094,22 +1094,31 @@ function stateUiSheetItemId() {
 
 /** Soft Hablar invite — capsule (mic / speak-to-Elvi gate). Softlang gate when lang unknown (m27 §2e). */
 
-/** m31 §2i — spoken bubble on Hablar; show while Elvi speaks, hide when silent */
+/** m31 §2i + m32 §2j — bubble RIGHT of halo; linger → slow fade → recenter */
 function haloSay(s, ms) {
   const b = document.getElementById("haloBub");
   if (!b) return;
   const text = String(s || "").trim();
   if (!text) { haloBubHide(); return; }
+  const bot = document.getElementById("ux1-bottom");
   b.textContent = text;
   b.classList.add("on");
+  if (bot) bot.classList.add("bubbing");
   clearTimeout(haloSay._t);
-  const dur = ms != null ? ms : Math.max(2400, text.length * 60);
-  haloSay._t = setTimeout(() => haloBubHide(), dur);
+  clearTimeout(haloSay._t2);
+  const linger = ms != null ? ms : Math.max(4500, text.length * 90);
+  haloSay._t = setTimeout(() => {
+    b.classList.remove("on");
+    haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 750);
+  }, linger);
 }
 function haloBubHide() {
   const b = document.getElementById("haloBub");
+  const bot = document.getElementById("ux1-bottom");
   if (b) b.classList.remove("on");
   clearTimeout(haloSay._t);
+  clearTimeout(haloSay._t2);
+  haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 750);
 }
 function matchOptInGroup(g, uttPlain) {
   const opts = baseOptions(g);
@@ -1139,7 +1148,7 @@ function isNeg(u) {
 async function haloSpeak(line) {
   mirrorHeard(line);
   try { await B()?.speak?.(line); } catch (e) { console.warn("[m31] speak", e); }
-  haloSay(line, Math.max(2600, String(line).length * 55));
+  haloSay(line); // m32 linger Math.max(4500, len*90)
   syncLoucap("listening");
 }
 /**
@@ -1394,7 +1403,7 @@ function mountLoucap() {
   const wrap = document.createElement("div");
   wrap.className = "bottom";
   wrap.id = "ux1-bottom";
-  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div id="haloBub" role="status" aria-live="polite"></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="halo-pair" id="halopair"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div>`;
   document.body.appendChild(wrap);
   wrap.querySelectorAll(".sl-pill").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });

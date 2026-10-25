@@ -160,7 +160,7 @@ body.v3.v3-view-elvi .v3-ebar{display:none}
 .v3-ask{display:flex;gap:12px;align-items:center;background:#fff;border:2px solid #bfe9d1;border-radius:16px;padding:10px 12px;margin:12px 0;font-size:16px}
 .v3-grp{border-radius:16px;padding:8px;margin:0 -8px 8px}.v3-grp.need{background:#fff4dc}.v3-gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px}.v3-gh b{font-size:17px}.v3-grp.need .v3-gh span{color:#b42318;font-weight:700;font-size:12px}
 .v3-extras summary{cursor:pointer;font-weight:700;padding:10px 0;color:var(--accent)}
-.v3-foot{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #0001}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
+.v3-foot{display:flex;gap:8px;padding:10px 14px calc(88px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #0001}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
 body.v3-sheet-on{overflow:hidden}
 @media (min-width:960px){
   body.v3 #ui1{max-width:1280px;display:block;padding-left:396px;padding-right:16px;padding-bottom:40px}
@@ -289,14 +289,15 @@ body.v3 .v3-pill{margin-right:50px}
 #loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
 #ux1-bottom.bottom.gating #loucap,.bottom.gating .loucap{animation:none!important}
 /* Hablar over item sheet / cart / confirm — z 62 (above sheet 60/61); Safari fallback .sheet-open */
+/* m32 §2j: Hablar in foot padding below Agregar (clear blue bar) */
 body.v3-sheet-on #ux1-bottom.bottom,body.ux1-confirm-on #ux1-bottom.bottom,
 body.sheet-open #ux1-bottom.bottom,
 body:has(.v3-sheet-bg) #ux1-bottom.bottom,body:has(#ux1-confirm) #ux1-bottom.bottom{
-  z-index:62;bottom:calc(64px + env(safe-area-inset-bottom,0px));display:flex!important}
+  z-index:62;bottom:calc(6px + env(safe-area-inset-bottom,0px));padding-bottom:0;display:flex!important}
 body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap,body.sheet-open #loucap{display:inline-flex!important;pointer-events:auto}
 body.v3-sheet-on .v3-ebar,body.ux1-confirm-on .v3-ebar,body.sheet-open .v3-ebar,
 body.v3-sheet-on .bottom-bar,body.ux1-confirm-on .bottom-bar,body.sheet-open .bottom-bar{display:none!important}
-body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:72px}
+body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:164px}
 #loucap .lt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;white-space:nowrap}
 #loucap .lt .lab{font:600 13px 'Plus Jakarta Sans','Space Grotesk',system-ui,sans-serif;letter-spacing:.02em}
 #loucap .lt .inv{display:block;font:500 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:rgba(200,225,255,.78);letter-spacing:.02em;margin-top:1px}
@@ -363,10 +364,27 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 @keyframes cbump{40%{transform:scale(1.04)}}
 
 
-/* m31: Elvi bubble on Hablar halo — show only while speaking/asking */
-#haloBub{align-self:center;max-width:300px;margin:0 auto 8px;padding:9px 13px;border-radius:16px;background:rgba(14,22,36,.92);color:#eef5ff;font:600 13px/1.35 system-ui,-apple-system,sans-serif;box-shadow:0 0 0 1px rgba(74,163,255,.55),0 8px 22px rgba(0,0,0,.35);position:relative;opacity:0;transform:translateY(6px) scale(.97);transition:opacity .22s,transform .22s;pointer-events:none;z-index:1}
+/* m32 §2j: halo-pair — bubble RIGHT of halo; clear Agregar; linger+slow fade */
+.halo-pair{align-self:center;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0;position:relative;pointer-events:none;transform:translateX(0);transition:transform .45s ease;-webkit-transition:transform .45s ease;z-index:1}
+.halo-pair .loucap,#loucap.loucap{pointer-events:auto;flex:none}
+#haloBub{flex:none;max-width:0;width:auto;margin:0;padding:0;border-radius:16px;background:rgba(14,22,36,.92);color:#eef5ff;font:600 13px/1.35 system-ui,-apple-system,sans-serif;box-shadow:none;position:relative;opacity:0;overflow:hidden;white-space:normal;transform:translateX(8px) scale(.97);pointer-events:none;transition:opacity .7s ease,transform .45s ease,max-width .45s ease,margin .45s ease,padding .45s ease,box-shadow .45s ease;-webkit-transition:opacity .7s ease,transform .45s ease,max-width .45s ease,margin .45s ease,padding .45s ease,box-shadow .45s ease;z-index:1}
 #haloBub:empty{display:none}
-#haloBub::after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;margin-left:-6px;background:inherit;transform:rotate(45deg);box-shadow:1px 1px 0 rgba(74,163,255,.55)}
-#haloBub.on{opacity:1;transform:none;display:block}
+#haloBub::after{content:"";position:absolute;left:-5px;top:50%;width:10px;height:10px;margin-top:-5px;background:inherit;transform:rotate(45deg);box-shadow:-1px 1px 0 rgba(74,163,255,.55);opacity:0;transition:opacity .22s}
+#haloBub.on{opacity:1;max-width:240px;margin-left:8px;padding:9px 12px;box-shadow:0 0 0 1px rgba(74,163,255,.55),0 8px 22px rgba(0,0,0,.35);transform:none;display:block;transition:opacity .22s ease,transform .22s ease,max-width .35s ease,margin .35s ease,padding .35s ease,box-shadow .22s ease;-webkit-transition:opacity .22s ease,transform .22s ease,max-width .35s ease,margin .35s ease,padding .35s ease,box-shadow .22s ease}
+#haloBub.on::after{opacity:1}
+#ux1-bottom.bottom.bubbing .halo-pair,.bottom.bubbing .halo-pair{transform:translateX(-28px)}
+#ux1-bottom.bottom.bubbing #loucap.loucap,.bottom.bubbing .loucap{
+  width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;border-radius:50%;animation:none}
+#ux1-bottom.bottom.bubbing #loucap .lt,#ux1-bottom.bottom.bubbing #loucap .inv,
+.bottom.bubbing .loucap .lt,.bottom.bubbing .loucap .inv{display:none!important}
+#ux1-bottom.bottom.bubbing #loucap .e3d,.bottom.bubbing .loucap .e3d{margin:0;transform:scale(1.25)}
+#ux1-bottom.bottom.bubbing #loucap .orbit,.bottom.bubbing .loucap .orbit{opacity:.9;animation-duration:3.2s;border-radius:50%}
+#ux1-bottom.bottom.bubbing #loucap::before,.bottom.bubbing .loucap::before{display:none}
+#ux1-bottom.bottom.bubbing #loucap::after,.bottom.bubbing .loucap::after{border-radius:50%}
+@media (prefers-reduced-motion:reduce){
+  .halo-pair,#haloBub,#haloBub.on{transition:none!important;-webkit-transition:none!important}
+  #ux1-bottom.bottom.bubbing .halo-pair,.bottom.bubbing .halo-pair{transform:translateX(-16px)}
+}
 /* Ask rides on #haloBub over sheet — hide in-sheet ask card */
 body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}
+
