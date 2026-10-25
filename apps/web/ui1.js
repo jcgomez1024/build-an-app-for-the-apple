@@ -1147,6 +1147,8 @@ function isNeg(u) {
 }
 async function haloSpeak(line) {
   mirrorHeard(line);
+  // m33: stop any prior stream before Hablar speak (realtime + local + speechSynthesis)
+  try { B()?.stopAudio?.(); } catch {}
   try { await B()?.speak?.(line); } catch (e) { console.warn("[m31] speak", e); }
   haloSay(line); // m32 linger Math.max(4500, len*90)
   syncLoucap("listening");

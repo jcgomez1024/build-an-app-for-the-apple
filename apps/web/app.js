@@ -46,6 +46,9 @@ const state = {
   lastComboAnimationKey: "",
   autoListen: false,
   elviSpeaking: false,
+  speakGen: 0, // m33: invalidate in-flight TTS so only one stream plays
+  suppressRealtimeAudio: false, // m33: block WS PCM while local TTS / sheet voice owns the speaker
+
   vadRunning: false,
   turnInFlight: false,
   audioContext: null,
@@ -245,11 +248,18 @@ function trySheetVoiceAnswer(text) {
 }
 
 function cancelRealtimeResponseDuringLocalBuild() {
-  if (!isLocalBuildActive()) return false;
+  // m33: while sheet voice / local build owns the turn, kill realtime speech (not local TTS)
+  if (!isLocalBuildActive() && !isSheetVoiceActive() && !state.suppressRealtimeAudio) return false;
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
     sendWs({ type: "response.cancel" });
     sendWs({ type: "input_audio_buffer.clear" });
   }
+  try {
+    for (const src of _queuedSources) { try { src.stop(); } catch {} }
+    _queuedSources = [];
+    _nextPlayTime = 0;
+    if (_currentAudioSource) { try { _currentAudioSource.stop(); } catch {} _currentAudioSource = null; }
+  } catch {}
   state.activeReplyText = "";
   state.pendingActions = [];
   state.turnInFlight = false;
@@ -261,6 +271,7 @@ function speakBrowserText(text, lang) {
     return null;
   }
 
+  try { window.speechSynthesis.cancel(); } catch {}
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
   utterance.rate = 0.95;
@@ -293,7 +304,16 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
     return;
   }
   pauseBrowserRecognition();
+  // m33 HARD: only one speak stream — kill prior local TTS, realtime PCM, speechSynthesis, and WS response
   stopCurrentAudio();
+  const gen = state.speakGen;
+  state.suppressRealtimeAudio = true;
+  try {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      sendWs({ type: "response.cancel" });
+      sendWs({ type: "input_audio_buffer.clear" });
+    }
+  } catch {}
 
   try {
     const response = await fetch(`/api/${state.tenantSlug}/xai/speech`, {
@@ -306,17 +326,22 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
       throw new Error(result.error || "xAI speech unavailable");
     }
 
+    if (gen !== state.speakGen) return;
     if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
       return;
     }
     await playLocalAudioBase64(result.audioBase64, result.mimeType || "audio/mpeg");
   } catch (error) {
+    if (gen !== state.speakGen) return;
     console.warn("[TTS] xAI local speech fallback:", error);
     speakBrowserText(cleanText, language === "es" ? "es-US" : "en-US");
     await wait(Math.max(1800, cleanText.length * 55));
   } finally {
-    state.voiceInputCooldownUntil = performance.now() + 650;
-    resumeBrowserRecognition();
+    if (gen === state.speakGen) {
+      state.suppressRealtimeAudio = false;
+      state.voiceInputCooldownUntil = performance.now() + 650;
+      resumeBrowserRecognition();
+    }
   }
 }
 
@@ -355,6 +380,9 @@ function playLocalAudioBase64(audioBase64, mimeType = "audio/mpeg") {
 
 async function speakXAIOnly(text, lang) {
   // Always use xAI TTS for the language prompt — never fall back to robotic browser voice
+  stopCurrentAudio();
+  const gen = state.speakGen;
+  state.suppressRealtimeAudio = true;
   try {
     const res = await fetch(`/api/${state.tenantSlug}/xai/speech`, {
       method: "POST",
@@ -362,11 +390,14 @@ async function speakXAIOnly(text, lang) {
       body: JSON.stringify({ text, language: lang })
     });
     const data = await res.json();
+    if (gen !== state.speakGen) return;
     if (res.ok && data.audioBase64) {
       await playLocalAudioBase64(data.audioBase64, data.mimeType || "audio/mpeg");
     }
   } catch (err) {
     console.warn("[LanguagePrompt] xAI speech failed, skipping (no robotic fallback)");
+  } finally {
+    if (gen === state.speakGen) state.suppressRealtimeAudio = false;
   }
 }
 
@@ -1104,7 +1135,8 @@ async function openRealtimeSession() {
 
     if (payload.type === "response.output_audio.delta" && payload.delta) {
       clearReplyWatchdog();
-      if (isLocalBuildActive()) return;
+      // m33: never mix realtime PCM with local sheet TTS / Hablar speak
+      if (isLocalBuildActive() || isSheetVoiceActive() || state.suppressRealtimeAudio || state.localTtsAudio) return;
       console.log("[AUDIO] Received output_audio.delta, type:", typeof payload.delta, "length:", String(payload.delta).length);
       queuePcmDeltaForPlayback(payload.delta);
       return;
@@ -1112,7 +1144,7 @@ async function openRealtimeSession() {
 
     if ((payload.type === "response.output_audio_transcript.delta" || payload.type === "response.output_text.delta") && payload.delta) {
       clearReplyWatchdog();
-      if (isLocalBuildActive()) return;
+      if (isLocalBuildActive() || isSheetVoiceActive() || state.suppressRealtimeAudio) return;
       state.activeReplyText += String(payload.delta || "");
       ui.reply.textContent = formatCentsForSpeech(state.activeReplyText);
       setAvatarState(detectMood(state.activeReplyText));
@@ -1123,6 +1155,8 @@ async function openRealtimeSession() {
       state.lastUserText = String(payload.transcript || "").trim();
       // m31/m31b: ANY open customize sheet — client maps voice → pickOpt
       if (trySheetVoiceAnswer(state.lastUserText)) {
+        try { stopCurrentAudio(); } catch {}
+        state.suppressRealtimeAudio = true;
         try {
           if (state.ws && state.ws.readyState === WebSocket.OPEN) {
             sendWs({ type: "response.cancel" });
@@ -5735,12 +5769,17 @@ function modifierSignature(modifiers = []) {
 }
 
 function addCartItem(item, quantity, modifiers = []) {
-  const sig = modifierSignature(modifiers);
+  // m33: stamp priceDeltaCents from menu so cart total matches sheet Agregar
+  const enriched = (Array.isArray(modifiers) ? modifiers : []).map((m) => {
+    const cents = resolveModifierPriceDeltaCents(m, { item, modifiers });
+    return { ...m, priceDeltaCents: cents };
+  });
+  const sig = modifierSignature(enriched);
   const existing = state.cart.find((line) => line.item.id === item.id && modifierSignature(line.modifiers || []) === sig);
   state.lastSelectedItem = item;
 
   if (!existing) {
-    state.cart.push({ item, quantity, modifiers });
+    state.cart.push({ item, quantity, modifiers: enriched });
     return;
   }
 
@@ -6223,11 +6262,30 @@ function centsToUsd(value) {
   return `$${(value / 100).toFixed(2)}`;
 }
 
+/** m33: prefer modifier.priceDeltaCents (sheet/buildModifiers); fall back to $ in label, then menu option */
+function resolveModifierPriceDeltaCents(modifier, line) {
+  const fromField = Number(modifier?.priceDeltaCents);
+  if (Number.isFinite(fromField)) return fromField;
+  const fromLabel = extractOptionCostCents(modifier?.option);
+  if (fromLabel) return fromLabel;
+  const groups = line?.item?.modifierGroups || [];
+  for (const group of groups) {
+    if (modifier?.groupId && group.id && modifier.groupId !== group.id) continue;
+    const opt = findCanonicalModifierOption(group.options || [], modifier?.option);
+    if (!opt) continue;
+    const d = Number(opt.priceDeltaCents);
+    if (Number.isFinite(d)) return d;
+    const named = extractOptionCostCents(optionDisplayName(opt));
+    if (named) return named;
+  }
+  return 0;
+}
+
 function getModifierDeltaPerUnitCents(line) {
   const modifiers = Array.isArray(line?.modifiers) ? line.modifiers : [];
   return modifiers.reduce((sum, modifier) => {
     const qty = Math.max(1, Number(modifier?.quantity) || 1);
-    return sum + extractOptionCostCents(modifier?.option) * qty;
+    return sum + resolveModifierPriceDeltaCents(modifier, line) * qty;
   }, 0);
 }
 
@@ -6242,7 +6300,9 @@ function getCartLineTotalCents(line) {
 
 function getModifierUpchargeLabel(modifier) {
   if (/\$\s*\d/.test(String(modifier?.option || ""))) return "";
-  const cents = extractOptionCostCents(modifier?.option);
+  const cents = Number.isFinite(Number(modifier?.priceDeltaCents))
+    ? Number(modifier.priceDeltaCents)
+    : extractOptionCostCents(modifier?.option);
   if (!cents) return "";
   return cents > 0 ? ` (+${centsToUsd(cents)})` : ` (${centsToUsd(cents)})`;
 }
@@ -6348,6 +6408,9 @@ async function queuePcmDeltaForPlayback(base64) {
 // ─── Adaptive / hands-free listening ─────────────────────────────────────
 
 function stopCurrentAudio() {
+  // m33: invalidate in-flight speakLocalText / speakXAIOnly so a stale fetch cannot overlap
+  state.speakGen = (state.speakGen || 0) + 1;
+  state.suppressRealtimeAudio = false;
   stopLocalTtsAudio();
   for (const src of _queuedSources) {
     try { src.stop(); } catch {}
