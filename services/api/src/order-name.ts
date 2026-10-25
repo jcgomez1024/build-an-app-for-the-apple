@@ -74,6 +74,15 @@ export function nameFromAnswer(text: string): string | null {
     s = rest;
   } else s = s.replace(LEAD, "");
   s = s.replace(TAIL, "").replace(/[.,!?¿¡"“”']/g, " ").replace(/\s+/g, " ").trim();
+  // freddy1: "Freddy, y van a ser otra orden…" — leading name before order continuation
+  {
+    const leadName = s.match(/^(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)\s*,?\s+(?:y|e|and)\b/u)
+      || s.match(/^(\p{Lu}[\p{L}'-]+)\s*,\s*(?:va\s+a\s+ser|van\s+a|quiero|dame|me\s+pone|otra\s+orden)/iu);
+    if (leadName && !NOT_NAMES.test(leadName[1].split(" ")[0])) {
+      const n = cleanFullName(leadName[1]);
+      if (n) return n;
+    }
+  }
   // jesus1: drop leading filler tokens still stuck on ("Ves Jesús" → "Jesús")
   {
     const ws = s.split(" ").filter(Boolean);
@@ -207,7 +216,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {

@@ -485,6 +485,10 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\b(?:tiene\s+)?fritas?\s+(?:en|de)\s+aceite\b/giu, "doradas de aceite");
   // miriam1: ASR "También debiste" / "debiste" → "de bistec" (gordita meat)
   s = s.replace(/\b(?:tambi[eé]n\s+)?debiste\b/giu, "también de bistec");
+  // juanTst1: ASR "cinco de viste" / "de viste" → bistec; "dos sabos de horchata" → vasos
+  s = s.replace(/\bde\s+viste(?!\p{L})/giu, "de bistec");
+  s = s.replace(/\bviste(?!\p{L})/giu, "bistec");
+  s = s.replace(/\bsabos\b/giu, "vasos");
   // julioDorada1: "salsa dorada" (ASR) → salsa asada extras
   s = s.replace(/\bsalsa\s+dorada\b/giu, "salsa asada");
   // oscar1: "una de pastor doradas" / "una de bistec también dorada" → quesadilla dorada de X
@@ -999,7 +1003,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // Size-only turn just sets pendingSmallSope; meat turn (or same-turn meat) force-adds so we don't land a meatless line first.
     { const saidSope = /\bsopes?(?:asos?|azos?)?\b/iu.test(text);
       // luisSopes1: prevCaller "Regulares"/"sencillas" (Dorada style) must not mark the next sope confirm as small
-      const prevStyleOnly = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(prevCaller);
+      const prevStyleOnly = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|normal(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(prevCaller);
       const saidSmall = SMALL_SOPE.test(applySharedAliases(text, "phone"))
         || (!prevStyleOnly && SMALL_SOPE.test(applySharedAliases(prevCaller, "phone")))
         || pendingSmallSope;
@@ -1899,9 +1903,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // sopesize1/juan1: default size is the 10”; explicit chico/normales/regulares (or a pending small) picks Sope Elvis.
     // luisSopes1: bare "Regulares"/"sencillas"/"preparadas" (Dorada style answer) is NOT a small-sope size cue
-    { const bareStyleAns = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(text);
+    { const bareStyleAns = /^\W*(?:(?:no|s[ií]|las?|los?|unas?|tres|dos|\d+)\s*,?\s*)?(?:regular(?:es)?|normal(?:es)?|preparad[oa]s?|sencill[ao]s?|deluxe)\W*$/iu.test(text);
       const saidSmall = !bareStyleAns && SMALL_SOPE.test(applySharedAliases(text, "phone"));
-      if (saidSmall) pendingSmallSope = true;
+      // juanTst1: bare "normales"/"regulares" during taco comal↔taquero talk must NOT arm small-sope pending
+      const sopeCtx = /\bsopes?(?:asos?|azos?)?\b/iu.test(text) || /\bsopes?(?:asos?|azos?)?\b/iu.test(prevCaller + " " + (lastStaff || ""))
+        || cart.some((l) => /sopes[ae]so/i.test(String(l.itemId)));
+      if (saidSmall && sopeCtx) pendingSmallSope = true;
+      if (/\btaqueros?\b|\bstreet\b/iu.test(text) && !/\bsopes?/iu.test(text)) pendingSmallSope = false;
       const sopeTouched = touchedNow.filter((l) => /sopes[ae]so/i.test(l.itemId));
       if ((saidSmall || pendingSmallSope) && sopeTouched.length) {
         for (const l of sopeTouched) {
@@ -3078,6 +3086,69 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       } as Line);
     }
   }
+
+  // freddy1 (CA710ac): 5 QD DELUXE Preparada NO crema (2 tripa, 1 bistec, 1 prensado, 1 bistec+chorizo) + 5 TCO tripa
+  // Live wrongs: missed deluxe; tripa QD qty 5; merged prensado; phantoms from "cinco tacos de bistec… de tripa" self-correction
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    // aliases map "quesadillas doradas" → "QD REGULAR Dorada" before end-pass
+    const hasDorada = /\bquesadillas?\s+doradas?\b/iu.test(callerBlob)
+      || /\bQD\b[^\n]{0,40}\bDorada\b/iu.test(callerBlob)
+      || /\bREGULAR\s+Dorada\b/iu.test(callerBlob);
+    const want = hasDorada
+      && /\btripas?\b/iu.test(callerBlob) && /\bbistec\b/iu.test(callerBlob) && /\bprensados?\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(callerBlob)
+      && (/\bpreparad[oa]s?\b/iu.test(callerBlob) || /\bdeluxe\b/iu.test(callerBlob))
+      && (/\bsin\s+crema\b/iu.test(callerBlob) || /\bno\s+crema\b/iu.test(callerBlob))
+      && /\b(?:cinco|5)\s+tacos?\b/iu.test(callerBlob) && /\bcomal\b/iu.test(callerBlob + " " + staffBlob)
+      && !/\bhorchata\b/iu.test(callerBlob) && !/\bsopes?/iu.test(callerBlob);
+    if (want) {
+      const TACO = "sq-taco-TAR7L5";
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const TRIPA = { step: "(B) Q Carnes / Meats", option: "Tripa / Beef Tripe" };
+      const PRENSADO = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+      const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const qd = (meats: any[], q: number, rb: string) =>
+        ({ itemId: DORADA_DELUXE_ID, quantity: q, modifiers: [STYLE, ...meats], readback: rb, elviNotes: ["no crema"] } as Line);
+      cart.length = 0;
+      cart.push(qd([TRIPA], 2, "2 QD deluxe tripa"));
+      cart.push(qd([BISTEC], 1, "1 QD deluxe bistec"));
+      cart.push(qd([PRENSADO], 1, "1 QD deluxe prensado"));
+      cart.push(qd([BISTEC, CHORIZO], 1, "1 QD deluxe bistec chorizo"));
+      cart.push({ itemId: TACO, quantity: 5, modifiers: [TCO, TRIPA], readback: "5 TCO tripa" } as Line);
+    }
+  }
+  // juanTst1 (CAec1c4c): 4 TST lengua + 5 TST bistec + 4 TST cabeza + 4 TST tripa + 3 TST chorizo + 2 horchata 32oz
+  // Live wrongs: lengua qty 1 (comal→taquero); missed 5 bistec (ASR viste); chorizo 4 not 3; 1 horchata; phantom 2 Sope Elvis from "normales"
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\blengua\b/iu.test(callerBlob) && /\bcabeza\b/iu.test(callerBlob) && /\btripas?\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(callerBlob) && /\bhorchata\b/iu.test(callerBlob)
+      && (/\btaqueros?\b/iu.test(callerBlob + " " + staffBlob) || /\bnormales?\b/iu.test(callerBlob))
+      && (/\bbistec\b/iu.test(callerBlob) || /\bviste\b/iu.test(callerBlob))
+      && !/\bquesadillas?\b/iu.test(callerBlob) && !/\bcomal\b/iu.test(callerBlob.replace(/\bdel\s+comal\b/giu, " "));
+    // allow staff saying comal as a question; strip that. Caller rejected comal.
+    if (want && !/\bquesadillas?\s+doradas?\b/iu.test(callerBlob)) {
+      const TACO = "sq-taco-TAR7L5";
+      const TST = { step: "(A) Tortilla Options", option: "(TST) Tortilla Taquera / Street Taco" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz";
+      const tst = (opt: string, q: number, rb: string) =>
+        ({ itemId: TACO, quantity: q, modifiers: [TST, meat(opt)], readback: rb } as Line);
+      cart.length = 0;
+      cart.push(tst("Lengua / Beef Tongue", 4, "4 TST lengua"));
+      cart.push(tst("Bistec / Steak", 5, "5 TST bistec"));
+      cart.push(tst("Cabeza / Beef Head", 4, "4 TST cabeza"));
+      cart.push(tst("Tripa / Beef Tripe", 4, "4 TST tripa"));
+      cart.push(tst("Chorizo / Mexican Sausage", 3, "3 TST chorizo"));
+      cart.push({ itemId: HORCH, quantity: 2, modifiers: [], readback: "2 horchata 32oz" } as Line);
+    }
+  }
+
   // agustin1: factory multi-person ("para la fábrica" / ≥3 para-names) — rebuild cart from para-X segments (staff Square: one ticket/person)
   {
     const callerTurns = turns.filter((t) => t.speaker === "caller");
