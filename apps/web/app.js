@@ -247,6 +247,46 @@ function trySheetVoiceAnswer(text) {
   }
 }
 
+/** m34 §2k: item with required modifier groups → same customize sheet as tap (not chat-card guide). */
+function itemNeedsCustomizeSheet(item) {
+  if (!item || !Array.isArray(item.modifierGroups)) return false;
+  return item.modifierGroups.some((g) => Number(g.minSelections || 0) > 0);
+}
+
+function openV3CustomizeSheetFromVoice(item, opts = {}) {
+  if (!isV3MenuUi() || !item?.id) return false;
+  if (typeof window.__elviOpenItemSheet !== "function") return false;
+  if (!itemNeedsCustomizeSheet(item)) return false;
+  try {
+    state.suppressRealtimeAudio = true;
+    try { stopCurrentAudio(); } catch {}
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      try {
+        sendWs({ type: "response.cancel" });
+        sendWs({ type: "input_audio_buffer.clear" });
+      } catch {}
+    }
+    clearCurrentGuideBuild();
+    state.pendingComboState = null;
+    state.pendingComboPreview = null;
+    const ok = !!window.__elviOpenItemSheet(item.id, {
+      text: opts.text || state.lastUserText || "",
+      modifiers: Array.isArray(opts.modifiers) ? opts.modifiers : [],
+      itemName: item.name || ""
+    });
+    if (ok) {
+      console.log("[m34] voice → customize sheet", item.id, item.name);
+      state.turnInFlight = false;
+      ui.status.textContent = "Ready…";
+    }
+    return ok;
+  } catch (e) {
+    console.warn("[m34] openV3CustomizeSheetFromVoice", e);
+    return false;
+  }
+}
+
+
 function cancelRealtimeResponseDuringLocalBuild() {
   // m33: while sheet voice / local build owns the turn, kill realtime speech (not local TTS)
   if (!isLocalBuildActive() && !isSheetVoiceActive() && !state.suppressRealtimeAudio) return false;
@@ -1210,6 +1250,20 @@ async function openRealtimeSession() {
         }
       });
 
+      // m34 §2k: customize sheet open — UI speaks warm ask; kill model short chat ask
+      if (result.output?.openedSheet || result.output?.reason === "v3_sheet_open") {
+        state.suppressRealtimeAudio = true;
+        try {
+          sendWs({ type: "response.cancel" });
+          sendWs({ type: "input_audio_buffer.clear" });
+        } catch {}
+        state.activeReplyText = "";
+        state.turnInFlight = false;
+        ui.status.textContent = "Ready…";
+        pulseAvatarState("questioning", 900, "idle");
+        return;
+      }
+
       // Reactive build UI update using the new consistent helper
       // Model is free to speak naturally; visuals stay beautiful
       if (result.output?.comboStep || result.output?.buildProgress) {
@@ -1217,6 +1271,19 @@ async function openRealtimeSession() {
         if (bp) state.lastBuildProgress = bp;
         updateBuildVisuals(result.output);
         pulseAvatarState("questioning", 900, "idle");
+      }
+
+      // When a guide just started, speak the step ask locally (realtime PCM is suppressed during local build)
+      if (state.currentBuildGuide && result.output?.message && !isSheetVoiceActive()) {
+        const ask = String(result.output.message || "").trim();
+        if (ask) {
+          ui.reply.textContent = formatCentsForSpeech(ask);
+          void speakLocalText(ask, getEffectiveLanguage());
+          state.turnInFlight = false;
+          ui.status.textContent = "Ready…";
+          pulseAvatarState("questioning", 900, "idle");
+          return;
+        }
       }
 
       // Let the model continue naturally (new behavior)
@@ -2174,7 +2241,51 @@ async function resolveOrderToolWithMenuBrain(name, args) {
 
   // Server-side order context (fix7): a dish is still open ("4 tacos 2 bistec" → which tortilla / the other 2?).
   if ("orderContext" in result) state.orderContextPending = Boolean(result.orderContext);
-  if (result.comboState && result.comboStep) {
+  // m34 §2k: especial/combo_step_required for a single item with required mods → customize sheet (not chat "¿Qué carne quieres?")
+  if (
+    isV3MenuUi()
+    && !result.guide
+    && (result.comboStep || result.reason === "combo_step_required")
+    && selectedItem
+    && !result.openedSheet
+  ) {
+    const sid = String(selectedItem.itemId || selectedItem.id || result.comboState?.itemId || "").trim();
+    const sheetItem =
+      (sid && state.menu.find((m) => m.id === sid))
+      || resolveBuildItemFromSelection(selectedItem)
+      || null;
+    if (sheetItem && itemNeedsCustomizeSheet(sheetItem)) {
+      const preMods = [];
+      const sels = Array.isArray(result.comboState?.selections) ? result.comboState.selections : [];
+      for (const s of sels) {
+        if (!s) continue;
+        preMods.push({
+          groupId: s.groupId,
+          groupName: s.groupName,
+          option: s.option || s.name,
+          optionId: s.optionId,
+          priceDeltaCents: Number(s.priceDeltaCents || 0),
+          quantity: Math.max(1, Number(s.quantity) || 1)
+        });
+      }
+      const opened = openV3CustomizeSheetFromVoice(sheetItem, {
+        text: result.resolvedText || text || state.lastUserText || "",
+        modifiers: preMods
+      });
+      if (opened) {
+        state.pendingComboState = null;
+        state.pendingComboPreview = null;
+        result.message = "";
+        result.openedSheet = true;
+        result.reason = "v3_sheet_open";
+        result.instruction = "Customize sheet is open. Do NOT speak a short chat ask. Stay silent — the UI speaks the warm step invite.";
+        // strip combo chat UI payload so updateBuildVisuals won't show tracker on menu home
+        result.comboStep = undefined;
+        result.comboState = undefined;
+      }
+    }
+  }
+  if (result.comboState && result.comboStep && !result.openedSheet) {
     state.pendingComboState = result.comboState;
   } else if (result.reason === "build_cancelled") {
     state.pendingComboState = null;
@@ -2206,28 +2317,66 @@ async function resolveOrderToolWithMenuBrain(name, args) {
 
   if (result.guide) {
     const buildItem = resolveBuildItemFromSelection(selectedItem);
-    state.currentBuildGuide = result.guide;
-    state.currentGuideStep = 1;  // Start at first step of the guide
-    state.currentBuildItem = buildItem || selectedItem;
-    state.currentBuildSelections = [];
-    state.pendingComboState = null; // Prefer guide-driven flow over old resolver state
-    // fix11: the server may have replayed the sentence (chicharrón answer, "8 tacos" → 8 pack).
-    prefillGuideSelectionsFromText(result.resolvedText || text);
-    advanceGuideToNextRequiredStep();
-    const doneItem = !getCurrentGuideStep() && resolveCurrentBuildItem();
-    if (doneItem) {
-      // fix10 least friction: everything was said in one sentence → add it now with the short read-back.
-      const modifiers = buildGuideModifiers();
-      addCartItem(doneItem, 1, modifiers);
-      result.message = shortAddReadback([{ item: doneItem, quantity: 1, modifiers }]) || doneItem.name;
-      clearCurrentGuideBuild();
-      state.lastSelectedItem = doneItem;
-      renderCart();
-      renderSelectedItemsPanel();
+    // m34 §2k: V3 + required mods → open tap customize sheet (warm asks + TTS). Never menu-home chat build.
+    if (isV3MenuUi() && buildItem && itemNeedsCustomizeSheet(buildItem)) {
+      const opened = openV3CustomizeSheetFromVoice(buildItem, {
+        text: result.resolvedText || text || state.lastUserText || "",
+        modifiers: Array.isArray(result.modifiers) ? result.modifiers : []
+      });
+      if (opened) {
+        result.message = "";
+        result.openedSheet = true;
+        result.reason = "v3_sheet_open";
+        result.instruction = "Customize sheet is open for this item. Do NOT speak a short chat ask (e.g. qué carne). Stay silent — the UI speaks the warm step invite.";
+        // do not start guide / combo-tracker chat path
+      } else {
+        // fallback to guide if sheet bridge missing
+        state.currentBuildGuide = result.guide;
+        state.currentGuideStep = 1;
+        state.currentBuildItem = buildItem || selectedItem;
+        state.currentBuildSelections = [];
+        state.pendingComboState = null;
+        prefillGuideSelectionsFromText(result.resolvedText || text);
+        advanceGuideToNextRequiredStep();
+        const doneItemFb = !getCurrentGuideStep() && resolveCurrentBuildItem();
+        if (doneItemFb) {
+          const modifiers = buildGuideModifiers();
+          addCartItem(doneItemFb, 1, modifiers);
+          result.message = shortAddReadback([{ item: doneItemFb, quantity: 1, modifiers }]) || doneItemFb.name;
+          clearCurrentGuideBuild();
+          state.lastSelectedItem = doneItemFb;
+          renderCart();
+          renderSelectedItemsPanel();
+        } else {
+          result.message = guideCurrentPrompt();
+          updatePendingGuidePreview();
+          updateBuildVisuals({});
+        }
+      }
     } else {
-      result.message = guideCurrentPrompt();
-      updatePendingGuidePreview();
-      updateBuildVisuals({});
+      state.currentBuildGuide = result.guide;
+      state.currentGuideStep = 1;  // Start at first step of the guide
+      state.currentBuildItem = buildItem || selectedItem;
+      state.currentBuildSelections = [];
+      state.pendingComboState = null; // Prefer guide-driven flow over old resolver state
+      // fix11: the server may have replayed the sentence (chicharrón answer, "8 tacos" → 8 pack).
+      prefillGuideSelectionsFromText(result.resolvedText || text);
+      advanceGuideToNextRequiredStep();
+      const doneItem = !getCurrentGuideStep() && resolveCurrentBuildItem();
+      if (doneItem) {
+        // fix10 least friction: everything was said in one sentence → add it now with the short read-back.
+        const modifiers = buildGuideModifiers();
+        addCartItem(doneItem, 1, modifiers);
+        result.message = shortAddReadback([{ item: doneItem, quantity: 1, modifiers }]) || doneItem.name;
+        clearCurrentGuideBuild();
+        state.lastSelectedItem = doneItem;
+        renderCart();
+        renderSelectedItemsPanel();
+      } else {
+        result.message = guideCurrentPrompt();
+        updatePendingGuidePreview();
+        updateBuildVisuals({});
+      }
     }
   }
 
@@ -2235,6 +2384,13 @@ async function resolveOrderToolWithMenuBrain(name, args) {
     // Keep the server's "not on the menu, closest drinks are…" reply for whoever answers next.
     if (result.reason === "unknown_menu_item" && result.message) state.lastUnavailableMessage = String(result.message);
     return null;
+  }
+
+  if (result.openedSheet) {
+    // m34: sheet owns the build — drop combo_building chat actions
+    for (let i = actionList.length - 1; i >= 0; i -= 1) {
+      if (actionList[i]?.type === "combo_building") actionList.splice(i, 1);
+    }
   }
 
   return {
@@ -2285,6 +2441,13 @@ async function resolvePendingComboTurnLocally(text) {
       ? notFound
       : (getEffectiveLanguage() === "es" ? "Listo." : "Done.");
     if (!result) state.lastUnavailableMessage = "";
+    // m34: sheet owns warm step TTS + UI — do not speak short guide / chat-card ask
+    if (output.openedSheet || output.reason === "v3_sheet_open") {
+      completed = true;
+      markLocalTurnReady();
+      pulseAvatarState("questioning", 900, "idle");
+      return true;
+    }
     const reply = (addedLines.length && output.ok !== false && withDefaultNote(shortAddReadback(addedLines), addedLines, text)) || output.message || output.orderSummary || fallback;
     ui.reply.textContent = formatCentsForSpeech(reply);
     completed = true;
@@ -2419,6 +2582,26 @@ async function handleToolCall(name, argsJson) {
 
       const guard = validateAddItemToolArgs(args);
       if (!guard.ok) {
+        // m34 §2k: open customize sheet instead of chat-only missing-mods loop
+        if (isV3MenuUi()) {
+          const missItem = state.menu.find((m) => m.id === args.itemId)
+            || state.menu.find((m) => normalizeOptionKey(m.name || "") === normalizeOptionKey(args.itemQuery || args.query || ""));
+          if (missItem && openV3CustomizeSheetFromVoice(missItem, {
+            text: state.lastUserText || args.itemQuery || "",
+            modifiers: Array.isArray(args.modifiers) ? args.modifiers : []
+          })) {
+            return {
+              output: {
+                ok: true,
+                reason: "v3_sheet_open",
+                openedSheet: true,
+                message: "",
+                itemId: missItem.id,
+                instruction: "Customize sheet is open. Do not speak a short meat/option ask. Stay silent; the UI speaks."
+              }
+            };
+          }
+        }
         return {
           output: {
             ok: false,

@@ -489,6 +489,10 @@ function v3Ask(g) {
 }
 /** Speak + mirror bubble for the current unfinished required step. Same step → no re-speak (ignore scroll). */
 function v3LeadAsk(force) {
+  // m34: fire-and-forget wrapper; real work awaits single-stream TTS
+  void v3LeadAskAsync(force);
+}
+async function v3LeadAskAsync(force) {
   if (!V3 || U.screen !== "item" || !U.item) return;
   const gs = U.item.modifierGroups || [];
   const miss = missingStep();
@@ -504,8 +508,10 @@ function v3LeadAsk(force) {
   const advanced = U._v3AskKey != null && U._v3AskKey !== key;
   U._v3AskKey = key;
   const b = B();
+  // m34: same single-stream path as haloSpeak / sheet (stop prior → await speak → halo bubble)
+  try { b?.stopAudio?.(); } catch {}
+  try { await b?.speak?.(say); } catch (e) { console.warn("[m34/warm1] speak", e); }
   try { haloSay(say); } catch {}
-  try { b?.speak?.(say); } catch (e) { console.warn("[warm1] speak", e); }
   // warm1b: after a selection advances the unfinished step, bring that group into view (ask is NOT from scroll)
   if (advanced && miss !== undefined) {
     requestAnimationFrame(() => {
@@ -1242,6 +1248,74 @@ function elviAnswer(utt) {
   return true;
 }
 window.__elviSheetAnswer = elviAnswer;
+
+/** m34 §2k — voice naming an item opens the SAME customize sheet as tap (hero, tiles, warm asks). */
+function applySheetModsFromVoice(mods) {
+  if (!U.item || !Array.isArray(mods) || !mods.length) return;
+  const gs = U.item.modifierGroups || [];
+  for (const m of mods) {
+    const optName = String(m?.option || m?.name || "").trim();
+    if (!optName) continue;
+    let gi = gs.findIndex((g) => g.id === m.groupId || g.name === m.groupName);
+    if (gi < 0) {
+      gi = gs.findIndex((g) => baseOptions(g).some((o) => o.name === optName || optLabel(o.name) === optName));
+    }
+    if (gi < 0) continue;
+    const g = gs[gi];
+    const hit = baseOptions(g).find((o) => o.name === optName || optLabel(o.name) === optName || plainOpt(o.name) === plainOpt(optName));
+    if (!hit) continue;
+    if (!U.sel[g.id]?.[hit.name]) pickForElvi(gi, hit.name);
+  }
+}
+function tryPrefillSheetFromUtterance(utt) {
+  if (!U.item || !utt) return;
+  const plain = plainOpt(utt);
+  if (!plain) return;
+  const gs = U.item.modifierGroups || [];
+  const { main } = steps();
+  for (const gi of main) {
+    const g = gs[gi];
+    if (!g || Object.keys(U.sel[g.id] || {}).length) continue;
+    const idx = matchOptInGroup(g, plain);
+    if (idx < 0) continue;
+    const name = baseOptions(g)[idx]?.name;
+    if (name) pickForElvi(gi, name);
+  }
+}
+window.__elviOpenItemSheet = function (id, opts = {}) {
+  if (!V3) return false;
+  const want = String(id || "").trim();
+  if (!want) return false;
+  let it = U.menu.find((m) => m.id === want);
+  if (!it) {
+    it = B()?.state?.menu?.find((m) => m.id === want) || null;
+    if (it) U.menu.push(it);
+  }
+  if (!it) {
+    // fuzzy: name match for especial / resolver ids
+    const q = plainOpt(opts.itemName || opts.text || "");
+    if (q) {
+      it = U.menu.find((m) => plainOpt(m.name).includes(q) || q.includes(plainOpt(m.name)))
+        || (B()?.state?.menu || []).find((m) => plainOpt(m.name || "").includes(q));
+      if (it && !U.menu.find((m) => m.id === it.id)) U.menu.push(it);
+    }
+  }
+  if (!it) { console.warn("[m34] openItemSheet: no item", want); return false; }
+  if (!(it.modifierGroups || []).some((g) => Number(g.minSelections || 0) > 0)) {
+    // no required mods — let cart path handle
+    return false;
+  }
+  HABLAR_LIVE = true;
+  openItem(it.id);
+  if (Array.isArray(opts.modifiers) && opts.modifiers.length) applySheetModsFromVoice(opts.modifiers);
+  if (opts.text) tryPrefillSheetFromUtterance(opts.text);
+  U._v3AskKey = null; // force warm step TTS even if openItem already spoke once
+  pushSheetVoiceContext();
+  void v3LeadAskAsync(true);
+  console.log("[m34] opened customize sheet for voice:", it.id, itemName(it));
+  return true;
+};
+
 
 function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }
 function hablarLabel() { return t("Hablar con Elvi", "Talk to Elvi"); }
