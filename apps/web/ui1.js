@@ -530,13 +530,13 @@ function v3RenderSheet() {
   let el = document.getElementById("v3-sheet-wrap");
   if (U.screen !== "item") {
     if (el) el.innerHTML = "";
-    document.body.classList.remove("v3-sheet-on");
+    document.body.classList.remove("v3-sheet-on","sheet-open");
     if (U._v3AskKey) { U._v3AskKey = null; try { B()?.stopAudio?.(); } catch {} }
     return;
   }
   if (!el) { el = document.createElement("div"); el.id = "v3-sheet-wrap"; document.getElementById("ui1")?.appendChild?.(el); }
   const sc = el.querySelector?.(".v3-sheet-body")?.scrollTop || 0;
-  el.innerHTML = v3SheetHTML(); document.body.classList.add("v3-sheet-on");
+  el.innerHTML = v3SheetHTML(); document.body.classList.add("v3-sheet-on","sheet-open");
   const b = el.querySelector?.(".v3-sheet-body"); if (b) b.scrollTop = sc;
   if (!U.v3focused) { U.v3focused = true; setTimeout(() => el.querySelector?.(".v3-foot button")?.focus?.(), 0); }
   // warm1: HEAR the current unfinished required step (TTS); bubble already mirrors via v3LeadAsk
@@ -768,7 +768,7 @@ function payChoiceHTML() {
 function closeConfirm() {
   const el = document.getElementById("ux1-confirm");
   if (el) el.remove();
-  document.body.classList.remove("ux1-confirm-on");
+  document.body.classList.remove("ux1-confirm-on","sheet-open");
 }
 function openConfirm() {
   const b = B(); const cart = b?.state?.cart || [];
@@ -816,7 +816,7 @@ function openConfirm() {
     </div>
   </div>`;
   document.body.appendChild(el);
-  document.body.classList.add("ux1-confirm-on");
+  document.body.classList.add("ux1-confirm-on","sheet-open");
   try {
     b.greet?.(say);
     const r = document.getElementById("assistant-reply"); if (r) r.textContent = say;
@@ -977,7 +977,7 @@ function mountLoucap() {
   const wrap = document.createElement("div");
   wrap.className = "bottom";
   wrap.id = "ux1-bottom";
-  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
   document.body.appendChild(wrap);
   wrap.querySelectorAll(".sl-pill").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });

@@ -191,3 +191,10 @@ Mock: demo button **Confirm** → `demoConfirm()` seeds a burrito (+ drink) and 
 - Selected language applies to **everything**: Elvi voice + bubbles, menu chrome, Hablar capsule, item sheet, cart (`setLang`, all `[data-t]`).
 - Header **ES/EN stays available anytime** to switch; switching flips all chrome + Elvi immediately (no re-gate).
 - Shot: `shots/m27-hablar-soft-lang.png` (EN just selected).
+
+## 2f. Rotating blue hue on Hablar capsule + Hablar over item sheet (Carlos 10/25 — m28)
+- Capsule gets a thin **rotating blue hue orbit** (`.loucap .orbit`): conic-gradient ring #1471d6 → #4aa3ff → soft white glint, masked to a 1.5px ring + blurred 45% glow; **continuous 5.5s linear orbit** (`@property --capang`, `@keyframes capOrbit`). Soft/premium — no rainbow, no fast spin.
+- Idle = full orbit; listening/thinking/speaking dim it (opacity .25, 9s) so state color leads. `prefers-reduced-motion` → static ring.
+- Keeps `.loucap.invite` soft-bounce + “Yo te puedo ayudar / I can help you” line.
+- **Hablar stays visible/tappable over item sheet & cart** (`body:has(.sheet.show) .bottom` / `.sheet-open` / `v3-sheet-on` z-index 62) so mic can be granted mid-flow without going back to start.
+- Shot: `shots/m28-hablar-rotate-hue.png` (still; rotation is animated live).
