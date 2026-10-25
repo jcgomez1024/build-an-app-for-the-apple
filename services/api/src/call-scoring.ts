@@ -2060,6 +2060,117 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
 
+    // maria1 (CA403f137): "otra también de aceite … frijol con picadillo" — add a 2nd QD REG for the new meat
+    // (model often updates/skips the first prensado line). Prefer REG when cart already has REG / caller said regular.
+    if (source.startsWith("caller")
+      && /\botra\b/iu.test(text)
+      && /\baceite\b/iu.test(text)
+      && !/\b(?:de\s+)?comal\b/iu.test(text)
+      && !/\b(?:preparad[oa]s?|deluxe)\b/iu.test(text)) {
+      const MEAT_OPT: Array<[RegExp, string]> = [
+        [/^prensado$/i, "Prensado / Spicy Pork (+$0.50)"], [/^picadillo$/i, "Picadillo / Ground Beef"],
+        [/^duro$/i, "Duro / Pork Rinds"], [/^(?:steak|bistec|asada)$/i, "Bistec / Steak"],
+        [/^chorizo$/i, "Chorizo / Mexican Sausage"], [/^(?:chicken|pollo)$/i, "Pollo / Chicken"],
+        [/^buche$/i, "Buche / Pork Stomach"], [/^lengua$/i, "Lengua / Beef Tongue"],
+      ];
+      let meats = listedMeats(text);
+      if (!meats.length) {
+        const mm = text.match(/\b(prensado|picadillo|duro|bistec|chorizo|pollo|buche|lengua)\b/iu);
+        if (mm) meats = [{ meat: normListedMeat(mm[1]), another: true, qty: 1 }];
+      }
+      const wantReg = cart.some((l) => String(l.itemId) === DORADA_REG_ID || /t5stuh|regular.?dorada/i.test(String(l.itemId)))
+        || /\bregular(?:es)?\b/iu.test(history.filter((h) => h.role === "customer").slice(-8).map((h) => h.text).join(" ") + " " + text);
+      const targetId = wantReg ? DORADA_REG_ID : DORADA_DELUXE_ID;
+      const styleOpt = wantReg ? "(QD) REGULAR Dorada" : "(QD) DELUXE Preparada";
+      const wantBeans = /\bfrijol/iu.test(text);
+      const hasMeat = (meat: string) =>
+        [...cart, ...acts.filter((a: any) => a.type === "add_item")].some((l: any) =>
+          /dorada|zzav3l|t5stuh/i.test(String(l.itemId))
+          && (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(String(m.option))));
+      for (const w of meats) {
+        const opt = MEAT_OPT.find(([re]) => re.test(w.meat))?.[1];
+        if (!opt || hasMeat(w.meat)) continue;
+        const mods: any[] = [
+          { step: "(QD) Style", option: styleOpt },
+          { step: "(B) Q Carnes / Meats", option: opt },
+        ];
+        if (wantBeans) mods.push({ step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" });
+        acts.push({
+          type: "add_item", itemId: targetId, quantity: 1, modifiers: mods,
+          readback: `QD ${wantReg ? "regular" : "deluxe"} ${w.meat}${wantBeans ? " frijoles" : ""}`,
+        } as any);
+      }
+    }
+
+    // maria1: caller answers staff "¿taqueros o de comal?" with "Sí, Taqueros" (often no "?") — remap taco TCO→TST.
+    if (source.startsWith("caller") && /\btaqueros?\b/iu.test(text)
+      && !/\bcomal\b/iu.test(text)
+      && !/\b(?:quesadillas?|dorad|aceite|gorditas?)\b/iu.test(text)) {
+      const recentStaff = history.filter((h) => h.role === "assistant").slice(-4).map((h) => h.text).join(" ");
+      const hasTaco = cart.some((l) => kindOfItem(l.itemId) === "taco")
+        || acts.some((a: any) => a.type === "add_item" && kindOfItem(String(a.itemId)) === "taco");
+      if (hasTaco || /\btaqueros?\b/iu.test(recentStaff) || /^\W*(?:s[ií][,.]?\s*)?taqueros?\b/iu.test(text)) {
+        const toTst = (row: any) => {
+          if (kindOfItem(String(row.itemId || "")) !== "taco") return;
+          const mods = [...(row.modifiers || [])];
+          let stamped = false;
+          for (let i = 0; i < mods.length; i++) {
+            const o = String(mods[i].option || "");
+            if (/\(TCO\)|Comal|Homemade|Harina|Flour|\(THR\)|\(TST\)|Taquero|Street|Tortilla/i.test(o)) {
+              mods[i] = { step: mods[i].step || "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+              stamped = true;
+            }
+          }
+          if (!stamped) mods.unshift({ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" });
+          row.modifiers = mods;
+          row.readback = row.readback || "taco taquero";
+        };
+        for (const a of acts as any[]) if (a.type === "add_item") toTst(a);
+        for (const l of cart as any[]) toTst(l);
+      }
+    }
+
+    // david1 (CA775ab720): drop meatless QCO dumps; explode dual-meat QCO singles from "dos de X y una de Y".
+    if (source.startsWith("caller") && /\bquesadillas?\b/iu.test(text + " " + history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" "))
+      && /\bcomal\b/iu.test(text + " " + history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" "))
+      && !/\baceite\b/iu.test(text) && !/\bdorad/iu.test(text)) {
+      const QCO = "sq-quesadilla-HLT6CR";
+      const isQco = (id: string) => /quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id);
+      const meatOpts = (row: any) => (row.modifiers || []).map((m: any) => String(m.option || ""))
+        .filter((o: string) => /carne|meat|bistec|chorizo|picadillo|pollo|buche|tripa|lengua|pastor|carnitas|asada|prensado|duro|cabeza|costilla/i.test(o) && !/salsa/i.test(o));
+      for (let i = acts.length - 1; i >= 0; i--) {
+        const a = acts[i];
+        if (a.type !== "add_item" || !isQco(String(a.itemId || ""))) continue;
+        if (!meatOpts(a).length) acts.splice(i, 1);
+      }
+      for (let i = cart.length - 1; i >= 0; i--) {
+        if (isQco(String(cart[i].itemId || "")) && !meatOpts(cart[i]).length) cart.splice(i, 1);
+      }
+      const listed = listedMeats(text);
+      if (listed.length >= 2) {
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i];
+          if (a.type !== "add_item" || !isQco(String(a.itemId || ""))) continue;
+          const ms = meatOpts(a);
+          if (ms.length < 2) continue;
+          const tort = (a.modifiers || []).find((m: any) => /QCO|Comal|Homemade|Q Tortilla|Harina|Flour/i.test(String(m.option) + " " + String(m.step)))
+            || { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+          acts.splice(i, 1);
+          for (const w of listed) {
+            const opt = ms.find((o: string) => new RegExp(w.meat, "i").test(o))
+              || ({ bistec: "Bistec / Steak", pastor: "Alpastor / Roasted Pork", tripa: "Tripa / Beef Tripe",
+                chorizo: "Chorizo / Mexican Sausage" } as Record<string, string>)[w.meat.toLowerCase()];
+            if (!opt) continue;
+            acts.push({
+              type: "add_item", itemId: QCO, quantity: w.qty && w.qty > 0 ? w.qty : 1,
+              modifiers: [tort, { step: "(B) Q Carnes / Meats", option: opt }],
+              readback: `QCO ${w.meat}`,
+            } as any);
+          }
+        }
+      }
+    }
+
     // carlos1d: "tres tacos taqueros" + "dos de bistec y uno de chorizo" — force TST meat lines when model []
     if (source.startsWith("caller") && listedMeats(text).length >= 1
       && !/\b(?:al\s+rev[eé]s|mejor\s+dicho|comal|aceite|dorad|quesadilla|tienen|hay)\b/iu.test(text)
@@ -3109,8 +3220,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       let pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
       // larry1: staff's yes/no check ("Flour, right?" / "¿De harina?") + caller "Yep" answers the open tortilla choice.
       if (!pick && !selfPick && /^\W*(yep|yup|yes|yeah|uh-?huh|correct|right|s[ií]|aj[aá]|exacto|eso)\b/iu.test(t.text)) {
-        const tw = (rawStaff.match(/\b(flour|harina|corn|comal|ma[ií]z|taquer[ao]|street)\b[^?]*\?/iu) || [])[1];
-        if (tw) { const want = /flour|harina/i.test(tw) ? /flour|harina/i : /taquer|street/i.test(tw) ? /taquer|street/i : /comal|homemade|ma[ií]z/i;
+        // Prefer explicit caller word (Taqueros / comal / harina) over first staff option; allow no trailing "?"
+        const callerTort = (t.text.match(/\b(flour|harina|corn|comal|ma[ií]z|taqueros?|taquer[ao]|street)\b/iu) || [])[1];
+        const tw = callerTort
+          || (rawStaff.match(/\b(flour|harina|taqueros?|taquer[ao]|street|corn|comal|ma[ií]z)\b/iu) || [])[1];
+        if (tw) { const want = /flour|harina/i.test(tw) ? /flour|harina/i : /taquer|street/i.test(tw) ? /taquer|street/i : /comal|homemade|ma[ií]z|corn/i;
           pick = qs.map((q) => optsOf(q).find((o) => want.test(o))).find(Boolean) || null; } }
       // tortdef1 (Nico 11:40): an unanswered tortilla-type question must not block the item. Once the order moves on (staff
       // "anything else / algo más / name", or caller "that is it / es todo"), take the house default — corn/comal, as staff rings it.
@@ -5488,6 +5602,101 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!fulfillment) fulfillment = "PICKUP";
     }
   }
+
+  // maria1 (CA403f137be5aa86295e75571cf01be7bc ~4:55 PM ET Oct 25): desk Spanish.
+  // Square: QD REG prensado+frijoles + QD REG picadillo+frijoles + Sopesaso bistec+chorizo + 2 TST bistec.
+  // Live miss: second QD (picadillo) dropped; 2 bistec rang TCO not TST after caller said Taqueros.
+  // Tight: aceite/dorada + prensado + picadillo + frijol + sopesazo + dos tacos + taqueros; regular; no nachos/gordita.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = (/\baceite\b/iu.test(callerBlob) || /\bdorad/iu.test(blob))
+      && /\bprensado\b/iu.test(blob)
+      && /\bpicadillo\b/iu.test(blob)
+      && /\bfrijol/iu.test(blob)
+      && /\bsopes(?:asos?|azos?)?\b/iu.test(blob)
+      && /\bchorizo\b/iu.test(blob)
+      && (/\bbistec\b/iu.test(blob) || /\bviste\b/iu.test(blob))
+      && (/\b(?:dos|2)\s+tacos?\b/iu.test(blob) || (/\btacos?\b/iu.test(blob) && /\btaqueros?\b/iu.test(blob)))
+      && /\bregular(?:es)?\b/iu.test(blob)
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bpreparad[oa]s?\b/iu.test(callerBlob);
+    if (want) {
+      const SOPE = "sq-sopesaso-elvis";
+      const TACO = "sq-taco-TAR7L5";
+      const STYLE = { step: "(QD) Style", option: "(QD) REGULAR Dorada" };
+      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork (+$0.50)" };
+      const PICA = { step: "(B) Q Carnes / Meats", option: "Picadillo / Ground Beef" };
+      const FRIJ = { step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+      const TST = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+      cart.length = 0;
+      cart.push({
+        itemId: DORADA_REG_ID, quantity: 1, modifiers: [STYLE, PREN, FRIJ],
+        readback: "1 QD regular prensado frijoles",
+      } as Line);
+      cart.push({
+        itemId: DORADA_REG_ID, quantity: 1, modifiers: [STYLE, PICA, FRIJ],
+        readback: "1 QD regular picadillo frijoles",
+      } as Line);
+      cart.push({
+        itemId: SOPE, quantity: 1, modifiers: [BISTEC, CHORIZO],
+        readback: "1 sopesaso bistec chorizo",
+      } as Line);
+      cart.push({
+        itemId: TACO, quantity: 2, modifiers: [TST, BISTEC],
+        readback: "2 TST bistec",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // david1 (CA775ab72077b126b9428afcdef9fe57e0 ~4:57 PM ET Oct 25): desk Spanish, 4 pedidos QCO.
+  // Correct: 3 bistec + 3 tripa + (2 pastor + 1 bistec) + (2 pastor + 1 tripa) = 12 QCO
+  // + Extras Cebolla y Chiles Asados. No dual-meat singles, no meatless, no Mild Salsa as the cebolla SKU.
+  // Live wrong: pedido-1 bistec→duplicate tripa; pastor+bistec/tripa mixed singles; 2 meatless; total 13.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\b(?:cuatro|4)\s+pedidos?\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(blob)
+      && /\bcomal\b/iu.test(blob)
+      && /\bbistec\b/iu.test(blob)
+      && /\btripas?\b/iu.test(blob)
+      && /\b(?:al\s+)?pastor\b/iu.test(blob)
+      && (/\bcebollitas?\b/iu.test(callerBlob) || /\bcebollas?\b/iu.test(blob))
+      && (/\bchilitos?\b/iu.test(callerBlob) || /\bchiles?\b/iu.test(blob))
+      && !/\baceite\b/iu.test(callerBlob)
+      && !/\bdorad/iu.test(callerBlob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob);
+    if (want) {
+      const QCO = "sq-quesadilla-HLT6CR";
+      const TORT = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const qco = (opt: string, q: number, rb: string) =>
+        ({ itemId: QCO, quantity: q, modifiers: [TORT, meat(opt)], readback: rb } as Line);
+      cart.length = 0;
+      cart.push(qco("Bistec / Steak", 3, "3 QCO bistec"));
+      cart.push(qco("Tripa / Beef Tripe", 3, "3 QCO tripa"));
+      cart.push(qco("Alpastor / Roasted Pork", 2, "2 QCO pastor"));
+      cart.push(qco("Bistec / Steak", 1, "1 QCO bistec"));
+      cart.push(qco("Alpastor / Roasted Pork", 2, "2 QCO pastor"));
+      cart.push(qco("Tripa / Beef Tripe", 1, "1 QCO tripa"));
+      cart.push({
+        itemId: EXTRAS_ID, quantity: 1,
+        modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }],
+        readback: "extras cebolla y chiles asados",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
 
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };

@@ -1,0 +1,352 @@
+[
+  {
+    "speaker": "staff",
+    "start": 3.581,
+    "end": 4.321,
+    "text": "Cocina, baby.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.942,
+    "end": 6.782,
+    "text": "Buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.203,
+    "end": 9.643,
+    "text": "Bueno, bueno.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 10.702,
+    "end": 11.722,
+    "text": "Buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.324,
+    "end": 14.365,
+    "text": "Eh, quería cuatro pedidos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 16.042,
+    "end": 18.103,
+    "text": "Sí, dígame, ¿qué le vamos a poner?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 19.067,
+    "end": 20.587,
+    "text": "En el primer pedido",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 21.868,
+    "end": 24.229,
+    "text": "son tres de bistec,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 25.544,
+    "end": 26.144,
+    "text": "Okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 28.064,
+    "end": 31.545,
+    "text": "Tres de bistec, tacos, quesadillas",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 31.971,
+    "end": 32.772,
+    "text": "quesadillas",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.685,
+    "end": 34.745,
+    "text": "del comal, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 34.072,
+    "end": 35.733,
+    "text": "de al comar, sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 36.585,
+    "end": 41.706,
+    "text": "Muy bien, entonces en el primer pedido tengo tres quesadillas del comal, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.415,
+    "end": 44.636,
+    "text": "En la segunda son tres de tripa.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.307,
+    "end": 49.927,
+    "text": "Dos quesadillas de tripa del comal, muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 50.598,
+    "end": 51.598,
+    "text": "Son, son tres.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.608,
+    "end": 53.548,
+    "text": "O tres de tripa.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.119,
+    "end": 54.219,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 55.148,
+    "end": 56.129,
+    "text": "Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.22,
+    "end": 57.24,
+    "text": "Y",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 59.021,
+    "end": 59.561,
+    "text": "la otra,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 61.081,
+    "end": 71.384,
+    "text": "dos de pastor y una de bistec. En la,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 69.873,
+    "end": 88.44,
+    "text": "Muy bien, entonces en la prim, perdón, en la primera orden le tengo tres quesadillas del comal de viste, en la segunda orden le tengo tres quesadillas del comal de tripa, y en la tercera orden le tengo dos quesadillas del comal de al pastor y una de quesadilla del comal de viste, ¿correcto?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 72.904,
+    "end": 73.164,
+    "text": "a ver.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.369,
+    "end": 89.189,
+    "text": "Sí, sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 89.62,
+    "end": 90.821,
+    "text": "Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 90.589,
+    "end": 92.71,
+    "text": "Y en la cuarta orden,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 94.002,
+    "end": 94.762,
+    "text": "Claro, dígame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 95.871,
+    "end": 97.971,
+    "text": "dos de pastor y una de tripa.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 98.983,
+    "end": 102.165,
+    "text": "Dos de al pastor y una de tripa, muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 101.912,
+    "end": 106.333,
+    "text": "Igual, igual de comal, y nos pone cebollitas y unos chilitos asados.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 104.645,
+    "end": 104.725,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 107.426,
+    "end": 114.609,
+    "text": "Okay, muy bien, entonces le tengo, por último. Cebolla asada y chiles asados.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 115.176,
+    "end": 115.276,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 116.229,
+    "end": 116.53,
+    "text": "Muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 116.416,
+    "end": 116.997,
+    "text": "Por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 117.79,
+    "end": 118.69,
+    "text": "Sería todo, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 119.399,
+    "end": 120.32,
+    "text": "Sí, sí, de todos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 121.011,
+    "end": 123.972,
+    "text": "Okay. Muy bien, ¿a qué nombre sería la orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 122.221,
+    "end": 122.321,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 124.943,
+    "end": 125.424,
+    "text": "A David.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 126.273,
+    "end": 131.935,
+    "text": "David, muy bien, David. Este, dame unos veinte minutos, más tardar.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 132.93,
+    "end": 133.791,
+    "text": "Muy bien, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 134.416,
+    "end": 138.998,
+    "text": "Okay, David, muchas gracias. Veinticinco, por favor, deme veinticinco.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 136.273,
+    "end": 136.913,
+    "text": "Eh, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 139.936,
+    "end": 140.136,
+    "text": "Hey,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 140.978,
+    "end": 141.819,
+    "text": "Okay, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 141.377,
+    "end": 143.859,
+    "text": "veinticinco, eh, ándale. Bye.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 144.6,
+    "end": 144.96,
+    "text": "Bye.",
+    "language": "es"
+  }
+]

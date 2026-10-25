@@ -1,0 +1,275 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.72,
+    "end": 6.682,
+    "text": "Bueno, cocinar bien. Claro que sí, dígame, ¿qué va a ser?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.221,
+    "end": 4.861,
+    "text": "Um, buenas tardes, ¿sí puedes dar una orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.022,
+    "end": 12.383,
+    "text": "Ah, me pone una quesadilla de aceite de frijol con chicharrón prensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.544,
+    "end": 15.984,
+    "text": "Eh, okey, ¿va a ser este, relax o regular?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 17.185,
+    "end": 17.665,
+    "text": "En regular.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 18.565,
+    "end": 20.226,
+    "text": "Regular, o sea, va a ser de prensado",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 21.806,
+    "end": 22.026,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 22.146,
+    "end": 23.226,
+    "text": "con frijoles, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 23.106,
+    "end": 23.166,
+    "text": "Co,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 24.247,
+    "end": 24.347,
+    "text": "sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 25.487,
+    "end": 26.067,
+    "text": "Okey, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.727,
+    "end": 31.509,
+    "text": "Y, y me pone otra también de aceite de, ah, frijol con picadillo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 30.749,
+    "end": 36.67,
+    "text": "Mmm, permíteme tantito, picadillo con frijoles.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 38.691,
+    "end": 39.231,
+    "text": "Okey, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 40.751,
+    "end": 42.452,
+    "text": "Y me das un sopesazo",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 43.572,
+    "end": 55.295,
+    "text": "de chorizo con bistec. Y dos tacos, ay, perdón.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 47.053,
+    "end": 51.054,
+    "text": "Okey. Un toque saso de chorizo con bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 53.035,
+    "end": 53.335,
+    "text": "Va a llevar,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.015,
+    "end": 57.396,
+    "text": "eh, va a llevar frijoles, lechuga.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 58.536,
+    "end": 59.357,
+    "text": "Crema y queso, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 60.657,
+    "end": 60.757,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 61.618,
+    "end": 65.379,
+    "text": "Okay. Y dijo que dos tacos de qué.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 66.86,
+    "end": 67.34,
+    "text": "De Viste.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 68.181,
+    "end": 70.022,
+    "text": "Eh, que van a ser taqueros o de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 71.302,
+    "end": 71.962,
+    "text": "Sí, Taqueros.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 72.563,
+    "end": 73.463,
+    "text": "Taqueros de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 75.924,
+    "end": 76.505,
+    "text": "¿Qué más va a ser?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 77.665,
+    "end": 78.225,
+    "text": "Sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 79.046,
+    "end": 81.947,
+    "text": "Sería todo. Entonces van a ser una dorada regular de",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 83.268,
+    "end": 84.328,
+    "text": "frijoles con prensado,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 85.809,
+    "end": 91.271,
+    "text": "una de picadillo con frijoles, un sopesazo de bistec y chorizo y dos tacos taqueros de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 93.312,
+    "end": 93.392,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 94.193,
+    "end": 95.834,
+    "text": "¿Sí? ¿A nombre de quién va a estar su orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 97.114,
+    "end": 97.434,
+    "text": "María.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 98.155,
+    "end": 98.475,
+    "text": "María.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 100.156,
+    "end": 103.597,
+    "text": "Okay, María, danos de quince a veinte minutos, por favor, María.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 104.878,
+    "end": 105.758,
+    "text": "Okay, está bien, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 106.298,
+    "end": 109.32,
+    "text": "No, gracias a usted. Adiós.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 108.219,
+    "end": 108.379,
+    "text": "Bye.",
+    "language": "es"
+  }
+]
