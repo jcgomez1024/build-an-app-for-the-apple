@@ -1,0 +1,177 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.32,
+    "end": 1.341,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 0.62,
+    "end": 4.102,
+    "text": "Mmm. Hola, sí, buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 4.923,
+    "end": 8.685,
+    "text": "Buenas tardes. Si me permite un momento, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 6.322,
+    "end": 7.343,
+    "text": "Me disculpe, quiere.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.363,
+    "end": 10.064,
+    "text": "Okay, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 10.327,
+    "end": 10.947,
+    "text": "Gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.509,
+    "end": 75.177,
+    "text": "Ahora sí, dígame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 76.541,
+    "end": 79.022,
+    "text": "Mire, te quería, por favor, dos menudos",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 79.979,
+    "end": 82.76,
+    "text": "Dos menudos, sí, claro, con pato o sin pata.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 81.802,
+    "end": 81.822,
+    "text": "y",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 83.842,
+    "end": 85.763,
+    "text": "y ah, uno con pata y el otro sin pata.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 86.421,
+    "end": 87.441,
+    "text": "Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.323,
+    "end": 92.324,
+    "text": "Y dos tacos de bistec, pero puro bistec, nada de verduras, así solitos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 93.063,
+    "end": 94.764,
+    "text": "Ok, muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 95.365,
+    "end": 95.965,
+    "text": "Sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 96.825,
+    "end": 98.265,
+    "text": "Okay, serían,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 99.966,
+    "end": 102.528,
+    "text": "mmm, entonces no quiere verdura, déjele pongo una,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 103.788,
+    "end": 104.629,
+    "text": "no verdura.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 108.671,
+    "end": 108.931,
+    "text": "Okay,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 110.192,
+    "end": 114.174,
+    "text": "ah, deme unos veinte minutos, ¿a qué nombre sería la orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 114.914,
+    "end": 115.315,
+    "text": "A Daniel.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 116.195,
+    "end": 118.296,
+    "text": "Daniel, okay, deme unos,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 116.255,
+    "end": 124.179,
+    "text": "Ajá. No, está bien, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 119.376,
+    "end": 121.137,
+    "text": "sí, unos veinte minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 123.298,
+    "end": 123.999,
+    "text": "Gracias usted.",
+    "language": "es"
+  }
+]

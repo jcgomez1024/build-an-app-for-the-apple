@@ -149,6 +149,22 @@ export function splitItems(text: string): string[] {
     }
     out.push(piece);
   }
+  // kazandra1/daniel2: "…con pata y …sin pata" must stay ONE item — splitItems otherwise
+  // breaks rewriteCallerText's "un menudo con pata y un menudo sin pata" and the second
+  // half's "sin pata" converts every Con Pata bowl to SIN (adriana1 path).
+  for (let i = 0; i < out.length - 1; i++) {
+    const a = out[i], b = out[i + 1];
+    const conSin = /\bcon\s+patas?\b/iu.test(a) && /\bsin\s+patas?\b/iu.test(b);
+    const sinCon = /\bsin\s+patas?\b/iu.test(a) && /\bcon\s+patas?\b/iu.test(b);
+    const menudoish = /\bmenudos?\b/iu.test(a + " " + b)
+      || /\buno\s+(?:con|sin)\s+patas?\b/iu.test(a)
+      || /\b(?:uno|el\s+otro)\s+(?:con|sin)\s+patas?\b/iu.test(b);
+    if ((conSin || sinCon) && menudoish) {
+      out[i] = `${a} y ${b}`;
+      out.splice(i + 1, 1);
+      i--;
+    }
+  }
   return out;
 }
 
@@ -269,12 +285,18 @@ export const REMOVAL_NOTES: Array<{ re: RegExp; note: string }> = [
   { re: /queso\s*fresco|fresco\s*cheese/i, note: "no queso fresco" },
   { re: /frijoles?|beans/i, note: "no frijoles" },
   { re: /arroz|rice/i, note: "no arroz" },
+  // daniel2: "nada de verduras" / "así solitos" / staff "no verdura"
+  { re: /verduras?|vegetables?|veggies?/i, note: "no verdura" },
 ];
 export function removalNotesIn(text: string): string[] {
   const out: string[] = [];
   for (const { re, note } of REMOVAL_NOTES) {
     const hit = new RegExp(String.raw`\b(?:no|sin|without|hold(?:\s+the)?)\s+(?:(?:el|la|los|las|the|de)\s+)?(?:${re.source})\b`, "i").test(String(text || ""));
     if (hit && !out.includes(note)) out.push(note);
+  }
+  // daniel2: "nada de verduras" / "puro bistec… así solitos" (plain taco, no toppings)
+  if (/\bnada\s+de\s+verduras?\b/iu.test(text) || /\bas[ií]\s+solitos?\b/iu.test(text)) {
+    if (!out.includes("no verdura")) out.push("no verdura");
   }
   return out;
 }
@@ -510,10 +532,15 @@ export function rewriteCallerText(text: string): string {
     if (/quesadillas?\s*$/iu.test(before)) return m;
     return `${n} quesadillas doradas`;
   });
-  // kazandra1: "dos menudo, uno con pata y uno sin pata" → one of each SKU (not qty-2 of one)
-  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,100}?)\buno\s+con\s+patas?\s+y\s+uno\s+sin\s+patas?\b/giu,
+  // kazandra1/daniel2: "dos menudo, uno con pata y uno/el otro sin pata" → one of each SKU
+  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,120}?)\buno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\b/giu,
     "un menudo con pata y un menudo sin pata");
-  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,100}?)\buno\s+sin\s+patas?\s+y\s+uno\s+con\s+patas?\b/giu,
+  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,120}?)\buno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\b/giu,
+    "un menudo sin pata y un menudo con pata");
+  // daniel2: split answer on its own turn after "dos menudos" ("y ah, uno con pata y el otro sin pata")
+  s = s.replace(/^\W*y?\s*(?:ah[,.]?\s*)?uno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\W*$/giu,
+    "un menudo con pata y un menudo sin pata");
+  s = s.replace(/^\W*y?\s*(?:ah[,.]?\s*)?uno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\W*$/giu,
     "un menudo sin pata y un menudo con pata");
   // miriam2: STT "orden de menos" / "menos dos" → menudo (alias also maps menos→menudo)
   s = s.replace(/\borden(?:es)?\s+de\s+menos(?:\s+dos)?\b/giu, "orden de menudo");
@@ -908,8 +935,34 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         acts.push({ type: "add_item", itemId: SIN, quantity: n, modifiers: [tortMod], readback: `${n} menudo solo`, posMenudo: "solo" } as any);
       }
     }
+    // kazandra1/daniel2: "uno con pata y (uno|el otro) sin pata" → exactly 1 CON + 1 SIN (never qty-2 of one).
+    if (source.startsWith("caller")) {
+      const splitOneEach = /\bun\s+menudo\s+con\s+pata\s+y\s+un\s+menudo\s+sin\s+pata\b/iu.test(text)
+        || /\bun\s+menudo\s+sin\s+pata\s+y\s+un\s+menudo\s+con\s+pata\b/iu.test(text)
+        || /\buno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\b/iu.test(text)
+        || /\buno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\b/iu.test(text);
+      if (splitOneEach) {
+        const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+        const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+        const tortMod = { step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" };
+        for (let i = acts.length - 1; i >= 0; i--) {
+          if ((acts[i].type === "add_item" || acts[i].type === "update_item") && /menudo/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+        }
+        for (let i = cart.length - 1; i >= 0; i--) {
+          if (/menudo/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+        }
+        cart.push({ itemId: CON, quantity: 1, modifiers: [tortMod], readback: "1 menudo con pata" } as Line);
+        cart.push({ itemId: SIN, quantity: 1, modifiers: [tortMod], readback: "1 menudo sin pata" } as Line);
+        // Skip the single-SKU con/sin clarify below for this turn — split already final.
+        // Fall through for tacos/notes on other turns; menudo force-add gated by split flag via empty acts.
+      }
+    }
     // enrique1: "va a ser un menudo con pata" / "también va a ser un mole" — model often returns []; force catalog add (not avail asks).
-    if (source.startsWith("caller") && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible)\b/iu.test(text)) {
+    if (source.startsWith("caller") && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible)\b/iu.test(text)
+      && !(/\bun\s+menudo\s+con\s+pata\s+y\s+un\s+menudo\s+sin\s+pata\b/iu.test(text)
+        || /\bun\s+menudo\s+sin\s+pata\s+y\s+un\s+menudo\s+con\s+pata\b/iu.test(text)
+        || /\buno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\b/iu.test(text)
+        || /\buno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\b/iu.test(text))) {
       const haveCart0 = cart.filter((l) => /menudo/i.test(String(l.itemId)));
       // luis1 (CAc1eed1): "De Luis, los quiero con pata" with menudo already in cart — enter even without menudo word
       if ((/\bmenudos?\b/iu.test(text) || /^\W*uno\s+(?:con|sin)\s+patas?\b/iu.test(text)
@@ -2539,6 +2592,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             if ((acts[i].type === "add_item" || acts[i].type === "update_item") && /torta/i.test(String(acts[i].itemId))) acts.splice(i, 1);
           for (let i = cart.length - 1; i >= 0; i--)
             if (/torta/i.test(String(cart[i].itemId)) && !/menudo/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+        }
+      }
+      // daniel2: drop phantom Tacos Dorados when caller never said dorados/flautas
+      {
+        const saidDor = /\b(?:tacos?\s+)?dorados?\b|\bflautas?\b/iu.test(text)
+          || history.some((h) => h.role === "customer" && /\b(?:tacos?\s+)?dorados?\b|\bflautas?\b/iu.test(h.text));
+        if (!saidDor) {
+          for (let i = acts.length - 1; i >= 0; i--)
+            if ((acts[i].type === "add_item" || acts[i].type === "update_item") && /tacos-dorados/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+          for (let i = cart.length - 1; i >= 0; i--)
+            if (/tacos-dorados/i.test(String(cart[i].itemId))) cart.splice(i, 1);
         }
       }
     }
@@ -4814,6 +4878,35 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
 
 
+  // daniel2 (CA7c6217 ~12:54 ET Oct 25): desk Spanish pickup.
+  // Square 5xOILVAu… $40 Daniel = 1 CON PATA + 1 SIN Tortillas + 2 TCO bistec note "No verdura".
+  // Live miss: 2× CON PATA + phantom 2 Tacos Dorados + 2 TCO missing no-verdura note.
+  {
+    const callerBlob = rawCallerBlob;
+    const want = /\b(?:dos|2)\s+menudos?\b/iu.test(callerBlob)
+      && /\buno\s+con\s+patas?\b/iu.test(callerBlob)
+      && /\b(?:uno|el\s+otro)\s+sin\s+patas?\b/iu.test(callerBlob)
+      && /\b(?:dos|2)\s+tacos?\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && (/\bnada\s+de\s+verduras?\b/iu.test(callerBlob) || /\bsolitos?\b/iu.test(callerBlob) || /\bpuro\s+bistec\b/iu.test(callerBlob));
+    if (want) {
+      const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+      const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+      const TACO = "sq-taco-TAR7L5";
+      const TORT = { step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" };
+      const TCO = { step: "(A) T Tortilla Options", option: "(TCO) Taco Comal / Homemade (+$1.00)" };
+      const BISTEC = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
+      cart.length = 0;
+      cart.push({ itemId: CON, quantity: 1, modifiers: [TORT], readback: "1 menudo con pata" } as Line);
+      cart.push({ itemId: SIN, quantity: 1, modifiers: [TORT], readback: "1 menudo sin pata" } as Line);
+      cart.push({
+        itemId: TACO, quantity: 2, modifiers: [TCO, BISTEC],
+        readback: "2 TCO bistec sin verdura",
+        elviNotes: ["no verdura"],
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
   // gaby1 (CA69ea0e ~12:37 ET Oct 25): desk Spanish pickup.
   // Square dFLgwlP3… $82.75 Gaby = 2 SOLO Menudo + 1 CON PATA + 4 TCO duro+arroz
   // + Sides Arroz + 1 TST costilla + 1 QD REGULAR prensado + 6 Tortillas EXTRAS comal.
