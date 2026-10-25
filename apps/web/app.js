@@ -2255,21 +2255,31 @@ async function resolveOrderToolWithMenuBrain(name, args) {
       || resolveBuildItemFromSelection(selectedItem)
       || null;
     if (sheetItem && itemNeedsCustomizeSheet(sheetItem)) {
+      // Prefill only options the customer actually said (not silent API defaults like REGULAR).
+      // SPEC §2k QD: ask Regular/Deluxe first on cold start — same as tap sheet.
+      const uttered = String(result.resolvedText || text || state.lastUserText || "");
+      const utteredKey = normalizeOptionKey(uttered);
       const preMods = [];
       const sels = Array.isArray(result.comboState?.selections) ? result.comboState.selections : [];
       for (const s of sels) {
         if (!s) continue;
+        const opt = String(s.option || s.name || "").trim();
+        if (!opt) continue;
+        const optKey = normalizeOptionKey(opt);
+        const tokens = optKey.split(/\s+/).filter((w) => w.length >= 4 && !/^(with|con|extra|side|quesadilla|dorada)$/.test(w));
+        const mentioned = tokens.some((w) => utteredKey.includes(w)) || utteredKey.includes(optKey);
+        if (!mentioned) continue;
         preMods.push({
           groupId: s.groupId,
           groupName: s.groupName,
-          option: s.option || s.name,
+          option: opt,
           optionId: s.optionId,
           priceDeltaCents: Number(s.priceDeltaCents || 0),
           quantity: Math.max(1, Number(s.quantity) || 1)
         });
       }
       const opened = openV3CustomizeSheetFromVoice(sheetItem, {
-        text: result.resolvedText || text || state.lastUserText || "",
+        text: uttered,
         modifiers: preMods
       });
       if (opened) {
