@@ -86,3 +86,74 @@ test("luis181b: drop phantom 6-pack when caller asked for a dozen", async () => 
   assert.ok(r.cart.some((l: any) => /12|tortilla/i.test(l.itemId) && !/6-x-tortilla/i.test(l.itemId)), "dozen: " + JSON.stringify(r.cart));
   assert.ok(!r.cart.some((l: any) => /6-x-tortilla|tortillas-6/i.test(l.itemId)), "phantom 6: " + JSON.stringify(r.cart));
 });
+
+// angelica1 (CA6c61da 10/25 ~8:55 ET): tortillas avail STT-garbled + "dos docenas" → 2×12 Comal, not dates / "not on menu"
+test("angelica1: STT enviar fecha a semana → tienen tortillas", () => {
+  assert.match(applySharedAliases("¿tendrás que enviar fecha a semana?", "phone"), /tienen tortillas/i);
+  assert.match(applySharedAliases("tendras que enviar fecha a semana", "phone"), /tienen tortillas/i);
+  assert.doesNotMatch(applySharedAliases("¿tendrás que enviar fecha a semana?", "phone"), /fecha/i);
+});
+
+test("angelica1: dos docenas → dos × 12 x Tortilla Comal", () => {
+  assert.match(applySharedAliases("¿Les podría poner dos docenas?", "phone"), /dos\s+12 x Tortilla Comal/i);
+  assert.match(applySharedAliases("dos docenas", "phone"), /dos\s+12 x Tortilla Comal/i);
+  assert.match(applySharedAliases("una docena", "phone"), /12 x Tortilla Comal/i);
+});
+
+test("angelica1: docena de tacos must NOT become Tortilla Comal", () => {
+  assert.doesNotMatch(applySharedAliases("una docena de tacos", "phone"), /12 x Tortilla Comal/i);
+  assert.doesNotMatch(applySharedAliases("dos docenas de pastor", "phone"), /12 x Tortilla Comal/i);
+});
+
+test("angelica1: shadow — tortillas ask + dos docenas → qty 2 dozen packs", async () => {
+  const TOR = "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H";
+  const seen: string[] = [];
+  const replies: string[] = [];
+  const run = async (t: string) => {
+    const s = applySharedAliases(t, "phone");
+    seen.push(s);
+    // Simulate pre-fix Elvi: invent dates / deny docenas when raw STT or bare docenas
+    if (/fecha|enviar/i.test(t) && !/tortilla/i.test(s)) {
+      replies.push("No puedo enviar fechas");
+      return { actions: [], reply: "No puedo enviar fechas." };
+    }
+    if (/\bdocenas?\b/i.test(t) && !/12 x Tortilla Comal/i.test(s)) {
+      replies.push("No tengo docenas en el menú");
+      return { actions: [], reply: "No tengo docenas en el menú." };
+    }
+    const acts: any[] = [];
+    // Model still empty — force-add in shadow must ring the line
+    return { actions: acts, reply: acts.length ? "¿Algo más?" : "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "¿tendrás que enviar fecha a semana?", language: "es" },
+    { speaker: "staff", start: 2, end: 3, text: "Sí, tenemos tortillas.", language: "es" },
+    { speaker: "caller", start: 4, end: 5, text: "¿Les podría poner dos docenas?", language: "es" },
+    { speaker: "staff", start: 6, end: 7, text: "¿Algo más?", language: "es" },
+    { speaker: "caller", start: 8, end: 9, text: "Sería todo.", language: "es" },
+    { speaker: "staff", start: 10, end: 11, text: "¿A qué nombre?", language: "es" },
+    { speaker: "caller", start: 12, end: 13, text: "Angélica.", language: "es" },
+  ] as any, run as any);
+  const line = r.cart.find((l: any) => /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(l.itemId)));
+  assert.ok(line, `dozen missing: ${JSON.stringify(r.cart)} seen=${JSON.stringify(seen)}`);
+  assert.equal(Number(line.quantity) || 1, 2, `want qty 2 packs, got ${JSON.stringify(line)}`);
+  assert.ok(seen.some((s) => /12 x Tortilla Comal/i.test(s)), "alias must map docenas before say()");
+  // Fecha STT is either dropped as avail (tendrás…?) or rewritten before say — never invent dates
+  assert.ok(!replies.some((r) => /enviar fechas|fecha/i.test(r)), `must not invent dates: ${JSON.stringify(replies)}`);
+});
+
+test("angelica1: una docena still qty 1 (luis1 regression)", async () => {
+  const TOR = "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H";
+  const run = async (t: string) => {
+    const s = applySharedAliases(t, "phone");
+    const acts: any[] = [];
+    if (/12 x Tortilla Comal/i.test(s)) acts.push({ type: "add_item", itemId: TOR, quantity: 12, modifiers: [], readback: "12" }); // model inflated
+    return { actions: acts, reply: "¿Algo más?" };
+  };
+  const r: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, text: "y una docena de tortilla.", language: "es" },
+  ] as any, run as any);
+  const line = r.cart.find((l: any) => /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(l.itemId)));
+  assert.ok(line, JSON.stringify(r.cart));
+  assert.equal(Number(line.quantity) || 1, 1, `una docena must stay qty 1: ${JSON.stringify(line)}`);
+});

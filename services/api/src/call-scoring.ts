@@ -775,27 +775,36 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (!have) acts.push({ type: "add_item", itemId: id, quantity: 1, modifiers: [], readback: id.includes("jamaica") ? "jamaica" : id.includes("horchata") ? "horchata" : "tamarindo" });
       }
     }
-    // docena1b (Luis181): "una docena de tortilla" → 12 x Tortilla Comal standalone
-    if (source.startsWith("caller") && (/\b(?:12\s*x\s*tortilla\s*comal|docena\s+de\s+tortillas?)\b/iu.test(text) || /\b12\s*x\s*tortilla\s*comal\b/iu.test(applySharedAliases(text, "phone")))) {
-      const TOR = "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H";
-      const have = cart.some((l) => /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(l.itemId)))
-        || acts.some((a: any) => a.type === "add_item" && /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(a.itemId)));
-      if (!have) acts.push({ type: "add_item", itemId: TOR, quantity: 1, modifiers: [], readback: "12 tortillas comal" });
-      // luis181c: pack SKU is already "12 x …" — model often sets quantity=12; keep one pack line
-      for (const a of acts) {
-        if (a.type === "add_item" && /(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(a.itemId || ""))) a.quantity = 1;
-      }
-      for (const l of cart) {
-        if (/(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(l.itemId || "")) && (Number(l.quantity) || 1) > 1) l.quantity = 1;
-      }
-      // luis181b: drop phantom 6-pack when they asked for a dozen (model + auto-accept often ring 6 taquera too)
-      for (let i = acts.length - 1; i >= 0; i--) {
-        const a = acts[i]; const id = String(a.itemId || "");
-        if (a.type === "add_item" && /(?:^|-)tortillas?-6-x-tortilla|6-x-tortilla/i.test(id) && !/menudo|mole|platillo|birria/i.test(id)) acts.splice(i, 1);
-      }
-      for (let i = cart.length - 1; i >= 0; i--) {
-        const id = String(cart[i].itemId || "");
-        if (/(?:^|-)tortillas?-6-x-tortilla|6-x-tortilla/i.test(id) && !/menudo|mole|platillo|birria/i.test(id)) cart.splice(i, 1);
+    // docena1b / angelica1: "una docena de tortilla" / "dos docenas" → N × 12 x Tortilla Comal (not "not on menu")
+    {
+      const aliasedDoc = applySharedAliases(text, "phone");
+      // Bare "docenas" only via alias→12 x Tortilla Comal (alias forbids meats/dishes). Explicit "docena de tortilla(s)" always hits.
+      const dozenHit = /\b12\s*x\s*tortilla\s*comal\b/iu.test(aliasedDoc)
+        || /\bdocenas?\s+de\s+tortillas?\b/iu.test(text);
+      if (source.startsWith("caller") && dozenHit) {
+        const TOR = "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H";
+        // Spoken dozen count: "dos docenas" / "dos 12 x Tortilla Comal" → qty 2; bare/una → 1 (never inflate from the "12" in the SKU name)
+        const dm = (text + " " + aliasedDoc).match(/\b(un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\s+(?:docenas?|12\s*x\s*tortilla)/iu);
+        const dozenQty = dm ? Math.max(1, spokenCount(dm[1]) || Number(dm[1]) || 1) : 1;
+        const have = cart.some((l) => /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(l.itemId)))
+          || acts.some((a: any) => a.type === "add_item" && /tortillas?-12|12-x-tortilla|tortilla-comal/i.test(String(a.itemId)));
+        if (!have) acts.push({ type: "add_item", itemId: TOR, quantity: dozenQty, modifiers: [], readback: dozenQty > 1 ? `${dozenQty} docenas tortillas comal` : "12 tortillas comal" });
+        // luis181c / angelica1: pack SKU is already "12 x …" — model often sets quantity=12; clamp to spoken dozens
+        for (const a of acts) {
+          if (a.type === "add_item" && /(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(a.itemId || ""))) a.quantity = dozenQty;
+        }
+        for (const l of cart) {
+          if (/(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(l.itemId || ""))) l.quantity = dozenQty;
+        }
+        // luis181b: drop phantom 6-pack when they asked for a dozen (model + auto-accept often ring 6 taquera too)
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i]; const id = String(a.itemId || "");
+          if (a.type === "add_item" && /(?:^|-)tortillas?-6-x-tortilla|6-x-tortilla/i.test(id) && !/menudo|mole|platillo|birria/i.test(id)) acts.splice(i, 1);
+        }
+        for (let i = cart.length - 1; i >= 0; i--) {
+          const id = String(cart[i].itemId || "");
+          if (/(?:^|-)tortillas?-6-x-tortilla|6-x-tortilla/i.test(id) && !/menudo|mole|platillo|birria/i.test(id)) cart.splice(i, 1);
+        }
       }
     }
     // enrique1: "va a ser un menudo con pata" / "también va a ser un mole" — model often returns []; force catalog add (not avail asks).
@@ -1205,10 +1214,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           a.modifiers = (a.modifiers || []).filter((m: any) => !/\b(?:mild\s+)?salsa\b|cebolla|chiles?\s+asado|frijoles?|crema|lechuga|queso\s+fresco|guacamole/i.test(String(m.option || "")));
         }
       }
-            // luis181c (late): keep 12-pack at qty 1 after spokenCount/"12 x" inflate
-      if (source.startsWith("caller") && (/\b12\s*x\s*tortilla\s*comal\b/iu.test(text) || /\bdocena\s+de\s+tortillas?\b/iu.test(text))) {
+            // luis181c / angelica1 (late): keep 12-pack at spoken dozen qty (not the "12" in the SKU name)
+      if (source.startsWith("caller") && (/\b12\s*x\s*tortilla\s*comal\b/iu.test(text) || /\bdocenas?(?:\s+de\s+tortillas?)?\b/iu.test(text))) {
+        const aliasedLate = applySharedAliases(text, "phone");
+        const dmLate = (text + " " + aliasedLate).match(/\b(un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\s+(?:docenas?|12\s*x\s*tortilla)/iu);
+        const dq = dmLate ? Math.max(1, spokenCount(dmLate[1]) || Number(dmLate[1]) || 1) : 1;
         for (const a of acts) {
-          if (a.type === "add_item" && /(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(a.itemId || ""))) a.quantity = 1;
+          if (a.type === "add_item" && /(?:^|-)tortillas?-12(?:-x-tortilla|-comal)|12-x-tortilla-comal/i.test(String(a.itemId || ""))) a.quantity = dq;
         }
       }
             // staff-pick tortilla pack option: Elvi often returns qty=N from "4 x" / "Tortillas (4)" — clamp only when we did NOT just apply pendingSpokenQty
@@ -2040,10 +2052,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (t.speaker !== "caller") return false;
       if (/\b(?:quiero|dame|deme|me\s+da|I'?ll\s+take|I'?ll\s+have|can\s+I\s+(?:get|have|order)|let\s+me\s+get|I\s+want|give\s+me|me\s+pones?|me\s+puedes?\s+poner|ponme)\b/iu.test(t.text)) return false;
       if (/\b(\d+|one|two|three|four|five|una?|dos|tres|cuatro|for pickup|para llevar|order|orden)\b/i.test(t.text) && !/\b(?:qu[eé]\s+m[aá]s|me\s+dijiste|what\s+else)\b/iu.test(t.text)) return false;
-      if (/^\W*(?:(?:hey|so|and|oh|y|oye|oiga|mire|diga|ah|am|um|uh|s[ií]|bueno|disculpe|perd[oó]n|ok(?:ay)?|qu[eé])[,.\s]+){0,5}\W*(?:s[ií][,.\s]+)?(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|ten[eé]s|vende[ns]?|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text)) return true;
+      if (/^\W*(?:(?:hey|so|and|oh|y|oye|oiga|mire|diga|ah|am|um|uh|s[ií]|bueno|disculpe|perd[oó]n|ok(?:ay)?|qu[eé])[,.\s]+){0,5}\W*(?:s[ií][,.\s]+)?(?:(?:do\s+)?you(?:\s+guys)?(?:\s+still)?\s+(?:got|have)|you\s+got\s+ca-?\s+you\s+got|got\s+any|is\s+there|is\s+[^?.!]{0,40}\bavailable|est[aá]\s+disponible|tienen\s+disponible|tienen|hay|tiene|ten[eé]s|tendr[aá]s?|tendr[aá]n|vende[ns]?|manejan)\b[^.!]*?(?:\btoday\b|\bhoy\b|\?)\W*$/iu.test(t.text)) return true;
       if (/\b(?:qu[eé]\s+m[aá]s|me\s+dijiste\s+que\s+ten|what\s+else\s+(?:do\s+you\s+)?have|you\s+(?:also\s+)?(?:said\s+you\s+)?have)\b/iu.test(t.text)) return true;
       // victor1/avail: "De, este, sí tiene barbacoa." — availability, not an order (no ?/hoy required).
-      if (/^\W*(?:(?:de|este|ah|oh|am|um|eh|s[ií]|bueno|pues|oye)[,.\s]+){0,6}\W*(?:s[ií][,.\s]+)?(?:tiene|tienen|ten[eé]s|hay|vende[ns]?|manejan)\b\s+[\p{L}\s]{2,40}\W*$/iu.test(t.text)) return true;
+      if (/^\W*(?:(?:de|este|ah|oh|am|um|eh|s[ií]|bueno|pues|oye)[,.\s]+){0,6}\W*(?:s[ií][,.\s]+)?(?:tiene|tienen|ten[eé]s|tendr[aá]s?|tendr[aá]n|hay|vende[ns]?|manejan)\b\s+[\p{L}\s]{2,40}\W*$/iu.test(t.text)) return true;
       // gino1: "Y tacos de ticket tienen." — dish…tienen (avail), not an order
       if (/\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|menudo|birria)\b[^.?]{0,40}\btienen\s*[.?]?\s*$/iu.test(t.text)) return true;
       if (/^\W*(?:(?:los?|las?)\s+)?(?:sopes?|gorditas?|tacos?|quesadillas?|tortas?|huaraches?|guaraches?)\s+(?:son|est[aá]n|are)\s+/iu.test(t.text)) return true;

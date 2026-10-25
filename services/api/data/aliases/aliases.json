@@ -468,15 +468,28 @@
     },
     {
       "id": "docena1",
-      "match": "\\b(?:una?\\s+)?docena\\s+de\\s+tortillas?\\b",
-      "to": "12 x Tortilla Comal",
+      "match": "\\b((?:un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\\d+)\\s+)?docenas?(?:\\s+de\\s+tortillas?)?\\b",
+      "to": "$1 12 x Tortilla Comal",
       "scope": [
         "phone",
         "app"
       ],
-      "example": "y una docena de tortilla",
-      "source": "Luis CA181080 10/24: standalone Tortillas 12 x Comal, not menudo EXTRA dozen",
+      "forbids": "\\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|menudos?|moles?|carnitas|bistec|pastor|chorizo|pollo|lengua|tripas?|huevos?)\\b",
+      "example": "dos docenas / una docena de tortilla",
+      "source": "Luis CA181080 10/24; Angélica CA6c61da 10/25: bare dos docenas (after tortillas) = 2×12 Comal, not 'not on menu'",
       "approved": "Carlos 2026-10-24"
+    },
+    {
+      "id": "angelica1-stt-tortillas",
+      "match": "\\b(?:tendr[aá]s?|tendr[aá]n|tienen|hay)\\s+(?:que\\s+)?enviar\\s+fecha(?:s)?(?:\\s+a\\s+(?:la\\s+)?semana)?\\b|\\benviar\\s+fecha(?:s)?\\s+a\\s+(?:la\\s+)?semana\\b",
+      "to": "tienen tortillas",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "¿tendrás que enviar fecha a semana?",
+      "source": "Angélica CA6c61da 10/25: STT garbled tortillas availability as 'enviar fecha a semana' → Elvi invented dates",
+      "approved": "Carlos 2026-10-25"
     },
     {
       "id": "menus1",
