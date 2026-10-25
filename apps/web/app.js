@@ -219,6 +219,31 @@ function isLocalBuildActive() {
   return Boolean(state.currentBuildGuide || state.pendingComboState);
 }
 
+/** m31b: mid-sheet Hablar answers ("pollo", "verde") — bypass order-command filter */
+function isSheetVoiceActive() {
+  return Boolean(state.uiSheetBuild && state.uiSheetBuild.active);
+}
+function trySheetVoiceAnswer(text) {
+  if (!isSheetVoiceActive()) return false;
+  const utt = String(text || "").trim();
+  if (!utt) return false;
+  if (typeof window.__elviSheetAnswer !== "function") return false;
+  try {
+    const handled = !!window.__elviSheetAnswer(utt);
+    if (handled) {
+      console.log("[m31b] sheet voice handled:", utt);
+      ui.status.textContent = "Ready…";
+      if (ui.engine) ui.engine.textContent = `Sheet: ${utt}`;
+      setAvatarState("listening");
+      state.turnInFlight = false;
+    }
+    return handled;
+  } catch (e) {
+    console.warn("[m31b] sheet answer", e);
+    return false;
+  }
+}
+
 function cancelRealtimeResponseDuringLocalBuild() {
   if (!isLocalBuildActive()) return false;
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
@@ -1096,22 +1121,18 @@ async function openRealtimeSession() {
 
     if (/input_audio.*transcription.*(completed|done|final)/i.test(String(payload.type || "")) && payload.transcript) {
       state.lastUserText = String(payload.transcript || "").trim();
-      // m31: ANY open customize sheet — client maps voice → pickOpt (model has no mid-sheet pick tool)
-      if (state.uiSheetBuild && state.uiSheetBuild.active && typeof window.__elviSheetAnswer === "function") {
-        let handled = false;
-        try { handled = !!window.__elviSheetAnswer(state.lastUserText); } catch (e) { console.warn("[m31] sheet answer", e); }
-        if (handled) {
-          try {
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-              sendWs({ type: "response.cancel" });
-              sendWs({ type: "input_audio_buffer.clear" });
-            }
-          } catch {}
-          state.activeReplyText = "";
-          state.pendingActions = [];
-          state.turnInFlight = false;
-          return;
-        }
+      // m31/m31b: ANY open customize sheet — client maps voice → pickOpt
+      if (trySheetVoiceAnswer(state.lastUserText)) {
+        try {
+          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            sendWs({ type: "response.cancel" });
+            sendWs({ type: "input_audio_buffer.clear" });
+          }
+        } catch {}
+        state.activeReplyText = "";
+        state.pendingActions = [];
+        state.turnInFlight = false;
+        return;
       }
       armReplyWatchdog();
       return;
@@ -3734,6 +3755,8 @@ function resumeBrowserRecognition() {
 function canStartVoiceTurn(text = "") {
   if (!state.vadRunning || state.turnInFlight || state.elviSpeaking || state.recognitionPaused) return false;
   if (performance.now() < state.voiceInputCooldownUntil) return false;
+  // m31b: open customize sheet → short option words ("pollo") are valid turns
+  if (isSheetVoiceActive()) return true;
   return !text || isLikelyVoiceOrderCommand(text);
 }
 
@@ -3774,6 +3797,8 @@ async function transcribeTurnAudio() {
 function isLikelyVoiceOrderCommand(text) {
   const normalized = normalizeOptionKey(text);
   if (!normalized) return false;
+  // m31b: while customize sheet is open, option words count as order speech
+  if (isSheetVoiceActive()) return true;
   if (shouldUseLocalVoiceOrderingFlow()) return true;
   if (isCurrentOrderQuestion(text) || shouldResolveStructuredBuildLocally(text)) return true;
   // Menu questions ("what's on the menu", "¿qué tienen?") are real turns, not noise.
@@ -3802,6 +3827,8 @@ function handleLocalVoiceTurnAfterRecognition(delayMs = 900) {
     }
     state.localTranscript = "";
     if (ui.engine) ui.engine.textContent = `Heard: ${text}`;
+    // m31b: sheet open → map utterance to pickOpt (root cause: "pollo" was Ignored)
+    if (trySheetVoiceAnswer(text)) return;
     if (!isLikelyVoiceOrderCommand(text)) {
       ui.status.textContent = "Ready…";
       if (ui.engine) ui.engine.textContent = `Ignored: ${text}`;
@@ -3928,6 +3955,9 @@ function sendUserTurn(text, options = {}) {
     return false;
   }
   autoSelectLanguageFromText(text);
+
+  // m31b: mid-sheet voice/text → client pick before model/chat
+  if (!options.skipSheet && trySheetVoiceAnswer(text)) return true;
 
   if (!options.skipMenuQuestion && MENU_QUESTION_HINT.test(text) && hasSelectedLanguage() && !state.turnInFlight) {
     if (state.elviSpeaking) {

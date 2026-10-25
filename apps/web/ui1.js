@@ -1148,11 +1148,18 @@ async function haloSpeak(line) {
  */
 function elviAnswer(utt) {
   if (!sheetIsOpen() || !U.item) return false;
-  if (U._elviAnswering) return true;
+  // m31b: stuck lock from a prior crashed turn would swallow every answer → silence
+  if (U._elviAnswering) {
+    if (U._elviAnswerAt && (Date.now() - U._elviAnswerAt) < 4000) return true;
+    console.warn("[m31b] clearing stuck elviAnswering");
+    U._elviAnswering = false;
+  }
   const raw = String(utt || "").trim();
   if (!raw) return false;
   const u = plainOpt(raw);
+  console.log("[m31b] elviAnswer", raw, "→", u, "miss", missingStep());
   U._elviAnswering = true;
+  U._elviAnswerAt = Date.now();
   const done = () => { U._elviAnswering = false; };
 
   (async () => {
