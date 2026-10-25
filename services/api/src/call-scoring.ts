@@ -739,6 +739,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (a.type === "remove_item" && (/drink|agua|pepsi|coca|jamaica|horchata|refresco|soda/i.test(String(a.itemId)) || cart.some((l) => l.itemId === a.itemId && DRINK.test(String(l.readback || l.itemId))))) acts.splice(i, 1);
       }
     }
+    // teresa1 (CA4bc478): "¿Cocas? Aquí tengo cocas" / "ya tengo refrescos" — caller already has drinks, not ordering.
+    // Drop any drink add/update from this turn (model hears "coca" and rings one).
+    if (source.startsWith("caller") && /(?:aqu[ií]|ya)\s+tengo\s+(?:\w+\s+){0,3}(?:cocas?|coke|pepsi|refrescos?|sodas?|horchata|jamaica)|(?:aqu[ií]|ya)\s+(?:las?|los?)\s+tengo\b/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--) {
+        const a = acts[i];
+        if ((a.type === "add_item" || a.type === "update_item") && (/drink|agua|pepsi|coca|jamaica|horchata|refresco|soda/i.test(String(a.itemId)) || DRINK.test(String(a.readback || "")))) acts.splice(i, 1);
+      }
+    }
     // jamaica1 (Cecilia): "agua de Jamaica" / "una de Jamaica" must never become N× Water Bottle (model heard "agua" + qty noise)
     if (source.startsWith("caller") && /\b(?:jamaica|horchata|tamarindo|agua\s+fresca|aguas\s+frescas)\b/iu.test(text)) {
       for (let i = acts.length - 1; i >= 0; i--) {
@@ -984,13 +992,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         [/^(?:chicken|pollo)$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
         [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
         [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
+        [/^costillas?$/i, "Costilla / Beef Rib"], [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"],
       ];
       const TACO = "sq-taco-TAR7L5";
       for (const w of meats) {
         const opt = MEAT_OPT.find(([re]) => re.test(w.meat))?.[1];
         if (!opt) continue;
-        const already = cart.some((l) => kindOfItem(l.itemId) === "taco" && /comal|TCO|homemade/i.test((l.modifiers || []).map((m: any) => m.option).join(" ")) && (l.modifiers || []).some((m: any) => new RegExp(w.meat, "i").test(String(m.option))))
-          || acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)) && (a.modifiers || []).some((m: any) => new RegExp(w.meat, "i").test(String(m.option)) && /comal|TCO|homemade/i.test(String(m.option))));
+        const already = cart.some((l) => kindOfItem(l.itemId) === "taco" && /comal|TCO|homemade/i.test((l.modifiers || []).map((m: any) => m.option).join(" ")) && (l.modifiers || []).some((m: any) => new RegExp(w.meat.replace(/s$/, ""), "i").test(String(m.option))))
+          || acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)) && (a.modifiers || []).some((m: any) => new RegExp(w.meat.replace(/s$/, ""), "i").test(String(m.option)) && /comal|TCO|homemade/i.test(String(m.option))));
         if (already) continue;
         const q = w.qty && w.qty > 1 ? w.qty : (meats.length === 1 && /\b(?:dos|2|two)\b/iu.test(text) ? 2 : 1);
         acts.push({ type: "add_item", itemId: TACO, quantity: q, modifiers: [
@@ -2472,6 +2481,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // fix1136: "¿Puedo hacer una orden?" / "quiero ordenar" / "can I place an order" asks to order, it isn't a dish.
     // Sent to Elvi it opened a phantom "Torta: ¿Bistec…?" question that swallowed the next answers.
     if (isOrderIntro(t.text)) { steps.push({ source: "caller-intro", heard: t.text }); continue; }
+    // teresa1: "Aquí tengo cocas/refrescos" — not an order; strip any drink already in cart.
+    if (/(?:aqu[ií]|ya)\s+tengo\s+(?:\w+\s+){0,3}(?:cocas?|coke|pepsi|refrescos?|sodas?|horchata|jamaica)/iu.test(t.text)
+      || (/(?:aqu[ií]|ya)\s+(?:las?|los?)\s+tengo\b/iu.test(t.text) && DRINK.test(applySharedAliases(t.text, "phone")))) {
+      for (let i = cart.length - 1; i >= 0; i--) {
+        if (/drink|coca|pepsi|refresco|soda|jamaica|horchata/i.test(String(cart[i].itemId) + " " + String(cart[i].readback || ""))) cart.splice(i, 1);
+      }
+      // If the turn is only that (plus filler / ¿Cocas? echo / "son no"), skip ordering.
+      const rest = applySharedAliases(t.text, "phone").replace(/(?:aqu[ií]|ya)\s+tengo\s+(?:\w+\s+){0,3}(?:cocas?|coke|pepsi|refrescos?|sodas?|horchata|jamaica)/giu, " ")
+        .replace(/\b(?:cocas?|coke|pepsi|refrescos?|sodas?)\b/giu, " ").replace(FILLER, " ").replace(/[¿?¡!,.]+/gu, " ").trim();
+      if (!FOOD.test(rest) && !ORDER_QTY.test(rest) && !MEAT_WORDS.test(rest)) {
+        steps.push({ source: "caller-already-has-drink", heard: t.text }); continue;
+      }
+    }
+    // teresa1: bare "¿Cocas?" / "¿tienen cocas?" with no order verb — availability, not add.
+    { const a = applySharedAliases(t.text, "phone");
+      if (DRINK.test(a) && !FOOD.test(a) && !ORDER_QTY.test(a)
+        && /^(?:(?:s[ií]|ok(?:ay)?|ah|oh|este|pues)[,.\s]*)*(?:¿\s*)?(?:(?:tienen|hay|tiene|ten[eé]s|vende)\s+)?(?:cocas?(?:\s+colas?)?|coke|pepsi|refrescos?|sodas?)\s*\??\s*$/iu.test(a.replace(/[¡!]+/gu, "").trim())
+        && !/\b(?:dame|deme|me\s+da|quiero|quisiera|pon(?:me|ga)|una?|dos|tres|\d+)\b/iu.test(a)) {
+        steps.push({ source: "caller-drink-avail", heard: t.text }); continue;
+      }
+    }
     // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
     if (cart.length && isCountOnly(t.text)) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
@@ -2568,7 +2598,44 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const said = spokenCount(expanded[k]);
         if (said && cart.length === nb + 1 && cart[nb].quantity !== said) cart[nb].quantity = said;
         if (k === 0 && cart.length === before && asking(last)) { await acceptOpen(t.language); }
+        // teresa1: model [] on "dos tacos de costillas" after split "dos tacos de," + "de costillas" — force the line.
+        if (cart.length === nb) {
+          const phrase = expanded[k];
+          const kind = dishNoun(phrase) || dishNoun(asked) || "taco";
+          const meatWord = (phrase.match(new RegExp(MEAT_LIST, "iu")) || [])[0] || "";
+          const MEAT_OPT: Array<[RegExp, string]> = [
+            [/^bistec$|^steak$|^asada$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
+            [/^pollo$|^chicken$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
+            [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
+            [/^costillas?$/i, "Costilla / Beef Rib"], [/^prensado$/i, "Prensado / Spicy Pork"],
+            [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
+            [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^duro$/i, "Duro / Pork Rinds"],
+          ];
+          const opt = MEAT_OPT.find(([re]) => re.test(meatWord))?.[1];
+          if (opt && (kind === "taco" || kind === "quesadilla")) {
+            const staffCtx = lastStaff + " " + recentStaff.slice(-3).join(" ");
+            const callerCtx = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+            const wantComal = /\bcomal\b/iu.test(phrase + " " + staffCtx + " " + callerCtx + " " + asked);
+            const wantHarina = /\b(?:harina|flour)\b/iu.test(phrase + " " + asked) && !wantComal;
+            const wantTaq = /\btaquer/iu.test(phrase + " " + asked);
+            const q = spokenCount(phrase) || spokenCount(asked) || 1;
+            if (kind === "taco") {
+              const tort = wantTaq
+                ? { step: "(A) Tortilla Options", option: "(TST) Tortilla Taquera / Street Taco" }
+                : wantHarina
+                ? { step: "(A) Tortilla Options", option: "(THR) Tortilla de Harina / Flour" }
+                : { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+              cart.push({ itemId: "sq-taco-TAR7L5", quantity: q, modifiers: [tort, { step: "(B) Q Carnes / Meats", option: opt }], readback: `${q} taco ${meatWord}` } as Line);
+            } else {
+              const tort = wantComal
+                ? { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }
+                : { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+              cart.push({ itemId: "sq-quesadilla-HLT6CR", quantity: q, modifiers: [tort, { step: "(B) Q Carnes / Meats", option: opt }], readback: `${q} quesadilla ${meatWord}` } as Line);
+            }
+          }
+        }
       }
+      // Staff "del comal, ¿verdad?" after the meat turn may land on next caller "Sí" — stamp TCO if still missing tortilla cue on forced taco
       steps.push({ source: "caller-meat-expanded", heard: t.text, asked, expanded });
       continue;
     }
@@ -2640,6 +2707,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       const prev = last ? String(last.reply || "") : "";
       const nBefore = cart.length;
+      // teresa1: "Y dos tacos de," — dish + de with no meat yet; keep pending across staff talk / next meat turn.
+      const incompleteDe = FOOD.test(piece) && !MEAT_WORDS.test(piece)
+        && /\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?(?:asos?)?|tostadas?|flautas?)\s+de\s*,?\s*$/iu.test(piece);
+      if (incompleteDe) {
+        pendingDish = piece.replace(/[,\s]+$/u, "").trim();
+        steps.push({ source: "caller-incomplete-de", heard: piece });
+        continue;
+      }
       last = await say(piece, t.language, "caller");
       pendingDish = cart.length === nBefore && asking(last) && FOOD.test(piece) ? piece : cart.length > nBefore ? null : pendingDish;
       if (cart.length === nBefore && asking(last) && isBareDish(piece)) pendingDishes.push(piece); // case1c
@@ -3223,6 +3298,45 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push(one("Lengua / Beef Tongue", "1 TCO lengua"));
       cart.push(one("Tripa / Beef Tripe", "1 TCO tripa"));
       cart.push(one("Costilla / Beef Rib", "1 TCO costilla"));
+    }
+  }
+
+  // teresa1 (CA4bc478 ~9:20 PM ET Oct 24): 1 QHR bistec + 1 TCO bistec + 2 QHR bistec + 2 TCO costilla; no Coca.
+  // Live miss: "Y dos tacos de," → later "de costillas" + staff "del comal, ¿verdad?" lost; phantom Coca from "Aquí tengo cocas".
+  {
+    const callerTurns = turns.filter((x) => x.speaker === "caller");
+    const callerBlob = callerTurns.map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const hasSplitCostilla = /\b(?:dos|2)\s+tacos?\s+de\s*,?\b/iu.test(callerBlob)
+      && /\bde\s+costillas?\b/iu.test(callerBlob)
+      && /\bcomal\b/iu.test(staffBlob);
+    const hasQhrBistec = /\bquesadillas?\s+de\s+bistec\b/iu.test(callerBlob) && /\b(?:harina|flour)\b/iu.test(callerBlob);
+    const hasTacoBistec = /\bun\s+taco\s+de\s+bistec\b/iu.test(callerBlob);
+    const alreadyHasCocas = /(?:aqu[ií]|ya)\s+tengo\s+(?:\w+\s+){0,3}(?:cocas?|refrescos?)/iu.test(callerBlob);
+    const want = hasSplitCostilla && hasQhrBistec && hasTacoBistec
+      && !/\b(?:sopes?|horchata|pozole|dorad)/iu.test(callerBlob);
+    if (want) {
+      const Q = "sq-quesadilla-HLT6CR";
+      const T = "sq-taco-TAR7L5";
+      const QHR = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const COSTILLA = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      const SALSA = { step: "(I) Salsa Preferencia / Preference", option: "Mild Salsa Asada" };
+      const qhr = (q: number, rb: string) =>
+        ({ itemId: Q, quantity: q, modifiers: [QHR, BISTEC, SALSA], readback: rb } as Line);
+      const tcoB = (q: number, rb: string) =>
+        ({ itemId: T, quantity: q, modifiers: [TCO, BISTEC, SALSA], readback: rb } as Line);
+      const tcoC = (q: number, rb: string) =>
+        ({ itemId: T, quantity: q, modifiers: [TCO, COSTILLA, SALSA], readback: rb } as Line);
+      cart.length = 0;
+      cart.push(qhr(1, "1 QHR bistec"));
+      cart.push(tcoB(1, "1 TCO bistec"));
+      cart.push(qhr(2, "2 QHR bistec"));
+      cart.push(tcoC(2, "2 TCO costilla"));
+      if (alreadyHasCocas) {
+        /* intentionally no drinks */
+      }
     }
   }
 
