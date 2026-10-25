@@ -1,0 +1,107 @@
+[
+  {
+    "speaker": "staff",
+    "start": 1.541,
+    "end": 3.022,
+    "text": "Cocina Elvis. Mmm.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 4.042,
+    "end": 6.743,
+    "text": "Buenas tardes, ah, ¿me puedes poner una orden de tacos?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.026,
+    "end": 11.886,
+    "text": "Claro que sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.327,
+    "end": 14.567,
+    "text": "¿Qué le vamos a poner, Pablo?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.867,
+    "end": 14.147,
+    "text": "¿Me pue,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 15.508,
+    "end": 17.149,
+    "text": "me puedes poner cinco de costilla?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 18.249,
+    "end": 19.17,
+    "text": "Taqueros, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 19.95,
+    "end": 23.912,
+    "text": "Sí, por favor. Ah,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 21.571,
+    "end": 22.211,
+    "text": "¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.293,
+    "end": 27.234,
+    "text": "no, eso sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 27.874,
+    "end": 30.775,
+    "text": "Entonces le tengo cinco taqueros de costilla, Pablo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.156,
+    "end": 32.256,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.197,
+    "end": 35.318,
+    "text": "Okay, deme unos quince minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.198,
+    "end": 37.059,
+    "text": "Sí, está bien, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 37.599,
+    "end": 38.439,
+    "text": "Gracias a usted.",
+    "language": "es"
+  }
+]
