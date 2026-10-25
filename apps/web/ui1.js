@@ -24,6 +24,8 @@ const CROPS = { "carlos-frijoles.jpg": { focus: "50% 47%", zoom: 1.85 }, "carlos
 const CATEGORY_PHOTO = [[/most popular/i, null, "Más populares", "Most popular"], [/favorit/i, "taco.jpg", "Favoritos", "Top Favorites"], [/combos/i, "combo-tacos.jpg", "Elvis Combos", "Elvis Combos"], [/traditional/i, "mole-tradicional-platillo.jpg", "Platillos Tradicionales", "Traditional Meals"], [/elvis meals/i, "4-pack-meal.jpg", "Elvis Meals (Packs)", "Elvis Meals (Packs)"], [/especial del dia/i, "birria-de-chivo-goat-birria.jpg", "Especial del Día", "Day Special"], [/traditional/i, "mole-tradicional-platillo.jpg", "Platillos Tradicionales", "Traditional Meals"], [/enchiladas/i, "enchiladas.jpg", "Enchiladas / Tacos al Vapor", "Enchiladas / Steamed Tacos"], [/sabado/i, "menudo.jpg", "Sábado / Domingo", "Sat / Sun Special"], [/mariscos/i, "coctel-de-camarones-shrimp-cocktail.jpg", "Mariscos", "Seafood"], [/dips/i, "dips.jpg", "Dips / Acompañantes", "Dips / Sides"], [/bebidas/i, "aguas-frescas.jpg", "Bebidas", "Drinks"], [/fiesta/i, "medium-fiesta-platter.jpg", "Fiesta Platters", "Fiesta Platters"]];
 // Option photos (designer mapping). First match wins; null = gray placeholder on purpose.
 const OPTION_PHOTO = [
+  // warm1 (Carlos): QD Versión thumbs — Regular vs Deluxe Preparada (not shared qd-quesadilla-dorada.jpg)
+  [/^regular\s+dorada/i, "qd-regular.jpg"], [/^deluxe\s+preparada/i, "qd-deluxe.jpg"],
   [/horchata|jamaica|costilla/i, null],
   [/extra\s+side\s+crema|crema\s+aparte/i, "taco-10.jpg"], [/extra\s+side\s+queso\s+fresco/i, "taco-9.jpg"], [/lim[oó]n|lime/i, "taco-8.jpg"],
   [/guacamole\s+salsa/i, "taco-7.jpg"], [/cebolla\s+y\s+chiles/i, "taco-2.jpg"],
@@ -69,10 +71,11 @@ function optLabel(name) {
 }
 function groupLabel(g) {
   const n = cleanOpt(g.name).replace(/^(T|Q|G|TO|CB|GQT|B)\s+/i, "");
-  // dorada1 (Carlos): QD style picker is Regular vs Deluxe — show that, not "Quesadilla Dorada options".
-  if (/dorada.*options|quesadilla dorada options/i.test(n) || (isSkuOption(g) && (g.options || []).some((o) => /regular|deluxe/i.test(String(o.name || o))))) return t("Regular o Deluxe", "Regular or Deluxe");
+  // warm1 (Carlos): QD first group = Versión / Version (Regular | Deluxe Preparada)
+  if (/dorada.*options|quesadilla dorada options|versi[oó]n/i.test(n) || (isSkuOption(g) && (g.options || []).some((o) => /regular|deluxe/i.test(String(o.name || o))))) return t("Versión", "Version");
   if (isSkuOption(g)) return t("Estilo", "Style");
-  if (/tortilla|shell/i.test(n)) return "Tortilla";
+  // Estilo on screen for tortilla option groups (site customize lead step)
+  if (/tortilla|shell/i.test(n)) return t("Estilo", "Style");
   if (/size|tama/i.test(n)) return t("Tamaño", "Size");
   // fill1 (Carlos): a "meat" group that also offers cheese / potatoes is a filling, not a meat.
   if (/carne|meat/i.test(n) && (g.options || []).some((o) => /\b(queso|cheese|papas?|potato(es)?)\b/i.test(cleanOpt(o.name || o)))) return t("Relleno", "Filling (Relleno)");
@@ -181,7 +184,7 @@ function catHTML() {
 function steps() {
   const gs = U.item.modifierGroups || [];
   const main = gs.map((g, i) => i).filter((i) => isMain(gs[i]));
-  // dorada1: SKU/style picker (Regular/Deluxe) always leads, even if another required group is listed earlier.
+  // warm1: keep Square/website modifier order (a-b). Only reviewed-*-options (QD Versión, pack style) floats to front.
   main.sort((a, b) => Number(isSkuOption(gs[b])) - Number(isSkuOption(gs[a])) || a - b);
   return { main, extra: gs.map((g, i) => i).filter((i) => !isMain(gs[i])) };
 }
@@ -193,7 +196,7 @@ function itemTotal() {
 function openItem(id) {
   const it = U.menu.find((m) => m.id === id);
   if (!it) return;
-  U.item = it; U.sel = {}; U.dbl = {}; U.last = {};
+  U.item = it; U.sel = {}; U.dbl = {}; U.last = {}; U._v3AskKey = null;
   (it.modifierGroups || []).forEach((g) => { U.sel[g.id] = {}; U.dbl[g.id] = new Set(); for (const d of defaultsOf(g)) U.sel[g.id][d] = 1; });
   const { main, extra } = steps();
   U.step = main.find((i) => !Object.keys(U.sel[it.modifierGroups[i].id]).length) ?? (main[0] ?? (extra.length ? "x" : null));
@@ -439,7 +442,64 @@ function v3Side() {
 // Elvi's latest line, mirrored into the compact bar / Elvi view / side panel.
 function v3Line() { const txt = document.querySelector("#assistant-reply")?.textContent || ""; for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e && e.textContent !== txt) e.textContent = txt; } }
 // ---------- v3 item sheet: all groups in Square order, Elvi asks only the first missing required group ----------
-function v3Ask(g) { const l = groupLabel(g); if (/regular|deluxe/i.test(l) || isSkuOption(g)) return t("¿Regular o deluxe?", "Regular or deluxe?"); if (/carne|meat/i.test(l)) return t("¿De qué carne?", "Which meat?"); if (/adentro|inside/i.test(l)) return t("¿Qué le ponemos adentro?", "What goes inside?"); if (/tortilla/i.test(l)) return t("¿Qué tortilla?", "Which tortilla?"); if (/tama|size/i.test(l)) return t("¿De qué tamaño?", "Which size?"); return t(`¿${l}?`, `${l}?`); }
+// warm1 (Carlos): Elvi leads each unfinished required step with a warm, direct invite (footer "Falta:" stays secondary).
+function v3StepWord(g) {
+  const n = cleanOpt(g.name || "");
+  const l = groupLabel(g);
+  if (/tortilla|estilo|shell/i.test(n) || /estilo|style|tortilla/i.test(l)) return t("tortilla", "tortilla");
+  if (/relleno|filling/i.test(l) || (/carne|meat|relleno/i.test(n) && /relleno|filling/i.test(l))) return t("relleno", "filling");
+  if (/carne|meat/i.test(n) || /carne|meat/i.test(l)) return t("relleno", "filling"); // site meats step spoken as relleno/filling
+  if (/size|tama/i.test(n) || /tama|size/i.test(l)) return t("tamaño", "size");
+  if (/salsa\s+pref|preferencia|preference/i.test(n)) return "salsa";
+  if (/lado|side|acompa/i.test(n) || /acompa/i.test(l)) return t("acompañante", "side");
+  if (/gordita\s+options/i.test(n)) return "gordita";
+  if (/torta\s+options/i.test(n)) return "torta";
+  const lab = String(l || "").trim();
+  return lab ? lab.toLowerCase() : t("opción", "option");
+}
+function isQdItem(it) {
+  const n = String(it?.name || "");
+  return /quesadilla\s+dorada|\(QD\)/i.test(n) || String(it?.id || "").includes("qd-quesadilla-dorada");
+}
+function isQdVersionGroup(g) {
+  const n = cleanOpt(g?.name || "");
+  return /dorada.*options|quesadilla dorada options|versi[oó]n/i.test(n)
+    || (isSkuOption(g) && (g.options || []).some((o) => /regular|deluxe/i.test(String(o.name || o))));
+}
+function v3Ask(g) {
+  const n = cleanOpt(g.name || "");
+  // QD (1) Versión — locked Carlos 10/24
+  if (isQdVersionGroup(g)) {
+    return t("¿Te gustaría Regular o Deluxe Preparada?", "Would you like Regular or Deluxe Preparada?");
+  }
+  // QD (2) meats — locked Carlos 10/24 (relleno o carne)
+  if (isQdItem(U.item) && /carne|meat|relleno|filling/i.test(n + " " + groupLabel(g))) {
+    return t("¿Qué relleno o carne te gustaría?", "What kind of relleno or carne would you like?");
+  }
+  if (/burrito\s+(combo\s+)?options|adentro/i.test(n) || /adentro|inside/i.test(groupLabel(g))) {
+    return t("Yo te puedo ayudar — ¿qué le ponemos adentro?", "I can help — what would you like inside?");
+  }
+  const w = v3StepWord(g);
+  return t(`Yo te puedo ayudar — ¿qué ${w} te gustaría?`, `I can help — what ${w} would you like?`);
+}
+/** Speak + mirror bubble for the current unfinished required step. Same step → no re-speak (ignore scroll). */
+function v3LeadAsk(force) {
+  if (!V3 || U.screen !== "item" || !U.item) return;
+  const gs = U.item.modifierGroups || [];
+  const miss = missingStep();
+  const key = miss !== undefined ? `miss:${gs[miss].id}` : `done:${U.item.id}`;
+  const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
+  const say = miss !== undefined
+    ? v3Ask(gs[miss])
+    : t(`Perfecto: ${itemName(U.item)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(U.item)}${picked ? " — " + picked : ""}.`);
+  const r = document.querySelector("#assistant-reply"); if (r) r.textContent = say;
+  for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = say; }
+  const askEl = document.querySelector("#v3-sheet-wrap .v3-ask b"); if (askEl) askEl.textContent = say;
+  if (!force && U._v3AskKey === key) return;
+  U._v3AskKey = key;
+  const b = B();
+  try { b?.speak?.(say); } catch (e) { console.warn("[warm1] speak", e); }
+}
 function v3SheetHTML() {
   const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
   const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
@@ -447,17 +507,28 @@ function v3SheetHTML() {
   const grp = (i) => { const g = gs[i]; const need = minOf(g) > 0 && !Object.keys(U.sel[g.id]).length; const mx = maxOf(g);
     return `<div class="v3-grp ${need ? "need" : ""}" id="v3-g-${i}"><div class="v3-gh"><b>${esc(groupLabel(g))}</b><span>${need ? t("Requerido", "Required") + (mx > 1 && mx < 99 ? ` · ${t("hasta", "up to")} ${mx}` : "") : Object.keys(U.sel[g.id]).length ? "✓" : ""}</span></div><div class="u1-grid opts">${tilesFor(i)}</div></div>`; };
   const extras = extra.length ? `<details class="v3-extras" ${U.v3x ? "open" : ""}><summary data-v3x="1">＋ ${t("Agregar extras", "Add extras")}</summary>${extra.map(grp).join("")}</details>` : "";
+  // warm1: QD hero follows selected Regular/Deluxe thumb
+  let heroPhoto = itemPhoto(it);
+  const vgi = gs.findIndex((g) => isQdVersionGroup(g));
+  if (vgi >= 0) { const vg = gs[vgi]; const picked = Object.keys(U.sel[vg.id] || {})[0]; if (picked) heroPhoto = optionPhoto(picked) || heroPhoto; }
   const foot = miss !== undefined ? `<button class="u1-btn p v3-full" disabled>${t("Falta", "Still need")}: ${esc(groupLabel(gs[miss]))}</button>` : `<button class="u1-btn p v3-full" data-add="1">${t("Agregar", "Add")} · ${money(itemTotal())}</button>`;
-  return `<div class="v3-sheet-bg" data-go="back"></div><div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(itemName(it))}"><div class="v3-grab"></div><div class="v3-sheet-body"><div class="v3-hero">${img(itemPhoto(it), itemName(it))}<div><b>${esc(itemName(it))}</b><div class="v3-price">${money(itemTotal())}</div><small class="v3-desc2">${esc(String(it.description || "").slice(0, 140))}</small></div></div><div class="v3-ask"><span class="v3-dot big"></span><b>${esc(say)}</b></div>${main.map(grp).join("")}${extras}</div><div class="v3-foot"><button class="u1-btn s" data-go="back" aria-label="${t("Cerrar", "Close")}">✕</button>${foot}</div></div>`;
+  return `<div class="v3-sheet-bg" data-go="back"></div><div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(itemName(it))}"><div class="v3-grab"></div><div class="v3-sheet-body"><div class="v3-hero">${img(heroPhoto, itemName(it))}<div><b>${esc(itemName(it))}</b><div class="v3-price">${money(itemTotal())}</div><small class="v3-desc2">${esc(String(it.description || "").slice(0, 140))}</small></div></div><div class="v3-ask"><span class="v3-dot big"></span><b>${esc(say)}</b></div>${main.map(grp).join("")}${extras}</div><div class="v3-foot"><button class="u1-btn s" data-go="back" aria-label="${t("Cerrar", "Close")}">✕</button>${foot}</div></div>`;
 }
 function v3RenderSheet() {
   let el = document.getElementById("v3-sheet-wrap");
-  if (U.screen !== "item") { if (el) el.innerHTML = ""; document.body.classList.remove("v3-sheet-on"); return; }
+  if (U.screen !== "item") {
+    if (el) el.innerHTML = "";
+    document.body.classList.remove("v3-sheet-on");
+    if (U._v3AskKey) { U._v3AskKey = null; try { B()?.stopAudio?.(); } catch {} }
+    return;
+  }
   if (!el) { el = document.createElement("div"); el.id = "v3-sheet-wrap"; document.getElementById("ui1")?.appendChild?.(el); }
   const sc = el.querySelector?.(".v3-sheet-body")?.scrollTop || 0;
   el.innerHTML = v3SheetHTML(); document.body.classList.add("v3-sheet-on");
   const b = el.querySelector?.(".v3-sheet-body"); if (b) b.scrollTop = sc;
   if (!U.v3focused) { U.v3focused = true; setTimeout(() => el.querySelector?.(".v3-foot button")?.focus?.(), 0); }
+  // warm1: HEAR the current unfinished required step (TTS); bubble already mirrors via v3LeadAsk
+  v3LeadAsk();
 }
 
 // ---------- live updates from chat / voice (app.js applyActions + renderCart) ----------

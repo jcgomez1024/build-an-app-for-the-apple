@@ -6583,6 +6583,8 @@ window.elviBridge = {
   greet: (text) => { if (ui.reply) ui.reply.textContent = text; try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text }); } catch {} },
   // ux1: Hablar / barge-in — cancel TTS and yield to listening
   stopAudio: () => { try { stopCurrentAudio(); } catch {} },
+  // warm1: sheet step asks must be HEARD (xAI TTS / speakLocalText), bubble mirrors
+  speak: (text, opts) => { try { return speakLocalText(String(text || ""), getEffectiveLanguage(), opts || {}); } catch (e) { return Promise.resolve(); } },
   isSpeaking: () => !!state.elviSpeaking,
   haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
   hasSelectedLanguage,
