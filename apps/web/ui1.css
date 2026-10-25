@@ -241,7 +241,10 @@ body.v3 .v3-pill{margin-right:50px}
 #loucap[data-state=error]{color:#ff5a5a;box-shadow:0 0 0 1px rgba(255,90,90,.55),0 -2px 14px rgba(255,90,90,.6),0 10px 28px rgba(0,0,0,.38);animation:none}
 #loucap[data-state=error]::before{background:linear-gradient(90deg,transparent,#ff5a5a,#ffe5e5,#ff5a5a,transparent);box-shadow:0 0 10px 2px rgba(255,90,90,.8)}
 #loucap[data-state=error] .e3d{--c1:#ff5a5a}
-#loucap.hide,body.v3-sheet-on #ux1-bottom,body.ux1-confirm-on #ux1-bottom,body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap{display:none!important}
+#loucap.hide{display:none!important}
+/* m27b: Hablar stays visible+tappable on menu, customize sheet, cart (mic grant anytime) */
+body.v3-sheet-on #ux1-bottom,body.ux1-confirm-on #ux1-bottom{display:flex!important}
+body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap{display:inline-flex!important}
 @media (min-width:960px){#loucap.loucap{display:none!important}} /* m27: also #ux1-bottom */
 @keyframes louPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.03);filter:brightness(1.12)}}
 @keyframes louSpeak{0%,100%{transform:scale(1)}40%{transform:scale(1.02)}70%{transform:scale(1.01)}}
@@ -252,10 +255,53 @@ body.v3 .v3-pill{margin-right:50px}
 /* m27 soft Hablar lang gate + soft-bounce invite (SPEC §2e) */
 @keyframes capBounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-4px)}60%{transform:translateY(0)}72%{transform:translateY(-1.5px)}}
 @keyframes softPulse{0%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 0 rgba(74,163,255,.45)}70%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 12px rgba(74,163,255,0)}100%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 0 rgba(74,163,255,0)}}
-#ux1-bottom.bottom{position:fixed;left:0;right:0;bottom:calc(var(--u1-appbar,150px) + var(--u1-bottom-h,90px) + 10px);z-index:36;display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;padding:0 10px}
+#ux1-bottom.bottom{position:fixed;left:0;right:0;bottom:calc(var(--u1-appbar,150px) + var(--u1-bottom-h,90px) + 10px);z-index:72;display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;padding:0 10px}
 #ux1-bottom.bottom>*{pointer-events:auto}
 #loucap.loucap{position:relative;left:auto;transform:none;bottom:auto}
 #loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
+
+/* Hablar above sheet/scrim; float near sheet top-edge so mic grant always reachable */
+body.v3-sheet-on #ux1-bottom.bottom,body.ux1-confirm-on #ux1-bottom.bottom{
+  bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  z-index:72;
+}
+body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet{padding-bottom:72px} /* room so foot CTAs clear Hablar */
+
+/* Elegant rotating blue hue around Hablar soft ring (idle/invite) */
+@keyframes hablorOrbit{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+#loucap.loucap.invite[data-state=idle]::before{
+  left:8%;right:8%;height:2.5px;
+  background:linear-gradient(90deg,transparent 0%,#1471d6 18%,#4aa3ff 50%,#1471d6 82%,transparent 100%);
+  box-shadow:0 0 10px 2px rgba(74,163,255,.75),0 0 22px 5px rgba(20,113,214,.4);
+  /* top edge stays; rotating hue is on ::after soft ring */
+}
+/* Conic soft ring behind capsule — continuous brand-blue orbit, not flashy */
+#loucap.loucap.invite[data-state=idle]::after{
+  inset:-8px;
+  background:conic-gradient(from var(--hab-a,0deg),
+    rgba(20,113,214,0) 0deg,
+    rgba(20,113,214,.55) 50deg,
+    rgba(74,163,255,.85) 90deg,
+    rgba(20,113,214,.35) 140deg,
+    rgba(20,113,214,0) 200deg,
+    rgba(74,163,255,.5) 280deg,
+    rgba(20,113,214,0) 360deg);
+  opacity:.9;filter:blur(5px);
+  animation:hablorOrbit 6.5s linear infinite;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 10px),#000 calc(100% - 9px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 10px),#000 calc(100% - 9px));
+}
+/* Soft-bounce kept on the capsule itself; orbit lives on ::before/::after so they don't fight */
+#loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
+/* Stop orbit while listening/speaking/gating (gating already kills invite bounce) */
+#ux1-bottom.bottom.gating #loucap.invite::before,
+#ux1-bottom.bottom.gating #loucap.invite::after,
+#loucap:not(.invite)::before,
+#loucap:not([data-state=idle])::after{animation:none}
+
 #loucap .lt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;white-space:nowrap}
 #loucap .lt .lab{font:600 13px 'Plus Jakarta Sans','Space Grotesk',system-ui,sans-serif;letter-spacing:.02em}
 #loucap .lt .inv{display:block;font:500 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:rgba(200,225,255,.78);letter-spacing:.02em;margin-top:1px}
