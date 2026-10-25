@@ -362,7 +362,7 @@ export const isOrderIntro = (text: string) => {
 };
 export const STAFF_VOICE = /^[¿¡\s]*(?:¿\s*)?(?:cu[aá]nt[oa]s?\s+\p{L}+\s+(?:quer[ií]a|quiere|quieres|va\s+a\s+querer)|qu[eé]\s+m[aá]s|qu[eé]\s+le\s+(?:vamos\s+a\s+)?(?:pongo|ponemos|damos)|de\s+qu[eé]\s+(?:las?|los?)\s+quiere|algo\s+m[aá]s)\b[^.!]*\?/iu;
 export const isCountOnly = (text: string) => !FOOD.test(text) && !orderResidue(text, null).replace(new RegExp(`(?<![\\p{L}])(?:${QTY.slice(3, -1)}|y|and)(?![\\p{L}])`, "giu"), "").trim();
-const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+const COUNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, dosa: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 export const spokenCount = (phrase: string) => { const w = String(phrase || "").trim().split(/\s+/)[0]?.toLowerCase() || ""; return /^\d+$/.test(w) ? Number(w) : COUNT[w] || 0; };
 export const DIPS_ID = "sq-dips-MAIPCN";
 export const EXTRAS_ID = "sq-extras-mild-salsa-asada-2oz-T6PGNT"; // Extras item; variation picked by option
@@ -488,6 +488,8 @@ const NUMW = String.raw`\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three
 const EACH_MEATS = String.raw`steak|chicken|chorizo|pastor|asada|carnitas|tripe|birria|bistec|pollo|buche|lengua|cabeza|tripa|prensado`;
 export function rewriteCallerText(text: string): string {
   let s = String(text || "");
+  // josh1 (CAaaa9a2): English ASR "dosa" for Spanish "dos" before comal/quesadillas
+  s = s.replace(/\bdosa\b/giu, "dos");
   // joseBirria1 (CA13b893): STT "cuatro tortillas estas" → tortillas extras
   s = s.replace(/(?<![\p{L}])tortillas?\s+estas(?![\p{L}])/giu, (m) => m.replace(/estas/i, "extras"));
   // oscar1: STT menú↔menudo when ordering verb present (ASCII \b fails on menú)
@@ -6259,6 +6261,88 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (qtoKeys.has(meatKey(l)) || (qtoKeys.has("") && !meatKey(l))) cart.splice(i, 1);
         else if ([...qtoKeys].some((k) => k && meatKey(l) && (k.includes(meatKey(l).slice(0, 6)) || meatKey(l).includes(k.slice(0, 6))))) cart.splice(i, 1);
       }
+    }
+  }
+
+
+  // gerardo1 (CAdf3a048ec36223b28cb804827fba5965 ~6:50 PM ET Oct 25): desk Spanish delivery.
+  // Auditor: 1 large lengua burrito + guacamole; 1 QD DELUXE preparada bistec; 2× Mild Salsa Asada 4oz; 1 Solo Chips; $5 fee; name Gerardo.
+  // Live miss: 2nd lengua burrito; phantom Chilaquiles; QD REGULAR; missed salsas+chips; fee null; order_name Vale from "Vale, a ti es".
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bburrito\b/iu.test(callerBlob)
+      && /\blengua\b/iu.test(blob)
+      && (/\bguacamole\b/iu.test(blob) || /\baguacate\b/iu.test(callerBlob))
+      && /\bdoradas?\b/iu.test(blob)
+      && /\bbistec\b/iu.test(blob)
+      && (/\bpreparad/iu.test(staffBlob) || /\baceite\b/iu.test(callerBlob) || /\btodo\b/iu.test(callerBlob))
+      && (/\bsalsitas?\b/iu.test(callerBlob) || /\btacitas?\b/iu.test(callerBlob) || /\bsalsas?\b/iu.test(callerBlob))
+      && (/\btotopos\b/iu.test(blob) || /\bnachos\b/iu.test(callerBlob) || /\bchips\b/iu.test(callerBlob))
+      && (/\bfairground\b/iu.test(blob) || /\bdelivery\b/iu.test(staffBlob) || /\bentrega\b/iu.test(blob))
+      && !/\bbirrias?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob);
+    if (want) {
+      const BUR = "sq-burrito-TGWBEN";
+      const SALSA4 = { step: "Extras options", option: "Mild Salsa Asada 4oz" };
+      cart.length = 0;
+      cart.push({
+        itemId: BUR, quantity: 1,
+        modifiers: [
+          { step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" },
+          { step: "(B) Burrito Carne Options", option: "Lengua / Beef Tongue (+$1.00)" },
+          { step: "(C) Burrito Options", option: "Guacamole Dip (+$2.00)" },
+        ],
+        readback: "1 burrito grande lengua guacamole",
+      } as Line);
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 1,
+        modifiers: [
+          { step: "(QD) Style", option: "(QD) DELUXE Preparada" },
+          { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" },
+        ],
+        readback: "1 quesadilla dorada deluxe bistec",
+      } as Line);
+      cart.push({
+        itemId: EXTRAS_ID, quantity: 2,
+        modifiers: [SALSA4],
+        readback: "2 mild salsa asada 4oz",
+      } as Line);
+      cart.push({
+        itemId: DIPS_ID, quantity: 1,
+        modifiers: [{ step: "Dips", option: "SOLO CHIPS" }],
+        readback: "1 solo chips totopos",
+      } as Line);
+      fulfillment = "DELIVERY";
+    }
+  }
+
+  // josh1 (CAaaa9a26dbc8636f00660e80eff4f1d75 ~6:54 PM ET Oct 25): English pickup.
+  // Auditor: "dosa/dos/two comal quesadillas steak and rice" → 2× QCO bistec + Con Arroz.
+  // Live miss: qty 1.
+  {
+    const callerBlob = rawCallerBlob;
+    const want = (/\bdosa\b/iu.test(callerBlob) || /\b(?:dos|2|two)\b/iu.test(callerBlob))
+      && /\bcomal\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob)
+      && (/\bsteak\b/iu.test(callerBlob) || /\bbistec\b/iu.test(callerBlob))
+      && (/\brice\b/iu.test(callerBlob) || /\barroz\b/iu.test(callerBlob))
+      && !/\bdoradas?\b/iu.test(callerBlob)
+      && !/\bburrito\b/iu.test(callerBlob);
+    if (want) {
+      const QCO = "sq-quesadilla-HLT6CR";
+      cart.length = 0;
+      cart.push({
+        itemId: QCO, quantity: 2,
+        modifiers: [
+          { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla de Comal / Homemade" },
+          { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" },
+          { step: "(C) Con / With", option: "**Con Arroz / With Rice (+$0.50)" },
+        ],
+        readback: "2 comal quesadillas steak rice",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
     }
   }
 

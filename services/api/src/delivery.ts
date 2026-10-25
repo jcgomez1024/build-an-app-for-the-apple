@@ -113,6 +113,24 @@ export function addressesIn(text: string): Address[] {
       if (BAD.test(name) || name.length < 4) continue;
       out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
     }
+    // gerardo1 (CAdf3a04): "fairground número 85" / "Fairground 85" / "85 Fairground" (no St/Ave spoken)
+    const BAD2 = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
+    const key3 = (st: string) => st.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
+    for (const m of t.matchAll(/\b([a-záéíóúñ][a-záéíóúñ.'-]{3,})\s+(?:n[uú]mero\s+)?(\d{2,6})\b/giu)) {
+      const name = title(m[1]);
+      if (BAD2.test(name) || BAD.test(name) || name.length < 4) continue;
+      const street = `${m[2]} ${name} St`;
+      if (out.some((x) => key3(x.a.street) === key3(street))) continue;
+      out.push({ at: m.index ?? 0, a: fmt({ street }) });
+    }
+    for (const m of t.matchAll(/\b(\d{2,6})\s+([a-záéíóúñ][a-záéíóúñ.'-]{3,})\b/giu)) {
+      const name = title(m[2]);
+      if (BAD2.test(name) || BAD.test(name) || name.length < 4) continue;
+      if (/^(a|y|e|o|or|and|to|de|en)$/i.test(name)) continue;
+      const street = `${m[1]} ${name} St`;
+      if (out.some((x) => key3(x.a.street) === key3(street))) continue;
+      out.push({ at: m.index ?? 0, a: fmt({ street }) });
+    }
   }
   return out.sort((x, y) => x.at - y.at).map((x) => x.a);
 }

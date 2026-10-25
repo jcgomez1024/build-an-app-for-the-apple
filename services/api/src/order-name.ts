@@ -49,7 +49,8 @@ export function thirdPersonName(text: string): string | null {
   {
     const mama = s.match(/\b(?:mam[aá]|mama)\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
       || s.match(/\bsiempre\s+pongo\s+el\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
-      || s.match(/\bde\s+(\p{Lu}[\p{L}'-]+\s+\p{Lu}[\p{L}'-]+)\b/u); // "de Yasmín Miranda"
+      // not "a/al nombre de First Last" (self / ticket ask answer — ordername1 Alfa Bravo)
+      || s.match(/(?<!nombre\s)\bde\s+(\p{Lu}[\p{L}'-]+\s+\p{Lu}[\p{L}'-]+)\b/u); // "de Yasmín Miranda"
     if (mama && !NOT_NAMES.test(mama[1].split(" ")[0])) {
       const n = cleanFullName(mama[1]);
       if (n) return n;
@@ -131,6 +132,14 @@ export function nameFromAnswer(text: string): string | null {
     }
     const ws = s.split(" ").filter(Boolean).filter((w) => !/^(yo|que|soy)$/iu.test(w));
     s = ws.join(" ");
+  }
+  // gerardo1 (CAdf3a04): "Tú digo Gerardo" / "te digo Gerardo" after ¿tu nombre?
+  {
+    const m = s.match(/\b(?:t[uú]\s+|te\s+)?digo\s+(\p{Lu}[\p{L}'-]+)/iu);
+    if (m && !NOT_NAMES.test(m[1])) {
+      const n = cleanFullName(m[1]);
+      if (n) return n;
+    }
   }
   // juana1: long "mamá de Yasmín… de Yasmín Miranda" before words.length>3 bail
   {
@@ -240,6 +249,8 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
         const echo =
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto|muy\s+bien)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
           t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu) ||
+          // gerardo1 (CAdf3a04): "Gerardo, sale Gerardo, dame unos 15…"
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*sale(?:\s+\1)?\b/u) ||
           // eva1: "Eva, muy bien, Eva."
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*muy\s+bien\b/u) ||
           // suleika1: "Dame … veinte, Zuleika, por favor."
@@ -320,7 +331,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {
@@ -400,7 +411,8 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
     const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+de\b/iu.test(t.text)
       || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
-    if (!seriaNombre && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy)\s+\S+/iu.test(t.text)) continue;
+    // English volunteer: "Yeah, it's Josh." / "I'm Josh" / "my name is Josh" (josh1 CAaaa9a2)
+    if (!seriaNombre && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy|my\s+name\s+is|i'?m|it'?s)\s+\S+/iu.test(t.text)) continue;
     if (/\bes\s+para\b/iu.test(t.text)) continue; // pickup-only
     const n = seriaNombre ? (thirdPersonName(t.text) || nameFromAnswer(t.text)) : nameFromAnswer(t.text);
     // joseA1: "Ah, es en" → null/En lose to "Es José Acevedo"

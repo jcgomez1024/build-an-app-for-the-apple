@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "caller",
+    "start": 7.024,
+    "end": 7.744,
+    "text": "Yeah, it's Josh.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 10.786,
+    "end": 35.019,
+    "text": "Okay, guys, give me fifty minutes, buddy, please.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.387,
+    "end": 32.838,
+    "text": "Yeah, just gonna get dosa, comal, quesadillas, steak and rice. Yeah. That's it. Alright. Alright,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.76,
+    "end": 36.02,
+    "text": "thanks.",
+    "language": "en"
+  }
+]

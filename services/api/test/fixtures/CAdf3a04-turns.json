@@ -1,0 +1,401 @@
+[
+  {
+    "speaker": "staff",
+    "start": 1.541,
+    "end": 2.381,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.521,
+    "end": 6.362,
+    "text": "Ah, pues bien, me puedes preparar un burrito de lengua",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 7.903,
+    "end": 8.023,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.123,
+    "end": 10.163,
+    "text": "con aguacate, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.424,
+    "end": 11.864,
+    "text": "A ver, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.364,
+    "end": 16.705,
+    "text": "Tiene una, este burrito con aguacamole de lengua, por favor. Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 16.445,
+    "end": 16.545,
+    "text": "Un",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 17.446,
+    "end": 18.026,
+    "text": "un burrito",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 19.506,
+    "end": 19.886,
+    "text": "grande",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.706,
+    "end": 21.566,
+    "text": "Sí, grande, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 22.207,
+    "end": 23.788,
+    "text": "de lengua con guacamole.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.307,
+    "end": 28.808,
+    "text": "Me le pones dos, de una salsita grande de la roja, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.53,
+    "end": 29.83,
+    "text": "Claro.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 30.89,
+    "end": 32.371,
+    "text": "¿Te gustaría con lechuga también?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 31.109,
+    "end": 31.129,
+    "text": "Y,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.209,
+    "end": 35.11,
+    "text": "por favor, y me pones una quesadilla de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.59,
+    "end": 38.451,
+    "text": "de esas de las doradas con bistec, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 39.293,
+    "end": 42.954,
+    "text": "A ver, espérame, espérame, espérame, espérame. Con guacamole.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.515,
+    "end": 51.256,
+    "text": "Okay. Y una que sea Estaría dorada de, ¿qué perdón? ¿Viste?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 51.214,
+    "end": 52.295,
+    "text": "De bistec, ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.897,
+    "end": 53.457,
+    "text": "Preparada.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.195,
+    "end": 55.396,
+    "text": "Sí, dorada, tiene aceite.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.637,
+    "end": 56.797,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.756,
+    "end": 58.256,
+    "text": "Quería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 58.877,
+    "end": 61.198,
+    "text": "Dile, okay. ¿Me das tu nombre para tu orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 61.877,
+    "end": 64.918,
+    "text": "Tú digo Gerardo. Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.658,
+    "end": 67.379,
+    "text": "Gerardo, sale Gerardo, dame unos 15 a 20, ¿no? Y te la tenemos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 68.179,
+    "end": 69.579,
+    "text": "Órale, pues dice que no tiene Liberia.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 71.699,
+    "end": 72.419,
+    "text": "¿A dónde sería?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 73.08,
+    "end": 85.084,
+    "text": "Quería aquí en el caballito, o sea, aquí en tal Banco Chase, como a una, como a cuatro casas, ahí vas a ver mi camioneta afuera parqueada, la roja. Fair, fair,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 81.181,
+    "end": 87.542,
+    "text": "A ver, dame tu, dame tu, Simón, espérame. Espérame, espérame, espérame.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 89.902,
+    "end": 100.584,
+    "text": "On delivery, ¿para dónde sería, Gerardo? 85, ¿cómo me dijiste?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 93.266,
+    "end": 106.789,
+    "text": "fairground número 85. Fairground 85. Fairground. La fairground. Sí. Aquí en tal allá, aquí va adelantito.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 102.324,
+    "end": 104.524,
+    "text": "Ah, fairground. Oh, okay, okay, okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 105.524,
+    "end": 105.845,
+    "text": "Chente.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 108.165,
+    "end": 108.525,
+    "text": "All right.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 109.09,
+    "end": 114.011,
+    "text": "Hotel Banco Chase, como a unas cinco casas, ahí vas a ver mi camioneta afuera, la roja, y una verde con pala.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 115.247,
+    "end": 117.927,
+    "text": "Muy bien, Gerardo. Danos unos veinte, ¿no? Ahorita te la llevamos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 118.512,
+    "end": 122.973,
+    "text": "Ah, muchas gracias, por favor, ¿me le pones dos tacitas de la, de la, este, de la roja? ¿Cuánto va a ser?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 119.947,
+    "end": 120.248,
+    "text": "A ti, ¿eh?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 123.588,
+    "end": 124.228,
+    "text": "¿De la picosa?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 125.073,
+    "end": 132.154,
+    "text": "Sí, no, no, rápicosas de la rojita, así como tostaditas, que tal vez son bien buenas. Ajá, de la asada. Y me, ¿me puedes poner duritas también, por favor?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 129.75,
+    "end": 130.55,
+    "text": "Okay, okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 132.89,
+    "end": 133.07,
+    "text": "¿Cómo?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 133.735,
+    "end": 136.775,
+    "text": "Doraditas, de esas nachos, ¿cómo se llaman? Totopos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 137.831,
+    "end": 138.831,
+    "text": "Ah, ¿quieres totopos?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 139.396,
+    "end": 139.516,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 140.392,
+    "end": 141.152,
+    "text": "Simón, espérame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 140.896,
+    "end": 141.796,
+    "text": "Sí, que les hacen bien buenas.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 142.732,
+    "end": 143.953,
+    "text": "No, no, espérame, espérame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 143.596,
+    "end": 144.056,
+    "text": "¿Cuánto sería?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 145.413,
+    "end": 148.474,
+    "text": "Ahorita te dejo saber. Totopos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 147.277,
+    "end": 161.619,
+    "text": "Para que yo se lo pague. Ajá. Okay, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 153.235,
+    "end": 157.855,
+    "text": "Mira, van a ser en total, Gerardo,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 159.896,
+    "end": 160.276,
+    "text": "treinta.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 162.843,
+    "end": 167.456,
+    "text": "Va, ahorita te la llevamos. Vale, a ti es.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 164.459,
+    "end": 166.92,
+    "text": "Sí, muchas gracias. Dale, dale.",
+    "language": "es"
+  }
+]
