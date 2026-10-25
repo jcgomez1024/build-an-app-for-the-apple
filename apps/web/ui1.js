@@ -598,11 +598,12 @@ function timingHTML() {
   <label class="tm-o"><input type="radio" name="tm" data-tmm="asap" ${TM.mode === "asap" ? "checked" : ""}> ${esc(asapTxt)}</label>
   <label class="tm-o"><input type="radio" name="tm" data-tmm="scheduled" ${TM.mode === "scheduled" ? "checked" : ""}> 🗓 ${t("Programar", "Schedule")}</label>${sched}${flag}
   ${D ? "" : `<p class="u1-mut">${t("Recoger en", "Pickup at")} Cocina Elvis · 101 W Walnut Ave, Unit B, Painesville · <a href="tel:+14405519122">(440) 551-9122</a></p>`}
-  ${fields}<p class="tm-err">${esc(TM.err)}</p><button type="button" class="u1-btn p v3-full" data-tmpay="1" ${can ? "" : "disabled"}>${TM.busy ? t("Abriendo pago…", "Opening checkout…") : t("Pagar con Square", "Pay with Square")}</button></div>`;
+  ${fields}<p class="tm-err">${esc(TM.err)}</p><button type="button" class="u1-btn p v3-full" data-tmconfirm="1" ${can ? "" : "disabled"}>${TM.busy ? t("Abriendo pago…", "Opening checkout…") : t("Continuar", "Continue")} · ${money((B()?.state?.cart || []).reduce((a, l) => a + (B()?.lineTotal?.(l) || 0), 0))}</button></div>`;
 }
 document.addEventListener("click", (e) => {
   const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; tmLoad(TM.f); tmCheck(); render(); return; }
   const m = e.target.closest?.("[data-tmm]"); if (m) { TM.mode = m.dataset.tmm; if (TM.mode === "asap") TM.at = ""; tmCheck(); render(); return; }
+  if (e.target.closest?.("[data-tmconfirm]")) { openConfirm(); return; }
   if (e.target.closest?.("[data-tmpay]")) { void tmPay(); }
 });
 document.addEventListener("change", (e) => {
@@ -622,3 +623,202 @@ async function tmPay() {
   TM.busy = false; if (!r.ok) { TM.err = r.error || t("No se pudo abrir el pago.", "Couldn't open checkout."); tmCheck(); render(); }
 }
 document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; });
+
+// ---------- ux1: Hablar capsule + barge-in + confirm beat (Para la cocina) + ES cash backup ----------
+const UX1 = { pay: "card", micHold: null };
+function kitchenOrig(s) {
+  return String(s || "").split(" / ")[0].replace(/\s*\$[\d.,]+.*$/, "").replace(/^\W*double\s+/i, "DOUBLE ").trim().toUpperCase();
+}
+function kitchenLines() {
+  const cart = B()?.state?.cart || [];
+  return cart.map((l) => {
+    const name = kitchenOrig(l.item?.name);
+    const mods = (l.modifiers || []).map((m) => kitchenOrig(m.option)).filter(Boolean);
+    const modStr = mods.length ? ("\n  + " + mods.join("\n  + ")) : "";
+    return `${Math.max(1, Number(l.quantity) || 1)}x ${name}${modStr}`;
+  }).join("\n");
+}
+function confSay() {
+  const b = B(); const cart = b?.state?.cart || [];
+  const parts = cart.map((l) => `${Math.max(1, Number(l.quantity) || 1)} ${itemName(l.item)}${modsText(l) ? " (" + modsText(l) + ")" : ""}`);
+  const list = parts.slice(0, 3).join(", ") + (parts.length > 3 ? (lang() === "es" ? "…" : ", …") : "");
+  const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
+  return t(`Así quedó: ${list}. Subtotal ${money(tot)}. ¿Cobramos?`, `Here's your order: ${list}. Subtotal ${money(tot)}. Ready to pay?`);
+}
+function allowCash() { return lang() === "es"; }
+function setPay(m) {
+  UX1.pay = m === "cash" && allowCash() ? "cash" : "card";
+  const box = document.getElementById("paychoice"); if (!box) return;
+  box.querySelectorAll(".payopt").forEach((btn) => btn.classList.toggle("on", btn.dataset.p === UX1.pay));
+}
+function payChoiceHTML() {
+  UX1.pay = "card";
+  if (allowCash()) {
+    return `<div class="paychoice" id="paychoice"><div class="pl">Cómo pagas</div>
+      <button type="button" class="payopt on" data-p="card" data-setpay="card"><span class="dot"></span><span>Tarjeta o en línea<span class="hint">Rápido y listo — lo más fácil</span></span></button>
+      <button type="button" class="payopt payopt-soft" data-p="cash" data-setpay="cash"><span class="dot"></span><span>Efectivo al recoger<span class="hint">También está bien si prefieres pagar allá</span></span></button>
+    </div>`;
+  }
+  return `<div class="paychoice" id="paychoice"><div class="pl">How you pay</div>
+    <button type="button" class="payopt on" data-p="card" data-setpay="card"><span class="dot"></span><span>Card or online<span class="hint">Quick Square checkout</span></span></button>
+  </div>`;
+}
+function closeConfirm() {
+  const el = document.getElementById("ux1-confirm");
+  if (el) el.remove();
+  document.body.classList.remove("ux1-confirm-on");
+}
+function openConfirm() {
+  const b = B(); const cart = b?.state?.cart || [];
+  if (!cart.length) { U.screen = "receipt"; render(); return; }
+  const v = (id) => (document.getElementById(id)?.value || "").trim();
+  const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
+  if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
+  if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
+  if (TM.mode === "scheduled" && !TM.at) { TM.err = t("Escoge una hora.", "Pick a time."); return render(); }
+  if (TM.check && TM.check.ok === false) { TM.err = t("Revisa los artículos o la hora.", "Check items or time."); return render(); }
+  Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
+  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", addr]]) {
+    const el = document.getElementById(k); if (el) el.value = x;
+  }
+  b.state.fulfillment = TM.f; const sel = document.getElementById("fulfillment"); if (sel) sel.value = TM.f;
+  b.state.timing = tmReq(); TM.err = "";
+  UX1.pay = "card";
+  const say = confSay();
+  const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
+  const lines = cart.map((l) => {
+    const photo = itemPhoto(l.item);
+    const thumb = photo ? img(photo, itemName(l.item)) : `<div class="u1-ph">${esc((itemName(l.item) || "").slice(0, 12))}</div>`;
+    return `<div class="conf-line"><div class="th">${thumb}</div>
+      <div class="bd"><div class="nm">${Math.max(1, Number(l.quantity) || 1)} × ${esc(itemName(l.item))}</div><div class="mods">${esc(modsText(l) || t("Sin extras", "No extras"))}</div></div>
+      <div class="pr">${money(b.lineTotal(l))}</div></div>`;
+  }).join("");
+  closeConfirm();
+  const el = document.createElement("div");
+  el.id = "ux1-confirm";
+  el.className = "v3-sheet-bg";
+  el.innerHTML = `<div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(t("Confirmar orden", "Confirm order"))}">
+    <div class="v3-grab"></div>
+    <div class="ux1-conf-body">
+      <h3>${t("¿Así quedó?", "Does this look right?")}</h3>
+      <div class="ux1-conf-say"><span class="v3-dot" aria-hidden="true"></span><div id="ux1-conf-say">${esc(say)}</div></div>
+      <div class="conf-lines">${lines}</div>
+      <div style="display:flex;justify-content:space-between;font-weight:600;font-size:16.5px;letter-spacing:-.01em"><span>Subtotal</span><span>${money(tot)}</span></div>
+      <div style="font-size:11px;color:var(--mut);margin-bottom:6px">${t("Impuesto y total final los calcula Square.", "Tax & final total by Square.")}</div>
+      <div class="kitchen"><div class="kt"><span class="chk">✓</span> ${t("Para la cocina", "For the kitchen")}</div><pre>${esc(kitchenLines())}</pre></div>
+      ${payChoiceHTML()}
+    </div>
+    <div class="ux1-conf-foot">
+      <button type="button" class="u1-btn cor" data-ux1="correct">${t("Corregir", "Fix it")}</button>
+      <button type="button" class="u1-btn p" data-ux1="pay">${t("Así está · Pagar", "Looks good · Pay")} · ${money(tot)}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  document.body.classList.add("ux1-confirm-on");
+  try {
+    b.greet?.(say);
+    const r = document.getElementById("assistant-reply"); if (r) r.textContent = say;
+  } catch {}
+  el.addEventListener("click", (e) => {
+    if (e.target === el) return;
+    const sp = e.target.closest?.("[data-setpay]"); if (sp) { setPay(sp.dataset.setpay); return; }
+    const act = e.target.closest?.("[data-ux1]"); if (!act) return;
+    if (act.dataset.ux1 === "correct") {
+      closeConfirm();
+      U.screen = "receipt"; render();
+      try { b.greet?.(t("Claro — ¿qué cambiamos?", "Sure — what should we change?")); } catch {}
+      try { b.startVoice?.(); } catch {}
+      return;
+    }
+    if (act.dataset.ux1 === "pay") { void payFromConfirm(); }
+  });
+}
+async function payFromConfirm() {
+  const mode = allowCash() && UX1.pay === "cash" ? "cash" : "card";
+  const b = B(); if (!b) return;
+  if (mode === "cash") {
+    TM.busy = true; render();
+    const r = b.checkout ? await b.checkout({ payMode: "cash" }) : { ok: false, error: "checkout unavailable" };
+    TM.busy = false;
+    closeConfirm();
+    if (!r.ok) { TM.err = r.error || t("No se pudo registrar el pago en efectivo.", "Couldn't place cash order."); render(); return; }
+    const msg = t("Listo — pagas en efectivo al recoger. Tu orden ya va a la cocina.", "All set — pay cash at pickup. Order sent to the kitchen.");
+    try { b.greet?.(msg); } catch {}
+    const main = document.getElementById("ui1-main");
+    if (main) {
+      U.screen = "receipt";
+      render();
+      const note = document.createElement("div");
+      note.className = "ux1-cash-ok";
+      note.innerHTML = `✓ ${esc(t("Efectivo al recoger", "Cash at pickup"))}<br><small>${esc(msg)}</small><br><small style="opacity:.75">${esc(t("(Aviso: aún no hay API de ticket en cocina — pedido no cobrado en Square.)", "(Note: kitchen ticket API not live yet — order not charged on Square.)"))}</small>`;
+      const tm = document.getElementById("tm-step");
+      if (tm) tm.prepend(note); else main.prepend(note);
+    }
+    console.warn("[ux1] cash pay-at-pickup stub done", { kitchen: kitchenLines() });
+    return;
+  }
+  closeConfirm();
+  await tmPay();
+}
+
+function syncLoucap(st) {
+  const cap = document.getElementById("loucap"); if (!cap) return;
+  const s = st || document.getElementById("elvi-halo")?.dataset?.state || "idle";
+  cap.dataset.state = s;
+  const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
+  const lt = cap.querySelector(".lt");
+  if (lt) lt.textContent = t("Hablar con Elvi", "Talk to Elvi");
+  cap.setAttribute("aria-label", lt?.textContent || "Hablar con Elvi");
+  cap.classList.toggle("hide", document.body.classList.contains("v3-view-elvi"));
+}
+function talkOrBarge() {
+  const b = B();
+  const speaking = b?.isSpeaking?.() || document.getElementById("elvi-halo")?.dataset?.state === "speaking";
+  if (speaking) { bargeIn("tap"); return; }
+  try { b?.startVoice?.().catch(() => b?.toggleVoice?.()); }
+  catch { try { b?.toggleVoice?.(); } catch {} }
+}
+function bargeIn(why) {
+  const b = B();
+  const speaking = b?.isSpeaking?.() || document.getElementById("elvi-halo")?.dataset?.state === "speaking";
+  if (!speaking && why !== "demo") return false;
+  try { b?.stopAudio?.(); } catch {}
+  const mic = document.getElementById("listen-button");
+  const cap = document.getElementById("loucap");
+  if (mic) { mic.classList.add("barge-flash"); setTimeout(() => mic.classList.remove("barge-flash"), 500); }
+  if (cap) { cap.classList.add("barge-flash"); setTimeout(() => cap.classList.remove("barge-flash"), 500); }
+  const line = t("Te escucho — dime.", "I'm listening — go ahead.");
+  try { b?.greet?.(line); } catch {}
+  const r = document.getElementById("assistant-reply"); if (r) r.textContent = line;
+  try { b?.startVoice?.(); } catch {}
+  syncLoucap("listening");
+  const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
+  console.log("[ux1] bargeIn", why);
+  return true;
+}
+function mountLoucap() {
+  if (document.getElementById("loucap")) return;
+  if (!V3) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "loucap";
+  btn.id = "loucap";
+  btn.dataset.state = "idle";
+  btn.setAttribute("aria-label", t("Hablar con Elvi", "Talk to Elvi"));
+  btn.innerHTML = `<span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt">${t("Hablar con Elvi", "Talk to Elvi")}</span>`;
+  btn.addEventListener("click", (e) => { e.preventDefault(); talkOrBarge(); });
+  document.body.appendChild(btn);
+  const halo = document.getElementById("elvi-halo");
+  if (halo && window.MutationObserver) {
+    new MutationObserver(() => syncLoucap()).observe(halo, { attributes: true, attributeFilter: ["data-state"] });
+  }
+  window.addEventListener("elvi:barge", () => {
+    const cap = document.getElementById("loucap");
+    if (cap) { cap.classList.add("barge-flash"); setTimeout(() => cap.classList.remove("barge-flash"), 500); }
+    syncLoucap("listening");
+  });
+  setInterval(() => syncLoucap(), 800);
+  syncLoucap();
+}
+mountLoucap();
+

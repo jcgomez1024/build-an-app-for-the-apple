@@ -3287,6 +3287,20 @@ function attachUiHandlers() {
       startLanguagePromptLoop();
       return;
     }
+    // ux1 barge-in: while Elvi is speaking, yield to listening (cancel TTS)
+    if (state.elviSpeaking || document.getElementById("elvi-halo")?.dataset?.state === "speaking") {
+      try { stopCurrentAudio(); } catch {}
+      if (!state.vadRunning) {
+        startAdaptiveListen().catch((error) => {
+          ui.status.textContent = describeMicError(error);
+          setAvatarState("idle");
+        });
+      } else {
+        setAvatarState("listening");
+      }
+      try { window.dispatchEvent(new CustomEvent("elvi:barge", { detail: { why: "mic-tap" } })); } catch {}
+      return;
+    }
     if (state.vadRunning) {
       stopAdaptiveListen();
     } else {
@@ -3296,6 +3310,27 @@ function attachUiHandlers() {
       });
     }
   });
+  // ux1: long-press mic (~480ms) while speaking → barge-in
+  {
+    let holdT = null;
+    const clearHold = () => { if (holdT && holdT !== "held") clearTimeout(holdT); holdT = null; };
+    ui.listenButton.addEventListener("pointerdown", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      holdT = setTimeout(() => {
+        holdT = "held";
+        if (state.elviSpeaking || document.getElementById("elvi-halo")?.dataset?.state === "speaking") {
+          try { stopCurrentAudio(); } catch {}
+          if (!state.vadRunning) {
+            startAdaptiveListen().catch(() => {});
+          } else setAvatarState("listening");
+          try { window.dispatchEvent(new CustomEvent("elvi:barge", { detail: { why: "hold" } })); } catch {}
+        }
+      }, 480);
+    });
+    ui.listenButton.addEventListener("pointerup", clearHold);
+    ui.listenButton.addEventListener("pointerleave", clearHold);
+    ui.listenButton.addEventListener("pointercancel", clearHold);
+  }
 
   // Cart drawer
   ui.cartToggle.addEventListener("click", openCart);
@@ -3387,8 +3422,19 @@ function attachUiHandlers() {
 }
 
 // time1: one checkout path for the drawer form and the v3 timing step (elviBridge.checkout). Server validates timing.
-async function doCheckout() {
+async function doCheckout(opts = {}) {
     try {
+      const payMode = opts?.payMode === "cash" ? "cash" : "card";
+      // ux1: cash = pay-at-pickup — no Square charge (no kitchen ticket API yet)
+      if (payMode === "cash") {
+        console.warn("[ux1] cash pay-at-pickup stub — no Square charge", {
+          cart: state.cart.map(describeCartLine),
+          customer: state.customer,
+          fulfillment: state.fulfillment,
+          timing: state.timing || { mode: "asap" }
+        });
+        return { ok: true, cash: true, payAtPickup: true };
+      }
       const response = await fetch(`/api/${state.tenantSlug}/orders/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3414,7 +3460,8 @@ async function doCheckout() {
             language: getEffectiveLanguage(),
             source: state.runtimeConfig.voiceOrderSource,
             transcriptSummary: state.lastUserText,
-            cartSummary: state.cart.map(describeCartLine).join("; ").slice(0, 480) // add1: describeCurrentOrderForSpeech never existed -> every checkout threw
+            cartSummary: state.cart.map(describeCartLine).join("; ").slice(0, 480), // add1: describeCurrentOrderForSpeech never existed -> every checkout threw
+            payMode
           }
         })
       });
@@ -3425,8 +3472,8 @@ async function doCheckout() {
       }
 
       const result = await response.json();
-      window.location.href = result.checkoutUrl;
-      return { ok: true };
+      if (result.checkoutUrl) window.location.href = result.checkoutUrl;
+      return { ok: true, checkoutUrl: result.checkoutUrl };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "Checkout failed" };
     }
@@ -6524,8 +6571,33 @@ window.elviBridge = {
     if (c?.name) { sendWs({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `The customer is signed in (verified phone). Their first name is ${c.name}. Greet them by name once.` }] } }); } },
   clearCustomer: () => { for (const k of ["name", "phone", "email"]) { state.customer[k] = ""; const el = document.getElementById(`customer-${k}`); if (el) el.value = ""; } },
   showFavorites: (fav) => showFavorites(fav),
-  checkout: () => doCheckout(),
+  checkout: (opts) => doCheckout(opts),
   greet: (text) => { if (ui.reply) ui.reply.textContent = text; try { (state.chatFallbackHistory = state.chatFallbackHistory || []).push({ role: "assistant", text }); } catch {} },
+  // ux1: Hablar / barge-in — cancel TTS and yield to listening
+  stopAudio: () => { try { stopCurrentAudio(); } catch {} },
+  isSpeaking: () => !!state.elviSpeaking,
+  haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
+  startVoice: () => {
+    if (!hasSelectedLanguage()) {
+      if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+      try { startLanguagePromptLoop(); } catch {}
+      return Promise.reject(new Error("language"));
+    }
+    if (state.vadRunning) return Promise.resolve();
+    return startAdaptiveListen();
+  },
+  toggleVoice: () => {
+    if (!hasSelectedLanguage()) {
+      if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+      try { startLanguagePromptLoop(); } catch {}
+      return;
+    }
+    if (state.vadRunning) stopAdaptiveListen();
+    else startAdaptiveListen().catch((error) => {
+      if (ui.status) ui.status.textContent = describeMicError(error);
+      setAvatarState("idle");
+    });
+  },
 };
 function menuCardAdd(item, quantity, modifiers) {
   const check = validateAddItemToolArgs({ itemId: item?.id, quantity, modifiers });
