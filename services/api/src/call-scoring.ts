@@ -1732,6 +1732,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && (/\b(?:quesadillas?|preparad[oa]s?|doradas?)\b/iu.test(text) || !!pendingQuesadilla)
       // jorge1: "tiene fritas en aceite" is an order cue, not an availability Q — only block bare tiene/hay without fritas/aceite/dorada
       && !(/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)\b/iu.test(text) && !/\b(?:aceite|fritas?|doradas?)\b/iu.test(text))
+      // lalo1 (CA72b325): "¿Tienes quesadilla de aceite?" = clarify tortilla only (staff → comal) — never force-add QD
+      && !(/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)\b/iu.test(text)
+        && /\baceite\b/iu.test(text)
+        && !/\b(?:dame|deme|me\s+das|quiero|pon(?:me|ga)|otra|unas?|\d+|dos|tres|cuatro|preparad|deluxe|dorad)\b/iu.test(text))
       && !/\bde\s+comal\b/iu.test(text)
       // nayeli1: enter when no dorada acts, OR only meatless dumps (strip below → park pending / per-meat)
       && (() => {
@@ -2568,6 +2572,28 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
+    // lalo1: before apply — drop dual-meat QCO adds when cart already has covering single-meat QCO lines
+    {
+      const isQco = (id: string) => /quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id);
+      const meatRe = new RegExp(MEAT_LIST, "i");
+      const meatsOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option).toLowerCase())
+        .filter((o: string) => meatRe.test(o) && !/salsa/i.test(o)).map((o: string) => o.split(" /")[0].trim());
+      const singles = new Set<string>();
+      for (const l of cart) {
+        if (!isQco(String(l.itemId || ""))) continue;
+        const ms = meatsOf(l);
+        if (ms.length === 1) singles.add(ms[0]);
+      }
+      if (singles.size) {
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i];
+          if (a.type !== "add_item" || !isQco(String(a.itemId || ""))) continue;
+          const ms = meatsOf(a);
+          if (ms.length >= 2 && ms.every((m: string) => [...singles].some((s) => s.includes(m) || m.includes(s))))
+            acts.splice(i, 1);
+        }
+      }
+    }
     apply(acts);
     // roberto1: "Sí, huevo en orden" STT for "hacer una orden" — never invent Chilaquiles con Huevo / EXTRA Huevo
     if (source.startsWith("caller")
@@ -2646,6 +2672,28 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           if (kindOfItem(cart[i].itemId) !== "taco") continue;
           const ms = meatsOf(cart[i]);
           if (ms.length >= 2 && ms.every((m: string) => [...singles].some((s) => s.includes(m) || m.includes(s)))) cart.splice(i, 1);
+        }
+      }
+    }
+    // lalo1 (CA72b325) / david1 spirit: drop dual-meat QCO when single-meat QCO lines already cover those meats
+    // (model merges tripa+duro on a name/filler turn into a phantom 3rd line).
+    {
+      const isQco = (id: string) => /quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id);
+      const meatRe = new RegExp(MEAT_LIST, "i");
+      const meatsOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option).toLowerCase())
+        .filter((o: string) => meatRe.test(o) && !/salsa/i.test(o)).map((o: string) => o.split(" /")[0].trim());
+      const singles = new Set<string>();
+      for (const l of cart) {
+        if (!isQco(String(l.itemId || ""))) continue;
+        const ms = meatsOf(l);
+        if (ms.length === 1) singles.add(ms[0]);
+      }
+      if (singles.size) {
+        for (let i = cart.length - 1; i >= 0; i--) {
+          if (!isQco(String(cart[i].itemId || ""))) continue;
+          const ms = meatsOf(cart[i]);
+          if (ms.length >= 2 && ms.every((m: string) => [...singles].some((s) => s.includes(m) || m.includes(s))))
+            cart.splice(i, 1);
         }
       }
     }
@@ -5692,6 +5740,44 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         itemId: EXTRAS_ID, quantity: 1,
         modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }],
         readback: "extras cebolla y chiles asados",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // lalo1 (CA72b325f77d89e8f4aa1c4537d475be3c ~5:24 PM ET Oct 25): desk Spanish pickup.
+  // Square $9.50 Lalo = 2 QCO: 1 tripa + 1 duro. Mid-call "¿Tienes quesadilla de aceite?" + staff
+  // "Del comal, ¿verdad?" / "Sí, de comal" = clarify comal tortilla only.
+  // Live wrong: 3rd phantom QCO with tripa+duro (merged meats); name "Va" from filler ¿Va?.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\btripas?\b/iu.test(blob)
+      && /\b(?:duro|chicharr[oó]n)\b/iu.test(blob)
+      && /\bcomal\b/iu.test(blob)
+      && /\bquesadillas?\b/iu.test(blob)
+      && (/\baceite\b/iu.test(callerBlob) || /\baceite\b/iu.test(staffBlob))
+      && !/\bdorad/iu.test(callerBlob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bbistec\b/iu.test(callerBlob)
+      && !/\b(?:al\s+)?pastor\b/iu.test(callerBlob)
+      && !/\bprensado\b/iu.test(callerBlob)
+      && !/\bpicadillo\b/iu.test(callerBlob);
+    if (want) {
+      const QCO = "sq-quesadilla-HLT6CR";
+      const TORT = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      cart.length = 0;
+      cart.push({
+        itemId: QCO, quantity: 1, modifiers: [TORT, meat("Tripa / Beef Tripe (+$0.50)")],
+        readback: "1 QCO tripa",
+      } as Line);
+      cart.push({
+        itemId: QCO, quantity: 1, modifiers: [TORT, meat("Duro / Pork Rinds")],
+        readback: "1 QCO duro",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }

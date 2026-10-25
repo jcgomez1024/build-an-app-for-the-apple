@@ -1,0 +1,226 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.7,
+    "end": 2.421,
+    "text": "Buenas tardes, cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.761,
+    "end": 4.921,
+    "text": "Sí, quiero hacer una orden, Karen.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 6.463,
+    "end": 6.763,
+    "text": "¿Mande?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 7.942,
+    "end": 8.743,
+    "text": "Quiero hacer una orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 9.524,
+    "end": 10.744,
+    "text": "Oh, sí, claro, dígame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 11.884,
+    "end": 13.664,
+    "text": "¿Me quieres quesadillas de tripas?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.666,
+    "end": 16.327,
+    "text": "Sí, claro.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.866,
+    "end": 27.668,
+    "text": "Ah, ¿me me das una quesadilla de tripas? ¿Me me me das una quesadilla de tripas?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 23.47,
+    "end": 25.45,
+    "text": "Sí, sí, sí, tengo. ¿Qué te voy a dar?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 28.432,
+    "end": 31.993,
+    "text": "Una quesadilla de tripa, claro. ¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.95,
+    "end": 33.87,
+    "text": "¿Tienes quesadilla de aceite?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.354,
+    "end": 34.354,
+    "text": "Del comal, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.35,
+    "end": 35.851,
+    "text": "Sí, de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 36.595,
+    "end": 37.495,
+    "text": "Okay, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 38.511,
+    "end": 41.492,
+    "text": "¿Me das otra me das otra quesadilla de comal de chicharrón del duro?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 42.477,
+    "end": 47.559,
+    "text": "Okay, una quesadilla de comal, de charrón de duro. Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.474,
+    "end": 49.055,
+    "text": "Sería todo,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 50.035,
+    "end": 51.015,
+    "text": "quesadillita nomás.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 51.161,
+    "end": 55.603,
+    "text": "Ay, quiero saber quién eres, pero no me no me acuerdo tu nombre.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 56.918,
+    "end": 65.704,
+    "text": "Sí, sí, sí. No, no creo que hubiera estado discutiendo ahí. Sí, Lalo. Lalo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 61.185,
+    "end": 62.026,
+    "text": "¿Quién eres?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 65.648,
+    "end": 67.008,
+    "text": "La, Lalo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 68.726,
+    "end": 69.507,
+    "text": "¿Estás diciendo ya o no?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 69.27,
+    "end": 69.49,
+    "text": "Oh.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 70.39,
+    "end": 76.093,
+    "text": "Sí, sí. Entonces te tengo una que se llama del comal de tripa y una que se llama de comal de duro, Lalo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 77.292,
+    "end": 79.374,
+    "text": "Sí, sí, era todo para decir porque ya me dio hambre.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 78.315,
+    "end": 78.895,
+    "text": "Okay, Lalo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 80.294,
+    "end": 80.374,
+    "text": "¿Va?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 80.296,
+    "end": 82.437,
+    "text": "Sí, está bien, dame unos quince minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 83.817,
+    "end": 84.717,
+    "text": "Está bien, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 85.338,
+    "end": 87.039,
+    "text": "Okay, gracias a ti. Bye, Lalo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 87.219,
+    "end": 88.28,
+    "text": "Sí. Bye.",
+    "language": "es"
+  }
+]
