@@ -1,0 +1,170 @@
+[
+  {
+    "speaker": "staff",
+    "start": 2.601,
+    "end": 3.601,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 4.582,
+    "end": 5.482,
+    "text": "Sí, buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 6.022,
+    "end": 7.062,
+    "text": "Buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 7.843,
+    "end": 8.223,
+    "text": "¿Tendrá",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.144,
+    "end": 10.244,
+    "text": "quesadillas de aceite?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.084,
+    "end": 12.584,
+    "text": "Ah, claro que sí todavía.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.766,
+    "end": 15.026,
+    "text": "Me pone tres, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.805,
+    "end": 18.526,
+    "text": "Muy bien, te pongo tres quesadillas de aceite, ¿de qué?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 19.648,
+    "end": 20.368,
+    "text": "De picadillo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 21.447,
+    "end": 24.068,
+    "text": "Muy bien, ¿de picadillo preparadas las quieres?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 24.93,
+    "end": 25.851,
+    "text": "Sí, preparadas.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 26.349,
+    "end": 31.07,
+    "text": "Okay, entonces te tengo tres quesadillas en aceite preparadas de picadillo, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.113,
+    "end": 32.713,
+    "text": "Sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 34.011,
+    "end": 34.772,
+    "text": "Muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 36.612,
+    "end": 40.333,
+    "text": "Está bien, dame unos quince minutos, ¿a qué nombre sería la orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 41.197,
+    "end": 42.257,
+    "text": "A nombre de Carlos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 43.014,
+    "end": 44.235,
+    "text": "Pablo, muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 45.259,
+    "end": 45.779,
+    "text": "Carlos.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.435,
+    "end": 47.656,
+    "text": "Oh, Carlos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.12,
+    "end": 48.22,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 50.637,
+    "end": 54.598,
+    "text": "Okay, está bien, Carlos, dame unos quince minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 55.483,
+    "end": 57.224,
+    "text": "Okay, sí está bien, muchísimas gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 57.619,
+    "end": 58.219,
+    "text": "Gracias a ti.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 59.01,
+    "end": 59.352,
+    "text": "Hello",
+    "language": "en"
+  }
+]
