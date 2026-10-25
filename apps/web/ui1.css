@@ -361,3 +361,12 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 .u1-tile.elvi-pick,.u1-opt.elvi-pick{box-shadow:0 0 0 2px #1471d6,0 0 14px rgba(20,113,214,.35)!important;transition:box-shadow .25s}
 .v3-cartbar.bump,#ui1-bar .v3-cartbar.bump,#ui1-bar.bump{animation:cbump .5s ease}
 @keyframes cbump{40%{transform:scale(1.04)}}
+
+
+/* m31: Elvi bubble on Hablar halo — show only while speaking/asking */
+#haloBub{align-self:center;max-width:300px;margin:0 auto 8px;padding:9px 13px;border-radius:16px;background:rgba(14,22,36,.92);color:#eef5ff;font:600 13px/1.35 system-ui,-apple-system,sans-serif;box-shadow:0 0 0 1px rgba(74,163,255,.55),0 8px 22px rgba(0,0,0,.35);position:relative;opacity:0;transform:translateY(6px) scale(.97);transition:opacity .22s,transform .22s;pointer-events:none;z-index:1}
+#haloBub:empty{display:none}
+#haloBub::after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;margin-left:-6px;background:inherit;transform:rotate(45deg);box-shadow:1px 1px 0 rgba(74,163,255,.55)}
+#haloBub.on{opacity:1;transform:none;display:block}
+/* Ask rides on #haloBub over sheet — hide in-sheet ask card */
+body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}

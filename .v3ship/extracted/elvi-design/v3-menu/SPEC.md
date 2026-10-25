@@ -209,3 +209,8 @@ Mock: demo button **Confirm** → `demoConfirm()` seeds a burrito (+ drink) and 
 **Problem:** voice order on an open sheet added correctly but left the customer on the customize sheet.
 **Flow (hard):** (1) Elvi drives sheet picks in required order with `.elvi-pick` highlight (~650ms). (2) Speak “Ok, agregando tu {item} al carrito.” / “Ok, adding this to your cart.” (3) Add → close sheet → scroll menu home → cart bump. (4) “Listo, agregué tu {item}. Ya tienes {n} en tu orden — ¿qué más se te antoja?” Never leave customer on customize sheet after voice complete.
 - Shot: `shots/m30-post-add-menu-home.png`
+
+## 2i. Elvi bubble anchored to halo (speak-only) + voice answer → pick → reply (Carlos 10/25 — m31)
+**Bubble:** `#haloBub` above `#loucap` — shows only while Elvi speaks/asks, hides when silent, reappears on next line. Travels with Hablar over menu/sheet/cart. In-sheet `.v3-ask` hidden while sheet open.
+**Voice answer (ALL sheet items):** hear utterance → map to current unfinished required step options (then other sheet groups) → `pickForElvi` + `.elvi-pick` → “Perfecto, {opción}.” + next ask TTS; if complete → “¿Lo agrego al carrito?” → yes → §2h handoff. No match → “Perdón, no te entendí.” + repeat ask. Never silent.
+- Shot: `shots/m31-halo-bubble-voice-pick.png`

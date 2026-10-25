@@ -1096,6 +1096,23 @@ async function openRealtimeSession() {
 
     if (/input_audio.*transcription.*(completed|done|final)/i.test(String(payload.type || "")) && payload.transcript) {
       state.lastUserText = String(payload.transcript || "").trim();
+      // m31: ANY open customize sheet — client maps voice → pickOpt (model has no mid-sheet pick tool)
+      if (state.uiSheetBuild && state.uiSheetBuild.active && typeof window.__elviSheetAnswer === "function") {
+        let handled = false;
+        try { handled = !!window.__elviSheetAnswer(state.lastUserText); } catch (e) { console.warn("[m31] sheet answer", e); }
+        if (handled) {
+          try {
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+              sendWs({ type: "response.cancel" });
+              sendWs({ type: "input_audio_buffer.clear" });
+            }
+          } catch {}
+          state.activeReplyText = "";
+          state.pendingActions = [];
+          state.turnInFlight = false;
+          return;
+        }
+      }
       armReplyWatchdog();
       return;
     }
@@ -1238,7 +1255,7 @@ function getResilientElviInstructions(language) {
     "Language: Match the customer's selected language exactly. " + langLock + "\n\n" +
     `Current order state (authoritative): ${buildOrderStateSnapshot()}. Use this as the latest truth, especially after reconnects or mid-build changes.` +
     (state.uiSheetBuild && state.uiSheetBuild.active
-      ? `\n\nSHEET-CONTEXT RULE (HARD — m29): The customer has the customize sheet open for "${state.uiSheetBuild.itemName}". You are building THAT item. Visible options on the sheet: ${(state.uiSheetBuild.optionLabels || state.uiSheetBuild.options || []).join(", ")}. NEVER say an option is missing / not on the menu / unavailable if it is in that list (e.g. Deluxe Preparada on Quesadilla Dorada). Map unclear speech to sheet options first, then the wider menu, then ask a clarifying question — never a denial. Current step: ${state.uiSheetBuild.stepName || ""}. Already selected: ${(state.uiSheetBuild.completedSelections || []).join("; ") || "none"}. When all required sheet groups are chosen (estilo/tortilla or Versión, relleno/carne, salsa if required), call add_item/add_to_order ONCE with itemId=${state.uiSheetBuild.itemId} and every selected modifier — the UI will confirm, close the sheet, and return the customer to the menu. Do not leave them on the customize sheet.`
+      ? `\n\nSHEET-CONTEXT RULE (HARD — m29/m31): The UI itself selects sheet tiles from the customer speech for the current step.  The customer has the customize sheet open for "${state.uiSheetBuild.itemName}". You are building THAT item. Visible options on the sheet: ${(state.uiSheetBuild.optionLabels || state.uiSheetBuild.options || []).join(", ")}. NEVER say an option is missing / not on the menu / unavailable if it is in that list (e.g. Deluxe Preparada on Quesadilla Dorada). Map unclear speech to sheet options first, then the wider menu, then ask a clarifying question — never a denial. Current step: ${state.uiSheetBuild.stepName || ""}. Already selected: ${(state.uiSheetBuild.completedSelections || []).join("; ") || "none"}. When all required sheet groups are chosen (estilo/tortilla or Versión, relleno/carne, salsa if required), call add_item/add_to_order ONCE with itemId=${state.uiSheetBuild.itemId} and every selected modifier — the UI will confirm, close the sheet, and return the customer to the menu. Do not leave them on the customize sheet.`
       : "") +
     (state.currentBuildGuide
       ? (() => {
@@ -6629,6 +6646,9 @@ window.elviBridge = {
   hasSelectedLanguage,
   setLanguage: (mode) => setLanguageMode(mode),
   // m29: v3 item sheet → live voice context (never deny visible options)
+  onSheetUtterance: (text) => {
+    try { return typeof window.__elviSheetAnswer === "function" ? !!window.__elviSheetAnswer(text) : false; } catch { return false; }
+  },
   setSheetBuild: (ctx) => {
     state.uiSheetBuild = ctx && ctx.active ? ctx : null;
     if (ctx && ctx.active) {

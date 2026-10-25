@@ -504,6 +504,7 @@ function v3LeadAsk(force) {
   const advanced = U._v3AskKey != null && U._v3AskKey !== key;
   U._v3AskKey = key;
   const b = B();
+  try { haloSay(say); } catch {}
   try { b?.speak?.(say); } catch (e) { console.warn("[warm1] speak", e); }
   // warm1b: after a selection advances the unfinished step, bring that group into view (ask is NOT from scroll)
   if (advanced && miss !== undefined) {
@@ -943,6 +944,7 @@ function pushSheetVoiceContext() {
 }
 function clearSheetVoiceContext() {
   window.ELVI_CTX = null;
+  U._awaitCartConfirm = false;
   try { B()?.clearSheetBuild?.(); } catch {}
 }
 
@@ -1091,6 +1093,138 @@ function stateUiSheetItemId() {
 
 
 /** Soft Hablar invite — capsule (mic / speak-to-Elvi gate). Softlang gate when lang unknown (m27 §2e). */
+
+/** m31 §2i — spoken bubble on Hablar; show while Elvi speaks, hide when silent */
+function haloSay(s, ms) {
+  const b = document.getElementById("haloBub");
+  if (!b) return;
+  const text = String(s || "").trim();
+  if (!text) { haloBubHide(); return; }
+  b.textContent = text;
+  b.classList.add("on");
+  clearTimeout(haloSay._t);
+  const dur = ms != null ? ms : Math.max(2400, text.length * 60);
+  haloSay._t = setTimeout(() => haloBubHide(), dur);
+}
+function haloBubHide() {
+  const b = document.getElementById("haloBub");
+  if (b) b.classList.remove("on");
+  clearTimeout(haloSay._t);
+}
+function matchOptInGroup(g, uttPlain) {
+  const opts = baseOptions(g);
+  let best = -1, bestScore = 0;
+  for (let i = 0; i < opts.length; i++) {
+    const o = opts[i];
+    const labels = [o.name, optLabel(o.name), o.on, o.nameEs].filter(Boolean);
+    for (const lab of labels) {
+      for (const part of String(lab).split(/\s*\/\s*/)) {
+        const nw = plainOpt(part);
+        if (!nw || nw.length < 2) continue;
+        if (uttPlain === nw) return i;
+        if (uttPlain.includes(nw) && nw.length > bestScore) { best = i; bestScore = nw.length; }
+        else if (nw.includes(uttPlain) && uttPlain.length >= 4 && uttPlain.length > bestScore) { best = i; bestScore = uttPlain.length; }
+      }
+    }
+  }
+  return best;
+}
+function isAffirm(u) {
+  return /^(si|sí|yes|ok|okay|dale|claro|va|sale|please|por\s*favor)\b/.test(u)
+    || /\b(agrega|agregalo|agréalo|agregano|add\s*it|add\s*them|yes\s*add)\b/.test(u);
+}
+function isNeg(u) {
+  return /^(no|nel|nop|nope|cancel|cancela)\b/.test(u);
+}
+async function haloSpeak(line) {
+  mirrorHeard(line);
+  try { await B()?.speak?.(line); } catch (e) { console.warn("[m31] speak", e); }
+  haloSay(line, Math.max(2600, String(line).length * 55));
+  syncLoucap("listening");
+}
+/**
+ * m31 — voice answer on ANY open customize sheet (all items with options).
+ * Returns true when this turn is handled client-side (always when sheet open + non-empty utt).
+ */
+function elviAnswer(utt) {
+  if (!sheetIsOpen() || !U.item) return false;
+  if (U._elviAnswering) return true;
+  const raw = String(utt || "").trim();
+  if (!raw) return false;
+  const u = plainOpt(raw);
+  U._elviAnswering = true;
+  const done = () => { U._elviAnswering = false; };
+
+  (async () => {
+    try {
+      try { B()?.stopAudio?.(); } catch {}
+
+      if (U._awaitCartConfirm) {
+        if (isAffirm(u)) {
+          U._awaitCartConfirm = false;
+          const mods = buildModifiers();
+          const item = U.item;
+          const r = B()?.addFromMenu?.(item, 1, mods);
+          if (r && r.ok === false) {
+            await haloSpeak(t(`Falta: ${(r.missing || []).join(", ")}`, `Missing: ${(r.missing || []).join(", ")}`));
+            return;
+          }
+          return;
+        }
+        if (isNeg(u)) {
+          U._awaitCartConfirm = false;
+          await haloSpeak(t("Ok, ¿qué más le cambio?", "Ok, what else should I change?"));
+          return;
+        }
+        await haloSpeak(t("¿Lo agrego al carrito?", "Shall I add it to your cart?"));
+        return;
+      }
+
+      const gs = U.item.modifierGroups || [];
+      const miss = missingStep();
+      const order = [];
+      if (miss !== undefined) order.push(miss);
+      for (let i = 0; i < gs.length; i++) if (!order.includes(i)) order.push(i);
+
+      for (const gi of order) {
+        const g = gs[gi];
+        if (!g) continue;
+        const oj = matchOptInGroup(g, u);
+        if (oj < 0) continue;
+        const opts = baseOptions(g);
+        const name = opts[oj].name;
+        pickForElvi(gi, name);
+        highlightElviPick(gi, name);
+        try { pushSheetVoiceContext(); } catch {}
+        const nm = String(optLabel(name) || name).split(/\s*\/\s*/)[0].trim();
+        const nx = missingStep();
+        let line = t(`Perfecto, ${nm}. `, `Great, ${nm}. `);
+        if (nx !== undefined) {
+          line += v3Ask(gs[nx]);
+          U._awaitCartConfirm = false;
+          U._v3AskKey = `voice:${nx}:${gs[nx]?.id || nx}`;
+        } else {
+          line += t("¿Lo agrego al carrito?", "Shall I add it to your cart?");
+          U._awaitCartConfirm = true;
+          U._v3AskKey = "voice:cart-confirm";
+        }
+        await haloSpeak(line);
+        return;
+      }
+
+      const m = missingStep();
+      const r = (m !== undefined)
+        ? t("Perdón, no te entendí. ", "Sorry, I missed that. ") + v3Ask(gs[m])
+        : t("¿Qué más le cambio?", "What else should I change?");
+      await haloSpeak(r);
+    } finally {
+      done();
+    }
+  })();
+  return true;
+}
+window.__elviSheetAnswer = elviAnswer;
+
 function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }
 function hablarLabel() { return t("Hablar con Elvi", "Talk to Elvi"); }
 function listeningAck() { return t("Te escucho — dime.", "I'm listening — go ahead."); }
@@ -1107,6 +1241,8 @@ function syncLoucap(st) {
   if (!st && live && s === "speaking" && !B()?.isSpeaking?.()) s = "listening";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
+  if (s === "idle" && !HABLAR_LIVE && !B()?.isSpeaking?.()) haloBubHide();
+
   const lab = cap.querySelector(".lt .lab");
   const inv = cap.querySelector(".lt .inv");
   // Fallback short labels (hidden by CSS when condensed listening/thinking)
@@ -1128,6 +1264,7 @@ function mirrorHeard(line) {
   try { B()?.greet?.(line); } catch {}
   const r = document.querySelector("#assistant-reply"); if (r) r.textContent = line;
   const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
+  if (line) haloSay(line);
 }
 /** Hablar entry: mic permission → listening → spoken + visible "you can talk" confirm. */
 async function beginHablar(opts = {}) {
@@ -1250,7 +1387,7 @@ function mountLoucap() {
   const wrap = document.createElement("div");
   wrap.className = "bottom";
   wrap.id = "ux1-bottom";
-  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div id="haloBub" role="status" aria-live="polite"></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
   document.body.appendChild(wrap);
   wrap.querySelectorAll(".sl-pill").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });
