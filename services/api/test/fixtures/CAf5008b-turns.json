@@ -1,0 +1,135 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.5,
+    "end": 9.863,
+    "text": "Cocina Elvis. Mmm, amarilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 2.421,
+    "end": 7.562,
+    "text": "Hola, buenas tardes. Yo, para los tacos, normalmente, ¿son de tortilla amarilla o blanca?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.403,
+    "end": 16.685,
+    "text": "okay, ¿me das, por favor, dos, dos quesadillas doradas en aceite?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 19.807,
+    "end": 21.747,
+    "text": "De que se las voy a poner las quesadillas doradas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 23.226,
+    "end": 24.767,
+    "text": "una de chicharrón prensado",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 27.247,
+    "end": 27.888,
+    "text": "y la otra de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 29.908,
+    "end": 32.049,
+    "text": "chicharrón de, puerco con salsa.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 32.491,
+    "end": 32.751,
+    "text": "¿Duro?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.889,
+    "end": 33.989,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 35.412,
+    "end": 37.713,
+    "text": "¿Preparadas o regulares? No más para,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 37.79,
+    "end": 39.331,
+    "text": "Regulares, regulares.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 38.773,
+    "end": 45.295,
+    "text": "muy bien. Entonces te tengo una quesadilla dorada de prensado y una quesadilla dorada de duro. ¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 46.092,
+    "end": 47.013,
+    "text": "Sería todo, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 47.816,
+    "end": 49.336,
+    "text": "Este, ¿a qué nombre sería la orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 50.174,
+    "end": 50.534,
+    "text": "Arturo.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.057,
+    "end": 56.879,
+    "text": "Arturo. Muy bien, Arturo, este, ¿me puedes dar unos quince minutos, por favor?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.696,
+    "end": 57.976,
+    "text": "Claro.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 58.64,
+    "end": 59.48,
+    "text": "Okay, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 60.083,
+    "end": 60.527,
+    "text": "Hasta luego.",
+    "language": "en"
+  }
+]

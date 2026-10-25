@@ -1,0 +1,184 @@
+[
+  {
+    "speaker": "staff",
+    "start": 1.34,
+    "end": 2.301,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.741,
+    "end": 7.922,
+    "text": "Buenas tardes. Eh, ¿me podrías poner una, me podrías poner una orden de",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.322,
+    "end": 10.782,
+    "text": "de nachos de pollo, por favor?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 12.424,
+    "end": 20.107,
+    "text": "Muy bien, una orden de nachos de pollo, frijoles, lechuga crema, pico de gallo, queso fresco",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.903,
+    "end": 12.923,
+    "text": "O.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 16.664,
+    "end": 16.864,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 21.687,
+    "end": 22.908,
+    "text": "y queso dip está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 21.765,
+    "end": 21.845,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 24.065,
+    "end": 24.865,
+    "text": "Sí, todo está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 25.609,
+    "end": 26.149,
+    "text": "¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.086,
+    "end": 28.406,
+    "text": "Y va a ser un, y va a ser una quesadilla de buche,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.37,
+    "end": 32.431,
+    "text": "Una quesadilla de buche dorada. Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 29.446,
+    "end": 29.786,
+    "text": "dorada.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.467,
+    "end": 33.887,
+    "text": "Nada más.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 34.592,
+    "end": 36.252,
+    "text": "¿Preparada la quieres la quesadilla?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 37.368,
+    "end": 38.028,
+    "text": "Sí, con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 39.093,
+    "end": 41.294,
+    "text": "Muy bien. Sería todo, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.309,
+    "end": 42.409,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 43.194,
+    "end": 44.255,
+    "text": "¿Al nombre de quién sería?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 45.35,
+    "end": 45.85,
+    "text": "De Rodrigo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.576,
+    "end": 48.456,
+    "text": "Rodrigo. Okey, Rodrigo, dame",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 50.957,
+    "end": 53.278,
+    "text": "unos quince minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.832,
+    "end": 55.792,
+    "text": "Okay, está muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 55.819,
+    "end": 57.099,
+    "text": "Gra- gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.474,
+    "end": 58.536,
+    "text": "Dale, gracias, hasta luego.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 59.24,
+    "end": 59.7,
+    "text": "Hasta luego.",
+    "language": "es"
+  }
+]
