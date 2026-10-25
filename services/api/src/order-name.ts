@@ -2,6 +2,7 @@
 // saved one ("¿Sigue a nombre de X?"), accepts corrections, and the name goes on the Square order + caller memory as an
 // Elvi-heard name (staff-entered names always win). Listen-only calls: pulled from the staff's "¿a nombre de quién?".
 import { cleanFullName, cleanFirstName, planCallerName, saveCallerName, savedCallerName, onNameSaved } from "./caller-memory.js";
+import { addressesIn } from "./delivery.js";
 
 type Lang = "es" | "en";
 export const ASK_NAME = { es: "¿A nombre de quién?", en: "What name for the order?" } as const;
@@ -43,6 +44,16 @@ export function thirdPersonName(text: string): string | null {
   if (/\bva\s+a\s+pasar\s+por\b/iu.test(s)) {
     const named = s.match(/(?:a\s+nombre\s+de|para)\s+(\p{Lu}[\p{L}'-]+)/u);
     if (named && !NOT_NAMES.test(named[1])) return cleanFullName(named[1]) || null;
+  }
+  // juana1: "soy la mamá de Yasmín… siempre pongo el de Yasmín… de Yasmín Miranda"
+  {
+    const mama = s.match(/\b(?:mam[aá]|mama)\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
+      || s.match(/\bsiempre\s+pongo\s+el\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
+      || s.match(/\bde\s+(\p{Lu}[\p{L}'-]+\s+\p{Lu}[\p{L}'-]+)\b/u); // "de Yasmín Miranda"
+    if (mama && !NOT_NAMES.test(mama[1].split(" ")[0])) {
+      const n = cleanFullName(mama[1]);
+      if (n) return n;
+    }
   }
   return null;
 }
@@ -89,8 +100,21 @@ export function nameFromAnswer(text: string): string | null {
     while (ws.length && /^(ves|vea|mira|oye|oiga|diga|dime)$/iu.test(ws[0])) ws.shift();
     s = ws.join(" ");
   }
+  // juana1: long "mamá de Yasmín… de Yasmín Miranda" before words.length>3 bail
+  {
+    const mama = s.match(/\b(?:mam[aá]|mama)\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
+      || s.match(/\bsiempre\s+pongo\s+el\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
+      || s.match(/\bde\s+(\p{Lu}[\p{L}'-]+\s+\p{Lu}[\p{L}'-]+)\b/u);
+    if (mama && !NOT_NAMES.test(mama[1].split(" ")[0])) {
+      const n = cleanFullName(mama[1]);
+      if (n) return n;
+    }
+  }
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
+  // callback1: "era para unos, para…" / "unos para" = relay/pickup-for-others, never caller identity
+  if (/\b(?:era|es|ser[ií]a)\s+para\s+unos?\b/iu.test(s) || /^unos?\s+para\b/iu.test(s) || /^para\s+unos?\b/iu.test(s)) return null;
+  if (words.some((w) => /^(unos?|unas?)$/iu.test(w)) && words.some((w) => /^para$/iu.test(w))) return null;
   if (/^(s[ií]|no|yes|ok|okay|bueno|gracias|muchas|thanks|nada|todo|eso|de|ser[ií]a|qu[eé]|algo)$/iu.test(words[0])) return null;
   // suleika1/close1: "Sería todo" / "Nada más" are closings, never a name
   if (words.some((w) => /^(todo|nada|m[aá]s)$/iu.test(w))) return null;
@@ -158,8 +182,10 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       // or mid-turn "Okay, muy bien, Name. Dame unos minutos."
       if (t.speaker === "staff") {
         const echo =
-          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto|muy\s+bien)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
           t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu) ||
+          // eva1: "Eva, muy bien, Eva."
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*muy\s+bien\b/u) ||
           // suleika1: "Dame … veinte, Zuleika, por favor."
           t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,?\s*(?:por\s+favor|please)\s*[.]?\s*$/u);
         if (echo && !NOT_NAMES.test(echo[1])) {
@@ -173,7 +199,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     if (aNombreDe) return aNombreDe;
     // rodolfo1: staff confirmed "Rodolfo" — keep it over later ASR junk ("Sé Apple") even when stems differ
     if (staffEcho && lastCaller && foldName(staffEcho) !== foldName(lastCaller)) {
-      const junk = /^(s[eé]|apple)$/iu.test(foldName(lastCaller).split(/\s+/)[0] || "") || /\bapple\b/iu.test(lastCaller);
+      const junk = /^(s[eé]|apple|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l)$/iu.test(foldName(lastCaller).split(/\s+/)[0] || "") || /\bapple\b/iu.test(lastCaller);
       if (junk) return staffEcho;
     }
     // gino1: staff echo/confirm ("Gino, Gino." / "Okay, muy bien, Gino") beats unclear caller ASR ("Guino")
@@ -219,7 +245,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|hasta|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {
@@ -259,6 +285,31 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
   }
   return null;
 }
+
+/** Street words from addresses in the call — never treat as customerName (caguamas1 Williams). */
+function streetTokensFromTurns(turns: Array<{ speaker: string; text: string }>): Set<string> {
+  const blob = turns.map((t) => t.text).join(" ");
+  const toks = new Set<string>();
+  for (const a of addressesIn(blob)) {
+    for (const w of String(a.street || "").split(/\s+/)) {
+      const t = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+      if (t.length >= 3 && !/^(street|st|avenue|ave|road|rd|drive|dr|lane|ln|blvd|court|ct|way|place|pl|ohio|oh)$/.test(t))
+        toks.add(t);
+    }
+  }
+  for (const m of blob.matchAll(/\b([A-Za-zÁÉÍÓÚÑáéíóúñ]{3,})\s+(\d{2,6})\b/gu)) {
+    toks.add(m[1].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+  }
+  for (const m of blob.matchAll(/\b(\d{2,6})\s+(?:la\s+)?([A-Za-zÁÉÍÓÚÑáéíóúñ]{3,})\b/gu)) {
+    toks.add(m[2].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+  }
+  // staff readback "Williams, quinientos" / "544 La Williams"
+  for (const m of blob.matchAll(/\b([A-Za-zÁÉÍÓÚÑáéíóúñ]{3,})\s*,\s*(?:quinientos|cuatrocientos|trescientos|\d{2,6})\b/gu)) {
+    toks.add(m[1].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+  }
+  return toks;
+}
+
 /** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
 export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
 /** name3p2: same, plus whether the caller gave it in the third person (then it must not be saved to their phone). */
@@ -336,5 +387,8 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     }
   }
   if (thirdPerson) markOrderOnlyName(name);
+  // caguamas1: street token ≠ customer name (e.g. Williams from delivery address)
+  const streets = streetTokensFromTurns(turns);
+  if (streets.has(foldName(name.split(/\s+/)[0] || ""))) return null;
   return { name, thirdPerson, source };
 }

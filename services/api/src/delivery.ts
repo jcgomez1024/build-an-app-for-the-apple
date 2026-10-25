@@ -67,6 +67,11 @@ export function addressesIn(text: string): Address[] {
     /\b(\d{1,6})\s+([a-záéíóúñ.'-]+)\s*,\s*\2\s+(street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd)\b/giu,
     "$1 $2 $3",
   );
+  // juan1: STT "8 7 2 Bank Street" / "8 72 Bank" → "872 Bank Street" (spaced house digits)
+  t = t
+    .replace(/\b(\d)\s+(\d)\s+(\d)\s+(\d)?\b/g, (_, a, b, c, d) => d != null ? a + b + c + d : a + b + c)
+    .replace(/\b(\d)\s+(\d{2,4})\b/g, "$1$2")
+    .replace(/\b(\d{2,4})\s+(\d)\b/g, "$1$2");
   const out: Array<{ at: number; a: Address }> = [];
   for (const m of t.matchAll(ADDR_EN)) {
     const words = m[2].trim().split(/\s+/);
@@ -82,6 +87,20 @@ export function addressesIn(text: string): Address[] {
     const name = title(m[2] || "");
     if (!name) continue;
     out.push({ at: m.index ?? 0, a: fmt({ street: `${m[3]} ${name} ${kind}`, unit: m[4] ? title(m[4]) : undefined, city: m[5] ? title(m[5]) : undefined, zip: m[6] }) });
+  }
+  // caguamas1/callback1: "a la William 544" / "544 La Williams" (no St/Ave). Require street-like token; reject "25 por"/time phrases.
+  if (!out.length) {
+    const BAD = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo)$/i;
+    for (const m of t.matchAll(/\b(?:a\s+(?:a\s+)?(?:la\s+)?)([a-záéíóúñ][a-záéíóúñ.'-]{2,})\s+(\d{2,6})\b/giu)) {
+      const name = title(m[1]);
+      if (BAD.test(name) || name.length < 4) continue;
+      out.push({ at: m.index ?? 0, a: fmt({ street: `${m[2]} ${name} St` }) });
+    }
+    for (const m of t.matchAll(/\b(\d{2,6})\s+(?:la\s+)([a-záéíóúñ][a-záéíóúñ.'-]{2,})\b/giu)) {
+      const name = title(m[2]);
+      if (BAD.test(name) || name.length < 4) continue;
+      out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
+    }
   }
   return out.sort((x, y) => x.at - y.at).map((x) => x.a);
 }
