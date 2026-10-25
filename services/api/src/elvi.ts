@@ -348,7 +348,7 @@ export function variationSwitch(input: ElviRequest): ElviResponse | null {
   return { language: input.language, engine: "xai", reply: addReadback([add], menu, input.language as Language), actions: [{ type: "remove_item", itemId: cur.id, quantity: last.quantity }, add] } as any;
 }
 /** alex1: "¿tiene chilaquiles?" asks if we sell it — answer, don't ring one. */
-const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh|(?:el\s+d[ií]a\s+de\s+)?hoy|ahorita|today|right\s+now)\b)*[\s,.¿¡]*(?:tiene[ns]?|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
+const AVAIL_Q = /^(?:[\s,.¿¡]*(?:disculp[ae]|oiga|perd[oó]n|hola|bueno|buenas|s[ií]|ah|eh|(?:el\s+d[ií]a\s+de\s+)?hoy|ahorita|today|right\s+now)\b)*[\s,.¿¡]*(?:tienes?|tienen|hay|venden|manejan|do\s+you\s+(?:have|sell|guys\s+have)|you\s+guys\s+have)\s+([^?]+?)\??\s*$/iu;
 // alex1: "Y en otro … este," + "en vez de huevos bistec" = another of the last dish with that meat (no extra egg).
 // alex1: "¿tiene chilaquiles?" … "deme uno con," — the dish was just asked about; ring one plain and let them finish.
 export function oneOfAskedDish(input: ElviRequest): ElviResponse | null {
