@@ -91,4 +91,22 @@ export function smallSopeLines(l: Line, cat: PosCatalog | null): Line[] | null {
   if (n % 2) out.push(mk(one, 1));
   return out;
 }
-export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.flatMap((l) => smallSopeLines(l, cat) || [toPosLine(l, cat)]);
+/** gaby1: Menudo SOLO (puro caldo) → POS "SOLO Menudo 32oz y Tortillas" (not online SIN/CON). */
+export function soloMenudoLine(l: Line, cat: PosCatalog | null): Line | null {
+  if ((l as any).posMenudo !== "solo" || !cat) return null;
+  const pos = cat.items.find((i) => /^menudo$/i.test(i.name.trim()) && i.variations.some((v) => /solo\s+menudo\s+32oz/i.test(v.name)));
+  const pv = pos?.variations.find((v) => /^solo\s+menudo\s+32oz/i.test(v.name.trim()));
+  if (!pos || !pv) return null;
+  const mapped = toPosLine({ ...l, variationId: pv.id }, cat);
+  const tort = (l.choices || []).filter((c) => /tortilla/i.test(c));
+  const mods = pos.modifierListIds.flatMap((id) => cat.modifierLists[id]?.modifiers || []);
+  let unit = pv.priceCents;
+  const posChoices: string[] = [pv.name];
+  for (const c of tort) {
+    const m = mods.find((x) => norm(x.name) === norm(c));
+    if (m) { unit += m.priceCents; posChoices.push(m.name); } else posChoices.push(c);
+  }
+  const q = Number(l.quantity) || 1;
+  return { ...mapped, baseName: pos.name, variationId: pv.id, name: `${pos.name} · ${pv.name}`, choices: posChoices, unitCents: unit, totalCents: unit * q };
+}
+export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.flatMap((l) => soloMenudoLine(l, cat) || smallSopeLines(l, cat) || [toPosLine(l, cat)]);

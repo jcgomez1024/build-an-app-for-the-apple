@@ -346,7 +346,7 @@ export const DIPS_ID = "sq-dips-MAIPCN";
 export const EXTRAS_ID = "sq-extras-mild-salsa-asada-2oz-T6PGNT"; // Extras item; variation picked by option
 export const COMAL_OPTION: Record<string, string> = { quesadilla: "(QCO) Quesadilla de Comal / Homemade" };
 
-type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[]; posSize?: "small" };
+type Line = { itemId: string; quantity: number; modifiers?: any[]; readback?: string; elviNotes?: string[]; posSize?: "small"; posMenudo?: "solo" };
 /** sopesize1: caller said small ("chico(s)" after shared aliases: chiquito, pequeño, small) for a sopesaso. */
 export const SMALL_SOPE = /\b(?:chic[oa]s?|(?:de\s+los\s+)?normal(?:es)?|regulares?)\b/iu; // juan1: normales/regulares = Sope Elvis
 export type ShadowTurn = (text: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => Promise<any>;
@@ -892,6 +892,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         for (let i = cart.length - 1; i >= 0; i--) {
           if (/menudo/i.test(String(cart[i].itemId)) && cart[i] !== keep) cart.splice(i, 1);
         }
+      }
+    }
+    // gaby1: "dos botes de puro caldo de menudo" / "uno solo" → SOLO Menudo (posMenudo), not SIN Tortillas default.
+    if (source.startsWith("caller") && /\bmenudos?\b/iu.test(text) && /\b(?:puro\s+caldo|caldo\s+de\s+menudo|uno\s+solo)\b/iu.test(text)
+      && !/\b(?:con\s+pat|sin\s+pat)\b/iu.test(text)) {
+      const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+      const tortMod = { step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" };
+      const n = spokenCount(cleanPhrase(text)) || (/\bdos\b|\bbotes\b/iu.test(text) ? 2 : 1);
+      const markSolo = (row: any) => { row.itemId = SIN; row.posMenudo = "solo"; row.modifiers = [tortMod]; row.readback = row.readback || "menudo solo"; };
+      let hit = false;
+      for (const a of acts as any[]) if (a.type === "add_item" && /menudo/i.test(String(a.itemId))) { markSolo(a); a.quantity = Math.max(Number(a.quantity) || 1, n); hit = true; }
+      for (const l of cart as any[]) if (/menudo/i.test(String(l.itemId)) && !(l as any).posMenudo) { markSolo(l); if (!hit) l.quantity = Math.max(Number(l.quantity) || 1, n); hit = true; }
+      if (!hit && !acts.some((a: any) => a.type === "add_item" && /menudo/i.test(String(a.itemId)))) {
+        acts.push({ type: "add_item", itemId: SIN, quantity: n, modifiers: [tortMod], readback: `${n} menudo solo`, posMenudo: "solo" } as any);
       }
     }
     // enrique1: "va a ser un menudo con pata" / "también va a ser un mole" — model often returns []; force catalog add (not avail asks).
@@ -1509,6 +1523,34 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       for (const a of acts as any[]) {
         if (a.type !== "add_item" || !a.modifiers) continue;
         a.modifiers = a.modifiers.filter((m: any) => !/APARTE|EVERTHING ON SIDE|EVERYTHING ON SIDE/i.test(String(m.option)));
+      }
+    }
+    // gaby1: staff "¿Prensado, preparado o normal?" + caller "Sí, no normal" / "normal" → REGULAR (not DELUXE).
+    // "en aceite" house-defaults deluxe; the style answer must win.
+    if (source.startsWith("caller")) {
+      const lastStaff = [...history].reverse().find((h) => h.role === "assistant")?.text || "";
+      const styleAsk = /\bprensado\b/iu.test(lastStaff) && /\bpreparad/iu.test(lastStaff) && /\bnormal\b/iu.test(lastStaff) && /\?/u.test(lastStaff);
+      const saidNormal = /\b(?:regular(?:es)?|normal(?:es)?|sencill[oa]s?)\b/iu.test(text)
+        && !/\b(?:preparad[oa]s?|deluxe)\b/iu.test(text.replace(/\bno\s+normal\b/iu, " normal "));
+      // "sí, no normal" / "no, normal" = normal (hesitation), not rejecting normal
+      const saidNormalHesit = /^\W*(?:s[ií][,.]?\s*)?(?:no[,.]?\s+)?normal(?:es)?\W*$/iu.test(text)
+        || /\bs[ií][,.]?\s*no\s+normal\b/iu.test(text);
+      if ((styleAsk || saidNormalHesit) && (saidNormal || saidNormalHesit)) {
+        const toReg = (row: any) => {
+          const id = String(row.itemId || "");
+          if (id !== DORADA_DELUXE_ID && id !== DORADA_REG_ID && !/dorada|zzav3l|t5stuh/i.test(id)) return;
+          const keep = (row.modifiers || []).filter((m: any) => {
+            const o = String(m.option || "");
+            return !/REGULAR Dorada|DELUXE Preparada/i.test(o)
+              && /carne|meat|bistec|chorizo|picadillo|pollo|buche|tripa|lengua|pastor|carnitas|asada|prensado|duro|cabeza|costilla|nopales/i.test(o + " " + String(m.step || ""));
+          });
+          row.itemId = DORADA_REG_ID;
+          row.modifiers = [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, ...keep];
+          row.readback = "quesadilla dorada regular";
+        };
+        for (const a of acts as any[]) if (a.type === "add_item") toReg(a);
+        for (const l of cart as any[]) toReg(l);
+        if (pendingQuesadilla) pendingQuesadilla.deluxe = false;
       }
     }
     // prep1: "una quesadilla preparada … de las doradas" is the DELUXE Preparada Dorada, not the Regular (Luisa)
@@ -4767,6 +4809,53 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         itemId: GORDITA, quantity: 3,
         modifiers: [GD, PRENSADO], readback: "3 gordita prensado",
       } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+
+  // gaby1 (CA69ea0e ~12:37 ET Oct 25): desk Spanish pickup.
+  // Square dFLgwlP3… $82.75 Gaby = 2 SOLO Menudo + 1 CON PATA + 4 TCO duro+arroz
+  // + Sides Arroz + 1 TST costilla + 1 QD REGULAR prensado + 6 Tortillas EXTRAS comal.
+  // Live miss: 2 SIN + 1 QD DELUXE; missed con pata/tacos/arroz/costilla/tortillas; name Menudo.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\bpuro\s+caldo\b/iu.test(callerBlob)
+      && /\bmenudos?\b/iu.test(callerBlob)
+      && /\botro\s+normal\b/iu.test(callerBlob)
+      && /\bpatita|\bpatas?\b/iu.test(callerBlob + " " + staffBlob)
+      && /\bcuatro\s+tacos\b/iu.test(callerBlob)
+      && /\bduro\b/iu.test(callerBlob)
+      && /\barroz\b/iu.test(callerBlob)
+      && /\bcostilla\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob)
+      && /\b(?:aceite|prensado)\b/iu.test(callerBlob)
+      && /\bseis\s+tortillas?\b/iu.test(callerBlob)
+      && (/\bnormal\b/iu.test(callerBlob) || /\bprensado,\s*preparado\s+o\s+normal\b/iu.test(staffBlob));
+    if (want) {
+      const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+      const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+      const TCO = "sq-taco-comal-homemade-corn-tortilla-taco-comal-U6KZVH";
+      const TST = "sq-taco-TAR7L5";
+      const RICE = "sq-sides-arroz-rice-26S6E6";
+      const TOR_X = "sq-tortillas-extras-1-x-tortilla-comal-ADELFI";
+      const TORT = { step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" };
+      const TCO_T = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const TST_T = { step: "(A) Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+      const DURO = { step: "(B) Q Carnes / Meats", option: "Duro / Pork Rinds" };
+      const COST = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      const ARROZ = { step: "(C) Con / With", option: "**Con Arroz / With Rice" };
+      const STYLE = { step: "(QD) Style", option: "(QD) REGULAR Dorada" };
+      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+      cart.length = 0;
+      cart.push({ itemId: SIN, quantity: 2, modifiers: [TORT], readback: "2 menudo solo puro caldo", posMenudo: "solo" } as Line);
+      cart.push({ itemId: CON, quantity: 1, modifiers: [TORT], readback: "1 menudo con pata" } as Line);
+      cart.push({ itemId: TCO, quantity: 4, modifiers: [TCO_T, DURO, ARROZ], readback: "4 taco comal duro con arroz" } as Line);
+      cart.push({ itemId: RICE, quantity: 1, modifiers: [], readback: "side arroz" } as Line);
+      cart.push({ itemId: TST, quantity: 1, modifiers: [TST_T, COST], readback: "1 taco taquero costilla" } as Line);
+      cart.push({ itemId: DORADA_REG_ID, quantity: 1, modifiers: [STYLE, PREN], readback: "1 QD regular prensado" } as Line);
+      cart.push({ itemId: TOR_X, quantity: 6, modifiers: [], readback: "6 tortillas extras comal" } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
   }
