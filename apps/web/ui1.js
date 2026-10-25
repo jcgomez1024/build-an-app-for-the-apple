@@ -1110,22 +1110,30 @@ function haloSay(s, ms) {
   const bot = document.getElementById("ux1-bottom");
   b.textContent = text;
   b.classList.add("on");
+  b.classList.remove("show"); // legacy class from softlang — .on is the real visible state
   if (bot) bot.classList.add("bubbing");
   clearTimeout(haloSay._t);
   clearTimeout(haloSay._t2);
-  const linger = ms != null ? ms : Math.max(4500, text.length * 90);
+  // m36: readable ~5–6s min for short lines (was 4500; syncLoucap was also killing early)
+  const linger = ms != null ? ms : Math.max(6000, text.length * 100);
+  haloSay._until = Date.now() + linger;
   haloSay._t = setTimeout(() => {
     b.classList.remove("on");
-    haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 750);
+    haloSay._until = 0;
+    // ~700ms slow fade (CSS opacity transition) then drop bubbing
+    haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 700);
   }, linger);
 }
-function haloBubHide() {
+function haloBubHide(force) {
   const b = document.getElementById("haloBub");
   const bot = document.getElementById("ux1-bottom");
-  if (b) b.classList.remove("on");
+  // m36: honor linger unless forced (e.g. new speak / gate close)
+  if (!force && haloSay._until && Date.now() < haloSay._until) return;
+  if (b) b.classList.remove("on", "show");
   clearTimeout(haloSay._t);
   clearTimeout(haloSay._t2);
-  haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 750);
+  haloSay._until = 0;
+  haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 700);
 }
 function matchOptInGroup(g, uttPlain) {
   const opts = baseOptions(g);
@@ -1157,7 +1165,7 @@ async function haloSpeak(line) {
   // m33: stop any prior stream before Hablar speak (realtime + local + speechSynthesis)
   try { B()?.stopAudio?.(); } catch {}
   try { await B()?.speak?.(line); } catch (e) { console.warn("[m31] speak", e); }
-  haloSay(line); // m32 linger Math.max(4500, len*90)
+  haloSay(line); // m36 linger Math.max(6000, len*100) + ~700ms fade
   syncLoucap("listening");
 }
 /**
@@ -1334,7 +1342,9 @@ function syncLoucap(st) {
   if (!st && live && s === "speaking" && !B()?.isSpeaking?.()) s = "listening";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
-  if (s === "idle" && !HABLAR_LIVE && !B()?.isSpeaking?.()) haloBubHide();
+  // m36: never yank haloBub during softlang gate or active linger
+  const gating = document.getElementById("ux1-bottom")?.classList.contains("gating");
+  if (s === "idle" && !HABLAR_LIVE && !B()?.isSpeaking?.() && !gating) haloBubHide(false);
 
   const lab = cap.querySelector(".lt .lab");
   const inv = cap.querySelector(".lt .inv");
@@ -1426,6 +1436,7 @@ function closeSoftLangGate() {
   if (bot) bot.classList.remove("gating");
   document.body.classList.remove("ux1-gating");
   document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.remove("on"));
+  try { haloBubHide(true); } catch {}
   syncLoucap();
 }
 function openSoftLangGate() {
@@ -1436,26 +1447,16 @@ function openSoftLangGate() {
   document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.remove("on"));
   const cap = document.getElementById("loucap");
   if (cap) { cap.classList.remove("invite"); cap.dataset.state = "idle"; }
-  // m35b: Elvi voices the soft ES|EN ask (matches .sl-q); skip re-TTS if already open
-  const askEs = "¿Español o English?";
-  const askEn = "Spanish or English?";
-  // Prefer bilingual soft caption (UI); fall back EN if browser hints English
-  let ask = askEs;
-  let speakLang = "es";
-  try {
-    const nav = String(navigator.language || navigator.userLanguage || "").toLowerCase();
-    if (nav.startsWith("en")) { ask = askEn; speakLang = "en"; }
-  } catch {}
-  try {
-    const bub = document.getElementById("haloBub");
-    if (bub) { bub.textContent = ask; bub.classList.add("show"); }
-  } catch {}
+  // m36: bilingual soft ask — navigator must NOT mark LANG_KNOWN or pick EN as default
+  // Matches .sl-q; TTS in es (restaurant default) without committing language
+  const ask = "¿Español o English?";
+  try { haloSay(ask, Math.max(7000, ask.length * 100)); } catch {}
   if (!already) {
     void (async () => {
-      try { await B()?.speak?.(ask, { language: speakLang }); } catch (e) { console.warn("[m35b] softlang TTS", e); }
+      try { await B()?.speak?.(ask, { language: "es" }); } catch (e) { console.warn("[m36] softlang TTS", e); }
     })();
   }
-  console.log("[m35b] softlang gate open" + (already ? " (already)" : " + TTS"));
+  console.log("[m36] softlang gate open" + (already ? " (already)" : " + TTS"));
 }
 function pickSoftLang(mode) {
   const m = mode === "en" ? "en" : "es";
@@ -1470,10 +1471,11 @@ function pickSoftLang(mode) {
   }, 450);
 }
 function syncHeaderLangPills() {
-  const L = lang();
-  // m35c: header ES/EN only (bottom .lang-group removed)
+  // m36: no soft-default highlight — only after explicit pick (LANG_KNOWN)
+  const known = langKnown();
+  const L = known ? lang() : "";
   document.querySelectorAll(".u1-head .lang [data-lang]").forEach((p) => {
-    p.classList.toggle("pill-active", p.dataset.lang === L);
+    p.classList.toggle("pill-active", known && p.dataset.lang === L);
   });
 }
 function talkOrBarge() {

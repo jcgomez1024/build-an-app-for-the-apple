@@ -523,12 +523,16 @@ function interpolateReplyText(template, values = {}) {
 function updateLanguageGate() {
   const selected = hasSelectedLanguage();
   const v3 = isV3MenuUi();
+  // m36: no soft-default EN/ES highlight until explicit pick
+  if (!selected) {
+    document.querySelectorAll("[data-lang]").forEach((pill) => pill.classList.remove("pill-active"));
+  }
   if (ui.promptInput) {
     // v3: browsing/typing never blocked; Hablar gates voice language
     ui.promptInput.disabled = v3 ? false : !selected;
     ui.promptInput.placeholder = selected
       ? (getEffectiveLanguage() === "es" ? "Escribe tu orden..." : "Type your order...")
-      : (v3 ? (getEffectiveLanguage() === "es" ? "Escribe tu orden..." : "Type your order...") : "Select language first...");
+      : (v3 ? "Escribe tu orden… / Type your order…" : "Select language first...");
   }
   if (ui.listenButton) {
     ui.listenButton.disabled = v3 ? false : !selected;
@@ -605,10 +609,8 @@ async function boot() {
   try {
     console.log("[BOOT] Starting application boot");
     if (ui.engine) ui.engine.textContent = `Build ${APP_BUILD_VERSION}`;
-    try {
-      const saved = localStorage.getItem("elvi.lang");
-      if (saved === "es" || saved === "en") state.language = saved;
-    } catch {}
+    // m36: do NOT restore elvi.lang — soft chrome / stale localStorage must not mark LANG_KNOWN.
+    // Language becomes known only after header ES|EN tap or Hablar softlang pick (setLanguageMode).
     attachUiHandlers();
     renderSelectedPreview(null);
     updateLanguageGate();
