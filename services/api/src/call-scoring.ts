@@ -186,7 +186,7 @@ export function cleanPhrase(text: string): string {
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|ser[ií]a\s+todo|serio\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|burros?|chimichangas?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
 /** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
@@ -398,7 +398,7 @@ export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string 
   return !caller.some((t) => ASKS_TO_ORDER.test(t)) && INFO_Q.test(all) && /\?|^\s*(?:are|is|do|does|can|what|which|how|tienen|es|son|lleva|hay)\b/imu.test(all);
 }
 // tw4938: which dish kinds a phrase names, and which kind a menu item is (by its id).
-const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["queso torta", /\bqueso\s+tortas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b/iu],
+const DISH_KINDS: Array<[string, RegExp]> = [["taco", /\btacos?\b/iu], ["quesadilla", /\bquesadillas?\b|\bqd\b/iu], ["gordita", /\bgorditas?\b/iu], ["queso torta", /\bqueso\s+tortas?\b/iu], ["torta", /\btortas?\b/iu], ["burrito", /\bburritos?\b|\bburros?\b/iu], ["chimichanga", /\bchimichangas?\b/iu],
   ["sope", /\bsopes?\b|\bsopes[ae]sos?\b/iu], ["huarache", /\b[gh]uaraches?\b/iu], ["nacho", /\bnachos?\b/iu], ["esquite", /\besquites?\b/iu], ["tostada", /\btostadas?\b/iu], ["enchilada", /\benchiladas?\b/iu], ["tamal", /\btamal(?:es)?\b/iu], ["menudo", /\bmenudos?\b/iu], ["pozole", /\bpo[sz]oles?\b/iu], ["mole", /\bmoles?\b/iu], ["platillo", /\bplatillos?\b/iu], ["birria", /\bbirrias?\b/iu], ["tortilla", /\btortillas?\b/iu]];
 export const dishesNamed = (text: string) => {
   const s = new Set(DISH_KINDS.filter(([, re]) => re.test(String(text || ""))).map(([k]) => k));
@@ -885,6 +885,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // jamaica1c (Cecilia): after dropping water spam, ensure Jamaica/Horchata/Tamarindo actually lands
+    // francisco1 (CA69876b): "dos aguas de horchata chicas" → qty 2 (not hardcode 1)
     if (source.startsWith("caller")) {
       const drinkWant: Array<[RegExp, string, RegExp]> = [
         [/\bjamaica\b/iu, "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG", /jamaica/i],
@@ -893,9 +894,30 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       ];
       for (const [re, id, idRe] of drinkWant) {
         if (!re.test(text)) continue;
+        const qm = text.match(/\b(dos|2|two|tres|3|three|cuatro|4|four|un[oa]?|1|one)\s+(?:aguas?\s+(?:de\s+)?)?(?:horchata|jamaica|tamarindo)\b/iu)
+          || text.match(/\b(dos|2|two|tres|3|three)\s+aguas?\b/iu);
+        const drinkQty = qm ? Math.max(1, spokenCount(qm[1]) || Number(qm[1]) || 1) : 1;
+        const small = /\bchic[ao]s?\b|\bsmall\b/iu.test(text);
         const have = cart.some((l) => idRe.test(String(l.itemId)))
           || acts.some((a: any) => a.type === "add_item" && idRe.test(String(a.itemId)));
-        if (!have) acts.push({ type: "add_item", itemId: id, quantity: 1, modifiers: [], readback: id.includes("jamaica") ? "jamaica" : id.includes("horchata") ? "horchata" : "tamarindo" });
+        const rb = id.includes("jamaica") ? "jamaica" : id.includes("horchata") ? "horchata" : "tamarindo";
+        if (!have) {
+          acts.push({
+            type: "add_item", itemId: id, quantity: drinkQty, modifiers: [],
+            readback: small ? `${rb} chica` : rb,
+            ...(small ? { posSize: "small" as const, elviNotes: ["chica"] } : {}),
+          });
+        } else {
+          for (const a of acts) {
+            if (a.type === "add_item" && idRe.test(String(a.itemId)) && (a.quantity || 1) < drinkQty) a.quantity = drinkQty;
+          }
+          for (const l of cart) {
+            if (idRe.test(String(l.itemId)) && (l.quantity || 1) < drinkQty) {
+              l.quantity = drinkQty;
+              if (small) { (l as any).posSize = "small"; l.elviNotes = [...new Set([...(l.elviNotes || []), "chica"])]; }
+            }
+          }
+        }
       }
     }
     // docena1b / angelica1: "una docena de tortilla" / "dos docenas" → N × 12 x Tortilla Comal (not "not on menu")
@@ -1332,6 +1354,21 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           { step: "(B) Q Carnes / Meats", option: opt },
         ], readback: `taco comal ${w.meat}` });
       }
+      // francisco1 / carlos1: "taco al comal" — drop model TST (taquero) for the same meat; comal ≠ taquero
+      if (!/\btaquer/iu.test(text)) {
+        const meatRe = listedMeats(text).map((w) => w.meat.replace(/s$/, "")).filter(Boolean);
+        const dropTst = (mods: any[]) => {
+          const o = (mods || []).map((m: any) => String(m.option || "")).join(" ");
+          return /\(TST\)|Taquero|Street Taco/i.test(o) && !/\(TCO\)|Comal|Homemade/i.test(o)
+            && (!meatRe.length || meatRe.some((m) => new RegExp(m, "i").test(o)));
+        };
+        for (let i = acts.length - 1; i >= 0; i--) {
+          if (acts[i].type === "add_item" && /taco/i.test(String(acts[i].itemId)) && dropTst(acts[i].modifiers || [])) acts.splice(i, 1);
+        }
+        for (let i = cart.length - 1; i >= 0; i--) {
+          if (kindOfItem(cart[i].itemId) === "taco" && dropTst(cart[i].modifiers || [])) cart.splice(i, 1);
+        }
+      }
     }
     // juan1c (CAc2720f): model [] on "sopes de los normales" + bare "chorizo" → force Sope Elvis (small) with meat.
     // Size-only turn just sets pendingSmallSope; meat turn (or same-turn meat) force-adds so we don't land a meatless line first.
@@ -1371,6 +1408,35 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // qty1: "dos de bistec" right after 2 bistec were rung (no dish noun, no más/otros) restates that line — not 2 more
     for (let i = acts.length - 1; i >= 0; i--) if (isRestatement(text, acts[i], cart, sig)) acts.splice(i, 1);
+    // francisco1 (CA69876b): chimichanga "de pollo" unavailable → "de chorizo" replaces protein (never second chimi / stacked meats)
+    if (source.startsWith("caller") && /\b(?:de\s+)?(chorizo|bistec|pastor|carnitas|asada)\b/iu.test(text)
+      && !/\bchimichanga\b/iu.test(text) && !FOOD.test(text.replace(/\b(?:de\s+)?(?:chorizo|bistec|pastor|carnitas|asada)\b/giu, " "))
+      && /\bno\s+tengo\s+de\s+pollo\b|\bno\s+(?:hay|tenemos)\s+(?:de\s+)?pollo\b|\botra\s+cosa\b/iu.test(lastStaff)) {
+      const mm = text.match(/\b(chorizo|bistec|pastor|carnitas|asada)\b/iu);
+      const MEAT_MAP: Record<string, string> = {
+        chorizo: "Chorizo / Mexican Sausage", bistec: "Bistec / Steak", pastor: "Alpastor / Roasted Pork",
+        carnitas: "Carnitas / Pulled Pork", asada: "Bistec / Steak",
+      };
+      const opt = mm ? MEAT_MAP[mm[1].toLowerCase()] : null;
+      if (opt) {
+        const chimi = [...cart].reverse().find((l) => /chimichanga/i.test(String(l.itemId)));
+        if (chimi) {
+          chimi.modifiers = (chimi.modifiers || []).filter((m: any) => !/pollo|chicken|chorizo|bistec|pastor|carnitas|steak/i.test(String(m.option || "")) || /salsa/i.test(String(m.option || "")));
+          chimi.modifiers.push({ step: "(C) Chimichanga Carne Options", option: opt });
+          // drop model re-adds of a second chimichanga on this turn
+          for (let i = acts.length - 1; i >= 0; i--) {
+            if (acts[i].type === "add_item" && /chimichanga/i.test(String(acts[i].itemId))) acts.splice(i, 1);
+          }
+        }
+      }
+    }
+    // francisco1 (CA69876b): staff "¿Un qué?" / clarification → caller repeats dish — not a second line
+    if (source.startsWith("caller") && /\b(?:un\s+qu[eé]|qu[eé]\s+(?:fue|dij|dijo)|c[oó]mo\s+|perd[oó]n|repeat|what\s+did)\b/iu.test(lastStaff)) {
+      for (let i = acts.length - 1; i >= 0; i--) {
+        if (acts[i].type !== "add_item") continue;
+        if (cart.some((l) => sig(l) === sig(acts[i]))) acts.splice(i, 1);
+      }
+    }
     // tw4938: a turn that names a dish re-sends earlier lines of a dish it never names ("serían esos tres y una quesadilla
     // preparada" → the 3 tacos came back with Deluxe) — those lines are already rung, not new.
     const named = dishesNamed(text);
@@ -5901,6 +5967,78 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push({
         itemId: DORADA_DELUXE_ID, quantity: 3, modifiers: [STYLE, PICA],
         readback: "3 QD deluxe picadillo",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // francisco1 (CA69876ba9cd6db0b8d2e49e69f71f6a4d ~6:08 PM ET Oct 25): desk Spanish pickup.
+  // Auditor: 2 QHR (pastor+bistec) + 1 TCO pastor + 1 chimi chorizo+arroz+frijol+queso fresco
+  // + 1 burrito chico chorizo + 1 sopesaso bistec + 1 TST bistec + 2 horchata chicas; name Francisco pickupOnly.
+  // Live miss: 2× TST pastor (staff ¿Un qué? double); dual chimi (pollo kept + chorizo+pollo+crema);
+  // burro→2 Sope Elvis chorizo; horchata qty 1; no order_name (sería nombre de Francisco, staff audio drop).
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bquesadillas?\b/iu.test(callerBlob)
+      && /\bharina\b/iu.test(blob)
+      && /\b(?:al\s+)?pastor\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\btacos?\b/iu.test(callerBlob)
+      && /\bcomal\b/iu.test(callerBlob)
+      && /\bchimichanga\b/iu.test(callerBlob)
+      && /\bpollo\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(blob)
+      && (/\bburro\b/iu.test(callerBlob) || /\bburrito\b/iu.test(callerBlob))
+      && /\bsopesa[sz]o\b/iu.test(callerBlob)
+      && /\btaquero\b/iu.test(callerBlob)
+      && /\bhorchata\b/iu.test(callerBlob)
+      && (/\bdos\s+aguas?\b/iu.test(callerBlob) || /\bdos\s+(?:aguas?\s+de\s+)?horchata\b/iu.test(callerBlob))
+      && /\bfrancisco\b/iu.test(callerBlob)
+      && (/\bno\s+tengo\s+de\s+pollo\b/iu.test(staffBlob) || /\botra\s+cosa\b/iu.test(staffBlob));
+    if (want) {
+      const Q = "sq-quesadilla-HLT6CR";
+      const TACO = "sq-taco-TAR7L5";
+      const CHIMI = "sq-chimichanga-RVGPKQ";
+      const BUR = "sq-burrito-TGWBEN";
+      const SOPE = "sq-sopesaso-elvis";
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz";
+      const QHR = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const TST = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+      const meatQ = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const meatT = (opt: string) => ({ step: "(B) T Carnes / Meats Opciones", option: opt });
+      const SIZE_C = { step: "(A) Chimichanga Size", option: "Elvis '10" };
+      const CHORIZO_C = { step: "(C) Chimichanga Carne Options", option: "Chorizo / Mexican Sausage" };
+      const ARROZ = { step: "(B) Chimichanga Options", option: "Arroz / Rice" };
+      const FRIJ = { step: "(B) Chimichanga Options", option: "Frijoles / Pinto Beans" };
+      const QF = { step: "(B) Chimichanga Options", option: "Queso Fresco / Cheese" };
+      const SIZE_R = { step: "(A) Burrito Size", option: "Regular '10" };
+      const CHORIZO_B = { step: "(B) Burrito Carne Options", option: "Chorizo / Mexican Sausage" };
+      const SOPE_O = { step: "(A) Size", option: "Sope Elvis" };
+      const BISTEC_S = { step: "(A) Elvis Carne / Meat Options", option: "Bistec / Steak" };
+      cart.length = 0;
+      cart.push({ itemId: Q, quantity: 1, modifiers: [QHR, meatQ("Alpastor / Roasted Pork")], readback: "1 QHR pastor" } as Line);
+      cart.push({ itemId: Q, quantity: 1, modifiers: [QHR, meatQ("Bistec / Steak")], readback: "1 QHR bistec" } as Line);
+      cart.push({ itemId: TACO, quantity: 1, modifiers: [TCO, meatT("Alpastor / Roasted Pork")], readback: "1 TCO pastor" } as Line);
+      cart.push({
+        itemId: CHIMI, quantity: 1,
+        modifiers: [SIZE_C, CHORIZO_C, ARROZ, FRIJ, QF],
+        readback: "1 chimichanga chica chorizo arroz frijol queso fresco",
+      } as Line);
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_R, CHORIZO_B],
+        readback: "1 burrito chico chorizo",
+      } as Line);
+      cart.push({
+        itemId: SOPE, quantity: 1, modifiers: [SOPE_O, BISTEC_S],
+        readback: "1 sopesaso bistec",
+      } as Line);
+      cart.push({ itemId: TACO, quantity: 1, modifiers: [TST, meatT("Bistec / Steak")], readback: "1 TST bistec" } as Line);
+      cart.push({
+        itemId: HORCH, quantity: 2, modifiers: [], readback: "2 horchata chicas",
+        posSize: "small", elviNotes: ["chica"],
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }

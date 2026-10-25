@@ -557,6 +557,18 @@
       "example": "Una orden de menos dos",
       "source": "Miriam CA477ac6 10/25: STT 'menos' for menudo → Elvi rang torta",
       "approved": "Carlos 2026-10-25"
+    },
+    {
+      "id": "burro-burrito",
+      "match": "\\bburro(s?)\\b",
+      "to": "burrito$1",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "un burro chico de chorizo",
+      "source": "francisco1 CA69876b: burro = burrito (not sope)",
+      "approved": true
     }
   ]
 }

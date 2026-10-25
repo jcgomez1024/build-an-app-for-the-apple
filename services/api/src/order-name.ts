@@ -363,13 +363,16 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   const fromAsk = nameFromStaffAsk(turns);
   const fromVoc = fromAsk ? null : nameFromStaffVocative(turns);
   // joseA1: volunteered "Es José Acevedo" — prefer full volunteer over staff vocative ("Gracias, José")
+  // francisco1 (CA69876b): "Ah, sería nombre de Francisco" with no staff ¿Nombre? (audio drop) — still volunteer pickup name
   let fromVol: string | null = null;
   for (const t of turns) {
     if (t.speaker !== "caller") continue;
     // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
-    if (!/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy)\s+\S+/iu.test(t.text)) continue;
+    const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+de\b/iu.test(t.text)
+      || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
+    if (!seriaNombre && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy)\s+\S+/iu.test(t.text)) continue;
     if (/\bes\s+para\b/iu.test(t.text)) continue; // pickup-only
-    const n = nameFromAnswer(t.text);
+    const n = seriaNombre ? (thirdPersonName(t.text) || nameFromAnswer(t.text)) : nameFromAnswer(t.text);
     // joseA1: "Ah, es en" → null/En lose to "Es José Acevedo"
     if (!n || n.trim().length < 3 || NOT_NAMES.test(n.split(/\s+/)[0])) continue;
     if (!/^\p{Lu}/u.test(n)) continue;

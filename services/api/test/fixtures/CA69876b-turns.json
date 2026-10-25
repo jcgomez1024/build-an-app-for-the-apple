@@ -1,0 +1,254 @@
+[
+  {
+    "speaker": "staff",
+    "text": "Cocina Elvis, buenas tardes.",
+    "start": 0.78,
+    "end": 3.241,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Buenas tardes, quisiera hacer una orden.",
+    "start": 3.922,
+    "end": 5.862,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Ah, sí, claro, dígame.",
+    "start": 6.442,
+    "end": 7.543,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ah, una quesadilla de harina de al pastor",
+    "start": 9.244,
+    "end": 13.605,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Una quesadilla de harina de al pastor, claro, ¿algo más?",
+    "start": 14.405,
+    "end": 17.266,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "y una más de bistec.",
+    "start": 18.447,
+    "end": 20.028,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "De harina también, ¿verdad?",
+    "start": 20.947,
+    "end": 22.127,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí.",
+    "start": 22.929,
+    "end": 23.049,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Algo más?",
+    "start": 23.868,
+    "end": 24.548,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y un taco al comal al pastor.",
+    "start": 25.55,
+    "end": 28.211,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Un qué?",
+    "start": 28.69,
+    "end": 28.97,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Un taco al comal de pastor.",
+    "start": 30.732,
+    "end": 32.973,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien, ¿algo más?",
+    "start": 34.371,
+    "end": 35.492,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ah, una chimichanga chica de pollo.",
+    "start": 36.834,
+    "end": 40.036,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien, arroz y frijol y queso fresco, ¿está bien?",
+    "start": 41.394,
+    "end": 44.555,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí.",
+    "start": 45.358,
+    "end": 45.458,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien, de pollo.",
+    "start": 46.576,
+    "end": 47.736,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Mm,",
+    "start": 50.937,
+    "end": 50.997,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "no tengo de pollo, ¿quieres de otra cosa?",
+    "start": 52.257,
+    "end": 54.378,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ah,",
+    "start": 56.882,
+    "end": 56.922,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "de chorizo.",
+    "start": 57.923,
+    "end": 58.523,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "De chorizo.",
+    "start": 59.2,
+    "end": 59.94,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí,",
+    "start": 64.005,
+    "end": 64.106,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "sí.",
+    "start": 65.326,
+    "end": 65.426,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Este, un burro",
+    "start": 67.327,
+    "end": 68.387,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "chico,",
+    "start": 70.648,
+    "end": 71.089,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "ah, también de chorizo.",
+    "start": 72.029,
+    "end": 73.43,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Nada más crema, no.",
+    "start": 82.133,
+    "end": 83.194,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Am, y un sopesazo de bistec",
+    "start": 88.976,
+    "end": 91.697,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "con todo.",
+    "start": 92.718,
+    "end": 93.258,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí.",
+    "start": 99.021,
+    "end": 99.121,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y un taco taquero de bistec.",
+    "start": 101.682,
+    "end": 104.383,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ah, sería nombre de Francisco.",
+    "start": 109.765,
+    "end": 111.747,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ah, y si me puede poner dos aguas de horchata, chicas.",
+    "start": 116.269,
+    "end": 120.211,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí.",
+    "start": 125.254,
+    "end": 125.334,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Está bien, gracias.",
+    "start": 130.977,
+    "end": 131.878,
+    "language": "es"
+  }
+]
