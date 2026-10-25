@@ -1430,7 +1430,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:s[ií][,.]?\s*)?(?:quiero|dame|deme|me\s+pone|pon(?:me|ga)?|por\s+favor)[,.\s]*/iu, ""))
           || (/\b(?:dos|2|two)\b/iu.test(text) ? 2 : /\b(?:tres|3|three)\b/iu.test(text) ? 3 : /\b(?:cuatro|4|four)\b/iu.test(text) ? 4 : 0);
         if (n >= 1 && (/\b(?:quiero|dame|deme|me\s+pone|pon(?:me|ga)?|por\s+favor)\b/iu.test(text) || listedMeats(text).length > 0))
-          pendingQuesadilla = { n, meat: pendingQuesadilla?.meat || "" };
+          pendingQuesadilla = { n, meat: "" };
       }
     }
     // miriam1/julioDorada1/oscar1/jose2: "N quesadillas doradas" / pending after doradas avail + meats → QD REGULAR
