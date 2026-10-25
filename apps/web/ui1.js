@@ -258,9 +258,14 @@ function pick(gi, name) {
     if (mx === 1) { for (const k of Object.keys(sel)) delete sel[k]; U.dbl[g.id].clear(); }
     if (count() < mx) { sel[name] = 1; U.last[g.id] = name; }
   }
+  // warm1b: highlight via .sel on re-render; V3 ask/TTS advances from missingStep (not scroll)
+  if (V3) {
+    const miss = missingStep();
+    if (miss !== undefined) U.step = miss;
+  }
   render();
   const { main } = steps();
-  if (gi === U.step && mx === 1 && main.indexOf(gi) < main.length - 1) setTimeout(() => { U.step = main[main.indexOf(gi) + 1]; render(); }, 250);
+  if (!V3 && gi === U.step && mx === 1 && main.indexOf(gi) < main.length - 1) setTimeout(() => { U.step = main[main.indexOf(gi) + 1]; render(); }, 250);
 }
 function buildModifiers() {
   const out = [];
@@ -472,9 +477,9 @@ function v3Ask(g) {
   if (isQdVersionGroup(g)) {
     return t("¿Te gustaría Regular o Deluxe Preparada?", "Would you like Regular or Deluxe Preparada?");
   }
-  // QD (2) meats — locked Carlos 10/24 (relleno o carne)
+  // QD (2) meats — locked Carlos 10/24 (relleno o carne / relleno or meat)
   if (isQdItem(U.item) && /carne|meat|relleno|filling/i.test(n + " " + groupLabel(g))) {
-    return t("¿Qué relleno o carne te gustaría?", "What kind of relleno or carne would you like?");
+    return t("¿Qué relleno o carne te gustaría?", "What kind of relleno or meat would you like?");
   }
   if (/burrito\s+(combo\s+)?options|adentro/i.test(n) || /adentro|inside/i.test(groupLabel(g))) {
     return t("Yo te puedo ayudar — ¿qué le ponemos adentro?", "I can help — what would you like inside?");
@@ -496,9 +501,16 @@ function v3LeadAsk(force) {
   for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = say; }
   const askEl = document.querySelector("#v3-sheet-wrap .v3-ask b"); if (askEl) askEl.textContent = say;
   if (!force && U._v3AskKey === key) return;
+  const advanced = U._v3AskKey != null && U._v3AskKey !== key;
   U._v3AskKey = key;
   const b = B();
   try { b?.speak?.(say); } catch (e) { console.warn("[warm1] speak", e); }
+  // warm1b: after a selection advances the unfinished step, bring that group into view (ask is NOT from scroll)
+  if (advanced && miss !== undefined) {
+    requestAnimationFrame(() => {
+      document.getElementById(`v3-g-${miss}`)?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    });
+  }
 }
 function v3SheetHTML() {
   const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
