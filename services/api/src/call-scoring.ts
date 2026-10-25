@@ -563,7 +563,7 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
       { const nm = t.text.match(/\ba\s+nombre\s+de\s+(\p{L}+)/iu); if (nm) givenName = nm[1].toLowerCase();
         const w = t.text.toLowerCase().replace(/[^\p{L}\s]/gu, " ").split(/\s+/).filter(Boolean);
         if (!nm && givenName && w.includes(givenName) && w.every(x => x === givenName || /^(de|aj[aá]|s[ií]|ok(ay)?|es|a|nombre)$/.test(x))) { t.text = ""; continue; } } // desk2: name echo "de julio, ajá"
-      if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?\b(?:\s*,?\s*(?:porfa|por\s+favor|please))?(?:\s*,?\s*(?:con|sin)\s+pata)?\s*[.?!]*\s*$/iu.test(t.text))
+      if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?\b(?:\s*,?\s*(?:porfa|por\s+favor|please))?(?:\s*,?\s*(?:con|sin)\s+patas?)?\s*[.?!]*\s*$/iu.test(t.text))
         t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b/iu,
           (m) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(m) ? `${m} de ${lastDish}` : `${m} orden de ${lastDish}`); } }
 }
@@ -812,32 +812,35 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (/\bmenudos?\b/iu.test(text) && /\b(?:va\s+a\s+ser|quiero|dame|deme|me\s+da|pon(?:me|ga)?|un[oa]?|dos|tres|\d+)\b/iu.test(text)) {
         const haveCart = cart.filter((l) => /menudo/i.test(String(l.itemId)));
         const haveActs = acts.filter((a: any) => a.type === "add_item" && /menudo/i.test(String(a.itemId)));
-        const id = /\bsin\s+pata\b/iu.test(text) ? "sq-menudo-menudo-con-tortillas-4-ZSRUX4" : "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+        const id = /\bsin\s+patas?\b/iu.test(text) ? "sq-menudo-menudo-con-tortillas-4-ZSRUX4" : "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
         // luis181d: "te puedo ordenar un menudo?" then "Un menudo sin pata" — clarify SKU, do not ring a second bowl
         if (haveCart.length || haveActs.length) {
           for (const l of haveCart) {
-            if (/\bsin\s+pata\b/iu.test(text) && /con-pata|con_pata/i.test(String(l.itemId))) l.itemId = id;
-            else if (/\bsin\s+pata\b/iu.test(text)) l.itemId = id;
-            if (/\bsin\s+pata\b/iu.test(text)) l.modifiers = (l.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata/i.test(String(m.option)));
+            if (/\bsin\s+patas?\b/iu.test(text) && /con-pata|con_pata/i.test(String(l.itemId))) l.itemId = id;
+            else if (/\bsin\s+patas?\b/iu.test(text)) l.itemId = id;
+            if (/\bsin\s+patas?\b/iu.test(text)) l.modifiers = (l.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata/i.test(String(m.option)));
           }
           for (const a of haveActs) {
-            if (/\bsin\s+pata\b/iu.test(text)) {
+            if (/\bsin\s+patas?\b/iu.test(text)) {
               a.itemId = id;
               a.modifiers = (a.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata/i.test(String(m.option)));
             }
           }
           // drop model re-adds of menudo on a sin/con-pata clarify
-          if (/\b(?:sin|con)\s+pata\b/iu.test(text) && haveCart.length) {
+          if (/\b(?:sin|con)\s+patas?\b/iu.test(text) && haveCart.length) {
             for (let i = acts.length - 1; i >= 0; i--) {
               if (acts[i].type === "add_item" && /menudo/i.test(String(acts[i].itemId))) acts.splice(i, 1);
             }
           }
         } else {
           const mods: any[] = [];
-          if (/\bcon\s+pata\b/iu.test(text)) mods.push({ step: "EXTRA", option: "EXTRA Pata / Beef Feet (+$3.00)" });
+          if (/\bcon\s+patas?\b/iu.test(text)) mods.push({ step: "EXTRA", option: "EXTRA Pata / Beef Feet (+$3.00)" });
           // enrique1b: house default corn comal tortillas when force-adding (model never answered the tortilla Q)
           mods.push({ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" });
-          acts.push({ type: "add_item", itemId: id, quantity: 1, modifiers: mods, readback: "menudo" });
+          // miguel1: "tres menudos sin patas" — keep spoken bowl count on force-add
+          const mq = text.match(new RegExp(String.raw`\b(${NUMW})\s+menudos?\b`, "iu"));
+          const qMen = mq ? (spokenCount(mq[1]) || 1) : 1;
+          acts.push({ type: "add_item", itemId: id, quantity: Math.max(1, qMen), modifiers: mods, readback: "menudo" });
         }
       }
       if (/\bmoles?\b/iu.test(text) && /\b(?:va\s+a\s+ser|tambi[eé]n|quiero|dame|deme|me\s+da|pon(?:me|ga)?|un[oa]?)\b/iu.test(text)) {
@@ -1099,7 +1102,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // tw4938: "dos quesadillas doradas … preparadas" → one line came back at qty 1; the spoken count is the quantity.
     { let n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:y|e|and|me\s+das|dame|deme|quiero|me\s+pone|me\s+puedes?\s+poner)\s+/iu, "")); const adds = acts.filter((a: any) => a.type === "add_item");
       // qty4: "una orden de cuatro quesadillas" — the count next to the dish noun beats the "una orden" in front (Noé)
-      { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas?|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
+      { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:(?!(?:${NUMW})\b)\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|doradas?|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu")); const n2 = m ? spokenCount(m[1]) : 0; if (n2 > n) n = n2; }
       if (adds.length) { const ik = kindOfItem(adds[0].itemId) || "";
         const kindOk = named.has(ik) || (ik === "torta" && named.has("queso torta"));
         // luis181c: "12 x Tortilla Comal" pack SKU — spokenCount("12") must not inflate the pack to qty 12
@@ -1117,7 +1120,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // luis7895/chuy1: remember spoken N+dish when Elvi asked instead of adding; apply on the next matching add (staff-pick / Con pata).
-    { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
+    { const m = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:(?!(?:${NUMW})\b)\p{L}+\s+){0,3}?(?:quesadillas|tacos|gorditas|queso\s+tortas|tortas|burritos|sopes|huaraches|tostadas|enchiladas|menudos?|moles?|platillos?)\b`, "iu"));
       const n = m ? spokenCount(m[1]) : 0;
       const kinds = [...dishesNamed(text)];
       let appliedPending = false;
@@ -1235,7 +1238,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // luis181/docena1: "sin pata" must not land as Con Pata catalog; swap to Menudo con Tortillas
     { const recent = (prevCaller + " " + text).toLowerCase();
-      if (/\bsin\s+pata\b/iu.test(recent) && !/\bcon\s+pata\b/iu.test(text)) {
+      if (/\bsin\s+patas?\b/iu.test(recent) && !/\bcon\s+patas?\b/iu.test(text)) {
         const SIN = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
         for (const a of acts) {
           if (a.type !== "add_item" && a.type !== "update_item") continue;
@@ -1245,7 +1248,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         for (const l of cart) {
           if (!/menudo/i.test(String(l.itemId))) continue;
-          if (/con-pata|con_pata/i.test(String(l.itemId)) && /\bsin\s+pata\b/iu.test(text)) {
+          if (/con-pata|con_pata/i.test(String(l.itemId)) && /\bsin\s+patas?\b/iu.test(text)) {
             l.itemId = SIN;
             l.modifiers = (l.modifiers || []).filter((m: any) => !/extra\s*pata|con\s+pata/i.test(String(m.option)));
           }
@@ -1254,7 +1257,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // cecilia1e: "con pata" → ensure EXTRA Pata / Beef Feet on menudo (catalog Con Pata item still needs the $3 mod on POS)
     { const recent = (prevCaller + " " + text).toLowerCase();
-      if (/\bcon\s+pata\b/iu.test(recent) && !/\bsin\s+pata\b/iu.test(text)) {
+      if (/\bcon\s+patas?\b/iu.test(recent) && !/\bsin\s+patas?\b/iu.test(text)) {
         for (const a of acts) {
           if (a.type !== "add_item" && a.type !== "update_item") continue;
           if (!/menudo/i.test(String(a.itemId))) continue;
@@ -1263,7 +1266,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             ms.push({ step: "EXTRA", option: "EXTRA Pata / Beef Feet (+$3.00)" });
         }
         // also stamp cart lines already rung without EXTRA Pata when this turn confirms con pata
-        if (/^\W*con\s+pata\b/iu.test(text) || source === "staff-pick") {
+        if (/^\W*con\s+patas?\b/iu.test(text) || source === "staff-pick") {
           for (const l of cart) {
             if (!/menudo/i.test(String(l.itemId))) continue;
             const ms = l.modifiers || (l.modifiers = []);
@@ -1711,7 +1714,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         && /\b(?:s[ií]|yes|ok(?:ay)?|eso|correcto|exacto)\b/iu.test(text)) acts.splice(acts.indexOf(adds[0]), 1);
     }
     // cecilia1: 2nd staff-pick / bare "con pata" of same menudo/mole/platillo must merge mods, not double the line
-    if (source === "staff-pick" || /^\W*(?:con|sin)\s+pata\b/iu.test(text)) {
+    if (source === "staff-pick" || /^\W*(?:con|sin)\s+patas?\b/iu.test(text)) {
       for (let i = acts.length - 1; i >= 0; i--) {
         const a = acts[i]; if (a.type !== "add_item") continue;
         const ik = kindOfItem(a.itemId) || "";
@@ -1961,6 +1964,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           }
         }
       }
+    }
+    // miguel1: menudo already rung with tortillas — drop phantom Taco Comal/Harina/Taquero Q
+    // so staffpick1/tortdef1 cannot invent Taco Comal on "Nada más"/name.
+    if (r && source.startsWith("caller")) {
+      const reply = String(r.reply || "");
+      const tacoQ = /\bTaco\s+(?:Comal|Harina|Taquer)/i.test(reply) || (/\b(?:comal|harina|taquer)/i.test(reply) && /\btaco/i.test(reply) && /\?/u.test(reply));
+      const namedTaco = /\btacos?\b/iu.test(text) || dishesNamed(text).has("taco");
+      const cartTaco = cart.some((l) => kindOfItem(l.itemId) === "taco") || acts.some((a: any) => a.type === "add_item" && kindOfItem(a.itemId) === "taco");
+      const menudoOnly = (cart.some((l) => /menudo/i.test(String(l.itemId))) || acts.some((a: any) => a.type === "add_item" && /menudo/i.test(String(a.itemId))))
+        && !cartTaco && !namedTaco;
+      if (tacoQ && menudoOnly) r.reply = language === "es" ? "¿Algo más?" : "Anything else?";
     }
     const added = acts.filter((a: any) => a.type === "add_item");
     if (added.length) lastAdded = cart[cart.length - 1] || null;
@@ -2250,7 +2264,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const movedOn = /\b(anything else|something else|algo mas|otra cosa|name for the order|nombre)\b/.test(nf(rawStaff)) || /\b(that is it|that's it|thats it|that's all|nothing else|es todo|eso es todo|nada mas|seria todo)\b/.test(nf(t.text));
         // larry1: a bare "yeah / that's fine" to a tortilla question (Queso Birrias loop) also takes the house default.
         const affirm = /^\s*(yeah|yep|yup|yes|ok(?:ay)?|sure|fine|that'?s fine|si|aja|esta bien|asi esta bien)\b/.test(nf(t.text)) && !dishesNamed(t.text).size;
-        const tq = movedOn || affirm ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
+        // miguel1: house-default tortilla pick is for open taco/quesadilla lines — not menudo-only carts
+        const menudoOnlyCart = cart.some((l) => /menudo/i.test(String(l.itemId))) && !cart.some((l) => kindOfItem(l.itemId) === "taco")
+          && !/\btacos?\b/iu.test(t.text);
+        const tq = !menudoOnlyCart && (movedOn || affirm) ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
         if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
       }
       // larry1: staff offers a side ("you want onions and peppers?") → caller "yes… two of those": ring that side.
@@ -2287,10 +2304,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!selfPick) {
         const recentCaller = [...history].reverse().filter((h) => h.role === "customer").slice(0, 4).map((h) => h.text).join(" ");
         const allOpts = qs.flatMap((q) => optsOf(q));
-        if (/\bcon\s+pata\b/iu.test(recentCaller + " " + t.text) && !/\bsin\s+pata\b/iu.test(t.text)) {
+        if (/\bcon\s+patas?\b/iu.test(recentCaller + " " + t.text) && !/\bsin\s+patas?\b/iu.test(t.text)) {
           const pref = allOpts.find((o) => /con\s+pata|pata\s+menudo|extra\s+pata/i.test(o));
           if (pref) pick = pref;
-        } else if (/\bsin\s+pata\b/iu.test(recentCaller + " " + t.text)) {
+        } else if (/\bsin\s+patas?\b/iu.test(recentCaller + " " + t.text)) {
           const pref = allOpts.find((o) => /tortilla/i.test(o) && !/pata/i.test(o)) || allOpts.find((o) => !/pata/i.test(o));
           if (pref) pick = pref;
         }
