@@ -458,6 +458,8 @@ const NUMW = String.raw`\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three
 const EACH_MEATS = String.raw`steak|chicken|chorizo|pastor|asada|carnitas|tripe|birria|bistec|pollo|buche|lengua|cabeza|tripa|prensado`;
 export function rewriteCallerText(text: string): string {
   let s = String(text || "");
+  // joseBirria1 (CA13b893): STT "cuatro tortillas estas" → tortillas extras
+  s = s.replace(/(?<![\p{L}])tortillas?\s+estas(?![\p{L}])/giu, (m) => m.replace(/estas/i, "extras"));
   // oscar1: STT menú↔menudo when ordering verb present (ASCII \b fails on menú)
   if (/(?<![\p{L}])(?:preparar|pedir|quiero|quisiera|dame|deme|pon(?:me|ga)?)(?![\p{L}])/iu.test(s))
     s = s.replace(/(?<![\p{L}])men[uú](?![\p{L}])/giu, "menudo");
@@ -560,6 +562,11 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
     }
   }
 
+  // joseBirria1: STT "tortillas estas" → tortillas extras (before menu/menudo logic)
+  for (const t of merged) {
+    if (t.speaker !== "caller" && t.speaker !== "staff") continue;
+    t.text = t.text.replace(/(?<![\p{L}])tortillas?\s+estas(?![\p{L}])/giu, (m: string) => m.replace(/estas/i, "extras"));
+  }
   // oscar1 (CA041f564): STT "preparar un menú" ↔ menudo — don't leave menu-pitch when ordering
   // (\b is ASCII-only; menú needs lookaround so ú is not split as a boundary)
   {
@@ -850,6 +857,19 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
+    // joseBirria1 (CA13b893): "N tortillas extras" → Tortillas EXTRAS / 1 x Tortilla Comal ×N (not birria-included tortillas; not dozen pack)
+    if (source.startsWith("caller") && /(?<![\p{L}])tortillas?\s+extras?(?![\p{L}])/iu.test(text)) {
+      const TOR_X = "sq-tortillas-extras-1-x-tortilla-comal-ADELFI";
+      const m = text.match(/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+tortillas?\s+extras?/iu);
+      const n = m ? Math.max(1, spokenCount(m[1]) || Number(m[1]) || 1) : 1;
+      const have = cart.some((l) => /tortillas-extras|extras-1-x-tortilla/i.test(String(l.itemId)))
+        || acts.some((a: any) => a.type === "add_item" && /tortillas-extras|extras-1-x-tortilla/i.test(String(a.itemId)));
+      if (!have) acts.push({ type: "add_item", itemId: TOR_X, quantity: n, modifiers: [], readback: `${n} tortillas extras comal` });
+      else {
+        for (const a of acts) if (a.type === "add_item" && /tortillas-extras|extras-1-x-tortilla/i.test(String(a.itemId))) a.quantity = n;
+        for (const l of cart) if (/tortillas-extras|extras-1-x-tortilla/i.test(String(l.itemId))) l.quantity = n;
+      }
+    }
     // daniel1 (CA9de2b6): "Nada más, pero no, no sin pata el menudo" = reaffirm SIN.
     // Never qty-bump, never flip to Con Pata / EXTRA Pata. Drop model menudo adds; keep cart SIN.
     if (source.startsWith("caller")) {
@@ -997,7 +1017,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // victor1 (CA7c79ab): "una orden de birria" after barbacoa avail → add Birria; avail-only ("¿tiene barbacoa?") stays out via isAvailQ.
-    if (source.startsWith("caller") && /\bbirrias?\b/iu.test(text)
+    // joseBirria1: also "me puedes poner una orden" when recent caller/staff already established birria.
+    if (source.startsWith("caller")
+      && (/\bbirrias?\b/iu.test(text)
+        || (/\b(?:una\s+orden|un\s+order|orden(?:es)?)\b/iu.test(text)
+          && /\bbirrias?\b/iu.test(prevCaller + " " + (history.slice(-6).map((h: any) => h.text).join(" ")))))
       && /\b(?:orden(?:es)?|order|quiero|dame|deme|me\s+da|pon(?:me|ga)?|va\s+a\s+ser|un[oa]?|parece)\b/iu.test(text)
       && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible|barbacoa)\b/iu.test(text)) {
       const have = cart.some((l) => /birria/i.test(String(l.itemId)))
@@ -2380,6 +2404,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const cartHuarache = cart.some((l) => /huarache|guarache/i.test(String(l.itemId)))
         || acts.some((a: any) => a.type === "add_item" && /huarache|guarache/i.test(String(a.itemId)));
       if (huaracheQ && !saidHuarache && !cartHuarache) r.reply = language === "es" ? "¿Algo más?" : "Anything else?";
+      // joseBirria1 (CA13b893): default Consomé+comal already forced — do not loop Birria Consomé/SOLO variant Q
+      {
+        const birriaQ = /\bbirria\b/i.test(reply) && /Consome|SOLO\/?ONLY/i.test(reply) && /\?/u.test(reply);
+        const hasBirria = cart.some((l) => /birria/i.test(String(l.itemId)))
+          || acts.some((a: any) => a.type === "add_item" && /birria/i.test(String(a.itemId)));
+        const movedOn = /(?<![\p{L}])tortillas?\s+(?:extras?|estas)(?![\p{L}])/iu.test(text)
+          || /\b(?:nombre|ser[ií]a\s+todo|nada\s+m[aá]s|a\s+nombre\s+de)\b/iu.test(text);
+        if (birriaQ && (hasBirria || movedOn)) r.reply = language === "es" ? "¿Algo más?" : "Anything else?";
+      }
       // jose2: strip phantom huarache lines the model/auto invented when caller never said huarache
       if (!saidHuarache) {
         for (let i = acts.length - 1; i >= 0; i--)
@@ -2582,6 +2615,28 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           } as Line);
         }
       }
+      // joseBirria1: staff "Una orden de birria" — force default Consomé+comal SKU; clear open birria variant Q
+      if (/\bbirrias?\b/iu.test(t.text) && /\b(?:orden(?:es)?|order)\b/iu.test(t.text)
+        && !/(?<![\p{L}])tortillas?\s+extras?(?![\p{L}])/iu.test(t.text)) {
+        const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD";
+        if (!cart.some((l) => /birria/i.test(String(l.itemId))))
+          cart.push({ itemId: BIRRIA, quantity: 1, modifiers: [], readback: "orden de birria" } as Line);
+        if (asking(last) && /birria/i.test(String(last?.reply || ""))) last = { actions: [], reply: "" } as any;
+      }
+      // joseBirria1: staff "cuatro tortillas extras y una birria" — ensure both lines
+      if (/\bbirrias?\b/iu.test(t.text) && /(?<![\p{L}])tortillas?\s+extras?(?![\p{L}])/iu.test(t.text)) {
+        const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD";
+        const TOR_X = "sq-tortillas-extras-1-x-tortilla-comal-ADELFI";
+        const m = t.text.match(/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+tortillas?\s+extras?/iu);
+        const n = m ? Math.max(1, spokenCount(m[1]) || Number(m[1]) || 4) : 4;
+        if (!cart.some((l) => /birria/i.test(String(l.itemId))))
+          cart.push({ itemId: BIRRIA, quantity: 1, modifiers: [], readback: "birria" } as Line);
+        const haveX = cart.find((l) => /tortillas-extras|extras-1-x-tortilla/i.test(String(l.itemId)));
+        if (!haveX) cart.push({ itemId: TOR_X, quantity: n, modifiers: [], readback: `${n} tortillas extras` } as Line);
+        else haveX.quantity = n;
+        if (asking(last) && /birria/i.test(String(last?.reply || ""))) last = { actions: [], reply: "" } as any;
+      }
+
       // alejandro1: staff "dos quesadillas de comal, ¿de qué…?" stamps tortilla for later meat-fragment force-add
       { const tw = [...cleanPhrase(t.text).matchAll(/\b(?:de\s+)?(ma[ií]z|comal|harina|flour|taquer[ao]s?)\b/giu)].pop();
         if (tw && /\bquesadillas?\b/iu.test(t.text)) lastTortilla = /taquer/i.test(tw[1]) ? "de taquero" : `de ${tw[1]}`; }
@@ -3227,6 +3282,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const isNew = named.some((k) => k && pendingKind && !pendingKind.includes(k) && !(k === "queso torta" && pendingKind.includes("torta")))
         || (pataQ && named.some((k) => k && k !== "menudo"));
       if ((tortillaQ || pataQ) && isNew) await acceptOpen(t.language);
+    }
+    // joseBirria1 (CA13b893): once birria is in cart, stop looping Consomé/SOLO-tortillas variant Q when caller moves on
+    if (asking(last) && /birria/i.test(String(last.reply || "")) && /consome|consomé|solo\/?only|tortillas de comal/i.test(String(last.reply || ""))) {
+      const moved = /(?<![\p{L}])tortillas?\s+(?:extras?|estas)(?![\p{L}])/iu.test(t.text)
+        || /\b(?:nombre|ser[ií]a\s+todo|nada\s+m[aá]s|gracias)\b/iu.test(t.text)
+        || /\ba\s+nombre\s+de\b/iu.test(t.text)
+        || (cart.some((l) => /birria/i.test(String(l.itemId))) && /^(?:s[ií]|ok|okay|okey|claro)$/iu.test(t.text.replace(/[¿¡?.!,]+/gu, " ").trim()));
+      if (moved || cart.some((l) => /birria/i.test(String(l.itemId)))) {
+        await acceptOpen(t.language); // keep default consomé+comal SKU already on cart
+        if (asking(last) && /birria/i.test(String(last.reply || ""))) last = { actions: [], reply: "" } as any;
+      }
     }
     for (const raw of splitItems(cleanPhrase(t.text))) {
       let piece = cleanPhrase(raw).replace(TOKENS, " ").replace(/\b(?:para\s+)?(?:un\s+)?pedido\s*$/iu, "").replace(/\s{2,}/g, " ").trim();
@@ -4409,6 +4475,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
 
 
 
+
+
+  // joseBirria1 (CA13b893): 1 Birria 1lb (consomé+comal included) + N Tortillas EXTRAS comal; never loop birria variant Q.
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const all = callerBlob + " " + staffBlob;
+    const extrasM = all.match(/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+tortillas?\s+(?:extras?|estas)\b/iu);
+    const want = /\bbirrias?\b/iu.test(callerBlob)
+      && !!extrasM
+      && !/\b(?:quesadillas?|tacos?|menudos?|tortas?)\b/iu.test(callerBlob);
+    if (want) {
+      const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD";
+      const TOR_X = "sq-tortillas-extras-1-x-tortilla-comal-ADELFI";
+      const n = Math.max(1, spokenCount(extrasM![1]) || Number(extrasM![1]) || 4);
+      cart.length = 0;
+      cart.push({ itemId: BIRRIA, quantity: 1, modifiers: [], readback: "1 birria 1lb" } as Line);
+      cart.push({ itemId: TOR_X, quantity: n, modifiers: [], readback: `${n} tortillas extras comal` } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
 
   // oscar1 (CA041f564): staff ¿Un menudo? + Sí → 1 Menudo con Tortillas (sin pata); name Oscar (not Pobre Pues).
   {
