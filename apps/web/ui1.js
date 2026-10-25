@@ -69,6 +69,9 @@ function optLabel(name) {
 }
 function groupLabel(g) {
   const n = cleanOpt(g.name).replace(/^(T|Q|G|TO|CB|GQT|B)\s+/i, "");
+  // dorada1 (Carlos): QD style picker is Regular vs Deluxe — show that, not "Quesadilla Dorada options".
+  if (/dorada.*options|quesadilla dorada options/i.test(n) || (isSkuOption(g) && (g.options || []).some((o) => /regular|deluxe/i.test(String(o.name || o))))) return t("Regular o Deluxe", "Regular or Deluxe");
+  if (isSkuOption(g)) return t("Estilo", "Style");
   if (/tortilla|shell/i.test(n)) return "Tortilla";
   if (/size|tama/i.test(n)) return t("Tamaño", "Size");
   // fill1 (Carlos): a "meat" group that also offers cheese / potatoes is a filling, not a meat.
@@ -88,9 +91,11 @@ const itemName = (it) => { const n = String((lang() === "es" ? it.nameEs : it.na
 
 // ---------- rules ----------
 const isFillings = (g) => /burrito\s+(combo\s+)?options/i.test(g.name) && !/salsa/i.test(g.name);
+// sku1: reviewed-*-options (multi-SKU flatten: Regular/Deluxe, pack style, etc.) — always required first.
+const isSkuOption = (g) => /^reviewed-.*-options$/i.test(String(g?.id || "")) || (/\boptions\b/i.test(String(g?.name || "")) && Number(g?.maxSelections) === 1 && !/salsa|carne|meat|extra|con\b|with\b|burrito/i.test(String(g?.name || "")));
 const isDouble = (o) => /^\W*double\s+/i.test(String(o.name || o));
 const isIncludedSalsa = (g) => /\bsalsa\b.*\b(preferencia|preference|options)\b/i.test(g.name) && !/^\W*(\(\w+\)\s*)?(extra|add)\b|\b\d\s*oz\b/i.test(g.name);
-const minOf = (g) => Math.max(Number(g.minSelections || 0), isFillings(g) ? 1 : 0);
+const minOf = (g) => Math.max(Number(g.minSelections || 0), isFillings(g) ? 1 : 0, isSkuOption(g) ? 1 : 0);
 const maxOf = (g) => (Number(g.maxSelections) > 0 ? Number(g.maxSelections) : 99);
 function defaultsOf(g) {
   const out = new Set(g.defaultOptions || []);
@@ -130,7 +135,7 @@ function render() {
   document.documentElement.lang = lang();
   U.lang = lang();
   const sub = $("#ui1 .u1-head small"); if (sub) sub.textContent = V3 ? "101 W Walnut Ave · Painesville" : t("Pide con Elvi · Painesville", "Order with Elvi · Painesville");
-  if (V3) document.body.classList.toggle("v3-view-elvi", U.view === "elvi");
+  if (V3) document.body.classList.remove("v3-view-elvi"); // carlos-ux: menu-only; Hablar always the voice entry
   if (V3 && U.screen === "item") { if (!root.innerHTML) root.innerHTML = v3HTML(); v3RenderSheet(); renderBar(); renderCartStrip(); v3Side(); v3Line(); return; }
   if (V3) { U.v3focused = false; v3RenderSheet(); }
   if (U.screen === "home") { if (V3) { const y = window.scrollY; root.innerHTML = v3HTML(); v3After(y); } else root.innerHTML = homeHTML(); }
@@ -173,7 +178,13 @@ function catHTML() {
   ${!c.available ? `<p class="u1-note">${t("Esta categoría no está disponible ahora", "This category isn't available right now")}${c.window ? ` · ${esc(t(c.window.es, c.window.en))}` : ""}</p>` : ""}
   <div class="u1-grid">${groups.map(tile).join("")}</div>`;
 }
-function steps() { const gs = U.item.modifierGroups || []; return { main: gs.map((g, i) => i).filter((i) => isMain(gs[i])), extra: gs.map((g, i) => i).filter((i) => !isMain(gs[i])) }; }
+function steps() {
+  const gs = U.item.modifierGroups || [];
+  const main = gs.map((g, i) => i).filter((i) => isMain(gs[i]));
+  // dorada1: SKU/style picker (Regular/Deluxe) always leads, even if another required group is listed earlier.
+  main.sort((a, b) => Number(isSkuOption(gs[b])) - Number(isSkuOption(gs[a])) || a - b);
+  return { main, extra: gs.map((g, i) => i).filter((i) => !isMain(gs[i])) };
+}
 function itemTotal() {
   const it = U.item; let c = Number(it.priceCents || 0);
   for (const m of buildModifiers()) c += Number(m.priceDeltaCents || 0) * (Number(m.quantity) || 1);
@@ -373,8 +384,8 @@ function v3HTML() {
   const banner = s?.banner ? `<div class="v3-banner ${s.state} slim">${esc(t(s.banner.es, s.banner.en))}</div>` : "";
   const tabs = `<nav class="v3-tabs" id="v3-tabs" aria-label="${t("Categorías", "Categories")}">${secs.map((x) => `<button type="button" data-v3tab="${x.id}">${esc(t(x.es, x.en))}${x.timed && !x.open ? " ⏱" : ""}</button>`).join("")}</nav>`;
   const body = secs.map((x) => `<section class="v3-sec" id="s-${x.id}"><h2 class="u1-h2">${esc(t(x.es, x.en))}</h2>${x.timed && x.window ? `<p class="v3-sub">${esc((x.open ? "" : t("Cerrado ahora · ", "Closed now · ")) + t(x.window.es, x.window.en))}</p>` : ""}${x.groups.map((g) => v3Card(g.list, g.x, x.open, x.popular)).join("")}</section>`).join("");
-  const seg = `<div class="v3-seg" role="tablist"><button type="button" role="tab" data-v3view="menu" class="${U.view !== "elvi" ? "on" : ""}" aria-selected="${U.view !== "elvi"}">🍽️ ${t("Menú", "Menu")}</button><button type="button" role="tab" data-v3view="elvi" class="${U.view === "elvi" ? "on" : ""}" aria-selected="${U.view === "elvi"}"><span class="v3-dot"></span> Elvi</button></div>`;
-  return `${seg}${banner}${U.view === "elvi" ? v3ElviHTML() : `${tabs}<div class="v3-list">${body}</div>`}`;
+  // carlos-ux: drop Menú|Elvi segmented tabs — menu stays primary; Hablar capsule is voice entry
+  return `${banner}${tabs}<div class="v3-list">${body}</div>`;
 }
 function v3After(y) {
   const pill = document.querySelector("#v3-pill");
@@ -398,7 +409,8 @@ function v3Motion() { try { return matchMedia("(prefers-reduced-motion: reduce)"
 if (V3) {
   window.addEventListener("scroll", () => { if (v3Raf) return; v3Raf = requestAnimationFrame(() => { v3Raf = 0; v3Spy(); }); }, { passive: true });
   document.addEventListener("click", (e) => {
-    const vw = e.target.closest?.("[data-v3view]"); if (vw) { U.view = vw.dataset.v3view; render(); window.scrollTo(0, 0); return; }
+    // carlos-ux: Menú|Elvi toggle removed — ignore leftover data-v3view taps
+    if (e.target.closest?.("[data-v3view]")) return;
     if (e.target.closest?.("[data-v3x]")) { U.v3x = !U.v3x; return; }
     const b = e.target.closest?.("[data-v3tab]"); if (!b) return;
     const el = document.getElementById(`s-${b.dataset.v3tab}`); if (!el) return;
@@ -427,7 +439,7 @@ function v3Side() {
 // Elvi's latest line, mirrored into the compact bar / Elvi view / side panel.
 function v3Line() { const txt = document.querySelector("#assistant-reply")?.textContent || ""; for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e && e.textContent !== txt) e.textContent = txt; } }
 // ---------- v3 item sheet: all groups in Square order, Elvi asks only the first missing required group ----------
-function v3Ask(g) { const l = groupLabel(g); if (/carne|meat/i.test(l)) return t("¿De qué carne?", "Which meat?"); if (/adentro|inside/i.test(l)) return t("¿Qué le ponemos adentro?", "What goes inside?"); if (/tortilla/i.test(l)) return t("¿Qué tortilla?", "Which tortilla?"); if (/tama|size/i.test(l)) return t("¿De qué tamaño?", "Which size?"); return t(`¿${l}?`, `${l}?`); }
+function v3Ask(g) { const l = groupLabel(g); if (/regular|deluxe/i.test(l) || isSkuOption(g)) return t("¿Regular o deluxe?", "Regular or deluxe?"); if (/carne|meat/i.test(l)) return t("¿De qué carne?", "Which meat?"); if (/adentro|inside/i.test(l)) return t("¿Qué le ponemos adentro?", "What goes inside?"); if (/tortilla/i.test(l)) return t("¿Qué tortilla?", "Which tortilla?"); if (/tama|size/i.test(l)) return t("¿De qué tamaño?", "Which size?"); return t(`¿${l}?`, `${l}?`); }
 function v3SheetHTML() {
   const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
   const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
@@ -769,12 +781,58 @@ function syncLoucap(st) {
   const lt = cap.querySelector(".lt");
   if (lt) lt.textContent = t("Hablar con Elvi", "Talk to Elvi");
   cap.setAttribute("aria-label", lt?.textContent || "Hablar con Elvi");
-  cap.classList.toggle("hide", document.body.classList.contains("v3-view-elvi"));
+  cap.classList.remove("hide"); // carlos-ux: Hablar stays visible (no Elvi-view hide)
+}
+// carlos-ux: Hablar language gate — only when session lang unknown
+function langKnown() {
+  const b = B();
+  if (b?.hasSelectedLanguage?.()) return true;
+  const L = b?.state?.language;
+  return L === "es" || L === "en";
+}
+function closeLangGate() {
+  document.getElementById("ux1-langgate")?.remove();
+  document.body.classList.remove("ux1-langgate-on");
+}
+function openLangGate() {
+  if (document.getElementById("ux1-langgate")) return;
+  closeLangGate();
+  const el = document.createElement("div");
+  el.id = "ux1-langgate";
+  el.className = "v3-sheet-bg";
+  el.innerHTML = `<div class="v3-sheet ux1-langgate" role="dialog" aria-modal="true" aria-label="Selecciona tu idioma">
+    <div class="v3-grab"></div>
+    <div class="ux1-lang-body">
+      <span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span>
+      <h3>Selecciona tu idioma</h3>
+      <p>Select your language</p>
+      <div class="ux1-lang-btns">
+        <button type="button" class="u1-btn p" data-langpick="es">Español</button>
+        <button type="button" class="u1-btn p" data-langpick="en">English</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  document.body.classList.add("ux1-langgate-on");
+  el.addEventListener("click", (e) => {
+    if (e.target === el) { closeLangGate(); return; }
+    const btn = e.target.closest?.("[data-langpick]"); if (!btn) return;
+    const mode = btn.dataset.langpick === "en" ? "en" : "es";
+    closeLangGate();
+    try { B()?.setLanguage?.(mode); } catch {}
+    // Alexa-style: language pick → listen immediately (no second Hablar tap)
+    setTimeout(() => {
+      try { B()?.startVoice?.().catch(() => B()?.toggleVoice?.()); }
+      catch { try { B()?.toggleVoice?.(); } catch {} }
+      syncLoucap("listening");
+    }, 50);
+  });
 }
 function talkOrBarge() {
   const b = B();
   const speaking = b?.isSpeaking?.() || document.getElementById("elvi-halo")?.dataset?.state === "speaking";
   if (speaking) { bargeIn("tap"); return; }
+  if (!langKnown()) { openLangGate(); return; }
   try { b?.startVoice?.().catch(() => b?.toggleVoice?.()); }
   catch { try { b?.toggleVoice?.(); } catch {} }
 }

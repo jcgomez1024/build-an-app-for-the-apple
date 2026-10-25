@@ -601,7 +601,9 @@ function buildReviewedMenuItem(reviewedName: string, matches: MenuItem[]) {
           name: trimReviewedVariantName(reviewedName, item.name),
           priceDeltaCents: item.priceCents - primary.priceCents
         })),
-        minSelections: 0,
+        // dorada1 / sku1 (Carlos): website Required / 1 Max — Regular vs Deluxe (and every multi-SKU
+        // picker) must be the first asked step, before meat/fillings. min=0 hid it in the web sheet.
+        minSelections: 1,
         maxSelections: 1
       }]
     : [];

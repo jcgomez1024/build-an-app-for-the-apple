@@ -179,6 +179,11 @@ function hasSelectedLanguage() {
   return state.language === "en" || state.language === "es";
 }
 
+// carlos-ux: v3 menu-first — language gate only on Hablar (ui1), not on boot
+function isV3MenuUi() {
+  try { return new URLSearchParams(location.search).get("menu") !== "old"; } catch { return true; }
+}
+
 function getLanguageIntro() {
   return getEffectiveLanguage() === "es"
     ? "Español seleccionado. Soy Elvi. Lista para tomar tu orden."
@@ -420,20 +425,23 @@ function interpolateReplyText(template, values = {}) {
 
 function updateLanguageGate() {
   const selected = hasSelectedLanguage();
+  const v3 = isV3MenuUi();
   if (ui.promptInput) {
-    ui.promptInput.disabled = !selected;
+    // v3: browsing/typing never blocked; Hablar gates voice language
+    ui.promptInput.disabled = v3 ? false : !selected;
     ui.promptInput.placeholder = selected
       ? (getEffectiveLanguage() === "es" ? "Escribe tu orden..." : "Type your order...")
-      : "Select language first...";
+      : (v3 ? (getEffectiveLanguage() === "es" ? "Escribe tu orden..." : "Type your order...") : "Select language first...");
   }
   if (ui.listenButton) {
-    ui.listenButton.disabled = !selected;
-    ui.listenButton.setAttribute("aria-disabled", selected ? "false" : "true");
+    ui.listenButton.disabled = v3 ? false : !selected;
+    ui.listenButton.setAttribute("aria-disabled", (v3 || selected) ? "false" : "true");
   }
-  if (!selected && ui.reply) {
+  if (!selected && ui.reply && !v3) {
     ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
     startLanguagePromptLoop();
   }
+  // v3: skip boot language nag — Hablar capsule shows "Selecciona tu idioma…" only if lang unknown
 }
 
 function setLanguageMode(mode) {
@@ -498,7 +506,7 @@ async function boot() {
     console.log("[BOOT] Opening realtime session early (for language prompt)");
     // Start session early so we can use proper xAI voice for the language selection prompt
     openRealtimeSession().catch(() => {});
-    ui.status.textContent = "Select language to begin";
+    ui.status.textContent = isV3MenuUi() ? "Ready" : "Select language to begin";
   } catch (err) {
     console.error("[BOOT] Error:", err);
     throw err;
@@ -3379,13 +3387,13 @@ function attachUiHandlers() {
   });
 
   window.addEventListener("pointerdown", () => {
-    if (!hasSelectedLanguage()) {
+    if (!hasSelectedLanguage() && !isV3MenuUi()) {
       restartLanguagePromptLoop();
     }
   });
 
   window.addEventListener("keydown", () => {
-    if (!hasSelectedLanguage()) {
+    if (!hasSelectedLanguage() && !isV3MenuUi()) {
       restartLanguagePromptLoop();
     }
   });
@@ -6577,10 +6585,14 @@ window.elviBridge = {
   stopAudio: () => { try { stopCurrentAudio(); } catch {} },
   isSpeaking: () => !!state.elviSpeaking,
   haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
+  hasSelectedLanguage,
+  setLanguage: (mode) => setLanguageMode(mode),
   startVoice: () => {
     if (!hasSelectedLanguage()) {
-      if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
-      try { startLanguagePromptLoop(); } catch {}
+      if (!isV3MenuUi()) {
+        if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+        try { startLanguagePromptLoop(); } catch {}
+      }
       return Promise.reject(new Error("language"));
     }
     if (state.vadRunning) return Promise.resolve();
@@ -6588,8 +6600,10 @@ window.elviBridge = {
   },
   toggleVoice: () => {
     if (!hasSelectedLanguage()) {
-      if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
-      try { startLanguagePromptLoop(); } catch {}
+      if (!isV3MenuUi()) {
+        if (ui.reply) ui.reply.textContent = LANGUAGE_PROMPT_BILINGUAL;
+        try { startLanguagePromptLoop(); } catch {}
+      }
       return;
     }
     if (state.vadRunning) stopAdaptiveListen();
