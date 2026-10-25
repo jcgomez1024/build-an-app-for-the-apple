@@ -241,13 +241,46 @@ body.v3 .v3-pill{margin-right:50px}
 #loucap[data-state=error]{color:#ff5a5a;box-shadow:0 0 0 1px rgba(255,90,90,.55),0 -2px 14px rgba(255,90,90,.6),0 10px 28px rgba(0,0,0,.38);animation:none}
 #loucap[data-state=error]::before{background:linear-gradient(90deg,transparent,#ff5a5a,#ffe5e5,#ff5a5a,transparent);box-shadow:0 0 10px 2px rgba(255,90,90,.8)}
 #loucap[data-state=error] .e3d{--c1:#ff5a5a}
-#loucap.hide,body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap,body.ux1-langgate-on #loucap{display:none!important}
-@media (min-width:960px){#loucap.loucap{display:none!important}}
-@keyframes louPulse{0%,100%{transform:translateX(-50%) scale(1);filter:brightness(1)}50%{transform:translateX(-50%) scale(1.03);filter:brightness(1.12)}}
-@keyframes louSpeak{0%,100%{transform:translateX(-50%) scale(1)}40%{transform:translateX(-50%) scale(1.02)}70%{transform:translateX(-50%) scale(1.01)}}
+#loucap.hide,body.v3-sheet-on #ux1-bottom,body.ux1-confirm-on #ux1-bottom,body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap{display:none!important}
+@media (min-width:960px){#loucap.loucap{display:none!important}} /* m27: also #ux1-bottom */
+@keyframes louPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.03);filter:brightness(1.12)}}
+@keyframes louSpeak{0%,100%{transform:scale(1)}40%{transform:scale(1.02)}70%{transform:scale(1.01)}}
 @keyframes e3dBreathe{0%,100%{transform:scale(.96);filter:brightness(.95)}50%{transform:scale(1.04);filter:brightness(1.12)}}
 .barge-flash{animation:bargeFlash .45s ease-out}
 @keyframes bargeFlash{0%{filter:brightness(1.35)}100%{filter:brightness(1)}}
+
+/* m27 soft Hablar lang gate + soft-bounce invite (SPEC §2e) */
+@keyframes capBounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-4px)}60%{transform:translateY(0)}72%{transform:translateY(-1.5px)}}
+@keyframes softPulse{0%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 0 rgba(74,163,255,.45)}70%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 12px rgba(74,163,255,0)}100%{box-shadow:inset 0 0 0 1px rgba(74,163,255,.35),0 0 0 0 rgba(74,163,255,0)}}
+#ux1-bottom.bottom{position:fixed;left:0;right:0;bottom:calc(var(--u1-appbar,150px) + var(--u1-bottom-h,90px) + 10px);z-index:36;display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;padding:0 10px}
+#ux1-bottom.bottom>*{pointer-events:auto}
+#loucap.loucap{position:relative;left:auto;transform:none;bottom:auto}
+#loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
+#loucap .lt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;white-space:nowrap}
+#loucap .lt .lab{font:600 13px 'Plus Jakarta Sans','Space Grotesk',system-ui,sans-serif;letter-spacing:.02em}
+#loucap .lt .inv{display:block;font:500 10.5px 'Plus Jakarta Sans',system-ui,sans-serif;color:rgba(200,225,255,.78);letter-spacing:.02em;margin-top:1px}
+.softlang{display:none;align-self:center;flex-direction:column;align-items:center;gap:7px;margin-bottom:8px}
+#ux1-bottom.bottom.gating .softlang,.bottom.gating .softlang{display:flex}
+.softlang .sl-q{padding:3px 10px;border-radius:999px;background:rgba(11,16,32,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font:500 12px 'Plus Jakarta Sans',system-ui,sans-serif;color:#fff;text-shadow:0 1px 6px #0009;letter-spacing:.01em}
+.softlang .sl-pills{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:rgba(11,16,32,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 0 0 1px rgba(74,163,255,.3),0 6px 20px #0004}
+.softlang .sl-pill{border:0;cursor:pointer;padding:7px 18px;border-radius:999px;background:transparent;color:#4aa3ff;font:600 13px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.06em;box-shadow:inset 0 0 0 1px rgba(74,163,255,.35);animation:softPulse 2.4s ease-out infinite}
+.softlang .sl-pill+.sl-pill{animation-delay:1.2s}
+.softlang .sl-pill:active,.softlang .sl-pill:hover{background:rgba(20,113,214,.28);color:#fff;box-shadow:inset 0 0 0 1px #4aa3ff}
+.softlang .sl-pill.on{background:linear-gradient(180deg,#4aa3ff,#1471d6);color:#fff;box-shadow:0 0 0 1px #4aa3ff,0 0 14px rgba(74,163,255,.6);animation:none}
+#ux1-bottom.bottom.gating #loucap,.bottom.gating .loucap{animation:none!important}
+/* During gate: hide Type-your-order dock + heavy mic row */
+body.ux1-gating .bottom-bar,body.ux1-gating .v3-ebar{display:none!important}
+/* Header quiet ES|EN (manual override anytime) */
+.u1-head .lang{display:inline-flex;gap:4px;padding:3px;border-radius:999px;background:rgba(11,16,32,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);flex:none;margin-left:4px}
+.u1-head .lang .pill{padding:4px 10px;font-size:11px;letter-spacing:.08em;background:transparent;border:0;color:rgba(255,255,255,.85);box-shadow:none}
+.u1-head .lang .pill:hover{background:rgba(255,255,255,.18);color:#fff}
+.u1-head .lang .pill.pill-active{background:rgba(255,255,255,.95);color:#1471d6;box-shadow:0 0 0 1px #fff,0 0 10px rgba(74,163,255,.45)}
+/* Soften heavy gradient mic on v3 (Hablar is the voice gate) */
+body.v3 .mic-btn{width:46px;height:46px;background:rgba(11,16,32,.75);box-shadow:0 0 0 1px rgba(74,163,255,.4),0 4px 14px rgba(0,0,0,.25)}
+body.v3 .mic-wrap{width:52px;height:52px}
+body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
+@media (min-width:960px){#ux1-bottom.bottom{display:none!important}}
+
 #listen-button{min-width:46px;min-height:46px}
 
 /* Confirm beat (before Square) + Para la cocina */

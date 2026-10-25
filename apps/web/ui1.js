@@ -589,12 +589,19 @@ document.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (e.target.closest("#cart-toggle")) { e.stopImmediatePropagation(); e.preventDefault(); U.screen = "receipt"; render(); }
 }, true);
-document.addEventListener("click", (e) => { if (e.target.closest("[data-lang]")) setTimeout(render, 50); });
+document.addEventListener("click", (e) => {
+  const pill = e.target.closest?.("[data-lang]");
+  if (!pill) return;
+  const mode = pill.dataset.lang === "en" ? "en" : "es";
+  try { B()?.setLanguage?.(mode); } catch {}
+  syncHeaderLangPills?.();
+  setTimeout(render, 50);
+});
 
 function mount() {
   const shell = document.createElement("div");
   shell.id = "ui1";
-  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1>${V3 ? '<span id="v3-pill" class="v3-pill"></span>' : ""}<button type="button" id="cust-btn" class="cust-btn" data-cust="open">${custLabel()}</button><div id="ui1-halo-slot"></div></header>
+  shell.innerHTML = `<header class="u1-head"><img class="u1-logo" src="./img/logo-cocina-elvis.png" alt="Cocina Elvis"><h1>Cocina Elvis<small>${t("Pide con Elvi · Painesville", "Order with Elvi · Painesville")}</small></h1>${V3 ? '<span id="v3-pill" class="v3-pill"></span>' : ""}<div class="lang" role="group" aria-label="Language"><button type="button" class="pill" data-lang="es">ES</button><button type="button" class="pill" data-lang="en">EN</button></div><button type="button" id="cust-btn" class="cust-btn" data-cust="open">${custLabel()}</button><div id="ui1-halo-slot"></div></header>
   <main id="ui1-main"></main><div id="ui1-toast" class="u1-toast"></div><div class="u1-bottom"><div id="ui1-cart" class="u1-cart is-empty"></div><div id="ui1-bar" class="u1-bar"></div></div>`;
   document.body.prepend(shell);
   document.body.classList.add("ui1"); if (V3) document.body.classList.add("v3");
@@ -856,24 +863,27 @@ async function payFromConfirm() {
   await tmPay();
 }
 
-/** Soft Hablar invite — capsule label (mic / speak-to-Elvi gate). Sheet keeps its own step asks. */
+/** Soft Hablar invite — capsule (mic / speak-to-Elvi gate). Softlang gate when lang unknown (m27 §2e). */
 function softHablarInvite() { return t("Yo te puedo ayudar", "I can help you"); }
+function hablarLabel() { return t("Hablar con Elvi", "Talk to Elvi"); }
 function listeningAck() { return t("Te escucho — dime.", "I'm listening — go ahead."); }
 function syncLoucap(st) {
   const cap = document.getElementById("loucap"); if (!cap) return;
   const s = st || document.getElementById("elvi-halo")?.dataset?.state || "idle";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
-  const lt = cap.querySelector(".lt");
-  if (lt) {
-    if (s === "listening") lt.textContent = t("Te escucho…", "I'm listening…");
-    else if (s === "speaking") lt.textContent = t("Elvi habla…", "Elvi speaking…");
-    else if (s === "thinking") lt.textContent = t("Un momento…", "One moment…");
-    else if (s === "error") lt.textContent = t("Activa el micrófono", "Allow microphone");
-    else lt.textContent = softHablarInvite(); // idle = soft invite (not step asks)
+  const lab = cap.querySelector(".lt .lab");
+  const inv = cap.querySelector(".lt .inv");
+  if (lab && inv) {
+    if (s === "listening") { lab.textContent = t("Te escucho…", "I'm listening…"); inv.textContent = t("Habla cuando quieras", "Go ahead — I'm here"); }
+    else if (s === "speaking") { lab.textContent = t("Elvi habla…", "Elvi speaking…"); inv.textContent = softHablarInvite(); }
+    else if (s === "thinking") { lab.textContent = t("Un momento…", "One moment…"); inv.textContent = softHablarInvite(); }
+    else if (s === "error") { lab.textContent = t("Activa el micrófono", "Allow microphone"); inv.textContent = softHablarInvite(); }
+    else { lab.textContent = hablarLabel(); inv.textContent = softHablarInvite(); }
   }
-  cap.setAttribute("aria-label", lt?.textContent || softHablarInvite());
-  cap.classList.remove("hide"); // carlos-ux: Hablar stays visible (no Elvi-view hide)
+  cap.setAttribute("aria-label", (lab?.textContent || hablarLabel()) + " — " + softHablarInvite());
+  cap.classList.toggle("invite", s === "idle" && !document.getElementById("ux1-bottom")?.classList.contains("gating"));
+  cap.classList.remove("hide");
 }
 function mirrorHeard(line) {
   try { B()?.greet?.(line); } catch {}
@@ -883,6 +893,7 @@ function mirrorHeard(line) {
 /** Hablar entry: mic permission → listening → spoken + visible "you can talk" confirm. */
 async function beginHablar() {
   const b = B();
+  closeSoftLangGate();
   syncLoucap("listening");
   const ack = listeningAck();
   mirrorHeard(ack);
@@ -890,64 +901,61 @@ async function beginHablar() {
     if (b?.startVoice) await b.startVoice();
     else b?.toggleVoice?.();
   } catch (err) {
-    console.warn("[warm1c] Hablar mic", err);
+    console.warn("[m27] Hablar mic", err);
     syncLoucap("error");
     const msg = t("Activa el micrófono para hablar conmigo.", "Allow the mic so you can talk to me.");
     mirrorHeard(msg);
     try { await b?.speak?.(msg); } catch {}
     return false;
   }
-  // Spoken confirmation he can talk (TTS); capsule already shows Te escucho…
-  try { await b?.speak?.(ack); } catch (e) { console.warn("[warm1c] Hablar ack TTS", e); }
+  try { await b?.speak?.(ack); } catch (e) { console.warn("[m27] Hablar ack TTS", e); }
   syncLoucap("listening");
   return true;
 }
-// carlos-ux: Hablar language gate — only when session lang unknown
 function langKnown() {
   const b = B();
   if (b?.hasSelectedLanguage?.()) return true;
   const L = b?.state?.language;
   return L === "es" || L === "en";
 }
-function closeLangGate() {
-  document.getElementById("ux1-langgate")?.remove();
-  document.body.classList.remove("ux1-langgate-on");
+function closeSoftLangGate() {
+  const bot = document.getElementById("ux1-bottom");
+  if (bot) bot.classList.remove("gating");
+  document.body.classList.remove("ux1-gating");
+  document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.remove("on"));
+  syncLoucap();
 }
-function openLangGate() {
-  if (document.getElementById("ux1-langgate")) return;
-  closeLangGate();
-  const el = document.createElement("div");
-  el.id = "ux1-langgate";
-  el.className = "v3-sheet-bg";
-  el.innerHTML = `<div class="v3-sheet ux1-langgate" role="dialog" aria-modal="true" aria-label="Selecciona tu idioma">
-    <div class="v3-grab"></div>
-    <div class="ux1-lang-body">
-      <span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span>
-      <h3>Selecciona tu idioma</h3>
-      <p>Select your language</p>
-      <div class="ux1-lang-btns">
-        <button type="button" class="u1-btn p" data-langpick="es">Español</button>
-        <button type="button" class="u1-btn p" data-langpick="en">English</button>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(el);
-  document.body.classList.add("ux1-langgate-on");
-  el.addEventListener("click", (e) => {
-    if (e.target === el) { closeLangGate(); return; }
-    const btn = e.target.closest?.("[data-langpick]"); if (!btn) return;
-    const mode = btn.dataset.langpick === "en" ? "en" : "es";
-    closeLangGate();
-    try { B()?.setLanguage?.(mode); } catch {}
-    // Alexa-style: language pick → mic + listening + spoken confirm (no second Hablar tap)
-    setTimeout(() => { void beginHablar(); }, 50);
+function openSoftLangGate() {
+  const bot = document.getElementById("ux1-bottom"); if (!bot) return;
+  bot.classList.add("gating");
+  document.body.classList.add("ux1-gating");
+  document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.remove("on"));
+  const cap = document.getElementById("loucap");
+  if (cap) { cap.classList.remove("invite"); cap.dataset.state = "idle"; }
+  console.log("[m27] softlang gate open");
+}
+function pickSoftLang(mode) {
+  const m = mode === "en" ? "en" : "es";
+  document.querySelectorAll(".softlang .sl-pill").forEach((p) => p.classList.toggle("on", p.dataset.l === m));
+  // Selected = session language for everything (persist via setLanguage)
+  try { B()?.setLanguage?.(m); } catch {}
+  syncHeaderLangPills();
+  setTimeout(() => {
+    closeSoftLangGate();
+    void beginHablar();
+  }, 450);
+}
+function syncHeaderLangPills() {
+  const L = lang();
+  document.querySelectorAll(".u1-head .lang [data-lang], .lang-group [data-lang]").forEach((p) => {
+    p.classList.toggle("pill-active", p.dataset.lang === L);
   });
 }
 function talkOrBarge() {
   const b = B();
   const speaking = b?.isSpeaking?.() || document.getElementById("elvi-halo")?.dataset?.state === "speaking";
   if (speaking) { bargeIn("tap"); return; }
-  if (!langKnown()) { openLangGate(); return; }
+  if (!langKnown()) { openSoftLangGate(); return; }
   void beginHablar();
 }
 function bargeIn(why) {
@@ -964,17 +972,17 @@ function bargeIn(why) {
   return true;
 }
 function mountLoucap() {
-  if (document.getElementById("loucap")) return;
+  if (document.getElementById("ux1-bottom")) return;
   if (!V3) return;
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "loucap";
-  btn.id = "loucap";
-  btn.dataset.state = "idle";
-  btn.setAttribute("aria-label", softHablarInvite());
-  btn.innerHTML = `<span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt">${softHablarInvite()}</span>`;
-  btn.addEventListener("click", (e) => { e.preventDefault(); talkOrBarge(); });
-  document.body.appendChild(btn);
+  const wrap = document.createElement("div");
+  wrap.className = "bottom";
+  wrap.id = "ux1-bottom";
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button>`;
+  document.body.appendChild(wrap);
+  wrap.querySelectorAll(".sl-pill").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });
+  });
+  wrap.querySelector("#loucap").addEventListener("click", (e) => { e.preventDefault(); talkOrBarge(); });
   const halo = document.getElementById("elvi-halo");
   if (halo && window.MutationObserver) {
     new MutationObserver(() => syncLoucap()).observe(halo, { attributes: true, attributeFilter: ["data-state"] });
@@ -984,8 +992,9 @@ function mountLoucap() {
     if (cap) { cap.classList.add("barge-flash"); setTimeout(() => cap.classList.remove("barge-flash"), 500); }
     syncLoucap("listening");
   });
-  setInterval(() => syncLoucap(), 800);
+  setInterval(() => { syncLoucap(); syncHeaderLangPills(); }, 800);
   syncLoucap();
+  syncHeaderLangPills();
 }
 mountLoucap();
 

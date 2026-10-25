@@ -446,11 +446,14 @@ function updateLanguageGate() {
 
 function setLanguageMode(mode) {
   state.language = mode === "es" ? "es" : "en";
+  try { localStorage.setItem("elvi.lang", state.language); } catch {}
   stopLanguagePromptLoop();
 
-  ui.langPills.forEach((pill) => {
+  // Selected pill = session language for everything (header + bottom + softlang)
+  document.querySelectorAll("[data-lang]").forEach((pill) => {
     pill.classList.toggle("pill-active", pill.dataset.lang === state.language);
   });
+  try { ui.langPills = [...document.querySelectorAll("[data-lang]")]; } catch {}
 
   ui.reply.textContent = getLanguageIntro();
   updateLanguageGate();
@@ -491,6 +494,10 @@ async function boot() {
   try {
     console.log("[BOOT] Starting application boot");
     if (ui.engine) ui.engine.textContent = `Build ${APP_BUILD_VERSION}`;
+    try {
+      const saved = localStorage.getItem("elvi.lang");
+      if (saved === "es" || saved === "en") state.language = saved;
+    } catch {}
     attachUiHandlers();
     renderSelectedPreview(null);
     updateLanguageGate();
