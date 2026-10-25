@@ -61,6 +61,15 @@ export function quoteFor(miles: number, place: string | null, cfg = loadDelivery
 }
 /** Back-compat for callers that only know the distance (place unknown). */
 export const quoteForMiles = (miles: number, cfg = loadDeliveryConfig()) => quoteFor(miles, null, cfg);
+/** hector1: when delivery + street address is taken but geocode failed / fee unknown, never leave feeCents null — default near-zone phone fee ($5). */
+export function provisionalDeliveryFeeCents(quote: Quote | null | undefined, hasAddress: boolean): number | null {
+  if (quote && Number(quote.feeCents) > 0) return Number(quote.feeCents);
+  if (!hasAddress) return null;
+  if (quote?.reason === "out_of_range") return null;
+  const near = loadDeliveryConfig().zones.find((z) => z.id === "near") || loadDeliveryConfig().zones[0];
+  return near?.feeCents ?? 500;
+}
+
 const CONFIRM: Quote["message"] = { es: "No pude ubicar la dirección. El personal confirmará la zona y la tarifa.", en: "I couldn't locate that address. Staff will confirm the delivery zone and fee." };
 
 type Cached = { lat: number; lng: number; matched: string; place: string | null; at: string; v: 2 } | { fail: true; at: string };

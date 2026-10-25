@@ -12,7 +12,7 @@ import dotenv from "dotenv";
 import express from "express";
 import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual, savePickupName} from "./caller-memory.js";
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
-import { cachedQuote, quoteDeliveryAddress, type Quote } from "./delivery-zone.js";
+import { cachedQuote, quoteDeliveryAddress, provisionalDeliveryFeeCents, type Quote } from "./delivery-zone.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
 import { searchOrdersReadOnly, paymentReceiptReadOnly } from "./square.js";
 import { squareRefs } from "./call-accuracy.js";
@@ -606,7 +606,9 @@ async function applyCallDelivery(callSid: string, caller: string, turns: Array<{
   const addr = a.address?.full || (f.fulfillment === "DELIVERY" ? savedDelivery(caller).address?.address || null : null);
   if (f.fulfillment === "DELIVERY" && addr) { try { quote = await quoteDeliveryAddress(addr); } catch { quote = null; } }
   callDelivery.set(callSid, { fulfillment: f.fulfillment, address: addr, street: a.address?.street || null, confirmed: a.confirmed, quote });
-  logCall({ event: "fulfillment", callSid, caller, fulfillment: f.fulfillment, by: f.by, address: addr, addressFrom: a.address ? "call" : addr ? "saved" : null, addressConfirmed: a.confirmed, zone: quote?.zone || null, feeCents: quote?.feeCents ?? null, etaMinutes: quote?.etaMinutes ?? null, needsConfirm: quote ? quote.needsConfirm : f.fulfillment === "DELIVERY", source: training ? "training" : "customer" });
+  // hector1: address taken → never leave feeCents null (geocode fail still gets near-zone provisional)
+  const feeCents = provisionalDeliveryFeeCents(quote, !!addr);
+  logCall({ event: "fulfillment", callSid, caller, fulfillment: f.fulfillment, by: f.by, address: addr, addressFrom: a.address ? "call" : addr ? "saved" : null, addressConfirmed: a.confirmed, zone: quote?.zone || null, feeCents, etaMinutes: quote?.etaMinutes ?? null, needsConfirm: quote ? quote.needsConfirm : f.fulfillment === "DELIVERY", source: training ? "training" : "customer" });
   try { saveCallerFulfillment(caller, f.fulfillment, a.address ? { full: a.address.full, street: a.address.street } : null); } catch { /* memory only */ }
   const notes = f.fulfillment !== "DELIVERY" ? undefined
     : quote?.ok ? `${(quote.city || "").toUpperCase()} · ${quote.breakdown || `$${(quote.feeCents! / 100).toFixed(quote.feeCents! % 100 ? 2 : 0)}`}${quote.feeConfirmed === false ? " · CONFIRMAR TARIFA" : ""} · ~${quote.etaMinutes} min · MÍNIMO $10${a.confirmed ? "" : " · confirmar dirección"}`
@@ -1995,21 +1997,27 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         // Pickup-only (lastPickupName, not contact): "para X" / "for X" / "la va a recoger" / picking-up.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
         const heardOrderName = heardInfo?.name || null;
+        // mau1 (CAc68af8): no food ordered → never persist customerName / pickup name to memory
+        const hasOrder = Array.isArray(result.elviOrder?.cart) && result.elviOrder.cart.length > 0;
         if (heardOrderName) {
           // Customer: bare name / "De Luis." after name-ask. Pickup-only: para/for/recoger (thirdPerson).
           const pickupOnly = !!heardInfo?.thirdPerson;
           let savedNow = false;
-          if (pickupOnly) {
-            try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
-            markOrderOnlyName(heardOrderName);
-          } else if (!isTrainingCaller(caller)) {
-            savedNow = rememberHeardNameIfNone(caller, heardOrderName);
-            if (!savedNow) { try { savePickupName(caller, heardOrderName); } catch { /* best effort */ } } // still remember ticket name on phone
+          if (hasOrder) {
+            if (pickupOnly) {
+              try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
+              markOrderOnlyName(heardOrderName);
+            } else if (!isTrainingCaller(caller)) {
+              savedNow = rememberHeardNameIfNone(caller, heardOrderName);
+              if (!savedNow) { try { savePickupName(caller, heardOrderName); } catch { /* best effort */ } } // still remember ticket name on phone
+            }
           }
-          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly });
-          name = cleanFirstName(heardOrderName) || name;
-          callNames.set(CallSid, name);
-          void sendNameFollowUp(CallSid, name).catch(() => {}); // smsname1
+          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly, noOrder: !hasOrder });
+          if (hasOrder) {
+            name = cleanFirstName(heardOrderName) || name;
+            callNames.set(CallSid, name);
+            void sendNameFollowUp(CallSid, name).catch(() => {}); // smsname1
+          }
         }
         if (name) callNames.set(CallSid, name);
         let lines: any[] = [];
@@ -2024,7 +2032,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           source: elviPhoneSource(called), phoneDisplay: formatTicketPhone(caller),
           fulfillment: "TO GO / LLEVAR",
           // delivery1: delivery vs pickup + address from the transcript (staff read-back counts).
-          ...((await applyCallDelivery(CallSid, caller, result.turns as any, isTrainingCaller(caller)).catch(() => null)) || {}),
+          // mau1: no-order chat (empty cart) — do not lock DELIVERY/PICKUP or save fulfillment to memory
+          ...((hasOrder ? await applyCallDelivery(CallSid, caller, result.turns as any, isTrainingCaller(caller)).catch(() => null) : null) || {}),
         }, describe, result.elviOrder?.cart || [], result.elviOrder);
         learnCallerLanguage(CallSid, caller, result.turns, callLang.get(CallSid));
         scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));

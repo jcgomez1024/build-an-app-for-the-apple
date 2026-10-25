@@ -1,0 +1,126 @@
+[
+  {
+    "speaker": "staff",
+    "text": "Cocina Elvis, buenas noches."
+  },
+  {
+    "speaker": "caller",
+    "text": "Karen, eh, quiero una birria."
+  },
+  {
+    "speaker": "staff",
+    "text": "Ah, no, creo que ya todavía hay delivery."
+  },
+  {
+    "speaker": "staff",
+    "text": "A ver."
+  },
+  {
+    "speaker": "staff",
+    "text": "Bueno."
+  },
+  {
+    "speaker": "caller",
+    "text": "Bueno, todavía hay delivery."
+  },
+  {
+    "speaker": "staff",
+    "text": "Sí, dime."
+  },
+  {
+    "speaker": "caller",
+    "text": "Una birria."
+  },
+  {
+    "speaker": "staff",
+    "text": "Una birria, muy bien."
+  },
+  {
+    "speaker": "caller",
+    "text": "Y"
+  },
+  {
+    "speaker": "caller",
+    "text": "dos, dos refrescos."
+  },
+  {
+    "speaker": "staff",
+    "text": "¿De cuál te gustaría? ¿Una coca?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Un refresco nomás."
+  },
+  {
+    "speaker": "caller",
+    "text": "Una torta. Sí."
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Taparrosca o vidrio?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Caparrusca."
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien. ¿Algo más?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y"
+  },
+  {
+    "speaker": "caller",
+    "text": "una torta de bistec. En queso."
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Con queso o sin queso?"
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien. ¿Algo más?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Es todo."
+  },
+  {
+    "speaker": "staff",
+    "text": "Perfecto. ¿Me daría el nombre para su orden?"
+  },
+  {
+    "speaker": "staff",
+    "text": "Hoy dijimos delivery, ¿verdad?"
+  },
+  {
+    "speaker": "caller",
+    "text": "Héctor."
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí."
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien, Héctor. ¿Cuál es su dirección?"
+  },
+  {
+    "speaker": "caller",
+    "text": "4 40 North Saint Louis Street."
+  },
+  {
+    "speaker": "staff",
+    "text": "Muy bien, danos unos 25, ¿no, Héctor? Ahorita te llevamos la orden."
+  },
+  {
+    "speaker": "caller",
+    "text": "Okay, está bien."
+  },
+  {
+    "speaker": "staff",
+    "text": "Gracias."
+  }
+]

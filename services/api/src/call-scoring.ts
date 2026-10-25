@@ -2497,7 +2497,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (q && !hasMeat) a.modifiers = [...ms.filter((m: any) => m !== q), { ...q, option: "(GD) Gordita" }, { ...q, groupId: undefined, groupName: "(B) Q Carnes / Meats", step: "(B) Q Carnes / Meats", option: " Queso Derretido / Melted Cheese" }];
       }
     // quesitorta1 (Suleika): "queso torta(s)" → (QTO) Queso Torta; drop mistaken Queso Derretido unless they asked melted/extra
-    if (/\bqueso\s+tortas?\b/iu.test(text))
+    // hector1 (CA434ba9): "una torta de bistec. En queso" / "con queso" → same QTO path ($5.25), not plain TO + Melted Cheese
+    if (/\bqueso\s+tortas?\b/iu.test(text)
+      || /\btortas?\b[^.!?]{0,48}\b(?:en|con)\s+queso\b/iu.test(text)
+      || /\b(?:en|con)\s+queso\b[^.!?]{0,48}\btortas?\b/iu.test(text))
       for (const a of acts) if (a.type === "add_item" && /^sq-torta-/i.test(a.itemId)) {
         const ms = [...(a.modifiers || [])].filter((m: any) => !/^\s*\((?:TO|QTO)\)/i.test(String(m.option)));
         const qto = { step: "(A) Torta Options", option: "(QTO) Queso Torta (+$0.50)" };
@@ -3486,6 +3489,31 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         const tq = !menudoOnlyCart && !staffSaidDorada && (movedOn || affirm) ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
         if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
+      }
+      // hector1 (CA434ba9): staff "¿Una coca?" / "¿Taparrosca o vidrio?" + caller yes / "un refresco nomás" / Caparrusca
+      // — even when ASR steals "Una torta. Sí". Ring Coca-Cola taparrosca; strip phantom torta from this turn.
+      {
+        const staffAsk = (rawStaff || lastStaff || recentStaff.join(" ") || "").trim();
+        const staffCoca = /\b(?:una\s+)?cocas?(?:\s+colas?)?\b/iu.test(staffAsk)
+          || (/\btaparrosca\b/iu.test(staffAsk) && /\bvidrio\b/iu.test(staffAsk));
+        const saidBottle = /\b(?:taparrosca|caparrusca|caparrosca|vidrio)\b/iu.test(t.text);
+        const saidOneRefresco = /\b(?:un|una)\s+refresco\b/iu.test(t.text) || (/\brefresco\b/iu.test(t.text) && /\bnom[aá]s\b/iu.test(t.text));
+        const asrTortaYes = /\buna\s+tortas?\b/iu.test(t.text) && /\bs[ií]\b/iu.test(t.text) && !/\bbistec\b|\bqueso\b|\b(?:al\s*)?pastor\b|\bpollo\b|\bchorizo\b/iu.test(t.text);
+        const bareYes = /^\W*(?:s[ií]|yes|yeah|yep|ok(?:ay)?|claro|aj[aá]|eso)(?:\W|$)/iu.test(t.text) && !dishesNamed(t.text).size;
+        if (staffCoca && (saidBottle || saidOneRefresco || asrTortaYes || bareYes)) {
+          const COCA = "sq-drink-coca-cola-JJE4KC";
+          if (!cart.some((l) => /coca/i.test(String(l.itemId)))) {
+            cart.push({ itemId: COCA, quantity: 1, modifiers: [], readback: "1 coca cola taparrosca" } as Line);
+          } else {
+            const c = [...cart].reverse().find((l) => /coca/i.test(String(l.itemId)));
+            if (c && (Number(c.quantity) || 1) > 1 && (saidOneRefresco || saidBottle || asrTortaYes || bareYes)) c.quantity = 1;
+          }
+          if (asrTortaYes) {
+            t.text = t.text.replace(/\buna\s+tortas?\b/giu, " ").replace(/\s+/g, " ").trim() || "sí";
+          }
+          steps.push({ source: "staff-coca-confirm", heard: (staffAsk + " | " + t.text).slice(0, 120) });
+          if (saidBottle || asrTortaYes) { lastStaff = ""; /* keep going so later torta can land */ }
+        }
       }
       // larry1: staff offers a side ("you want onions and peppers?") → caller "yes… two of those": ring that side.
       { if (/\b(?:want|quieres?|gusta)\b[^?]*\b(?:onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?)/iu.test(rawStaff)) { sideOffer = rawStaff; sideOfferAge = 0; } else sideOfferAge++;
@@ -6174,6 +6202,69 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         l.modifiers = (l.modifiers || []).filter((m: any) => !/mild\s+salsa\s+asada/i.test(String(m.option || "")));
       }
     }
+  }
+
+  // hector1 (CA434ba9 ~6:41 PM ET Oct 25): desk Spanish delivery.
+  // Auditor: 1 birria de chivo 1 lb + 1 Coca-Cola taparrosca + 1 torta bistec QTO $5.25; delivery fee set (address taken).
+  // Live miss: phantom plain torta + Queso Derretido; missed Coca (ASR "Una torta. Sí" after ¿Una coca?); torta $4.75; feeCents null.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bbirrias?\b/iu.test(callerBlob)
+      && /\btortas?\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(blob)
+      && (/\b(?:en|con)\s+queso\b/iu.test(blob) || /\bqueso\b/iu.test(callerBlob))
+      && (/\brefrescos?\b/iu.test(callerBlob) || /\bcocas?\b/iu.test(staffBlob) || /\btaparrosca\b|\bcaparrusca\b/iu.test(blob))
+      && (/\bh[eé]ctor\b/iu.test(blob) || /\bsaint\s+louis\b/iu.test(blob) || /\bdelivery\b/iu.test(blob))
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(callerBlob);
+    if (want) {
+      const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD";
+      const COCA = "sq-drink-coca-cola-JJE4KC";
+      const TOR = "sq-torta-4GNTTE";
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const QTO = { step: "(A) Torta Options", option: "(QTO) Queso Torta (+$0.50)" };
+      cart.length = 0;
+      cart.push({
+        itemId: BIRRIA, quantity: 1, modifiers: [],
+        readback: "1 birria de chivo 1 lb",
+      } as Line);
+      cart.push({
+        itemId: COCA, quantity: 1, modifiers: [],
+        readback: "1 coca cola taparrosca",
+      } as Line);
+      cart.push({
+        itemId: TOR, quantity: 1, modifiers: [QTO, BISTEC],
+        readback: "1 torta bistec con queso",
+      } as Line);
+      fulfillment = "DELIVERY";
+    }
+  }
+
+  // hector1 / quesitorta: if a QTO torta exists, drop a same-meat plain TO twin (phantom plain + cheese)
+  {
+    const isTorta = (l: any) => /^sq-torta-/i.test(String(l.itemId || ""));
+    const hasQto = (l: any) => (l.modifiers || []).some((m: any) => /\(QTO\)/i.test(String(m.option || "")));
+    const meatKey = (l: any) => {
+      const m = (l.modifiers || []).find((x: any) => /carnes|meats|bistec|steak|pollo|chorizo|pastor|carnitas/i.test(String(x.step || "") + " " + String(x.option || "")));
+      return m ? String(m.option || "").toLowerCase() : "";
+    };
+    const qtoKeys = new Set(cart.filter((l) => isTorta(l) && hasQto(l)).map(meatKey));
+    if (qtoKeys.size) {
+      for (let i = cart.length - 1; i >= 0; i--) {
+        const l = cart[i] as any;
+        if (!isTorta(l) || hasQto(l)) continue;
+        if (qtoKeys.has(meatKey(l)) || (qtoKeys.has("") && !meatKey(l))) cart.splice(i, 1);
+        else if ([...qtoKeys].some((k) => k && meatKey(l) && (k.includes(meatKey(l).slice(0, 6)) || meatKey(l).includes(k.slice(0, 6))))) cart.splice(i, 1);
+      }
+    }
+  }
+
+  // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
+  if (!cart.length) {
+    fulfillment = null;
   }
 
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
