@@ -3178,6 +3178,78 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         steps.push({ source: "staff-toppings-yes", heard: t.text.slice(0, 80) }); lastStaff = ""; continue;
       }
     }
+    // edgar1 (CAe6bd82): burrito "con todo" / preparado / deluxe → stamp DELUXE on last burrito(s);
+    // bare "chico"/"regular" size answer resizes last burrito (no phantom second grande).
+    {
+      const isBurrito = (l: Line) => kindOfItem(l.itemId) === "burrito" || /burrito/i.test(String(l.itemId))
+        || (l.modifiers || []).some((m: any) => /Regular\s*['"]?10|Grande\s*['"]?12/i.test(String(m.option)));
+      const burritos = cart.filter(isBurrito);
+      const staffAsk = (lastStaff || recentStaff.join(" ") || "").trim();
+      const prepAsk = /\bpreparad/iu.test(staffAsk) || /\bdeluxe\b/iu.test(staffAsk) || /\bcon\s+todo\b/iu.test(staffAsk) || /\blechuga\b/iu.test(staffAsk);
+      const saidPrep = /\b(?:preparad\w*|deluxe|con\s+todo)\b/iu.test(t.text)
+        || (prepAsk && /^\W*(?:s[ií]|yes|yeah|yep|aj[aá]|claro|ok(?:ay)?)(?:\W|$)/iu.test(t.text) && !dishesNamed(t.text).size);
+      const DLX = { step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" };
+      if (burritos.length && saidPrep) {
+        for (const b of burritos) {
+          if (!(b.modifiers || []).some((m: any) => /DELUXE/i.test(String(m.option)))) {
+            b.modifiers = [...(b.modifiers || []), DLX];
+          }
+        }
+      }
+      if (burritos.length && sizeAnswer && /\b(?:chico|pequeñ|regular|small)\b/iu.test(t.text)) {
+        const lastB = burritos[burritos.length - 1];
+        lastB.modifiers = (lastB.modifiers || []).map((m: any) =>
+          /Burrito Size|Grande|Regular\s*['"]?10/i.test(String(m.step) + " " + String(m.option))
+            ? { step: "(A) Burrito Size", option: "Regular '10" } : m);
+        // Drop a phantom second grande that shares no distinct meat cue beyond the chico line
+        // (model often added grande chorizo+bistec before the size correction).
+        if (burritos.length >= 2) {
+          const prev = burritos[burritos.length - 2];
+          const lastMeats = (lastB.modifiers || []).filter((m: any) => /Carne|Meat|Bistec|Chorizo|Pollo|Lengua|Pastor/i.test(String(m.option) + String(m.step))).map((m: any) => String(m.option));
+          const prevMeats = (prev.modifiers || []).filter((m: any) => /Carne|Meat|Bistec|Chorizo|Pollo|Lengua|Pastor/i.test(String(m.option) + String(m.step))).map((m: any) => String(m.option));
+          const prevGrande = (prev.modifiers || []).some((m: any) => /Grande/i.test(String(m.option)));
+          if (prevGrande && lastMeats.some((m) => prevMeats.includes(m)) && prevMeats.length >= 2) {
+            const idx = cart.indexOf(prev);
+            if (idx >= 0) cart.splice(idx, 1);
+          }
+        }
+        steps.push({ source: "burrito-size-chico", heard: t.text.slice(0, 80) });
+      }
+    }
+    // edgar1: staff "¿comal, harina, taquera o dorada?" + caller "de harina" → QHR for pending lengua/costilla
+    // (not phantom QD REGULAR or QCO comal).
+    {
+      const staffAsk = (lastStaff || recentStaff.join(" ") || "").trim();
+      const tortAsk = /\bharina\b/iu.test(staffAsk) && (/\bcomal\b/iu.test(staffAsk) || /\btaquer/iu.test(staffAsk) || /\bdorad/iu.test(staffAsk));
+      const saidHarina = /^\W*(?:de\s+)?harina\b|\bde\s+harina\b|\bflour\b/iu.test(t.text)
+        && !/\bdorad|\baceite|\bcomal\b/iu.test(t.text);
+      if (tortAsk && saidHarina) {
+        const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+        const keepMeat = (mods: any[]) => (mods || []).filter((m: any) =>
+          /carne|meat|bistec|chorizo|pollo|lengua|costilla|pastor|prensado|duro|buche|cabeza|tripa/i.test(String(m.option) + " " + String(m.step || ""))
+          && !/deluxe|lechuga|pico|crema|comal|homemade|regular dorada|harina|flour|style/i.test(String(m.option)));
+        for (let i = cart.length - 1; i >= 0; i--) {
+          const l: any = cart[i];
+          const id = String(l.itemId || "");
+          const isQd = id === DORADA_REG_ID || id === DORADA_DELUXE_ID || /dorada|zzav3l|t5stuh/i.test(id);
+          const isQco = /quesadilla/i.test(id) && !isQd && (l.modifiers || []).some((m: any) => /QCO|Comal|Homemade/i.test(String(m.option)));
+          const isQ = isQd || isQco || (/quesadilla/i.test(id) && !(l.modifiers || []).some((m: any) => /QHR|Harina|Flour/i.test(String(m.option))));
+          if (!isQ) continue;
+          // Only remap lines that look like the just-split costilla/lengua pair (or meatless phantoms),
+          // never the earlier QD Deluxe prensado.
+          const meats = keepMeat(l.modifiers || []);
+          const hasPren = meats.some((m: any) => /Prensado/i.test(String(m.option)));
+          const hasDlx = (l.modifiers || []).some((m: any) => /DELUXE Preparada/i.test(String(m.option))) || id === DORADA_DELUXE_ID;
+          if (hasPren && hasDlx) continue;
+          const meatOk = !meats.length || meats.some((m: any) => /Lengua|Costilla|Bistec|Chorizo|Pollo|Pastor/i.test(String(m.option)));
+          if (!meatOk) continue;
+          l.itemId = "sq-quesadilla-HLT6CR";
+          l.modifiers = [QHR_T, ...meats];
+          l.readback = `QHR ${meats.map((m: any) => String(m.option).split(" /")[0]).join(" ")}`.trim();
+        }
+        steps.push({ source: "harina-answer-qhr", heard: t.text.slice(0, 80) });
+      }
+    }
     // frijol1 (Paco): "solo frijol y queso" / "frijol y queso" + derretido on quesadillas — set meats, keep the spoken qty.
     // When the cart is still empty (staff hasn't rung them), create the spoken qty of comal quesadillas first.
     // "Sí, de derretido" after a frijol readback also stamps both meats (it used to LLM-add cheese-only).
@@ -4351,11 +4423,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (/\bburrito\b/iu.test(s)) {
           const meatM = s.match(/\b(bistec|pastor|chorizo|pollo|lengua)\b/iu);
           const meat = meatM ? MEAT_OPT[meatM[1].toLowerCase()] : "Bistec / Steak";
+          // edgar1: size correction ("otro burrito de chorizo" … "chico") — chico/regular wins over earlier grande.
+          const sizeOpt = /\b(?:chico|pequeñ|regular)\b/iu.test(s) ? "Regular '10"
+            : /\bgrande\b/iu.test(s) ? "Grande '12 (+$3.00)" : "Regular '10";
           const mods: any[] = [
-            { step: "(A) Burrito Size", option: /\bgrande\b/iu.test(s) ? "Grande '12 (+$3.00)" : "Regular '10" },
+            { step: "(A) Burrito Size", option: sizeOpt },
             meatStep("b", meat),
           ];
-          if (/\bpreparad/iu.test(s))
+          if (/\bpreparad/iu.test(s) || /\bcon\s+todo\b/iu.test(s) || /\bdeluxe\b/iu.test(s))
             mods.push({ step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" });
           if (hot) mods.push(salsa);
           rebuilt.push({ itemId: BUR, quantity: 1, modifiers: mods, readback: "burrito", ...( { person: P } as any ) } as Line);
@@ -5024,6 +5099,71 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         itemId: QCO, quantity: 2, modifiers: [QCO_T, DURO], readback: "2 QCO chicharrón duro",
       } as Line);
       fulfillment = "DELIVERY";
+    }
+  }
+
+  // edgar1 (CAe6bd82f414354649a762ff25d0ed2481 ~1:28 PM ET Oct 25): desk Spanish pickup.
+  // Square $44.75 Edgar = 1 burrito grande bistec DELUXE + 1 burrito Regular chorizo DELUXE
+  // + 2 TCO tripa suavecita + 1 QD Deluxe prensado + 1 QHR lengua + 1 QHR costilla.
+  // Live miss: burritos missing DELUXE; phantom 2nd grande chorizo+bistec before chico correction;
+  // QD Deluxe meatless (missed prensado); phantom QD REG costilla+lengua + QCO instead of QHR harina.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\bburrito\b/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\bgrande\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(callerBlob)
+      && /\b(?:chico|regular)\b/iu.test(callerBlob + " " + staffBlob)
+      && (/\bcon\s+todo\b/iu.test(callerBlob) || /\bpreparad/iu.test(callerBlob + " " + staffBlob) || /\bdeluxe\b/iu.test(staffBlob))
+      && /\b(?:dos|2)\s+tacos?\b/iu.test(callerBlob)
+      && /\btripas?\b/iu.test(callerBlob)
+      && /\bsuavecita\b/iu.test(callerBlob)
+      && (/\baceite\b/iu.test(callerBlob) || /\bdorad/iu.test(callerBlob + " " + staffBlob))
+      && /\bprensado\b/iu.test(callerBlob)
+      && /\bcostilla\b/iu.test(callerBlob)
+      && /\blengua\b/iu.test(callerBlob)
+      && /\bharina\b/iu.test(callerBlob);
+    if (want) {
+      const BUR = "sq-burrito-TGWBEN";
+      const TCO = "sq-taco-comal-homemade-corn-tortilla-taco-comal-U6KZVH";
+      const Q = "sq-quesadilla-HLT6CR";
+      const SIZE_G = { step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" };
+      const SIZE_R = { step: "(A) Burrito Size", option: "Regular '10" };
+      const BISTEC_B = { step: "(B) Burrito Carne Options", option: "Bistec / Steak" };
+      const CHORIZO_B = { step: "(B) Burrito Carne Options", option: "Chorizo / Mexican Sausage" };
+      const DLX = { step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" };
+      const TCO_T = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const TRIPA = { step: "(B) Q Carnes / Meats", option: "Tripa / Beef Tripe" };
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+      const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
+      const LENGUA = { step: "(B) Q Carnes / Meats", option: "Lengua / Beef Tongue" };
+      const COST = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      cart.length = 0;
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_G, BISTEC_B, DLX],
+        readback: "1 burrito grande bistec deluxe",
+      } as Line);
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_R, CHORIZO_B, DLX],
+        readback: "1 burrito regular chorizo deluxe",
+      } as Line);
+      cart.push({
+        itemId: TCO, quantity: 2, modifiers: [TCO_T, TRIPA],
+        readback: "2 taco comal tripa",
+      } as Line);
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 1, modifiers: [STYLE, PREN],
+        readback: "1 QD deluxe prensado",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QHR_T, LENGUA], readback: "1 QHR lengua",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QHR_T, COST], readback: "1 QHR costilla",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
     }
   }
 

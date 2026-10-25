@@ -1,0 +1,429 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.4,
+    "end": 1.4,
+    "text": "Cocina Elvis.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 2.1,
+    "end": 3.1,
+    "text": "Oh, buenas sa, buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.6,
+    "end": 6.6,
+    "text": "Ah, quería hacer una orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 7.3,
+    "end": 8.3,
+    "text": "Claro, a ver, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.9,
+    "end": 9.9,
+    "text": "Ah, mira, me pones un un burrito de bistec",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.3,
+    "end": 14.3,
+    "text": "grande con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.9,
+    "end": 16.9,
+    "text": "Un burrito grande",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.1,
+    "end": 19.1,
+    "text": "Sí, de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 18.5,
+    "end": 19.5,
+    "text": "con todo de bistec, ok.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 21.1,
+    "end": 22.1,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 22.3,
+    "end": 23.3,
+    "text": "Y me pones otro burrito de chorizo",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 26.2,
+    "end": 27.2,
+    "text": "Perdón, con",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.4,
+    "end": 27.4,
+    "text": "chico.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 28.0,
+    "end": 29.0,
+    "text": "con todo, ¿te refieres también con lechuga y pico de gallo?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 31.7,
+    "end": 32.7,
+    "text": "O sea, preparado. Ok.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.0,
+    "end": 33.0,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.2,
+    "end": 34.2,
+    "text": "Sí, prepara. Sí, sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 34.8,
+    "end": 35.8,
+    "text": "Ok, entonces ese, ¿y qué más, perdón?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 39.2,
+    "end": 40.2,
+    "text": "Y un burrito chico de chorizo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 41.9,
+    "end": 42.9,
+    "text": "Burrito chico de chorizo, ¿te gustaría también preparado?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 44.3,
+    "end": 45.3,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 46.5,
+    "end": 47.5,
+    "text": "Ah, sí, también.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.7,
+    "end": 47.7,
+    "text": "¿Con todo?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 48.4,
+    "end": 49.4,
+    "text": "Muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 50.5,
+    "end": 51.5,
+    "text": "Deluxe preparado, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 55.5,
+    "end": 56.5,
+    "text": "Eh, pero me ponen dos tacos de tripa, pero que esté suavecita la tripa, sí, podría.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 61.6,
+    "end": 62.6,
+    "text": "Ajá, de, sí, claro, de comal, harina o el taquero.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 62.9,
+    "end": 63.9,
+    "text": "Eh. Ah, es que la otra vez me comí unos tacos, creo era de de maíz, ¿es otro tipo de maíz? Sí, hecha a mano,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 71.5,
+    "end": 72.5,
+    "text": "¿Maíz del comal hecho a mano?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 75.3,
+    "end": 76.3,
+    "text": "Dos de tripa con suavecita, okey.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.6,
+    "end": 76.6,
+    "text": "nada más dos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 79.7,
+    "end": 80.7,
+    "text": "Muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 85.2,
+    "end": 86.2,
+    "text": "Sí. Bueno. Eh, me pones una quesadilla de aceite, ¿eh?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.8,
+    "end": 89.8,
+    "text": "Que",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 91.3,
+    "end": 92.3,
+    "text": "Quesadilla dorada.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 93.9,
+    "end": 94.9,
+    "text": "quesadilla dorada, preparada así con crema y todo, ah, de chicharrón.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 98.8,
+    "end": 99.8,
+    "text": "¿Chicharrón prensado o chicharrón duro?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 102.9,
+    "end": 103.9,
+    "text": "Sí, chicharrón prensado. Y",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 104.7,
+    "end": 105.7,
+    "text": "Chicharrón prensado, preparada deluxe. Okey, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 110.4,
+    "end": 111.4,
+    "text": "me das dos dos quesadillas de",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 115.5,
+    "end": 116.5,
+    "text": "Estoy diciendo, una de costilla y una de lengua.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 118.8,
+    "end": 119.8,
+    "text": "¿Esas te gustarían en comal, harina o taquera, o dorada?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 121.8,
+    "end": 122.8,
+    "text": "De,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 122.8,
+    "end": 123.8,
+    "text": "de harina, de harina.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 124.2,
+    "end": 125.2,
+    "text": "De harina, una de lengua y la otra de qué, perdón?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 128.4,
+    "end": 129.4,
+    "text": "De costilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 130.4,
+    "end": 131.4,
+    "text": "Costilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 132.7,
+    "end": 133.7,
+    "text": "Muy bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 134.5,
+    "end": 135.5,
+    "text": "¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 134.7,
+    "end": 135.7,
+    "text": "Sí, y, no, sería, ah, y ahorita compro allí las, las bebidas, pero nada más quiero que me saques la cuenta de, de esto, ¿cuánto es?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 139.3,
+    "end": 140.3,
+    "text": "Ok.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 142.9,
+    "end": 143.9,
+    "text": "Claro, entonces si la dijimos el burrito grande de bistec deluxe preparado con todo, el chico de chorizo igual preparado deluxe con todo, dos tacos del comal de tripas, la quesadilla dorada, una quesadilla dorada de prensado",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 159.8,
+    "end": 160.8,
+    "text": "deluxe igual preparada, una de harina de lengua y una de costilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 165.7,
+    "end": 166.7,
+    "text": "Sí, sí, eso.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 165.8,
+    "end": 166.8,
+    "text": "Son cuare, cuarenta y cuatro setenta y cinco.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 170.3,
+    "end": 171.3,
+    "text": "Okey, está bien, ah, en.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 171.5,
+    "end": 172.5,
+    "text": "Sí, me. ¿Me das tu nombre para tu orden, por favor?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 174.6,
+    "end": 175.6,
+    "text": "Edgar.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 175.9,
+    "end": 176.9,
+    "text": "Sale, Edgar, danos unos veinte, ¿no? Y te la tenemos, Edgar.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 179.3,
+    "end": 180.3,
+    "text": "Sí, está bien, pues, muchas gracias, ¿eh?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 181.2,
+    "end": 182.2,
+    "text": "Así es, hasta luego.",
+    "language": "es"
+  }
+]
