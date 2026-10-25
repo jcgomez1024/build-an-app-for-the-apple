@@ -177,10 +177,13 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
 const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+name|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
+/** miguelPickup1 (CAa4bd2b): staff "¿…la va a recoger?" / who's picking up — answer is ticket/pickup name (beats prior vocative). */
+const PICKUP_WHO_ASK = /(?:la|lo)\s+va\s+a\s+recoger|va\s+a\s+recoger\s*[.?¿]|qui[eé]n\s+(?:la|lo)\s+(?:va\s+a\s+)?recoger|qui[eé]n\s+(?:la|lo)\s+recoge|who(?:['']?s|\s+is)\s+picking\s+up|who\s+will\s+(?:be\s+)?pick(?:ing)?\s+up|name\s+(?:for\s+)?(?:the\s+)?pickup|(?:ponemos|poner|pone)\s+la\s+orden\s+que\s+la\s+va\s+a\s+recoger/iu;
+export function isPickupWhoAsk(text: string): boolean { return PICKUP_WHO_ASK.test(String(text || "")); }
 /** Listen-only: the caller's answer right after the staff asked for the name. */
 export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
-    if (turns[i].speaker !== "staff" || !STAFF_ASK.test(turns[i].text)) continue;
+    if (turns[i].speaker !== "staff" || !(STAFF_ASK.test(turns[i].text) || PICKUP_WHO_ASK.test(turns[i].text))) continue;
     // gaby1: "¿Quieres pura, pura, cómo se llama?" = dish name, not customer name ask
     if (/c[oó]mo\s+se\s+llama/iu.test(turns[i].text)
       && !/\b(?:tu\s+nombre|su\s+nombre|a\s+nombre|your\s+name|me\s+llamo)\b/iu.test(turns[i].text)
@@ -247,7 +250,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
   // name3p1: diarization can put the staff's "¿tu nombre?" inside a caller turn; read what follows it
   for (let i = turns.length - 1; i >= 0; i--) {
     if (turns[i].speaker !== "caller") continue;
-    const m = turns[i].text.match(STAFF_ASK);
+    const m = turns[i].text.match(STAFF_ASK) || turns[i].text.match(PICKUP_WHO_ASK);
     if (!m || m.index == null) continue;
     const after = turns[i].text.slice(m.index + m[0].length).replace(/^[\s?¿.,]+/, "");
     const n = after ? nameFromAnswer(after) : null;
@@ -258,6 +261,19 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     if (turns[i].speaker !== "staff" || !/\bes\s+para\s*$/iu.test(turns[i].text.trim())) continue;
     const n = nameFromAnswer(turns[i + 1].text);
     if (n && turns[i + 1].speaker === "caller") return n;
+  }
+  // miguelPickup1: staff pickup-who ask with no inline name → next bare caller name (also covered by main loop)
+  for (let i = 0; i < turns.length - 1; i++) {
+    if (turns[i].speaker !== "staff" || !PICKUP_WHO_ASK.test(turns[i].text)) continue;
+    for (const t of turns.slice(i + 1, i + 6)) {
+      if (t.speaker !== "caller") continue;
+      let n = nameFromAnswer(t.text);
+      if (!n) {
+        const bare = t.text.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*\?\s*$/u);
+        if (bare && !NOT_NAMES.test(bare[1].split(" ")[0])) n = cleanFullName(bare[1]);
+      }
+      if (n) return n;
+    }
   }
   return null;
 }
@@ -372,6 +388,20 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     const spousePickup = turns.some((t) => t.speaker === "caller" && /\b(?:mi\s+)?(?:esposo|esposa|marido|mujer|husband|wife)\b/iu.test(t.text));
     const staffEsPara = turns.some((t, i) => t.speaker === "staff" && /\bes\s+para\b/iu.test(t.text) && (!/\bes\s+para\s+\p{Lu}/u.test(t.text) || foldName(thirdPersonName(t.text) || "") === f) && turns.slice(i).some((u) => u.speaker === "caller" && foldName(nameFromAnswer(u.text) || "") === f));
     if (spousePickup || staffEsPara) thirdPerson = true;
+  }
+  // miguelPickup1 (CAa4bd2b): staff "¿…la va a recoger?" + caller "Miguel" → pickupOnly ticket name (beats vocative Juan).
+  if (!thirdPerson) {
+    const staffPickupWho = turns.some((t, i) => t.speaker === "staff" && PICKUP_WHO_ASK.test(t.text)
+      && turns.slice(i + 1, i + 8).some((u) => {
+        if (u.speaker !== "caller") return false;
+        let n = nameFromAnswer(u.text);
+        if (!n) {
+          const bare = u.text.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*\?\s*$/u);
+          if (bare && !NOT_NAMES.test(bare[1].split(" ")[0])) n = cleanFullName(bare[1]);
+        }
+        return !!n && foldName(n) === f;
+      }));
+    if (staffPickupWho) thirdPerson = true;
   }
   const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVoc ? "vocative" : "volunteer";
   // agustin1b: factory group — "para Tony/Sandro/…" are pickup/ticket names only; staff-greeted caller name is not third-person even if "para <same>" appears on their own sub-order

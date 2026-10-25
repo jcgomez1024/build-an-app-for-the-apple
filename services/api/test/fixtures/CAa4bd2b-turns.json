@@ -1,0 +1,170 @@
+[
+  {
+    "speaker": "caller",
+    "start": 0.4,
+    "end": 1.4,
+    "text": "No.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 1.9,
+    "end": 2.9,
+    "text": "Sí, buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.5,
+    "end": 4.5,
+    "text": "Buenas tardes, don, de Intergaría.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 5.0,
+    "end": 6.0,
+    "text": "Sí, dígame, Juan.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 7.2,
+    "end": 8.2,
+    "text": "Una,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.6,
+    "end": 9.6,
+    "text": "son cuatro quesadillas de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.3,
+    "end": 12.3,
+    "text": "De tortilla de maíz, mano, de comal, de harina o doradas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.7,
+    "end": 14.7,
+    "text": "De comal,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 14.9,
+    "end": 15.9,
+    "text": "no, de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.5,
+    "end": 16.5,
+    "text": "What, okay, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 17.4,
+    "end": 18.4,
+    "text": "Y",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 19.8,
+    "end": 20.8,
+    "text": "me da cuatro de chorizo, también de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 23.1,
+    "end": 24.1,
+    "text": "Okay, man, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 25.6,
+    "end": 26.6,
+    "text": "Nada más.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 27.5,
+    "end": 28.5,
+    "text": "¿A qué no me ponemos la orden que la va a recoger?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 30.1,
+    "end": 31.1,
+    "text": "Miguel.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 31.4,
+    "end": 32.4,
+    "text": "Guille.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.7,
+    "end": 33.7,
+    "text": "Miguel.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.2,
+    "end": 34.2,
+    "text": "Okay, dame, perdón.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.0,
+    "end": 37.0,
+    "text": "¿Miguel?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 37.4,
+    "end": 38.4,
+    "text": "Oh, perdón, digo, dame unos veinte, no, por favor, mano. ¿Vale?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 40.7,
+    "end": 41.7,
+    "text": "No, sí, está bien. Ahora pues.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 41.9,
+    "end": 42.9,
+    "text": "Ándale, pues, va, ándale.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 43.4,
+    "end": 44.4,
+    "text": "Okay, bye.",
+    "language": "es"
+  }
+]
