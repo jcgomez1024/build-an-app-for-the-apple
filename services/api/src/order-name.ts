@@ -130,6 +130,17 @@ export function nameFromAnswer(text: string): string | null {
       if (n) return n;
     }
   }
+  // raul1 (CA8debe0): "Saúl Becerra, ¿no tiene servicio a domicilio?" — leading name + delivery ask
+  {
+    const leadDeliv = s.match(/^(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)\s*,?\s+(?:(?:¿\s*)?(?:no\s+)?(?:tiene|tienen|hay|do\s+you|does)\b|(?:servicio\s+a\s+)?domicilio\b|delivery\b)/u);
+    if (leadDeliv && !NOT_NAMES.test(leadDeliv[1].split(" ")[0])) {
+      const n = cleanFullName(leadDeliv[1]);
+      if (n) return n;
+    }
+    s = s.replace(/,?\s*(?:¿\s*)?(?:no\s+)?(?:tiene|tienen|hay)\s+(?:servicio\s+(?:a\s+)?)?domicilio\b.*$/iu, "")
+      .replace(/,?\s*(?:¿\s*)?(?:do\s+you\s+(?:have|deliver)|is\s+there\s+delivery|delivery\b).*$/iu, "")
+      .replace(/\s+/g, " ").trim();
+  }
   const words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
   // callback1: "era para unos, para…" / "unos para" = relay/pickup-for-others, never caller identity
@@ -194,6 +205,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
     let lastCaller: string | null = null;
     let staffEcho: string | null = null;
+    let staffEchoHits = 0;
     let aNombreDe: string | null = null;
     for (const t of turns.slice(i + 1, i + 10)) {
       if (t.speaker === "caller") {
@@ -219,11 +231,15 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
           // eva1: "Eva, muy bien, Eva."
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*muy\s+bien\b/u) ||
           // suleika1: "Dame … veinte, Zuleika, por favor."
-          t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,?\s*(?:por\s+favor|please)\s*[.]?\s*$/u);
+          t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,?\s*(?:por\s+favor|please)\s*[.]?\s*$/u) ||
+          // raul1: bare "Raúl." / "Ahorita no, Raúl." / "…minutos, Raúl, por lo menos"
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*[.!]\s*$/u) ||
+          t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*[.!]\s*$/u) ||
+          t.text.match(/,\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,?\s*(?:por\s+lo\s+menos)\b/u);
         if (echo && !NOT_NAMES.test(echo[1])) {
           const n = cleanFirstName(echo[1]);
           // gino1: last staff confirm wins (Gino over earlier ¿Guino?)
-          if (n) staffEcho = n;
+          if (n) { staffEcho = n; staffEchoHits += 1; }
         }
       }
     }
@@ -242,7 +258,9 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       if (a === b) return staffEcho;
       const close = a.slice(0, 2) === b.slice(0, 2) || a.includes(b.slice(0, 3)) || b.includes(a.slice(0, 3))
         || (a[0] === b[0] && Math.abs(a.length - b.length) <= 1); // gino1: Guino → Gino
-      if (close) return staffEcho;
+      // raul1: staff corrected Saúl→Raúl (edit distance 1) or repeated confirm ≥2×
+      const ed1 = a.length === b.length && [...a].filter((ch, i) => ch !== b[i]).length === 1;
+      if (close || ed1 || staffEchoHits >= 2) return staffEcho;
     }
     if (lastCaller) return lastCaller;
     if (staffEcho) return staffEcho;
@@ -290,7 +308,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {

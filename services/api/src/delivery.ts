@@ -28,6 +28,10 @@ export function fulfillmentTokens(text: string): string {
 export function fulfillmentIn(text: string): Fulfillment | null {
   let t = fulfillmentTokens(text);
   t = t.replace(NEGATED, " ");
+  // raul1: "En delivery se fue" / driver out — not a DELIVERY order cue
+  if (/(?:delivery|repartidor)\s+se\s+fue|se\s+fue\s+(?:el\s+)?(?:delivery|repartidor)|driver\s+(?:is\s+)?out/iu.test(text)) {
+    t = t.replace(/__DELIVERY__/g, " ");
+  }
   // "¿Para entrega a domicilio o para recoger?" is the question, not an answer.
   t = t.replace(/__(?:DELIVERY|PICKUP|FOR_HERE)__[^.!?]{0,40}?\b(?:o|or)\b[^.!?]{0,20}?__(?:DELIVERY|PICKUP|FOR_HERE)__/gi, " ");
   let last: Fulfillment | null = null;
@@ -35,10 +39,18 @@ export function fulfillmentIn(text: string): Fulfillment | null {
   return last;
 }
 
+/** Staff declines delivery / driver out — never keep DELIVERY from that cue (raul1). */
+const STAFF_NO_DELIVERY = /\b(?:(?:el\s+)?delivery\s+se\s+fue|se\s+fue\s+(?:el\s+)?(?:delivery|repartidor)|driver\s+(?:is\s+)?out|no\s+(?:hay\s+)?delivery|ahorita\s+no(?:\s*,|\s+\p{L})|no\s+tenemos\s+(?:delivery|domicilio|repartidor)|(?:no\s+)?(?:tenemos|tiene(?:n)?)\s+(?:servicio\s+a\s+)?domicilio\s*(?:ahorita|ahora|hoy)?\b|no\s+delivery)\b/iu;
+
 /** Fulfillment for a whole call (caller + staff read-back, in time order). Default null = not said (ticket stays TO GO). */
 export function detectFulfillment(turns: Turnish[]): { fulfillment: Fulfillment | null; by: "caller" | "staff" | null; heard: string | null } {
   let out: { fulfillment: Fulfillment | null; by: "caller" | "staff" | null; heard: string | null } = { fulfillment: null, by: null, heard: null };
   for (const t of [...turns].sort((a, b) => (a.start ?? 0) - (b.start ?? 0))) {
+    // raul1 (CA8debe0): "Ahorita no, Raúl" / "En delivery se fue" → force PICKUP (staff capability)
+    if ((t.speaker === "staff" || !t.speaker) && STAFF_NO_DELIVERY.test(t.text)) {
+      out = { fulfillment: "PICKUP", by: "staff", heard: t.text.slice(0, 160) };
+      continue;
+    }
     const f = fulfillmentIn(t.text);
     if (f) out = { fulfillment: f, by: t.speaker || "caller", heard: t.text.slice(0, 160) };
   }

@@ -1,0 +1,198 @@
+[
+  {
+    "speaker": "staff",
+    "text": "Buenas tardes,",
+    "start": 2.7,
+    "end": 3.521,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Buenas tardes. Quiero hacer un pedido.",
+    "start": 5.281,
+    "end": 7.562,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿qué tal, paporejos?",
+    "start": 8.801,
+    "end": 9.761,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Me pone una quesadilla en aceite",
+    "start": 11.302,
+    "end": 13.243,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Y qué va a ser, hermano?",
+    "start": 14.562,
+    "end": 15.282,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "de bistec",
+    "start": 16.343,
+    "end": 17.204,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Preparado normal.",
+    "start": 17.963,
+    "end": 18.883,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "normal",
+    "start": 20.124,
+    "end": 20.544,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Qué más?",
+    "start": 21.343,
+    "end": 21.723,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "y una tor, ¿sí tiene tortas?",
+    "start": 22.665,
+    "end": 24.165,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Todo bien, bolillo?",
+    "start": 25.364,
+    "end": 26.104,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Bolillo.",
+    "start": 27.144,
+    "end": 27.444,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Sí. Sí, joven.",
+    "start": 29.284,
+    "end": 29.724,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y me pone una torta de bistec también.",
+    "start": 30.866,
+    "end": 32.927,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿De Vistel? ¿Qué más, joven?",
+    "start": 34.245,
+    "end": 37.245,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Hey.",
+    "start": 35.687,
+    "end": 35.928,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y un agua de horchata, ¿sí tienes?",
+    "start": 38.348,
+    "end": 40.308,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Sí, joven, ¿algo más?",
+    "start": 41.306,
+    "end": 42.386,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Nada más.",
+    "start": 43.829,
+    "end": 44.329,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Tu nombre?",
+    "start": 44.186,
+    "end": 46.147,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Saúl Becerra, ¿no tiene servicio a domicilio?",
+    "start": 47.47,
+    "end": 50.071,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Raúl.",
+    "start": 49.107,
+    "end": 49.467,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Ahorita no, Raúl.",
+    "start": 51.567,
+    "end": 52.408,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Oh, okay.",
+    "start": 53.591,
+    "end": 54.071,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "En delivery se fue.",
+    "start": 54.068,
+    "end": 54.788,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Okey, dame unos veinte minutos, Raúl, por lo menos, ¿está bien?",
+    "start": 56.529,
+    "end": 59.054,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí, está bien.",
+    "start": 59.976,
+    "end": 60.457,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Dale, joven.",
+    "start": 61.018,
+    "end": 61.519,
+    "language": "es"
+  }
+]

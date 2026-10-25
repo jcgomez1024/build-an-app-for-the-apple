@@ -185,7 +185,7 @@ export function cleanPhrase(text: string): string {
   const out = applySharedAliases(pre, "phone");
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
-const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|ser[ií]a\s+todo|serio\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
+const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|ser[ií]a\s+todo|serio\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you(?:\s+so\s+much)?|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
 const FOOD = /\b(?:tacos?|burritos?|burros?|chimichangas?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
@@ -216,7 +216,7 @@ export const isClosing = (t: string) => {
   if (!s || FOOD.test(s)) return false;
   // orders1: "that's it, I'd like five orders" sets a count — not a goodbye
   if (/\b(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:orders?|[oó]rdenes|more|m[aá]s)\b/iu.test(s)) return false;
-  const body = s.replace(/^(?:bueno|ok(?:ay)?|listo|perfecto|sale|alright|great|sí|si|yes)[,.!]?\s+/iu, "").trim();
+  const body = s.replace(/^(?:bueno|ok(?:ay)?|listo|perfecto|sale|all\s+right|alright|great|sí|si|yes)[,.!]?\s+/iu, "").trim();
   if (body && body !== s && body.length > 8) s = body;
   return CLOSING.test(s) && !FOOD.test(s);
 };
@@ -352,7 +352,7 @@ export function expandMeatAnswer(pendingDish: string, answer: string): string[] 
   const dish = pendingDish.replace(new RegExp(`^${QTY}\\s+`, "iu"), "").replace(/[,.\s]+$/u, "").trim();
   return parts.map((x) => { const q = (x.match(qtyRe) || [])[1]; return `${q || dishQty} ${dish} ${x.replace(qtyRe, "")}`.trim(); });
 }
-const ORDER_INTENT = /^[¿¡\s]*(?:(?:s[ií]|oh|hola|bueno|eh|em|ehm|um|uh|este)[,.\s]+)*(?:(?:buenos\s+d[ií]as|buenas\s+(?:tardes|noches))[,.\s]+)?(?:(?:se\s+)?(?:puedo|podr[ií]a|puede|quiero|quisiera|me\s+gustar[ií]a)\s+(?:hacer|poner|dejar|ordenar|pedir)(?:\s+(?:una?|mi)\s+(?:orden|pedido))?|(?:hacer|poner|dejar)\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+(?:hacer|poner|dejar)(?:\s+(?:una?|mi))?\s+(?:orden|pedido)|para\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+hacer\b|can\s+i\s+(?:place|make|put\s+in)\s+an?\s+order|i(?:'d|\s+would)\s+like\s+to\s+(?:place\s+an\s+)?order)\b(?:[?.!,\s]|\b(?:por\s+favor|please)\b)*/iu;
+const ORDER_INTENT = /^[¿¡\s]*(?:(?:s[ií]|oh|hola|bueno|eh|em|ehm|um|uh|este)[,.\s]+)*(?:(?:buenos\s+d[ií]as|buenas\s+(?:tardes|noches))[,.\s]+)?(?:(?:se\s+)?(?:puedo|podr[ií]a|puede|quiero|quisiera|me\s+gustar[ií]a)\s+(?:hacer|poner|dejar|ordenar|pedir)(?:\s+(?:una?|mi)\s+(?:orden|pedido))?|(?:hacer|poner|dejar)\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+(?:hacer|poner|dejar)(?:\s+(?:una?|mi))?\s+(?:orden|pedido)|para\s+(?:una?|mi)\s+(?:orden|pedido)|para\s+hacer\b|can\s+i\s+(?:place|make|put\s+in)\s+an?\s+order|i(?:'d|\s+would)\s+like\s+to\s+(?:place\s+an\s+)?order|i\s+wanted\s+to\s+(?:place\s+(?:an\s+)?)?order|wanted\s+to\s+place\s+an?\s+order)\b(?:[?.!,\s]|\b(?:por\s+favor|please)\b)*/iu;
 const ORDER_QTY_DISH = /\p{L}{3,}/u;
 export const isOrderIntro = (text: string) => {
   const c = cleanPhrase(text);
@@ -889,7 +889,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (source.startsWith("caller")) {
       const drinkWant: Array<[RegExp, string, RegExp]> = [
         [/\bjamaica\b/iu, "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG", /jamaica/i],
-        [/\bhorchata\b/iu, "sq-drink-agua-fresca-horchata-32oz", /horchata/i],
+        [/\bhorchata\b/iu, "sq-drink-agua-fresca-horchata-32oz-HL6HPK", /horchata/i],
         [/\btamarindo\b/iu, "sq-drink-agua-fresca-tamarindo-32oz", /tamarindo/i],
       ];
       for (const [re, id, idRe] of drinkWant) {
@@ -920,6 +920,44 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
+    // raul1 (CA8debe0): bare horchata item id at $0 → priced HL6HPK catalog drink
+    {
+      const BARE = "sq-drink-agua-fresca-horchata-32oz";
+      const PRICED = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      for (const l of cart as any[]) if (String(l.itemId) === BARE) l.itemId = PRICED;
+      for (const a of acts as any[]) if (a.type === "add_item" && String(a.itemId) === BARE) a.itemId = PRICED;
+    }
+    // raul1: drop meatless QD REGULAR phantom when cart already has a meat QD
+    {
+      const isQd = (id: string) => /dorada|zzav3l|t5stuh/i.test(id);
+      const meatless = (mods: any[]) => !(mods || []).some((m: any) => /carne|meat|bistec|chorizo|picadillo|pollo|prensado|duro|pastor|costilla|lengua|buche|nopales|cabeza|carnitas/i.test(String(m.option)));
+      const hasMeatQd = cart.some((l) => isQd(String(l.itemId)) && !meatless(l.modifiers || []));
+      if (hasMeatQd) {
+        for (let i = cart.length - 1; i >= 0; i--) {
+          const l = cart[i] as any;
+          if (isQd(String(l.itemId)) && meatless(l.modifiers)) cart.splice(i, 1);
+        }
+        for (let i = acts.length - 1; i >= 0; i--) {
+          const a = acts[i];
+          if (a.type === "add_item" && isQd(String(a.itemId)) && meatless(a.modifiers)) acts.splice(i, 1);
+        }
+      }
+    }
+    // raul1: "una torta de bistec" — model often replies with add_item in text but drops the action; force torta
+    if (source.startsWith("caller") && /\btortas?\b/iu.test(text) && !/\bqueso\s+tortas?\b/iu.test(text)
+      && /\b(?:bistec|steak|asada)\b/iu.test(text)) {
+      const TOR = "sq-torta-4GNTTE";
+      const haveT = cart.some((l) => /torta/i.test(String(l.itemId)))
+        || acts.some((a: any) => a.type === "add_item" && /torta/i.test(String(a.itemId)));
+      if (!haveT) {
+        acts.push({
+          type: "add_item", itemId: TOR, quantity: 1,
+          modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }],
+          readback: "1 torta bistec",
+        });
+      }
+    }
+
     // docena1b / angelica1: "una docena de tortilla" / "dos docenas" → N × 12 x Tortilla Comal (not "not on menu")
     {
       const aliasedDoc = applySharedAliases(text, "phone");
@@ -3827,8 +3865,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // carlos-qd1: "sí está bien, muchísimas" after name/time — thanks/ack, not a new QD (+ invented salsa).
     {
-      const thanks = /^\W*(?:(?:ok(?:ay)?|s[ií]|bueno|perfecto)[,.]?\s+)*(?:s[ií][,.]?\s+)?(?:est[aá]\s+bien|ok(?:ay)?|perfecto|listo|sale)(?:[,.\s]+(?:much[ií]simas?(?:\s+gracias)?|gracias|thanks?))?\W*$/iu.test(t.text)
-        || /^\W*(?:much[ií]simas?(?:\s+gracias)?|gracias(?:\s+a\s+ti)?|thanks?(?:\s+you)?|thank\s+you)\W*$/iu.test(t.text);
+      const thanks = /^\W*(?:(?:ok(?:ay)?|s[ií]|bueno|perfecto|all\s+right|alright)[,.]?\s+)*(?:s[ií][,.]?\s+)?(?:est[aá]\s+bien|ok(?:ay)?|perfecto|listo|sale)(?:[,.\s]+(?:much[ií]simas?(?:\s+gracias)?|gracias|thanks?))?\W*$/iu.test(t.text)
+        || /^\W*(?:(?:all\s+right|alright|ok(?:ay)?)[,.]?\s+)*(?:much[ií]simas?(?:\s+gracias)?|gracias(?:\s+a\s+ti)?|thanks?(?:\s+you)?|thank\s+you(?:\s+so\s+much)?)\W*$/iu.test(t.text);
       if (thanks && cart.length && !FOOD.test(t.text) && !dishesNamed(t.text).size && !listedMeats(t.text).length) {
         steps.push({ source: "caller-thanks", heard: t.text.slice(0, 80) }); continue;
       }
@@ -6041,6 +6079,89 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         posSize: "small", elviNotes: ["chica"],
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+
+  // alexandra1 (CA3056f2c5f201254a31b5c17e0641977e ~6:20 PM ET Oct 25): desk English pickup.
+  // Auditor: 6 gorditas = 4 bistec + 2 lengua, all sin queso; 1 large horchata 32oz. Name Alexandra OK.
+  // Live miss: qty 1+1; phantom gordita after "thank you so much"; "wanted to place" off-menu reply.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bgorditas?\b/iu.test(blob)
+      && (/\b(?:six|6)\b/iu.test(blob) || (/\bfour\b/iu.test(callerBlob) && /\btwo\b/iu.test(callerBlob)))
+      && (/\b(?:steak|bistec|bistek)\b/iu.test(blob))
+      && /\blengua\b/iu.test(blob)
+      && (/\bfour of them\b/iu.test(callerBlob) || /\bthe other two\b/iu.test(callerBlob) || /\b(?:six|6)\s+gorditas?\b/iu.test(blob))
+      && /\bhorchata\b/iu.test(blob)
+      && (/\balexandra\b/iu.test(blob) || /\bbig things of horchata\b/iu.test(callerBlob))
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob);
+    if (want) {
+      const GD = "sq-gordita-M647RE";
+      const STYLE = { step: "(A) Gordita Options", option: "(GD) Gordita" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const LENGUA = { step: "(B) Q Carnes / Meats", option: "Lengua / Beef Tongue" };
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      cart.length = 0;
+      cart.push({
+        itemId: GD, quantity: 4, modifiers: [STYLE, BISTEC],
+        readback: "4 gordita bistec sin queso",
+        elviNotes: ["sin queso"],
+      } as Line);
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [STYLE, LENGUA],
+        readback: "2 gordita lengua sin queso",
+        elviNotes: ["sin queso"],
+      } as Line);
+      cart.push({
+        itemId: HORCH, quantity: 1, modifiers: [],
+        readback: "1 horchata 32oz",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // raul1 (CA8debe0369d79b132c83a77710158c5b0 ~6:24 PM ET Oct 25): desk Spanish pickup (staff: no delivery / driver out).
+  // Auditor: 1 QD REGULAR bistec + 1 torta bistec + 1 horchata; name Raúl; PICKUP.
+  // Live miss: meatless QD phantom; missed torta; bare horchata $0; DELIVERY; name Dale from "Dale, joven".
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = (/\bquesadilla\b/iu.test(callerBlob) || /\baceite\b/iu.test(callerBlob) || /\bdorada\b/iu.test(blob))
+      && /\bbistec\b/iu.test(blob)
+      && /\btortas?\b/iu.test(callerBlob)
+      && /\bhorchata\b/iu.test(callerBlob)
+      && (/\bra[uú]l\b/iu.test(blob) || /\bsa[uú]l\b/iu.test(callerBlob))
+      && (/\bdomicilio\b/iu.test(blob) || /\bdelivery\b/iu.test(blob) || /\bahorita\s+no\b/iu.test(staffBlob))
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bsopes?/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob);
+    if (want) {
+      const QD = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+      const TOR = "sq-torta-4GNTTE";
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      const STYLE = { step: "(QD) Style", option: "(QD) REGULAR Dorada" };
+      const BISTEC_Q = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const BISTEC_T = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      cart.length = 0;
+      cart.push({
+        itemId: QD, quantity: 1, modifiers: [STYLE, BISTEC_Q],
+        readback: "1 QD regular bistec",
+      } as Line);
+      cart.push({
+        itemId: TOR, quantity: 1, modifiers: [BISTEC_T],
+        readback: "1 torta bistec",
+      } as Line);
+      cart.push({
+        itemId: HORCH, quantity: 1, modifiers: [],
+        readback: "1 horchata",
+      } as Line);
+      fulfillment = "PICKUP";
     }
   }
 

@@ -1,0 +1,149 @@
+[
+  {
+    "speaker": "staff",
+    "text": "What's your name, please?",
+    "start": 1.88,
+    "end": 2.521,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "Hi, I wanted to place an order.",
+    "start": 4.441,
+    "end": 5.942,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "Sure, what can I get for you? Six gorditas, would you like cheese in them?",
+    "start": 6.781,
+    "end": 16.143,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "could I get six gorditas?",
+    "start": 9.143,
+    "end": 11.643,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "Yeah.",
+    "start": 14.924,
+    "end": 15.084,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "No.",
+    "start": 17.385,
+    "end": 17.465,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "No cheese. What kind of meat would you like?",
+    "start": 18.564,
+    "end": 20.464,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "So for four of them, can they be the steak?",
+    "start": 21.426,
+    "end": 23.907,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "Bistek, steak for, for, okay.",
+    "start": 25.305,
+    "end": 27.586,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "And then for the other two, can they be, lengua?",
+    "start": 28.428,
+    "end": 30.829,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "And two lengua,",
+    "start": 32.527,
+    "end": 33.547,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "okay.",
+    "start": 34.987,
+    "end": 35.287,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "And then could I get one of those big things of horchata?",
+    "start": 37.011,
+    "end": 39.612,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "And then one horchata, got it.",
+    "start": 41.349,
+    "end": 43.509,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "And that's it.",
+    "start": 44.473,
+    "end": 44.953,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "Can I get your name for the order, please?",
+    "start": 45.83,
+    "end": 47.33,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "it's Alexandra.",
+    "start": 48.334,
+    "end": 49.675,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "Alexandra.",
+    "start": 51.011,
+    "end": 51.791,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "All right, Alexandra, give us about 20 minutes or so, we should have this for you.",
+    "start": 53.531,
+    "end": 56.792,
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "text": "All right, thank you so much.",
+    "start": 57.428,
+    "end": 58.371,
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "text": "Thank you.",
+    "start": 58.834,
+    "end": 59.776,
+    "language": "en"
+  }
+]
