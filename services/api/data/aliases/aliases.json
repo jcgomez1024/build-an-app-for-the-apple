@@ -263,13 +263,13 @@
     },
     {
       "id": "ful-me-lo-traen",
-      "match": "\\b(?:me\\s+)?(?:lo|la|los|las)\\s+(?:traen|mandan|env[ií]an|puedes?\\s+(?:traer|mandar|llevar|enviar)|pueden?\\s+(?:traer|mandar|llevar|enviar)|podr[ií]an?\\s+(?:traer|mandar|llevar|enviar))\\b|\\b(?:tr[aá]iganmel[oa]s?|m[aá]ndenmel[oa]s?)\\b|\\bme\\s+(?:lo|la|los|las)\\s+llevan\\s+a\\b",
+      "match": "\\b(?:me\\s+)?(?:lo|la|los|las)\\s+(?:trae[ns]?|manda[ns]?|env[ií]a[ns]?|puedes?\\s+(?:traer|mandar|llevar|enviar)|pueden?\\s+(?:traer|mandar|llevar|enviar)|podr[ií]a[ns]?\\s+(?:traer|mandar|llevar|enviar))\\b|\\b(?:tr[aá]iganmel[oa]s?|m[aá]ndenmel[oa]s?|tr[aá]emel[oa]s?|m[aá]ndamel[oa]s?)\\b|\\bme\\s+(?:lo|la|los|las)\\s+llevan\\s+a\\b",
       "to": "__DELIVERY__",
-      "example": "¿me lo traen? / me lo mandan / ¿me los puedes enviar?",
+      "example": "¿me lo trae? / ¿me lo traen? / me lo mandan / ¿me los puedes enviar?",
       "scope": [
         "fulfillment"
       ],
-      "source": "delivery1 (Carlos 2026-10-19); alejandro1 (2026-10-24)",
+      "source": "delivery1 (Carlos 2026-10-19); alejandro1 (2026-10-24); ca0d0e12 (2026-10-25 singular trae)",
       "approved": "Carlos 2026-10-19"
     },
     {

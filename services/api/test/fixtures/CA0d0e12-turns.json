@@ -1,0 +1,296 @@
+[
+  {
+    "speaker": "staff",
+    "start": 1.16,
+    "end": 7.521,
+    "text": "Es educar eso. Hola, bebé, ¿a su cocina eres buenas tardes?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.724,
+    "end": 17.188,
+    "text": "Buenas tardes. Don Carlos sabe qué menudo. Ah, me pone tres menudos con pata.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 10.322,
+    "end": 10.642,
+    "text": "Sí, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 12.102,
+    "end": 12.902,
+    "text": "Sí, todavía ahí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.269,
+    "end": 20.809,
+    "text": "Sí, con pata.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 20.403,
+    "end": 21.563,
+    "text": "¿Qué más? Ujú.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 22.55,
+    "end": 24.871,
+    "text": "Y dos quesadillas en aceite de prensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 25.444,
+    "end": 26.564,
+    "text": "¿Preparadas o normales?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 28.132,
+    "end": 31.954,
+    "text": "Preparadas. Ah, me,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.325,
+    "end": 31.805,
+    "text": "Okay, qué más, nena. ¿Dos o tres?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.195,
+    "end": 37.897,
+    "text": "dos. O póngame tres, perdón.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.985,
+    "end": 34.725,
+    "text": "Okay, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 37.926,
+    "end": 46.467,
+    "text": "Okay, no está bien. ¿Qué más, nena? Mmm, déjame checo rápido, ¿no? Permíteme.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 40.458,
+    "end": 43.359,
+    "text": "Ah, me pone un, si tiene torta de milanesa.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 47.281,
+    "end": 47.721,
+    "text": "Sí, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 57.93,
+    "end": 63.211,
+    "text": "Ah, nena, no tengo, está bien se me acabó el bolillo, sorry. No, sorry.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 61.525,
+    "end": 66.086,
+    "text": "Sí, okey, me pone dos quesadillas de bistec, por favor, de normal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 65.592,
+    "end": 66.152,
+    "text": "¿De maíz, verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 67.046,
+    "end": 67.146,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 67.312,
+    "end": 67.632,
+    "text": "¿Qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 68.766,
+    "end": 71.286,
+    "text": "Y me pone dos quesadillas de prensado, en comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 73.066,
+    "end": 73.146,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 73.834,
+    "end": 74.274,
+    "text": "¿Qué más, nena?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.327,
+    "end": 75.747,
+    "text": "Nada más.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 77.075,
+    "end": 78.095,
+    "text": "¿Vas a venir o te lo voy a llevar?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 78.927,
+    "end": 80.167,
+    "text": "¿Me lo trae, por favor?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 80.736,
+    "end": 80.996,
+    "text": "Claro.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 83.117,
+    "end": 95.26,
+    "text": "Órale, pues. Entonces, tengo dos, tres menudos con pata, tres quesadillas doradas deluxe de prensado, dos de comal de bistec, dos de comal de prensado y tú de libres. Van a ser noventa y tres, nena, ¿está bien?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 89.989,
+    "end": 90.089,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 96.01,
+    "end": 100.45,
+    "text": "Sí, de prensado, no, las de comal van a ser de charrón duros.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 96.741,
+    "end": 97.141,
+    "text": "Dame unos...",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 102.162,
+    "end": 103.863,
+    "text": "las de comal. De bistec sí está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 103.531,
+    "end": 103.631,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 104.651,
+    "end": 104.751,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 104.863,
+    "end": 108.144,
+    "text": "Y sí se me hizo raro, pero me dijiste prensado, porque son como para tu mamá, ¿no?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 107.371,
+    "end": 107.451,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 109.071,
+    "end": 109.191,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 109.845,
+    "end": 111.969,
+    "text": "Sí, no, okey, ya te las arreglé, nena, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 112.232,
+    "end": 112.872,
+    "text": "Okey, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 112.871,
+    "end": 115.756,
+    "text": "Dame un veinte por lo menos y ahorita voy, ¿va? Ándale.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 114.653,
+    "end": 115.795,
+    "text": "Okay, está bien, no esperes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 116.697,
+    "end": 117.218,
+    "text": "Okay, bye.",
+    "language": "es"
+  }
+]

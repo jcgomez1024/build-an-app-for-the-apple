@@ -44,6 +44,15 @@ test("call fulfillment: staff read-back counts, question ignored", () => {
   assert.equal(r.fulfillment, "DELIVERY");
   assert.equal(r.by, "staff");
 });
+
+test("call fulfillment: singular ¿me lo trae? (ca0d0e12)", () => {
+  const r = d.detectFulfillment([
+    { speaker: "staff", start: 1, text: "¿Vas a venir o te lo voy a llevar?" },
+    { speaker: "caller", start: 3, text: "¿Me lo trae, por favor?" },
+  ]);
+  assert.equal(r.fulfillment, "DELIVERY");
+  assert.equal(d.fulfillmentIn("¿Me lo trae, por favor?"), "DELIVERY");
+});
 test("caller memory: address history with last-used date and uses", () => {
   const ph = "+15555550123";
   mem.saveCallerFulfillment(ph, "DELIVERY", { full: "10 Test Ln, Painesville, OH", street: "10 Test Ln" }, new Date("2026-10-01T15:00:00Z"));
