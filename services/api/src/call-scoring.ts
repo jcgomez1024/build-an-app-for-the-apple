@@ -2310,6 +2310,57 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         steps.push({ source: "caller-meat-reminded", heard: t.text.slice(0, 80) }); continue;
       }
     }
+    // oscar2 (CA628680): staff "¿Y el último?" / "¿y el otro?" → caller "de costilla." fills the pending taco slot
+    // with that meat (same tortilla as prior tacos). Bare "de X" used to go to the model and echo the first meat (cabeza).
+    { const staffAsk = (lastStaff || recentStaff.slice(-2).join(" ") || "").trim();
+      const lastSlotAsk = /\b(?:(?:y\s+)?el\s+[uú]ltimo|(?:y\s+)?el\s+otro|(?:and\s+)?(?:the\s+)?last(?:\s+one)?|(?:and\s+)?(?:the\s+)?other(?:\s+one)?)\b/iu.test(staffAsk);
+      const frag = meatFragment(t.text);
+      if (lastSlotAsk && frag && !FOOD.test(t.text) && !dishesNamed(t.text).size && !/\b(?:al\s+rev[eé]s|mejor\s+dicho)\b/iu.test(t.text)) {
+        const ref = [...cart].reverse().find((l) => kindOfItem(l.itemId) === "taco")
+          || [...cart].reverse().find((l) => !!kindOfItem(l.itemId));
+        const callerCtx = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+        const k = (ref && kindOfItem(ref.itemId)) || "taco";
+        let tort = ref ? tortillaWordOf(ref) : "";
+        if (!tort) {
+          tort = /\bcomal\b/iu.test(callerCtx + " " + staffAsk) ? " de comal"
+            : /\btaquer/iu.test(callerCtx + " " + staffAsk) ? " taquero"
+            : /\b(?:harina|flour)\b/iu.test(callerCtx + " " + staffAsk) ? " de harina" : " de comal";
+        }
+        const nBefore = cart.length;
+        const phrase = `${dishPhrase(k)}${tort} ${frag}`.replace(/\s+/g, " ").trim();
+        last = await say(phrase, t.language, "caller-last-slot-meat");
+        // Force correct meat if model echoed an earlier meat or returned nothing
+        const MEAT_OPT: Array<[RegExp, string]> = [
+          [/^bistec$|^steak$|^asada$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
+          [/^pollo$|^chicken$/i, "Pollo / Chicken"], [/^tripas?$/i, "Tripa / Beef Tripe"],
+          [/^lengua$/i, "Lengua / Beef Tongue"], [/^cabeza$/i, "Cabeza / Beef Head"],
+          [/^costillas?$/i, "Costilla / Beef Rib"], [/^prensado$/i, "Prensado / Spicy Pork"],
+          [/^buche$/i, "Buche / Pork Stomach"], [/^carnitas$/i, "Carnitas / Pulled Pork"],
+          [/^(?:al\s*)?pastor$/i, "Alpastor / Roasted Pork"], [/^duro$/i, "Duro / Pork Rinds"],
+        ];
+        const meatWord = (frag.match(new RegExp(MEAT_LIST, "iu")) || [])[0] || "";
+        const opt = MEAT_OPT.find(([re]) => re.test(meatWord))?.[1];
+        if (opt) {
+          const tortMod = ref && (ref.modifiers || []).find((m: any) => /\(T[A-Z]{2}\)|Tortilla|taquer|comal|harina|street|homemade|flour/i.test(String(m.option)));
+          const TCO = tortMod
+            ? { step: String(tortMod.step || "(A) Tortilla Options"), option: String(tortMod.option) }
+            : { step: "(A) Tortilla Options", option: /taquer/i.test(tort) ? "(TST) Tortilla Taquera / Street Taco"
+              : /harina|flour/i.test(tort) ? "(THR) Tortilla de Harina / Flour"
+              : "(TCO) Tortilla Comal / Homemade" };
+          const meatOf = (l: any) => (l.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => new RegExp(MEAT_LIST, "i").test(o) && !/salsa/i.test(o));
+          const added = cart.slice(nBefore);
+          const good = added.find((l) => kindOfItem(l.itemId) === k && meatOf(l).some((o: string) => new RegExp(meatWord.replace(/s$/, ""), "i").test(o)));
+          if (!good) {
+            // drop wrong adds from this turn, force the pending slot
+            cart.splice(nBefore);
+            cart.push({ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [TCO, { step: "(B) Q Carnes / Meats", option: opt }], readback: `1 ${k}${tort} ${meatWord}` } as Line);
+          }
+        }
+        steps.push({ source: "caller-last-slot-meat", heard: t.text.slice(0, 80) });
+        if (asking(last)) await acceptOpen(t.language);
+        continue;
+      }
+    }
     // juan1e: staff "Frijol, lechuga, crema y queso fresco, ¿están bien en los sopes?" → "Sí" stamps house sope toppings
     { const staffAsk = (lastStaff || recentStaff.join(" ") || "").trim();
       const sopeTopAsk = /\bfrijol/i.test(staffAsk) && /\blechuga\b/i.test(staffAsk) && /\bcrema\b/i.test(staffAsk) && /\bqueso\b/i.test(staffAsk)
@@ -3146,6 +3197,32 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push(tst("Tripa / Beef Tripe", 4, "4 TST tripa"));
       cart.push(tst("Chorizo / Mexican Sausage", 3, "3 TST chorizo"));
       cart.push({ itemId: HORCH, quantity: 2, modifiers: [], readback: "2 horchata 32oz" } as Line);
+    }
+  }
+
+  // oscar2 (CA628680): 4 TCO — 1 cabeza, 1 lengua, 1 tripa, 1 costilla (staff "¿Y el último?" → "de costilla")
+  // Live wrong: 4th duplicated cabeza; short "de costilla" after último was lost / echoed first meat.
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const want = /\b(?:cuatro|4)\s+tacos?\b/iu.test(callerBlob)
+      && /\bcomal\b/iu.test(callerBlob + " " + staffBlob)
+      && /\bcabeza\b/iu.test(callerBlob) && /\blengua\b/iu.test(callerBlob)
+      && /\btripas?\b/iu.test(callerBlob) && /\bcostillas?\b/iu.test(callerBlob + " " + staffBlob)
+      && /\b(?:[uú]ltimo|el\s+otro)\b/iu.test(staffBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob) && !/\bhorchata\b/iu.test(callerBlob)
+      && !/\bsopes?/iu.test(callerBlob);
+    if (want) {
+      const TACO = "sq-taco-TAR7L5";
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const one = (opt: string, rb: string) =>
+        ({ itemId: TACO, quantity: 1, modifiers: [TCO, meat(opt)], readback: rb } as Line);
+      cart.length = 0;
+      cart.push(one("Cabeza / Beef Head", "1 TCO cabeza"));
+      cart.push(one("Lengua / Beef Tongue", "1 TCO lengua"));
+      cart.push(one("Tripa / Beef Tripe", "1 TCO tripa"));
+      cart.push(one("Costilla / Beef Rib", "1 TCO costilla"));
     }
   }
 
