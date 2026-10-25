@@ -508,11 +508,8 @@ async function v3LeadAskAsync(force) {
   if (!force && U._v3AskKey === key) return;
   const advanced = U._v3AskKey != null && U._v3AskKey !== key;
   U._v3AskKey = key;
-  const b = B();
-  // m34: same single-stream path as haloSpeak / sheet (stop prior → await speak → halo bubble)
-  try { b?.stopAudio?.(); } catch {}
-  try { await b?.speak?.(say); } catch (e) { console.warn("[m34/warm1] speak", e); }
-  try { haloSay(say); } catch {}
+  // m37: coupled speak+haloBub (paint with TTS start — never await-speak then bubble after audio ends)
+  try { await haloSpeak(say); } catch (e) { console.warn("[m37/warm1] speak", e); }
   // warm1b: after a selection advances the unfinished step, bring that group into view (ask is NOT from scroll)
   if (advanced && miss !== undefined) {
     requestAnimationFrame(() => {
@@ -1067,8 +1064,7 @@ async function elviCompleteSheetAfterVoiceAdd(action) {
     if (same && mods.length) await elviDrivePicksFromMods(mods);
 
     const sayAdd = t(`Ok, agregando tu ${nm} al carrito.`, `Ok, adding this to your cart.`);
-    mirrorHeard(sayAdd);
-    try { await b?.speak?.(sayAdd); } catch (e) { console.warn("[m30] agregando TTS", e); }
+    try { await haloSpeak(sayAdd); } catch (e) { console.warn("[m30] agregando TTS", e); }
     await new Promise((r) => setTimeout(r, 280));
 
     // Hard rule: never leave customer on customize sheet after voice complete
@@ -1086,8 +1082,7 @@ async function elviCompleteSheetAfterVoiceAdd(action) {
       `Listo, agregué tu ${nm}. Ya tienes ${n} en tu orden — ¿qué más se te antoja?`,
       `Done — added your ${nm}. You have ${n} in your order — what else sounds good?`
     );
-    mirrorHeard(sayDone);
-    try { await b?.speak?.(sayDone); } catch (e) { console.warn("[m30] listo TTS", e); }
+    try { await haloSpeak(sayDone); } catch (e) { console.warn("[m30] listo TTS", e); }
     syncLoucap("idle");
     try { b?.setAvatarListening?.(); } catch {}
   } finally {
@@ -1114,19 +1109,29 @@ function haloSay(s, ms) {
   if (bot) bot.classList.add("bubbing");
   clearTimeout(haloSay._t);
   clearTimeout(haloSay._t2);
-  // m36: readable ~5–6s min for short lines (was 4500; syncLoucap was also killing early)
+  // m36: readable ~5–6s min for short lines; m37: never fade while TTS still speaking
   const linger = ms != null ? ms : Math.max(6000, text.length * 100);
   haloSay._until = Date.now() + linger;
-  haloSay._t = setTimeout(() => {
+  haloSay._line = text;
+  const fadeOut = () => {
+    if (B()?.isSpeaking?.()) {
+      // m37: linger/sync must not cancel mid-utterance — defer fade until speech ends
+      haloSay._until = Date.now() + 900;
+      haloSay._t = setTimeout(fadeOut, 900);
+      return;
+    }
     b.classList.remove("on");
     haloSay._until = 0;
     // ~700ms slow fade (CSS opacity transition) then drop bubbing
     haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 700);
-  }, linger);
+  };
+  haloSay._t = setTimeout(fadeOut, linger);
 }
 function haloBubHide(force) {
   const b = document.getElementById("haloBub");
   const bot = document.getElementById("ux1-bottom");
+  // m37: never yank bubble mid-utterance (linger/syncLoucap must not fight TTS)
+  if (!force && B()?.isSpeaking?.()) return;
   // m36: honor linger unless forced (e.g. new speak / gate close)
   if (!force && haloSay._until && Date.now() < haloSay._until) return;
   if (b) b.classList.remove("on", "show");
@@ -1160,13 +1165,41 @@ function isAffirm(u) {
 function isNeg(u) {
   return /^(no|nel|nop|nope|cancel|cancela)\b/.test(u);
 }
-async function haloSpeak(line) {
-  mirrorHeard(line);
-  // m33: stop any prior stream before Hablar speak (realtime + local + speechSynthesis)
+/** m37: EVERY line that paints haloBub must speak the same text. Single TTS stream.
+ *  Paint bubble when committing to speak (not after audio ends). If speak never starts, hide bubble. */
+async function haloSpeak(line, ms, speakOpts) {
+  const text = String(line || "").trim();
+  if (!text) {
+    try { haloBubHide(true); } catch {}
+    return false;
+  }
+  // Mirror text into reply chrome without a silent bubble
+  try { B()?.greet?.(text); } catch {}
+  const r = document.querySelector("#assistant-reply"); if (r) r.textContent = text;
+  const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = text;
+  for (const id of ["v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = text; }
+  // m33/m37: stop any prior stream before starting this one
   try { B()?.stopAudio?.(); } catch {}
-  try { await B()?.speak?.(line); } catch (e) { console.warn("[m31] speak", e); }
-  haloSay(line); // m36 linger Math.max(6000, len*100) + ~700ms fade
-  syncLoucap("listening");
+  // Paint bubble NOW — same line TTS will play (never show without intending to speak)
+  haloSay(text, ms);
+  try { syncLoucap("speaking"); } catch {}
+  let played = false;
+  try {
+    const ret = await B()?.speak?.(text, speakOpts || {});
+    played = ret !== false;
+  } catch (e) {
+    console.warn("[m37] speak", e);
+    played = false;
+  }
+  // Cancelled / never started → do not leave a silent step-ask bubble
+  if (!played) {
+    const b = document.getElementById("haloBub");
+    if (b && String(b.textContent || "").trim() === text) {
+      try { haloBubHide(true); } catch {}
+    }
+  }
+  try { syncLoucap("listening"); } catch {}
+  return played;
 }
 /**
  * m31 — voice answer on ANY open customize sheet (all items with options).
@@ -1342,7 +1375,7 @@ function syncLoucap(st) {
   if (!st && live && s === "speaking" && !B()?.isSpeaking?.()) s = "listening";
   cap.dataset.state = s;
   const e3 = cap.querySelector(".e3d"); if (e3) e3.dataset.state = s;
-  // m36: never yank haloBub during softlang gate or active linger
+  // m36/m37: never yank haloBub during softlang gate, active linger, or mid-TTS
   const gating = document.getElementById("ux1-bottom")?.classList.contains("gating");
   if (s === "idle" && !HABLAR_LIVE && !B()?.isSpeaking?.() && !gating) haloBubHide(false);
 
@@ -1367,7 +1400,7 @@ function mirrorHeard(line) {
   try { B()?.greet?.(line); } catch {}
   const r = document.querySelector("#assistant-reply"); if (r) r.textContent = line;
   const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = line;
-  if (line) haloSay(line);
+  // m37: never paint haloBub here — use haloSpeak so bubble always has TTS
 }
 /** Hablar entry: mic permission → listening → spoken + visible "you can talk" confirm. */
 async function beginHablar(opts = {}) {
@@ -1388,23 +1421,20 @@ async function beginHablar(opts = {}) {
     HABLAR_LIVE = false;
     syncLoucap("error");
     const msg = t("Activa el micrófono para hablar conmigo.", "Allow the mic so you can talk to me.");
-    mirrorHeard(msg);
-    try { await b?.speak?.(msg); } catch {}
+    try { await haloSpeak(msg); } catch {}
     return false;
   }
 
   // m29: barge while speaking → Te escucho; after settle with sheet → item opener
   if (fromBarge) {
     const ack = listeningAck();
-    mirrorHeard(ack);
-    try { await b?.speak?.(ack); } catch (e) { console.warn("[m29] barge ack", e); }
+    try { await haloSpeak(ack); } catch (e) { console.warn("[m29] barge ack", e); }
     syncLoucap("listening");
     if (sheetIsOpen()) {
       pushSheetVoiceContext();
       const opener = sheetContextOpener();
       if (opener) {
-        mirrorHeard(opener);
-        try { await b?.speak?.(opener); } catch (e) { console.warn("[m29] sheet opener after barge", e); }
+        try { await haloSpeak(opener); } catch (e) { console.warn("[m29] sheet opener after barge", e); }
         syncLoucap("listening");
       }
     }
@@ -1414,12 +1444,10 @@ async function beginHablar(opts = {}) {
   // Sheet open → grounded opener (Estamos armando tu …); else Te escucho
   if (sheetOpen) {
     const opener = sheetContextOpener() || listeningAck();
-    mirrorHeard(opener);
-    try { await b?.speak?.(opener); } catch (e) { console.warn("[m29] sheet opener", e); }
+    try { await haloSpeak(opener); } catch (e) { console.warn("[m29] sheet opener", e); }
   } else {
     const ack = listeningAck();
-    mirrorHeard(ack);
-    try { await b?.speak?.(ack); } catch (e) { console.warn("[m29] Hablar ack TTS", e); }
+    try { await haloSpeak(ack); } catch (e) { console.warn("[m29] Hablar ack TTS", e); }
   }
   syncLoucap("listening");
   try { b?.setAvatarListening?.(); } catch {}
@@ -1448,15 +1476,18 @@ function openSoftLangGate() {
   const cap = document.getElementById("loucap");
   if (cap) { cap.classList.remove("invite"); cap.dataset.state = "idle"; }
   // m36: bilingual soft ask — navigator must NOT mark LANG_KNOWN or pick EN as default
-  // Matches .sl-q; TTS in es (restaurant default) without committing language
+  // m37: coupled bubble+TTS (never silent softlang bubble)
   const ask = "¿Español o English?";
-  try { haloSay(ask, Math.max(7000, ask.length * 100)); } catch {}
   if (!already) {
-    void (async () => {
-      try { await B()?.speak?.(ask, { language: "es" }); } catch (e) { console.warn("[m36] softlang TTS", e); }
-    })();
+    void haloSpeak(ask, Math.max(7000, ask.length * 100), { language: "es" });
+  } else {
+    // already gating — refresh linger only if this ask is already painted (no silent first paint)
+    const b = document.getElementById("haloBub");
+    if (b && b.classList.contains("on") && /Espa.ol o English/i.test(String(b.textContent || ""))) {
+      try { haloSay(ask, Math.max(7000, ask.length * 100)); } catch {}
+    }
   }
-  console.log("[m36] softlang gate open" + (already ? " (already)" : " + TTS"));
+  console.log("[m37] softlang gate open" + (already ? " (already)" : " + TTS"));
 }
 function pickSoftLang(mode) {
   const m = mode === "en" ? "en" : "es";

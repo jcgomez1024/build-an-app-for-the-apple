@@ -337,11 +337,11 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
   clearReplyWatchdog();
   const cleanText = formatCentsForSpeech(text, language).trim();
   if (!cleanText) {
-    return;
+    return false;
   }
 
   if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
-    return;
+    return false;
   }
   pauseBrowserRecognition();
   // m33 HARD: only one speak stream — kill prior local TTS, realtime PCM, speechSynthesis, and WS response
@@ -366,16 +366,19 @@ async function speakLocalText(text, language = getEffectiveLanguage(), options =
       throw new Error(result.error || "xAI speech unavailable");
     }
 
-    if (gen !== state.speakGen) return;
+    // m37: cancelled before playback → false (caller must not leave a silent haloBub)
+    if (gen !== state.speakGen) return false;
     if (typeof options.shouldContinue === "function" && !options.shouldContinue()) {
-      return;
+      return false;
     }
     await playLocalAudioBase64(result.audioBase64, result.mimeType || "audio/mpeg");
+    return true;
   } catch (error) {
-    if (gen !== state.speakGen) return;
+    if (gen !== state.speakGen) return false;
     console.warn("[TTS] xAI local speech fallback:", error);
     speakBrowserText(cleanText, language === "es" ? "es-US" : "en-US");
     await wait(Math.max(1800, cleanText.length * 55));
+    return gen === state.speakGen;
   } finally {
     if (gen === state.speakGen) {
       state.suppressRealtimeAudio = false;
@@ -6954,7 +6957,7 @@ window.elviBridge = {
   // ux1: Hablar / barge-in — cancel TTS and yield to listening
   stopAudio: () => { try { stopCurrentAudio(); } catch {} },
   // warm1: sheet step asks must be HEARD (xAI TTS / speakLocalText), bubble mirrors
-  speak: (text, opts) => { try { const o = opts || {}; const L = (o.language === "es" || o.language === "en") ? o.language : getEffectiveLanguage(); return speakLocalText(String(text || ""), L, o); } catch (e) { return Promise.resolve(); } },
+  speak: (text, opts) => { try { const o = opts || {}; const L = (o.language === "es" || o.language === "en") ? o.language : getEffectiveLanguage(); return speakLocalText(String(text || ""), L, o); } catch (e) { return Promise.resolve(false); } },
   isSpeaking: () => !!state.elviSpeaking,
   haloState: () => (document.getElementById("elvi-halo")?.dataset?.state || "idle"),
   hasSelectedLanguage,
