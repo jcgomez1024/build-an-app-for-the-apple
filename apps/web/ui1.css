@@ -364,7 +364,7 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 @keyframes cbump{40%{transform:scale(1.04)}}
 
 
-/* m32 §2j: halo-pair — bubble RIGHT of halo; clear Agregar; linger+slow fade */
+/* m32/m32b §2j: halo-pair — bubble RIGHT; pair CENTERED as one unit (no left shift); clear Agregar */
 .halo-pair{align-self:center;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:0;position:relative;pointer-events:none;transform:translateX(0);transition:transform .45s ease;-webkit-transition:transform .45s ease;z-index:1}
 .halo-pair .loucap,#loucap.loucap{pointer-events:auto;flex:none}
 #haloBub{flex:none;max-width:0;width:auto;margin:0;padding:0;border-radius:16px;background:rgba(14,22,36,.92);color:#eef5ff;font:600 13px/1.35 system-ui,-apple-system,sans-serif;box-shadow:none;position:relative;opacity:0;overflow:hidden;white-space:normal;transform:translateX(8px) scale(.97);pointer-events:none;transition:opacity .7s ease,transform .45s ease,max-width .45s ease,margin .45s ease,padding .45s ease,box-shadow .45s ease;-webkit-transition:opacity .7s ease,transform .45s ease,max-width .45s ease,margin .45s ease,padding .45s ease,box-shadow .45s ease;z-index:1}
@@ -372,7 +372,6 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 #haloBub::after{content:"";position:absolute;left:-5px;top:50%;width:10px;height:10px;margin-top:-5px;background:inherit;transform:rotate(45deg);box-shadow:-1px 1px 0 rgba(74,163,255,.55);opacity:0;transition:opacity .22s}
 #haloBub.on{opacity:1;max-width:240px;margin-left:8px;padding:9px 12px;box-shadow:0 0 0 1px rgba(74,163,255,.55),0 8px 22px rgba(0,0,0,.35);transform:none;display:block;transition:opacity .22s ease,transform .22s ease,max-width .35s ease,margin .35s ease,padding .35s ease,box-shadow .22s ease;-webkit-transition:opacity .22s ease,transform .22s ease,max-width .35s ease,margin .35s ease,padding .35s ease,box-shadow .22s ease}
 #haloBub.on::after{opacity:1}
-#ux1-bottom.bottom.bubbing .halo-pair,.bottom.bubbing .halo-pair{transform:translateX(-28px)}
 #ux1-bottom.bottom.bubbing #loucap.loucap,.bottom.bubbing .loucap{
   width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;border-radius:50%;animation:none}
 #ux1-bottom.bottom.bubbing #loucap .lt,#ux1-bottom.bottom.bubbing #loucap .inv,
@@ -383,7 +382,6 @@ body.v3 .lang-group .pill{font-size:11px;padding:4px 10px}
 #ux1-bottom.bottom.bubbing #loucap::after,.bottom.bubbing .loucap::after{border-radius:50%}
 @media (prefers-reduced-motion:reduce){
   .halo-pair,#haloBub,#haloBub.on{transition:none!important;-webkit-transition:none!important}
-  #ux1-bottom.bottom.bubbing .halo-pair,.bottom.bubbing .halo-pair{transform:translateX(-16px)}
 }
 /* Ask rides on #haloBub over sheet — hide in-sheet ask card */
 body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}
