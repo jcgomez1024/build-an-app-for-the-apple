@@ -1,4 +1,4 @@
-// ui1 m46b (2026-10-26): Type FAB → full-width typedock above dock (§2v). Keeps m45b harina aliases, m45 ask-all/collapse, m44b Hablar dock, m43 grabber.
+// ui1 m46c (2026-10-26): Type FAB → typedock in chrome + visualViewport kb lift (§2v). Keeps m47 no-default chips, m46b trio, m45 ask-all, m44b Hablar, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -1917,7 +1917,32 @@ function bargeIn(why) {
   console.log("[ux1] bargeIn", why);
   return true;
 }
-/** m46b §2v — Type FAB opens legacy full-width typedock above dock; collapsed = FAB only. */
+/** m46c §2v — Type FAB opens full-width typedock in chrome above dock; visualViewport keeps it above iOS keyboard. */
+function syncKeyboardInset() {
+  try {
+    const vv = window.visualViewport;
+    let kb = 0;
+    if (vv) {
+      // layout bottom minus visual bottom (covers iOS keyboard + Safari chrome)
+      kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    }
+    document.documentElement.style.setProperty("--kb", kb + "px");
+  } catch {
+    try { document.documentElement.style.setProperty("--kb", "0px"); } catch {}
+  }
+}
+function installKeyboardInsetSync() {
+  if (window.__elviKbSync) return;
+  window.__elviKbSync = true;
+  syncKeyboardInset();
+  const vv = window.visualViewport;
+  if (vv) {
+    vv.addEventListener("resize", syncKeyboardInset, { passive: true });
+    vv.addEventListener("scroll", syncKeyboardInset, { passive: true });
+  }
+  window.addEventListener("resize", syncKeyboardInset, { passive: true });
+  window.addEventListener("orientationchange", () => setTimeout(syncKeyboardInset, 50));
+}
 function isTypingOpen() { return document.body.classList.contains("typing"); }
 function setTypingOpen(on) {
   const want = Boolean(on);
@@ -1927,17 +1952,34 @@ function setTypingOpen(on) {
     tfab.setAttribute("aria-pressed", want ? "true" : "false");
     tfab.setAttribute("aria-expanded", want ? "true" : "false");
   }
+  installKeyboardInsetSync();
+  syncKeyboardInset();
   if (want) {
     const inp = document.getElementById("prompt-input");
-    try { inp?.focus?.({ preventScroll: true }); } catch { try { inp?.focus?.(); } catch {} }
+    const bar = document.getElementById("prompt-form");
+    // Focus in the same user-gesture turn so iOS opens the keyboard; keep bar in visual viewport.
+    const focusBar = () => {
+      try { inp?.focus?.({ preventScroll: true }); } catch { try { inp?.focus?.(); } catch {} }
+      try { bar?.scrollIntoView?.({ block: "nearest", inline: "nearest" }); } catch {}
+      syncKeyboardInset();
+    };
+    focusBar();
+    requestAnimationFrame(() => {
+      focusBar();
+      requestAnimationFrame(focusBar);
+    });
+    setTimeout(syncKeyboardInset, 60);
+    setTimeout(syncKeyboardInset, 280);
   } else {
     try { document.getElementById("prompt-input")?.blur?.(); } catch {}
+    syncKeyboardInset();
   }
 }
 function toggleTypingOpen() { setTypingOpen(!isTypingOpen()); }
 function collapseTyping() { setTypingOpen(false); }
 window.__elviSetTyping = setTypingOpen;
 window.__elviCollapseType = collapseTyping;
+window.__elviSyncKb = syncKeyboardInset;
 
 function mountLoucap() {
   if (document.getElementById("ux1-bottom")) return;
@@ -1949,13 +1991,20 @@ function mountLoucap() {
   const plane = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
   wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="dockrow" id="dockrow"><div class="type-wrap" id="type-wrap"><button type="button" class="tfab" id="tfab" aria-label="${t("Escribir orden", "Type order")}" aria-pressed="false" aria-expanded="false">${plane}</button></div><div class="hablar-wrap" id="hablar-wrap"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div></div>`;
   document.body.appendChild(wrap);
-  // Move live cart FAB into the centered dock (Hablar left of cart). Keep #cart-toggle id for app.js badge/wiring.
+  // m46c: move typedock INTO chrome above dockrow (one lift unit with Hablar/cart; no mid-screen hunt)
   const dock = wrap.querySelector("#dockrow");
+  const typeForm = document.getElementById("prompt-form");
+  if (dock && typeForm) {
+    typeForm.classList.add("typedock");
+    wrap.insertBefore(typeForm, dock);
+  }
+  // Move live cart FAB into the centered dock (Hablar left of cart). Keep #cart-toggle id for app.js badge/wiring.
   const cartFab = document.getElementById("cart-toggle");
   if (dock && cartFab) {
     cartFab.classList.add("cfab");
     dock.appendChild(cartFab);
   }
+  installKeyboardInsetSync();
   const controls = document.querySelector(".bottom-bar .controls-row");
   if (controls && !controls.children.length) controls.remove();
   wrap.querySelectorAll(".sl-pill").forEach((btn) => {
