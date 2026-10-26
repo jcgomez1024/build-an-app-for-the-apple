@@ -348,28 +348,13 @@ body.v3 .v3-pill{margin-right:50px}
 body.v3-sheet-on #ux1-bottom.bottom,body.ux1-confirm-on #ux1-bottom.bottom,
 body.sheet-open #ux1-bottom.bottom,
 body:has(.v3-sheet-bg) #ux1-bottom.bottom,body:has(#ux1-confirm) #ux1-bottom.bottom{
-  z-index:62;bottom:calc(4px + env(safe-area-inset-bottom,0px));padding-bottom:0;display:flex!important}
+  z-index:62;bottom:0;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex!important}
 body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap,body.sheet-open #loucap{display:inline-flex!important;pointer-events:auto}
 body.v3-sheet-on .v3-ebar,body.ux1-confirm-on .v3-ebar,body.sheet-open .v3-ebar,
 body.v3-sheet-on .bottom-bar,body.ux1-confirm-on .bottom-bar,body.sheet-open .bottom-bar{display:none!important}
 body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}
-/* m42b §2q: foot @60px above Hablar + condensed 52px orb while sheet open */
-body.v3-sheet-on #loucap.loucap,body.ux1-confirm-on #loucap.loucap,body.sheet-open #loucap.loucap,
-body:has(.v3-sheet-bg) #loucap.loucap,body:has(#ux1-confirm) #loucap.loucap{
-  width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;border-radius:50%;animation:none}
-body.v3-sheet-on #loucap .lt,body.v3-sheet-on #loucap .inv,
-body.ux1-confirm-on #loucap .lt,body.ux1-confirm-on #loucap .inv,
-body.sheet-open #loucap .lt,body.sheet-open #loucap .inv,
-body:has(.v3-sheet-bg) #loucap .lt,body:has(.v3-sheet-bg) #loucap .inv,
-body:has(#ux1-confirm) #loucap .lt,body:has(#ux1-confirm) #loucap .inv{display:none!important}
-body.v3-sheet-on #loucap .e3d,body.ux1-confirm-on #loucap .e3d,body.sheet-open #loucap .e3d,
-body:has(.v3-sheet-bg) #loucap .e3d,body:has(#ux1-confirm) #loucap .e3d{margin:0;transform:scale(1.25)}
-body.v3-sheet-on #loucap .orbit,body.ux1-confirm-on #loucap .orbit,body.sheet-open #loucap .orbit,
-body:has(.v3-sheet-bg) #loucap .orbit,body:has(#ux1-confirm) #loucap .orbit{opacity:.9;animation-duration:3.2s;border-radius:50%}
-body.v3-sheet-on #loucap::before,body.ux1-confirm-on #loucap::before,body.sheet-open #loucap::before,
-body:has(.v3-sheet-bg) #loucap::before,body:has(#ux1-confirm) #loucap::before{display:none}
-body.v3-sheet-on #loucap::after,body.ux1-confirm-on #loucap::after,body.sheet-open #loucap::after,
-body:has(.v3-sheet-bg) #loucap::after,body:has(#ux1-confirm) #loucap::after{border-radius:50%}
+/* m42b under-Agregar lone-orb retired by m44b §2t — idle stays full invite in centered dock;
+   listening/thinking/speaking condense via m44b data-state rules (same dock seat). */
 
 #loucap .lt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;white-space:nowrap}
 #loucap .lt .lab{font:600 13px 'Plus Jakarta Sans','Space Grotesk',system-ui,sans-serif;letter-spacing:.02em}
