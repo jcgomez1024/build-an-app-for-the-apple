@@ -211,7 +211,7 @@ function openItem(id) {
 function tilesFor(gi) {
   const g = U.item.modifierGroups[gi];
   const sel = U.sel[g.id], dbl = U.dbl[g.id];
-  const defs = defaultsOf(g);
+  // m47: no Default/Recomendado per-tile chips (m45 already forbids silent preselect)
   const opts = baseOptions(g);
   let h = "";
   for (let r = 0; r < opts.length; r += 3) {
@@ -220,7 +220,7 @@ function tilesFor(gi) {
       const on = Boolean(sel[o.name]);
       const q = sel[o.name] || 0;
       const d = dbl.has(o.name);
-      h += `<button class="u1-tile u1-opt ${on ? "sel" : ""}" data-g="${gi}" data-o="${esc(o.name)}" id="u1-o-${gi}-${opts.indexOf(o)}">${d ? `<span class="u1-dtag">${t("DOBLE", "DOUBLE")} ✓</span>` : ""}${defs.includes(o.name) ? `<span class="u1-def">${t("Recomendado", "Default")}</span>` : ""}${img(optionPhoto(o.name), optLabel(o.name))}<div class="u1-lbl">${esc(optLabel(o.name))}</div>${o.priceDeltaCents ? `<span class="u1-chip">+${money(o.priceDeltaCents)}</span>` : ""}${g.allowQuantities && q > 1 ? `<span class="u1-qty">×${q}</span>` : ""}</button>`;
+      h += `<button class="u1-tile u1-opt ${on ? "sel" : ""}" data-g="${gi}" data-o="${esc(o.name)}" id="u1-o-${gi}-${opts.indexOf(o)}">${d ? `<span class="u1-dtag">${t("DOBLE", "DOUBLE")} ✓</span>` : ""}${img(optionPhoto(o.name), optLabel(o.name))}<div class="u1-lbl">${esc(optLabel(o.name))}</div>${o.priceDeltaCents ? `<span class="u1-chip">+${money(o.priceDeltaCents)}</span>` : ""}${g.allowQuantities && q > 1 ? `<span class="u1-qty">×${q}</span>` : ""}</button>`;
     });
     const last = U.last[g.id];
     const lastOpt = row.find((o) => o.name === last && sel[o.name]);
