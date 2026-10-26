@@ -203,6 +203,38 @@ body.v3 .v3-pill{margin-right:50px}
 .tm-sched{display:flex;gap:6px;margin:6px 0}.tm-sched select{flex:1;padding:10px;border-radius:10px;border:1px solid #ccd;font-size:15px}
 .tm-flag{background:#fff4e5;color:#8a4b00;border-radius:10px;padding:10px;margin:8px 0}
 .tm-f input{display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:6px 0;border-radius:10px;border:1px solid #ccd;font-size:16px}.tm-err{color:#c62828;min-height:1em;margin:4px 0}
+
+/* m39: delivery address suggest + locate + pin confirm (SPEC §2o) */
+.tm-addr-wrap{position:relative;margin:6px 0}
+.tm-addr-input{display:block;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #ccd;font-size:16px;background:#fff}
+.tm-addr-input:focus{outline:none;border-color:#4aa3ff;box-shadow:0 0 0 3px rgba(74,163,255,.15)}
+.tm-addr-input.locked{border-color:#2fd47a;background:#f6fff9}
+.tm-addr-actions{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.tm-loc-pill{border:1px solid #d5e4f7;background:#f3f8ff;color:var(--accent,#1471d6);font:600 12px Plus Jakarta Sans,system-ui,sans-serif;padding:7px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tm-loc-pill:active{transform:scale(.98)}.tm-loc-pill.busy{opacity:.7;pointer-events:none}
+.tm-addr-hint{font:500 11.5px Plus Jakarta Sans,system-ui,sans-serif;color:#5d6472}
+.tm-addr-ok{display:none;align-items:center;gap:5px;font:600 11.5px Plus Jakarta Sans,system-ui,sans-serif;color:#1a8c3a;background:#e6f7ec;border:1px solid rgba(47,212,122,.35);padding:5px 10px;border-radius:999px}
+.tm-addr-ok.show{display:inline-flex}
+.tm-suggest{position:absolute;left:0;right:0;top:calc(100% - 70px);z-index:45;background:#fff;border:1px solid #e3e8ef;border-radius:14px;box-shadow:0 10px 28px rgba(20,40,80,.14);overflow:hidden;margin-top:4px}
+.tm-suggest:not([hidden]){display:block}
+.tm-addr-wrap .tm-suggest{top:auto;position:relative;margin:4px 0 0}
+.tm-sug{width:100%;border:0;background:#fff;text-align:left;padding:11px 12px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid #f0f2f5;font:inherit;color:inherit}
+.tm-sug:last-child{border-bottom:0}.tm-sug:hover,.tm-sug:focus{background:#f3f8ff;outline:none}
+.tm-sug-pin{width:28px;height:28px;border-radius:8px;flex:none;background:#eef5ff;color:var(--accent,#1471d6);display:grid;place-items:center;font-size:14px}
+.tm-sug-main{font:600 13px/1.25 Plus Jakarta Sans,system-ui,sans-serif}.tm-sug-sub{font:400 11.5px Plus Jakarta Sans,system-ui,sans-serif;color:#5d6472;margin-top:2px}
+.tm-addr-confirm{display:none;margin-top:10px;padding:14px;border-radius:16px;background:linear-gradient(180deg,#f7fbff,#eef5ff);border:1.5px solid #cfe3ff;box-shadow:0 4px 16px rgba(20,113,214,.08)}
+.tm-addr-confirm.show{display:block}
+.tm-addr-confirm-top{display:flex;gap:12px;align-items:flex-start}
+.tm-conf-pin{width:40px;height:40px;border-radius:12px;flex:none;background:linear-gradient(135deg,#1471d6,#4aa3ff);color:#fff;display:grid;place-items:center;font-size:18px;box-shadow:0 4px 12px rgba(20,113,214,.3)}
+.tm-conf-q{font:600 13.5px Plus Jakarta Sans,system-ui,sans-serif;margin:0 0 4px}.tm-conf-addr{font:500 13px/1.35 Plus Jakarta Sans,system-ui,sans-serif;color:#5d6472;margin:0}
+.tm-conf-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.tm-btn-pri{border:0;border-radius:12px;padding:11px 12px;cursor:pointer;background:linear-gradient(135deg,#1471d6,#4aa3ff);color:#fff;font:600 13.5px Plus Jakarta Sans,system-ui,sans-serif;box-shadow:0 4px 14px rgba(20,113,214,.3)}
+.tm-btn-sec{border:1.5px solid #d0d7e2;border-radius:12px;padding:11px 12px;cursor:pointer;background:#fff;color:#111420;font:600 13.5px Plus Jakarta Sans,system-ui,sans-serif}
+.tm-loc-pending{display:none;margin-top:10px;padding:12px;border-radius:12px;background:#f3f8ff;font:500 12.5px Plus Jakarta Sans,system-ui,sans-serif;color:var(--accent,#1471d6);align-items:center;gap:8px}
+.tm-loc-pending.show{display:flex}
+.tm-spin{width:14px;height:14px;border:2px solid rgba(20,113,214,.25);border-top-color:var(--accent,#1471d6);border-radius:50%;animation:tm-sp .7s linear infinite}
+@keyframes tm-sp{to{transform:rotate(360deg)}}
+
 .tm-o{justify-content:flex-start;text-align:left;font-weight:600}.tm-o input{width:auto;flex:none;margin:3px 0 0;accent-color:var(--accent,#1471d6)}
 #tm-step{scroll-margin-top:80px}
 

@@ -688,7 +688,7 @@ export {};
 
 
 // ---------- time1: checkout timing step (ASAP / Programar · pickup / delivery) + pay ----------
-const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false };
+const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false, addrConfirmed: false, addrPending: null, addrBusy: false, softAddr: false };
 function tmLoad(f) { if (TM.opts[f] || TM.opts[f + "_l"]) return; TM.opts[f + "_l"] = 1;
   fetch(`/api/${TENANT}/orders/timing?f=${f}`).then((r) => r.json()).then((j) => { TM.opts[f] = j; delete TM.opts[f + "_l"]; tmCheck(); if (U.screen === "receipt") render(); }).catch(() => { delete TM.opts[f + "_l"]; }); }
 // m38: full weekday names on schedule day chips (Carlos UX).
@@ -710,7 +710,31 @@ function timingHTML() {
   const days = o.days || []; const dd = days[Math.min(TM.day, Math.max(0, days.length - 1))];
   const sched = TM.mode === "scheduled" && dd ? `<div class="tm-sched"><select data-tmday="1">${days.map((d, i) => `<option value="${i}" ${i === TM.day ? "selected" : ""}>${esc(tmDayName(d))}</option>`).join("")}</select><select data-tmat="1"><option value="">${t(D ? "Hora de entrega…" : "Hora para recoger…", D ? "Delivery time…" : "Pickup time…")}</option>${dd.slots.map((x) => `<option value="${esc(x.at)}" ${x.at === TM.at ? "selected" : ""}>${esc(L(x.label))}</option>`).join("")}</select></div>${D ? `<p class="u1-mut">${t(`Ventana de ±${o.pad} min: preparamos ${o.prep} min + ${o.drive} min de camino.`, `±${o.pad} min window: ${o.prep} min prep + ${o.drive} min drive.`)}</p>` : ""}` : "";
   const ck = TM.check; const flag = ck && ck.ok === false ? `<div class="tm-flag">⚠️ ${esc(L(ck.error))}${(ck.unavailable || []).length ? `<br><small>${t("Quítalo o escoge otra hora.", "Remove it or pick another time.")}</small>` : ""}</div>` : "";
-  const fields = `<div class="tm-f"><input id="tm-name" placeholder="${t("Nombre", "Name")}" value="${esc(cust.name || "")}" autocomplete="name"><input id="tm-phone" type="tel" placeholder="${t("Teléfono", "Phone")}" value="${esc(cust.phone || "")}" autocomplete="tel"><input id="tm-email" type="email" placeholder="Email" value="${esc(cust.email || "")}" autocomplete="email">${D ? `<input id="tm-addr" placeholder="${t("Dirección de entrega", "Delivery address")}" value="${esc(cust.address || "")}" autocomplete="street-address">` : ""}</div>`;
+  const addrVal = esc(cust.address || (TM.addrPending ? tmFormatAddr(TM.addrPending) : "") || "");
+  const addrBlock = D ? `<div class="tm-addr-wrap" id="tm-addr-wrap">
+    <input id="tm-addr" class="tm-addr-input${TM.addrConfirmed ? " locked" : ""}" placeholder="${t("Dirección de entrega", "Delivery address")}" value="${addrVal}" autocomplete="street-address" spellcheck="false" aria-autocomplete="list" aria-controls="tm-suggest">
+    <div class="tm-suggest" id="tm-suggest" role="listbox" hidden></div>
+    <div class="tm-addr-actions">
+      <button type="button" class="tm-loc-pill${TM.addrBusy ? " busy" : ""}" data-tmloc="1"><span aria-hidden="true">📍</span> ${t("Usar mi ubicación", "Use my location")}</button>
+      <span class="tm-addr-hint">${t("o escribe tu calle", "or type your street")}</span>
+      <span class="tm-addr-ok${TM.addrConfirmed ? " show" : ""}" id="tm-addr-ok"><span>✓</span> ${t("Dirección confirmada", "Address confirmed")}</span>
+    </div>
+    <div class="tm-loc-pending${TM.addrBusy ? " show" : ""}" id="tm-loc-pending"><span class="tm-spin" aria-hidden="true"></span> ${t("Buscando tu ubicación…", "Finding your location…")}</div>
+    <div class="tm-addr-confirm${TM.addrPending && !TM.addrConfirmed ? " show" : ""}" id="tm-addr-confirm">
+      <div class="tm-addr-confirm-top">
+        <div class="tm-conf-pin" aria-hidden="true">📍</div>
+        <div>
+          <p class="tm-conf-q">${t("¿Es esta tu dirección?", "Is this your address?")}</p>
+          <p class="tm-conf-addr" id="tm-conf-addr">${esc(TM.addrPending ? tmFormatAddr(TM.addrPending) : "")}</p>
+        </div>
+      </div>
+      <div class="tm-conf-acts">
+        <button type="button" class="tm-btn-sec" data-tmaddr="edit">${t("Editar", "Edit")}</button>
+        <button type="button" class="tm-btn-pri" data-tmaddr="confirm">${t("Confirmar", "Confirm")}</button>
+      </div>
+    </div>
+  </div>` : "";
+  const fields = `<div class="tm-f"><input id="tm-name" placeholder="${t("Nombre", "Name")}" value="${esc(cust.name || "")}" autocomplete="name"><input id="tm-phone" type="tel" placeholder="${t("Teléfono", "Phone")}" value="${esc(cust.phone || "")}" autocomplete="tel"><input id="tm-email" type="email" placeholder="Email" value="${esc(cust.email || "")}" autocomplete="email">${addrBlock}</div>`;
   const can = (B()?.state?.cart || []).length && !(ck && ck.ok === false) && !(TM.mode === "scheduled" && !TM.at) && !TM.busy;
   return `<div class="u1-rc tm" id="tm-step">${seg}<p class="tm-h">${t("¿Para cuándo?", "When?")}</p>
   <label class="tm-o"><input type="radio" name="tm" data-tmm="asap" ${TM.mode === "asap" ? "checked" : ""}> ${esc(asapTxt)}</label>
@@ -719,7 +743,7 @@ function timingHTML() {
   ${fields}<p class="tm-err">${esc(TM.err)}</p><button type="button" class="u1-btn p v3-full" data-tmconfirm="1" ${can ? "" : "disabled"}>${TM.busy ? t("Abriendo pago…", "Opening checkout…") : t("Continuar", "Continue")} · ${money((B()?.state?.cart || []).reduce((a, l) => a + (B()?.lineTotal?.(l) || 0), 0))}</button></div>`;
 }
 document.addEventListener("click", (e) => {
-  const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; tmLoad(TM.f); tmCheck(); render(); return; }
+  const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; if (TM.f !== "DELIVERY") { TM.addrConfirmed = false; TM.addrPending = null; TM.addrBusy = false; TM.softAddr = false; } tmLoad(TM.f); tmCheck(); render(); return; }
   const m = e.target.closest?.("[data-tmm]"); if (m) { TM.mode = m.dataset.tmm; if (TM.mode === "asap") TM.at = ""; tmCheck(); render(); return; }
   if (e.target.closest?.("[data-tmconfirm]")) { openConfirm(); return; }
   if (e.target.closest?.("[data-tmpay]")) { void tmPay(); }
@@ -733,6 +757,14 @@ async function tmPay() {
   const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
   if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
   if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
+  if (TM.f === "DELIVERY" && addr && !TM.addrConfirmed) {
+    if (!TM.softAddr) {
+      TM.softAddr = true;
+      if (!TM.addrPending) TM.addrPending = tmParseAddr(addr);
+      TM.err = t("Confirma tu dirección para continuar", "Confirm your address to continue");
+      return render();
+    }
+  }
   Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
   for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", addr]]) { const el = document.getElementById(k); if (el) el.value = x; }
   b.state.fulfillment = TM.f; const sel = document.getElementById("fulfillment"); if (sel) sel.value = TM.f;
@@ -740,7 +772,168 @@ async function tmPay() {
   const r = b.checkout ? await b.checkout() : { ok: false, error: "checkout unavailable" };
   TM.busy = false; if (!r.ok) { TM.err = r.error || t("No se pudo abrir el pago.", "Couldn't open checkout."); tmCheck(); render(); }
 }
-document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; });
+document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; if (e.target?.id === "tm-addr") tmOnAddrInput(e.target.value); });
+
+// ---------- m39: delivery address suggest + locate + pin confirm (SPEC §2o) ----------
+// No Google Places key in project — Photon (OSM, CORS *) biased to Painesville/Mentor + local street seed; browser geolocation + Photon reverse for locate. Confirmed string still feeds check_delivery_zone / Census geocode on the API.
+const TM_ADDR_ORIGIN = { lat: 41.7245, lon: -81.2456 };
+const TM_ADDR_SEED = [
+  { street: "101 W Walnut Ave", city: "Painesville, OH 44077" },
+  { street: "101 Main St", city: "Painesville, OH 44077" },
+  { street: "250 Mentor Ave", city: "Painesville, OH 44077" },
+  { street: "7800 Mentor Ave", city: "Mentor, OH 44060" },
+  { street: "44 N State St", city: "Painesville, OH 44077" },
+  { street: "123 Liberty St", city: "Painesville, OH 44077" },
+  { street: "9000 Mentor Ave", city: "Mentor, OH 44060" },
+  { street: "318 Bank St", city: "Painesville, OH 44077" },
+  { street: "8 N Park Pl", city: "Painesville, OH 44077" },
+  { street: "55 Erie St", city: "Painesville, OH 44077" },
+  { street: "150 Richmond St", city: "Painesville, OH 44077" },
+  { street: "210 E Main St", city: "Painesville, OH 44077" },
+  { street: "7701 Reynolds Rd", city: "Mentor, OH 44060" },
+  { street: "5860 Andrews Rd", city: "Mentor On The Lake, OH 44060" },
+  { street: "1 Victoria Pl", city: "Painesville, OH 44077" },
+];
+function tmFormatAddr(a) { if (!a) return ""; return a.full || [a.street, a.city].filter(Boolean).join(", "); }
+function tmParseAddr(s) {
+  const raw = String(s || "").trim(); if (!raw) return null;
+  const i = raw.indexOf(",");
+  if (i > 0) return { street: raw.slice(0, i).trim(), city: raw.slice(i + 1).trim(), full: raw };
+  return { street: raw, city: "Painesville, OH 44077", full: raw + ", Painesville, OH 44077" };
+}
+function tmSeedSuggest(q) {
+  const s = q.trim().toLowerCase(); if (s.length < 2) return [];
+  return TM_ADDR_SEED.filter((a) => (a.street + " " + a.city).toLowerCase().includes(s)).slice(0, 3);
+}
+function tmPhotonToAddr(f) {
+  const p = f?.properties || {}; const g = f?.geometry?.coordinates || [];
+  const road = p.street || (p.osm_key === "highway" ? p.name : "") || "";
+  const street = [p.housenumber, road || p.name].filter(Boolean).join(" ").trim();
+  const place = p.city || p.town || p.village || p.district || "";
+  const zip = p.postcode || "";
+  const cityN = place && zip ? `${place}, OH ${zip}` : place ? `${place}, OH` : (zip ? `OH ${zip}` : "OH");
+  if (!street) return null;
+  return { street, city: cityN, full: `${street}, ${cityN}`, lat: g[1], lng: g[0] };
+}
+let _tmSugTimer = 0, _tmSugSeq = 0;
+function tmCloseSuggest() { const box = document.getElementById("tm-suggest"); if (!box) return; box.hidden = true; box.innerHTML = ""; }
+function tmRenderSuggest(list) {
+  const box = document.getElementById("tm-suggest"); if (!box) return;
+  if (!list.length) { tmCloseSuggest(); return; }
+  box.innerHTML = list.map((a, i) => `<button type="button" class="tm-sug" role="option" data-tmsug="${i}"><span class="tm-sug-pin" aria-hidden="true">📍</span><span><div class="tm-sug-main">${esc(a.street)}</div><div class="tm-sug-sub">${esc(a.city)}</div></span></button>`).join("");
+  box._list = list; box.hidden = false;
+}
+async function tmFetchPhoton(q) {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q + " Ohio")}&lat=${TM_ADDR_ORIGIN.lat}&lon=${TM_ADDR_ORIGIN.lon}&limit=5&lang=en`;
+  const r = await fetch(url); if (!r.ok) return [];
+  const j = await r.json();
+  const out = []; const seen = new Set();
+  const nearList = [], farList = [];
+  for (const f of (j.features || [])) {
+    const a = tmPhotonToAddr(f); if (!a) continue;
+    const zip = (a.city.match(/\b44\d{3}\b/) || [])[0] || "";
+    const near = /painesville|mentor|fairport|concord|perry|madison|willoughby|eastlake|grand river|kirtland|chardon/i.test(a.full) || /^440(4|5|6|7|8|9)\d$/.test(zip);
+    const key = a.full.toLowerCase(); if (seen.has(key)) continue; seen.add(key);
+    (near ? nearList : farList).push(a);
+  }
+  return (nearList.length ? nearList : farList).slice(0, 3);
+}
+function tmOnAddrInput(val) {
+  TM.addrConfirmed = false; TM.addrPending = null; TM.softAddr = false;
+  const inp = document.getElementById("tm-addr"); if (inp) inp.classList.remove("locked");
+  document.getElementById("tm-addr-ok")?.classList.remove("show");
+  document.getElementById("tm-addr-confirm")?.classList.remove("show");
+  const q = String(val || "");
+  const seed = tmSeedSuggest(q);
+  if (seed.length) tmRenderSuggest(seed); else if (q.trim().length < 2) tmCloseSuggest();
+  clearTimeout(_tmSugTimer);
+  if (q.trim().length < 2) return;
+  const seq = ++_tmSugSeq;
+  _tmSugTimer = setTimeout(async () => {
+    try {
+      const remote = await tmFetchPhoton(q.trim());
+      if (seq !== _tmSugSeq) return;
+      const merged = []; const seen = new Set();
+      for (const a of [...seed, ...remote]) { const k = a.full.toLowerCase(); if (seen.has(k)) continue; seen.add(k); merged.push(a); if (merged.length >= 3) break; }
+      tmRenderSuggest(merged);
+    } catch { if (seq === _tmSugSeq && seed.length) tmRenderSuggest(seed); }
+  }, 220);
+}
+function tmSelectSuggest(a) {
+  TM.addrPending = a; TM.addrConfirmed = false; TM.softAddr = false;
+  const inp = document.getElementById("tm-addr");
+  if (inp) { inp.value = tmFormatAddr(a); inp.classList.remove("locked"); }
+  const b = B(); if (b) b.state.customer.address = tmFormatAddr(a);
+  document.getElementById("tm-addr-ok")?.classList.remove("show");
+  tmCloseSuggest();
+  const conf = document.getElementById("tm-addr-confirm");
+  const ca = document.getElementById("tm-conf-addr");
+  if (ca) ca.textContent = tmFormatAddr(a);
+  if (conf) conf.classList.add("show");
+  document.getElementById("tm-loc-pending")?.classList.remove("show");
+}
+function tmConfirmAddr() {
+  if (!TM.addrPending) {
+    const v = (document.getElementById("tm-addr")?.value || "").trim();
+    if (!v) return; TM.addrPending = tmParseAddr(v);
+  }
+  TM.addrConfirmed = true; TM.err = "";
+  const full = tmFormatAddr(TM.addrPending);
+  const inp = document.getElementById("tm-addr");
+  if (inp) { inp.value = full; inp.classList.add("locked"); }
+  const b = B(); if (b) b.state.customer.address = full;
+  document.getElementById("tm-addr-confirm")?.classList.remove("show");
+  document.getElementById("tm-addr-ok")?.classList.add("show");
+  document.getElementById("tm-loc-pending")?.classList.remove("show");
+  tmCloseSuggest();
+}
+function tmEditAddr() {
+  TM.addrConfirmed = false; TM.softAddr = false;
+  document.getElementById("tm-addr-confirm")?.classList.remove("show");
+  document.getElementById("tm-addr-ok")?.classList.remove("show");
+  const inp = document.getElementById("tm-addr");
+  if (inp) { inp.classList.remove("locked"); inp.focus(); tmOnAddrInput(inp.value.split(",")[0] || inp.value); }
+}
+async function tmUseLocation() {
+  if (TM.addrBusy) return;
+  TM.addrBusy = true; TM.addrConfirmed = false; TM.softAddr = false;
+  document.getElementById("tm-addr-confirm")?.classList.remove("show");
+  document.getElementById("tm-addr-ok")?.classList.remove("show");
+  document.getElementById("tm-addr")?.classList.remove("locked");
+  document.getElementById("tm-loc-pending")?.classList.add("show");
+  document.querySelector(".tm-loc-pill")?.classList.add("busy");
+  tmCloseSuggest();
+  const fail = (msg) => {
+    TM.addrBusy = false;
+    document.getElementById("tm-loc-pending")?.classList.remove("show");
+    document.querySelector(".tm-loc-pill")?.classList.remove("busy");
+    TM.err = msg || t("No pudimos obtener tu ubicación. Escríbela.", "Couldn't get your location. Please type it.");
+    render();
+  };
+  if (!navigator.geolocation) return fail();
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      const r = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&lang=en`);
+      const j = r.ok ? await r.json() : null;
+      const a = tmPhotonToAddr(j?.features?.[0]) || { street: `${lat.toFixed(5)}, ${lon.toFixed(5)}`, city: "OH", full: `${lat.toFixed(5)}, ${lon.toFixed(5)}`, lat, lng: lon };
+      a.lat = lat; a.lng = lon;
+      TM.addrBusy = false;
+      document.querySelector(".tm-loc-pill")?.classList.remove("busy");
+      tmSelectSuggest(a);
+      // re-show pending (tmSelectSuggest already did) without full render wipe when possible
+      document.getElementById("tm-loc-pending")?.classList.remove("show");
+    } catch { fail(); }
+  }, () => fail(t("Activa la ubicación o escribe tu calle.", "Enable location or type your street.")), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest?.("[data-tmloc]")) { e.preventDefault(); void tmUseLocation(); return; }
+  const act = e.target.closest?.("[data-tmaddr]"); if (act) { e.preventDefault(); if (act.dataset.tmaddr === "confirm") tmConfirmAddr(); else if (act.dataset.tmaddr === "edit") tmEditAddr(); return; }
+  const sug = e.target.closest?.("[data-tmsug]"); if (sug) { e.preventDefault(); const box = document.getElementById("tm-suggest"); const a = box?._list?.[Number(sug.dataset.tmsug)]; if (a) tmSelectSuggest(a); return; }
+  if (!e.target.closest?.("#tm-addr-wrap")) tmCloseSuggest();
+});
+document.addEventListener("focusin", (e) => { if (e.target?.id === "tm-addr" && !TM.addrConfirmed) tmOnAddrInput(e.target.value); });
+
 
 // ---------- ux1: Hablar capsule + barge-in + confirm beat (Para la cocina) + ES cash backup ----------
 const UX1 = { pay: "card", micHold: null };
@@ -793,6 +986,15 @@ function openConfirm() {
   const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
   if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
   if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
+  // m39: soft-prompt confirm before Continuar locks delivery address (second Continuar proceeds).
+  if (TM.f === "DELIVERY" && addr && !TM.addrConfirmed) {
+    if (!TM.softAddr) {
+      TM.softAddr = true;
+      if (!TM.addrPending) TM.addrPending = tmParseAddr(addr);
+      TM.err = t("Confirma tu dirección para continuar", "Confirm your address to continue");
+      return render();
+    }
+  }
   if (TM.mode === "scheduled" && !TM.at) { TM.err = t("Escoge una hora.", "Pick a time."); return render(); }
   if (TM.check && TM.check.ok === false) { TM.err = t("Revisa los artículos o la hora.", "Check items or time."); return render(); }
   Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
