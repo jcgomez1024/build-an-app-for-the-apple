@@ -168,7 +168,8 @@ body.v3.v3-view-elvi .v3-ebar{display:none}
 .v3-ask{display:flex;gap:12px;align-items:center;background:#fff;border:2px solid #bfe9d1;border-radius:16px;padding:10px 12px;margin:12px 0;font-size:16px}
 .v3-grp{border-radius:16px;padding:8px;margin:0 -8px 8px}.v3-grp.need{background:#fff4dc}.v3-gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px}.v3-gh b{font-size:17px}.v3-grp.need .v3-gh span{color:#b42318;font-weight:700;font-size:12px}
 .v3-extras summary{cursor:pointer;font-weight:700;padding:10px 0;color:var(--accent)}
-.v3-foot{display:flex;gap:8px;padding:6px 14px calc(56px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #0001;box-shadow:0 -2px 10px #0001}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
+/* m42b §2q: foot above Hablar orb — transparent, no white slab */
+.v3-foot{display:flex;gap:8px;position:absolute;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0px));z-index:1;padding:8px 14px;background:transparent;border-top:0;box-shadow:none}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
 body.v3-sheet-on{overflow:hidden}
 @media (min-width:960px){
   body.v3 #ui1{max-width:1280px;display:block;padding-left:396px;padding-right:16px;padding-bottom:40px}
@@ -181,7 +182,7 @@ body.v3-sheet-on{overflow:hidden}
   body.v3 .v3-side-cart{margin-top:110px}
   .v3-sec{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}.v3-sec>h2,.v3-sec>.v3-sub{grid-column:1/-1}.v3-sec .v3-card{margin:0}
   .v3-tabs{margin-left:0;margin-right:0;border-radius:0 0 16px 16px}
-  .v3-sheet{bottom:auto;top:50%;transform:translate(-50%,-50%);width:560px;border-radius:22px;max-height:86vh}.v3-foot{border-radius:0 0 22px 22px}
+  .v3-sheet{bottom:auto;top:50%;transform:translate(-50%,-50%);width:560px;border-radius:22px;max-height:86vh;padding-bottom:0!important}.v3-foot{position:static;left:auto;right:auto;bottom:auto;padding:10px 14px;background:#fff;border-top:1px solid #0001;box-shadow:none;border-radius:0 0 22px 22px}
 }
 body.v3 #ui1{box-sizing:border-box}
 body.v3 .u1-head h1{min-width:0;white-space:nowrap}body.v3 .u1-head h1 small{overflow:hidden;text-overflow:ellipsis}
@@ -337,8 +338,8 @@ body:has(.v3-sheet-bg) #ux1-bottom.bottom,body:has(#ux1-confirm) #ux1-bottom.bot
 body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap,body.sheet-open #loucap{display:inline-flex!important;pointer-events:auto}
 body.v3-sheet-on .v3-ebar,body.ux1-confirm-on .v3-ebar,body.sheet-open .v3-ebar,
 body.v3-sheet-on .bottom-bar,body.ux1-confirm-on .bottom-bar,body.sheet-open .bottom-bar{display:none!important}
-body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:calc(118px + env(safe-area-inset-bottom,0px))}
-/* m42 §2q: compact Agregar foot + condensed Hablar orb while sheet open */
+body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+/* m42b §2q: foot @60px above Hablar + condensed 52px orb while sheet open */
 body.v3-sheet-on #loucap.loucap,body.ux1-confirm-on #loucap.loucap,body.sheet-open #loucap.loucap,
 body:has(.v3-sheet-bg) #loucap.loucap,body:has(#ux1-confirm) #loucap.loucap{
   width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;border-radius:50%;animation:none}
