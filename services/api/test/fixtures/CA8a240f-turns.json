@@ -1,0 +1,310 @@
+[
+  {
+    "speaker": "staff",
+    "start": 3.461,
+    "end": 3.882,
+    "text": "Cocina",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 4.902,
+    "end": 5.362,
+    "text": "Elvis.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 6.761,
+    "end": 8.501,
+    "text": "Hola, ¿puedo hacer un orden para recoger?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 9.624,
+    "end": 15.387,
+    "text": "claro, solamente ahorita ya tenemos puro taco y quesadilla del comal",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 16.647,
+    "end": 17.227,
+    "text": "y taquero.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.863,
+    "end": 19.683,
+    "text": "¿Tienen lengua?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 21.109,
+    "end": 21.409,
+    "text": "claro.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 22.643,
+    "end": 24.003,
+    "text": "Okay, sí, espérame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 25.683,
+    "end": 26.544,
+    "text": "¿puedo hacer un orden,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.905,
+    "end": 42.386,
+    "text": "Ellos. De noja tortas, ellos se las. Oh, sí hay. Okay, one, one deluxe torta. torta deluxe de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 43.686,
+    "end": 44.106,
+    "text": "de lengua,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 45.106,
+    "end": 45.586,
+    "text": "con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 45.159,
+    "end": 50.581,
+    "text": "Una tor, torta de lengua deluxe. Muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 52.687,
+    "end": 55.727,
+    "text": "Sí. Y una quesadilla deluxe de con,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.208,
+    "end": 58.208,
+    "text": "de lengua con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 57.625,
+    "end": 57.785,
+    "text": "Del",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 58.765,
+    "end": 59.426,
+    "text": "del comal.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 60.568,
+    "end": 60.628,
+    "text": "The",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.848,
+    "end": 66.449,
+    "text": "Okay, the lengua deluxe. Muy bien.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 66.37,
+    "end": 72.232,
+    "text": "what? Si. Y me puedes hacer seis tacos de lengua,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 67.39,
+    "end": 68.07,
+    "text": "Algo mas?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.273,
+    "end": 76.274,
+    "text": "del, ¿cómo se",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 78.015,
+    "end": 80.217,
+    "text": "you want the street tacos or the homemade?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 78.154,
+    "end": 82.116,
+    "text": "dice? The street.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 82.918,
+    "end": 84.019,
+    "text": "Street tacos, okay.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 84.977,
+    "end": 85.137,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 84.979,
+    "end": 85.7,
+    "text": "lengua, right?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 86.757,
+    "end": 86.978,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 87.681,
+    "end": 89.582,
+    "text": "Okay, anything else for your order?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 90.819,
+    "end": 96.301,
+    "text": "You want anything else? No. Oh, horchata. two large horchatas.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 96.926,
+    "end": 99.347,
+    "text": "Okay, I got it. Anything else?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 99.022,
+    "end": 99.322,
+    "text": "And then,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 100.342,
+    "end": 103.523,
+    "text": "just, can I do a side of rice and then a side of beans?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 104.749,
+    "end": 108.771,
+    "text": "Sure, subtle rice and a subtle beans, anything else?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 110.106,
+    "end": 110.606,
+    "text": "That'll be it.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 111.272,
+    "end": 113.873,
+    "text": "Okay, can I get your na-name for your order?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 115.687,
+    "end": 115.968,
+    "text": "Joe.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 118.149,
+    "end": 119.029,
+    "text": "J O E L.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 119.915,
+    "end": 124.536,
+    "text": "Jane, okay, Joey. Okay, I got it. Give me like,",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 126.737,
+    "end": 128.058,
+    "text": "maybe fifteen minutes?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 129.316,
+    "end": 130.317,
+    "text": "Okay, sounds good, thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 130.839,
+    "end": 131.239,
+    "text": "Thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 132.379,
+    "end": 132.639,
+    "text": "Thanks.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 132.939,
+    "end": 133.019,
+    "text": "Bye.",
+    "language": "en"
+  }
+]

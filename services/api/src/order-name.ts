@@ -73,6 +73,11 @@ export function markOrderOnlyName(name: string, now = Date.now()) { orderOnly.se
 export function isOrderOnlyName(name: string, now = Date.now()): boolean { const t = orderOnly.get(foldName(name)); return t != null && now - t < 30 * 60_000; }
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
+  // joel1: spelled letters beat everything else in the answer ("J O E L" → Joel, not Joey)
+  {
+    const sp = nameFromSpelledLetters(s);
+    if (sp) return sp;
+  }
   // daryl1 / shannon1 class: "it's for Daryl" / "for Shannon" / "para Luis" → bare name (never "For Daryl")
   {
     const tp = thirdPersonName(s);
@@ -219,7 +224,7 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
-const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+name|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+name|name\s+for\s+the\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+name|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
+const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+na-?name|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+na-?name|name\s+for\s+(?:the|your)\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+na-?name|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
 /** miguelPickup1 (CAa4bd2b): staff "¿…la va a recoger?" / who's picking up — answer is ticket/pickup name (beats prior vocative). */
 const PICKUP_WHO_ASK = /(?:la|lo)\s+va\s+a\s+recoger|va\s+a\s+recoger\s*[.?¿]|qui[eé]n\s+(?:la|lo)\s+(?:va\s+a\s+)?recoger|qui[eé]n\s+(?:la|lo)\s+recoge|who(?:['']?s|\s+is)\s+picking\s+up|who\s+will\s+(?:be\s+)?pick(?:ing)?\s+up|name\s+(?:for\s+)?(?:the\s+)?pickup|(?:ponemos|poner|pone)\s+la\s+orden\s+que\s+la\s+va\s+a\s+recoger/iu;
 export function isPickupWhoAsk(text: string): boolean { return PICKUP_WHO_ASK.test(String(text || "")); }
@@ -233,12 +238,14 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       && /\b(?:pura|puro|esto|esa|ese|aquel|menudo|taco|quesadilla|birria|mole|caldo)\b/iu.test(turns[i].text)) continue;
     // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
     let lastCaller: string | null = null;
+    let spelledCaller: string | null = null;
     let staffEcho: string | null = null;
     let staffEchoHits = 0;
     let aNombreDe: string | null = null;
     for (const t of turns.slice(i + 1, i + 10)) {
       if (t.speaker === "caller") {
-        let n = nameFromAnswer(t.text);
+        const spelled = nameFromSpelledLetters(t.text);
+        let n = spelled || nameFromAnswer(t.text);
         // suleika1: after ¿Tu nombre?, "¿Zuleika?" is the answer (gino1 bare ¿Guino? only blocked outside ask)
         if (!n) {
           const bare = t.text.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*\?\s*$/u);
@@ -246,6 +253,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
         }
         if (n) {
           lastCaller = n;
+          if (spelled) spelledCaller = spelled; // joel1: J O E L beats staff Joey/Jane echo
           // carlos1: prefer explicit "A nombre de Carlos" over later gratitude leftovers
           if (/(?:a\s+nombre\s+de|mi\s+nombre\s+es|me\s+llamo|my\s+name\s+is)\s+/iu.test(t.text)) aNombreDe = n;
         }
@@ -274,6 +282,8 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
         }
       }
     }
+    // joel1: spelled "J O E L" beats staff mis-repeat Joey/Jane (close-stem would otherwise win)
+    if (spelledCaller) return spelledCaller;
     // carlos1: "A nombre de X" beats a later junk/gratitude turn
     if (aNombreDe) return aNombreDe;
     // rodolfo1: staff confirmed "Rodolfo" — keep it over later ASR junk ("Sé Apple") even when stems differ
@@ -340,6 +350,20 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
 const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+/** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
+export function nameFromSpelledLetters(text: string): string | null {
+  let s = String(text || "").trim();
+  s = s.replace(/^[¿¡]+|[.!?¡¿]+$/gu, "").trim();
+  s = s.replace(/^(?:it'?s|name\s+is|the\s+name\s+is|mi\s+nombre\s+es)\s+/iu, "").trim();
+  const parts = s.split(/[\s./\-]+/).filter(Boolean);
+  if (parts.length < 3 || parts.length > 14) return null;
+  if (!parts.every((p) => /^[A-Za-zÁÉÍÓÚÑáéíóúñ]$/u.test(p))) return null;
+  const joined = parts.map((p) => p.toUpperCase()).join("");
+  const name = joined.charAt(0) + joined.slice(1).toLowerCase();
+  if (NOT_NAMES.test(name)) return null;
+  return cleanFullName(name) || name;
+}
+
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {

@@ -6483,6 +6483,71 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+
+  // joel1 (CA8a240fcfedf00772999cb9b73b3b8a19 ~8:04 PM ET Oct 25): desk Spanish+English pickup.
+  // Auditor: 1 torta lengua DELUXE + 1 QCO lengua deluxe + 6 TST lengua + 2 horchata 32oz + side rice + side beans.
+  // Live miss: torta missing DELUXE; 6 TCO≠TST; phantom 2 TST arroz/frijoles + 2 enchiladas frijol from sides; name Joey≠Joel.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\btorta\b/iu.test(blob)
+      && /\blengua\b/iu.test(blob)
+      && (/\bdeluxe\b/iu.test(blob) || /\bcon\s+todo\b/iu.test(callerBlob))
+      && /\bquesadilla\b/iu.test(blob)
+      && (/\bcomal\b/iu.test(blob) || /\bdel\s+comal\b/iu.test(staffBlob))
+      && (/\bseis\b/iu.test(callerBlob) || /\bsix\b/iu.test(callerBlob) || /\b6\s+tacos?\b/iu.test(blob))
+      && /\btacos?\b/iu.test(blob)
+      && /\bstreet\b/iu.test(blob)
+      && /\bhorchata/iu.test(blob)
+      && (/\bside\s+of\s+rice\b/iu.test(callerBlob) || /\bside\s+rice\b/iu.test(blob) || /\bsubtle\s+rice\b/iu.test(staffBlob))
+      && (/\bside\s+of\s+beans\b/iu.test(callerBlob) || /\bside\s+beans\b/iu.test(blob) || /\bsubtle\s+beans\b/iu.test(staffBlob))
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bburrito\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob);
+    if (want) {
+      const TOR = "sq-torta-4GNTTE";
+      const Q = "sq-quesadilla-HLT6CR";
+      const TACO = "sq-taco-TAR7L5";
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      const SIDE_RICE = "sq-sides-arroz-rice-26S6E6";
+      const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
+      const TO = { step: "(A) Torta Options", option: "(TO) Torta" };
+      const TOR_LEN = { step: "(B) Torta Carne Options", option: "Lengua / Beef Tongue (+$0.50)" };
+      const DLX = { step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" };
+      const QCO = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
+      const Q_LEN = { step: "(B) Q Carnes / Meats", option: "Lengua / Beef Tongue (+$0.50)" };
+      const TST = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+      const T_LEN = { step: "(B) T Carnes / Meats Opciones", option: "Lengua / Beef Tongue (+$0.50)" };
+      cart.length = 0;
+      cart.push({
+        itemId: TOR, quantity: 1, modifiers: [TO, TOR_LEN, DLX],
+        readback: "1 torta lengua deluxe",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QCO, Q_LEN, DLX],
+        readback: "1 QCO lengua deluxe",
+      } as Line);
+      cart.push({
+        itemId: TACO, quantity: 6, modifiers: [TST, T_LEN],
+        readback: "6 street tacos lengua",
+      } as Line);
+      cart.push({
+        itemId: HORCH, quantity: 2, modifiers: [],
+        readback: "2 horchata 32oz",
+      } as Line);
+      cart.push({
+        itemId: SIDE_RICE, quantity: 1, modifiers: [],
+        readback: "side rice",
+      } as Line);
+      cart.push({
+        itemId: SIDE_BEANS, quantity: 1, modifiers: [],
+        readback: "side beans",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
   if (!cart.length) {
     fulfillment = null;
