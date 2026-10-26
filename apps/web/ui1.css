@@ -351,7 +351,7 @@ body:has(.v3-sheet-bg) #ux1-bottom.bottom,body:has(#ux1-confirm) #ux1-bottom.bot
   z-index:62;bottom:0;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex!important}
 body.v3-sheet-on #loucap,body.ux1-confirm-on #loucap,body.sheet-open #loucap{display:inline-flex!important;pointer-events:auto}
 body.v3-sheet-on .v3-ebar,body.ux1-confirm-on .v3-ebar,body.sheet-open .v3-ebar,
-body.v3-sheet-on .bottom-bar,body.ux1-confirm-on .bottom-bar,body.sheet-open .bottom-bar{display:none!important}
+body.v3-sheet-on:not(.typing) .bottom-bar,body.ux1-confirm-on:not(.typing) .bottom-bar,body.sheet-open:not(.typing) .bottom-bar{display:none!important}
 body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}
 /* m42b under-Agregar lone-orb retired by m44b §2t — idle stays full invite in centered dock;
    listening/thinking/speaking condense via m44b data-state rules (same dock seat). */
@@ -447,8 +447,8 @@ body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}
 
 
 /* ===== m44b §2t: centered Hablar + cart dock (Carlos 10/26) ===== */
-/* Stack top→bottom: cartbar (.u1-bottom) → typedock (.bottom-bar) → dockrow [Hablar|cart].
-   Voice on tap only. Same dock seat on home / sheet / cart. No mid-screen float. No under-Agregar lone orb. */
+/* m46b §2v: Stack top→bottom: cartbar → typedock(only if typing) → dockrow [Type|Hablar|cart].
+   Collapsed = no permanent type bar. Voice on tap only. Same dock seat home/sheet/cart. */
 :root{
   --m44-dock:calc(62px + env(safe-area-inset-bottom,0px));
   --m44-type:58px;
@@ -547,37 +547,64 @@ body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}
   text-align:center;display:grid;place-items:center;box-shadow:0 1px 4px rgba(238,17,17,.45);
 }
 
-/* Typedock sits above dock row */
+/* m46b: typedock HIDDEN by default; full-width above dock only when body.typing */
 body.v3 .bottom-bar,body.ui1.v3 .bottom-bar{
   position:fixed;left:50%;transform:translateX(-50%);
   bottom:var(--m44-dock);z-index:39;
   width:min(520px,100vw);padding:0 12px;gap:0;
   background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
-  display:flex;flex-direction:column;align-items:stretch;
+  display:none;flex-direction:column;align-items:stretch;
 }
-body.v3 .bottom-bar .prompt-bar{
+body.v3.typing .bottom-bar,body.ui1.v3.typing .bottom-bar{display:flex}
+body.v3 .bottom-bar .prompt-bar,
+body.v3 .bottom-bar .prompt-bar.typedock{
   width:100%;border-radius:16px;background:#fff;border:1px solid rgba(0,0,0,.06);
-  box-shadow:0 4px 18px rgba(0,0,0,.12);padding:8px 10px 8px 14px;
+  box-shadow:0 4px 18px rgba(0,0,0,.12);padding:8px 10px 8px 10px;
+  display:flex;align-items:center;gap:8px;
+}
+body.v3 .bottom-bar .type-dismiss{
+  width:30px;height:30px;border:0;border-radius:50%;background:#f0f2f5;color:#5a6570;
+  display:grid;place-items:center;cursor:pointer;flex:none;font:700 14px/1 system-ui;
 }
 body.v3 .bottom-bar .controls-row{display:none!important} /* cart FAB moved into dockrow */
 
-/* Cartbar above typedock */
+/* Cartbar: above dock when collapsed; above typedock when typing */
 body.v3 .u1-bottom{
   position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(var(--m44-dock) + var(--m44-type));
+  bottom:var(--m44-dock);
   width:min(520px,100vw);z-index:38;padding:0 12px;
 }
+body.v3.typing .u1-bottom{bottom:calc(var(--m44-dock) + var(--m44-type))}
 body.v3.v3-cart0 .u1-bottom{visibility:hidden;pointer-events:none;height:0;padding:0;overflow:hidden}
 
-/* Sheet / confirm open: hide typedock + cartbar; KEEP centered Hablar+cart dock (z above sheet foot) */
-body.v3-sheet-on .bottom-bar,
-body.ux1-confirm-on .bottom-bar,
-body.sheet-open .bottom-bar,
+/* Type FAB in dock trio (left of Hablar) */
+.type-wrap{position:relative;display:flex;align-items:center;flex:none;z-index:2}
+.tfab{
+  width:48px;height:48px;border-radius:50%;border:0;cursor:pointer;flex:none;
+  background:linear-gradient(145deg,#7b5cff 0%,#5a3db8 45%,#4a2f8a 100%);
+  box-shadow:0 4px 14px #5a3db866,0 0 0 1px #ffffff22,inset 0 1px 0 #fff3;
+  display:grid;place-items:center;color:#fff;
+  transition:transform .18s ease,box-shadow .2s,opacity .2s;
+}
+.tfab:hover{transform:scale(1.04)}.tfab:active{transform:scale(.96)}
+.tfab svg{width:20px;height:20px;filter:drop-shadow(0 1px 1px #0004)}
+body.typing .tfab{
+  box-shadow:0 0 0 3px #fff,0 0 0 5px #7b5cff,0 4px 14px #5a3db866;
+  transform:scale(1.02);
+}
+
+/* Sheet / confirm: hide cartbar; typedock only if typing; KEEP dock trio */
+body.v3-sheet-on:not(.typing) .bottom-bar,
+body.ux1-confirm-on:not(.typing) .bottom-bar,
+body.sheet-open:not(.typing) .bottom-bar,
 body.v3-sheet-on .u1-bottom,
 body.ux1-confirm-on .u1-bottom,
 body.sheet-open .u1-bottom,
 body:has(.v3-sheet-bg) .u1-bottom,
 body:has(#ux1-confirm) .u1-bottom{display:none!important}
+body.v3-sheet-on.typing .bottom-bar,
+body.ux1-confirm-on.typing .bottom-bar,
+body.sheet-open.typing .bottom-bar{display:flex!important;z-index:63!important}
 
 body.v3-sheet-on #ux1-bottom.bottom,
 body.ux1-confirm-on #ux1-bottom.bottom,
@@ -624,6 +651,9 @@ body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle]::before{display:bl
 /* Agregar foot clears the dock (~72px + safe) — already set on .v3-foot */
 body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{
   padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+body.v3-sheet-on.typing .v3-sheet,body.sheet-open.typing .v3-sheet{
+  padding-bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+body.typing .v3-foot{bottom:calc(130px + env(safe-area-inset-bottom,0px))}
 
 /* Retire m42c under-Agregar lone-orb seat + any mid-screen Hablar float */
 body.v3-sheet-on #ux1-bottom.bottom:not(.chrome),

@@ -3711,6 +3711,8 @@ function attachUiHandlers() {
     }
     pulseAvatarState("talking_neutral", 900, "idle");
     ui.promptInput.value = "";
+    // m46b: send dismisses full-width typedock → back to Type FAB
+    try { window.__elviCollapseType?.(); } catch {}
   });
 
   ui.langPills.forEach((pill) => {

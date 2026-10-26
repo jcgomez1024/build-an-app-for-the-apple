@@ -1,4 +1,4 @@
-// ui1 m45b (2026-10-26): voice aliases harina/flour + ask every option — no silent defaults (§2u) + collapse ALL groups after explicit pick (§2r). m44b dock + m43 grabber kept.
+// ui1 m46b (2026-10-26): Type FAB → full-width typedock above dock (§2v). Keeps m45b harina aliases, m45 ask-all/collapse, m44b Hablar dock, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -1917,14 +1917,37 @@ function bargeIn(why) {
   console.log("[ux1] bargeIn", why);
   return true;
 }
+/** m46b §2v — Type FAB opens legacy full-width typedock above dock; collapsed = FAB only. */
+function isTypingOpen() { return document.body.classList.contains("typing"); }
+function setTypingOpen(on) {
+  const want = Boolean(on);
+  document.body.classList.toggle("typing", want);
+  const tfab = document.getElementById("tfab");
+  if (tfab) {
+    tfab.setAttribute("aria-pressed", want ? "true" : "false");
+    tfab.setAttribute("aria-expanded", want ? "true" : "false");
+  }
+  if (want) {
+    const inp = document.getElementById("prompt-input");
+    try { inp?.focus?.({ preventScroll: true }); } catch { try { inp?.focus?.(); } catch {} }
+  } else {
+    try { document.getElementById("prompt-input")?.blur?.(); } catch {}
+  }
+}
+function toggleTypingOpen() { setTypingOpen(!isTypingOpen()); }
+function collapseTyping() { setTypingOpen(false); }
+window.__elviSetTyping = setTypingOpen;
+window.__elviCollapseType = collapseTyping;
+
 function mountLoucap() {
   if (document.getElementById("ux1-bottom")) return;
   if (!V3) return;
   const wrap = document.createElement("div");
-  // m44b §2t: chrome dock — Hablar + cart FAB centered under typedock (voice on tap only)
+  // m46b §2v / m44b §2t: chrome dock — [Type FAB | Hablar | cart] centered (voice on tap only)
   wrap.className = "bottom chrome";
   wrap.id = "ux1-bottom";
-  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="dockrow" id="dockrow"><div class="hablar-wrap" id="hablar-wrap"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div></div>`;
+  const plane = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="dockrow" id="dockrow"><div class="type-wrap" id="type-wrap"><button type="button" class="tfab" id="tfab" aria-label="${t("Escribir orden", "Type order")}" aria-pressed="false" aria-expanded="false">${plane}</button></div><div class="hablar-wrap" id="hablar-wrap"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div></div>`;
   document.body.appendChild(wrap);
   // Move live cart FAB into the centered dock (Hablar left of cart). Keep #cart-toggle id for app.js badge/wiring.
   const dock = wrap.querySelector("#dockrow");
@@ -1939,6 +1962,26 @@ function mountLoucap() {
     btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });
   });
   wrap.querySelector("#loucap").addEventListener("click", (e) => { e.preventDefault(); talkOrBarge(); });
+  wrap.querySelector("#tfab")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleTypingOpen();
+  });
+  document.getElementById("type-dismiss")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    collapseTyping();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isTypingOpen()) { collapseTyping(); }
+  });
+  // Tap menu / outside chrome → dismiss typedock (not Hablar/cart/type/typedock itself)
+  document.addEventListener("pointerdown", (e) => {
+    if (!isTypingOpen()) return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    if (t.closest("#ux1-bottom, .bottom-bar, #tfab, #type-wrap, .prompt-bar, #prompt-form, .v3-sheet, .v3-sheet-bg, #ux1-confirm, .cart-drawer, #cart-panel")) return;
+    collapseTyping();
+  }, true);
   const halo = document.getElementById("elvi-halo");
   if (halo && window.MutationObserver) {
     new MutationObserver(() => syncLoucap()).observe(halo, { attributes: true, attributeFilter: ["data-state"] });
