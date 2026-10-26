@@ -1,4 +1,4 @@
-// ui1 m43 (2026-10-26): required-step auto-collapse + grabber dismiss.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
+// ui1 m44b (2026-10-26): centered Hablar+cart dock (SPEC §2t). m43 grabber/grp-step kept. photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -1387,6 +1387,7 @@ function haloSay(s, ms) {
   b.classList.add("on");
   b.classList.remove("show"); // legacy class from softlang — .on is the real visible state
   if (bot) bot.classList.add("bubbing");
+  const dock = document.getElementById("dockrow"); if (dock) dock.classList.add("bubbing");
   clearTimeout(haloSay._t);
   clearTimeout(haloSay._t2);
   // m36: readable ~5–6s min for short lines; m37: never fade while TTS still speaking
@@ -1403,7 +1404,10 @@ function haloSay(s, ms) {
     b.classList.remove("on");
     haloSay._until = 0;
     // ~700ms slow fade (CSS opacity transition) then drop bubbing
-    haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 700);
+    haloSay._t2 = setTimeout(() => {
+      if (bot) bot.classList.remove("bubbing");
+      const d = document.getElementById("dockrow"); if (d) d.classList.remove("bubbing");
+    }, 700);
   };
   haloSay._t = setTimeout(fadeOut, linger);
 }
@@ -1418,7 +1422,10 @@ function haloBubHide(force) {
   clearTimeout(haloSay._t);
   clearTimeout(haloSay._t2);
   haloSay._until = 0;
-  haloSay._t2 = setTimeout(() => { if (bot) bot.classList.remove("bubbing"); }, 700);
+  haloSay._t2 = setTimeout(() => {
+    if (bot) bot.classList.remove("bubbing");
+    const d = document.getElementById("dockrow"); if (d) d.classList.remove("bubbing");
+  }, 700);
 }
 function matchOptInGroup(g, uttPlain) {
   const opts = baseOptions(g);
@@ -1813,10 +1820,20 @@ function mountLoucap() {
   if (document.getElementById("ux1-bottom")) return;
   if (!V3) return;
   const wrap = document.createElement("div");
-  wrap.className = "bottom";
+  // m44b §2t: chrome dock — Hablar + cart FAB centered under typedock (voice on tap only)
+  wrap.className = "bottom chrome";
   wrap.id = "ux1-bottom";
-  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="halo-pair" id="halopair"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div>`;
+  wrap.innerHTML = `<div class="softlang" id="softlang" role="group" aria-label="Idioma / Language"><div class="sl-q">¿Español o English?</div><div class="sl-pills"><button type="button" class="sl-pill" data-l="es">ES</button><button type="button" class="sl-pill" data-l="en">EN</button></div></div><div class="dockrow" id="dockrow"><div class="hablar-wrap" id="hablar-wrap"><button type="button" class="loucap invite" id="loucap" data-state="idle" aria-label="${hablarLabel()} — ${softHablarInvite()}"><span class="orbit" aria-hidden="true"></span><span class="e3d" data-state="idle" aria-hidden="true"><i class="ball"></i><i class="ring3"></i><i class="spec"></i></span><span class="lt"><span class="lab">${hablarLabel()}</span><span class="inv">${softHablarInvite()}</span></span></button><div id="haloBub" role="status" aria-live="polite"></div></div></div>`;
   document.body.appendChild(wrap);
+  // Move live cart FAB into the centered dock (Hablar left of cart). Keep #cart-toggle id for app.js badge/wiring.
+  const dock = wrap.querySelector("#dockrow");
+  const cartFab = document.getElementById("cart-toggle");
+  if (dock && cartFab) {
+    cartFab.classList.add("cfab");
+    dock.appendChild(cartFab);
+  }
+  const controls = document.querySelector(".bottom-bar .controls-row");
+  if (controls && !controls.children.length) controls.remove();
   wrap.querySelectorAll(".sl-pill").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.preventDefault(); pickSoftLang(btn.dataset.l); });
   });

@@ -183,7 +183,7 @@ details.grp-step[open] .u1-grid.opts{margin-top:8px}
 .v3-grp{border-radius:16px;padding:8px;margin:0 -8px 8px}.v3-grp.need{background:#fff4dc}.v3-gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px}.v3-gh b{font-size:17px}.v3-grp.need .v3-gh span{color:#b42318;font-weight:700;font-size:12px}
 .v3-extras summary{cursor:pointer;font-weight:700;padding:10px 0;color:var(--accent)}
 /* m42c §2q: foot FIXED to viewport above Hablar — escape sheet transform trap */
-.v3-foot{display:flex;gap:8px;position:fixed;left:0;right:0;margin:0 auto;width:min(520px,100vw);bottom:calc(60px + env(safe-area-inset-bottom,0px));z-index:61;padding:8px 14px;background:transparent;border-top:0;box-shadow:none}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
+.v3-foot{display:flex;gap:8px;position:fixed;left:0;right:0;margin:0 auto;width:min(520px,100vw);bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:61;padding:8px 14px;background:transparent;border-top:0;box-shadow:none}.v3-foot .u1-btn.s{width:56px;text-align:center!important}
 body.v3-sheet-on{overflow:hidden}
 @media (min-width:960px){
   body.v3 #ui1{max-width:1280px;display:block;padding-left:396px;padding-right:16px;padding-bottom:40px}
@@ -459,3 +459,196 @@ body.v3 .controls-row{gap:12px;justify-content:flex-end}
 /* Ask rides on #haloBub over sheet — hide in-sheet ask card */
 body.v3-sheet-on .v3-ask,body.sheet-open .v3-ask{display:none!important}
 
+
+
+/* ===== m44b §2t: centered Hablar + cart dock (Carlos 10/26) ===== */
+/* Stack top→bottom: cartbar (.u1-bottom) → typedock (.bottom-bar) → dockrow [Hablar|cart].
+   Voice on tap only. Same dock seat on home / sheet / cart. No mid-screen float. No under-Agregar lone orb. */
+:root{
+  --m44-dock:calc(62px + env(safe-area-inset-bottom,0px));
+  --m44-type:58px;
+}
+/* Chrome: dock owns the bottom seat */
+#ux1-bottom.bottom.chrome,
+#ux1-bottom.bottom{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;gap:8px;
+  padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));
+  pointer-events:none;
+  transform:none!important;
+}
+#ux1-bottom.bottom>*{pointer-events:auto}
+#ux1-bottom .softlang{align-self:center;margin-bottom:0}
+.dockrow{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  position:relative;min-height:52px;pointer-events:none;z-index:1;
+}
+.dockrow>*{pointer-events:auto}
+.hablar-wrap{position:relative;display:flex;align-items:center;flex:none}
+/* Hablar lives in dock — never position:fixed mid-viewport */
+#ux1-bottom #loucap.loucap,
+.dockrow #loucap.loucap,
+.hablar-wrap #loucap.loucap{
+  position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;
+  transform:none!important;align-self:auto;max-width:min(72vw,280px);
+}
+/* Idle invite pulse only — NOT listening */
+#loucap.loucap.invite[data-state=idle]{animation:capBounce 2.6s ease-in-out infinite}
+/* Listening / thinking / speaking → 52px orb, SAME dock seat (never mid-screen Siri float) */
+#loucap.loucap[data-state=listening],
+#loucap.loucap[data-state=thinking],
+#loucap.loucap[data-state=speaking],
+#ux1-bottom.bottom.bubbing #loucap.loucap,
+.dockrow.bubbing #loucap.loucap{
+  width:52px;height:52px;min-height:52px;padding:0;justify-content:center;gap:0;
+  border-radius:50%;animation:none;
+}
+#loucap.loucap[data-state=listening] .lt,#loucap.loucap[data-state=listening] .inv,
+#loucap.loucap[data-state=thinking] .lt,#loucap.loucap[data-state=thinking] .inv,
+#loucap.loucap[data-state=speaking] .lt,#loucap.loucap[data-state=speaking] .inv,
+#ux1-bottom.bottom.bubbing #loucap .lt,#ux1-bottom.bottom.bubbing #loucap .inv,
+.dockrow.bubbing #loucap .lt,.dockrow.bubbing #loucap .inv{display:none!important}
+#loucap.loucap[data-state=listening] .e3d,#loucap.loucap[data-state=thinking] .e3d,
+#loucap.loucap[data-state=speaking] .e3d,
+#ux1-bottom.bottom.bubbing #loucap .e3d,.dockrow.bubbing #loucap .e3d{margin:0;transform:scale(1.25)}
+#loucap.loucap[data-state=listening] .orbit,#loucap.loucap[data-state=thinking] .orbit,
+#loucap.loucap[data-state=speaking] .orbit,
+#ux1-bottom.bottom.bubbing #loucap .orbit,.dockrow.bubbing #loucap .orbit{
+  opacity:.9!important;animation-duration:3.2s!important;border-radius:50%}
+#loucap.loucap[data-state=listening]::before,#loucap.loucap[data-state=thinking]::before,
+#loucap.loucap[data-state=speaking]::before,
+#ux1-bottom.bottom.bubbing #loucap::before,.dockrow.bubbing #loucap::before{display:none}
+#loucap.loucap[data-state=listening]::after,#loucap.loucap[data-state=thinking]::after,
+#loucap.loucap[data-state=speaking]::after,
+#ux1-bottom.bottom.bubbing #loucap::after,.dockrow.bubbing #loucap::after{border-radius:50%}
+
+/* Halo bubble — LEFT/UP of docked Hablar so cart FAB stays on-screen. Never mid-screen. */
+.hablar-wrap #haloBub,#haloBub{
+  position:absolute!important;right:calc(100% + 8px)!important;left:auto!important;bottom:2px!important;
+  top:auto!important;margin:0!important;max-width:0;width:auto;padding:0;border-radius:14px;
+  background:rgba(14,22,36,.94);color:#eef5ff;font:500 12px/1.35 'Plus Jakarta Sans',system-ui,sans-serif;
+  box-shadow:none;opacity:0;overflow:hidden;white-space:normal;transform:translateX(6px) scale(.97);
+  pointer-events:none;z-index:5;
+  transition:opacity .7s ease,transform .45s ease,max-width .45s ease,padding .45s ease,box-shadow .45s ease;
+  -webkit-transition:opacity .7s ease,transform .45s ease,max-width .45s ease,padding .45s ease,box-shadow .45s ease;
+}
+#haloBub::after{
+  content:"";position:absolute;right:-6px!important;left:auto!important;bottom:16px;top:auto!important;
+  width:0!important;height:0!important;margin:0!important;
+  border:6px solid transparent;border-left-color:#4aa3ff;border-right:0;background:transparent!important;
+  transform:none!important;box-shadow:none!important;opacity:0;transition:opacity .22s;
+}
+#haloBub.on{
+  opacity:1;max-width:190px;padding:8px 11px;
+  box-shadow:0 0 0 1px rgba(74,163,255,.7),0 8px 20px rgba(0,0,0,.35);
+  transform:none;display:block;
+  transition:opacity .22s ease,transform .22s ease,max-width .35s ease,padding .35s ease,box-shadow .22s ease;
+  -webkit-transition:opacity .22s ease,transform .22s ease,max-width .35s ease,padding .35s ease,box-shadow .22s ease;
+}
+#haloBub.on::after{opacity:1}
+
+/* Cart FAB in dock — white 52px circle, red qty badge (0 when empty) */
+#cart-toggle.cart-btn.cfab,
+.dockrow #cart-toggle.cart-btn,
+.dockrow .cfab{
+  position:relative;width:52px;height:52px;border-radius:50%;border:0;flex:none;
+  background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.06);
+  display:grid;place-items:center;color:#0f1a24;backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.dockrow #cart-toggle .cart-badge,
+.dockrow .cfab .cart-badge{
+  position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:999px;background:#e11;color:#fff;font:700 10px/18px 'Plus Jakarta Sans',system-ui,sans-serif;
+  text-align:center;display:grid;place-items:center;box-shadow:0 1px 4px rgba(238,17,17,.45);
+}
+
+/* Typedock sits above dock row */
+body.v3 .bottom-bar,body.ui1.v3 .bottom-bar{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:var(--m44-dock);z-index:39;
+  width:min(520px,100vw);padding:0 12px;gap:0;
+  background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
+  display:flex;flex-direction:column;align-items:stretch;
+}
+body.v3 .bottom-bar .prompt-bar{
+  width:100%;border-radius:16px;background:#fff;border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 4px 18px rgba(0,0,0,.12);padding:8px 10px 8px 14px;
+}
+body.v3 .bottom-bar .controls-row{display:none!important} /* cart FAB moved into dockrow */
+
+/* Cartbar above typedock */
+body.v3 .u1-bottom{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--m44-dock) + var(--m44-type));
+  width:min(520px,100vw);z-index:38;padding:0 12px;
+}
+body.v3.v3-cart0 .u1-bottom{visibility:hidden;pointer-events:none;height:0;padding:0;overflow:hidden}
+
+/* Sheet / confirm open: hide typedock + cartbar; KEEP centered Hablar+cart dock (z above sheet foot) */
+body.v3-sheet-on .bottom-bar,
+body.ux1-confirm-on .bottom-bar,
+body.sheet-open .bottom-bar,
+body.v3-sheet-on .u1-bottom,
+body.ux1-confirm-on .u1-bottom,
+body.sheet-open .u1-bottom,
+body:has(.v3-sheet-bg) .u1-bottom,
+body:has(#ux1-confirm) .u1-bottom{display:none!important}
+
+body.v3-sheet-on #ux1-bottom.bottom,
+body.ux1-confirm-on #ux1-bottom.bottom,
+body.sheet-open #ux1-bottom.bottom,
+body:has(.v3-sheet-bg) #ux1-bottom.bottom,
+body:has(#ux1-confirm) #ux1-bottom.bottom{
+  z-index:62!important;bottom:0!important;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px))!important;
+  display:flex!important;transform:none!important;left:0!important;right:0!important;
+}
+/* Idle on sheet = full invite in dock (do NOT force 52px orb just because sheet is open) */
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle],
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle],
+body.sheet-open #loucap.loucap.invite[data-state=idle],
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle],
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle]{
+  width:auto;height:auto;min-height:44px;padding:8px 18px 8px 8px;border-radius:999px;gap:8px;
+  animation:capBounce 2.6s ease-in-out infinite;
+}
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle] .lt,
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle] .inv,
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle] .lt,
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle] .inv,
+body.sheet-open #loucap.loucap.invite[data-state=idle] .lt,
+body.sheet-open #loucap.loucap.invite[data-state=idle] .inv,
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle] .lt,
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle] .inv,
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle] .lt,
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle] .inv{display:flex!important}
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle] .inv,
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle] .inv,
+body.sheet-open #loucap.loucap.invite[data-state=idle] .inv,
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle] .inv,
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle] .inv{display:block!important}
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle] .e3d,
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle] .e3d,
+body.sheet-open #loucap.loucap.invite[data-state=idle] .e3d,
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle] .e3d,
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle] .e3d{margin-right:2px;transform:none}
+body.v3-sheet-on #loucap.loucap.invite[data-state=idle]::before,
+body.ux1-confirm-on #loucap.loucap.invite[data-state=idle]::before,
+body.sheet-open #loucap.loucap.invite[data-state=idle]::before,
+body:has(.v3-sheet-bg) #loucap.loucap.invite[data-state=idle]::before,
+body:has(#ux1-confirm) #loucap.loucap.invite[data-state=idle]::before{display:block}
+/* Agregar foot clears the dock (~72px + safe) — already set on .v3-foot */
+body.v3-sheet-on .v3-sheet,body.ux1-confirm-on .v3-sheet,body.sheet-open .v3-sheet{
+  padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+
+/* Retire m42c under-Agregar lone-orb seat + any mid-screen Hablar float */
+body.v3-sheet-on #ux1-bottom.bottom:not(.chrome),
+body.sheet-open #ux1-bottom.bottom:not(.chrome){bottom:0!important}
+#loucap.loucap.mid-float-forbidden,
+.mid-float-forbidden{display:none!important}
+
+/* Desktop: Hablar dock still hidden (desktop uses side panel) */
+@media (min-width:960px){
+  #ux1-bottom.bottom{display:none!important}
+  #loucap.loucap{display:none!important}
+  .v3-foot{position:static;left:auto;right:auto;bottom:auto;padding:10px 14px;background:#fff;border-top:1px solid #0001;box-shadow:none;border-radius:0 0 22px 22px}
+}
