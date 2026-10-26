@@ -258,6 +258,16 @@ body.v3 .v3-pill{margin-right:50px}
 .tm-spin{width:14px;height:14px;border:2px solid rgba(20,113,214,.25);border-top-color:var(--accent,#1471d6);border-radius:50%;animation:tm-sp .7s linear infinite}
 @keyframes tm-sp{to{transform:rotate(360deg)}}
 
+/* m48: Usar mi teléfono — quiet pill under Teléfono (SPEC §2o-b) */
+.tm-phone-wrap{display:flex;flex-direction:column;gap:2px;margin:6px 0}
+.tm-phone-wrap #tm-phone{margin:0}
+.tm-phone-actions{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.tm-phone-ok{display:none;align-items:center;gap:5px;font:600 11.5px Plus Jakarta Sans,system-ui,sans-serif;color:#1a8c3a;background:#e6f7ec;border:1px solid rgba(47,212,122,.35);padding:5px 10px;border-radius:999px}
+.tm-phone-ok.show{display:inline-flex}
+.tm-phone-pending{display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:#f3f8ff;font:500 12.5px Plus Jakarta Sans,system-ui,sans-serif;color:var(--accent,#1471d6);align-items:center;gap:8px}
+.tm-phone-pending.show{display:flex}
+.tm-f input.locked,#tm-phone.locked{border-color:#2fd47a;background:#f6fff9}
+
 .tm-o{justify-content:flex-start;text-align:left;font-weight:600}.tm-o input{width:auto;flex:none;margin:3px 0 0;accent-color:var(--accent,#1471d6)}
 #tm-step{scroll-margin-top:80px}
 

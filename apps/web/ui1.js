@@ -1,4 +1,4 @@
-// ui1 m46c (2026-10-26): Type FAB → typedock in chrome + visualViewport kb lift (§2v). Keeps m47 no-default chips, m46b trio, m45 ask-all, m44b Hablar, m43 grabber.
+// ui1 m48 (2026-10-26): Usar mi teléfono checkout pill (SPEC §2o-b). Keeps m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -789,7 +789,7 @@ export {};
 
 
 // ---------- time1: checkout timing step (ASAP / Programar · pickup / delivery) + pay ----------
-const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false, addrConfirmed: false, addrPending: null, addrBusy: false }; // m40: no softAddr escape
+const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false, addrConfirmed: false, addrPending: null, addrBusy: false, phoneBusy: false, phoneReady: false }; // m40 + m48 phone pill
 function tmLoad(f) { if (TM.opts[f] || TM.opts[f + "_l"]) return; TM.opts[f + "_l"] = 1;
   fetch(`/api/${TENANT}/orders/timing?f=${f}`).then((r) => r.json()).then((j) => { TM.opts[f] = j; delete TM.opts[f + "_l"]; tmCheck(); if (U.screen === "receipt") render(); }).catch(() => { delete TM.opts[f + "_l"]; }); }
 // m38: full weekday names on schedule day chips (Carlos UX).
@@ -835,7 +835,17 @@ function timingHTML() {
       </div>
     </div>
   </div>` : "";
-  const fields = `<div class="tm-f"><input id="tm-name" placeholder="${t("Nombre", "Name")}" value="${esc(cust.name || "")}" autocomplete="name"><input id="tm-phone" type="tel" placeholder="${t("Teléfono", "Phone")}" value="${esc(cust.phone || "")}" autocomplete="tel"><input id="tm-email" type="email" placeholder="Email" value="${esc(cust.email || "")}" autocomplete="email">${addrBlock}</div>`;
+  const phoneVal = cust.phone || "";
+  const phoneReady = TM.phoneReady && String(phoneVal).replace(/\D/g, "").length >= 7;
+  const phoneBlock = `<div class="tm-phone-wrap" id="tm-phone-wrap">
+    <input id="tm-phone" type="tel" inputmode="tel" class="${phoneReady ? "locked" : ""}" placeholder="${t("Teléfono", "Phone")}" value="${esc(phoneVal)}" autocomplete="tel">
+    <div class="tm-phone-actions">
+      <button type="button" class="tm-loc-pill${TM.phoneBusy ? " busy" : ""}" data-tmphone="1"><span aria-hidden="true">📱</span> ${t("Usar mi teléfono", "Use my phone")}</button>
+      <span class="tm-phone-ok${phoneReady ? " show" : ""}" id="tm-phone-ok"><span>✓</span> ${t("Número listo", "Number ready")}</span>
+    </div>
+    <div class="tm-phone-pending${TM.phoneBusy ? " show" : ""}" id="tm-phone-pending"><span class="tm-spin" aria-hidden="true"></span> ${t("Buscando tu número…", "Getting your number…")}</div>
+  </div>`;
+  const fields = `<div class="tm-f"><input id="tm-name" placeholder="${t("Nombre", "Name")}" value="${esc(cust.name || "")}" autocomplete="name">${phoneBlock}<input id="tm-email" type="email" placeholder="Email" value="${esc(cust.email || "")}" autocomplete="email">${addrBlock}</div>`;
   const can = (B()?.state?.cart || []).length && !(ck && ck.ok === false) && !(TM.mode === "scheduled" && !TM.at) && !TM.busy;
   return `<div class="u1-rc tm" id="tm-step">${seg}<p class="tm-h">${t("¿Para cuándo?", "When?")}</p>
   <label class="tm-o"><input type="radio" name="tm" data-tmm="asap" ${TM.mode === "asap" ? "checked" : ""}> ${esc(asapTxt)}</label>
@@ -879,7 +889,8 @@ async function tmPay() {
   const r = b.checkout ? await b.checkout() : { ok: false, error: "checkout unavailable" };
   TM.busy = false; if (!r.ok) { TM.err = r.error || t("No se pudo abrir el pago.", "Couldn't open checkout."); tmCheck(); render(); }
 }
-document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; if (e.target?.id === "tm-addr") tmOnAddrInput(e.target.value); });
+document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; if (e.target?.id === "tm-addr") tmOnAddrInput(e.target.value); if (e.target?.id === "tm-phone") tmSyncPhoneReady(e.target.value); });
+document.addEventListener("change", (e) => { if (e.target?.id === "tm-phone") tmSyncPhoneReady(e.target.value); });
 
 // ---------- m40: Census-verified house addresses (API proxy) + hard confirm (SPEC §2o/§2p) ----------
 // Primary: US Census onelineaddress via /tools/address_suggest (house # only). Locate → Nominatim reverse + Census verify.
@@ -978,12 +989,12 @@ async function tmUseLocation() {
   document.getElementById("tm-addr-ok")?.classList.remove("show");
   document.getElementById("tm-addr")?.classList.remove("locked");
   document.getElementById("tm-loc-pending")?.classList.add("show");
-  document.querySelector(".tm-loc-pill")?.classList.add("busy");
+  document.querySelector("[data-tmloc]")?.classList.add("busy");
   tmCloseSuggest();
   const fail = (msg) => {
     TM.addrBusy = false;
     document.getElementById("tm-loc-pending")?.classList.remove("show");
-    document.querySelector(".tm-loc-pill")?.classList.remove("busy");
+    document.querySelector("[data-tmloc]")?.classList.remove("busy");
     TM.err = msg || t("No pudimos obtener tu ubicación. Escríbela.", "Couldn't get your location. Please type it.");
     render();
   };
@@ -998,14 +1009,51 @@ async function tmUseLocation() {
       const j = r.ok ? await r.json() : null;
       const a = j?.suggestion;
       TM.addrBusy = false;
-      document.querySelector(".tm-loc-pill")?.classList.remove("busy");
+      document.querySelector("[data-tmloc]")?.classList.remove("busy");
       document.getElementById("tm-loc-pending")?.classList.remove("show");
       if (!tmIsVerified(a)) return fail(t("No encontramos una dirección con número ahí. Escríbela.", "No house-number address found there. Please type it."));
       tmSelectSuggest(a);
     } catch { fail(); }
   }, () => fail(t("Activa la ubicación o escribe tu calle.", "Enable location or type your street.")), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
 }
+// ---------- m48: Usar mi teléfono (SPEC §2o-b) — focus + autocomplete="tel"; no silent Contacts read; never hardcode a demo number ----------
+function tmLooksLikePhone(v) { return String(v || "").replace(/\D/g, "").length >= 7; }
+function tmSyncPhoneReady(val) {
+  const ready = tmLooksLikePhone(val);
+  TM.phoneReady = ready;
+  const phone = document.getElementById("tm-phone");
+  const ok = document.getElementById("tm-phone-ok");
+  if (phone) phone.classList.toggle("locked", ready);
+  if (ok) ok.classList.toggle("show", ready);
+  const b = B(); if (b) b.state.customer.phone = String(val || "").trim();
+}
+function tmUsePhone() {
+  if (TM.phoneBusy) return;
+  TM.phoneBusy = true; TM.phoneReady = false;
+  const phone = document.getElementById("tm-phone");
+  const pending = document.getElementById("tm-phone-pending");
+  const ok = document.getElementById("tm-phone-ok");
+  const pill = document.querySelector("[data-tmphone]");
+  if (ok) ok.classList.remove("show");
+  if (phone) phone.classList.remove("locked");
+  if (pending) pending.classList.add("show");
+  if (pill) pill.classList.add("busy");
+  // Same-gesture focus so iOS Contacts / QuickType autofill can appear (web cannot silently read Contacts).
+  try { phone?.focus({ preventScroll: false }); } catch { phone?.focus(); }
+  requestAnimationFrame(() => { try { phone?.focus({ preventScroll: false }); } catch { phone?.focus(); } });
+  setTimeout(() => {
+    TM.phoneBusy = false;
+    pending?.classList.remove("show");
+    pill?.classList.remove("busy");
+    // Honest UX: never invent a number. If autofill filled the field, show ✓; if still empty, leave pill available.
+    const val = phone?.value || "";
+    if (tmLooksLikePhone(val)) tmSyncPhoneReady(val);
+    else TM.phoneReady = false;
+  }, 750);
+}
+
 document.addEventListener("click", (e) => {
+  if (e.target.closest?.("[data-tmphone]")) { e.preventDefault(); tmUsePhone(); return; }
   if (e.target.closest?.("[data-tmloc]")) { e.preventDefault(); void tmUseLocation(); return; }
   const act = e.target.closest?.("[data-tmaddr]"); if (act) { e.preventDefault(); if (act.dataset.tmaddr === "confirm") tmConfirmAddr(); else if (act.dataset.tmaddr === "edit") tmEditAddr(); return; }
   const sug = e.target.closest?.("[data-tmsug]"); if (sug) { e.preventDefault(); const box = document.getElementById("tm-suggest"); const a = box?._list?.[Number(sug.dataset.tmsug)]; if (a) tmSelectSuggest(a); return; }
