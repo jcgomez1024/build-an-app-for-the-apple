@@ -1,0 +1,170 @@
+[
+  {
+    "speaker": "staff",
+    "start": 3.722,
+    "end": 4.642,
+    "text": "Posey and I, Luis?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.702,
+    "end": 7.202,
+    "text": "Rob Halford, 90s album. Hola, hablas English?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 8.264,
+    "end": 8.364,
+    "text": "Si.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.483,
+    "end": 12.343,
+    "text": "Oh, okay. Mi español es muy mal.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 13.964,
+    "end": 14.244,
+    "text": "Okay,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 15.264,
+    "end": 16.505,
+    "text": "could I place an order,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.105,
+    "end": 20.166,
+    "text": "for two, grande burritos?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 20.969,
+    "end": 25.872,
+    "text": "Sure. So you want to grande burritos. What do you want on the first one?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 27.327,
+    "end": 28.508,
+    "text": "can I get a,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 29.708,
+    "end": 30.088,
+    "text": "chorizo?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 31.034,
+    "end": 43.64,
+    "text": "Chorizo, and then you want everything on it, like refried beans, fries, sour cream, fried cheese, onions, and cilantro. And for the second one, what do you want?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.09,
+    "end": 35.21,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 38.571,
+    "end": 38.731,
+    "text": "Yeah.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 40.831,
+    "end": 45.652,
+    "text": "Yeah, everything's fine. can I get lengua?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 46.562,
+    "end": 47.502,
+    "text": "Language, sure.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 49.123,
+    "end": 57.309,
+    "text": "So, ring fried beans, fries, sour cream, fried cheese, onions, and cilantro. Anything else you wanna add in your order?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 56.635,
+    "end": 58.116,
+    "text": "You want horchata? Okay.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 59.898,
+    "end": 61.721,
+    "text": "that'll be it for now. Yeah, thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 61.432,
+    "end": 62.973,
+    "text": "Okay, okay, look,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 63.063,
+    "end": 63.203,
+    "text": "Do you...",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.933,
+    "end": 66.755,
+    "text": "give me like fifteen minutes.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 67.73,
+    "end": 68.672,
+    "text": "Okay, awesome, thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 69.397,
+    "end": 69.817,
+    "text": "Thank you.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 70.715,
+    "end": 73.94,
+    "text": "Alright, bye.",
+    "language": "en"
+  }
+]

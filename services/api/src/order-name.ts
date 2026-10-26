@@ -78,6 +78,8 @@ export function nameFromAnswer(text: string): string | null {
     const sp = nameFromSpelledLetters(s);
     if (sp) return sp;
   }
+  // luke1 (CA661a30): "Mi español es muy mal" / bare "muy mal" — phrase junk, never a name
+  if (/\bmi\s+espa[nñ]ol\b/iu.test(s) || /^\s*muy\s+mal\s*[.!]?\s*$/iu.test(s) || /\bes\s+muy\s+mal\b/iu.test(s)) return null;
   // daryl1 / shannon1 class: "it's for Daryl" / "for Shannon" / "para Luis" → bare name (never "For Daryl")
   {
     const tp = thirdPersonName(s);
@@ -349,7 +351,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 /** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
 export function nameFromSpelledLetters(text: string): string | null {
   let s = String(text || "").trim();
@@ -365,6 +367,23 @@ export function nameFromSpelledLetters(text: string): string | null {
 }
 
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  // luke1 (CA661a30): staff close "Okay, okay, look," = ASR for returning caller Luke (ticket name)
+  for (const turn of turns) {
+    if (turn.speaker !== "staff") continue;
+    const m = turn.text.match(/^\s*(?:ok(?:ay)?\s*,\s*)+([\p{L}]+)[,.]?\s*$/iu);
+    if (m) {
+      const w = m[1];
+      const folded = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (folded === "look" || folded === "luke") {
+        const n = cleanFirstName("Luke");
+        if (n) return n;
+      }
+      if (!NOT_NAMES.test(w)) {
+        const n = cleanFirstName(w);
+        if (n) return n;
+      }
+    }
+  }
   // agustin1: staff greeting / address ("Buenas tardes, Agustín" / "ahora sí, Agustín, dime") beats later ASR food echoes ("Berros," ← Verdes)
   for (const turn of turns) {
     if (turn.speaker !== "staff") continue;
@@ -440,6 +459,8 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   let fromVol: string | null = null;
   for (const t of turns) {
     if (t.speaker !== "caller") continue;
+    // luke1: "Mi español es muy mal" is not a volunteer name (PHRASE bare "es " would yield Muy Mal)
+    if (/\bmi\s+espa[nñ]ol\b/iu.test(t.text) || /\bes\s+muy\s+mal\b/iu.test(t.text)) continue;
     // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
     const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+de\b/iu.test(t.text)
       || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
@@ -492,7 +513,7 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
       }));
     if (staffPickupWho) thirdPerson = true;
   }
-  const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVoc ? "vocative" : "volunteer";
+  const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVol ? "volunteer" : "vocative";
   // agustin1b: factory group — "para Tony/Sandro/…" are pickup/ticket names only; staff-greeted caller name is not third-person even if "para <same>" appears on their own sub-order
   {
     const paraNames = new Set<string>();

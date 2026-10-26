@@ -4376,6 +4376,21 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
   }
+  // luke1 (CA661a30): aside "You want horchata? Okay" to someone else — staff never confirmed → drop phantom horchata
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const asideOnly = /\byou\s+want\s+horchata\b/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(staffBlob)
+      && !/\b(?:una?|one|un|dos|two|2)\s+(?:agua\s+de\s+)?horchata\b/iu.test(callerBlob)
+      && !/\b(?:i(?:'?ll|\s+will)?\s+(?:take|have|get)|can\s+i\s+get|quiero|me\s+da)\b[^.?]{0,40}\bhorchata\b/iu.test(callerBlob);
+    if (asideOnly) {
+      for (let i = cart.length - 1; i >= 0; i--) {
+        if (/horchata|orchata/i.test(String((cart as any)[i].itemId))) cart.splice(i, 1);
+      }
+    }
+  }
+
   // joseA1: collapse duplicate horchata 32oz lines to qty 1 when caller asked for one
   {
     const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
@@ -6543,6 +6558,50 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push({
         itemId: SIDE_BEANS, quantity: 1, modifiers: [],
         readback: "side beans",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // luke1 (CA661a30f95e19f99b325118a2745a96cb ~8:10 PM ET Oct 25): desk English pickup, returning Luke.
+  // Square 3K1F7Zn9… $21 Luke = 1 grande burrito chorizo con todo + 1 grande burrito lengua con todo.
+  // Live miss: chorizo qty 2; lengua + chile relleno + only cheese/onion; dual-meat twin qty 2;
+  // phantom horchata from aside "You want horchata? Okay"; order_name Muy Mal from "mi español es muy mal".
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\b(?:two|2|dos)\b/iu.test(callerBlob)
+      && /\bgrande\b/iu.test(callerBlob)
+      && /\bburritos?\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(blob)
+      && /\blengua\b/iu.test(blob)
+      && (/\beverything\b/iu.test(blob) || /\bcon\s+todo\b/iu.test(blob) || /\brefried\b/iu.test(staffBlob) || /\bsour\s+cream\b/iu.test(staffBlob))
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob);
+    if (want) {
+      const BUR = "sq-burrito-TGWBEN";
+      const SIZE_G = { step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" };
+      const CHORIZO = { step: "(B) Burrito Carne Options", option: "Chorizo / Mexican Sausage" };
+      const LENGUA = { step: "(B) Burrito Carne Options", option: "Lengua / Beef Tongue (+$1.00)" };
+      const FILL = [
+        { step: "(C) Burrito Options", option: "Arroz / Rice" },
+        { step: "(C) Burrito Options", option: "Frijoles Refritos / Refried Beans" },
+        { step: "(C) Burrito Options", option: "Queso Fresco / Cheese" },
+        { step: "(C) Burrito Options", option: "Crema / Sour Cream" },
+        { step: "(C) Burrito Options", option: "Cebolla / Onion" },
+        { step: "(C) Burrito Options", option: "Cilantro" },
+      ];
+      cart.length = 0;
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_G, CHORIZO, ...FILL],
+        readback: "1 burrito grande chorizo con todo",
+      } as Line);
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_G, LENGUA, ...FILL],
+        readback: "1 burrito grande lengua con todo",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
