@@ -1,4 +1,4 @@
-// ui1 m41 (2026-10-26): checkout Subtotal system-bold.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
+// ui1 m42 (2026-10-26): acomp split photo + compact sheet foot.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -37,7 +37,7 @@ const OPTION_PHOTO = [
   [/^bistec/i, "taco-15.jpg"], [/alpastor/i, "taco-18.jpg"], [/^pollo/i, "taco-17.jpg"], [/^chorizo/i, "taco-24.jpg"], [/^carnitas/i, "meat-carnitas.jpg"], [/^cabeza/i, "carlos-cabeza.jpg"],
   [/^buche/i, "taco-19.jpg"], [/^lengua/i, "taco-20.jpg"], [/^tripa/i, "taco-21.jpg"], [/^prensado/i, "taco-22.jpg"], [/^duro/i, "taco-23.jpg"], [/^deshebrada/i, "taco-1.jpg"],
   [/^picadillo/i, "taco-16.jpg"], [/^nopales/i, "taco-13.jpg"], [/^vegetal/i, "taco-14.jpg"],
-  [/frijol/i, "carlos-frijoles.jpg"], [/arroz/i, "carlos-arroz.jpg"], [/queso\s+fresco/i, "taco-9.jpg"], [/crema/i, "taco-10.jpg"], [/cebolla/i, "carlos-cebolla.jpg"], [/cilantro/i, "carlos-cilantro.jpg"],
+  [/(?:arroz|rice).*(?:frijol|bean)|(?:frijol|bean).*(?:arroz|rice)/i, "carlos-arroz-frijoles.jpg"], [/frijol/i, "carlos-frijoles.jpg"], [/arroz/i, "carlos-arroz.jpg"], [/queso\s+fresco/i, "taco-9.jpg"], [/crema/i, "taco-10.jpg"], [/cebolla/i, "carlos-cebolla.jpg"], [/cilantro/i, "carlos-cilantro.jpg"],
 ];
 function img(file, label, extra = "") {
   if (V3 && file && UNVERIFIED_IMG.has(file)) file = null;
