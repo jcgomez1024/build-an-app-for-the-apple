@@ -1477,7 +1477,7 @@ app.post("/api/:tenant/tools/check_delivery_zone", async (req, res, next) => {
   }
 });
 
-// m40: address suggest (Census / optional Places) + reverse — house-numbered verified only.
+// m41: address suggest (Places API New when key set; Census fallback/verify) + reverse — house-numbered verified only.
 app.get("/api/:tenant/tools/address_suggest", async (req, res, next) => {
   try {
     const q = String(req.query?.q || "").trim().slice(0, 200);

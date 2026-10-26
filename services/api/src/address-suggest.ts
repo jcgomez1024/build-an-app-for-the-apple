@@ -1,5 +1,5 @@
-// m40: delivery address suggest + reverse — Census onelineaddress (no key) primary; Google Places when GOOGLE_PLACES_API_KEY is set.
-// Only house-numbered matched addresses (matchedAddress starts with digits). Never street-only stubs.
+// m41: delivery address suggest + reverse — Places API (New) when GOOGLE_PLACES_API_KEY is set; Census onelineaddress fallback/verify (no Geocoding API).
+// Only house-numbered matched addresses (matchedAddress starts with digits). Never street-only stubs. Never log the API key.
 
 export type AddrSuggestion = {
   matchedAddress: string;
@@ -76,33 +76,72 @@ async function censusOneline(address: string, fetcher: typeof fetch): Promise<Ad
 }
 
 async function placesSuggest(q: string, fetcher: typeof fetch, key: string): Promise<AddrSuggestion[]> {
-  const autoUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&types=address&components=country:us&location=41.7245,-81.2456&radius=25000&key=${encodeURIComponent(key)}`;
+  // Places API (New) only — legacy maps.googleapis.com place/autocomplete|details will fail on this key.
+  // Key goes in X-Goog-Api-Key header only; never log or put in query strings.
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 4000);
+  const t = setTimeout(() => ctl.abort(), 5000);
   try {
-    const r = await fetcher(autoUrl, { signal: ctl.signal });
+    const r = await fetcher("https://places.googleapis.com/v1/places:autocomplete", {
+      method: "POST",
+      signal: ctl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat",
+      },
+      body: JSON.stringify({
+        input: q,
+        includedRegionCodes: ["us"],
+        languageCode: "en",
+        regionCode: "us",
+        locationBias: {
+          circle: {
+            center: { latitude: 41.7245, longitude: -81.2456 }, // Cocina Elvis · Painesville
+            radius: 25000.0,
+          },
+        },
+      }),
+    });
     clearTimeout(t);
     if (!r.ok) return [];
     const j: any = await r.json();
-    const preds = (j?.predictions || []).slice(0, 3);
+    const preds = (j?.suggestions || []).map((s: any) => s?.placePrediction).filter(Boolean).slice(0, 5);
     const out: AddrSuggestion[] = [];
-    for (const p of preds) {
-      const id = p?.place_id; if (!id) continue;
-      const dUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(id)}&fields=formatted_address,geometry,address_component&key=${encodeURIComponent(key)}`;
-      const dr = await fetcher(dUrl);
+    const seen = new Set<string>();
+    for (const pred of preds) {
+      const preview = String(pred?.text?.text || pred?.structuredFormat?.mainText?.text || "").trim();
+      // Skip street-only stubs before spending a Details call
+      if (preview && !hasHouse(preview)) continue;
+      const placeId = String(pred?.placeId || "").replace(/^places\//, "").trim();
+      if (!placeId) continue;
+      const dr = await fetcher(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
+        headers: {
+          "X-Goog-Api-Key": key,
+          "X-Goog-FieldMask": "formattedAddress,location,addressComponents",
+        },
+      });
       if (!dr.ok) continue;
-      const dj: any = await dr.json();
-      const res = dj?.result;
-      const formatted = String(res?.formatted_address || "").trim();
-      const lat = Number(res?.geometry?.location?.lat), lng = Number(res?.geometry?.location?.lng);
+      const res: any = await dr.json();
+      const formatted = String(res?.formattedAddress || "").trim();
+      const lat = Number(res?.location?.latitude), lng = Number(res?.location?.longitude);
       if (!hasHouse(formatted) || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      // Prefer Census-verified coords when Places gives a candidate
-      const verified = await censusOneline(biasAddressQuery(formatted.replace(/,?\s*USA$/i, "")), fetcher);
-      if (verified[0]) { out.push(verified[0]); continue; }
-      const { street, city, full } = splitMatched(formatted.replace(/,?\s*USA$/i, "").replace(/, United States$/i, ""));
-      out.push({ matchedAddress: formatted, street, city, full, lat, lng, verified: true, source: "places" });
+      const cleaned = formatted.replace(/,?\s*USA$/i, "").replace(/, United States$/i, "").trim();
+      // Prefer Census-verified matchedAddress + coords (Geocoding API not enabled on this key)
+      const verified = await censusOneline(biasAddressQuery(cleaned), fetcher);
+      let a: AddrSuggestion | null = null;
+      if (verified[0]) {
+        a = { ...verified[0], source: "places" };
+      } else {
+        const { street, city, full } = splitMatched(cleaned);
+        a = { matchedAddress: cleaned, street, city, full, lat, lng, verified: true, source: "places" };
+      }
+      const k = a.matchedAddress.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(a);
+      if (out.length >= 3) break;
     }
-    return out.slice(0, 3);
+    return out;
   } catch {
     clearTimeout(t);
     return [];
