@@ -1,4 +1,4 @@
-// ui1 m45 (2026-10-26): ask every option — no silent defaults (§2u) + collapse ALL groups after explicit pick (§2r). m44b dock + m43 grabber kept.
+// ui1 m45b (2026-10-26): voice aliases harina/flour + ask every option — no silent defaults (§2u) + collapse ALL groups after explicit pick (§2r). m44b dock + m43 grabber kept.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -1440,23 +1440,76 @@ function haloBubHide(force) {
     const d = document.getElementById("dockrow"); if (d) d.classList.remove("bubbing");
   }, 700);
 }
+/** m45b §2u — STT short answers ("harina", "de harina", "quesadilla de harina", "flour")
+ *  must map to longer catalog names like "(QHR) Quesadilla Harina / Flour (+$0.75)". */
+const VOICE_STOP = new Set(["de","del","la","el","los","las","un","una","unos","unas","the","a","an","of","my","mi","tu","su","al","en","y","and","o","or","me","te","le","se","por","para","favor","please","con","with","que","qué","es","is","quiero","quisiera","dame","deme","una","uno","dos","tres"]);
+const VOICE_ITEM_FILLER = new Set(["quesadilla","quesadillas","taco","tacos","burrito","burritos","gordita","gorditas","torta","tortas","tortilla","tortillas","style","estilo","version","version","versión","options","option","opcion","opción"]);
+function voiceToks(s) {
+  return plainOpt(s).split(/\s+/).filter((w) => w && w.length >= 2 && !VOICE_STOP.has(w));
+}
+function voiceCore(uttPlain) {
+  const all = voiceToks(uttPlain);
+  const core = all.filter((w) => !VOICE_ITEM_FILLER.has(w));
+  return core.length ? core : all;
+}
+function optSearchLabels(o) {
+  const cleaned = cleanOpt(o.name);
+  const out = [o.name, cleaned, optLabel(o.name), o.on, o.nameEs];
+  try {
+    if (globalThis.ElviI18n?.pair) {
+      const p = globalThis.ElviI18n.pair(o.name);
+      out.push(p.es, p.en, p.esBase, p.enBase);
+    }
+  } catch {}
+  return out.filter(Boolean);
+}
 function matchOptInGroup(g, uttPlain) {
   const opts = baseOptions(g);
+  const utt = plainOpt(uttPlain);
+  if (!utt) return -1;
+  const core = voiceCore(utt);
+  const coreStr = core.join(" ");
   let best = -1, bestScore = 0;
   for (let i = 0; i < opts.length; i++) {
     const o = opts[i];
-    const labels = [o.name, optLabel(o.name), o.on, o.nameEs].filter(Boolean);
-    for (const lab of labels) {
+    let score = 0;
+    const blobs = [];
+    for (const lab of optSearchLabels(o)) {
       for (const part of String(lab).split(/\s*\/\s*/)) {
-        const nw = plainOpt(part);
+        const nw = plainOpt(cleanOpt(part) || part);
         if (!nw || nw.length < 2) continue;
-        if (uttPlain === nw) return i;
-        if (uttPlain.includes(nw) && nw.length > bestScore) { best = i; bestScore = nw.length; }
-        else if (nw.includes(uttPlain) && uttPlain.length >= 4 && uttPlain.length > bestScore) { best = i; bestScore = uttPlain.length; }
+        blobs.push(nw);
+        if (utt === nw || coreStr === nw) return i;
+        // full-string contains either way (short spoken ↔ longer display)
+        if (utt.includes(nw) && nw.length >= 3) score = Math.max(score, 40 + nw.length);
+        if (nw.includes(utt) && utt.length >= 3) score = Math.max(score, 35 + utt.length);
+        if (coreStr && nw.includes(coreStr) && coreStr.length >= 3) score = Math.max(score, 45 + coreStr.length);
+        if (coreStr && coreStr.includes(nw) && nw.length >= 3) score = Math.max(score, 40 + nw.length);
       }
     }
+    const optToks = new Set();
+    for (const b of blobs) for (const t of voiceToks(b)) optToks.add(t);
+    // SKU crumbs: qhr/qco/qst → useful when STT says the code
+    const sku = String(o.name || "").match(/\(([A-Za-z0-9]{2,6})\)/);
+    if (sku) optToks.add(sku[1].toLowerCase());
+    // token hits on distinctive words (harina, flour, cabeza, asada, …)
+    let hits = 0;
+    for (const t of core) {
+      if (optToks.has(t)) { hits++; continue; }
+      for (const ot of optToks) {
+        if (t.length >= 4 && ot.includes(t)) { hits++; break; }
+        if (ot.length >= 4 && t.includes(ot)) { hits++; break; }
+      }
+    }
+    if (hits) score = Math.max(score, hits * 18 + (hits === core.length ? 30 : 0));
+    // shell / style aliases (Estilo + taco tortilla)
+    const joined = [...optToks].join(" ");
+    if (/\b(harina|flour|qhr)\b/.test(joined) && core.some((t) => /^(harina|flour|qhr|hr)$/.test(t))) score = Math.max(score, 80);
+    if (/\b(comal|homemade|maiz|corn|qco)\b/.test(joined) && core.some((t) => /^(comal|homemade|maiz|corn|qco|co)$/.test(t))) score = Math.max(score, 80);
+    if (/\b(taquer|street|qst)\b/.test(joined) && core.some((t) => /^(taquera|taquero|street|qst|st)$/.test(t))) score = Math.max(score, 80);
+    if (score > bestScore) { best = i; bestScore = score; }
   }
-  return best;
+  return bestScore >= 18 ? best : -1;
 }
 function isAffirm(u) {
   return /^(si|sí|yes|ok|okay|dale|claro|va|sale|please|por\s*favor)\b/.test(u)
