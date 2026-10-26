@@ -58,7 +58,15 @@ body.ui1 .bottom-bar{z-index:40;width:min(520px,100vw);padding:6px 10px 14px;bac
 .u1-rl{display:flex;gap:10px;padding:10px 6px;border-bottom:1px dashed #ddd;align-items:center;transition:background .3s}.u1-rl .u1-img,.u1-rl .u1-ph,.u1-rl .u1-crop{width:56px;height:56px;border-radius:10px;aspect-ratio:auto;flex:none}
 .u1-rl .d{flex:1;font-size:13px}.u1-rl .d b{font-size:15px}.u1-rl.hl{background:#fff6d6;border-radius:10px}
 .u1-x{border:0;background:#f2f2f2;border-radius:50%;width:26px;height:26px;cursor:pointer;text-align:center!important}
-.u1-tot{display:flex;justify-content:space-between;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;padding-top:10px}
+/* m41: checkout Subtotal — system bold row, never Syne/Jakarta for money */
+.u1-tot{display:none}
+.subtotal-wrap{margin:12px 14px 4px;padding-top:12px;border-top:1px solid rgba(15,26,36,.08);text-align:left}
+.u1-rc .subtotal-wrap,.ux1-conf-body .subtotal-wrap,.v3-side-cart .subtotal-wrap,.v3-elvi .subtotal-wrap{margin-left:0;margin-right:0}
+.sub-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.sub-label{font:700 13.5px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:#5a6570;letter-spacing:.02em}
+.subtotal{font:700 22px/1.2 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:#0f1a24;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.subtotal.is-zero{color:#8a949e}
+.sub-note{font:500 11px/1.4 -apple-system,system-ui,sans-serif;color:var(--mut);margin-top:6px;text-align:left}
 .u1-pickup{font-size:13px;line-height:1.6}.u1-pickup a{color:#0a64d6;font-weight:700}
 .u1-draft{background:#ffe9a8;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:800}
 .u1-toast{position:fixed;left:50%;top:132px;transform:translate(-50%,-20px);width:min(500px,94vw);z-index:45;opacity:0;pointer-events:none;transition:.3s}

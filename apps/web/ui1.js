@@ -1,4 +1,4 @@
-// ui1 (2026-10-16): photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
+// ui1 m41 (2026-10-26): checkout Subtotal system-bold.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -334,7 +334,7 @@ function receiptHTML() {
   const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
   return `<h2 class="u1-h2">${t("Así quedó tu orden", "Here's your order")}</h2>
   <div class="u1-rc">${cart.length ? cart.map((l, i) => `<div class="u1-rl" id="u1-rl-${i}">${img(itemPhoto(l.item), itemName(l.item))}<div class="d"><b>${Number(l.quantity) > 1 ? l.quantity + " × " : ""}${esc(itemName(l.item))}</b><br><span>${esc(modsText(l))}</span></div><div class="u1-price">${money(b.lineTotal(l))}</div><button class="u1-x" data-rm="${i}" aria-label="remove">✕</button></div>`).join("") : `<p class="u1-note">${t("Tu orden está vacía.", "Your order is empty.")}</p>`}
-  <div class="u1-tot"><span>Subtotal</span><span>${money(tot)}</span></div><div class="u1-note">${t("Impuesto y total final los calcula Square.", "Tax & final total calculated by Square.")}</div></div>
+  <div class="subtotal-wrap"><div class="sub-row"><span class="sub-label">Subtotal</span><span class="subtotal${tot ? "" : " is-zero"}">${money(tot)}</span></div><div class="sub-note">${t("Impuesto y total final los calcula Square.", "Tax & final total calculated by Square.")}</div></div></div>
   ${timingHTML()}`;
 }
 async function readBack() {
@@ -437,7 +437,7 @@ function v3CartHTML() {
   const tot = cart.reduce((a, l) => a + (b?.lineTotal?.(l) || 0), 0);
   const when = "";
   const signin = CUST.me?.loggedIn ? "" : `<p class="cust-prompt"><button type="button" class="cust-link" data-cust="open">${t("Inicia sesión", "Sign in")}</button> ${t("para llenar tus datos y ver tus favoritos.", "to fill in your details and see your favorites.")}</p>`;
-  return `${signin}${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="v3-cl tot"><span>Subtotal</span><b>${money(tot)}</b></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
+  return `${signin}${when}${cart.map((l) => `<div class="v3-cl"><span>${Number(l.quantity) || 1} × ${esc(itemName(l.item))}</span><b>${money(b?.lineTotal?.(l) || 0)}</b></div>`).join("")}<div class="subtotal-wrap"><div class="sub-row"><span class="sub-label">Subtotal</span><span class="subtotal${tot ? "" : " is-zero"}">${money(tot)}</span></div><div class="sub-note">${t("Impuesto y total final los calcula Square.", "Tax & final total calculated by Square.")}</div></div><button type="button" class="u1-btn p v3-full" data-go="receipt">${t("Ver orden", "View order")}</button>`;
 }
 function v3ElviHTML() { return `<section class="v3-elvi"><div class="v3-elvi-card"><span class="v3-dot big"></span><div><b>Elvi</b><small>${t("Pide hablando o tocando el menú", "Order by talking or tapping the menu")}</small></div></div><p class="v3-elvi-line" id="v3-elvi-line"></p><h3>🛒 ${t("Tu orden", "Your order")}</h3>${v3CartHTML()}</section>`; }
 function v3Side() {
@@ -1007,8 +1007,7 @@ function openConfirm() {
       <h3>${t("¿Así quedó?", "Does this look right?")}</h3>
       <div class="ux1-conf-say"><span class="v3-dot" aria-hidden="true"></span><div id="ux1-conf-say">${esc(say)}</div></div>
       <div class="conf-lines">${lines}</div>
-      <div style="display:flex;justify-content:space-between;font-weight:600;font-size:16.5px;letter-spacing:-.01em"><span>Subtotal</span><span>${money(tot)}</span></div>
-      <div style="font-size:11px;color:var(--mut);margin-bottom:6px">${t("Impuesto y total final los calcula Square.", "Tax & final total by Square.")}</div>
+      <div class="subtotal-wrap"><div class="sub-row"><span class="sub-label">Subtotal</span><span class="subtotal${tot ? "" : " is-zero"}">${money(tot)}</span></div><div class="sub-note">${t("Impuesto y total final los calcula Square.", "Tax & final total calculated by Square.")}</div></div>
       <div class="kitchen"><div class="kt"><span class="chk">✓</span> ${t("Para la cocina", "For the kitchen")}</div><pre>${esc(kitchenLines())}</pre></div>
       ${payChoiceHTML()}
     </div>
