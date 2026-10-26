@@ -141,3 +141,14 @@ export function appQuoteFor(miles: number, app: AppDeliveryConfig): Quote {
 const toApp = (q: Quote | null, app: AppDeliveryConfig | null): Quote | null => (!q || !app ? q : typeof q.miles === "number" ? { ...appQuoteFor(q.miles, app), matched: q.matched, place: q.place, city: q.city } : q);
 export const cachedAppQuote = (address: string) => toApp(cachedQuote(address), loadAppDelivery());
 export async function quoteAppAddress(address: string, fetcher: typeof fetch = fetch): Promise<Quote> { return toApp(await quoteDeliveryAddress(address, fetcher), loadAppDelivery())!; }
+
+/** m40: quote from verified lat/lng (skip re-geocode). App path uses distance tiers; place optional. */
+export function quoteDeliveryCoords(lat: number, lng: number, matched?: string, place: string | null = null): Quote {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { ok: false, needsConfirm: true, reason: "geocode_failed", message: CONFIRM };
+  const cfg = loadDeliveryConfig();
+  const miles = milesBetween(cfg.origin, { lat, lng });
+  return { ...quoteFor(miles, place, cfg), matched };
+}
+export function quoteAppCoords(lat: number, lng: number, matched?: string, place: string | null = null): Quote {
+  return toApp(quoteDeliveryCoords(lat, lng, matched, place), loadAppDelivery())!;
+}

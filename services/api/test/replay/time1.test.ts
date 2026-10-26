@@ -26,7 +26,7 @@ test("open (Tue 13:07): ASAP ~20 / ~40 ±5, not scheduled; first slot rounds up"
 });
 test("after last order (Tue 19:50) → next day; Sunday night skips Monday to Tuesday", () => {
   const p = T.timingOptions("PICKUP", et("2026-10-27", "19:50"), cat)!; assert.equal(p.open, false); assert.match(hm(p.asap.at), /^Wed 11:20/);
-  const s = T.timingOptions("PICKUP", et("2026-10-25", "21:00"), cat)!; assert.match(hm(s.asap.at), /^Tue 11:20/); assert.equal(s.days[0].es, "mar");
+  const s = T.timingOptions("PICKUP", et("2026-10-25", "21:00"), cat)!; assert.match(hm(s.asap.at), /^Tue 11:20/); assert.equal(s.days[0].es, "Martes"); // m40 full day
   const m = T.timingOptions("PICKUP", et("2026-10-26", "12:00"), cat)!; assert.match(hm(m.asap.at), /^Tue 11:20/, "Monday closed");
 });
 test("weekend opens 10am (web hours override)", () => {

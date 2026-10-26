@@ -688,7 +688,7 @@ export {};
 
 
 // ---------- time1: checkout timing step (ASAP / Programar · pickup / delivery) + pay ----------
-const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false, addrConfirmed: false, addrPending: null, addrBusy: false, softAddr: false };
+const TM = { f: "PICKUP", mode: "asap", day: 0, at: "", opts: {}, check: null, err: "", busy: false, addrConfirmed: false, addrPending: null, addrBusy: false }; // m40: no softAddr escape
 function tmLoad(f) { if (TM.opts[f] || TM.opts[f + "_l"]) return; TM.opts[f + "_l"] = 1;
   fetch(`/api/${TENANT}/orders/timing?f=${f}`).then((r) => r.json()).then((j) => { TM.opts[f] = j; delete TM.opts[f + "_l"]; tmCheck(); if (U.screen === "receipt") render(); }).catch(() => { delete TM.opts[f + "_l"]; }); }
 // m38: full weekday names on schedule day chips (Carlos UX).
@@ -743,7 +743,7 @@ function timingHTML() {
   ${fields}<p class="tm-err">${esc(TM.err)}</p><button type="button" class="u1-btn p v3-full" data-tmconfirm="1" ${can ? "" : "disabled"}>${TM.busy ? t("Abriendo pago…", "Opening checkout…") : t("Continuar", "Continue")} · ${money((B()?.state?.cart || []).reduce((a, l) => a + (B()?.lineTotal?.(l) || 0), 0))}</button></div>`;
 }
 document.addEventListener("click", (e) => {
-  const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; if (TM.f !== "DELIVERY") { TM.addrConfirmed = false; TM.addrPending = null; TM.addrBusy = false; TM.softAddr = false; } tmLoad(TM.f); tmCheck(); render(); return; }
+  const f = e.target.closest?.("[data-tmf]"); if (f) { TM.f = f.dataset.tmf; TM.at = ""; TM.day = 0; TM.check = null; if (TM.f !== "DELIVERY") { TM.addrConfirmed = false; TM.addrPending = null; TM.addrBusy = false; } tmLoad(TM.f); tmCheck(); render(); return; }
   const m = e.target.closest?.("[data-tmm]"); if (m) { TM.mode = m.dataset.tmm; if (TM.mode === "asap") TM.at = ""; tmCheck(); render(); return; }
   if (e.target.closest?.("[data-tmconfirm]")) { openConfirm(); return; }
   if (e.target.closest?.("[data-tmpay]")) { void tmPay(); }
@@ -756,17 +756,23 @@ async function tmPay() {
   const b = B(); if (!b) return; const v = (id) => (document.getElementById(id)?.value || "").trim();
   const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
   if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
-  if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
-  if (TM.f === "DELIVERY" && addr && !TM.addrConfirmed) {
-    if (!TM.softAddr) {
-      TM.softAddr = true;
-      if (!TM.addrPending) TM.addrPending = tmParseAddr(addr);
-      TM.err = t("Confirma tu dirección para continuar", "Confirm your address to continue");
-      return render();
+  if (TM.f === "DELIVERY" && !TM.addrConfirmed) {
+    TM.err = t("Confirma tu dirección…", "Confirm your address…");
+    if (TM.addrPending?.verified) {
+      const conf = document.getElementById("tm-addr-confirm");
+      if (conf) conf.classList.add("show");
+    }
+    return render();
+  }
+  const custPatch = { name, phone, email };
+  if (TM.f === "DELIVERY") {
+    custPatch.address = TM.addrPending?.matchedAddress || TM.addrPending?.full || addr;
+    if (Number.isFinite(TM.addrPending?.lat) && Number.isFinite(TM.addrPending?.lng)) {
+      custPatch.lat = TM.addrPending.lat; custPatch.lng = TM.addrPending.lng;
     }
   }
-  Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
-  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", addr]]) { const el = document.getElementById(k); if (el) el.value = x; }
+  Object.assign(b.state.customer, custPatch);
+  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", custPatch.address || addr]]) { const el = document.getElementById(k); if (el) el.value = x; }
   b.state.fulfillment = TM.f; const sel = document.getElementById("fulfillment"); if (sel) sel.value = TM.f;
   b.state.timing = tmReq(); TM.err = ""; TM.busy = true; render();
   const r = b.checkout ? await b.checkout() : { ok: false, error: "checkout unavailable" };
@@ -774,93 +780,52 @@ async function tmPay() {
 }
 document.addEventListener("input", (e) => { const m = { "tm-name": "name", "tm-phone": "phone", "tm-email": "email", "tm-addr": "address" }[e.target?.id]; const b = B(); if (m && b) b.state.customer[m] = e.target.value; if (e.target?.id === "tm-addr") tmOnAddrInput(e.target.value); });
 
-// ---------- m39: delivery address suggest + locate + pin confirm (SPEC §2o) ----------
-// No Google Places key in project — Photon (OSM, CORS *) biased to Painesville/Mentor + local street seed; browser geolocation + Photon reverse for locate. Confirmed string still feeds check_delivery_zone / Census geocode on the API.
-const TM_ADDR_ORIGIN = { lat: 41.7245, lon: -81.2456 };
-const TM_ADDR_SEED = [
-  { street: "101 W Walnut Ave", city: "Painesville, OH 44077" },
-  { street: "101 Main St", city: "Painesville, OH 44077" },
-  { street: "250 Mentor Ave", city: "Painesville, OH 44077" },
-  { street: "7800 Mentor Ave", city: "Mentor, OH 44060" },
-  { street: "44 N State St", city: "Painesville, OH 44077" },
-  { street: "123 Liberty St", city: "Painesville, OH 44077" },
-  { street: "9000 Mentor Ave", city: "Mentor, OH 44060" },
-  { street: "318 Bank St", city: "Painesville, OH 44077" },
-  { street: "8 N Park Pl", city: "Painesville, OH 44077" },
-  { street: "55 Erie St", city: "Painesville, OH 44077" },
-  { street: "150 Richmond St", city: "Painesville, OH 44077" },
-  { street: "210 E Main St", city: "Painesville, OH 44077" },
-  { street: "7701 Reynolds Rd", city: "Mentor, OH 44060" },
-  { street: "5860 Andrews Rd", city: "Mentor On The Lake, OH 44060" },
-  { street: "1 Victoria Pl", city: "Painesville, OH 44077" },
-];
-function tmFormatAddr(a) { if (!a) return ""; return a.full || [a.street, a.city].filter(Boolean).join(", "); }
-function tmParseAddr(s) {
-  const raw = String(s || "").trim(); if (!raw) return null;
-  const i = raw.indexOf(",");
-  if (i > 0) return { street: raw.slice(0, i).trim(), city: raw.slice(i + 1).trim(), full: raw };
-  return { street: raw, city: "Painesville, OH 44077", full: raw + ", Painesville, OH 44077" };
+// ---------- m40: Census-verified house addresses (API proxy) + hard confirm (SPEC §2o/§2p) ----------
+// Primary: US Census onelineaddress via /tools/address_suggest (house # only). Locate → Nominatim reverse + Census verify.
+// Optional Places when GOOGLE_PLACES_API_KEY is on the API. Free-text never locks; Continuar hard-blocked until verified confirm.
+function tmFormatAddr(a) {
+  if (!a) return "";
+  return a.full || a.matchedAddress || [a.street, a.city].filter(Boolean).join(", ");
 }
-function tmSeedSuggest(q) {
-  const s = q.trim().toLowerCase(); if (s.length < 2) return [];
-  return TM_ADDR_SEED.filter((a) => (a.street + " " + a.city).toLowerCase().includes(s)).slice(0, 3);
-}
-function tmPhotonToAddr(f) {
-  const p = f?.properties || {}; const g = f?.geometry?.coordinates || [];
-  const road = p.street || (p.osm_key === "highway" ? p.name : "") || "";
-  const street = [p.housenumber, road || p.name].filter(Boolean).join(" ").trim();
-  const place = p.city || p.town || p.village || p.district || "";
-  const zip = p.postcode || "";
-  const cityN = place && zip ? `${place}, OH ${zip}` : place ? `${place}, OH` : (zip ? `OH ${zip}` : "OH");
-  if (!street) return null;
-  return { street, city: cityN, full: `${street}, ${cityN}`, lat: g[1], lng: g[0] };
+function tmIsVerified(a) {
+  return !!(a && a.verified && a.matchedAddress && Number.isFinite(Number(a.lat)) && Number.isFinite(Number(a.lng)) && /^\d/.test(String(a.matchedAddress).trim()));
 }
 let _tmSugTimer = 0, _tmSugSeq = 0;
-function tmCloseSuggest() { const box = document.getElementById("tm-suggest"); if (!box) return; box.hidden = true; box.innerHTML = ""; }
+function tmCloseSuggest() { const box = document.getElementById("tm-suggest"); if (!box) return; box.hidden = true; box.innerHTML = ""; box._list = null; }
 function tmRenderSuggest(list) {
   const box = document.getElementById("tm-suggest"); if (!box) return;
   if (!list.length) { tmCloseSuggest(); return; }
-  box.innerHTML = list.map((a, i) => `<button type="button" class="tm-sug" role="option" data-tmsug="${i}"><span class="tm-sug-pin" aria-hidden="true">📍</span><span><div class="tm-sug-main">${esc(a.street)}</div><div class="tm-sug-sub">${esc(a.city)}</div></span></button>`).join("");
+  box.innerHTML = list.map((a, i) => `<button type="button" class="tm-sug" role="option" data-tmsug="${i}"><span class="tm-sug-pin" aria-hidden="true">📍</span><span><div class="tm-sug-main">${esc(a.street || tmFormatAddr(a))}</div><div class="tm-sug-sub">${esc(a.city || "")}</div></span></button>`).join("");
   box._list = list; box.hidden = false;
 }
-async function tmFetchPhoton(q) {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q + " Ohio")}&lat=${TM_ADDR_ORIGIN.lat}&lon=${TM_ADDR_ORIGIN.lon}&limit=5&lang=en`;
-  const r = await fetch(url); if (!r.ok) return [];
+async function tmFetchSuggest(q) {
+  const r = await fetch(`/api/${TENANT}/tools/address_suggest?q=${encodeURIComponent(q)}`);
+  if (!r.ok) return [];
   const j = await r.json();
-  const out = []; const seen = new Set();
-  const nearList = [], farList = [];
-  for (const f of (j.features || [])) {
-    const a = tmPhotonToAddr(f); if (!a) continue;
-    const zip = (a.city.match(/\b44\d{3}\b/) || [])[0] || "";
-    const near = /painesville|mentor|fairport|concord|perry|madison|willoughby|eastlake|grand river|kirtland|chardon/i.test(a.full) || /^440(4|5|6|7|8|9)\d$/.test(zip);
-    const key = a.full.toLowerCase(); if (seen.has(key)) continue; seen.add(key);
-    (near ? nearList : farList).push(a);
-  }
-  return (nearList.length ? nearList : farList).slice(0, 3);
+  return (j.suggestions || []).filter(tmIsVerified).slice(0, 3);
 }
 function tmOnAddrInput(val) {
-  TM.addrConfirmed = false; TM.addrPending = null; TM.softAddr = false;
+  TM.addrConfirmed = false; TM.addrPending = null;
+  const b0 = B(); if (b0) { delete b0.state.customer.lat; delete b0.state.customer.lng; }
   const inp = document.getElementById("tm-addr"); if (inp) inp.classList.remove("locked");
   document.getElementById("tm-addr-ok")?.classList.remove("show");
   document.getElementById("tm-addr-confirm")?.classList.remove("show");
-  const q = String(val || "");
-  const seed = tmSeedSuggest(q);
-  if (seed.length) tmRenderSuggest(seed); else if (q.trim().length < 2) tmCloseSuggest();
+  const q = String(val || "").trim();
   clearTimeout(_tmSugTimer);
-  if (q.trim().length < 2) return;
+  if (q.length < 2) { tmCloseSuggest(); return; }
+  // Prefer queries that look like they have a house #, but still try after 2+ chars (API biases + filters).
   const seq = ++_tmSugSeq;
   _tmSugTimer = setTimeout(async () => {
     try {
-      const remote = await tmFetchPhoton(q.trim());
+      const remote = await tmFetchSuggest(q);
       if (seq !== _tmSugSeq) return;
-      const merged = []; const seen = new Set();
-      for (const a of [...seed, ...remote]) { const k = a.full.toLowerCase(); if (seen.has(k)) continue; seen.add(k); merged.push(a); if (merged.length >= 3) break; }
-      tmRenderSuggest(merged);
-    } catch { if (seq === _tmSugSeq && seed.length) tmRenderSuggest(seed); }
-  }, 220);
+      tmRenderSuggest(remote);
+    } catch { if (seq === _tmSugSeq) tmCloseSuggest(); }
+  }, 280);
 }
 function tmSelectSuggest(a) {
-  TM.addrPending = a; TM.addrConfirmed = false; TM.softAddr = false;
+  if (!tmIsVerified(a)) return;
+  TM.addrPending = a; TM.addrConfirmed = false;
   const inp = document.getElementById("tm-addr");
   if (inp) { inp.value = tmFormatAddr(a); inp.classList.remove("locked"); }
   const b = B(); if (b) b.state.customer.address = tmFormatAddr(a);
@@ -873,30 +838,41 @@ function tmSelectSuggest(a) {
   document.getElementById("tm-loc-pending")?.classList.remove("show");
 }
 function tmConfirmAddr() {
-  if (!TM.addrPending) {
-    const v = (document.getElementById("tm-addr")?.value || "").trim();
-    if (!v) return; TM.addrPending = tmParseAddr(v);
+  if (!tmIsVerified(TM.addrPending)) {
+    TM.err = t("Confirma tu dirección…", "Confirm your address…");
+    return render();
   }
   TM.addrConfirmed = true; TM.err = "";
-  const full = tmFormatAddr(TM.addrPending);
+  const full = TM.addrPending.matchedAddress || tmFormatAddr(TM.addrPending);
   const inp = document.getElementById("tm-addr");
   if (inp) { inp.value = full; inp.classList.add("locked"); }
-  const b = B(); if (b) b.state.customer.address = full;
+  const b = B();
+  if (b) {
+    b.state.customer.address = full;
+    b.state.customer.lat = TM.addrPending.lat;
+    b.state.customer.lng = TM.addrPending.lng;
+  }
   document.getElementById("tm-addr-confirm")?.classList.remove("show");
   document.getElementById("tm-addr-ok")?.classList.add("show");
   document.getElementById("tm-loc-pending")?.classList.remove("show");
   tmCloseSuggest();
+  // Prefetch zone with verified coords (non-blocking).
+  void fetch(`/api/${TENANT}/tools/check_delivery_zone`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address: full, lat: TM.addrPending.lat, lng: TM.addrPending.lng, language: lang() })
+  }).catch(() => {});
 }
 function tmEditAddr() {
-  TM.addrConfirmed = false; TM.softAddr = false;
+  TM.addrConfirmed = false;
+  const b = B(); if (b) { delete b.state.customer.lat; delete b.state.customer.lng; }
   document.getElementById("tm-addr-confirm")?.classList.remove("show");
   document.getElementById("tm-addr-ok")?.classList.remove("show");
   const inp = document.getElementById("tm-addr");
-  if (inp) { inp.classList.remove("locked"); inp.focus(); tmOnAddrInput(inp.value.split(",")[0] || inp.value); }
+  if (inp) { inp.classList.remove("locked"); inp.focus(); tmOnAddrInput(inp.value); }
 }
 async function tmUseLocation() {
   if (TM.addrBusy) return;
-  TM.addrBusy = true; TM.addrConfirmed = false; TM.softAddr = false;
+  TM.addrBusy = true; TM.addrConfirmed = false; TM.addrPending = null;
   document.getElementById("tm-addr-confirm")?.classList.remove("show");
   document.getElementById("tm-addr-ok")?.classList.remove("show");
   document.getElementById("tm-addr")?.classList.remove("locked");
@@ -914,15 +890,17 @@ async function tmUseLocation() {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     try {
       const { latitude: lat, longitude: lon } = pos.coords;
-      const r = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&lang=en`);
+      const r = await fetch(`/api/${TENANT}/tools/address_reverse`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng: lon })
+      });
       const j = r.ok ? await r.json() : null;
-      const a = tmPhotonToAddr(j?.features?.[0]) || { street: `${lat.toFixed(5)}, ${lon.toFixed(5)}`, city: "OH", full: `${lat.toFixed(5)}, ${lon.toFixed(5)}`, lat, lng: lon };
-      a.lat = lat; a.lng = lon;
+      const a = j?.suggestion;
       TM.addrBusy = false;
       document.querySelector(".tm-loc-pill")?.classList.remove("busy");
-      tmSelectSuggest(a);
-      // re-show pending (tmSelectSuggest already did) without full render wipe when possible
       document.getElementById("tm-loc-pending")?.classList.remove("show");
+      if (!tmIsVerified(a)) return fail(t("No encontramos una dirección con número ahí. Escríbela.", "No house-number address found there. Please type it."));
+      tmSelectSuggest(a);
     } catch { fail(); }
   }, () => fail(t("Activa la ubicación o escribe tu calle.", "Enable location or type your street.")), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
 }
@@ -985,20 +963,26 @@ function openConfirm() {
   const v = (id) => (document.getElementById(id)?.value || "").trim();
   const name = v("tm-name"), phone = v("tm-phone"), email = v("tm-email"), addr = v("tm-addr");
   if (!name) { TM.err = t("Escribe tu nombre.", "Please enter your name."); return render(); }
-  if (TM.f === "DELIVERY" && !addr) { TM.err = t("Escribe la dirección de entrega.", "Please enter the delivery address."); return render(); }
-  // m39: soft-prompt confirm before Continuar locks delivery address (second Continuar proceeds).
-  if (TM.f === "DELIVERY" && addr && !TM.addrConfirmed) {
-    if (!TM.softAddr) {
-      TM.softAddr = true;
-      if (!TM.addrPending) TM.addrPending = tmParseAddr(addr);
-      TM.err = t("Confirma tu dirección para continuar", "Confirm your address to continue");
-      return render();
+  // m40: hard-block Continuar until a verified suggestion/locate is confirmed (no soft second-Continuar escape).
+  if (TM.f === "DELIVERY" && !TM.addrConfirmed) {
+    TM.err = t("Confirma tu dirección…", "Confirm your address…");
+    if (TM.addrPending?.verified) {
+      const conf = document.getElementById("tm-addr-confirm");
+      if (conf) conf.classList.add("show");
     }
+    return render();
   }
   if (TM.mode === "scheduled" && !TM.at) { TM.err = t("Escoge una hora.", "Pick a time."); return render(); }
   if (TM.check && TM.check.ok === false) { TM.err = t("Revisa los artículos o la hora.", "Check items or time."); return render(); }
-  Object.assign(b.state.customer, { name, phone, email, ...(TM.f === "DELIVERY" ? { address: addr } : {}) });
-  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", addr]]) {
+  const custPatch = { name, phone, email };
+  if (TM.f === "DELIVERY") {
+    custPatch.address = TM.addrPending?.matchedAddress || TM.addrPending?.full || addr;
+    if (Number.isFinite(TM.addrPending?.lat) && Number.isFinite(TM.addrPending?.lng)) {
+      custPatch.lat = TM.addrPending.lat; custPatch.lng = TM.addrPending.lng;
+    }
+  }
+  Object.assign(b.state.customer, custPatch);
+  for (const [k, x] of [["customer-name", name], ["customer-phone", phone], ["customer-email", email], ["customer-address", custPatch.address || addr]]) {
     const el = document.getElementById(k); if (el) el.value = x;
   }
   b.state.fulfillment = TM.f; const sel = document.getElementById("fulfillment"); if (sel) sel.value = TM.f;

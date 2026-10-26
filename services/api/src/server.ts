@@ -30,7 +30,8 @@ import { registerTwilioRoutes, phoneAuth } from "./twilio.js";
 import { rateLimit, gatedCheckoutConfig, CHECKOUT_CLOSED_MESSAGE, accessZone, PHONE_OK, ORDER_DENY, loginPage, ORDER_PUBLIC, hitLimit, clientIp, passwordOk, makePreviewCookie, previewCookieOk } from "./customer-guard.js";
 import fs from "node:fs";
 import { detectFulfillment, detectAddress, ticketFulfillment, scoreFulfillment } from "./delivery.js";
-import { quoteDeliveryAddress, quoteAppAddress } from "./delivery-zone.js";
+import { quoteDeliveryAddress, quoteAppAddress, quoteAppCoords } from "./delivery-zone.js";
+import { suggestAddresses, reverseAddress } from "./address-suggest.js";
 import { deliveryFeeLine, squareRefs } from "./call-accuracy.js";
 import { loadPosCatalog, toPosLines } from "./pos-catalog.js";
 import { auditorFindingsByCall } from "./auditor.js";
@@ -1460,14 +1461,41 @@ app.post("/api/:tenant/tools/check_delivery_zone", async (req, res, next) => {
       return;
     }
     const address = String(req.body?.address || "").trim();
-    if (!address) {
+    const lat = Number(req.body?.lat), lng = Number(req.body?.lng);
+    if (!address && !(Number.isFinite(lat) && Number.isFinite(lng))) {
       throw new Error("address is required");
     }
-    // delivery1: geocoded distance zones (data/delivery.json); a failed lookup asks to confirm instead of guessing.
-    const q = await quoteAppAddress(address); // appdelivery1: website fees for the customer app
+    // m40: prefer verified lat/lng from checkout confirm; else geocode address (Census).
+    const q = (Number.isFinite(lat) && Number.isFinite(lng))
+      ? quoteAppCoords(lat, lng, address || undefined)
+      : await quoteAppAddress(address); // appdelivery1: website fees for the customer app
     const lang = String(req.body?.language || "es") === "en" ? "en" : "es";
     res.json({ ok: true, available: true, in_zone: q.ok, needs_confirm: q.needsConfirm, reason: q.reason || null, zone: q.zone || null,
-      fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, delivery_cents: q.deliveryCents ?? null, service_cents: q.serviceCents ?? null, breakdown: q.breakdown ?? null, minimum_subtotal_cents: q.minimumCents ?? 1000, message: q.message[lang] });
+      fee_cents: q.feeCents ?? null, eta_minutes: q.etaMinutes ?? null, miles: q.miles ?? null, city: q.city ?? null, fee_confirmed: q.feeConfirmed !== false, delivery_cents: q.deliveryCents ?? null, service_cents: q.serviceCents ?? null, breakdown: q.breakdown ?? null, minimum_subtotal_cents: q.minimumCents ?? 1000, matched: q.matched || null, message: q.message[lang] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// m40: address suggest (Census / optional Places) + reverse — house-numbered verified only.
+app.get("/api/:tenant/tools/address_suggest", async (req, res, next) => {
+  try {
+    const q = String(req.query?.q || "").trim().slice(0, 200);
+    const suggestions = q.length >= 2 ? await suggestAddresses(q) : [];
+    res.json({ ok: true, suggestions });
+  } catch (error) {
+    next(error);
+  }
+});
+app.post("/api/:tenant/tools/address_reverse", async (req, res, next) => {
+  try {
+    const lat = Number(req.body?.lat), lng = Number(req.body?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      res.status(400).json({ ok: false, error: "lat/lng required" });
+      return;
+    }
+    const suggestion = await reverseAddress(lat, lng);
+    res.json({ ok: true, suggestion });
   } catch (error) {
     next(error);
   }

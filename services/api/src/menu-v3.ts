@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadSiteCatalog, currentTime } from "./site-catalog.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-export const DAY_ES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"], DAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const DAY_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"], DAY_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; // m40: full weekday names (ASAP/schedule chrome)
 export const toMin = (hhmm: string) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + (m || 0); };
 export const fmt = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`; };
 export function zoned(now: Date, tz: string) {

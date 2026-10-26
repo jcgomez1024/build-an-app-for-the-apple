@@ -2,8 +2,7 @@
 // Pickup: the slot is the READY time (≥ now/opening + prep, ≤ close). Delivery: the slot is the ARRIVAL center
 // (ready + drive), shown as a ±pad window; kitchen-ready must be ≤ close. Same rules on the client and the server.
 import { loadSiteCatalog, currentTime, itemAvailability } from "./site-catalog.js";
-import { zoned, toMin, fmt, openWindow, DAY_ES } from "./menu-v3.js";
-const DAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { zoned, toMin, fmt, openWindow, DAY_ES, DAY_EN } from "./menu-v3.js"; // m40: full day names from menu-v3
 export type Fulfillment = "PICKUP" | "DELIVERY";
 export const timingConfig = (catalog = loadSiteCatalog()) => ({
   prep: Number(process.env.ELVI_PREP_MINUTES || (catalog as any)?.store?.prepMinutes || 20),

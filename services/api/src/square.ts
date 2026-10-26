@@ -1,6 +1,6 @@
 import { addressesIn } from "./delivery.js";
 import { cleanFullName } from "./caller-memory.js";
-import { quoteDeliveryAddress, quoteAppAddress, loadAppDelivery, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
+import { quoteDeliveryAddress, quoteAppAddress, quoteAppCoords, quoteDeliveryCoords, loadAppDelivery, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
 import { loadSiteCatalog, siteSellsSquareItem, applySiteGroupRules, readbackName } from "./site-catalog.js";
 import { nanoid } from "nanoid";
 import fs from "node:fs";
@@ -30,6 +30,8 @@ type CheckoutRequest = {
     phone?: string;
     email?: string;
     address?: string;
+    lat?: number;
+    lng?: number;
   };
   metadata?: {
     language?: string;
@@ -316,7 +318,15 @@ export async function createCheckout(input: CheckoutRequest, config?: Partial<Sq
   // delivery1: zone/fee from data/delivery.json (geocoded). If the zone can't be confirmed, don't take payment — staff confirm.
   let deliveryQuote: Quote | undefined;
   if (input.fulfillment === "DELIVERY") {
-    deliveryQuote = isAppOrder(input) ? await quoteAppAddress(input.customer.address || "") : await quoteDeliveryAddress(input.customer.address || ""); // appdelivery1
+    // m40: prefer verified lat/lng from client confirm; else geocode the address string.
+    const lat = Number((input.customer as any)?.lat), lng = Number((input.customer as any)?.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      deliveryQuote = isAppOrder(input)
+        ? quoteAppCoords(lat, lng, input.customer.address || undefined)
+        : quoteDeliveryCoords(lat, lng, input.customer.address || undefined);
+    } else {
+      deliveryQuote = isAppOrder(input) ? await quoteAppAddress(input.customer.address || "") : await quoteDeliveryAddress(input.customer.address || ""); // appdelivery1
+    }
     if (!deliveryQuote.ok) throw new Error(deliveryQuote.reason === "out_of_range" ? deliveryQuote.message.en : "We couldn't confirm the delivery zone for that address. Please call us so staff can confirm the delivery fee.");
     (input as any).deliveryQuote = deliveryQuote;
   }
