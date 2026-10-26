@@ -1,4 +1,4 @@
-// ui1 m42 (2026-10-26): acomp split photo + compact sheet foot.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
+// ui1 m43 (2026-10-26): required-step auto-collapse + grabber dismiss.  photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -116,7 +116,7 @@ function twinOf(g, o) {
 }
 
 // ---------- state ----------
-const U = { menu: [], cats: [], productOf: new Map(), screen: "home", cat: null, item: null, step: 0, sel: {}, dbl: {}, last: {}, toast: null };
+const U = { menu: [], cats: [], productOf: new Map(), screen: "home", cat: null, item: null, step: 0, sel: {}, dbl: {}, last: {}, toast: null, collapsed: {}, expand: null };
 
 async function load() {
   const [m, c] = await Promise.all([fetch(`/api/${TENANT}/menu`).then((r) => r.json()), fetch(`/api/${TENANT}/ui/catalog${V3 ? "?v3=1" : ""}`).then((r) => r.json())]);
@@ -196,7 +196,7 @@ function itemTotal() {
 function openItem(id) {
   const it = U.menu.find((m) => m.id === id);
   if (!it) return;
-  U.item = it; U.sel = {}; U.dbl = {}; U.last = {}; U._v3AskKey = null;
+  U.item = it; U.sel = {}; U.dbl = {}; U.last = {}; U.collapsed = {}; U.expand = null; U._v3AskKey = null;
   (it.modifierGroups || []).forEach((g) => { U.sel[g.id] = {}; U.dbl[g.id] = new Set(); for (const d of defaultsOf(g)) U.sel[g.id][d] = 1; });
   const { main, extra } = steps();
   U.step = main.find((i) => !Object.keys(U.sel[it.modifierGroups[i].id]).length) ?? (main[0] ?? (extra.length ? "x" : null));
@@ -257,6 +257,11 @@ function pick(gi, name) {
   } else {
     if (mx === 1) { for (const k of Object.keys(sel)) delete sel[k]; U.dbl[g.id].clear(); }
     if (count() < mx) { sel[name] = 1; U.last[g.id] = name; }
+  }
+  // m43 §2r: after explicit pick, collapse required group once min is met (silent defaults stay open until this)
+  if (V3 && minOf(g) > 0) {
+    if (Object.keys(sel).length >= minOf(g)) { U.collapsed[g.id] = true; U.expand = null; }
+    else { delete U.collapsed[g.id]; }
   }
   // warm1b: highlight via .sel on re-render; V3 ask/TTS advances from missingStep (not scroll)
   if (V3) {
@@ -517,19 +522,92 @@ async function v3LeadAskAsync(force) {
     });
   }
 }
+
+/* m43 §2r: short choice + resume for collapsed required steps */
+function shortChoice(name) {
+  let n = String(optLabel(name) || "").trim();
+  n = n.replace(/^Salsa\s+/i, "").replace(/^Versi[oó]n\s+/i, "");
+  if (/arroz y frijoles|rice\s*(&|and)\s*refritos|rice\s*(&|and)\s*beans/i.test(n)) n = t("Arroz y Frijoles", "Rice & Beans");
+  if (/mild\s+asada|asada\s+suave/i.test(String(name || "") + " " + n) && lang() === "en") n = "Mild Asada";
+  if (/tomato|tomate/i.test(String(name || "")) && /suave|mild/i.test(String(name || "")) && lang() === "en") n = "Mild Tomato";
+  return n;
+}
+function resumeLab(g) {
+  const sel = U.sel[g.id] || {};
+  const names = Object.keys(sel).map(shortChoice);
+  let px = 0;
+  for (const [name, q] of Object.entries(sel)) {
+    const o = (g.options || []).find((x) => x.name === name);
+    px += Number(o?.priceDeltaCents || 0) * (Number(q) || 1);
+  }
+  return { lab: `${groupLabel(g)} · ${names.join(", ")}`, px };
+}
+/* m43 §2s: grabber tap + swipe-down dismiss (item / confirm sheets) */
+function bindSheetDismiss(sheetEl, onClose) {
+  if (!sheetEl || !onClose) return;
+  const hit = sheetEl.querySelector(".v3-grab-hit") || sheetEl.querySelector(".v3-grab");
+  if (hit) {
+    hit.setAttribute("role", "button");
+    hit.setAttribute("aria-label", t("Cerrar", "Close"));
+    hit.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); onClose(); });
+  }
+  let y0 = 0, t0 = 0, dragging = false;
+  const mobile = () => !window.matchMedia("(min-width:960px)").matches;
+  const onStart = (e) => {
+    if (!mobile()) return;
+    const tch = e.touches ? e.touches[0] : e;
+    const rect = sheetEl.getBoundingClientRect();
+    if ((tch.clientY - rect.top) > 72) return;
+    const body = sheetEl.querySelector(".v3-sheet-body, .ux1-conf-body");
+    if ((body?.scrollTop || sheetEl.scrollTop || 0) > 0) return;
+    y0 = tch.clientY; t0 = performance.now(); dragging = true;
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const tch = e.touches ? e.touches[0] : e;
+    const dy = Math.max(0, tch.clientY - y0);
+    sheetEl.classList.add("dragging");
+    sheetEl.style.transform = `translateY(${dy}px)`;
+    if (e.cancelable) e.preventDefault();
+  };
+  const onEnd = (e) => {
+    if (!dragging) return;
+    dragging = false; sheetEl.classList.remove("dragging");
+    const tch = e.changedTouches ? e.changedTouches[0] : e;
+    const dy = Math.max(0, tch.clientY - y0);
+    const vy = dy / Math.max(1, performance.now() - t0);
+    sheetEl.style.transform = "";
+    if (dy >= 90 || vy >= 0.65) onClose();
+  };
+  sheetEl.addEventListener("touchstart", onStart, { passive: true });
+  sheetEl.addEventListener("touchmove", onMove, { passive: false });
+  sheetEl.addEventListener("touchend", onEnd, { passive: true });
+}
+function closeItemSheetFromGrab() {
+  U.screen = U.cat !== null ? (U.prod ? "prod" : "cat") : "home";
+  render();
+}
+
 function v3SheetHTML() {
   const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
   const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
   const say = miss !== undefined ? v3Ask(gs[miss]) : t(`Perfecto: ${itemName(it)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(it)}${picked ? " — " + picked : ""}.`);
-  const grp = (i) => { const g = gs[i]; const need = minOf(g) > 0 && !Object.keys(U.sel[g.id]).length; const mx = maxOf(g);
-    return `<div class="v3-grp ${need ? "need" : ""}" id="v3-g-${i}"><div class="v3-gh"><b>${esc(groupLabel(g))}</b><span>${need ? t("Requerido", "Required") + (mx > 1 && mx < 99 ? ` · ${t("hasta", "up to")} ${mx}` : "") : Object.keys(U.sel[g.id]).length ? "✓" : ""}</span></div><div class="u1-grid opts">${tilesFor(i)}</div></div>`; };
+  const grp = (i) => {
+    const g = gs[i]; const selected = Object.keys(U.sel[g.id] || {}); const need = minOf(g) > 0 && !selected.length; const mx = maxOf(g);
+    /* m43: collapse required only after explicit pick (U.collapsed) — silent defaults stay expanded */
+    if (minOf(g) > 0 && selected.length && U.collapsed[g.id]) {
+      const r = resumeLab(g); const openAttr = (U.expand === i) ? " open" : "";
+      return `<details class="grp-step" id="v3-g-${i}"${openAttr}><summary class="grp-sum" data-v3-expand="${i}"><span class="gs-lab">${esc(r.lab)}</span><span class="gs-ok" aria-hidden="true">✓</span>${r.px ? `<span class="gs-px">+${money(r.px)}</span>` : ""}</summary><div class="u1-grid opts">${tilesFor(i)}</div></details>`;
+    }
+    return `<div class="v3-grp ${need ? "need" : ""}" id="v3-g-${i}"><div class="v3-gh"><b>${esc(groupLabel(g))}</b><span>${need ? t("Requerido", "Required") + (mx > 1 && mx < 99 ? ` · ${t("hasta", "up to")} ${mx}` : "") : selected.length ? "✓" : ""}</span></div><div class="u1-grid opts">${tilesFor(i)}</div></div>`;
+  };
   const extras = extra.length ? `<details class="v3-extras" ${U.v3x ? "open" : ""}><summary data-v3x="1">＋ ${t("Agregar extras", "Add extras")}</summary>${extra.map(grp).join("")}</details>` : "";
   // warm1: QD hero follows selected Regular/Deluxe thumb
   let heroPhoto = itemPhoto(it);
   const vgi = gs.findIndex((g) => isQdVersionGroup(g));
   if (vgi >= 0) { const vg = gs[vgi]; const picked = Object.keys(U.sel[vg.id] || {})[0]; if (picked) heroPhoto = optionPhoto(picked) || heroPhoto; }
   const foot = miss !== undefined ? `<button class="u1-btn p v3-full" disabled>${t("Falta", "Still need")}: ${esc(groupLabel(gs[miss]))}</button>` : `<button class="u1-btn p v3-full" data-add="1">${t("Agregar", "Add")} · ${money(itemTotal())}</button>`;
-  return `<div class="v3-sheet-bg" data-go="back"></div><div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(itemName(it))}"><div class="v3-grab"></div><div class="v3-sheet-body"><div class="v3-hero">${img(heroPhoto, itemName(it))}<div><b>${esc(itemName(it))}</b><div class="v3-price">${money(itemTotal())}</div><small class="v3-desc2">${esc(String(it.description || "").slice(0, 140))}</small></div></div><div class="v3-ask"><span class="v3-dot big"></span><b>${esc(say)}</b></div>${main.map(grp).join("")}${extras}</div><div class="v3-foot"><button class="u1-btn s" data-go="back" aria-label="${t("Cerrar", "Close")}">✕</button>${foot}</div></div>`;
+  return `<div class="v3-sheet-bg" data-go="back"></div><div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(itemName(it))}"><div class="v3-grab-hit" role="button" aria-label="${t("Cerrar", "Close")}" data-go="back"><div class="v3-grab"></div></div><div class="v3-sheet-body"><div class="v3-hero">${img(heroPhoto, itemName(it))}<div><b>${esc(itemName(it))}</b><div class="v3-price">${money(itemTotal())}</div><small class="v3-desc2">${esc(String(it.description || "").slice(0, 140))}</small></div></div><div class="v3-ask"><span class="v3-dot big"></span><b>${esc(say)}</b></div>${main.map(grp).join("")}${extras}</div><div class="v3-foot"><button class="u1-btn s" data-go="back" aria-label="${t("Cerrar", "Close")}">✕</button>${foot}</div></div>`;
 }
 function v3RenderSheet() {
   let el = document.getElementById("v3-sheet-wrap");
@@ -545,6 +623,9 @@ function v3RenderSheet() {
   el.innerHTML = v3SheetHTML(); document.body.classList.add("v3-sheet-on","sheet-open");
   const b = el.querySelector?.(".v3-sheet-body"); if (b) b.scrollTop = sc;
   if (!U.v3focused) { U.v3focused = true; setTimeout(() => el.querySelector?.(".v3-foot button")?.focus?.(), 0); }
+  // m43 §2s: grabber tap + swipe dismiss
+  const sheet = el.querySelector?.(".v3-sheet");
+  if (sheet) bindSheetDismiss(sheet, closeItemSheetFromGrab);
   // warm1: HEAR the current unfinished required step (TTS); bubble already mirrors via v3LeadAsk
   v3LeadAsk();
   // m29: keep voice session grounded in open sheet while Hablar is live
@@ -579,9 +660,16 @@ window.addEventListener("elvi:actions", (e) => {
 
 // ---------- events ----------
 document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-cat],[data-prod],[data-item],[data-go],[data-g],[data-dbl],[data-step],[data-next],[data-add],[data-rm],[data-read]");
+  const el = e.target.closest("[data-cat],[data-prod],[data-item],[data-go],[data-g],[data-dbl],[data-step],[data-next],[data-add],[data-rm],[data-read],[data-v3-expand]");
   if (!el || !el.closest("#ui1")) return;
   const d = el.dataset;
+  if (d.v3Expand !== undefined) {
+    e.preventDefault();
+    const i = Number(d.v3Expand);
+    U.expand = (U.expand === i) ? null : i;
+    render();
+    return;
+  }
   if (d.cat !== undefined) { U.cat = Number(d.cat); U.prod = null; U.screen = "cat"; render(); window.scrollTo(0, 0); return; }
   if (d.prod !== undefined) { // add1: v3 cards have no category screen first — find the product's category (catHTML needs U.cat)
     if (U.cat === null || U.cat === undefined || !U.cats[U.cat]?.items?.some((x) => x.product === d.prod)) { const i = U.cats.findIndex((c) => !c.popular && c.items.some((x) => x.product === d.prod)); U.cat = i >= 0 ? i : U.cats.findIndex((c) => c.items.some((x) => x.product === d.prod)); }
@@ -1002,7 +1090,7 @@ function openConfirm() {
   el.id = "ux1-confirm";
   el.className = "v3-sheet-bg";
   el.innerHTML = `<div class="v3-sheet" role="dialog" aria-modal="true" aria-label="${esc(t("Confirmar orden", "Confirm order"))}">
-    <div class="v3-grab"></div>
+    <div class="v3-grab-hit" role="button" aria-label="${t("Cerrar", "Close")}" data-v3-conf-close="1"><div class="v3-grab"></div></div>
     <div class="ux1-conf-body">
       <h3>${t("¿Así quedó?", "Does this look right?")}</h3>
       <div class="ux1-conf-say"><span class="v3-dot" aria-hidden="true"></span><div id="ux1-conf-say">${esc(say)}</div></div>
@@ -1022,8 +1110,11 @@ function openConfirm() {
     b.greet?.(say);
     const r = document.getElementById("assistant-reply"); if (r) r.textContent = say;
   } catch {}
+  const confSheet = el.querySelector(".v3-sheet");
+  if (confSheet) bindSheetDismiss(confSheet, () => closeConfirm());
   el.addEventListener("click", (e) => {
     if (e.target === el) return;
+    if (e.target.closest?.("[data-v3-conf-close]")) { closeConfirm(); return; }
     const sp = e.target.closest?.("[data-setpay]"); if (sp) { setPay(sp.dataset.setpay); return; }
     const act = e.target.closest?.("[data-ux1]"); if (!act) return;
     if (act.dataset.ux1 === "correct") {
@@ -1173,6 +1264,7 @@ function pickForElvi(gi, name) {
   }
   sel[name] = Math.max(1, Number(sel[name] || 0) || 1);
   U.last[g.id] = name;
+  if (minOf(g) > 0 && Object.keys(sel).length >= minOf(g)) { U.collapsed[g.id] = true; U.expand = null; }
   const miss = missingStep();
   if (miss !== undefined) U.step = miss;
   render();
