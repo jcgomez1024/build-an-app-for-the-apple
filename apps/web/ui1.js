@@ -1,4 +1,4 @@
-// ui1 m44b (2026-10-26): centered Hablar+cart dock (SPEC §2t). m43 grabber/grp-step kept. photo menu, step-by-step photo customization, DOBLE bar, photo cart and visual receipt.
+// ui1 m45 (2026-10-26): ask every option — no silent defaults (§2u) + collapse ALL groups after explicit pick (§2r). m44b dock + m43 grabber kept.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -109,6 +109,9 @@ function defaultsOf(g) {
   return [...out];
 }
 const isMain = (g) => minOf(g) > 0 || defaultsOf(g).length > 0;
+/** m45 §2u: groups that must get an explicit tap/voice pick (no silent Square/website defaults). */
+const needsExplicit = (g) => minOf(g) > 0 || defaultsOf(g).length > 0;
+const needCount = (g) => needsExplicit(g) ? Math.max(minOf(g), 1) : minOf(g);
 function baseOptions(g) { return (g.options || []).filter((o) => !isDouble(o)); }
 function twinOf(g, o) {
   const key = cleanOpt(o.name).toLowerCase();
@@ -197,9 +200,11 @@ function openItem(id) {
   const it = U.menu.find((m) => m.id === id);
   if (!it) return;
   U.item = it; U.sel = {}; U.dbl = {}; U.last = {}; U.collapsed = {}; U.expand = null; U._v3AskKey = null;
-  (it.modifierGroups || []).forEach((g) => { U.sel[g.id] = {}; U.dbl[g.id] = new Set(); for (const d of defaultsOf(g)) U.sel[g.id][d] = 1; });
+  U._extrasInvited = false; U._extrasDone = false; U._awaitExtras = false; U.v3x = false; U._awaitCartConfirm = false;
+  // m45 §2u: zero silent defaults — do NOT seed Square d:true / Recomendado / included salsa
+  (it.modifierGroups || []).forEach((g) => { U.sel[g.id] = {}; U.dbl[g.id] = new Set(); });
   const { main, extra } = steps();
-  U.step = main.find((i) => !Object.keys(U.sel[it.modifierGroups[i].id]).length) ?? (main[0] ?? (extra.length ? "x" : null));
+  U.step = main.find((i) => needsExplicit(it.modifierGroups[i]) && !Object.keys(U.sel[it.modifierGroups[i].id]).length) ?? (main[0] ?? (extra.length ? "x" : null));
   if (!(it.modifierGroups || []).length) { addToCart(it, []); return; }
   U.screen = "item"; render(); window.scrollTo(0, 0);
 }
@@ -242,7 +247,7 @@ function itemHTML() {
     body = `<div class="u1-q">${t("Agregar extras", "Add extras")}</div><div class="u1-reqtxt">${t("Opcional · Elvi nunca lo pregunta", "Optional · Elvi never asks")}</div>` + extra.map((i) => `<div class="u1-q sm">${esc(groupLabel(gs[i]))}<span class="hint">${stepHint(gs[i])}</span></div><div class="u1-grid opts">${tilesFor(i)}</div>`).join("");
   } else if (U.step !== null) {
     const g = gs[U.step];
-    const pre = defaultsOf(g).length;
+    const pre = 0; /* m45: never claim silent preselect */
     const mn = minOf(g), mx = maxOf(g);
     body = `<div class="u1-q"><span>${esc(groupLabel(g))}</span><span class="hint">${stepHint(g)}</span></div><div class="u1-reqtxt">${pre ? t("Ya elegido por defecto · toca para cambiar", "Preselected · tap to change") : mn ? (mx > 2 ? t("Requerido · elige todo lo que quieras adentro, luego toca Listo", "Required · pick everything you want inside, then tap Done") : t(`Requerido · elige ${mx > 1 ? "hasta " + mx : "1"}`, `Required · pick ${mx > 1 ? "up to " + mx : "1"}`)) : t("Opcional", "Optional")}</div><div class="u1-grid opts">${tilesFor(U.step)}</div>`;
   }
@@ -258,9 +263,9 @@ function pick(gi, name) {
     if (mx === 1) { for (const k of Object.keys(sel)) delete sel[k]; U.dbl[g.id].clear(); }
     if (count() < mx) { sel[name] = 1; U.last[g.id] = name; }
   }
-  // m43 §2r: after explicit pick, collapse required group once min is met (silent defaults stay open until this)
-  if (V3 && minOf(g) > 0) {
-    if (Object.keys(sel).length >= minOf(g)) { U.collapsed[g.id] = true; U.expand = null; }
+  // m45/m43 §2r: after explicit pick, collapse EVERY needsExplicit group (Estilo/Salsa/…) once answered
+  if (V3 && needsExplicit(g)) {
+    if (Object.keys(sel).length >= needCount(g)) { U.collapsed[g.id] = true; U.expand = null; }
     else { delete U.collapsed[g.id]; }
   }
   // warm1b: highlight via .sel on re-render; V3 ask/TTS advances from missingStep (not scroll)
@@ -284,7 +289,10 @@ function buildModifiers() {
   }
   return out;
 }
-function missingStep() { const gs = U.item.modifierGroups || []; return steps().main.find((i) => minOf(gs[i]) > 0 && !Object.keys(U.sel[gs[i].id]).length); }
+function missingStep() { const gs = U.item.modifierGroups || []; return steps().main.find((i) => needsExplicit(gs[i]) && Object.keys(U.sel[gs[i].id]).length < needCount(gs[i])); }
+function hasExtrasGroups() { return Boolean(U.item && steps().extra.length); }
+function v3ExtrasAsk() { return t("¿Quieres extras o algo con?", "Want extras or anything with it?"); }
+function extrasPending() { return missingStep() === undefined && hasExtrasGroups() && !U._extrasDone; }
 function addToCart(item, mods) {
   const b = B(); if (!b) return;
   if (V3) { // v3menu: same add step Elvi uses (validation + applyActions), and Elvi is told about it
@@ -425,7 +433,7 @@ if (V3) {
   document.addEventListener("click", (e) => {
     // carlos-ux: Menú|Elvi toggle removed — ignore leftover data-v3view taps
     if (e.target.closest?.("[data-v3view]")) return;
-    if (e.target.closest?.("[data-v3x]")) { U.v3x = !U.v3x; return; }
+    if (e.target.closest?.("[data-v3x]")) { U.v3x = !U.v3x; U._extrasInvited = true; if (U.v3x) U._awaitExtras = false; return; }
     const b = e.target.closest?.("[data-v3tab]"); if (!b) return;
     const el = document.getElementById(`s-${b.dataset.v3tab}`); if (!el) return;
     window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - v3Offset() - 6, behavior: v3Motion() });
@@ -502,11 +510,15 @@ async function v3LeadAskAsync(force) {
   if (!V3 || U.screen !== "item" || !U.item) return;
   const gs = U.item.modifierGroups || [];
   const miss = missingStep();
-  const key = miss !== undefined ? `miss:${gs[miss].id}` : `done:${U.item.id}`;
+  const pendingX = extrasPending();
+  const key = miss !== undefined ? `miss:${gs[miss].id}` : (pendingX ? `extras:${U.item.id}` : `done:${U.item.id}`);
   const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
   const say = miss !== undefined
     ? v3Ask(gs[miss])
-    : t(`Perfecto: ${itemName(U.item)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(U.item)}${picked ? " — " + picked : ""}.`);
+    : pendingX
+      ? v3ExtrasAsk()
+      : t(`Perfecto: ${itemName(U.item)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(U.item)}${picked ? " — " + picked : ""}.`);
+  if (pendingX) U._extrasInvited = true;
   const r = document.querySelector("#assistant-reply"); if (r) r.textContent = say;
   for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = say; }
   const askEl = document.querySelector("#v3-sheet-wrap .v3-ask b"); if (askEl) askEl.textContent = say;
@@ -590,12 +602,13 @@ function closeItemSheetFromGrab() {
 
 function v3SheetHTML() {
   const it = U.item, gs = it.modifierGroups || []; const { main, extra } = steps(); const miss = missingStep();
+  const pendingX = extrasPending();
   const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
-  const say = miss !== undefined ? v3Ask(gs[miss]) : t(`Perfecto: ${itemName(it)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(it)}${picked ? " — " + picked : ""}.`);
+  const say = miss !== undefined ? v3Ask(gs[miss]) : pendingX ? v3ExtrasAsk() : t(`Perfecto: ${itemName(it)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(it)}${picked ? " — " + picked : ""}.`);
   const grp = (i) => {
-    const g = gs[i]; const selected = Object.keys(U.sel[g.id] || {}); const need = minOf(g) > 0 && !selected.length; const mx = maxOf(g);
-    /* m43: collapse required only after explicit pick (U.collapsed) — silent defaults stay expanded */
-    if (minOf(g) > 0 && selected.length && U.collapsed[g.id]) {
+    const g = gs[i]; const selected = Object.keys(U.sel[g.id] || {}); const need = needsExplicit(g) && selected.length < needCount(g); const mx = maxOf(g);
+    /* m45/m43: collapse EVERY answered needsExplicit group after explicit pick (U.collapsed) */
+    if (needsExplicit(g) && selected.length >= needCount(g) && U.collapsed[g.id]) {
       const r = resumeLab(g); const openAttr = (U.expand === i) ? " open" : "";
       return `<details class="grp-step" id="v3-g-${i}"${openAttr}><summary class="grp-sum" data-v3-expand="${i}"><span class="gs-lab">${esc(r.lab)}</span><span class="gs-ok" aria-hidden="true">✓</span>${r.px ? `<span class="gs-px">+${money(r.px)}</span>` : ""}</summary><div class="u1-grid opts">${tilesFor(i)}</div></details>`;
     }
@@ -679,7 +692,7 @@ document.addEventListener("click", (e) => {
   if (d.g !== undefined) { pick(Number(d.g), d.o); return; }
   if (d.step !== undefined) { U.step = d.step === "x" ? "x" : Number(d.step); render(); return; }
   if (d.next) { const { main } = steps(); const k = main.indexOf(U.step); U.step = k >= 0 && k < main.length - 1 ? main[k + 1] : "x"; render(); return; }
-  if (d.add) { addToCart(U.item, buildModifiers()); return; }
+  if (d.add) { U._extrasDone = true; U._awaitExtras = false; addToCart(U.item, buildModifiers()); return; }
   if (d.rm !== undefined) { const b = B(); const l = b.state.cart[Number(d.rm)]; if (l) { b.removeCartItem(l.item.id, l.quantity, Number(d.rm)); b.renderCart(); render(); } return; }
   if (d.read) { readBack(); return; }
   if (d.go === "back") { U.screen = U.cat !== null ? (U.prod ? "prod" : "cat") : "home"; render(); return; }
@@ -1175,11 +1188,11 @@ function sheetVoiceContext() {
       id: g.id,
       name: g.name,
       label: groupLabel(g),
-      required: minOf(g) > 0,
+      required: needsExplicit(g),
       selected,
       selectedLabels: selected.map(optLabel),
       options: opts,
-      unfinished: minOf(g) > 0 && !selected.length
+      unfinished: needsExplicit(g) && selected.length < needCount(g)
     };
   });
   const allOptions = groups.flatMap((g) => g.options.map((o) => o.name));
@@ -1264,7 +1277,7 @@ function pickForElvi(gi, name) {
   }
   sel[name] = Math.max(1, Number(sel[name] || 0) || 1);
   U.last[g.id] = name;
-  if (minOf(g) > 0 && Object.keys(sel).length >= minOf(g)) { U.collapsed[g.id] = true; U.expand = null; }
+  if (needsExplicit(g) && Object.keys(sel).length >= needCount(g)) { U.collapsed[g.id] = true; U.expand = null; }
   const miss = missingStep();
   if (miss !== undefined) U.step = miss;
   render();
@@ -1512,6 +1525,23 @@ function elviAnswer(utt) {
     try {
       try { B()?.stopAudio?.(); } catch {}
 
+      // m45: extras invite before cart confirm
+      if (U._awaitExtras) {
+        if (isNeg(u) || /\b(sin extras|no extras|nada mas|nada más|that's all|thats all|no thanks|no gracias)\b/.test(u)) {
+          U._awaitExtras = false; U._extrasDone = true; U._extrasInvited = true;
+          U._awaitCartConfirm = true; U._v3AskKey = "voice:cart-confirm";
+          await haloSpeak(t("¿Lo agrego al carrito?", "Shall I add it to your cart?"));
+          return;
+        }
+        if (isAffirm(u) || /\b(extras?|con\b|with\b|deluxe|agua)\b/.test(u)) {
+          U._awaitExtras = false; U._extrasInvited = true; U.v3x = true;
+          render();
+          await haloSpeak(t("¿Qué extras te gustaría?", "What extras would you like?"));
+          return;
+        }
+        // else fall through — may match an extras option name
+      }
+
       if (U._awaitCartConfirm) {
         if (isAffirm(u)) {
           U._awaitCartConfirm = false;
@@ -1548,17 +1578,23 @@ function elviAnswer(utt) {
         const name = opts[oj].name;
         pickForElvi(gi, name);
         highlightElviPick(gi, name);
+        // picking anything in an extras group counts as answering the invite
+        if (!isMain(g)) { U._extrasDone = true; U._extrasInvited = true; U._awaitExtras = false; }
         try { pushSheetVoiceContext(); } catch {}
         const nm = String(optLabel(name) || name).split(/\s*\/\s*/)[0].trim();
         const nx = missingStep();
         let line = t(`Perfecto, ${nm}. `, `Great, ${nm}. `);
         if (nx !== undefined) {
           line += v3Ask(gs[nx]);
-          U._awaitCartConfirm = false;
+          U._awaitCartConfirm = false; U._awaitExtras = false;
           U._v3AskKey = `voice:${nx}:${gs[nx]?.id || nx}`;
+        } else if (extrasPending()) {
+          line += v3ExtrasAsk();
+          U._awaitExtras = true; U._extrasInvited = true; U._awaitCartConfirm = false;
+          U._v3AskKey = `voice:extras:${U.item.id}`;
         } else {
           line += t("¿Lo agrego al carrito?", "Shall I add it to your cart?");
-          U._awaitCartConfirm = true;
+          U._awaitCartConfirm = true; U._awaitExtras = false;
           U._v3AskKey = "voice:cart-confirm";
         }
         await haloSpeak(line);
@@ -1566,9 +1602,12 @@ function elviAnswer(utt) {
       }
 
       const m = missingStep();
-      const r = (m !== undefined)
-        ? t("Perdón, no te entendí. ", "Sorry, I missed that. ") + v3Ask(gs[m])
-        : t("¿Qué más le cambio?", "What else should I change?");
+      let r;
+      if (m !== undefined) r = t("Perdón, no te entendí. ", "Sorry, I missed that. ") + v3Ask(gs[m]);
+      else if (extrasPending()) {
+        r = v3ExtrasAsk();
+        U._awaitExtras = true; U._extrasInvited = true; U._v3AskKey = `voice:extras:${U.item.id}`;
+      } else r = t("¿Qué más le cambio?", "What else should I change?");
       await haloSpeak(r);
     } finally {
       done();
@@ -1579,9 +1618,10 @@ function elviAnswer(utt) {
 window.__elviSheetAnswer = elviAnswer;
 
 /** m34 §2k — voice naming an item opens the SAME customize sheet as tap (hero, tiles, warm asks). */
-function applySheetModsFromVoice(mods) {
+function applySheetModsFromVoice(mods, utt) {
   if (!U.item || !Array.isArray(mods) || !mods.length) return;
   const gs = U.item.modifierGroups || [];
+  const uttered = plainOpt(utt || "");
   for (const m of mods) {
     const optName = String(m?.option || m?.name || "").trim();
     if (!optName) continue;
@@ -1593,6 +1633,14 @@ function applySheetModsFromVoice(mods) {
     const g = gs[gi];
     const hit = baseOptions(g).find((o) => o.name === optName || optLabel(o.name) === optName || plainOpt(o.name) === plainOpt(optName));
     if (!hit) continue;
+    // m45: never apply catalog defaults unless the utterance names them
+    if (defaultsOf(g).includes(hit.name)) {
+      const lab = plainOpt(optLabel(hit.name));
+      const raw = plainOpt(hit.name);
+      const toks = (lab + " " + raw).split(/\s+/).filter((w) => w.length >= 3 && !/^(with|con|quesadilla|homemade|mild|salsa|option|options|the|and|for)$/.test(w));
+      const mentioned = uttered && (toks.some((w) => uttered.includes(w)) || uttered.includes(lab) || uttered.includes(raw));
+      if (!mentioned) continue;
+    }
     if (!U.sel[g.id]?.[hit.name]) pickForElvi(gi, hit.name);
   }
 }
@@ -1630,13 +1678,13 @@ window.__elviOpenItemSheet = function (id, opts = {}) {
     }
   }
   if (!it) { console.warn("[m34] openItemSheet: no item", want); return false; }
-  if (!(it.modifierGroups || []).some((g) => Number(g.minSelections || 0) > 0)) {
-    // no required mods — let cart path handle
+  if (!(it.modifierGroups || []).some((g) => needsExplicit(g))) {
+    // no customizable groups needing explicit pick — let cart path handle
     return false;
   }
   HABLAR_LIVE = true;
   openItem(it.id);
-  if (Array.isArray(opts.modifiers) && opts.modifiers.length) applySheetModsFromVoice(opts.modifiers);
+  if (Array.isArray(opts.modifiers) && opts.modifiers.length) applySheetModsFromVoice(opts.modifiers, opts.text || "");
   if (opts.text) tryPrefillSheetFromUtterance(opts.text);
   U._v3AskKey = null; // force warm step TTS even if openItem already spoke once
   pushSheetVoiceContext();

@@ -250,7 +250,8 @@ function trySheetVoiceAnswer(text) {
 /** m34 §2k: item with required modifier groups → same customize sheet as tap (not chat-card guide). */
 function itemNeedsCustomizeSheet(item) {
   if (!item || !Array.isArray(item.modifierGroups)) return false;
-  return item.modifierGroups.some((g) => Number(g.minSelections || 0) > 0);
+  // m45: open sheet for minSelections>0 OR catalog defaults (Estilo/Salsa etc. need explicit pick)
+  return item.modifierGroups.some((g) => Number(g.minSelections || 0) > 0 || (Array.isArray(g.defaultOptions) && g.defaultOptions.length > 0));
 }
 
 function openV3CustomizeSheetFromVoice(item, opts = {}) {
