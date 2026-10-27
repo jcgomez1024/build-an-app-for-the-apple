@@ -1,0 +1,72 @@
+[
+  {
+    "speaker": "staff",
+    "text": "¿Y buenas tardes?",
+    "start": 0.841,
+    "end": 1.401,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Hola, ¿me puedes dar una torta de bistec, por favor? Una queso bruta,",
+    "start": 2.342,
+    "end": 5.724,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "con extra bistec. Sí,",
+    "start": 7.765,
+    "end": 16.992,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Si tienes bolillos todavía, gordo, Guillermo, una quesitorta.",
+    "start": 7.845,
+    "end": 10.587,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Una quesitorta de bistec, permítame, ¿eres la muchacha?",
+    "start": 12.849,
+    "end": 16.011,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Sí, ¿verdad? ¿Qué más? ¿Es todo?",
+    "start": 16.992,
+    "end": 18.693,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "sí.",
+    "start": 18.293,
+    "end": 18.393,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Y una coca mexicana, por favor.",
+    "start": 19.573,
+    "end": 20.954,
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "text": "Y una torta mexicana. Okay, dame unos quince minutos, por favor, mija, ¿está bien? Ándale.",
+    "start": 21.595,
+    "end": 26.798,
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "text": "Ok, gracias.",
+    "start": 25.297,
+    "end": 26.198,
+    "language": "es"
+  }
+]

@@ -579,6 +579,8 @@ export function rewriteCallerText(text: string): string {
   }
   // kevin1 (CA58ec0f): ASR "quesitota" → quesitorta; "sopa de lata" → coca de lata
   s = s.replace(/\bquesitotas?\b/giu, "quesitorta");
+  // ca39e2bb: ASR "queso bruta" → quesitorta (QTO)
+  s = s.replace(/\bqueso\s+brutas?\b/giu, "quesitorta");
   s = s.replace(/\bsopa\s+de\s+lata\b/giu, "coca de lata");
   // daryl1 (CAaa8a36): ASR "trigo" → chorizo (double steak double trigo)
   s = s.replace(/\btrigo\b/giu, "chorizo");
@@ -6604,6 +6606,24 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         readback: "1 burrito grande lengua con todo",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // ca39e2bb (CA39e2bba846…): "con extra bistec" / "extra carne" on torta → kitchen-visible note
+  // (Torta catalog has no EXTRA Carne SKU; Carne Options max=2 is mix meats, not a paid EXTRA.)
+  {
+    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    const m = callerBlob.match(/\b(?:con\s+)?extra\s+(bistec|steak|carne|meat|cabeza|carnitas|chorizo|pollo|chicken|lengua|pastor|al\s*pastor|tripa|buche|prensado|costilla|deshebrada|picadillo)\b/iu);
+    if (m) {
+      const raw = m[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const note = /^(carne|meat)$/.test(raw) ? "extra carne"
+        : /^(bistec|steak)$/.test(raw) ? "extra bistec"
+        : /pastor/.test(raw) ? "extra pastor"
+        : `extra ${raw.replace(/\s+/g, " ")}`;
+      for (const l of cart) {
+        if (!/^sq-torta-/i.test(String(l.itemId || ""))) continue;
+        l.elviNotes = [...new Set([...(l.elviNotes || []), note])];
+      }
     }
   }
 

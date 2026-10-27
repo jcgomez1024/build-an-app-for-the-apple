@@ -366,6 +366,27 @@ export function nameFromSpelledLetters(text: string): string | null {
   return cleanFullName(name) || name;
 }
 
+
+/** ca39e2bb (CA39e2bba846…): staff→kitchen shout ("gordo, Guillermo, una quesitorta") — never ticket/caller name. */
+const KITCHEN_NICK = String.raw`gordo|gordita|flaco|flaca|chaparro|chaparra|g[uü]ero|guero|negro|negra|carnal|compa|compadre|mano|manito|jefe|jefa|cocina|cook`;
+const KITCHEN_FOOD = String.raw`ques[oi]?tortas?|tortas?|tacos?|taqueros?|quesadillas?|gorditas?|burritos?|sopes?(?:asos?)?|nachos?|menudos?|birrias?|horchatas?|cocas?|doradas?|enchiladas?|huaraches?|pambazos?|chimichangas?|flautas?|tostadas?`;
+function isKitchenVocativeHit(text: string, name: string): boolean {
+  const n = String(name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!n) return false;
+  // nickname, Name, una food
+  if (new RegExp(String.raw`\b(?:${KITCHEN_NICK})\b[,.\s]+${n}\b[,.\s]+(?:una?|unos?|unas?|dos|tres|cuatro|\d+)\s+(?:${KITCHEN_FOOD})\b`, "iu").test(text))
+    return true;
+  // Name, una quesitorta / una torta… (kitchen yelling the order after coworker name)
+  if (new RegExp(String.raw`\b${n}\b\s*,\s*(?:una?|unos?|unas?)\s+(?:${KITCHEN_FOOD})\b`, "iu").test(text))
+    return true;
+  // bolillos/stock ask + Name + food (same shout class)
+  if (/\bbolillos?\b/iu.test(text)
+    && new RegExp(String.raw`\b${n}\b`, "iu").test(text)
+    && new RegExp(String.raw`(?:una?|unos?)\s+(?:${KITCHEN_FOOD})\b`, "iu").test(text))
+    return true;
+  return false;
+}
+
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // luke1 (CA661a30): staff close "Okay, okay, look," = ASR for returning caller Luke (ticket name)
   for (const turn of turns) {
@@ -401,6 +422,7 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
     for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,\s*¿?\s*verdad\s*\??/gu)) {
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
+      if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
     }
@@ -410,6 +432,7 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
     for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[.!?]|\s*$)/gu)) { // cleanup1: not before a comma
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
+      if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
     }
@@ -417,6 +440,7 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
     for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,/gu)) {
       const w = m[1];
       if (NOT_NAMES.test(w)) continue;
+      if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
     }

@@ -897,13 +897,17 @@ export function buildTicketLines(
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);
     choices = applied.choices;
+    // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
+    // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
+    const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*extra\b/iu.test(String(n)));
+    const notes = [...new Set([...(applied.notes || []), ...additiveNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
     ].filter(Boolean);
     return {
-      name, quantity: l.quantity, choices, notes: applied.notes, totalCents: l.totalCents,
+      name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,
       flag: flags.length ? flags.join(" · ") : null, kind: lineKind(name),
     };
   });
