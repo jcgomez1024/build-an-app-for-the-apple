@@ -1,4 +1,4 @@
-// ui1 m50 (2026-10-27): one mic grant + no phantom step TTS. Keeps m49 force step-ask, m48 Usar mi teléfono, m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
+// ui1 m51 (2026-10-27): keep m50 TTS/mic guards; ASR restored in app.js. Keeps m49 force step-ask, m48 Usar mi teléfono, m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";

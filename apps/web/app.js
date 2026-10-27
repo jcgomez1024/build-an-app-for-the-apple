@@ -3822,7 +3822,7 @@ async function doCheckout(opts = {}) {
     }
 }
 
-/** m50: iPhone/iPad — webkitSpeechRecognition prompts a *second* mic dialog alongside getUserMedia. */
+/** m50/m51: iPhone/iPad detection — used for mic UX notes; do NOT skip SpeechRecognition (m51). */
 function isAppleTouchBrowser() {
   const ua = String(navigator.userAgent || "");
   if (/iPhone|iPad|iPod/i.test(ua)) return true;
@@ -3857,11 +3857,9 @@ async function startListening() {
   }
 
   state.localTranscript = "";
-  // m50: getUserMedia first (one prompt); SpeechRecognition after — skip SR on iOS
+  // m51: getUserMedia first (one prompt); then SpeechRecognition — never skip ASR on iOS
   state.stream = await ensureMicStream({ audio: true });
-  if (!isAppleTouchBrowser()) {
-    try { startBrowserRecognition(); } catch {}
-  }
+  try { startBrowserRecognition(); } catch {}
   const recorder = new MediaRecorder(state.stream, {
     mimeType: pickRecorderMimeType()
   });
@@ -4036,8 +4034,7 @@ function pauseBrowserRecognition() {
 
 function resumeBrowserRecognition() {
   state.recognitionPaused = false;
-  // m50: never (re)start SpeechRecognition on iOS — it re-prompts / fights getUserMedia
-  if (isAppleTouchBrowser()) return;
+  // m51: restart SR after TTS on all browsers (mic already granted via ensureMicStream = no second prompt)
   if (state.autoListen && state.vadRunning && !state.recognition && !state.elviSpeaking) {
     startBrowserRecognition();
   }
@@ -6717,14 +6714,12 @@ function startAdaptiveListen() {
     }
   }).then((stream) => {
     state.stream = stream;
-    // m50: after mic granted — skip SpeechRecognition on iPhone (separate permission UX); PCM VAD is enough
-    if (!isAppleTouchBrowser()) {
-      try { startBrowserRecognition(); } catch {}
-    } else {
-      console.log("[m50] iOS: single getUserMedia mic — skip SpeechRecognition second prompt");
-    }
+    // m51: mic already granted — start SpeechRecognition now (iOS needs SR for ASR; PCM VAD alone was deaf)
+    // Order matters: ensureMicStream BEFORE SR so Safari does not show a second mic dialog.
+    try { startBrowserRecognition(); } catch (e) { console.warn("[m51] SpeechRecognition start", e); }
     const captureContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
     state.audioContext = captureContext;
+    try { if (captureContext.state === "suspended") captureContext.resume(); } catch {}
 
     const sourceNode = captureContext.createMediaStreamSource(stream);
     const processor = captureContext.createScriptProcessor(2048, 1, 1);
