@@ -1,4 +1,4 @@
-// ui1 m49 (2026-10-27): force step-ask TTS after voice open (kill render race). Keeps m48 Usar mi teléfono, m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
+// ui1 m50 (2026-10-27): one mic grant + no phantom step TTS. Keeps m49 force step-ask, m48 Usar mi teléfono, m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -513,14 +513,25 @@ async function v3LeadAskAsync(force) {
   const gs = U.item.modifierGroups || [];
   const miss = missingStep();
   const pendingX = extrasPending();
-  const key = miss !== undefined ? `miss:${gs[miss].id}` : (pendingX ? `extras:${U.item.id}` : `done:${U.item.id}`);
-  const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
-  const say = miss !== undefined
-    ? v3Ask(gs[miss])
-    : pendingX
-      ? v3ExtrasAsk()
-      : t(`Perfecto: ${itemName(U.item)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(U.item)}${picked ? " — " + picked : ""}.`);
-  if (pendingX) U._extrasInvited = true;
+  // m50: canonical keys shared with elviAnswer — cart/extras phases must not collide with done:/miss:
+  // (voice: prefixes used to re-trigger Perfecto/ask TTS over a live cart-confirm = phantom)
+  let key;
+  let say;
+  if (U._awaitCartConfirm) {
+    key = `cart:${U.item.id}`;
+    say = t("¿Lo agrego al carrito?", "Shall I add it to your cart?");
+  } else if (miss !== undefined) {
+    key = `miss:${gs[miss].id}`;
+    say = v3Ask(gs[miss]);
+  } else if (U._awaitExtras || pendingX) {
+    key = `extras:${U.item.id}`;
+    say = v3ExtrasAsk();
+    U._extrasInvited = true;
+  } else {
+    key = `done:${U.item.id}`;
+    const picked = buildModifiers().map((m) => optLabel(m.option)).join(", ");
+    say = t(`Perfecto: ${itemName(U.item)}${picked ? " — " + picked : ""}.`, `Perfect: ${itemName(U.item)}${picked ? " — " + picked : ""}.`);
+  }
   const r = document.querySelector("#assistant-reply"); if (r) r.textContent = say;
   for (const id of ["v3-line", "v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = say; }
   const askEl = document.querySelector("#v3-sheet-wrap .v3-ask b"); if (askEl) askEl.textContent = say;
@@ -530,14 +541,15 @@ async function v3LeadAskAsync(force) {
   // m49: serialize step-ask TTS — stale gens ignore result / skip retry
   const gen = (U._leadAskGen = (U._leadAskGen || 0) + 1);
   const itemId = U.item.id;
-  // m37: coupled speak+haloBub (paint with TTS start — never await-speak then bubble after audio ends)
+  // m37: coupled speak+haloBub; m50: shouldContinue ties speak to this gen so stale fetch never plays
+  const speakOpts = { shouldContinue: () => U._leadAskGen === gen && U._v3AskKey === key };
   let played = false;
-  try { played = !!(await haloSpeak(say)); } catch (e) { console.warn("[m37/warm1] speak", e); played = false; }
+  try { played = !!(await haloSpeak(say, undefined, speakOpts)); } catch (e) { console.warn("[m37/warm1] speak", e); played = false; }
   // m49: if open/force speak never played, retry once shortly (don't leave silent text-only ask)
   if (!played && force && U._leadAskGen === gen && U.screen === "item" && U.item?.id === itemId && U._v3AskKey === key) {
     await new Promise((res) => setTimeout(res, 120));
     if (U._leadAskGen === gen && U.screen === "item" && U.item?.id === itemId && U._v3AskKey === key) {
-      try { played = !!(await haloSpeak(say)); } catch (e) { console.warn("[m49] step-ask retry", e); played = false; }
+      try { played = !!(await haloSpeak(say, undefined, speakOpts)); } catch (e) { console.warn("[m49] step-ask retry", e); played = false; }
     }
   }
   if (U._leadAskGen !== gen) return; // superseded by a newer lead ask
@@ -1594,15 +1606,20 @@ async function haloSpeak(line, ms, speakOpts) {
   const r = document.querySelector("#assistant-reply"); if (r) r.textContent = text;
   const v3 = document.getElementById("v3-line"); if (v3) v3.textContent = text;
   for (const id of ["v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = text; }
-  // m33/m37: stop any prior stream before starting this one
+  // m33/m37/m50: stop any prior stream before starting this one (no overlap / phantom)
   try { B()?.stopAudio?.(); } catch {}
   const myToken = (U._haloSpeakToken = (U._haloSpeakToken || 0) + 1); // m49
+  const callerCont = typeof speakOpts?.shouldContinue === "function" ? speakOpts.shouldContinue : null;
+  const opts = Object.assign({}, speakOpts || {}, {
+    // m50: cancelled / superseded speak must never start playback
+    shouldContinue: () => U._haloSpeakToken === myToken && (!callerCont || callerCont())
+  });
   // Paint bubble NOW — same line TTS will play (never show without intending to speak)
   haloSay(text, ms);
   try { syncLoucap("speaking"); } catch {}
   let played = false;
   try {
-    const ret = await B()?.speak?.(text, speakOpts || {});
+    const ret = await B()?.speak?.(text, opts);
     played = ret !== false;
   } catch (e) {
     console.warn("[m37] speak", e);
@@ -1615,7 +1632,10 @@ async function haloSpeak(line, ms, speakOpts) {
       try { haloBubHide(true); } catch {}
     }
   }
-  try { syncLoucap("listening"); } catch {}
+  // m50: only the current speak may flip loucap off speaking (stale finish must not clobber newer ask)
+  if (U._haloSpeakToken === myToken) {
+    try { syncLoucap("listening"); } catch {}
+  }
   return played;
 }
 /**
@@ -1646,13 +1666,23 @@ function elviAnswer(utt) {
       if (U._awaitExtras) {
         if (isNeg(u) || /\b(sin extras|no extras|nada mas|nada más|that's all|thats all|no thanks|no gracias)\b/.test(u)) {
           U._awaitExtras = false; U._extrasDone = true; U._extrasInvited = true;
-          U._awaitCartConfirm = true; U._v3AskKey = "voice:cart-confirm";
+          U._awaitCartConfirm = true;
+          U._v3AskKey = `cart:${U.item.id}`; // m50 canonical
+          U._leadAskGen = (U._leadAskGen || 0) + 1;
           await haloSpeak(t("¿Lo agrego al carrito?", "Shall I add it to your cart?"));
           return;
         }
         if (isAffirm(u) || /\b(extras?|con\b|with\b|deluxe|agua)\b/.test(u)) {
           U._awaitExtras = false; U._extrasInvited = true; U.v3x = true;
-          render();
+          // m50: suppress render lead-ask — we own the extras TTS line
+          U._suppressLeadAsk = true;
+          try {
+            render();
+            U._v3AskKey = `extras:${U.item.id}`;
+            U._leadAskGen = (U._leadAskGen || 0) + 1;
+          } finally {
+            U._suppressLeadAsk = false;
+          }
           await haloSpeak(t("¿Qué extras te gustaría?", "What extras would you like?"));
           return;
         }
@@ -1676,6 +1706,7 @@ function elviAnswer(utt) {
           await haloSpeak(t("Ok, ¿qué más le cambio?", "Ok, what else should I change?"));
           return;
         }
+        U._v3AskKey = `cart:${U.item.id}`;
         await haloSpeak(t("¿Lo agrego al carrito?", "Shall I add it to your cart?"));
         return;
       }
@@ -1693,38 +1724,51 @@ function elviAnswer(utt) {
         if (oj < 0) continue;
         const opts = baseOptions(g);
         const name = opts[oj].name;
-        pickForElvi(gi, name);
-        highlightElviPick(gi, name);
-        // picking anything in an extras group counts as answering the invite
-        if (!isMain(g)) { U._extrasDone = true; U._extrasInvited = true; U._awaitExtras = false; }
-        try { pushSheetVoiceContext(); } catch {}
-        const nm = String(optLabel(name) || name).split(/\s*\/\s*/)[0].trim();
-        const nx = missingStep();
-        let line = t(`Perfecto, ${nm}. `, `Great, ${nm}. `);
-        if (nx !== undefined) {
-          line += v3Ask(gs[nx]);
-          U._awaitCartConfirm = false; U._awaitExtras = false;
-          U._v3AskKey = `voice:${nx}:${gs[nx]?.id || nx}`;
-        } else if (extrasPending()) {
-          line += v3ExtrasAsk();
-          U._awaitExtras = true; U._extrasInvited = true; U._awaitCartConfirm = false;
-          U._v3AskKey = `voice:extras:${U.item.id}`;
-        } else {
-          line += t("¿Lo agrego al carrito?", "Shall I add it to your cart?");
-          U._awaitCartConfirm = true; U._awaitExtras = false;
-          U._v3AskKey = "voice:cart-confirm";
+        // m50: suppress render→v3LeadAsk during pick so we don't double-speak / phantom with Perfecto line
+        U._suppressLeadAsk = true;
+        try {
+          pickForElvi(gi, name);
+          highlightElviPick(gi, name);
+          // picking anything in an extras group counts as answering the invite
+          if (!isMain(g)) { U._extrasDone = true; U._extrasInvited = true; U._awaitExtras = false; }
+          try { pushSheetVoiceContext(); } catch {}
+          const nm = String(optLabel(name) || name).split(/\s*\/\s*/)[0].trim();
+          const nx = missingStep();
+          let line = t(`Perfecto, ${nm}. `, `Great, ${nm}. `);
+          if (nx !== undefined) {
+            line += v3Ask(gs[nx]);
+            U._awaitCartConfirm = false; U._awaitExtras = false;
+            U._v3AskKey = `miss:${gs[nx]?.id || nx}`;
+          } else if (extrasPending()) {
+            line += v3ExtrasAsk();
+            U._awaitExtras = true; U._extrasInvited = true; U._awaitCartConfirm = false;
+            U._v3AskKey = `extras:${U.item.id}`;
+          } else {
+            line += t("¿Lo agrego al carrito?", "Shall I add it to your cart?");
+            U._awaitCartConfirm = true; U._awaitExtras = false;
+            U._v3AskKey = `cart:${U.item.id}`;
+          }
+          // invalidate any lead-ask that slipped past suppress
+          U._leadAskGen = (U._leadAskGen || 0) + 1;
+          U._suppressLeadAsk = false;
+          await haloSpeak(line);
+        } finally {
+          U._suppressLeadAsk = false;
         }
-        await haloSpeak(line);
         return;
       }
 
       const m = missingStep();
       let r;
-      if (m !== undefined) r = t("Perdón, no te entendí. ", "Sorry, I missed that. ") + v3Ask(gs[m]);
-      else if (extrasPending()) {
+      if (m !== undefined) {
+        r = t("Perdón, no te entendí. ", "Sorry, I missed that. ") + v3Ask(gs[m]);
+        U._v3AskKey = `miss:${gs[m].id}`;
+      } else if (extrasPending()) {
         r = v3ExtrasAsk();
-        U._awaitExtras = true; U._extrasInvited = true; U._v3AskKey = `voice:extras:${U.item.id}`;
+        U._awaitExtras = true; U._extrasInvited = true;
+        U._v3AskKey = `extras:${U.item.id}`;
       } else r = t("¿Qué más le cambio?", "What else should I change?");
+      U._leadAskGen = (U._leadAskGen || 0) + 1;
       await haloSpeak(r);
     } finally {
       done();
@@ -1817,7 +1861,7 @@ window.__elviOpenItemSheet = function (id, opts = {}) {
       setTimeout(runForcedAsk, 50);
     });
   });
-  console.log("[m49] opened customize sheet for voice (deferred step-ask):", it.id, itemName(it));
+  console.log("[m50] opened customize sheet for voice (deferred step-ask):", it.id, itemName(it));
   return true;
 };
 

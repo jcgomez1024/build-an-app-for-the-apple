@@ -3822,15 +3822,46 @@ async function doCheckout(opts = {}) {
     }
 }
 
+/** m50: iPhone/iPad — webkitSpeechRecognition prompts a *second* mic dialog alongside getUserMedia. */
+function isAppleTouchBrowser() {
+  const ua = String(navigator.userAgent || "");
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  // iPadOS desktop-UA masquerade
+  try {
+    if (navigator.platform === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1) return true;
+  } catch {}
+  return false;
+}
+
+/** m50: one shared mic stream for the session — reuse live tracks; never re-prompt. */
+function ensureMicStream(constraints) {
+  const existing = state.stream;
+  try {
+    const live = existing && typeof existing.getTracks === "function"
+      && existing.getTracks().some((t) => t.kind === "audio" && t.readyState === "live");
+    if (live) return Promise.resolve(existing);
+  } catch {}
+  return navigator.mediaDevices.getUserMedia(constraints || {
+    audio: {
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    }
+  });
+}
+
 async function startListening() {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
     throw new Error("WebSocket is not connected");
   }
 
   state.localTranscript = "";
-  startBrowserRecognition();
-
-  state.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  // m50: getUserMedia first (one prompt); SpeechRecognition after — skip SR on iOS
+  state.stream = await ensureMicStream({ audio: true });
+  if (!isAppleTouchBrowser()) {
+    try { startBrowserRecognition(); } catch {}
+  }
   const recorder = new MediaRecorder(state.stream, {
     mimeType: pickRecorderMimeType()
   });
@@ -4005,6 +4036,8 @@ function pauseBrowserRecognition() {
 
 function resumeBrowserRecognition() {
   state.recognitionPaused = false;
+  // m50: never (re)start SpeechRecognition on iOS — it re-prompts / fights getUserMedia
+  if (isAppleTouchBrowser()) return;
   if (state.autoListen && state.vadRunning && !state.recognition && !state.elviSpeaking) {
     startBrowserRecognition();
   }
@@ -6655,7 +6688,7 @@ function stopCurrentAudio() {
 // ─── Adaptive / hands-free listening (direct PCM streaming) ──
 
 function startAdaptiveListen() {
-  if (state.vadRunning) return;
+  if (state.vadRunning) return Promise.resolve();
   state.vadRunning = true;
   state.autoListen = true;
   state.speechActive = false;
@@ -6671,11 +6704,11 @@ function startAdaptiveListen() {
   state.voiceInputCooldownUntil = 0;
   state.recognitionPaused = false;
   state.localTranscript = "";
-  startBrowserRecognition();
+  // m50: do NOT start SpeechRecognition before getUserMedia — on iOS that is a second mic prompt
   ui.listenButton?.classList.add("adaptive-active");
   ui.status.textContent = "Ready…";
 
-  return navigator.mediaDevices.getUserMedia({
+  return ensureMicStream({
     audio: {
       channelCount: 1,
       echoCancellation: true,
@@ -6684,6 +6717,12 @@ function startAdaptiveListen() {
     }
   }).then((stream) => {
     state.stream = stream;
+    // m50: after mic granted — skip SpeechRecognition on iPhone (separate permission UX); PCM VAD is enough
+    if (!isAppleTouchBrowser()) {
+      try { startBrowserRecognition(); } catch {}
+    } else {
+      console.log("[m50] iOS: single getUserMedia mic — skip SpeechRecognition second prompt");
+    }
     const captureContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
     state.audioContext = captureContext;
 
