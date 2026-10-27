@@ -1,4 +1,4 @@
-// ui1 m48 (2026-10-26): Usar mi teléfono checkout pill (SPEC §2o-b). Keeps m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
+// ui1 m49 (2026-10-27): force step-ask TTS after voice open (kill render race). Keeps m48 Usar mi teléfono, m46c typedock+kb, m47 no-default chips, m45 ask-all, m44b Hablar, m43 grabber.
 // Real data only: /api/<tenant>/menu (items + modifier groups in website order) and /api/<tenant>/ui/catalog
 // (website categories + hours). The cart is app.js's cart (window.elviBridge), so taps, chat and voice share it.
 const TENANT = "cocina-elvis";
@@ -508,6 +508,8 @@ function v3LeadAsk(force) {
 }
 async function v3LeadAskAsync(force) {
   if (!V3 || U.screen !== "item" || !U.item) return;
+  // m49: voice-open owns one deferred forced ask — skip incidental render asks
+  if (U._suppressLeadAsk && !force) return;
   const gs = U.item.modifierGroups || [];
   const miss = missingStep();
   const pendingX = extrasPending();
@@ -525,8 +527,20 @@ async function v3LeadAskAsync(force) {
   if (!force && U._v3AskKey === key) return;
   const advanced = U._v3AskKey != null && U._v3AskKey !== key;
   U._v3AskKey = key;
+  // m49: serialize step-ask TTS — stale gens ignore result / skip retry
+  const gen = (U._leadAskGen = (U._leadAskGen || 0) + 1);
+  const itemId = U.item.id;
   // m37: coupled speak+haloBub (paint with TTS start — never await-speak then bubble after audio ends)
-  try { await haloSpeak(say); } catch (e) { console.warn("[m37/warm1] speak", e); }
+  let played = false;
+  try { played = !!(await haloSpeak(say)); } catch (e) { console.warn("[m37/warm1] speak", e); played = false; }
+  // m49: if open/force speak never played, retry once shortly (don't leave silent text-only ask)
+  if (!played && force && U._leadAskGen === gen && U.screen === "item" && U.item?.id === itemId && U._v3AskKey === key) {
+    await new Promise((res) => setTimeout(res, 120));
+    if (U._leadAskGen === gen && U.screen === "item" && U.item?.id === itemId && U._v3AskKey === key) {
+      try { played = !!(await haloSpeak(say)); } catch (e) { console.warn("[m49] step-ask retry", e); played = false; }
+    }
+  }
+  if (U._leadAskGen !== gen) return; // superseded by a newer lead ask
   // warm1b: after a selection advances the unfinished step, bring that group into view (ask is NOT from scroll)
   if (advanced && miss !== undefined) {
     requestAnimationFrame(() => {
@@ -1567,7 +1581,8 @@ function isNeg(u) {
   return /^(no|nel|nop|nope|cancel|cancela)\b/.test(u);
 }
 /** m37: EVERY line that paints haloBub must speak the same text. Single TTS stream.
- *  Paint bubble when committing to speak (not after audio ends). If speak never starts, hide bubble. */
+ *  Paint bubble when committing to speak (not after audio ends). If speak never starts, hide bubble.
+ *  m49: hide only if this haloSpeak token is still current (cancelled speak must not yank a newer same-line bubble). */
 async function haloSpeak(line, ms, speakOpts) {
   const text = String(line || "").trim();
   if (!text) {
@@ -1581,6 +1596,7 @@ async function haloSpeak(line, ms, speakOpts) {
   for (const id of ["v3-elvi-line"]) { const e = document.getElementById(id); if (e) e.textContent = text; }
   // m33/m37: stop any prior stream before starting this one
   try { B()?.stopAudio?.(); } catch {}
+  const myToken = (U._haloSpeakToken = (U._haloSpeakToken || 0) + 1); // m49
   // Paint bubble NOW — same line TTS will play (never show without intending to speak)
   haloSay(text, ms);
   try { syncLoucap("speaking"); } catch {}
@@ -1592,8 +1608,8 @@ async function haloSpeak(line, ms, speakOpts) {
     console.warn("[m37] speak", e);
     played = false;
   }
-  // Cancelled / never started → do not leave a silent step-ask bubble
-  if (!played) {
+  // Cancelled / never started → do not leave a silent step-ask bubble (only if we still own the bubble)
+  if (!played && U._haloSpeakToken === myToken) {
     const b = document.getElementById("haloBub");
     if (b && String(b.textContent || "").trim() === text) {
       try { haloBubHide(true); } catch {}
@@ -1784,13 +1800,24 @@ window.__elviOpenItemSheet = function (id, opts = {}) {
     return false;
   }
   HABLAR_LIVE = true;
+  // m49: suppress render-triggered v3LeadAsk during openItem so it cannot cancel the forced open ask
+  U._suppressLeadAsk = true;
   openItem(it.id);
   if (Array.isArray(opts.modifiers) && opts.modifiers.length) applySheetModsFromVoice(opts.modifiers, opts.text || "");
   if (opts.text) tryPrefillSheetFromUtterance(opts.text);
   U._v3AskKey = null; // force warm step TTS even if openItem already spoke once
   pushSheetVoiceContext();
-  void v3LeadAskAsync(true);
-  console.log("[m34] opened customize sheet for voice:", it.id, itemName(it));
+  // m49: one deferred authoritative step-ask after sheet paint settles (rAF×2 + ~50ms)
+  const runForcedAsk = () => {
+    U._suppressLeadAsk = false;
+    void v3LeadAskAsync(true);
+  };
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setTimeout(runForcedAsk, 50);
+    });
+  });
+  console.log("[m49] opened customize sheet for voice (deferred step-ask):", it.id, itemName(it));
   return true;
 };
 
