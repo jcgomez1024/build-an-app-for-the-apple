@@ -94,7 +94,7 @@ export function nameFromAnswer(text: string): string | null {
     if (sn && !NOT_NAMES.test(sn[1].split(" ")[0])) { const n = cleanFullName(sn[1]); if (n) return n; }
   }
   // jesus1: "¿Ves, Jesús, por favor?" / "Ves, Jesús" — strip discourse filler before the real name
-  s = s.replace(/^\s*[¿¡]?\s*(?:ves|vea|mira|oye|oiga|diga|dime)\s*[,.]?\s+/iu, "");
+  s = s.replace(/^\s*[¿¡]?\s*(?:ves|vea|mira|oye|oiga|diga|dime|d[ií]game)\s*[,.]?\s+/iu, "");
   // Soft request with a name: "¿Jesús, por favor?" (after Ves strip) is an answer; bare ¿Guino? stays a question (gino1)
   {
     const soft = s.match(/^\s*¿\s*([\p{Lu}][\p{L}'-]+(?:\s+[\p{Lu}][\p{L}'-]+)?)\s*,?\s*(?:por\s+favor|please)\s*\?\s*$/u);
@@ -130,7 +130,7 @@ export function nameFromAnswer(text: string): string | null {
   // jesus1: drop leading filler tokens still stuck on ("Ves Jesús" → "Jesús")
   {
     const ws = s.split(" ").filter(Boolean);
-    while (ws.length && /^(ves|vea|mira|oye|oiga|diga|dime)$/iu.test(ws[0])) ws.shift();
+    while (ws.length && /^(ves|vea|mira|oye|oiga|diga|dime|d[ií]game)$/iu.test(ws[0])) ws.shift();
     s = ws.join(" ");
   }
   // mau1 (CAc68af8): "Soy yo, que Mau" / "que Mau" / "El que Mau" — yo/que/soy are fillers, not the name
@@ -174,6 +174,16 @@ export function nameFromAnswer(text: string): string | null {
       .replace(/,?\s*(?:¿\s*)?(?:do\s+you\s+(?:have|deliver)|is\s+there\s+delivery|delivery\b).*$/iu, "")
       .replace(/\s+/g, " ").trim();
   }
+  // ca11603f (CA11603f18d854…): "A Lupita, y si puedo pasar… a las once…" — name before pickup/time clause
+  {
+    const leadPickup = s.match(/^(?:A\s+)?(\p{Lu}[\p{L}'-]{2,}(?:\s+\p{Lu}[\p{L}'-]+)?)\s*,?\s+(?:y\s+)?(?:si\s+)?(?:puedo|puedes|pasar|paso|pue\b|a\s+las|para\s+las|va\s+a\s+pasar)/iu);
+    if (leadPickup && !NOT_NAMES.test(leadPickup[1].split(" ")[0])) {
+      const n = cleanFullName(leadPickup[1]);
+      if (n) return n;
+    }
+  }
+  // ca11603f: strip leading article "A" before a capitalized name ("A Lupita")
+  s = s.replace(/^\s*A\s+(?=\p{Lu})/u, "");
   let words = s.split(" ").filter(Boolean);
   if (!words.length || words.length > 3) return null;
   // callback1: "era para unos, para…" / "unos para" = relay/pickup-for-others, never caller identity
@@ -194,11 +204,11 @@ export function nameFromAnswer(text: string): string | null {
   // felipe1 (CA398d11): "Vámonos[, gracias]" staff goodbye vocative — never a name (same class as Hasta Luego / Pobre Pues)
   if (/^(hasta(\s+luego)?|nos\s+vemos|see\s+you(?:\s+later)?|good\s*bye|bye(\s*bye)?|cu[ií]date|que\s+le\s+vaya(?:\s+bien)?|chao|chau|adi[oó]s|v[aá]monos(?:\s*,?\s*gracias)?)$/iu.test(words.join(" "))) return null;
   if (/^(hasta|bye|goodbye|adi[oó]s|chao|chau|v[aá]monos)$/iu.test(words[0])) return null;
-  if (NOT_NAMES.test(words[0])) return null;
+  // ca11603f/daryl1: strip leading A/For/Para before NOT_NAMES so "A Lupita" → Lupita (A is in NOT_NAMES)
+  while (words.length >= 2 && /^(?:for|para|a)$/iu.test(words[0]) && /^\p{Lu}/u.test(words[1])) words = words.slice(1);
+  if (!words.length || NOT_NAMES.test(words[0])) return null;
   // joseA1: "Ah, es en" / bare prepositions are not names
   if (words.length === 1 && words[0].length <= 2) return null;
-  // daryl1: strip leftover leading For/Para so ticket is "Daryl" not "For Daryl"
-  while (words.length >= 2 && /^(?:for|para)$/iu.test(words[0])) words = words.slice(1);
   if (!words.length || NOT_NAMES.test(words[0])) return null;
   return cleanFullName(words.join(" "));
 }
@@ -351,7 +361,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]tame|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 /** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
 export function nameFromSpelledLetters(text: string): string | null {
   let s = String(text || "").trim();

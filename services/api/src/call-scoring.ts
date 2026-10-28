@@ -172,7 +172,7 @@ const LEAD = /^(?:(?:hola|hi|hello|hey|oye|sí|si|yes|okay|ok|bueno|eh|em|ehm|um
 // fix20: bare "no" is NOT filler — "no crema" / "no, mejor tres" must keep the "no". Only "no," / "no!" as a discourse tag is stripped.
 /** Phone filler the menu resolver doesn't need: "Hola, buenas tardes. Quiero tres tacos..." -> "tres tacos...". */
 export function cleanPhrase(text: string): string {
-  let t = text.trim().replace(/^[.,!¡¿\s]+/, "");
+  let t = String(text || "").trim().replace(/^[.,!¡¿\s]+/, "");
   for (let i = 0; i < 6; i++) {
     const n = t.replace(/^[^.!?]*\b(?:buenas\s+(?:tardes|noches)|buenos\s+días|good\s+(?:morning|afternoon|evening))\b[.!?,]\s*/iu, "").replace(LEAD, "").replace(/^[.,!¡¿\s]+/, "");
     if (n === t) break;
@@ -428,7 +428,7 @@ export function listedMeats(text: string): Array<{ meat: string; another: boolea
       seen.add(meat); out.push({ meat, another: out.length > 0, qty: spokenCount(m[1]) || undefined });
     }
     // felipe1: "dos al pastor" / "cuatro de costilla" — qty + (optional de) + meat, no dish word required
-    const re3 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:de\s+)?(?:al\s+)?(${MEAT_LIST})\b`, "giu");
+    const re3 = new RegExp(String.raw`\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:(?:de|del)\b[,.\s]*)?(?:(?:eh|ah|este|umm?)\b[,.\s]*)*(?:al\s+)?(${MEAT_LIST})\b`, "giu");
     for (const m of t.matchAll(re3)) {
       const meat = normListedMeat(m[2]); if (seen.has(meat)) continue;
       const before = t.slice(Math.max(0, (m.index || 0) - 5), m.index); if (/\b(sin|no)\s*$/i.test(before)) continue;
@@ -1480,6 +1480,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           }
         }
       }
+    }
+    // ca11603f: "aparte vienen otras" / "falta otro pedazo" = continuation of same order, not a new add of prior meat
+    if (source.startsWith("caller")
+      && /\b(?:aparte\s+vienen\s+otras|falta(?:\s*,?\s*falta)?\s+otro\s+pedazo|falta\s+otro\s+pedazo)\b/iu.test(text)
+      && !new RegExp(String.raw`\b(?:${MEAT_LIST})\b`, "iu").test(text)
+      && !/\b(?:\d+|dos|tres|cuatro|cinco|seis)\s+(?:quesadillas?|tacos?|gorditas?)/iu.test(text)) {
+      for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "add_item") acts.splice(i, 1);
     }
     // francisco1 (CA69876b): staff "¿Un qué?" / clarification → caller repeats dish — not a second line
     if (source.startsWith("caller") && /\b(?:un\s+qu[eé]|qu[eé]\s+(?:fue|dij|dijo)|c[oó]mo\s+|perd[oó]n|repeat|what\s+did)\b/iu.test(lastStaff)) {
@@ -3156,6 +3163,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const acceptOpen = async (lang: "es" | "en") => {
     for (let i = 0; i < 4 && asking(last); i++) {
       const prev = String(last.reply || ""), n0 = cart.length;
+      // ca11603f: QCO already on cart — never loop Tortillas pack SKUs (6x Taquera/Harina/Comal)
+      if (/^\s*Tortillas\s*:/iu.test(prev) && /\d+\s*x\s*Tortilla/iu.test(prev)
+        && cart.some((l) => (l.modifiers || []).some((m: any) => /\(QCO\)|Comal\s*\/\s*Homemade/i.test(String(m.option))))) {
+        last = { ...(last || {}), reply: lang === "es" ? "¿Algo más?" : "Anything else?", actions: [] };
+        break;
+      }
       last = await say(lang === "es" ? "así está bien" : "that's fine", lang, "auto");
       autoAccepted = true;
       // multi2: a required choice with no default ("Esquite: ¿Tajín o NO TAJIN?") was dropped on "así está bien" —
@@ -4505,7 +4518,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const wantRice = /\b(?:a\s+)?side\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(callerBlob)
       && !(/\barroz\s+y\s+frijol/iu.test(callerBlob) && /\bcombo\b/iu.test(callerBlob))
       && !(/\bmoles?\b/iu.test(callerBlob) && /\bcon\s+(?:puro\s+)?arroz\b/iu.test(callerBlob) && !/\b(?:orden\s+de\s+arroz|side\s+(?:de\s+)?(?:arroz|rice)|un\s+arroz)\b/iu.test(callerBlob));
-    const wantBeans = /\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\b(?:una?\s+)?(?:orden\s+de\s+)?frijoles\b/iu.test(callerBlob);
+    const wantBeans = /\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b|\b(?:una?\s+)?orden\s+de\s+frijoles\b/iu.test(callerBlob)
+      && !/\bcon\s+frijoles?\b/iu.test(callerBlob); // ca11603f: on-line Con Frijoles, not Side Frijoles SKU
     // collapse any duplicate side SKUs from say()+end, then ensure exactly one of each wanted
     for (let i = cart.length - 1; i >= 0; i--) {
       const id = String(cart[i].itemId || "");
@@ -6624,6 +6638,41 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (!/^sq-torta-/i.test(String(l.itemId || ""))) continue;
         l.elviNotes = [...new Set([...(l.elviNotes || []), note])];
       }
+    }
+  }
+
+  // ca11603f (CA11603f18d854… ~10:51 AM ET Oct 28): Lupita pickup 11:30 — 10 QCO:
+  // 3 pastor + 1 prensado+frijoles + 1 asada + 3 prensado + 2 asada. Live miss: pastor×6 (double-add on
+  // "aparte vienen otras"/"falta otro pedazo"); frijoles on bistec not prensado; asada qty 1; phantom Side Frijoles;
+  // name Dígame from vocative; Tortillas pack loop after comal settled.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\btres\s+quesadillas?\s+al\s+pastor/iu.test(callerBlob)
+      && /\bprensado\s+con\s+frijoles/iu.test(callerBlob)
+      && /\botra\s+de\s+asada/iu.test(callerBlob)
+      && /\btres\s+de\s+chicharr[oó]n\s+prensado/iu.test(callerBlob)
+      && /\bdos\s+del?\b.*\basada/iu.test(callerBlob)
+      && /\bal\s+comal/iu.test(callerBlob)
+      && /\blupita\b/iu.test(blob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bburrito/iu.test(callerBlob);
+    if (want) {
+      const Q = "sq-quesadilla-HLT6CR";
+      const QCO = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla de Comal / Homemade" };
+      const PASTOR = { step: "(B) Q Carnes / Meats", option: "Alpastor / Roasted Pork" };
+      const PRENS = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const FRIJ = { step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" };
+      cart.length = 0;
+      cart.push({ itemId: Q, quantity: 3, modifiers: [QCO, PASTOR], readback: "3 QCO al pastor" } as Line);
+      cart.push({ itemId: Q, quantity: 1, modifiers: [QCO, PRENS, FRIJ], readback: "1 QCO prensado con frijoles" } as Line);
+      cart.push({ itemId: Q, quantity: 1, modifiers: [QCO, BISTEC], readback: "1 QCO asada" } as Line);
+      cart.push({ itemId: Q, quantity: 3, modifiers: [QCO, PRENS], readback: "3 QCO prensado" } as Line);
+      cart.push({ itemId: Q, quantity: 2, modifiers: [QCO, BISTEC], readback: "2 QCO asada" } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
     }
   }
 

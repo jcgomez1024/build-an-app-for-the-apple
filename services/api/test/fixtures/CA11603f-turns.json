@@ -1,0 +1,170 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.06,
+    "end": 7.342,
+    "text": "Buenos días. A ver, sí, cómo no, dígame la primera.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 2.18,
+    "end": 4.141,
+    "text": "Buenos días, ¿puedo hacer unas órdenes?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.221,
+    "end": 14.162,
+    "text": "Ok, la primera va a ser, ah, tres quesadillas al pastor, al comal, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.004,
+    "end": 18.725,
+    "text": "Permítame, tres de comal, de al pastor, es una orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.403,
+    "end": 22.183,
+    "text": "Ah, sí, aparte vienen otras. Ah,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 22.666,
+    "end": 26.107,
+    "text": "Okay, pero esa es esa es la primera orden, para irte la separando, pues, por eso te digo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 26.524,
+    "end": 28.944,
+    "text": "falta, falta otro pedazo para esa orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.528,
+    "end": 31.849,
+    "text": "Okay, ¿qué más le pongo? Dígame, la primera orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 31.545,
+    "end": 38.005,
+    "text": "Serían dos más quesadillas, una de chicharrón prensado con frijoles y otra de asada.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 38.931,
+    "end": 41.512,
+    "text": "Prensado con frijoles, permíteme.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 43.252,
+    "end": 45.853,
+    "text": "Y la otra de comal también de bistec, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 46.727,
+    "end": 52.608,
+    "text": "Y todas de, de comal. Ya sé, esta es otra orden, serían tres de chicharrón prensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 48.514,
+    "end": 48.634,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 53.895,
+    "end": 55.876,
+    "text": "Otras tres más de prensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 57.016,
+    "end": 57.477,
+    "text": "¿Qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 58.609,
+    "end": 64.211,
+    "text": "Y ya esta es otra orden, son dos del, eh, asada, al comal igual.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 64.041,
+    "end": 68.584,
+    "text": "Dos ques, dos quesadillas más de biset. ¿Qué más es para la tercera orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 69.493,
+    "end": 70.253,
+    "text": "Sería todo ya.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 70.786,
+    "end": 74.068,
+    "text": "Okay, ¿me da su nombre para su orden, por favor? ¿Quién la va a recoger?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 74.774,
+    "end": 80.756,
+    "text": "A Lupita, y si pue, si puedo pasar por ellas a las nueve, digo a las nueve, a las once y media.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 81.673,
+    "end": 86.436,
+    "text": "Está bien, señorita, sirve que me dio bien su horario para no tenerlas frías. Once treinta le vamos a poner.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 85.198,
+    "end": 88.199,
+    "text": "Okay. Okay, muchas gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 88.838,
+    "end": 89.759,
+    "text": "A usted, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 90.34,
+    "end": 90.64,
+    "text": "Bye bye.",
+    "language": "es"
+  }
+]
