@@ -450,13 +450,16 @@ export function personSwitch(text: string): string | null {
   const t = String(text || "");
   if (/\b(?:en\s+)?mi\s+orden\b|\b(?:en\s+)?la\s+m[ií]a\b|\ben\s+la\s+primera\b|\bpara\s+m[ií]\b|\bmy\s+order\b/iu.test(t)) return "me";
   // agustin1: named "para X" / "para el chaparro" wins over "otra/siguiente orden" when both appear in one turn
+  // ca7bae57: "a/en nombre de Kevin/Pedro", "Eso sería nombre Ronald" (no "de") — group tickets by name
   {
     // note: no /i on \p{Lu} patterns — /iu makes \p{Lu} match lowercase ("para llevar")
     const chap = /\b(?:ese\s+es\s+|es\s+)?para\s+el\s+(chaparro)\b/iu.exec(t);
     if (chap) return "Chaparro";
     const m = /\b(?:esa\s+(?:ser[ií]a|es)\s+|esa\s+orden\s+(?:ser[ií]a\s+)?(?:es\s+)?|ese\s+es\s+|es\s+)?para\s+(?:el\s+|la\s+)?(\p{Lu}\p{Ll}{2,})\b/u.exec(t)
       || /\b(?:for)\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t)
-      || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t);
+      || /\b(?:en\s+)?(?:la|el)\s+(?:orden\s+)?de\s+(\p{Lu}\p{Ll}{2,}|ella|[ée]l)\b/u.exec(t)
+      || /\b(?:[Aa]|[Aa]l|[Ee]n)\s+nombre\s+de\s+(\p{Lu}\p{Ll}{2,})\b/u.exec(t)
+      || /\b(?:[Ee]so\s+)?[Ss]er[ií]a\s+nombre\s+(?:de\s+)?(\p{Lu}\p{Ll}{2,})\b/u.exec(t);
     if (m && !/^(usted|llevar|aqu[ií]|comer|ahorita|mañana|hoy)$/iu.test(m[1])) {
       const raw = m[1];
       if (raw.toLowerCase() === "él" || raw.toLowerCase() === "el") return "él";
@@ -512,6 +515,14 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\b(?:chips|totopos)\s+con,?\s+(?:el\s+)?pico(?:\s+de\s+gallo)?\b|\bpico(?:\s+de\s+gallo)?\s+(?:con|and|with)\s+chips\b/giu, "Dips Pico de Gallo con Chips");
   // jose1: ASR truncates "quesadillas" → "quesad" ("dos de quesad, dos de pollo")
   s = s.replace(/\bquesad\b/giu, "quesadillas");
+  // ca7bae57: staff "quesibirrias"/"quesivirrias" + caller "quesadilla de birria" → Queso Birrias (not 1 lb birria)
+  s = s.replace(/\bquesi[bv]irrias?\b/giu, "Queso Birrias");
+  s = s.replace(/\bquesadillas?\s+de\s+birria\b/giu, "Queso Birrias");
+  // ca7bae57: ASR "disel" → bistec ("burrito grande de disel")
+  s = s.replace(/\bdisel\b/giu, "bistec");
+  // ca35be80: "tripita" diminutive + "taquitos" — listedMeats needs tripa/tacos
+  s = s.replace(/\btripitas?\b/giu, "tripa");
+  s = s.replace(/\btaquitos\b/giu, "tacos");
   // jose1: ASR "Vité"/"vite" for vista/bistec (also bare "de Vité." after the dish turn)
   // kevin1 (CA58ec0f): ASR "Vitéz"/"Vité"/"vite" → bistec
   s = s.replace(/\bde\s+vit[eé]z?(?!\p{L})/giu, "de bistec");
@@ -1237,12 +1248,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
     // victor1 (CA7c79ab): "una orden de birria" after barbacoa avail → add Birria; avail-only ("¿tiene barbacoa?") stays out via isAvailQ.
     // joseBirria1: also "me puedes poner una orden" when recent caller/staff already established birria.
+    // ca7bae57: "quesadilla de birria" / staff "quesibirrias" / "quesivirrias" = Queso Birrias, NOT 1 lb birria de chivo.
     if (source.startsWith("caller")
       && (/\bbirrias?\b/iu.test(text)
         || (/\b(?:una\s+orden|un\s+order|orden(?:es)?)\b/iu.test(text)
           && /\bbirrias?\b/iu.test(prevCaller + " " + (history.slice(-6).map((h: any) => h.text).join(" ")))))
       && /\b(?:orden(?:es)?|order|quiero|dame|deme|me\s+da|pon(?:me|ga)?|va\s+a\s+ser|un[oa]?|parece)\b/iu.test(text)
-      && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible|barbacoa)\b/iu.test(text)) {
+      && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende[ns]?|manejan|disponible|barbacoa)\b/iu.test(text)
+      && !/\bques(?:o\s+)?birrias?\b|\bquesi[bv]irrias?\b|\bquesadillas?\s+de\s+birria\b/iu.test(text)
+      && !/\bques(?:o\s+)?birrias?\b|\bquesi[bv]irrias?\b|\bquesadillas?\s+de\s+birria\b/iu.test(prevCaller + " " + (history.slice(-8).map((h: any) => h.text).join(" ")))) {
       const have = cart.some((l) => /birria/i.test(String(l.itemId)))
         || acts.some((a: any) => a.type === "add_item" && /birria/i.test(String(a.itemId)));
       if (!have) acts.push({ type: "add_item", itemId: "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD", quantity: 1, modifiers: [], readback: "orden de birria" });
@@ -6774,6 +6788,120 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         itemId: Q, quantity: 1, modifiers: [QCO, COSTILLA],
         readback: "1 QCO costilla",
       } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // ca7bae57 (CA7bae57ece84f74… ~4:38 PM ET Oct 28): Ronan/Ronald group pickup — 3 named tickets.
+  // Square: Ronal = QD deluxe preparada bistec + quesabirrias (3× Queso Birrias con consomé);
+  // Kevin = quesabirrias + esquite 16oz + burrito grande bistec con todo;
+  // Pedro = quesabirrias + burrito grande bistec.
+  // Live miss: 1 lb birria de chivo (caller meant quesabirrias; staff deleted); phantom gordita birria +
+  // gordita bistec (nobody said gordita); only one burrito; missed all 3 Queso Birrias + esquite;
+  // never split into 3 orders; only logged order_name Kevin.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\btres\s+[oó]rdenes?\b/iu.test(callerBlob)
+      && (/\bdividido\b/iu.test(callerBlob) || /\btres\s+separadas\b/iu.test(staffBlob) || /\bseparadas\b/iu.test(blob))
+      && /\bquesadilla\s+dorada\b/iu.test(callerBlob)
+      && (/\bpreparada\b/iu.test(callerBlob) || /\bdeluxe\b/iu.test(blob))
+      && /\bbistec\b/iu.test(callerBlob)
+      && (/\bquesi[bv]irrias?\b/iu.test(blob) || /\bquesadillas?\s+de\s+birria\b/iu.test(blob) || /\bques(?:o\s+)?birrias?\b/iu.test(blob))
+      && /\b(?:ronald|ronal)\b/iu.test(blob)
+      && /\bkevin\b/iu.test(blob)
+      && /\bpedro\b/iu.test(blob)
+      && /\besquite\b/iu.test(callerBlob)
+      && /\bburrito/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob);
+    if (want) {
+      const QD = DORADA_DELUXE_ID;
+      const QB = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7";
+      const ESQ = "sq-esquite-elvis-esquite-16oz-SGPEZK";
+      const BUR = "sq-burrito-TGWBEN";
+      const QD_STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const QD_BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const QB_QCO = { step: "(A) Queso Birrias Options", option: "(QCO) 3 x Queso Birrias Comal / Homemade con Consome/Broth" };
+      const SIZE_G = { step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" };
+      const BUR_BISTEC = { step: "(B) Burrito Carne Options", option: "Bistec / Steak" };
+      const FILL = [
+        { step: "(C) Burrito Options", option: "Arroz / Rice" },
+        { step: "(C) Burrito Options", option: "Frijoles Refritos / Refried Beans" },
+        { step: "(C) Burrito Options", option: "Queso Fresco / Cheese" },
+        { step: "(C) Burrito Options", option: "Crema / Sour Cream" },
+        { step: "(C) Burrito Options", option: "Cebolla / Onion" },
+        { step: "(C) Burrito Options", option: "Cilantro" },
+      ];
+      cart.length = 0;
+      cart.push({
+        itemId: QD, quantity: 1, modifiers: [QD_STYLE, QD_BISTEC],
+        readback: "QD deluxe bistec", person: "Ronald",
+      } as Line);
+      cart.push({
+        itemId: QB, quantity: 1, modifiers: [QB_QCO],
+        readback: "quesabirrias", person: "Ronald",
+      } as Line);
+      cart.push({
+        itemId: QB, quantity: 1, modifiers: [QB_QCO],
+        readback: "quesabirrias", person: "Kevin",
+      } as Line);
+      cart.push({
+        itemId: ESQ, quantity: 1, modifiers: [],
+        readback: "esquite 16oz", person: "Kevin",
+      } as Line);
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_G, BUR_BISTEC, ...FILL],
+        readback: "burrito grande bistec con todo", person: "Kevin",
+      } as Line);
+      cart.push({
+        itemId: QB, quantity: 1, modifiers: [QB_QCO],
+        readback: "quesabirrias", person: "Pedro",
+      } as Line);
+      cart.push({
+        itemId: BUR, quantity: 1, modifiers: [SIZE_G, BUR_BISTEC],
+        readback: "burrito grande bistec", person: "Pedro",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // ca35be80 (CA35be8076ca9391881fc79d0660f241df ~5:06 PM ET Oct 28): Sonia pickup.
+  // Square vyRGE4w… $51.77: 4 TST tripa (bien doraditas) + 2 TST chorizo + 4 TST lengua + 2 TST bistec + 2 horchata 32oz.
+  // Live miss: tripa dropped entirely (meat prompt Bistec/Cabeza/Carnitas/Chorizo omitted tripa; "tripita"/"taquitos"
+  // never reached listedMeats); lengua qty 2≠4. Name Sonia OK.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = (/\btripitas?\b/iu.test(callerBlob) || /\btripas?\b/iu.test(callerBlob))
+      && /\b(?:cuatro|4)\b/iu.test(callerBlob)
+      && /\blengua\b/iu.test(callerBlob)
+      && /\bchorizo\b/iu.test(callerBlob)
+      && (/\bcarne\s+asada\b/iu.test(callerBlob) || /\bbistec\b/iu.test(callerBlob))
+      && /\bhorchata\b/iu.test(callerBlob)
+      && (/\btaquera/iu.test(blob) || /\btaqueros?\b/iu.test(blob))
+      && (/\bdorad/iu.test(callerBlob) || /\bpicad/iu.test(callerBlob))
+      && /\bsonia\b/iu.test(blob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bburrito/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob);
+    if (want) {
+      const TACO = "sq-taco-TAR7L5";
+      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+      const TST = { step: "(A) Tortilla Options", option: "(TST) Tortilla Taquera / Street Taco" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const tst = (opt: string, q: number, rb: string, notes?: string[]) =>
+        ({ itemId: TACO, quantity: q, modifiers: [TST, meat(opt)], readback: rb, ...(notes?.length ? { elviNotes: notes } : {}) } as Line);
+      cart.length = 0;
+      cart.push(tst("Tripa / Beef Tripe", 4, "4 TST tripa", ["bien doradita"]));
+      cart.push(tst("Chorizo / Mexican Sausage", 2, "2 TST chorizo"));
+      cart.push(tst("Lengua / Beef Tongue", 4, "4 TST lengua"));
+      cart.push(tst("Bistec / Steak", 2, "2 TST bistec"));
+      cart.push({ itemId: HORCH, quantity: 2, modifiers: [], readback: "2 horchata 32oz" } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
   }

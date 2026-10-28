@@ -1,0 +1,254 @@
+[
+  {
+    "speaker": "staff",
+    "start": 3.742,
+    "end": 4.362,
+    "text": "Buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.362,
+    "end": 8.023,
+    "text": "Buenas tardes, necesito hacer un orden de tacos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 8.844,
+    "end": 10.004,
+    "text": "A ver nomás permítame para",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.165,
+    "end": 13.706,
+    "text": "grabárselos de una vez, si me hace favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 15.727,
+    "end": 16.607,
+    "text": "A ver, vamos a ver.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 17.688,
+    "end": 18.948,
+    "text": "¿Cuántos tacos le vamos a poner?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.008,
+    "end": 21.189,
+    "text": "Ah, ¿tienen tripita?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 21.77,
+    "end": 22.23,
+    "text": "¿Sí, sí hay?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 23.25,
+    "end": 27.552,
+    "text": "Necesito cuatro taquitos de de tripita, pero que esté bien doradita.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 27.692,
+    "end": 30.553,
+    "text": "¿Y qué tortilla quiere, de la tortilla grande chamano o de la taquera?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 31.353,
+    "end": 32.214,
+    "text": "No, de la taquera.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 31.674,
+    "end": 32.234,
+    "text": "O en harina.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 33.354,
+    "end": 34.554,
+    "text": "No, de de la taquera.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.355,
+    "end": 35.636,
+    "text": "¿Cuántos tacos de tripa dorada, qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.815,
+    "end": 36.835,
+    "text": "Y",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 37.856,
+    "end": 39.276,
+    "text": "dos tacos de chorizo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 40.438,
+    "end": 42.279,
+    "text": "¿Dos tacos taqueros de chorizo, qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.938,
+    "end": 46.76,
+    "text": "Y cuatro de lengua, pero que esté bien picadita, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 51.403,
+    "end": 53.503,
+    "text": "No, si entonces de costilla está más picada la costilla, eh.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.983,
+    "end": 55.383,
+    "text": "¿Perdón?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.165,
+    "end": 58.225,
+    "text": "No los quiere de costilla, la costilla es más picada.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 59.205,
+    "end": 60.686,
+    "text": "No, los quiero de lengua.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 61.107,
+    "end": 62.187,
+    "text": "Cuatro de lengua, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 62.947,
+    "end": 65.388,
+    "text": "Ah, y dos de carne asada.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 66.529,
+    "end": 67.009,
+    "text": "¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 68.049,
+    "end": 69.189,
+    "text": "Eh, será, uh,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 70.23,
+    "end": 71.711,
+    "text": "dos aguas de horchata.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 72.412,
+    "end": 74.592,
+    "text": "Dos aguas de horchata, claro, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.332,
+    "end": 76.573,
+    "text": "No es todo, ¿cuánto es?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 76.953,
+    "end": 77.254,
+    "text": "Nombre,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 78.514,
+    "end": 81.615,
+    "text": "van a ser cincuenta y uno setenta y siete. Nombre.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 78.534,
+    "end": 78.814,
+    "text": "Sonia.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 81.335,
+    "end": 83.136,
+    "text": "Okay, muy bien. Sonia.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 83.896,
+    "end": 86.437,
+    "text": "Sonia, dame veinte minutos por lo menos, Sonia, si me hace favor, ¿sí?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 87.098,
+    "end": 89.719,
+    "text": "Ah, está bien, está bien. Sí, hasta luego.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 87.678,
+    "end": 88.118,
+    "text": "Gracias.",
+    "language": "es"
+  }
+]

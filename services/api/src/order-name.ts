@@ -57,8 +57,9 @@ export function thirdPersonName(text: string): string | null {
     }
   }
   // josePickup1 (CAfa0e72): "sería nombre de José" / "el nombre sería de José" = pickup/ticket only (not "a nombre de" = self)
+  // ca7bae57: "Eso sería nombre Ronald" (no "de") — still pickup/ticket name
   {
-    const sn = s.match(/\bser[ií]a\s+(?:el\s+)?nombre\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
+    const sn = s.match(/\bser[ií]a\s+(?:el\s+)?nombre\s+(?:de\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u)
       || s.match(/\b(?:el\s+)?nombre\s+ser[ií]a\s+(?:de\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u);
     if (sn && !NOT_NAMES.test(sn[1].split(" ")[0])) {
       const n = cleanFullName(sn[1]);
@@ -496,7 +497,7 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     // luke1: "Mi español es muy mal" is not a volunteer name (PHRASE bare "es " would yield Muy Mal)
     if (/\bmi\s+espa[nñ]ol\b/iu.test(t.text) || /\bes\s+muy\s+mal\b/iu.test(t.text)) continue;
     // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
-    const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+de\b/iu.test(t.text)
+    const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+(?:de\b|(?=\s+\p{Lu}))/iu.test(t.text)
       || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
     // English volunteer: "Yeah, it's Josh." / "I'm Josh" / "my name is Josh" (josh1 CAaaa9a2)
     // ca20b6c0: "puedo aportar una orden para Carlos" / "una orden para X" = pickup ticket name

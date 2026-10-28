@@ -129,7 +129,7 @@ const FALLBACK_RULES: EspecialRule[] = [
   },
   {
     kind: "queso-birrias",
-    aliases: [/\b(queso\s+birria|queso\s+birrias|quesabirria|quesabirrias)\b/],
+    aliases: [/\b(queso\s+birria|queso\s+birrias|quesabirria|quesabirrias|quesi[bv]irrias?|quesadillas?\s+de\s+birria)\b/],
     namePattern: /\bqueso\s+birrias?\b/,
     steps: [
       { key: "queso-birria-option", kind: "item-option", label: "Queso birria option", required: true, min: 1, max: 1 },
@@ -230,7 +230,7 @@ function safeRegExp(pattern: string) {
 
 function defaultNamePattern(kind: EspecialKind) {
   if (kind === "quesadilla-dorada") return "\\bquesadilla\\s+dorada\\b";
-  if (kind === "queso-birrias") return "\\bqueso\\s+birrias?\\b|\\bquesabirrias?\\b";
+  if (kind === "queso-birrias") return "\\bqueso\\s+birrias?\\b|\\bquesabirrias?\\b|\\bquesi[bv]irrias?\\b|\\bquesadillas?\\s+de\\s+birria\\b";
   if (kind === "birria") return "\\bbirria\\s+de\\s+chivo\\b|\\bgoat\\s+birria\\b";
   return "\\bpambazo\\b";
 }
@@ -450,7 +450,7 @@ function buildVirtualQuesoBirriasItem(): MenuItem {
     id: "reviewed-queso-birrias",
     name: "Queso Birrias",
     nameEs: "Queso Birrias",
-    aliases: ["Queso Birrias", "queso birrias", "queso birria", "quesabirria", "quesabirrias"],
+    aliases: ["Queso Birrias", "queso birrias", "queso birria", "quesabirria", "quesabirrias", "quesibirrias", "quesivirrias", "quesadilla de birria"],
     priceCents: VIRTUAL_QUESO_BIRRIA_BASE_CENTS,
     description: "Three queso birrias with consome. Choose street, flour, or comal.",
     modifierGroups: [
@@ -756,7 +756,7 @@ function findOptionMentions(options: Array<string | ModifierOption>, text: strin
 function optionAllowedForKind(name: string, query: string, kind: EspecialStepKind) {
   const key = normalizeText(name);
   if (kind === "item-option") {
-    const asksQuesoBirria = /\b(queso\s+birrias?|quesabirrias?)\b/.test(query);
+    const asksQuesoBirria = /\b(queso\s+birrias?|quesabirrias?|quesi[bv]irrias?|quesadillas?\s+de\s+birria)\b/.test(query);
     const hasQuesoBirriaOption = /\bqueso\s+birrias?\b/.test(key);
     if (asksQuesoBirria && hasQuesoBirriaOption) {
       const specificQuesoBirriaChoice = /\b(harina|flour|comal|homemade|street|taquera|taquero)\b/.test(query);

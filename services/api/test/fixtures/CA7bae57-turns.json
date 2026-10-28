@@ -1,0 +1,569 @@
+[
+  {
+    "speaker": "caller",
+    "start": 3.041,
+    "end": 4.461,
+    "text": "Hola, ¿aún tienes birria?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 6.641,
+    "end": 7.722,
+    "text": "Sí, ¿hay birria todavía, Ñero?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 8.762,
+    "end": 10.302,
+    "text": "Birria. Sí, joven.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 11.303,
+    "end": 16.805,
+    "text": "Sí hay, okay. Permítame. Kevin, Kevin, sí hay. ¿Vos, vos?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.505,
+    "end": 18.685,
+    "text": "¿Vos?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.286,
+    "end": 20.746,
+    "text": "Hay birria.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 23.867,
+    "end": 26.527,
+    "text": "No. Okay. ¿Cómo?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 28.708,
+    "end": 30.529,
+    "text": "Este, quiero hacer tres órdenes, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 31.006,
+    "end": 31.386,
+    "text": "¿De birria?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.429,
+    "end": 33.029,
+    "text": "Sí, de birria.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 34.027,
+    "end": 34.647,
+    "text": "¿Qué más, joven?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 34.95,
+    "end": 35.43,
+    "text": "¿Desde Lake?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 37.01,
+    "end": 38.531,
+    "text": "Pero dividido, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 38.848,
+    "end": 41.928,
+    "text": "Sí, son tres separadas, sí, las ponemos aparte cada. ¿Qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 40.691,
+    "end": 44.232,
+    "text": "Sí, por favor. Y me pone, y me pone a una un",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 45.373,
+    "end": 47.653,
+    "text": "una quesadilla dorada preparada con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 47.99,
+    "end": 48.25,
+    "text": "¿De qué?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 49.974,
+    "end": 51.554,
+    "text": "De bistec. ¿Cómo?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 51.19,
+    "end": 51.53,
+    "text": "¿Qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.235,
+    "end": 55.556,
+    "text": "Eso sería nombre Ronald.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.371,
+    "end": 57.131,
+    "text": "¿Las tres birrias?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 58.516,
+    "end": 59.617,
+    "text": "No, una birria",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 60.072,
+    "end": 69.275,
+    "text": "A ver, entonces, déjame decirte tres. Permíteme, entonces vamos a ponerlas de cada orden. Aquí tengo una birria y una y una quesadilla dorada de CityLax. ¿Es a nombre de quién?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 60.577,
+    "end": 60.937,
+    "text": "y una,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 65.018,
+    "end": 65.938,
+    "text": "sí, son tres órdenes,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 70.119,
+    "end": 71.9,
+    "text": "de bistec, eh, a nombre de Ronald.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 72.655,
+    "end": 74.956,
+    "text": "Por eso, pero una, la quesadilla va con una birria.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.921,
+    "end": 76.601,
+    "text": "Sí, así es.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 76.557,
+    "end": 79.177,
+    "text": "Okay. Permíteme, Ronald.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 81.118,
+    "end": 82.578,
+    "text": "¿Qué más, joven? Quiero.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 84.059,
+    "end": 86.379,
+    "text": "Tres birrias. Tres birrias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 86.204,
+    "end": 86.504,
+    "text": "Y en la,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 88.48,
+    "end": 88.66,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.544,
+    "end": 91.485,
+    "text": "esa es una, en la otra una birria, ¿y qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 92.746,
+    "end": 97.567,
+    "text": "Una porción de quesadilla de birria. ¿Es lo mismo? No, no, birria es diferente. ¿Ah?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 98.547,
+    "end": 101.708,
+    "text": "¿Por qué? Quesadilla, quesadilla.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 102.828,
+    "end": 118.932,
+    "text": "¿Cuál precio era? Una birria, lo mismo. ¿Pero vos qué querés? Una birria y una quesadilla dorada preparada de bistec. ¿Querés birria o no querés quesadilla? Lo que compramos, güey, son quesadillas, maje. Birria, no es birria, no es birria, loco. Bueno.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 119.469,
+    "end": 119.829,
+    "text": "Sí, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 121.472,
+    "end": 131.894,
+    "text": "Ah, ¿qué qué órdenes le pidió el muchacho? No, quesadilla, no vamos a hacer. O sea,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 125.111,
+    "end": 135.935,
+    "text": "Primero me está pidiendo una birria con una quesadilla dorada de bistec preparada, pero la birria es una libra o en un contenedor con tortillas, salsa y verdura.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 133.235,
+    "end": 138.456,
+    "text": "quedan quedan caldo aparte, pendejo. Que te hagan consumir aparte. Sí, pero yo",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 137.935,
+    "end": 138.556,
+    "text": "Espérame, gordo,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 139.756,
+    "end": 141.216,
+    "text": "no sabe todavía, no sabe.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 139.856,
+    "end": 144.057,
+    "text": "se equivocó, sí, que nosotros queremos ah quesadilla de birria.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 145.118,
+    "end": 147.398,
+    "text": "O sea, ¿quesadillas de birria o quesibirrias?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 148.558,
+    "end": 150.058,
+    "text": "Eso, quesivirrias, correcto.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 150.74,
+    "end": 152.48,
+    "text": "Okay, entonces te borro la otra orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 153.899,
+    "end": 154.359,
+    "text": "Sí, son",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 155.681,
+    "end": 160.043,
+    "text": "La de Ronald. Okay, entonces, pues, me deja borrar eso.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 155.88,
+    "end": 156.82,
+    "text": "quesadilla las que.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 161.323,
+    "end": 163.384,
+    "text": "Me deja borrarlo porque me pidió como birria.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 164.384,
+    "end": 170.385,
+    "text": "Entonces ya tengo ahorita en Ronald una quesadilla dorada de bistec más unas quesivirrias.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 171.366,
+    "end": 174.747,
+    "text": "Ah, correcto. Correcto. Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 173.526,
+    "end": 174.146,
+    "text": "Permítame.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 175.406,
+    "end": 177.787,
+    "text": "Okay, ya está eso, eso se queda así de Ronald.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 178.889,
+    "end": 181.29,
+    "text": "Ajá, solo eso crema, Ronald. Solo eso crema.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 182.41,
+    "end": 190.694,
+    "text": "Ajá. Sí, y entonces a a nombre de Kevin es, ah, otra orden de quesadillas.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 185.669,
+    "end": 186.589,
+    "text": "Okay, la otra orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 187.769,
+    "end": 191.61,
+    "text": "Mhm. Okay,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 193.015,
+    "end": 193.175,
+    "text": "Ujú.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 193.83,
+    "end": 194.19,
+    "text": "¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 195.076,
+    "end": 196.236,
+    "text": "Un esquite, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 197.751,
+    "end": 198.991,
+    "text": "Un mezquite, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 200.458,
+    "end": 204.019,
+    "text": "Y, eh, un burrito regáleme, por favor, de bistec con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 208.613,
+    "end": 209.974,
+    "text": "Esa, ¿qué nombre va ahí, joven?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 210.562,
+    "end": 211.723,
+    "text": "A nombre de Kevin, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 212.794,
+    "end": 213.414,
+    "text": "This is Kevin.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 215.335,
+    "end": 216.735,
+    "text": "Okay, ¿va a haber otra orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 217.765,
+    "end": 217.865,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 218.796,
+    "end": 219.136,
+    "text": "¿Quién es?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 219.026,
+    "end": 221.447,
+    "text": "Otra, otra orden de quesadillas, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 221.777,
+    "end": 222.137,
+    "text": "Okey.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 224.208,
+    "end": 230.67,
+    "text": "Y un burrito grande. Eh, un burrito grande de disel también, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 225.599,
+    "end": 227.381,
+    "text": "¿De qué? Perdón, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 234.205,
+    "end": 235.186,
+    "text": "¿A qué nombre va esa?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 236.412,
+    "end": 237.453,
+    "text": "En nombre de Pedro, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 237.768,
+    "end": 239.749,
+    "text": "Pedro. ¿Algo más, jóvenes?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 240.814,
+    "end": 245.376,
+    "text": "Ah, solamente estamos llegando ahí por unos cuarenta, cincuenta minutos.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 245.713,
+    "end": 249.816,
+    "text": "Oh, no te preocupes que me espere, sale. Te la voy a tener listas como unos cuarenta mejor, ¿sale?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 250.938,
+    "end": 252.199,
+    "text": "Okay, muchas gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 251.537,
+    "end": 251.617,
+    "text": "Va.",
+    "language": "es"
+  }
+]
