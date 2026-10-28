@@ -1,0 +1,205 @@
+[
+  {
+    "speaker": "staff",
+    "text": "¿Estás de cocina, Elvis?",
+    "language": "es",
+    "start": 1.22,
+    "end": 2.141
+  },
+  {
+    "speaker": "caller",
+    "text": "Buenas tardes.",
+    "language": "en",
+    "start": 3.36,
+    "end": 4.061
+  },
+  {
+    "speaker": "staff",
+    "text": "Sí, dígame.",
+    "language": "es",
+    "start": 5.542,
+    "end": 5.962
+  },
+  {
+    "speaker": "caller",
+    "text": "Quería ordenar para llevar.",
+    "language": "es",
+    "start": 6.841,
+    "end": 7.921
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Qué te pongo?",
+    "language": "es",
+    "start": 8.523,
+    "end": 9.023
+  },
+  {
+    "speaker": "caller",
+    "text": "El de platillos que tiene,",
+    "language": "es",
+    "start": 10.881,
+    "end": 12.122
+  },
+  {
+    "speaker": "staff",
+    "text": "Lo que gustes, joven, de carne o guisado, se lo hacemos. Lleva arroz y frijol, tortillas de maíz o de harina.",
+    "language": "es",
+    "start": 12.865,
+    "end": 18.027
+  },
+  {
+    "speaker": "caller",
+    "text": "tiene chile relleno,",
+    "language": "en",
+    "start": 17.462,
+    "end": 18.383
+  },
+  {
+    "speaker": "staff",
+    "text": "También hay, joven.",
+    "language": "es",
+    "start": 19.147,
+    "end": 19.807
+  },
+  {
+    "speaker": "caller",
+    "text": "me pone,",
+    "language": "en",
+    "start": 21.183,
+    "end": 21.663
+  },
+  {
+    "speaker": "caller",
+    "text": "me pone una or, me pone una orden, ¿llevo un chile?",
+    "language": "es",
+    "start": 23.083,
+    "end": 27.464
+  },
+  {
+    "speaker": "staff",
+    "text": "¿La verdad?",
+    "language": "es",
+    "start": 24.709,
+    "end": 24.989
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Quieres arroz y frijol? Son dos.",
+    "language": "es",
+    "start": 26.35,
+    "end": 28.43
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí,",
+    "language": "es",
+    "start": 28.524,
+    "end": 28.644
+  },
+  {
+    "speaker": "caller",
+    "text": "dos, me pone otro extra.",
+    "language": "es",
+    "start": 29.664,
+    "end": 31.304
+  },
+  {
+    "speaker": "staff",
+    "text": "Son dos chiles los que lleva,",
+    "language": "es",
+    "start": 32.372,
+    "end": 33.512
+  },
+  {
+    "speaker": "caller",
+    "text": "me pone un extra más.",
+    "language": "es",
+    "start": 34.805,
+    "end": 35.945
+  },
+  {
+    "speaker": "staff",
+    "text": "Okay. Son arroz y frijol y tortillas de maíz o de harina.",
+    "language": "es",
+    "start": 36.233,
+    "end": 39.254
+  },
+  {
+    "speaker": "caller",
+    "text": "De maíz.",
+    "language": "es",
+    "start": 40.286,
+    "end": 40.726
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Algo más, joven?",
+    "language": "es",
+    "start": 41.495,
+    "end": 42.115
+  },
+  {
+    "speaker": "caller",
+    "text": "Nada más.",
+    "language": "es",
+    "start": 43.006,
+    "end": 43.406
+  },
+  {
+    "speaker": "staff",
+    "text": "Y un chile extra.",
+    "language": "es",
+    "start": 44.256,
+    "end": 45.257
+  },
+  {
+    "speaker": "caller",
+    "text": "Sí.",
+    "language": "es",
+    "start": 48.127,
+    "end": 48.227
+  },
+  {
+    "speaker": "staff",
+    "text": "¿Tu nombre?",
+    "language": "es",
+    "start": 48.698,
+    "end": 49.078
+  },
+  {
+    "speaker": "caller",
+    "text": "Jorge.",
+    "language": "en",
+    "start": 50.187,
+    "end": 50.487
+  },
+  {
+    "speaker": "staff",
+    "text": "Dame unos quince, Jorge, veinte y puede pasar, ¿está bien?",
+    "language": "es",
+    "start": 51.159,
+    "end": 53.54
+  },
+  {
+    "speaker": "caller",
+    "text": "Okay, gracias.",
+    "language": "es",
+    "start": 54.488,
+    "end": 55.248
+  },
+  {
+    "speaker": "staff",
+    "text": "Hello.",
+    "language": "en",
+    "start": 55.142,
+    "end": 57.909
+  },
+  {
+    "speaker": "caller",
+    "text": "I'm just",
+    "language": "en",
+    "start": 60.756,
+    "end": 61.598
+  }
+]

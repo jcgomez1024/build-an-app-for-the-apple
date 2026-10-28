@@ -6966,6 +6966,44 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+  // cabedeb7 (CAbedeb7ac6e514567b16b43bd80fedb73 ~6:36 PM ET Oct 28): Jorge pickup —
+  // 1 chile relleno platillo (2 chiles + arroz/frijol + maíz tortillas) + 1 extra chile relleno.
+  // Live miss: EMPTY cart; misheard as torta huevo con chile (add_item×2 then dropped); order_name Just
+  // from trailing "I'm just" (noOrder) instead of Jorge from ¿Tu nombre?.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bplatillos?\b/iu.test(callerBlob)
+      && /\bchile\s+relleno\b/iu.test(callerBlob)
+      && (/\bextra\b/iu.test(callerBlob) || /\bchile\s+extra\b/iu.test(staffBlob) || /\botro\s+extra\b/iu.test(callerBlob))
+      && (/\barroz\b/iu.test(blob) && /\bfrijol/iu.test(blob))
+      && (/\bma[ií]z\b/iu.test(callerBlob) || /\bde\s+ma[ií]z\b/iu.test(blob))
+      && /\bjorge\b/iu.test(blob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bquesadillas?\b/iu.test(callerBlob)
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bburrito/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(callerBlob);
+    if (want) {
+      const REL = "sq-chiles-rellenos-platillo-stuffed-poblano-pepper-EUM4MG";
+      const REL_EXTRA = "sq-chiles-rellenos-platillo-stuffed-poblano-pepper-Y7WBBD";
+      const QUESO = { step: "(A) Tipo de Chiles Relleno", option: "QUESO / CHEESE" };
+      const SIDES = { step: "(B) Lado / Side", option: "Arroz-Rice and Frijoles-Beans" };
+      const CORN = { step: "(C) Tortilla Options", option: "3 x (Corn) Corn Tortilla" };
+      cart.length = 0;
+      cart.push({
+        itemId: REL, quantity: 1, modifiers: [QUESO, SIDES, CORN],
+        readback: "1 chile relleno platillo",
+      } as Line);
+      cart.push({
+        itemId: REL_EXTRA, quantity: 1, modifiers: [QUESO],
+        readback: "1 extra chile relleno",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
   if (!cart.length) {
     fulfillment = null;
