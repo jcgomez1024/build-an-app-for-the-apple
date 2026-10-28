@@ -1,0 +1,191 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.941,
+    "end": 6.827,
+    "text": "Cocina hervís buenas noches. Eh, dígame, ¿qué va a ser?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.041,
+    "end": 4.921,
+    "text": "Bueno, no sé si me puedes dar un orden para llevar.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 8.322,
+    "end": 9.842,
+    "text": "sí, tiene quesadillas en aceite.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.292,
+    "end": 11.372,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.363,
+    "end": 26.006,
+    "text": "¿De qué tiene? ¿De qué queda? Sí tiene de prensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 14.955,
+    "end": 16.958,
+    "text": "Sí. Este, chorizo, tripa, cabeza, lengua,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 18.799,
+    "end": 19.08,
+    "text": "duro,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 20.641,
+    "end": 21.042,
+    "text": "bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 26.625,
+    "end": 26.725,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 27.946,
+    "end": 29.706,
+    "text": "Pero una de bistec y una de prensado con todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 30.386,
+    "end": 31.947,
+    "text": "¿Preparada o regular?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.227,
+    "end": 32.567,
+    "text": "Para la.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.867,
+    "end": 34.848,
+    "text": "Las dos preparadas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.728,
+    "end": 37.348,
+    "text": "Sí, me da un aguacate también.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 38.429,
+    "end": 39.289,
+    "text": "Permíteme tantito.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 40.849,
+    "end": 41.83,
+    "text": "Ya no había pensado.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.79,
+    "end": 49.371,
+    "text": "Sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 50.412,
+    "end": 50.652,
+    "text": "Okey.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 52.093,
+    "end": 53.013,
+    "text": "Permíteme tantito.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 60.955,
+    "end": 61.896,
+    "text": "Un aguacate, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 62.875,
+    "end": 63.055,
+    "text": "Hey.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.136,
+    "end": 64.216,
+    "text": "¿A dónde aquí va a quedar torre?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 65.916,
+    "end": 66.076,
+    "text": "Old",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 66.857,
+    "end": 67.997,
+    "text": "¿A dónde aquí va a quedar torre?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 68.757,
+    "end": 69.577,
+    "text": "man, old man.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 70.458,
+    "end": 73.239,
+    "text": "Omar. Okey, Omar, darnos de quince a veinte minutos, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 73.919,
+    "end": 74.339,
+    "text": "What I said.",
+    "language": "en"
+  }
+]
