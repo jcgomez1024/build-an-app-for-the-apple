@@ -84,6 +84,8 @@ export function addressesIn(text: string): Address[] {
     .replace(/\b(\d)\s+(\d)\s+(\d)\s+(\d)?\b/g, (_, a, b, c, d) => d != null ? a + b + c + d : a + b + c)
     .replace(/\b(\d)\s+(\d{2,4})\b/g, "$1$2")
     .replace(/\b(\d{2,4})\s+(\d)\b/g, "$1$2");
+  // cad71199: "478, Bank Street" / "4 78, Bank Street" → "478 Bank Street"
+  t = t.replace(/\b(\d{1,6}),\s+(?=[a-záéíóúñ])/giu, "$1 ");
   const out: Array<{ at: number; a: Address }> = [];
   for (const m of t.matchAll(ADDR_EN)) {
     const words = m[2].trim().split(/\s+/);

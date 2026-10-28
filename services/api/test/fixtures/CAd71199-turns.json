@@ -1,0 +1,233 @@
+[
+  {
+    "speaker": "staff",
+    "start": 0.78,
+    "end": 1.961,
+    "text": "Cocina Elvis, buenas tardes.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 3.001,
+    "end": 8.663,
+    "text": "Eh, ¿qué razón ahora? Eh, quiero una quesadilla dorada,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 4.982,
+    "end": 5.422,
+    "text": "Sí, dígame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 10.443,
+    "end": 11.443,
+    "text": "que sean, que sean dos mejor,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 12.345,
+    "end": 28.232,
+    "text": "¿De qué van a hacer? Déjame ver si tenemos cabeza. ¿Tienes cabeza? ¿Cabeza hay? Sí, sí. Mejor me espera tantito.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.424,
+    "end": 14.904,
+    "text": "preparadas de bistec con,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 15.805,
+    "end": 16.345,
+    "text": "con cabeza.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 19.866,
+    "end": 20.146,
+    "text": "Okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 30.833,
+    "end": 40.777,
+    "text": "Ajá, ¿qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.953,
+    "end": 45.714,
+    "text": "Okay, serían dos quesadillas y dos clemoritas de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 47.274,
+    "end": 48.174,
+    "text": "de chicharrón duro.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 56.063,
+    "end": 56.583,
+    "text": "No, es verdad.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.538,
+    "end": 60.839,
+    "text": "Ajá, una bodega McDonald's de, y que sea de libre.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.766,
+    "end": 65.667,
+    "text": "Permíteme tantito, hay un agua de Jamaica.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 67.301,
+    "end": 87.188,
+    "text": "Ajá. A la 4 78, Bank Street. Eh, Lester. Lester.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 68.788,
+    "end": 69.068,
+    "text": "Okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 74.19,
+    "end": 85.275,
+    "text": "¿Para dónde vas a? Espérame, espérame un momentito. ¿Nombre de tu ticket, el nombre de quién que le haya orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 88.156,
+    "end": 88.396,
+    "text": "Perdón.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 89.369,
+    "end": 89.749,
+    "text": "Lester.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 91.057,
+    "end": 91.617,
+    "text": "No te entendí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 92.63,
+    "end": 93.11,
+    "text": "Lester.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 93.918,
+    "end": 94.359,
+    "text": "Lester.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 95.331,
+    "end": 95.511,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 96.78,
+    "end": 98.12,
+    "text": "A ver otra vez la 4:40.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 98.992,
+    "end": 100.673,
+    "text": "No, 4 78,",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 101.181,
+    "end": 106.644,
+    "text": "4:78. 4:78, ¿verdad, me dices?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 103.074,
+    "end": 103.754,
+    "text": "Bank Street.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 107.315,
+    "end": 107.515,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 108.765,
+    "end": 113.609,
+    "text": "Uh-huh. Okay.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 110.298,
+    "end": 110.939,
+    "text": "Bank Street,",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 117.033,
+    "end": 120.856,
+    "text": "O quedanos, o quedanos veinte, veinte o cinco minutos, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 117.429,
+    "end": 117.789,
+    "text": "Toledo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 121.895,
+    "end": 122.476,
+    "text": "Okay, gracias.",
+    "language": "es"
+  }
+]

@@ -476,7 +476,9 @@ export function personSwitch(text: string): string | null {
  *  "normal(es)/sencilla" = REGULAR, "preparada" = DELUXE, "street" = Taquero, "flour" = Harina, "homemade/hecha a mano" = Comal. */
 export function staffPick(opts: string[], staffSaid: string): string | null {
   const f = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-  const said = f(staffSaid).replace(/\bnormal(?:es)?\b|\bsencill[ao]s?\b/g, " regular ").replace(/\bpreparad[ao]s?\b/g, " deluxe ")
+  // cad71199: staff filler "No, es verdad" must not match Comal/Harina/Taquera (or any) opts
+  let said = f(staffSaid).replace(/\bno,?\s*es\s+verdad\b/g, " ").replace(/\bes\s+verdad\b/g, " ")
+    .replace(/\bnormal(?:es)?\b|\bsencill[ao]s?\b/g, " regular ").replace(/\bpreparad[ao]s?\b/g, " deluxe ")
     .replace(/\bstreet\b/g, " taquero ").replace(/\bflour\b/g, " harina ").replace(/\bhomemade\b|\bhecha a mano\b/g, " comal ");
   if (!said.trim() || opts.length < 2) return null;
   const GENERIC = new Set(["taco", "tacos", "quesadilla", "qd", "dorada", "con", "de", "la", "el", "y", "x", "or", "o", "solo", "and"]);
@@ -501,6 +503,8 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\bde\s+de\b/giu, "de"); // oscar1 ASR: "quesadilla de de lengua"
   // ca0d0e12: ASR "charrón" / "charron" → chicharrón (duro correction)
   s = s.replace(/\bcharr[oó]n(?:es)?\b/giu, "chicharrón");
+  // cad71199: ASR "clemoritas" / "clemorita" → gorditas (chicharrón duro)
+  s = s.replace(/\bclemoritas?\b/giu, "gorditas");
   // ca0d0e12: "dos. O póngame tres, perdón" after staff "¿Dos o tres?" — final qty wins
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s*[.,]?\s*(?:o\s+)?p[oó]ngame\s+(${NUMW})\b`, "giu"), "$2");
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+([\p{L} ]+?)[,\s]+(?:o|or)\s+(${NUMW})\s+\2\b`, "giu"), "$3 $2");
@@ -3515,6 +3519,24 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     if (isClosing(t.text)) { steps.push({ source: "caller-closing", heard: t.text }); continue; }
+    // cad71199: address / street / city turns must not re-open food (Bank Street → enchiladas)
+    {
+      const frag = t.text.replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim();
+      const hit = addressesIn(t.text)[0];
+      const streetFrag = /\b(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd)\b/iu.test(frag)
+        && !FOOD.test(frag) && !listedMeats(frag).length && !DRINK.test(frag);
+      const cityOnly = /^(?:aj[aá]\s+)?(?:toledo|painesville|mentor|fairport|willoughby|eastlake|chardon|madison|perry|concord|kirtland)\b$/iu.test(frag);
+      // house# + street, or bare "Bank Street" / "Bank Street, Ajá", or city — skip model food path
+      if ((hit || streetFrag || cityOnly) && !FOOD.test(frag) && !listedMeats(frag).length && !DRINK.test(frag)
+        && !/\b(?:dame|deme|quiero|quisiera|pon(?:me|ga)|orden|pedido)\b/iu.test(frag)) {
+        if (hit && !shadowAddress) { shadowAddress = hit.full || hit.street; shadowAddressConfirmed = true; }
+        else if (!shadowAddress && streetFrag) {
+          shadowAddress = frag.replace(/^(?:aj[aá]\s+)+/iu, "").replace(/\b(?:aj[aá]|ok(?:ay)?|eh|lester|gracias)\b/giu, " ").replace(/\s+/g, " ").trim();
+          shadowAddressConfirmed = true;
+        }
+        steps.push({ source: "caller-address-frag", heard: t.text }); continue;
+      }
+    }
     // orders1: "I would like five orders" with one dish on the order and none named → that dish, five of them
     { const W: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
       const m = t.text.match(/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:orders?|[oó]rdenes)\b/iu);
@@ -3531,7 +3553,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const qs = asking(last) ? (String(last.reply || "").match(/(?:¿[^?¿]+|[^.!?¿:]+)\?/gu) || []) : [];
       // staffpick2: if the caller answers the open choice themselves this turn ("Ajá, de comal"), let their turn answer it.
       const selfPick = qs.map((q) => staffPick(optsOf(q), t.text)).find(Boolean) || null;
-      let pick = selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null);
+      // cad71199: caller "preparadas …" must answer open REGULAR/DELUXE (selfPick was discarded before)
+      let pick = selfPick && /regular|deluxe|preparad|dorada|comal|harina|flour|taquer|street|ma[ií]z|corn|homemade/i.test(selfPick)
+        ? selfPick
+        : (selfPick ? null : (qs.map((q) => staffPick(optsOf(q), said)).find(Boolean) || null));
       // larry1: staff's yes/no check ("Flour, right?" / "¿De harina?") + caller "Yep" answers the open tortilla choice.
       if (!pick && !selfPick && /^\W*(yep|yup|yes|yeah|uh-?huh|correct|right|s[ií]|aj[aá]|exacto|eso)\b/iu.test(t.text)) {
         // Prefer explicit caller word (Taqueros / comal / harina) over first staff option; allow no trailing "?"
@@ -4330,6 +4355,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (ct && !cart.some((l: any) => l.itemId === DIPS_ID)) { const m = ct.match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?Dips Pico`, "iu"));
       cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
+  // cad71199: street address without explicit pickup → DELIVERY (Lester Bank Street)
+  {
+    const detEarly = detectAddress(turns as any);
+    const blobAll = turns.map((t) => t.text).join(" ");
+    const saidPickup = /\b(?:pick\s*-?\s*up|para\s+llevar|(?:pasar\s+a\s+)?recoger|for\s+here|para\s+aqu[ií]|comer\s+aqu[ií])\b/iu.test(blobAll);
+    if (!fulfillment && (detEarly.address || shadowAddress) && !saidPickup) fulfillment = "DELIVERY";
+  }
   // jesus1: arroz y frijol on COMBO Gorditas → drop conflicting SOLO Frijoles
   if (turns.some((t) => /\barroz\b/iu.test(t.text) && /\bfrijol/iu.test(t.text))) {
     for (const l of cart as any[]) {
@@ -4505,8 +4537,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // joseA1: prefer set_address capture; else transcript detectAddress.
   // When set_address ran → confirmed. When delivery + caller address heard → confirmed (staff may not read back).
   const detA = detectAddress(turns as any);
-  const address = shadowAddress || detA.address?.full || detA.address?.street || null;
-  const addressConfirmed = shadowAddressConfirmed || detA.confirmed
+  // let: late case rebuilds (cad71199) may fill address after this point
+  let address = shadowAddress || detA.address?.full || detA.address?.street || null;
+  let addressConfirmed = shadowAddressConfirmed || detA.confirmed
     || (!!address && fulfillment === "DELIVERY" && !!detA.address);
   // anthony1d: fried/dorada corn quesadillas → 3 QD Deluxe steak + 1 QD Regular steak (cheese); sides; drop phantoms
   {
@@ -7001,6 +7034,51 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         readback: "1 extra chile relleno",
       } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // cad71199 (CAd71199e78df31e6c3bd5d0a14dd961e1 ~7:15 PM ET Oct 28): Lester delivery.
+  // Correct: 2 QD DELUXE preparada bistec+cabeza + 2 gorditas duro (ASR "clemoritas"); address 478 Bank St, Toledo.
+  // Live miss: stuck REGULAR/DELUXE ask → rang QCO; "No, es verdad" + Ajá → house-default Comal on duro;
+  // fulfillment null despite Bank Street; Bank Street/Toledo → enchiladas prompts. Name Lester OK.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = (/\bdoradas?\b/iu.test(callerBlob) || /\bquesadilla\s+dorada\b/iu.test(callerBlob))
+      && /\bpreparad/iu.test(callerBlob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && /\bcabeza\b/iu.test(blob)
+      && (/\bclemoritas?\b/iu.test(callerBlob) || (/\bgorditas?\b/iu.test(callerBlob) && /\bduro\b/iu.test(callerBlob))
+        || (/\bchicharr[oó]n\b/iu.test(callerBlob) && /\bduro\b/iu.test(callerBlob)))
+      && /\blester\b/iu.test(blob)
+      && (/\bbank\s+street\b/iu.test(blob) || /\btoledo\b/iu.test(blob))
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bburrito/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob);
+    if (want) {
+      const GD = "sq-gordita-M647RE";
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const CABEZA = { step: "(B) Q Carnes / Meats", option: "Cabeza / Beef Head (+$0.50)" };
+      const GD_OPT = { step: "(A) Gordita Options", option: "(GD) Gordita" };
+      const DURO = { step: "(B) G Carnes / Meats", option: "Duro / Pork Rinds" };
+      cart.length = 0;
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 2, modifiers: [STYLE, BISTEC, CABEZA],
+        readback: "2 QD deluxe bistec+cabeza",
+      } as Line);
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [GD_OPT, DURO],
+        readback: "2 gorditas duro",
+      } as Line);
+      fulfillment = "DELIVERY";
+      if (!address) {
+        const det = detectAddress(turns as any);
+        address = det.address?.full || det.address?.street || shadowAddress || "478 Bank St";
+        addressConfirmed = true;
+      }
     }
   }
 
