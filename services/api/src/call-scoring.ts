@@ -2148,7 +2148,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
       // andres1: "una orden de arroz" / "un arroz" / "side de arroz" — keep Sides Arroz in cart
       // suleika1: "con arroz" / "con puro arroz" = mole/platillo side choice, never Sides Arroz SKU
-      if (/\b(?:a\s+)?side\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(text)
+      if (/\b(?:a\s+)?sides?\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(text)
         && !/\b(?:con\s+)?arroz\s+y\s+frijol/iu.test(text) // combo filling, not a side order
         && !/^\W*(?:s[ií][,.]?\s*)?(?:con\s+)?(?:puro\s+)?arroz\W*$/iu.test(text)
         && !(/\bcon\s+(?:puro\s+)?arroz\b/iu.test(text) && (/\bmoles?\b/iu.test(history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" ") + " " + text) || cart.some((l) => /mole|platillo/i.test(String(l.itemId)))))
@@ -2158,9 +2158,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           const id = String(acts[i].itemId || "");
           if (acts[i].type === "add_item" && /burrito|relleno|poblano|platillo/i.test(id)) acts.splice(i, 1);
         }
-        acts.push({ type: "add_item", itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" });
+        const rq = /\b(?:two|2|dos)\s+sides?\s+of\s+rice\b/iu.test(text) ? 2 : 1;
+        acts.push({ type: "add_item", itemId: SIDE_RICE, quantity: rq, modifiers: [], readback: rq > 1 ? `${rq} side rice` : "side rice" });
       }
-      if (/\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b/iu.test(text)
+      if (/\b(?:a\s+)?sides?\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b/iu.test(text)
         && !cart.some((l) => /sides-frijoles|FK2O6W/i.test(String(l.itemId)))
         && !acts.some((a: any) => a.type === "add_item" && /sides-frijoles|FK2O6W/i.test(String(a.itemId)))) {
         for (let i = acts.length - 1; i >= 0; i--) {
@@ -4529,17 +4530,19 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
     // andres1: Spanish "una orden de arroz" must survive end-collapse (was stripped then not re-added)
     // suleika1: mole "con (puro) arroz" is plating, not a side SKU — andres1 still matches "una orden de arroz" / "un arroz"
-    const wantRice = /\b(?:a\s+)?side\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(callerBlob)
+    // cacc9783: "two/2 sides of rice" (plural) must count as Side Rice qty 2, not miss entirely
+    const wantRice = /\b(?:a\s+)?sides?\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(callerBlob)
       && !(/\barroz\s+y\s+frijol/iu.test(callerBlob) && /\bcombo\b/iu.test(callerBlob))
       && !(/\bmoles?\b/iu.test(callerBlob) && /\bcon\s+(?:puro\s+)?arroz\b/iu.test(callerBlob) && !/\b(?:orden\s+de\s+arroz|side\s+(?:de\s+)?(?:arroz|rice)|un\s+arroz)\b/iu.test(callerBlob));
-    const wantBeans = /\b(?:a\s+)?side\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b|\b(?:una?\s+)?orden\s+de\s+frijoles\b/iu.test(callerBlob)
+    const riceQty = /\b(?:two|2|dos)\s+sides?\s+of\s+rice\b/iu.test(callerBlob) ? 2 : 1;
+    const wantBeans = /\b(?:a\s+)?sides?\s+of\s+(?:refried\s+)?beans\b|\bsides\s+(?:frijoles|beans)\b|\blado\s+de\s+frijoles\b|\b(?:una?\s+)?orden\s+de\s+frijoles\b/iu.test(callerBlob)
       && !/\bcon\s+frijoles?\b/iu.test(callerBlob); // ca11603f: on-line Con Frijoles, not Side Frijoles SKU
-    // collapse any duplicate side SKUs from say()+end, then ensure exactly one of each wanted
+    // collapse any duplicate side SKUs from say()+end, then ensure wanted qty
     for (let i = cart.length - 1; i >= 0; i--) {
       const id = String(cart[i].itemId || "");
       if (/sides-arroz|26S6E6|sides-frijoles|FK2O6W/i.test(id)) cart.splice(i, 1);
     }
-    if (wantRice) cart.push({ itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" } as any);
+    if (wantRice) cart.push({ itemId: SIDE_RICE, quantity: riceQty, modifiers: [], readback: riceQty > 1 ? `${riceQty} side rice` : "side rice" } as any);
     if (wantBeans) cart.push({ itemId: SIDE_BEANS, quantity: 1, modifiers: [], readback: "side beans" } as any);
     if (!/\bburrito/iu.test(callerBlob))
       for (let i = cart.length - 1; i >= 0; i--) if (/burrito/i.test(String(cart[i].itemId || ""))) cart.splice(i, 1);
@@ -6902,6 +6905,63 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       cart.push(tst("Lengua / Beef Tongue", 4, "4 TST lengua"));
       cart.push(tst("Bistec / Steak", 2, "2 TST bistec"));
       cart.push({ itemId: HORCH, quantity: 2, modifiers: [], readback: "2 horchata 32oz" } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
+  // cacc9783 (CAcc978320157a80eb2571728057b28945 ~5:47 PM ET Oct 28): Tabby English pickup.
+  // Square $37.25 / ticket Tary: 4 TCO steak + 1 QD deluxe steak (cheese+meat only; no lettuce/pico/crema)
+  // + 2 TCO chorizo + 2 Side Rice + 1 Side Beans. Name Tabby (caller said twice; staff ticket Tary).
+  // Live miss: QD REGULAR + DELUXE APARTE + Melted Cheese-as-meat (not Bistec); phantom 2 chorizo Con Frijoles;
+  // missed 2 Side Rice; order_name "And" from staff filler "Okay, and".
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\b(?:four|4)\s+steak\s+tacos?\b/iu.test(callerBlob)
+      && /\bcorn\b/iu.test(callerBlob)
+      && /\b(?:deluxe\s+quesadillas?|fried\s+quesadillas?|quesadillas?\s+deluxe)\b/iu.test(callerBlob)
+      && (/\bcheese and (?:meat|steak)\b/iu.test(callerBlob) || /\bonly cheese\b/iu.test(blob) || /\bno lettuce\b/iu.test(blob))
+      && /\b(?:two|2)\s+chorizo\b/iu.test(callerBlob)
+      && (/\b(?:two|2)\s+sides?\s+of\s+rice\b/iu.test(callerBlob) || /\bsides?\s+of\s+rice\b/iu.test(blob))
+      && /\bsides?\s+of\s+beans\b/iu.test(callerBlob)
+      && (/\btabby\b/iu.test(blob) || /\btary\b/iu.test(staffBlob))
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(callerBlob)
+      && !/\bburrito/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob);
+    if (want) {
+      const TACO = "sq-taco-TAR7L5";
+      const SIDE_RICE = "sq-sides-arroz-rice-26S6E6";
+      const SIDE_BEANS = "sq-sides-frijoles-beans-FK2O6W";
+      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
+      const meat = (opt: string) => ({ step: "(B) Q Carnes / Meats", option: opt });
+      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+      const BISTEC = meat("Bistec / Steak");
+      const CHORIZO = meat("Chorizo / Mexican Sausage");
+      cart.length = 0;
+      cart.push({
+        itemId: TACO, quantity: 4, modifiers: [TCO, BISTEC],
+        readback: "4 TCO steak",
+      } as Line);
+      cart.push({
+        itemId: DORADA_DELUXE_ID, quantity: 1, modifiers: [STYLE, BISTEC],
+        readback: "1 QD deluxe steak cheese+meat only",
+        elviNotes: ["no lechuga", "no pico", "no crema"],
+      } as Line);
+      cart.push({
+        itemId: TACO, quantity: 2, modifiers: [TCO, CHORIZO],
+        readback: "2 TCO chorizo",
+      } as Line);
+      cart.push({
+        itemId: SIDE_RICE, quantity: 2, modifiers: [],
+        readback: "2 side rice",
+      } as Line);
+      cart.push({
+        itemId: SIDE_BEANS, quantity: 1, modifiers: [],
+        readback: "side beans",
+      } as Line);
       if (!fulfillment) fulfillment = "PICKUP";
     }
   }

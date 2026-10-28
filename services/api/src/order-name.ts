@@ -195,6 +195,8 @@ export function nameFromAnswer(text: string): string | null {
   if (/^(?:pues|pobre)(?:\s+(?:pues|pobre))+$/iu.test(s) || /\bpobre\b/iu.test(s) && /\bpues\b/iu.test(s) && !/\b(?:me\s+llamo|mi\s+nombre|soy|a\s+nombre)\b/iu.test(s)) return null;
   // suleika1/close1: "Sería todo" / "Nada más" are closings, never a name
   if (words.some((w) => /^(todo|nada|m[aá]s)$/iu.test(w))) return null;
+  // cacc9783 (Tabby): "That's it." after name ask — never a name (apostrophe → "That s it")
+  if (/^that\b/iu.test(words[0]) && words.some((w) => /^it$/iu.test(w))) return null;
   // rec1: "Okay, está bien, gracias" is not a name
   if (words.some((w) => /^(est[aá]|bien|perfecto|vale|claro|listo|sale|[aá]ndale|correcto|igualmente|fine|good|great|alright|sure|right|perfect)$/iu.test(w))) return null;
   // carlos1: "Okay, muchas gracias" → leftover "muchas" (or "muchas gracias") is gratitude, never a name
@@ -237,7 +239,8 @@ export function rememberOrderName(phone: string, name: string): { saved: boolean
   if (saved) onNameSaved?.(phone, saved, "elvi");
   return { saved: !!saved, reason: saved ? "ok" : "save-refused" };
 }
-const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+na-?name|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+na-?name|name\s+for\s+(?:the|your)\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+na-?name|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
+// cacc9783 (Tabby): "Your name, please." — na-?name never matched "name" (only naname/na-name). Use n(?:a-)?ame.
+const STAFF_ASK = /(a\s+nombre\s+de\s+qui[eé]n|(?:el\s+)?nombre\s+de\s+qui[eé]n|su\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|^\s*¿?\s*(?:y\s+)?(?:el\s+)?nombre\s*[.?¿]?\s*$|your\s+n(?:a-)?ame\b|\bname\s*[?]?\s*$|c[oó]mo\s+se\s+llama|qu[eé]\s+nombre|bajo\s+qu[eé]\s+nombre|what(?:'s| is)\s+(?:the|your)\s+n(?:a-)?ame\b|name\s+for\s+(?:the|your)\s+order|under\s+what\s+name|can\s+i\s+(?:get|have)\s+(?:a|the|your)\s+n(?:a-)?ame\b|^\s*¿?\s*c[oó]mo\s*\??\s*$)/iu;
 /** miguelPickup1 (CAa4bd2b): staff "¿…la va a recoger?" / who's picking up — answer is ticket/pickup name (beats prior vocative). */
 const PICKUP_WHO_ASK = /(?:la|lo)\s+va\s+a\s+recoger|va\s+a\s+recoger\s*[.?¿]|qui[eé]n\s+(?:la|lo)\s+(?:va\s+a\s+)?recoger|qui[eé]n\s+(?:la|lo)\s+recoge|who(?:['']?s|\s+is)\s+picking\s+up|who\s+will\s+(?:be\s+)?pick(?:ing)?\s+up|name\s+(?:for\s+)?(?:the\s+)?pickup|(?:ponemos|poner|pone)\s+la\s+orden\s+que\s+la\s+va\s+a\s+recoger/iu;
 export function isPickupWhoAsk(text: string): boolean { return PICKUP_WHO_ASK.test(String(text || "")); }
@@ -362,7 +365,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]tame|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|and|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]tame|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 /** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
 export function nameFromSpelledLetters(text: string): string | null {
   let s = String(text || "").trim();
@@ -400,6 +403,7 @@ function isKitchenVocativeHit(text: string, name: string): boolean {
 
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // luke1 (CA661a30): staff close "Okay, okay, look," = ASR for returning caller Luke (ticket name)
+  // cacc9783 (Tabby): staff "Okay, and" is conjunction filler (NOT_NAMES and) — never order_name And
   for (const turn of turns) {
     if (turn.speaker !== "staff") continue;
     const m = turn.text.match(/^\s*(?:ok(?:ay)?\s*,\s*)+([\p{L}]+)[,.]?\s*$/iu);

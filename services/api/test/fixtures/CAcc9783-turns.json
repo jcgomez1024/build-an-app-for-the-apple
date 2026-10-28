@@ -1,0 +1,233 @@
+[
+  {
+    "speaker": "caller",
+    "start": 4.282,
+    "end": 27.372,
+    "text": "Hi, can I place an order for pickup? Can I place an order for pickup?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 24.369,
+    "end": 45.916,
+    "text": "What do you like to eat? what do you like to eat?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 30.493,
+    "end": 32.134,
+    "text": "Can I do four steak tacos,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 35.976,
+    "end": 36.436,
+    "text": "corn,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 37.656,
+    "end": 38.056,
+    "text": "corn,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.758,
+    "end": 43.719,
+    "text": "cilantro and onion,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 46.22,
+    "end": 46.52,
+    "text": "steak?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 47.297,
+    "end": 54.959,
+    "text": "Oh, sorry. Four tacos, steak. Yeah, always don't worry, always put cilantro, limes, and salsa, and the Chinese. Anything else?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 54.624,
+    "end": 54.884,
+    "text": "Okay.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 56.284,
+    "end": 59.025,
+    "text": "Can I have the deluxe quesadilla, the fried quesadilla?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 59.621,
+    "end": 62.402,
+    "text": "You want one fried quesadilla deluxe steak?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 63.086,
+    "end": 63.486,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 64.162,
+    "end": 73.626,
+    "text": "Anything else? No lettuce, no pico de gallo, no sour cream, only cheese.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 65.426,
+    "end": 68.287,
+    "text": "Only cheese on there, nothing else, just cheese.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 69.667,
+    "end": 71.087,
+    "text": "No lettuce, no tomatoes,",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 72.247,
+    "end": 72.748,
+    "text": "no, no.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 74.248,
+    "end": 77.048,
+    "text": "Only cheese and meat, yes. Cheese and steak.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 75.986,
+    "end": 81.348,
+    "text": "Okay, give me one second, I can fix it. Got it, no problem. Only cheese, per sorry.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 84.249,
+    "end": 85.11,
+    "text": "Okay, and",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 86.49,
+    "end": 88.271,
+    "text": "And then can I have two chorizo",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 89.251,
+    "end": 89.511,
+    "text": "corn",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 90.431,
+    "end": 90.991,
+    "text": "tacos?",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 91.832,
+    "end": 92.912,
+    "text": "two tacos chorizo.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 93.792,
+    "end": 94.152,
+    "text": "Yes.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 97.154,
+    "end": 114.26,
+    "text": "Okay, give me one second. anything else? Anything else? Two sides of rice, okay, and and one more side of beans. Anything else? Your name, please.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 102.994,
+    "end": 104.154,
+    "text": "Two sides of rice",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 106.574,
+    "end": 108.855,
+    "text": "and one side of, and one side of beans.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 112.216,
+    "end": 112.636,
+    "text": "That's it.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 115.139,
+    "end": 115.48,
+    "text": "Tabby.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 116.863,
+    "end": 117.344,
+    "text": "You say again?",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 118.206,
+    "end": 118.567,
+    "text": "Tabby.",
+    "language": "en"
+  },
+  {
+    "speaker": "staff",
+    "start": 119.449,
+    "end": 122.957,
+    "text": "Okay, give me twenty minutes, that's fine. Thank you, miss.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 121.574,
+    "end": 122.376,
+    "text": "Okay, thank you.",
+    "language": "en"
+  }
+]
