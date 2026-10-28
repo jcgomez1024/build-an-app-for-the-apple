@@ -499,9 +499,11 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+de\b/iu.test(t.text)
       || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
     // English volunteer: "Yeah, it's Josh." / "I'm Josh" / "my name is Josh" (josh1 CAaaa9a2)
-    if (!seriaNombre && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy|my\s+name\s+is|i'?m|it'?s)\s+\S+/iu.test(t.text)) continue;
-    // pickup-only: es para / it's for / just tell them it's for X (daryl1) — never "For X" identity
-    if (/\bes\s+para\b/iu.test(t.text) || /\bit'?s\s+for\b/iu.test(t.text)) {
+    // ca20b6c0: "puedo aportar una orden para Carlos" / "una orden para X" = pickup ticket name
+    const ordenPara = /\b(?:una?\s+)?(?:[oó]rden|pedido)\s+para\b/iu.test(t.text);
+    if (!seriaNombre && !ordenPara && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy|my\s+name\s+is|i'?m|it'?s)\s+\S+/iu.test(t.text)) continue;
+    // pickup-only: es para / it's for / orden para X (daryl1 / ca20b6c0) — never "For X" identity
+    if (/\bes\s+para\b/iu.test(t.text) || /\bit'?s\s+for\b/iu.test(t.text) || ordenPara) {
       const n = thirdPersonName(t.text);
       if (n && n.trim().length >= 2 && !NOT_NAMES.test(n.split(/\s+/)[0]) && /^\p{Lu}/u.test(n)) {
         if (!fromVol || n.split(/\s+/).length > fromVol.split(/\s+/).length || (n.split(/\s+/).length === fromVol.split(/\s+/).length && n.length > fromVol.length))

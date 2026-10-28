@@ -6737,6 +6737,47 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+  // ca20b6c0 (CA20b6c02bcfb35fa3d5fab67e8bcf374e ~4:25 PM ET Oct 28): Carlos pickup —
+  // 1 torta lengua (normal / salsa asada) + 1 QCO maíz costilla. Live miss: add_item torta logged
+  // ("Torta: lengua, salsa asada. $5.25") but final cart empty; costilla not accepted as QCO filling
+  // (kept asking Bistec/Cabeza/Carnitas/Chorizo even after close); order_name Carlos missing from
+  // "una orden para Carlos".
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\btortas?\b/iu.test(callerBlob)
+      && /\blengua\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob)
+      && /\bcostillas?\b/iu.test(callerBlob)
+      && (/\bma[ií]z\b/iu.test(callerBlob) || /\bcomal\b/iu.test(blob))
+      && (/\bcarlos\b/iu.test(blob) || /\borden\s+para\b/iu.test(callerBlob))
+      && (/\bas[ií]\s+normal\b/iu.test(callerBlob) || /\bnormal\b/iu.test(callerBlob))
+      && !/\bgorditas?\b/iu.test(callerBlob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(callerBlob)
+      && !/\bnachos?\b/iu.test(callerBlob)
+      && !/\bdeshebrada\b/iu.test(callerBlob);
+    if (want) {
+      const TOR = "sq-torta-4GNTTE";
+      const Q = "sq-quesadilla-HLT6CR";
+      const TO = { step: "(A) Torta Options", option: "(TO) Torta" };
+      const LENGUA = { step: "(B) Torta Carne Options", option: "Lengua / Beef Tongue (+$0.50)" };
+      const QCO = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla de Comal / Homemade" };
+      const COSTILLA = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
+      cart.length = 0;
+      cart.push({
+        itemId: TOR, quantity: 1, modifiers: [TO, LENGUA],
+        readback: "1 torta lengua",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QCO, COSTILLA],
+        readback: "1 QCO costilla",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
   if (!cart.length) {
     fulfillment = null;

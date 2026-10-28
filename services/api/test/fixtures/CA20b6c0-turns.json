@@ -1,0 +1,65 @@
+[
+  {
+    "speaker": "caller",
+    "start": 5.743,
+    "end": 8.184,
+    "text": "Buenas tardes, ¿puedo aportar una orden para Carlos?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.106,
+    "end": 12.686,
+    "text": "¿Tiene tortas?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 15.568,
+    "end": 16.929,
+    "text": "Una torta de lengua si tiene.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 20.711,
+    "end": 21.651,
+    "text": "Ah, así normal.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 24.072,
+    "end": 25.013,
+    "text": "Y una quesadilla de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 25.993,
+    "end": 26.634,
+    "text": "¿tendrá costilla?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 27.874,
+    "end": 29.335,
+    "text": "Sí, de maíz. Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 30.876,
+    "end": 31.196,
+    "text": "Es todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 34.398,
+    "end": 35.398,
+    "text": "Está bien, está bien, gracias.",
+    "language": "es"
+  }
+]
