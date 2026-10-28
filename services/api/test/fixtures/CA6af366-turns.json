@@ -1,0 +1,247 @@
+[
+  {
+    "speaker": "staff",
+    "start": 3.902,
+    "end": 4.182,
+    "text": "Sí, bueno.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 5.282,
+    "end": 7.422,
+    "text": "Buenas tardes, quisiera encargar comida.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 8.304,
+    "end": 8.904,
+    "text": "Claro, a ver, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 10.003,
+    "end": 12.444,
+    "text": "Ah, van a ser seis gorditas de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 13.866,
+    "end": 15.987,
+    "text": "Seis gorditas de comal, ¿de qué te gustarían?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 16.745,
+    "end": 19.586,
+    "text": "Me pones dos de chicharrón prensado, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 20.089,
+    "end": 21.63,
+    "text": "¿Te gustarían con queso o sin queso?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 22.366,
+    "end": 23.887,
+    "text": "Ah, con queso, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 24.431,
+    "end": 26.532,
+    "text": "Dos de prensado con queso, okey.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 27.368,
+    "end": 33.77,
+    "text": "Ah, dos de bistec. Ah, no, esas sin queso.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.553,
+    "end": 31.554,
+    "text": "Dos de bistec, ¿también te gustarían con queso?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 34.175,
+    "end": 37.476,
+    "text": "Sin queso, muy bien. Dos de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 36.47,
+    "end": 37.111,
+    "text": "Tienes,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 38.911,
+    "end": 40.592,
+    "text": "ah, papas con nopales.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 41.418,
+    "end": 41.538,
+    "text": "¿Sí?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.652,
+    "end": 44.173,
+    "text": "Sí, me pones dos también, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 44.82,
+    "end": 52.763,
+    "text": "Dos de papas con nopales, ¿esas te gustarían también con queso o sin queso? Sin queso, muy bien. ¿Algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.854,
+    "end": 50.154,
+    "text": "No, sin queso esas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 53.575,
+    "end": 55.456,
+    "text": "Ah, sí, me pones unas.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 56.536,
+    "end": 60.398,
+    "text": "Dos quesadillas, tres quesadillas de tortilla de maíz, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 60.786,
+    "end": 63.187,
+    "text": "Del comal de maíz, muy bien, ¿de qué te gustaría?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 63.94,
+    "end": 65.981,
+    "text": "Esas van a ser dos de bistec",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 67.028,
+    "end": 67.768,
+    "text": "Dos de bistec.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 69.323,
+    "end": 70.263,
+    "text": "y una de,",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 71.684,
+    "end": 72.765,
+    "text": "¿tienes deshebrada o no?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 73.37,
+    "end": 73.93,
+    "text": "También, sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 75.206,
+    "end": 77.127,
+    "text": "Ah, me pones una de deshebrada, por favor.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 80.293,
+    "end": 82.493,
+    "text": "Y una de deshebrada, muy bien, ¿algo más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 83.25,
+    "end": 84.251,
+    "text": "No, ya sería todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 84.934,
+    "end": 87.355,
+    "text": "Perfecto, ¿me darías tu nombre para tu orden?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.133,
+    "end": 89.013,
+    "text": "Ah, Francisco.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 89.896,
+    "end": 93.097,
+    "text": "Sale Francisco, danos unos veinte minutos, ¿no? Y te tenemos tu orden.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 93.956,
+    "end": 94.476,
+    "text": "Sí, gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 94.958,
+    "end": 96.798,
+    "text": "A ti, hasta luego.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 96.017,
+    "end": 96.537,
+    "text": "Okay, adiós.",
+    "language": "es"
+  }
+]

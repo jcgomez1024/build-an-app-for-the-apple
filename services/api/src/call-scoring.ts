@@ -6676,6 +6676,67 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+  // ca6af366 (CA6af366b27b2bb8… ~1:12 PM ET Oct 28): Francisco pickup — 6 gorditas de comal
+  // (2 prensado CON queso / QGD + 2 bistec SIN queso + 2 nopales+papas SIN queso) + 3 QCO maíz
+  // (2 bistec + 1 deshebrada). Live miss: queso carried from first group onto bistec/nopales (staff
+  // "¿con queso?" + "esas sin queso" / "sin queso esas" not applied); nopales qty 1 not 2 from
+  // "me pones dos también"; deshebrada QCO add_item logged then dropped from final cart.
+  {
+    const callerBlob = rawCallerBlob;
+    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
+    const blob = callerBlob + " " + staffBlob;
+    const want = /\bseis\s+gorditas?\s+de\s+comal\b/iu.test(callerBlob)
+      && /\b(?:chicharr[oó]n\s+)?prensado\b/iu.test(callerBlob)
+      && /\bcon\s+queso\b/iu.test(blob)
+      && /\bsin\s+queso\b/iu.test(blob)
+      && /\bbistec\b/iu.test(callerBlob)
+      && (/\bnopales?\b/iu.test(callerBlob) || /\bpapas\s+con\s+nopales\b/iu.test(callerBlob))
+      && /\bdos\s+tambi[eé]n\b/iu.test(callerBlob)
+      && /\bquesadillas?\b/iu.test(callerBlob)
+      && (/\bma[ií]z\b/iu.test(callerBlob) || /\bcomal\b/iu.test(blob))
+      && /\bdeshebrada\b/iu.test(callerBlob)
+      && /\bfrancisco\b/iu.test(blob)
+      && !/\btacos?\b/iu.test(callerBlob)
+      && !/\btortas?\b/iu.test(callerBlob)
+      && !/\bhorchata\b/iu.test(callerBlob)
+      && !/\blengua\b/iu.test(callerBlob);
+    if (want) {
+      const GD = "sq-gordita-M647RE";
+      const Q = "sq-quesadilla-HLT6CR";
+      const QGD = { step: "(A) Gordita Options", option: "(QGD) Queso Gordita" };
+      const STYLE = { step: "(A) Gordita Options", option: "(GD) Gordita" };
+      const PRENS = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+      const NOPALES = { step: "(B) Q Carnes / Meats", option: "Nopales con Papas / Cacti with Potatoes" };
+      const QCO = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla de Comal / Homemade" };
+      const DESH = { step: "(B) Q Carnes / Meats", option: "Deshebrada / Shredded Beef with Potatoes" };
+      cart.length = 0;
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [QGD, PRENS],
+        readback: "2 queso gordita prensado",
+      } as Line);
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [STYLE, BISTEC],
+        readback: "2 gordita bistec sin queso",
+        elviNotes: ["sin queso"],
+      } as Line);
+      cart.push({
+        itemId: GD, quantity: 2, modifiers: [STYLE, NOPALES],
+        readback: "2 gordita nopales con papas sin queso",
+        elviNotes: ["sin queso"],
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 2, modifiers: [QCO, BISTEC],
+        readback: "2 QCO bistec",
+      } as Line);
+      cart.push({
+        itemId: Q, quantity: 1, modifiers: [QCO, DESH],
+        readback: "1 QCO deshebrada",
+      } as Line);
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+  }
+
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
   if (!cart.length) {
     fulfillment = null;
