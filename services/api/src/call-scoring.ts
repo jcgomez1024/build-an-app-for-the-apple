@@ -187,7 +187,7 @@ export function cleanPhrase(text: string): string {
   return /\bcon\s+todo\b/iu.test(pre) && !/\bcon\s+todo\b/iu.test(out) && /\b(?:burritos?|sopes?|sopesa[sz]os?|huaraches?|guaraches?)\b/iu.test(out) ? `${out}, con todo` : out; // tacos: onion+cilantro are already included
 }
 const CLOSING = /^(?:no[,.\s]*)?(?:es\s+todo|eso\s+es\s+todo|nada\s+más|ser[ií]a\s+todo|serio\s+todo|that'?s\s+(?:all|it|everything)|no\s+thanks?|gracias|bueno|ok(?:ay)?|sale|perfecto|listo|alright|great|thanks?|thank\s+you(?:\s+so\s+much)?|para\s+recoger|for\s+pick\s*up|pickup|[aá]ndale(?:\s*,?\s*pues)?|[oó]rale(?:\s*,?\s*pues)?)\b/iu;
-const FOOD = /\b(?:tacos?|burritos?|burros?|chimichangas?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
+const FOOD = /\b(?:tacos?|burritos?|burros?|chimichangas?|quesadillas?|qd|gorditas?|queso\s+tortas?|tortas?|combo|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|bowl|nachos|elote|esquite|corn|pack|platter|charola|sopesazos?|sopesasos?|sopes?|huaraches?|guaraches?|tostadas?|mariscos|cocktail|cóctel)\b/iu;
 /** fix22: "Bueno, quiero un guarache…" is an order, not a hang-up. Strip discourse openers before the closing check. */
 const QTY_N: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6 };
 /** qty1: "Dos tacos de bistec" → Elvi asks the tortilla → "Sí, de hecha mano. Y también dos de," answers that question, so the
@@ -212,6 +212,8 @@ export function carryAskedQty(acts: any[], text: string, prevCustomer: string, a
   const adds = acts.filter((a) => a?.type === "add_item" && String(a.itemId || "").toLowerCase().includes(stem.slice(0, 5)));
   if (adds.length === 1 && (adds[0].quantity || 1) === 1) adds[0].quantity = n;
 }
+// rich1: staff goodbye or pickup ETA ("give us about twenty", "we should have this for you", "bye")
+const WRAP_UP = /\b(?:bye|good\s*bye|adi[oó]s|have\s+a\s+(?:good|great|nice)\s+(?:one|day|night|evening))\b|\bgive\s+us\s+(?:about\s+)?(?:\d+|ten|fifteen|twenty|thirty|twenty[-\s]five)\b|\bshould\s+have\s+(?:this|it|that|them)\s+(?:for\s+you|ready)\b/iu;
 export const isClosing = (t: string) => {
   let s = t.trim();
   if (!s || FOOD.test(s)) return false;
@@ -530,6 +532,10 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\bquesad\b/giu, "quesadillas");
   // ca7bae57: staff "quesibirrias"/"quesivirrias" + caller "quesadilla de birria" → Queso Birrias (not 1 lb birria)
   s = s.replace(/\bquesi[bv]irrias?\b/giu, "Queso Birrias");
+  // rich1: ASR "queso burias" / "queso birias" / "quesabirria" → Queso Birrias (never pambazo / 1 lb birria)
+  s = s.replace(/\b(?:queso|quesa|keso)\s*[bv](?:u|i|ui)r+i?as?\b|\bquesa[bv]irrias?\b/giu, "Queso Birrias");
+  // rich1: ASR glues the article onto chorizo ("taggitorizo")
+  s = s.replace(/\b[a-z]+[ck]?[ht]orizo\b/giu, (m) => /^chorizo$/i.test(m) ? m : "chorizo");
   s = s.replace(/\bquesadillas?\s+de\s+birria\b/giu, "Queso Birrias");
   // ca7bae57: ASR "disel" → bistec ("burrito grande de disel")
   s = s.replace(/\bdisel\b/giu, "bistec");
@@ -3412,8 +3418,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   prepMergedCallerTurns(merged);
   turns = merged;
   const merged0 = turns;
+  let wrapUp = false; // rich1: staff goodbye / pickup ETA — later caller chatter never re-prompts
   for (let t of turns) {
+    if (t.speaker === "caller" && wrapUp && !FOOD.test(t.text) && !listedMeats(t.text).length && !DRINK.test(t.text)) {
+      steps.push({ source: "caller-after-goodbye", heard: t.text }); last = null; continue;
+    }
     if (t.speaker !== "caller") {
+      if (WRAP_UP.test(t.text)) wrapUp = true;
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
@@ -6677,9 +6688,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (led && led.length) {
       const said = spokenTotalDollars(origTurns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" . "));
       const lc = priceCents(led), cc = priceCents(cart);
-      const kind = (id: string) => (/quesadilla-dorada|qd-/.test(id) ? "qd" : /taco/.test(id) ? "taco" : /sides/.test(id) ? "rb" : /extras/.test(id) ? "x" : id);
+      const kind = (id: string) => (/queso-birria/.test(id) ? "qb" : /esquite/.test(id) ? "esq" : /quesadilla|qd-/.test(id) ? "qd" : /taco/.test(id) ? "taco" : /sides/.test(id) ? "rb" : /extras/.test(id) ? "x" : id);
       const units = (ls: any[]) => ls.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
-      const covers = cart.every((l: any) => led.some((g) => kind(g.itemId) === kind(String(l.itemId))));
+      // rich1: a live dish the caller never named (ASR "queso burias" rung as pambazo) is a phantom, not a kind to keep
+      const callerRaw = origTurns.filter((t) => t.speaker === "caller").map((t) => String(t.text || "")).join(" ").toLowerCase();
+      const phantom = (id: string) => { const w = (String(id).match(/^sq-([a-z]+)/) || [])[1]; return !!w && w.length > 4 && !["quesadilla", "queso", "taco", "sides", "extras", "esquite"].includes(w) && !callerRaw.includes(w.slice(0, 5)); };
+      const covers = cart.every((l: any) => phantom(String(l.itemId)) || led.some((g) => kind(g.itemId) === kind(String(l.itemId))));
       const ok = said ? lc != null && Math.abs(lc - said * 100) <= 100 && (cc == null || Math.abs(cc - said * 100) > 100)
         : covers && units(led) > units(cart) && lc != null;
       if (ok) {

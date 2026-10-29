@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type LedgerLine = { itemId: string; quantity: number; modifiers: Array<{ step: string; option: string }>; readback: string };
+export type LedgerLine = { itemId: string; quantity: number; modifiers: Array<{ step: string; option: string }>; readback: string; elviNotes?: string[] };
 const nf = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[¿?¡!.,;]/g, " ").replace(/\s+/g, " ").trim();
 const QCO_ID = "sq-quesadilla-HLT6CR", GORD_ID = "sq-gordita-M647RE";
 const CNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
@@ -158,18 +158,35 @@ const EN_MEAT: Record<string, string> = { steak: "Bistec / Steak", asada: "Biste
 const EN_MW = Object.keys(EN_MEAT).join("|");
 const EN_OTHER = /\b(?:burritos?|tortas?|sopes?|tostadas?|flautas?|menudo|nachos|tamales?|enchiladas?|gorditas?|combo|platter|drinks?|soda|coke|horchata|jamaica|chips|guac\w*|salsa)\b/;
 export function callerLedgerEn(turns: Array<{ speaker: string; text: string }>): LedgerLine[] | null {
-  type T = { kind: "qd" | "q" | "taco" | "rb" | "crema"; n: number; meat?: string; style?: "comal" | "harina" | "street"; deluxe?: boolean; cheeseOnly?: boolean };
+  type T = { kind: "qd" | "q" | "taco" | "rb" | "crema" | "qb" | "esq"; n: number; meat?: string; meats?: string[]; style?: "comal" | "harina" | "street"; deluxe?: boolean; cheeseOnly?: boolean; double?: boolean; flour?: boolean };
   const items: T[] = [];
   let lastStaff = "", last: T | null = null;
   const num = (w?: string) => (w ? EN_CNT[w] || 0 : 0);
   for (const t of turns) {
-    const x = nf(t.text);
+    const x = nf(t.text).replace(/\b(?:queso|quesa|keso)\s*[bv](?:u|i|ui)r+i?as?\b|\bquesa[bv]irrias?\b|\bquesi[bv]irrias?\b/g, "queso birrias").replace(/\b[a-z]+[ck]?[ht]orizo\b/g, "chorizo");
     if (t.speaker !== "caller") { lastStaff = x; continue; }
     if (EN_OTHER.test(x)) return null;
+    // rich1: Queso Birrias (one order = 3 with consome); a repeated "the queso birrias" is the same order
+    const qbm = x.match(/\b(?:(a|an|one|two|three|\d)\s+(?:orders?\s+of\s+)?)?(?:the\s+)?queso\s+birrias?\b/);
+    if (qbm) {
+      const ex = items.find((i) => i.kind === "qb");
+      if (ex && !qbm[1]) last = ex;
+      else { last = { kind: "qb", n: num(qbm[1]) || 1 }; items.push(last); }
+      if (/\bflour\b/.test(x)) last.style = "harina"; else if (/\bstreet\b/.test(x)) last.style = "street"; else if (/\bcomal|homemade|corn\b/.test(x)) last.style = "comal";
+    }
+    // rich1: "large street corn" / "esquite" → Esquite 16oz (the only size)
+    const esq = x.match(/\b(?:(a|an|one|two|three|\d)\s+)?(?:(?:large|big|small|medium)\s+)?(?:street\s+corn|esquites?|elotes?\s+en\s+vaso|corn\s+in\s+a\s+cup)\b/);
+    if (esq) { items.push({ kind: "esq", n: num(esq[1]) || 1 }); }
+    // staff asked flour / comal on the last qb or qd and the caller answered
+    if (last && (last.kind === "qb" || last.kind === "qd") && !qbm && /\?/.test(lastStaff) || last && (last.kind === "qb" || last.kind === "qd") && !qbm && /^(?:yes\s*,?\s*)?(?:flour|comal|corn|street)\b/.test(x)) {
+      if (/\bflour\b/.test(x) || /^(?:yes|yeah|yep)\b/.test(x) && /\bflour\b/.test(lastStaff) && !/\bcomal\b/.test(lastStaff)) { if (last.kind === "qb") last.style = "harina"; else last.flour = true; }
+    }
     // "yes" to staff "did you want that deluxe?"
     if (/\bdeluxe\b/.test(lastStaff) && /^(?:yes|yeah|yep|sure|ok(?:ay)?)\b/.test(x) && last && (last.kind === "qd" || last.kind === "q")) { last.kind = "qd"; last.deluxe = true; }
     const q = x.match(new RegExp(String.raw`\b(?:(a|an|one|two|three|four|\d)\s+)?(fried\s+|crispy\s+)?(?:(${EN_MW})\s+)?(fried\s+)?quesadillas?(?:\s+(?:of|with)\s+(${EN_MW}))?`));
-    if (q && (q[3] || q[5])) { last = { kind: q[2] || q[4] ? "qd" : "q", n: num(q[1]) || 1, meat: EN_MEAT[q[3] || q[5]] }; if (/\bdeluxe\b/.test(x)) last.deluxe = true; items.push(last); }
+    const qdo = !q || !(q[3] || q[5]) ? x.match(/\b(?:(a|an|one|two|three|\d)\s*,?\s+)?(?:fried\s+)?quesadillas?\s+dorad[oa]s?\b|\b(a|an|one|two|three|\d)\s+qd\b/) : null;
+    if (qdo) { last = { kind: "qd", n: num(qdo[1] || qdo[2]) || 1 }; if (/\bdeluxe|preparad/.test(x)) last.deluxe = true; items.push(last); }
+    if (q && (q[3] || q[5]) && !qdo) { last = { kind: q[2] || q[4] ? "qd" : "q", n: num(q[1]) || 1, meat: EN_MEAT[q[3] || q[5]] }; if (/\bdeluxe\b/.test(x)) last.deluxe = true; items.push(last); }
     const tc = x.match(new RegExp(String.raw`\b(a|an|one|two|three|four|five|six|\d)\s+(${EN_MW})\s+tacos?\b|\b(a|an|one|two|three|four|five|six|\d)\s+tacos?\s+(?:of|with)\s+(${EN_MW})\b`));
     if (tc) { last = { kind: "taco", n: num(tc[1] || tc[3]) || 1, meat: EN_MEAT[tc[2] || tc[4]] }; items.push(last); }
     if (/\brice\s+and\s+beans?\b/.test(x)) {
@@ -180,6 +197,15 @@ export function callerLedgerEn(turns: Array<{ speaker: string; text: string }>):
     }
     const cr = x.match(/\b(a|an|one|two|three|four|\d)\s+(?:sides?|orders?|cups?)\s+of\s+(?:sour\s+cream|crema)\b|\b(?:side|extra)\s+(?:of\s+)?(?:sour\s+cream|crema)\b/);
     if (cr) { const ex = items.find((i) => i.kind === "crema"); const n = num(cr[1]) || 1; if (ex) ex.n = Math.max(ex.n, n); else items.push({ kind: "crema", n }); }
+    // rich1: "chorizo and steak on it" — up to two meats on the open QD (Q Carnes max 2)
+    if (last && last.kind === "qd") {
+      const ms = [...x.matchAll(new RegExp(String.raw`\b(${EN_MW})\b`, "g"))].map((m) => EN_MEAT[m[1]]).filter((v, i, a) => a.indexOf(v) === i);
+      if (ms.length) { const all = [...(last.meats || (last.meat ? [last.meat] : []))]; for (const m of ms) if (!all.includes(m)) all.push(m); last.meats = all.slice(0, 2); last.meat = last.meats[0]; }
+    }
+    if (/\b(?:double|doble)\s+(?:the\s+)?(?:meat|carne)\b/.test(x) || /^(?:yes|yeah|yep|sure)\b/.test(x) && /\bdouble\s+meat\b/.test(lastStaff)) {
+      const tgt = last && (last.kind === "qd" || last.kind === "qb" || last.kind === "taco" || last.kind === "q") ? last : null;
+      if (tgt) tgt.double = true;
+    }
     const taco = [...items].reverse().find((i) => i.kind === "taco");
     if (taco && last === taco || (taco && /\b(?:corn|flour|comal|street|cheese)\b/.test(x) && !q)) {
       if (taco) {
@@ -194,7 +220,14 @@ export function callerLedgerEn(turns: Array<{ speaker: string; text: string }>):
   const out: LedgerLine[] = [];
   for (const i of items) {
     if ((i.kind === "qd" || i.kind === "q" || i.kind === "taco") && !i.meat) return null;
-    if (i.kind === "qd") out.push({ itemId: i.deluxe ? "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L" : "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: i.n, modifiers: [{ step: "(A) QD Options", option: i.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: i.meat! }], readback: `${i.n} QD ${i.deluxe ? "DELUXE" : "REGULAR"} ${i.meat!.split(" /")[0].toLowerCase()}` });
+    const DBL = { step: "EXTRA Carne / Meat", option: "DOUBLE Carne / Meat" };
+    if (i.kind === "qb") {
+      const sku = i.style === "harina" ? ["MHJN7R", "(QHR) 3 x Queso Birrias Harina / Flour con Consome/Broth"] : i.style === "street" ? ["VUBNR7", "(QST) 3 x Queso Birrias Taquera / Street con Consome/Broth"] : ["TDRF7R", "(QCO) 3 x Queso Birrias Comal / Homemade con Consome/Broth"];
+      out.push({ itemId: `sq-queso-birrias-${sku[1].slice(1, 4).toLowerCase()}-${sku[0]}`, quantity: i.n, modifiers: [{ step: "(A) Queso Birrias Options", option: sku[1] }, ...(i.double ? [DBL] : [])], readback: `${i.n} Queso Birrias ${sku[1].slice(1, 4)}${i.double ? " double meat" : ""}` });
+      continue;
+    }
+    if (i.kind === "esq") { out.push({ itemId: "sq-esquite-elvis-esquite-16oz-SGPEZK", quantity: i.n, modifiers: [{ step: "Esquite Elvis", option: "Esquite 16oz" }], readback: `${i.n} esquite 16oz` }); continue; }
+    if (i.kind === "qd") out.push({ itemId: i.deluxe ? "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L" : "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: i.n, modifiers: [{ step: "(A) QD Options", option: i.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, ...(i.meats || [i.meat!]).map((m) => ({ step: "(B) Q Carnes / Meats", option: m })), ...(i.double ? [DBL] : [])], readback: `${i.n} QD ${i.deluxe ? "DELUXE" : "REGULAR"} ${(i.meats || [i.meat!]).map((m) => m.split(" /")[0].toLowerCase()).join(" + ")}${i.double ? " double meat" : ""}${i.flour ? " harina" : ""}`, ...(i.flour ? { elviNotes: ["tortilla de harina / flour"] } : {}) });
     else if (i.kind === "q") return null; // plain quesadilla style handled by the Spanish ledger / live flow
     else if (i.kind === "taco") {
       if (!i.style) return null;

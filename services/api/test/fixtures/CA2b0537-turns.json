@@ -1,0 +1,205 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.24,
+  "end": 11.402,
+  "text": "Just your name, please? Sure, what can I get for ya? I'm sorry?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.741,
+  "end": 3.901,
+  "text": "Yes, can I place an order, please?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.722,
+  "end": 7.082,
+  "text": "can I get,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.023,
+  "end": 9.103,
+  "text": "queso burias?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.044,
+  "end": 13.064,
+  "text": "The queso burias?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.003,
+  "end": 17.544,
+  "text": "Quesadilla? Let me double check on, we still have, birria.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 15.385,
+  "end": 31.01,
+  "text": "Yeah. Okay. Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.045,
+  "end": 29.506,
+  "text": "Oh, great. I'm sorry, yes, we do have, have the birria still. did you say quesadilla? Did you want that on the homemade comal tortilla?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.627,
+  "end": 38.828,
+  "text": "Got it. anything else? Double meat on them?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 33.571,
+  "end": 36.112,
+  "text": "And can I get, can I get double meat with it?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.413,
+  "end": 39.873,
+  "text": "Yes, yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.929,
+  "end": 46.93,
+  "text": "All righty. Anything else for you? And then my,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.094,
+  "end": 44.635,
+  "text": "Y-Yeah, I need a large street corn.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 48.031,
+  "end": 50.211,
+  "text": "street corn. Got it.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.938,
+  "end": 54.4,
+  "text": "And then one, quesadilla dorado with,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.36,
+  "end": 57.702,
+  "text": "taggitorizo and steak on it, double meat.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 58.953,
+  "end": 63.494,
+  "text": "Yeah, steak and chorizo. Did you say on the flour tortilla? Sorry.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 64.285,
+  "end": 65.086,
+  "text": "Yes, flour, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 65.955,
+  "end": 67.495,
+  "text": "Got it. Steak and chorizo",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 67.007,
+  "end": 67.207,
+  "text": "And that,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 68.228,
+  "end": 68.368,
+  "text": "yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 69.475,
+  "end": 76.577,
+  "text": "and double meat on 'em. Alrighty.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 71.95,
+  "end": 73.07,
+  "text": "Yep, and that'll be it.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 77.597,
+  "end": 79.698,
+  "text": "And can I get your name for the order, please?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 79.974,
+  "end": 80.715,
+  "text": "Yes, it's rich.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 81.998,
+  "end": 85.339,
+  "text": "Alrighty, Rich, give us about twenty or so. We should have this for you.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 85.938,
+  "end": 86.818,
+  "text": "Alright, no problem, thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 87.379,
+  "end": 88.18,
+  "text": "Thank you. Bye.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 88.359,
+  "end": 88.559,
+  "text": "Bye.",
+  "language": "en"
+ }
+]
