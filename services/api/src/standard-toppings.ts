@@ -105,7 +105,47 @@ export const conAddonSaid = (text: string, name: string) => { const r = conAddon
 export function withConAddons<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
   if (!Array.isArray(actions)) return actions;
   const said = norm(text);
-  return stripUnaskedCheese(CON_ADDONS.reduce((acc, r) => withConAddon(r, acc, menu, said), actions), said);
+  return cheeseByDish(stripUnaskedCheese(CON_ADDONS.reduce((acc, r) => withConAddon(r, acc, menu, said), actions), said), menu, said);
+}
+/** queso1 (Carlos, Gloria CA8ce342): a quesadilla already has melted cheese inside → plain "con queso" / "queso adentro"
+ *  adds no cheese add-on. A taco "con queso" (incl. "queso adentro") is always **Con Queso Fresco sprinkled on top,
+ *  never **EXTRA Queso Derretido — that only when they explicitly ask extra/más melted cheese. */
+export const TACO_CON_QUESO = /\b(?:con\s+(?:queso|quesito)|queso\s+(?:adentro|dentro|derretido)|with\s+cheese|and\s+cheese)\b/;
+export const EXPLICIT_EXTRA_MELTED = /\b(?:extra\s+(?:de\s+)?queso(?:\s+derretido)?|mas\s+queso(?:\s+derretido)?|extra\s+(?:melted\s+)?cheese|more\s+(?:melted\s+)?cheese|queso\s+derretido\s+extra)\b/;
+const EXPLICIT_FRESCO = /\b(?:queso\s+fresco|quesito\s+fresco|fresco\s+cheese)\b/;
+function cheeseByDish<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], said: string): T[] {
+  if (!Array.isArray(actions)) return actions;
+  const extra = EXPLICIT_EXTRA_MELTED.test(said), fresco = EXPLICIT_FRESCO.test(said);
+  return actions.map((a: any) => {
+    if (a?.type !== "add_item" && a?.type !== "update_item") return a;
+    const item = (menu || []).find((m: any) => m.id === a.itemId);
+    const name = norm(`${item?.name || ""} ${a.itemId || ""}`);
+    const mods = [...(a.modifiers || [])];
+    const isMelted = (m: any) => /^extra queso derretido \/ melted cheese$/.test(plainOpt(m.option));
+    const isFresco = (m: any) => /^con queso fresco \/ with cheese$/.test(plainOpt(m.option));
+    if (/quesadilla/.test(name)) {
+      const kept = mods.filter((m) => !(isMelted(m) && !extra) && !(isFresco(m) && !fresco));
+      // queso1 exception: explicit "extra queso" / "más queso" on a quesadilla = the paid EXTRA Queso Derretido
+      if (/\b(?:extra|mas)\s+(?:de\s+)?queso\b/.test(said) && !kept.some(isMelted)) {
+        for (const g of item?.modifierGroups || []) for (const o of g.options || []) { const n = typeof o === "string" ? o : o.name;
+          if (/^extra queso derretido \/ melted cheese$/.test(plainOpt(n)) && !kept.some(isMelted)) { const oo: any = typeof o === "string" ? { name: o } : o;
+            kept.push({ step: g.name, groupId: g.id, groupName: g.name, option: oo.name, optionId: oo.id, priceDeltaCents: Number(oo.priceDeltaCents) || 0 } as any); } }
+        return { ...a, modifiers: kept };
+      }
+      return kept.length === mods.length ? a : { ...a, modifiers: kept };
+    }
+    if (/\btacos?\b|sq-taco-/.test(name) && !/dorad/.test(name)) {
+      let opt: any = null, group: any = null;
+      for (const g of item?.modifierGroups || []) for (const o of g.options || []) { const n = typeof o === "string" ? o : o.name; if (/^con queso fresco \/ with cheese$/.test(plainOpt(n))) { opt = typeof o === "string" ? { name: o } : o; group = g; } }
+      const hadMelted = mods.some((m) => isMelted(m) && !extra);
+      const wants = hadMelted || (TACO_CON_QUESO.test(said) && !extra);
+      if (!wants || !opt) return a;
+      const kept = mods.filter((m) => !(isMelted(m) && !extra));
+      if (!kept.some(isFresco)) kept.push({ step: group?.name, groupId: group?.id, groupName: group?.name, option: opt.name, optionId: opt.id, priceDeltaCents: Number(opt.priceDeltaCents) || 0 });
+      return { ...a, modifiers: kept };
+    }
+    return a;
+  });
 }
 /** appaudit1: "torta de asada con queso fresco" must not also get (QTO) Queso Torta or a Queso Derretido filling.
  *  When every cheese the customer said is queso fresco / extra melted (add-ons), drop those unasked cheese picks. */

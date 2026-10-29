@@ -6594,8 +6594,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       const qm = nf(cBlob).match(/\b(?:a\s+)?(?:una|uno)\s+de\s+(?:esas|esos|ellas|ellos)\b[^.?!]{0,40}\bqueso\b/);
       if (qm) {
-        const adentro = /\bqueso\s+(?:adentro|derretido|dentro)\b|\bmelted\b/.test(nf(cBlob));
-        const QMOD = { step: "(C) Con / With", option: adentro ? "**EXTRA Queso Derretido / Melted Cheese" : "**Con Queso Fresco / With Cheese" };
+        // queso1: taco "con queso" / "queso adentro" is always queso fresco on top; melted only on explicit extra/más
+        const extraMelted = /\b(?:extra|mas)\s+(?:de\s+)?queso\b|\bextra\s+(?:melted\s+)?cheese\b/.test(nf(cBlob));
+        const QMOD = { step: "(C) Con / With", option: extraMelted ? "**EXTRA Queso Derretido / Melted Cheese" : "**Con Queso Fresco / With Cheese" };
         const ref = named.length ? named[named.length - 1].opt : "";
         const l = [...cart].reverse().find((y) => isTaco(y) && qty(y) >= 2 && (!ref || String(meatMod(y)?.option || "") === ref));
         if (l && !(l.modifiers || []).some((m: any) => /queso/i.test(String(m.option)))) {

@@ -59,7 +59,7 @@ test("gloria1: 3 QD deluxe (carnitas/bistec/pastor) + 3 street tacos (2 deshebra
   for (const m of [/Carnitas/, /Bistec/, /Alpastor/]) assert.equal(sum((l) => l.id === DLX && has(l, m)), 1, `QD deluxe ${m}: ` + dump);
   assert.equal(sum((l) => l.id === TACO), 3, "3 tacos: " + dump);
   assert.equal(sum((l) => l.id === TACO && has(l, /Deshebrada/)), 2, "2 deshebrada: " + dump);
-  assert.equal(sum((l) => l.id === TACO && has(l, /Deshebrada/) && has(l, /Queso/)), 1, "1 deshebrada with queso: " + dump);
+  assert.equal(sum((l) => l.id === TACO && has(l, /Deshebrada/) && has(l, /Con Queso Fresco/) && !has(l, /Derretido/)), 1, "1 deshebrada with Con Queso Fresco: " + dump);
   assert.equal(sum((l) => l.id === TACO && has(l, /Alpastor/)), 1, "1 pastor taco: " + dump);
   assert.ok(lines.filter((l: any) => l.id === TACO).every((l: any) => has(l, /TST/)), "street tacos: " + dump);
   assert.equal(sum((l) => l.id === DIPS && has(l, /Guacamole Dip con Chips/)), 1, "guacamole dip con chips: " + dump);
