@@ -479,7 +479,10 @@ export function staffPick(opts: string[], staffSaid: string): string | null {
   // cad71199: staff filler "No, es verdad" must not match Comal/Harina/Taquera (or any) opts
   let said = f(staffSaid).replace(/\bno,?\s*es\s+verdad\b/g, " ").replace(/\bes\s+verdad\b/g, " ")
     .replace(/\bnormal(?:es)?\b|\bsencill[ao]s?\b/g, " regular ").replace(/\bpreparad[ao]s?\b/g, " deluxe ")
-    .replace(/\bstreet\b/g, " taquero ").replace(/\bflour\b/g, " harina ").replace(/\bhomemade\b|\bhecha a mano\b/g, " comal ");
+    .replace(/\bstreet\b/g, " taquero ").replace(/\bflour\b/g, " harina ").replace(/\bhomemade\b|\bhecha a mano\b/g, " comal ")
+    // sean1 (CA249b7d): ASR Kamal/Camal = comal; English "corn" for a quesadilla tortilla = comal (no option says corn)
+    .replace(/\b[kc]amal\b/g, " comal ");
+  if (opts.some((o) => /comal/i.test(o)) && !opts.some((o) => /\bcorn\b/i.test(o))) said = said.replace(/\bcorn\b|\bmaiz\b/g, " comal ");
   if (!said.trim() || opts.length < 2) return null;
   const GENERIC = new Set(["taco", "tacos", "quesadilla", "qd", "dorada", "con", "de", "la", "el", "y", "x", "or", "o", "solo", "and"]);
   const keys = opts.map((o) => f(o).replace(/\([^)]*\)/g, " ").split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w)));
@@ -495,6 +498,8 @@ export function rewriteCallerText(text: string): string {
   let s = String(text || "");
   // josh1 (CAaaa9a2): English ASR "dosa" for Spanish "dos" before comal/quesadillas
   s = s.replace(/\bdosa\b/giu, "dos");
+  // sean1 (CA249b7d): English ASR "Kamal/Camal" for comal
+  s = s.replace(/\b[KkCc]amal\b/gu, "comal");
   // joseBirria1 (CA13b893): STT "cuatro tortillas estas" → tortillas extras
   s = s.replace(/(?<![\p{L}])tortillas?\s+estas(?![\p{L}])/giu, (m) => m.replace(/estas/i, "extras"));
   // oscar1: STT menú↔menudo when ordering verb present (ASCII \b fails on menú)

@@ -20,7 +20,8 @@ const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1,
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi|hasta(\s+luego)?|nos\s+vemos|good\s*bye|bye(\s*bye)?|cu[ií]date|chao|chau|adi[oó]s)\b/i;
 /** Full name as typed, trimmed and Title Cased; null for junk (digits only, Receipt/Cliente/Guest/TO GO, 1 letter, >40 chars). */
 export function cleanFullName(raw: string | null | undefined): string | null {
-  const s = String(raw || "").replace(/\s+/g, " ").trim();
+  // sean1 (CA249b7d): "under Ryan or Sean" / "Ana o Luis" → first name only; drop the trailing or/o and the alternate
+  const s = String(raw || "").replace(/\s+/g, " ").trim().replace(/\s+(?:or|o)(?:\s+\p{L}[\p{L}'-]*)?\s*[.,!?]*$/iu, "").trim();
   if (s.length < 2 || s.length > 40) return null;
   if (!/\p{L}{2,}/u.test(s) || /^[\d\s#().+-]+$/.test(s) || /#\s*\d|\d{3,}/.test(s)) return null;
   if (JUNK.test(s)) return null;

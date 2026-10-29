@@ -1,0 +1,184 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.88,
+  "end": 1.56,
+  "text": "Si, buenos dias.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.961,
+  "end": 3.161,
+  "text": "Hello.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.501,
+  "end": 5.121,
+  "text": "Si, buenos dias.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.381,
+  "end": 7.702,
+  "text": "yes, can I place an order for pickup?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 8.202,
+  "end": 9.582,
+  "text": "Oh, sure. What do you want, buddy?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 11.182,
+  "end": 13.403,
+  "text": "can I get four steak quesadillas?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.823,
+  "end": 16.563,
+  "text": "Corn, flour, Frankie Sevilla.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 19.504,
+  "end": 20.364,
+  "text": "What do you like in tortilla?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.784,
+  "end": 20.224,
+  "text": "let's do,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.745,
+  "end": 23.405,
+  "text": "let's do Kamal.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.165,
+  "end": 25.485,
+  "text": "Corn is okay, corn.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 26.445,
+  "end": 27.165,
+  "text": "How many, four?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.326,
+  "end": 28.646,
+  "text": "Yes, sir.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.146,
+  "end": 30.406,
+  "text": "Okay, anything else, sir?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 32.587,
+  "end": 34.707,
+  "text": "just onions and cilantro on the side, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 34.147,
+  "end": 39.167,
+  "text": "Yeah, always, yeah, don't worry. Always put in the sides, cilantro, onions, lime, and sides. Don't worry.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.488,
+  "end": 40.788,
+  "text": "Awesome. That'd be all.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.248,
+  "end": 51.353,
+  "text": "Anything else? Give me your name, please. Ryan. Okay, Ryan, give me, 20 minutes, please. Okay, you, Sean?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 42.389,
+  "end": 44.609,
+  "text": "Nope. Ryan.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.589,
+  "end": 53.391,
+  "text": "Well, Ryan will pick it up. My name's Sean, so it'll be under Ryan or Sean. I don't know what name he'll pick. Yeah, Sean. Yeah, yeah.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 52.573,
+  "end": 54.734,
+  "text": "No problem. And call me Ryan, right?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 54.491,
+  "end": 54.611,
+  "text": "So,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.631,
+  "end": 57.352,
+  "text": "yeah, Ryan will pick, Ryan's picking it up.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.936,
+  "end": 62.658,
+  "text": "No, no problem, buddy. Give me 20 minutes, please. Thank you, buddy. Thank you, buddy.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 60.674,
+  "end": 62.176,
+  "text": "Awesome. He's headed your way. Thank you, sir.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 63.617,
+  "end": 63.758,
+  "text": "Bye.",
+  "language": "en"
+ }
+]
