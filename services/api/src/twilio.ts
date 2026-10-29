@@ -533,18 +533,33 @@ export function timeOnlyLinkOk(t: { talkSec?: number | null; transcript?: string
   if (t.lines !== undefined) return (t.lines?.length || 0) > 0;
   return ORDER_SPEECH.test(String(t.transcript || ""));
 }
-export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[]): { order: any; by: string } | null {
-  const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";
+/** santiago1 (CA7fc26b): base dish word of a ticket / Square line ("Quesadilla · (QCO) …" → "quesadilla"). */
+const baseItem = (n: string) => String(n || "").split(/\s+·\s+|\s+\(|\s+\//)[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/s\b/, "").trim();
+export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[], now = Date.now()): { order: any; by: string } | null {
+  const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
   const empty = (o: any) => !(o?.line_items || []).length && !Number(o?.total_money?.amount || 0); // followup1: never link $0 / no-item orders
   const online = (o: any) => /online|website|ecom/i.test(String(o?.source?.name || ""));
   const win = orders.filter((o) => { const c = Date.parse(o.created_at); return !empty(o) && c >= at - 2 * 60000 && c <= at + 60 * 60000; });
+  // santiago1: closest ticket rung AFTER the call ends wins ties (a walk-in a few seconds earlier is not this call)
+  const dist = (o: any) => { const d = Date.parse(o.created_at) - at; return d >= 0 ? d : 3 * Math.abs(d); };
+  const closest = (xs: any[]) => [...xs].sort((a, b) => dist(a) - dist(b))[0];
   const phoneOf = (o: any) => (o.fulfillments || []).flatMap((f: any) => [f.pickup_details, f.delivery_details].map((x: any) => d10(x?.recipient?.phone_number || "")));
   const byPhone = phone ? win.filter((o) => phoneOf(o).includes(phone)) : [];
-  if (byPhone.length) return { order: byPhone[0], by: "phone" };
-  const byName = first ? win.filter((o) => String(o.ticket_name || "").trim().split(/\s+/)[0]?.toLowerCase() === first) : [];
-  if (byName.length === 1) return { order: byName[0], by: "ticket name" };
+  if (byPhone.length) return { order: closest(byPhone), by: "phone" };
+  const tname = (o: any) => String(o.ticket_name || "").trim().split(/\s+/)[0]?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
+  const byName = first ? win.filter((o) => tname(o) === first) : [];
+  if (byName.length) return { order: closest(byName), by: "ticket name" };
+  // santiago1: the ticket's dishes match what the caller ordered (every Elvi food dish on the Square ticket)
+  const near = win.filter((o) => !online(o) && Date.parse(o.created_at) <= at + 20 * 60000 && !(first && tname(o) && tname(o) !== first));
+  const want = [...new Set(((t.lines || []) as any[]).filter((l) => !l?.kind || l.kind === "food").map((l) => baseItem(l?.name)).filter(Boolean))];
+  if (want.length) {
+    const byItems = near.filter((o) => { const have = new Set((o.line_items || []).map((li: any) => baseItem(li?.name))); return want.every((w) => have.has(w)); });
+    if (byItems.length) return { order: closest(byItems), by: "items" };
+  }
+  // time-only fallback: only once the 20-min window has closed, and never a ticket named for someone else
+  if (now < at + 20 * 60000) return null;
   const soon = win.filter((o) => !online(o) && Date.parse(o.created_at) <= at + 20 * 60000); // followup1: POS tickets only
-  if (soon.length === 1 && timeOnlyLinkOk(t)) return { order: soon[0], by: "only ticket in 20 min" };
+  if (soon.length === 1 && timeOnlyLinkOk(t) && !(first && tname(soon[0]) && tname(soon[0]) !== first)) return { order: soon[0], by: "only ticket in 20 min" };
   return null;
 }
 export async function linkSquareTickets(force = false) {

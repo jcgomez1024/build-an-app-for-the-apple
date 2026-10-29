@@ -7364,6 +7364,42 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+  // santiago2 (CA7fc26b ~6:41 PM ET Oct 29): a quantity change is an UPDATE of the existing line, never a new one.
+  // (a) staff restates "<N> <dish> …" and the caller says sí → that one matching line's qty = N;
+  // (b) a bare caller count right after a dish ("¿Me pones cuatro, por favor?") → last line's qty = N.
+  {
+    const W: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const num = (w: string) => (/^\d+$/.test(w) ? Number(w) : W[w.toLowerCase()] || 0);
+    const nrm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const DISH = /\b(tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?|flautas?)\b/;
+    const linesFor = (dish: string, said: string) => cart.filter((l: any) => {
+      if (!nrm(String(l.itemId) + " " + (l.name || "")).includes(dish.replace(/s$/, "").replace(/e$/, ""))) return false;
+      // every meat word staff named must be on the line
+      const mods = nrm((l.modifiers || []).map((m: any) => m.option).join(" "));
+      const meats = said.match(/\b(duro|chicharron|pastor|bistec|asada|chorizo|carnitas|prensado|pollo|lengua|tripa|suadero|barbacoa|campechan[oa]|frijol(?:es)?|queso)\b/g) || [];
+      return meats.every((m) => mods.includes(m === "chicharron" ? "duro" : m.replace(/es$/, "")));
+    });
+    let lastLine: any = null;
+    for (let k = 0; k < turns.length; k++) {
+      const t: any = turns[k];
+      const tx = nrm(t.text).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+      if (t.speaker === "staff") {
+        const m = tx.match(new RegExp(String.raw`^(?:ok\s+|okay\s+|entonces\s+|son\s+)?(\d{1,2}|${Object.keys(W).join("|")})\s+(?:ordenes\s+de\s+)?(\w+)\b(.*)$`));
+        const nxt: any = turns.slice(k + 1).find((x: any) => x.speaker !== "staff");
+        if (m && DISH.test(m[2]) && nxt && /^\s*[¿¡]?\s*(s[ií]|yes|aj[aá]|correcto|exacto|eso)\b/iu.test(nxt.text)) {
+          const hit = linesFor(m[2], m[2] + " " + m[3]);
+          const n = num(m[1]);
+          if (hit.length === 1 && n > 0 && n <= 20) hit[0].quantity = n;
+        }
+        continue;
+      }
+      if (DISH.test(tx)) { const h = linesFor((tx.match(DISH) || [""])[0], tx); lastLine = h.length === 1 ? h[0] : lastLine; continue; }
+      const b = tx.match(new RegExp(String.raw`^(?:(?:no|mejor|que sean|perdon)\s+)?(?:me\s+(?:pones|pone|das|da)|ponme|dame|deme|mejor|que sean)\s+(\d{1,2}|${Object.keys(W).join("|")})(?:\s+por favor)?$`));
+      if (b && lastLine && cart.length >= 1) { const n = num(b[1]); if (n > 0 && n <= 20) lastLine.quantity = n; }
+    }
+  }
+
+
   // ca537a80 (CA537a8050d9870f83f1f5439728eb1e85 ~7:47 PM ET Oct 28): Omar pickup —
   // 2 QD DELUXE preparada (1 bistec, 1 prensado) + 1 aguacate (guacamole dip).
   // Live miss: EMPTY cart — "sí, tiene quesadillas en aceite" dropped as avail; "una de bistec y una de

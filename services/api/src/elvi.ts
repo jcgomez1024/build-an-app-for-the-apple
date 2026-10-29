@@ -1975,7 +1975,7 @@ export function withoutNameTurnAdds(result: ElviResponse, heard: string, languag
 /** fix18: the last line Elvi added per order session, for quantity corrections ("no, mejor tres"). */
 const lastAddBySession = new Map<string, { itemId: string; quantity: number; modifiers?: any[]; at: number }>();
 const QTY_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, one: 1, a: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5, seis: 6, six: 6, siete: 7, seven: 7, ocho: 8, eight: 8, nueve: 9, nine: 9, diez: 10, ten: 10 };
-const QTY_FIX = new RegExp(String.raw`^(?:no[\s,.!]*)?(?:(?:mejor|better|actually|instead|en realidad|perd[oó]n)[\s,]*)?(?:(?:que\s+sean|son|make\s+(?:it|that|them)|change\s+(?:it|that)\s+to|ponle|ponme|dame)\s+)?(\d{1,2}|${Object.keys(QTY_WORDS).join("|")})\b\s*(.*)$`, "iu");
+const QTY_FIX = new RegExp(String.raw`^(?:no[\s,.!]*)?(?:(?:mejor|better|actually|instead|en realidad|perd[oó]n)[\s,]*)?(?:(?:que\s+sean|son|make\s+(?:it|that|them)|change\s+(?:it|that)\s+to|ponle|ponme|dame|deme|(?:me\s+)?(?:pones|pone|das|da|haces|hace))\s+)?(\d{1,2}|${Object.keys(QTY_WORDS).join("|")})\b\s*(.*)$`, "iu");
 
 /** fix20: "no crema" / "sin cebolla" edits the last dish's toppings — never starts ceviche or another item. */
 const TOPPING_NEG = /^(?:(?:no|sin|without|hold(?:\s+the)?)\s+)(?:(?:el|la|los|las|the|de)\s+)?(crema|sour\s+cream|cebolla|onion|cilantro|lechuga|lettuce|pico(?:\s+de\s+gallo)?|queso\s+fresco|frijoles?|beans|arroz|rice)\b/iu;
@@ -2033,9 +2033,13 @@ export function quantityCorrection(input: Pick<ElviRequest, "sessionKey" | "tran
   const key = input.sessionKey;
   const last = key ? lastAddBySession.get(key) : undefined;
   if (!last || Date.now() - last.at > 3 * 60 * 60 * 1000) return null;
-  const said = String(input.transcript || "").trim().replace(/[.!?¡¿]+$/g, "");
+  const said = String(input.transcript || "").trim().replace(/^[\s¿¡,.]+/, "").replace(/[.!?¡¿]+$/g, "");
   // Needs a correction cue; a bare "tres tacos" is a new item.
-  if (!/^(no\b|mejor\b|better\b|actually\b|instead\b|en realidad\b|perd[oó]n\b|make (it|that|them)\b|change (it|that) to\b|que sean\b)/iu.test(said)) return null;
+  // santiago1 (CA7fc26b): "¿Me pones cuatro, por favor?" right after "tres quesadillas…" = change that line to 4
+  // (only a bare count — a dish word that isn't the last dish, or otro/más/also, is a new line).
+  const bareAsk = /^(?:y\s+)?(?:me\s+(?:pones|pone|das|da|haces|hace)|ponme|ponle|dame|deme)\s+(\d{1,2}|[a-z]+)(?:\s*,?\s*(?:por\s+favor|please))?\s*$/iu.exec(said);
+  const bareOk = !!bareAsk && /^\d+$|^(?:dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)$/i.test(bareAsk[1]) && !/^y\b/i.test(said);
+  if (!bareOk && !/^(no\b|mejor\b|better\b|actually\b|instead\b|en realidad\b|perd[oó]n\b|make (it|that|them)\b|change (it|that) to\b|que sean\b)/iu.test(said)) return null;
   const m = said.match(QTY_FIX);
   if (!m) return null;
   const n = /^\d+$/.test(m[1]) ? Number(m[1]) : QTY_WORDS[m[1].toLowerCase()];

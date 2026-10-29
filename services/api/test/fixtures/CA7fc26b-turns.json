@@ -1,0 +1,142 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.48,
+  "end": 1.501,
+  "text": "Cocina Luis, buenas tardes.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.181,
+  "end": 3.822,
+  "text": "Buenas tardes.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.982,
+  "end": 5.662,
+  "text": "Sí, buenas tardes.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.542,
+  "end": 6.183,
+  "text": "¿Me puedes poner,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.263,
+  "end": 8.704,
+  "text": "me puedes poner tres quesadillas de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 9.764,
+  "end": 10.925,
+  "text": "chicharrón duro, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.605,
+  "end": 12.065,
+  "text": "¿De Comal?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.066,
+  "end": 18.588,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 15.047,
+  "end": 15.767,
+  "text": "Okey, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.23,
+  "end": 23.49,
+  "text": "¿Me pones cuatro, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.371,
+  "end": 26.051,
+  "text": "Cuatro quesadillas de Comal de Duro.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 27.532,
+  "end": 28.372,
+  "text": "Sí, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 28.913,
+  "end": 29.353,
+  "text": "¿Algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 30.794,
+  "end": 31.354,
+  "text": "Sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.034,
+  "end": 32.694,
+  "text": "¿A nombre de quién?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 34.135,
+  "end": 34.655,
+  "text": "Santiago.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.516,
+  "end": 36.156,
+  "text": "Okey, Santiago.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 37.116,
+  "end": 38.857,
+  "text": "Dame quince minutos, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 40.238,
+  "end": 41.318,
+  "text": "Sí, está bien, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.698,
+  "end": 41.838,
+  "text": "Hola.",
+  "language": "es"
+ }
+]
