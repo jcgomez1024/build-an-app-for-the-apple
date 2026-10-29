@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
 import WebSocket from "ws";
-import { withConTodo, withConAddons } from "./standard-toppings.js";
+import { withConTodo, withConAddons, EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { favoriteAnswer } from "./favorites.js";
 import { recall as recallMemory, rewriteSlang } from "./elvi-knowledge.js";
@@ -14,6 +14,7 @@ import { rbFormat } from "./readback.js";
 import { meatOptSaid, enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords } from "./site-catalog.js";
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
+import { applySharedAliases } from "./aliases.js";
 import { deliveryDialogRules } from "./delivery.js";
 import { cachedAppQuote as cachedQuote, quoteAppAddress as quoteDeliveryAddress } from "./delivery-zone.js"; // appdelivery1: app tools quote website fees
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
@@ -423,7 +424,7 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
     // quesitorta1: spoken "queso torta(s)" forces (QTO); not (TO)+Queso Derretido
     {
       const itemT = menu.find((i: any) => i.id === a.itemId);
-      if (itemT && /^torta$/i.test(String(itemT.name).trim()) && /\bqueso\s+tortas?\b/.test(recentWide)) {
+      if (itemT && /^torta$/i.test(String(itemT.name).trim()) && (/\bqueso\s+tortas?\b/.test(recentWide) || (/\bcon\s+queso\b/.test(t) && !/\b(?:fresco|derretid|melted|extra|mas)\b/.test(t)))) {
         const hit = (itemT.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => ({ g, o }))).find(({ o }: any) => /\(QTO\)/i.test(String(o.name)));
         if (hit) {
           mods = mods.filter((m) => !/^\s*\((?:TO|QTO)\)/i.test(String(m.option)));
@@ -431,6 +432,30 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
           if (!/derretid|melted|extra (de )?queso|mas queso/.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
         }
       }
+    }
+    // jesus2: a Queso Torta already IS the cheese → no Queso Derretido unless they asked extra/más/melted
+    if (on(/\(QTO\)/i) && !EXPLICIT_EXTRA_MELTED.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
+    // jesus2: two meats on one line ("de chorizo y bistec combinado", "con chorizo y bistec") → both (meat group up to 2)
+    {
+      const itemM = menu.find((i: any) => i.id === a.itemId);
+      const pair = /\b(?:de|con|of|with)\s+([a-z]+(?:\s+[a-z]+)?)\s+(?:y|con|and|e|&)\s+([a-z]+(?:\s+[a-z]+)?)\b/.exec(t);
+      const sameItem = result.actions.filter((x: any) => x?.type === "add_item" && x.itemId === a.itemId).length;
+      if (itemM && pair && a.type === "add_item" && sameItem === 1 && !/\b(?:una?|dos|tres|otr[ao]s?|one|two|another)\s+(?:de|con|of|with)\b/.test(t)) {
+        const mg = (itemM.modifierGroups || []).find((g: any) => /carne|meat/i.test(String(g.name)) && !/extra|double/i.test(String(g.name)) && (Number(g.maxSelections) || 2) >= 2);
+        const mopts = (mg?.options || []).map((o: any) => String(typeof o === "string" ? o : o.name)).filter((n: string) => !/extra|double/i.test(n));
+        const pick = (w: string) => mopts.find((n: string) => meatOptSaid(n, w));
+        const want = [pick(pair[1]), pick(pair[2])].filter(Boolean) as string[];
+        if (want.length === 2 && want[0] !== want[1]) {
+          const have = mods.filter((m) => mopts.includes(String(m.option))).map((m) => String(m.option));
+          if (have.length < 2 && have.every((h) => want.includes(h))) for (const w of want) if (!have.includes(w)) mods.push({ step: mg.name, option: w } as any);
+        }
+      }
+    }
+    // rich1→live: "double meat" / "doble carne" on this line → the DOUBLE Carne option when the item has one
+    if (/\b(?:double|doble)\s+(?:the\s+)?(?:meat|carne)\b/.test(t) && !on(/double carne/i)) {
+      const itemD = menu.find((i: any) => i.id === a.itemId);
+      for (const g of itemD?.modifierGroups || []) for (const o of g.options || []) { const n = String(typeof o === "string" ? o : o.name);
+        if (/double carne/i.test(n) && !on(/double carne/i)) mods.push({ step: g.name, option: n } as any); }
     }
     if (on(/con frijoles|with beans/i) && !/refrit/.test(t)) mods = mods.filter((m) => !/frijoles refritos|refried beans/i.test(String(m.option)) || /con frijoles|with beans/i.test(String(m.option)));
     // case1e: "de chicharrón dorada … de maíz" — dorada/frita is the Quesadilla Dorada (corn, fried), not a comal tortilla
@@ -488,6 +513,13 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
       const q = input.language === "es" ? `${name}: ¿comal o harina?` : `${name}: corn or flour?`;
       return { ...result, audioBase64: undefined, audioMimeType: undefined, actions: (actions as any[]).filter((x) => x !== a), reply: q } as any;
     }
+  }
+  // jesus2: "coca de vidrio" / glass / Mexican Coke → same Coca Cola SKU, read back as the glass bottle (never "taparrosca")
+  if (/\b(?:vidrio|glass|mexican\s+coke|botella\s+de\s+vidrio)\b/.test(recentWide) && !/\btaparrosca\b/.test(t)) {
+    let hit = false;
+    for (const a of actions as any[]) { const it = menu.find((i: any) => i.id === a?.itemId);
+      if (a?.type === "add_item" && /coca/i.test(`${it?.name || ""} ${a.itemId}`)) { a.readback = input.language === "en" ? "Coca Cola (glass bottle)" : "Coca Cola de vidrio"; hit = true; } }
+    if (hit && /taparrosca/i.test(String(result.reply || ""))) return { ...result, actions, reply: String(result.reply).replace(/\btaparrosca\b/gi, "de vidrio"), audioBase64: undefined, audioMimeType: undefined } as any;
   }
   return { ...result, actions };
 }
@@ -2066,6 +2098,9 @@ export function appSmallSopeReply(input: { transcript?: string; language?: strin
     : "Online we only have the 10-inch Sopesaso Elvis. Would you like the 10-inch, or would you rather call us for the small sopes?" } as ElviResponse;
 }
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
+  // jesus2: the shared spoken aliases (data/aliases, "app" scope) reach the LIVE turn too — guisquel→bistec,
+  // queso burias→Queso Birrias, street corn→esquite, cuca de vino→coca de vidrio — not only shadow scoring.
+  if (input?.transcript) { const t = applySharedAliases(String(input.transcript), "app"); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // case1: every path (deterministic turns and the model) gets the caller's-words cleanup
   const r = await chatWithElviPaths(input, runtimeConfig);
   try { return caseFix(r, input); } catch { return r; }

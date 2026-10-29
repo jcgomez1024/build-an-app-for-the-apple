@@ -1,0 +1,170 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.16,
+  "end": 2.181,
+  "text": "¿Si bueno, cocina Elvis?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.4,
+  "end": 4.741,
+  "text": "Aunque quiero hacer una orden,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.682,
+  "end": 9.343,
+  "text": "Claro que sí, a ver dime, ¿qué te ponemos?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 11.482,
+  "end": 14.982,
+  "text": "dos quesadillas de comal de chorizo y guisquel combinado.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 16.585,
+  "end": 19.226,
+  "text": "¿Dos quesadillas del comal de bistec con chorizo?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.263,
+  "end": 20.363,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 21.227,
+  "end": 22.347,
+  "text": "Okey, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.203,
+  "end": 25.964,
+  "text": "Ni una torta.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 27.389,
+  "end": 28.069,
+  "text": "¿Y una qué, perdón?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.884,
+  "end": 31.184,
+  "text": "Y una torta igual de chorizo y guisquel.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.871,
+  "end": 33.591,
+  "text": "¿Una torta?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 34.505,
+  "end": 34.605,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 36.172,
+  "end": 38.752,
+  "text": "Una torta. Usaría con queso o sin queso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 40.286,
+  "end": 41.286,
+  "text": "Con queso, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.973,
+  "end": 45.854,
+  "text": "Muy bien, unas quesos tortas de bistec con chorizo, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 47.227,
+  "end": 48.327,
+  "text": "Y una cuca de vino.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 49.195,
+  "end": 50.715,
+  "text": "Una coca de vidrio.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 52.836,
+  "end": 53.336,
+  "text": "Muy bien,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.296,
+  "end": 54.816,
+  "text": "¿sería todo?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.668,
+  "end": 55.768,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.777,
+  "end": 59.358,
+  "text": "Perfecto, ¿me darías tu nombre para tu orden, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 60.27,
+  "end": 66.537,
+  "text": "Gracias. Muchas gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 61.498,
+  "end": 65.139,
+  "text": "Muy bien, Jesús, danos unos 15 a 20 minutos, no, y te tenemos tu orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 67.16,
+  "end": 67.94,
+  "text": "A ti, salud.",
+  "language": "es"
+ }
+]

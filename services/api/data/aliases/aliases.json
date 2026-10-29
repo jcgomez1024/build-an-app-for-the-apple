@@ -569,6 +569,67 @@
       "example": "un burro chico de chorizo",
       "source": "francisco1 CA69876b: burro = burrito (not sope)",
       "approved": true
+    },
+    {
+      "id": "queso-burias",
+      "match": "\\b(?:queso|quesa|keso)\\s*[bv](?:u|i|ui)r+i?as?\\b|\\bquesa[bv]irrias?\\b",
+      "to": "Queso Birrias",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "can I get, queso burias?",
+      "source": "rich1 CA2b0537 10/29: ASR 'queso burias' → Queso Birrias (rang Pambazo)",
+      "approved": "Carlos 2026-10-29"
+    },
+    {
+      "id": "glued-chorizo",
+      "match": "\\b(?!chorizo\\b)[a-z]+[ck]?[ht]orizo\\b",
+      "to": "chorizo",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "taggitorizo and steak on it",
+      "source": "rich1 CA2b0537 10/29: ASR glues the article onto chorizo",
+      "approved": "Carlos 2026-10-29"
+    },
+    {
+      "id": "street-corn-esquite",
+      "match": "\\bstreet\\s+corns?\\b",
+      "to": "esquite",
+      "scope": [
+        "phone",
+        "app",
+        "fulfillment"
+      ],
+      "example": "I need a large street corn",
+      "source": "rich1 CA2b0537 10/29: 'street corn' = esquite, not a delivery address",
+      "approved": "Carlos 2026-10-29"
+    },
+    {
+      "id": "guisquel-bistec",
+      "match": "\\bg[uü]is(?:k|qu|c)el\\b",
+      "to": "bistec",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "de chorizo y guisquel combinado",
+      "source": "jesus2 CA470a61 10/29: ASR 'guisquel' for bistec",
+      "approved": "Carlos 2026-10-29"
+    },
+    {
+      "id": "cuca-de-vino-vidrio",
+      "match": "\\b[ck][uo][ck]as?\\s+de\\s+vi(?:no|dro)\\b",
+      "to": "coca de vidrio",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "example": "Y una cuca de vino",
+      "source": "jesus2 CA470a61 10/29: ASR 'cuca de vino' = coca de vidrio (glass)",
+      "approved": "Carlos 2026-10-29"
     }
   ]
 }

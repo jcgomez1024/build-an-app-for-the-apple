@@ -2,6 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
+import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -2684,7 +2685,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         if (tortaActs.length === 1 && (Number(tortaActs[0].quantity) || 1) < tn) tortaActs[0].quantity = tn;
       }
     }
-    // jesus1: COMBO Gorditas — force spoken qty, chorizo+carnitas meats, arroz+frijol (drop conflicting SOLO Frijoles)
+    // jesus2: COMBO Gorditas — force spoken qty, chorizo+carnitas meats, arroz+frijol (drop conflicting SOLO Frijoles)
     if (source.startsWith("caller")) {
       const comboActs = acts.filter((a: any) => a.type === "add_item" && /combo.*gordita/i.test(String(a.itemId)));
       const qtyM = cleanPhrase(text).match(new RegExp(String.raw`\b(${NUMW})\s+(?:(?:[oó]rdenes?|orders?)\s+(?:de|del)\s+)?(?:\p{L}+\s+){0,3}?(?:gorditas?|combo)\b`, "iu"));
@@ -2733,7 +2734,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
-    // jesus1: taco "solo / sin nada" → strip salsa (plain)
+    // jesus2: taco "solo / sin nada" → strip salsa (plain)
     if (source.startsWith("caller") && /\b(?:solo|sin\s+nada|plain)\b/iu.test(text)) {
       const stripSalsa = (mods?: any[]) => (mods || []).filter((m: any) => !/salsa/i.test(String(m.option)));
       for (const a of acts) if ((a.type === "add_item" || a.type === "update_item") && /taco/i.test(String(a.itemId))) a.modifiers = stripSalsa(a.modifiers || []);
@@ -4464,7 +4465,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const saidPickup = /\b(?:pick\s*-?\s*up|para\s+llevar|(?:pasar\s+a\s+)?recoger|for\s+here|para\s+aqu[ií]|comer\s+aqu[ií])\b/iu.test(blobAll);
     if (!fulfillment && (detEarly.address || shadowAddress) && !saidPickup) fulfillment = "DELIVERY";
   }
-  // jesus1: arroz y frijol on COMBO Gorditas → drop conflicting SOLO Frijoles
+  // jesus2: arroz y frijol on COMBO Gorditas → drop conflicting SOLO Frijoles
   if (turns.some((t) => /\barroz\b/iu.test(t.text) && /\bfrijol/iu.test(t.text))) {
     for (const l of cart as any[]) {
       if (!/combo.*gordita/i.test(String(l.itemId))) continue;
@@ -4475,7 +4476,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!haveF) l.modifiers = [...(l.modifiers || []), { step: "C", option: "1 x Frijoles Refritos / Refried Beans" }];
     }
   }
-  // jesus1: consolidate "dos órdenes … combo gorditas" + chorizo+carnitas — one line qty 2, drop stray plain gorditas
+  // jesus2: consolidate "dos órdenes … combo gorditas" + chorizo+carnitas — one line qty 2, drop stray plain gorditas
   {
     const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
     const wantCombo2 = /\b(?:dos|2|two)\b/iu.test(callerBlob) && /gorditas?/iu.test(callerBlob) && /combo/iu.test(callerBlob);
@@ -4518,7 +4519,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
   }
-  // jesus1: invent TCO carnitas taco when caller ordered it and model omitted
+  // jesus2: invent TCO carnitas taco when caller ordered it and model omitted
   {
     const callerBlob = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
     const staffBlob = turns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" ");
@@ -7470,6 +7471,32 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const deliv = /\b(?:delivery|deliver|domicilio|a\s+domicilio|env[ií]o|entrega|direcci[oó]n|address|doordash|uber\s*eats|grubhub|llevar\s+a\s+mi\s+casa|me\s+la\s+(?:lleva|traen?))\b/iu.test(all);
     const ready = /\b(?:dame|deme|d[eé]jame|me\s+das|en)\s+(?:unos?\s+)?(?:\d+|cinco|diez|quince|veinte|veinticinco|treinta|media\s+hora)\b(?:\s+minutos)?/iu.test(staffAll);
     if (!deliv && ready && !address) fulfillment = "PICKUP";
+  }
+
+  // jesus2 (CA470a61): post-pass on the whole call — same rules live caseFix applies per turn.
+  {
+    const said = turns.map((t: any) => ({ sp: t.speaker, x: applySharedAliases(String(t.text || ""), "phone").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") }));
+    // two meats for a dish ("de chorizo y guisquel combinado", staff "de bistec con chorizo") → both on every such line
+    const MEATS: Array<[RegExp, string]> = [[/^(?:bistec|steak|asada)$/, "Bistec / Steak"], [/^chorizo$/, "Chorizo / Mexican Sausage"], [/^(?:pollo|chicken)$/, "Pollo / Chicken"], [/^(?:alpastor|pastor)$/, "Alpastor / Roasted Pork"], [/^costilla$/, "Costilla / Beef Rib"]];
+    const meatOf = (w: string) => MEATS.find(([re]) => re.test(w))?.[1];
+    const pairRe = /\b(quesadillas?|tortas?|burritos?|gorditas?|sopes?)\b[^.?!]*?\b(?:de|con)\s+(?:al\s+)?([a-z]+)\s+(?:y|con|and)\s+(?:al\s+)?([a-z]+)/g;
+    for (const { x } of said) for (const m of x.matchAll(pairRe)) {
+      const a = meatOf(m[2]), b = meatOf(m[3]); if (!a || !b || a === b) continue;
+      const dish = m[1].replace(/s$/, "");
+      for (const l of cart as any[]) {
+        if (!new RegExp(`\\b${dish}`).test(String(l.itemId)) || /dorada/.test(String(l.itemId)) && dish !== "quesadilla") continue;
+        const mods = l.modifiers || []; const have = mods.filter((md: any) => MEATS.some(([, n]) => n === md.option));
+        if (have.length !== 1 || ![a, b].includes(have[0].option)) continue;
+        mods.push({ ...have[0], option: have[0].option === a ? b : a }); l.modifiers = mods;
+      }
+    }
+    const callerAll = said.filter((t) => t.sp === "caller").map((t) => t.x).join(" ");
+    // a Queso Torta already IS the cheese → no Queso Derretido unless asked extra/más
+    if (!EXPLICIT_EXTRA_MELTED.test(callerAll)) for (const l of cart as any[]) if ((l.modifiers || []).some((md: any) => /\(QTO\)/.test(String(md.option))))
+      l.modifiers = l.modifiers.filter((md: any) => !/queso derretido|melted cheese/i.test(String(md.option)));
+    // glass Coke: same SKU, read back "de vidrio", never taparrosca
+    if (said.some((t) => /\b(?:vidrio|glass)\b/.test(t.x) && !/\btaparrosca\b/.test(t.x)) && !/\btaparrosca\b/.test(callerAll))
+      for (const l of cart as any[]) if (/coca/i.test(String(l.itemId))) l.readback = `${Number(l.quantity) || 1} coca cola de vidrio`;
   }
 
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
