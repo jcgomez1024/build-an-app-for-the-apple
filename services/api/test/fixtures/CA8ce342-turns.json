@@ -1,0 +1,387 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.42,
+  "end": 6.802,
+  "text": "Spanish. Claro.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.441,
+  "end": 5.443,
+  "text": "Hola, quiero hacer una orden, ah, para recogerla.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 10.005,
+  "end": 11.306,
+  "text": "Okay, um,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 12.804,
+  "end": 13.144,
+  "text": "Sí, dime.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.328,
+  "end": 17.81,
+  "text": "sí, voy a querer querer tres quesadillas doradas.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 18.826,
+  "end": 19.306,
+  "text": "A ver, nomás,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 20.907,
+  "end": 25.348,
+  "text": "permíteme tantito, nomás en lo que le cobro a uno, ¿no es cierto? Por favor, permítame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.154,
+  "end": 25.254,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.512,
+  "end": 62.612,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 64.252,
+  "end": 67.154,
+  "text": "Sí, me, me puedes dar tres quesadillas doradas.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 69.414,
+  "end": 71.455,
+  "text": "Ah, una, ¿sí tiene carnitas?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 73.656,
+  "end": 75.177,
+  "text": "Sí, me da una de carnitas,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 76.357,
+  "end": 76.497,
+  "text": "un,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 77.918,
+  "end": 80.379,
+  "text": "ah, preparada, eso viene como con todo, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 81.86,
+  "end": 81.92,
+  "text": "Que",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 83.06,
+  "end": 83.26,
+  "text": "norm,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 84.921,
+  "end": 85.721,
+  "text": "sí, sí,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 87.042,
+  "end": 87.142,
+  "text": "sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 88.162,
+  "end": 93.905,
+  "text": "Ah, una de carnitas, una de bistec y otra de alpas, sí, también preparada. Ujú.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 96.506,
+  "end": 96.606,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 99.147,
+  "end": 99.807,
+  "text": "Y me da",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 101.108,
+  "end": 103.328,
+  "text": "tres tacos. Uno de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 104.329,
+  "end": 105.269,
+  "text": "dos de deshebrada,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 111.111,
+  "end": 111.251,
+  "text": "de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 112.251,
+  "end": 113.532,
+  "text": "la taquera normal,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 116.593,
+  "end": 116.633,
+  "text": "um,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 117.833,
+  "end": 118.934,
+  "text": "dos de deshebradas,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 120.374,
+  "end": 123.015,
+  "text": "y a una de esas, ah, le puedes poner queso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 126.596,
+  "end": 126.676,
+  "text": "Sí,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 127.837,
+  "end": 134.679,
+  "text": "no, solo solo queso adentro, pero que sea, ah, pequeño, como una tortilla de de de taco, pero con queso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 137.26,
+  "end": 137.3,
+  "text": "Um.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 138.88,
+  "end": 144.522,
+  "text": "También va a ser así, pero de deshebrada, pero quieres que eso encima del fresco. ¿Qué más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 145.743,
+  "end": 148.003,
+  "text": "Y un otro taco de al pastor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 149.184,
+  "end": 149.624,
+  "text": "¿Qué más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 150.864,
+  "end": 154.746,
+  "text": "Y sí vende guacamole, ah, como aparte.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 155.546,
+  "end": 158.307,
+  "text": "Tengo Tengo el guacamole deep con chips, ¿sería de ese?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 160.007,
+  "end": 160.407,
+  "text": "Ah, sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 160.748,
+  "end": 161.608,
+  "text": "O salsa guacamole.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 163.368,
+  "end": 165.169,
+  "text": "Ah, el guacamole, el, el dip.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 165.81,
+  "end": 169.511,
+  "text": "El deep, sí, sí, sí tengo, viene con chips, un tenedor de ocho onzas.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 166.489,
+  "end": 166.629,
+  "text": "Con",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 167.91,
+  "end": 168.65,
+  "text": "Sí, ¿me da de?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 170.551,
+  "end": 171.451,
+  "text": "Okay, sí, ese.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 172.212,
+  "end": 173.452,
+  "text": "¿Quieres uno? Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 173.872,
+  "end": 173.972,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 174.932,
+  "end": 178.974,
+  "text": "Y tiene salsa, salsa verde que puede poner,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 178.014,
+  "end": 180.355,
+  "text": "Tengo verde, sí, sí hay. ¿Quieres pura verde?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 180.054,
+  "end": 180.134,
+  "text": "sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 181.674,
+  "end": 182.415,
+  "text": "Ah, sí, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 182.956,
+  "end": 183.896,
+  "text": "Okay, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 185.316,
+  "end": 186.776,
+  "text": "Ah, es todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 187.962,
+  "end": 189.445,
+  "text": "¿Me das su nombre para su orden, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 190.417,
+  "end": 190.717,
+  "text": "Gloria.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 191.648,
+  "end": 196.656,
+  "text": "Gloria. Dame veinte minutos, Gloria, si me haces el favor, ¿sí? Gracias, ándele.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 194.959,
+  "end": 196.059,
+  "text": "Sí, muy bien, gracias.",
+  "language": "es"
+ }
+]
