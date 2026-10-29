@@ -1,0 +1,51 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.561,
+  "end": 2.522,
+  "text": "Okay, what do",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.343,
+  "end": 5.345,
+  "text": "Hey, it's Josh. Just wanna place an order.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.426,
+  "end": 16.915,
+  "text": "you like, buddy? Steak and rice, frijoles, that's it?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.087,
+  "end": 12.571,
+  "text": "I'm gonna get a Dos quesadillas en el Salte, fried steak and rice.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 17.536,
+  "end": 17.696,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 18.577,
+  "end": 21.94,
+  "text": "Okay, give me twenty minutes just, please. Thank you, buddy.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.438,
+  "end": 21.579,
+  "text": "Thank you. Appreciate it.",
+  "language": "en"
+ }
+]

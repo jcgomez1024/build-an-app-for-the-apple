@@ -136,6 +136,10 @@ export async function unavailableItemReply(
 ): Promise<string> {
   const es = language === "es";
   const t = ` ${norm(text)} `;
+  // josh2: "it's Josh, just wanna place an order" is a greeting / intent, not an item → never "isn't on our menu"
+  const intentOnly = norm(text).replace(/\b(?:hey|hi|hello|hola|yeah|yes|si|ok(?:ay)?|it|s|me|my|the|buddy|this\s+is|soy|habla|es|just|only|i|i'?m|im|wanna|want\s+to|gonna|going\s+to|would\s+like\s+to|like\s+to|can|could|i'?d|place|make|do|put\s+in|an?|order|to\s+go|pick\s*up|pedido|orden|ordenar|hacer|un|una|quiero|para|llevar|recoger|for|please|por\s+favor)\b/g, " ").replace(/[^a-z\s]/g, " ").trim();
+  if (/\b(?:order|orden|ordenar|pedido)\b/.test(norm(text)) && intentOnly.split(/\s+/).filter(Boolean).length <= 2)
+    return es ? "¡Claro! ¿Qué te preparo?" : "Sure! What can I get for you?";
   const asked = norm(text)
     .replace(/\b(i|want|would|like|can|get|give|me|please|quiero|dame|me|da|una?|uno|one|two|three|a|an|the|de|del|por|favor|order|ordenar|add|agrega|un|\d+)\b/g, " ")
     .replace(/\s+/g, " ").trim() || (es ? "eso" : "that");

@@ -498,6 +498,9 @@ export function rewriteCallerText(text: string): string {
   let s = String(text || "");
   // josh1 (CAaaa9a2): English ASR "dosa" for Spanish "dos" before comal/quesadillas
   s = s.replace(/\bdosa\b/giu, "dos");
+  // josh2 (CA75cb2b): "quesadillas en el Salte / en aceite / fried" = fried in oil → quesadillas doradas (no tortilla ask)
+  s = s.replace(/\b(quesadillas?)\s+en\s+(?:el\s+|la\s+)?(?:salte|saltes|salt|aseite|asete|acete|aceites)\b,?(?:\s+fried\b)?/giu, "$1 en aceite");
+  s = s.replace(/\b(quesadillas?)\s+fried\b|\bfried\s+(quesadillas?)\b/giu, (_m, a, b) => `${a || b} en aceite`);
   // sean1 (CA249b7d): English ASR "Kamal/Camal" for comal
   s = s.replace(/\b[KkCc]amal\b/gu, "comal");
   // joseBirria1 (CA13b893): STT "cuatro tortillas estas" → tortillas extras
@@ -6639,6 +6642,38 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         steps.push({ source: "end-salsa-verde", heard: "pura verde" });
       }
+    }
+  }
+  // josh2 (CA75cb2b4213dda5d66db2ab418ac4c5ae ~1:36 PM ET Oct 29): never end with an EMPTY cart once the caller said a
+  // countable quesadilla order — Elvi kept asking comal/harina/taquera and committed nothing. Build it from the words.
+  const bareQ = (l: any) => /quesadilla/i.test(String(l.itemId)) && !(l.modifiers || []).some((m: any) => /carnes|meats/i.test(String(m.step || m.groupName || "")));
+  if (!cart.length || cart.every(bareQ)) { // empty, or only half-built quesadilla stubs with no meat
+    const nf0 = (x: string) => x.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const said = nf0(origTurns.filter((t) => t.speaker === "caller").map((t) => rewriteCallerText(String(t.text || ""))).join(" "));
+    const m = said.match(/\b(un|una|uno|one|a|dos|two|tres|three|cuatro|four|cinco|five|\d)\s+(?:(comal|harina|flour|taquera)\s+)?(quesadillas?|qd)\b(\s+doradas?|\s+preparadas?|\s+deluxe|\s+(?:en|de)\s+aceite)?/);
+    const meatM = said.match(/\b(steak|bistec|asada|carnitas|pastor|al\s*pastor|chorizo|pollo|chicken|buche|tripas?|lengua|cabeza|prensado|picadillo|deshebrada|duro)\b/);
+    if (m && meatM) {
+      const N = ({ un: 1, una: 1, uno: 1, one: 1, a: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5 } as Record<string, number>)[m[1]] || Number(m[1]) || 1;
+      const MEAT: Record<string, string> = { steak: "Bistec / Steak", bistec: "Bistec / Steak", asada: "Bistec / Steak", carnitas: "Carnitas / Pulled Pork", pastor: "Alpastor / Roasted Pork",
+        chorizo: "Chorizo / Mexican Sausage", pollo: "Pollo / Chicken", chicken: "Pollo / Chicken", buche: "Buche / Pork Stomach", tripa: "Tripa / Beef Tripe", tripas: "Tripa / Beef Tripe",
+        lengua: "Lengua / Beef Tongue", cabeza: "Cabeza / Beef Head", prensado: "Prensado / Spicy Pork", picadillo: "Picadillo / Ground Beef with Potatoes",
+        deshebrada: "Deshebrada / Shredded Beef with Potatoes", duro: "Duro / Pork Rinds" };
+      const meat = MEAT[meatM[1].replace(/^al\s*/, "")] || "Bistec / Steak";
+      const dor = /dorad|preparad|deluxe|aceite/.test(m[4] || "") || m[3] === "qd";
+      const deluxe = /preparad|deluxe/.test(m[4] || "");
+      // add-ons: said by the caller, or listed by staff ("steak and rice, frijoles, that's it?") and then a caller yes
+      const st = origTurns.map((t) => ({ sp: t.speaker, x: nf0(String(t.text || "")) }));
+      const confirmed = (re: RegExp) => re.test(said) || st.some((t, i) => t.sp === "staff" && re.test(t.x) && st.slice(i + 1).some((u) => u.sp === "caller" && /^\W*(?:yep|yes|yeah|si|ok(?:ay)?|correct|that'?s it|eso es todo)\b/.test(u.x)));
+      const mods: any[] = dor
+        ? [{ step: "(QD) Style", option: deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: meat }]
+        : [{ step: "(A) Q Tortilla Options", option: /harina|flour/.test(m[2] || "") ? "(QHR) Quesadilla de Harina / Flour" : "(QCO) Quesadilla de Comal / Homemade" }, { step: "(B) Q Carnes / Meats", option: meat }];
+      if (confirmed(/\b(?:rice|arroz)\b/)) mods.push({ step: "(C) Con / With", option: "**Con Arroz / With Rice (+$0.50)" });
+      if (confirmed(/\b(?:beans|frijol(?:es|itos)?)\b/) && !deluxe) mods.push({ step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" });
+      cart.length = 0;
+      cart.push({ itemId: dor ? (deluxe ? DORADA_DELUXE_ID : DORADA_REG_ID) : "sq-quesadilla-HLT6CR", quantity: N, modifiers: mods,
+        readback: `${N} ${dor ? "QD" : "quesadilla"} ${meat.split(" /")[0].toLowerCase()}` } as Line);
+      steps.push({ source: "end-nonempty", heard: `${N} ${dor ? "QD" : "quesadilla"} ${meat}` });
+      if (!fulfillment) fulfillment = "PICKUP";
     }
   }
   // josh1 (CAaaa9a26dbc8636f00660e80eff4f1d75 ~6:54 PM ET Oct 25): English pickup.
