@@ -120,3 +120,32 @@ export function spokenTotalDollars(staffText: string): number | null {
   }
   return null;
 }
+
+// CAaf7c97: "¿a cómo tienes las quesadillas en comal?" → full unit price from the site catalog (base SKU + tortilla style), e.g. $4.50.
+const PRICE_DISHES: Array<{ re: RegExp; name: string; es: string; en: string; styles?: Array<{ re: RegExp; opt: RegExp; es: string; en: string }> }> = [
+  { re: /\bquesadillas?\b/, name: "Quesadilla", es: "la quesadilla", en: "the quesadilla", styles: [
+    { re: /\bcomal\b|\bcomax\b|\bmaiz\b|\bhechas?\s+a\s+mano\b|homemade/, opt: /^\(QCO\)/, es: "de comal", en: "comal (homemade)" },
+    { re: /\bharina\b|\bflour\b/, opt: /^\(QHR\)/, es: "de harina", en: "flour" },
+    { re: /\btaquer[ao]s?\b|\bstreet\b/, opt: /^\(QST\)/, es: "taquera", en: "street" }] },
+  { re: /\btacos?\b/, name: "Taco", es: "el taco", en: "the taco", styles: [
+    { re: /\bcomal\b|\bmaiz\b|homemade/, opt: /^\(TCO\)/, es: "de comal", en: "comal (homemade)" },
+    { re: /\bharina\b|\bflour\b/, opt: /^\(THR\)/, es: "de harina", en: "flour" },
+    { re: /\btaquer[ao]s?\b|\bstreet\b/, opt: /^\(TST\)/, es: "taquero", en: "street" }] },
+  { re: /\bgorditas?\b/, name: "Gordita", es: "la gordita", en: "the gordita" },
+  { re: /\btortas?\b/, name: "Torta", es: "la torta", en: "the torta" },
+  { re: /\bburritos?\b/, name: "Burrito", es: "el burrito", en: "the burrito" }];
+const PRICE_Q = /\b(?:a\s+como|(?:que|cuanto)\s+(?:cuesta|vale|sale|cobra)n?|cuanto\s+(?:es|son)|precios?|how\s+much|price)\b/;
+export function priceAnswer(text: string, lang: "es" | "en" = "es"): string | null {
+  const x = nf(text);
+  if (!PRICE_Q.test(x)) return null;
+  const d = PRICE_DISHES.find((d) => d.re.test(x));
+  if (!d) return null;
+  const p = catalog().find((p: any) => String(p.name).trim().toLowerCase() === d.name.toLowerCase());
+  if (!p || !p.skus?.length) return null;
+  let cents = Number(p.skus[0].priceCents) || 0;
+  const st = d.styles?.find((s) => s.re.test(x));
+  if (st) { const c = (p.groups?.[0]?.choices || []).find((c: any) => st.opt.test(String(c.name))); if (c) cents += Number(c.priceCents) || 0; }
+  const money = `$${(cents / 100).toFixed(2)}`;
+  const label = lang === "en" ? `${st ? st.en + " " : ""}${d.en.replace(/^the /, "")}` : `${d.es}${st ? " " + st.es : ""}`;
+  return lang === "en" ? `The ${label} is ${money}.` : `${label[0].toUpperCase() + label.slice(1)} está a ${money}.`;
+}

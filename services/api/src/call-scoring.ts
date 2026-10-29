@@ -2,7 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
-import { callerLedger, priceCents, spokenTotalDollars } from "./caller-ledger.js";
+import { callerLedger, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
 export type Speaker = "caller" | "staff";
@@ -386,7 +386,7 @@ export function mergeMods(old: any[], add: any[]): any[] {
 /** cleanup1: an info-only call — the caller only asks questions (ingredients, dietary, hours, prices) and never asks to
  *  order. No shadow order for those ("are your beans vegetarian?" must not become a burrito). */
 const ASKS_TO_ORDER = /\b(?:i(?:'d| would)?\s+(?:like|want|wanna|need|get|take|have)|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|give\s+me|(?:to\s+)?(?:place|make)\s+an?\s+order|order|para\s+(?:hacer|ordenar|llevar)|(?:me\s+)?(?:da|das|dé|puede|podría|pone|pones|regala)s?\s+(?:un|una|dos|tres|cuatro|\d)|quiero|quisiera|me\s+gustar[ií]a|ordenar|pedido|pedir|dame|deme|mándame|for\s+(?:pickup|delivery)|to\s+go)\b/iu;
-const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|l[aá]cteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|hours?|horario|open|abiertos?|cierran|close|price|precio|cu[aá]nto\s+cuesta|how\s+much)\b/iu;
+const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|manteca|lard|fat|gluten|dairy|l[aá]cteos?|allerg\w*|alergi\w*|ingredients?|ingredientes?|lleva[ns]?|contains?|spicy|picante|hours?|horario|open|abiertos?|cierran|close|price|precio|cu[aá]nto\s+cuesta|how\s+much|(?:qu[eé]|cu[aá]nto)\s+(?:cuesta[ns]?|vale[ns]?|sale[ns]?|cobra[ns]?)|a\s+c[oó]mo\s+(?:tiene[ns]?|est[aá][ns]?|son|sale[ns]?|las|los|la|el|me)|precios?|cu[aá]nto\s+(?:es|son)\s+(?:la|el|las|los)|what'?s\s+the\s+price|how\s+much\s+(?:is|are|for))\b/iu;
 // desk1 (Julio): "¿me puede preparar una?" is an order, and staff taking one ("¿al nombre de quién?", "dame unos quince minutos",
 // "entonces te tengo…") means the call is not info-only — "¿De qué carne hay?" had dropped every caller turn.
 const ASKS_TO_ORDER2 = /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner|mandar|tomar|apartar)\b|\bme\s+(?:prepara|hace|manda|aparta)s?\b/iu;
@@ -781,7 +781,17 @@ export function mixMeats(acts: any[], text: string) {
 }
 
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
-  if (isQuestionOnlyCall(turns)) turns = turns.filter((t) => t.speaker !== "caller"); // cleanup1: no order on an info-only call
+  // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
+  // catalog price (data/site-catalog.json), never a modifier upcharge ("$1" for QCO) or a meat prompt.
+  if (isQuestionOnlyCall(turns)) {
+    const steps: any[] = [];
+    const ctx: string[] = []; let lastReply = "";
+    for (const t of turns) if (t.speaker === "caller") { // ASR splits "las quesadillas en" / "Comal" — answer on the caller's recent words
+      ctx.push(t.text); if (ctx.length > 3) ctx.shift();
+      const reply = priceAnswer(ctx.join(" "), t.language === "en" ? "en" : "es");
+      if (reply && reply !== lastReply) { const prev = steps[steps.length - 1]; if (prev && ctx.length > 1 && reply.length > prev.reply.length && prev.heard === ctx[ctx.length - 2]) steps.pop(); steps.push({ source: "caller-price-question", heard: t.text, language: t.language, reply, actions: [] }); lastReply = reply; } }
+    return { cart: [] as Line[], steps, autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, questionOnly: true } as any;
+  }
   const origTurns = turns.map((t) => ({ speaker: t.speaker, text: String(t.text || "") })); // gloria1: as heard, before in-loop merges/rewrites
   const cart: Line[] = [];
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];

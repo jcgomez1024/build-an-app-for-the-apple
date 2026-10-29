@@ -1,0 +1,93 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.761,
+  "end": 1.441,
+  "text": "Cocina Elvis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.842,
+  "end": 4.944,
+  "text": "Sí, buenas tardes, disculpa. Este,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.864,
+  "end": 8.086,
+  "text": "¿a cómo tienes las quesadillas en",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 9.127,
+  "end": 10.087,
+  "text": "Comal, le dijiste?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.108,
+  "end": 11.789,
+  "text": "¿Cuántas, perdón?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.57,
+  "end": 14.191,
+  "text": "¿Qué cuestan?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 15.071,
+  "end": 18.133,
+  "text": "Ah, ¿cuánto cuestan? Cuatro cincuenta, la de Comax.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 16.873,
+  "end": 16.973,
+  "text": "Sí,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 17.953,
+  "end": 18.754,
+  "text": "cuatro cincuenta.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.775,
+  "end": 22.277,
+  "text": "Ok, deja les comento y ahorita les hablo para atrás.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.717,
+  "end": 23.157,
+  "text": "Ah, muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 23.878,
+  "end": 24.358,
+  "text": "Gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.678,
+  "end": 25.079,
+  "text": "Por nada.",
+  "language": "es"
+ }
+]
