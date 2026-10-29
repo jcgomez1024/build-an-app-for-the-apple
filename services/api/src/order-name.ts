@@ -498,6 +498,9 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   // joseA1: volunteered "Es José Acevedo" — prefer full volunteer over staff vocative ("Gracias, José")
   // francisco1 (CA69876b): "Ah, sería nombre de Francisco" with no staff ¿Nombre? (audio drop) — still volunteer pickup name
   let fromVol: string | null = null;
+  // agustin1: group order — caller assigns sub-orders to 3+ different "para X" names → those are ticket labels, not the caller's pickup name
+  const paraNames = new Set(turns.filter((t) => t.speaker === "caller").map((t) => thirdPersonName(t.text)).filter((n): n is string => !!n).map((n) => foldName(n)));
+  const groupPara = paraNames.size >= 3;
   for (const t of turns) {
     if (t.speaker !== "caller") continue;
     // luke1: "Mi español es muy mal" is not a volunteer name (PHRASE bare "es " would yield Muy Mal)
@@ -511,6 +514,7 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
     if (!seriaNombre && !ordenPara && !/\b(?:(?:es|est[aá]|sigue)(?:\s+al?\s+nombre\s+de)?|mi\s+nombre\s+es|me\s+llamo|soy|my\s+name\s+is|i'?m|it'?s)\s+\S+/iu.test(t.text)) continue;
     // pickup-only: es para / it's for / orden para X (daryl1 / ca20b6c0) — never "For X" identity
     if (/\bes\s+para\b/iu.test(t.text) || /\bit'?s\s+for\b/iu.test(t.text) || ordenPara) {
+      if (groupPara) continue;
       const n = thirdPersonName(t.text);
       if (n && n.trim().length >= 2 && !NOT_NAMES.test(n.split(/\s+/)[0]) && /^\p{Lu}/u.test(n)) {
         if (!fromVol || n.split(/\s+/).length > fromVol.split(/\s+/).length || (n.split(/\s+/).length === fromVol.split(/\s+/).length && n.length > fromVol.length))

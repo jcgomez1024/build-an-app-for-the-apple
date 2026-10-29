@@ -44,7 +44,7 @@ test("tw4938: two street tacos orders, quesadilla preparada — synthetic replay
     return { reply: "Listo. ¿Algo más?", actions };
   };
   const r: any = await shadowOrderFromTurns(turns, run as any);
-  const lines = r.cart.map((l: any) => `${l.quantity}×${kindOfItem(l.itemId)}:${l.modifiers.filter((m: any) => !/Taquero|Salsa/.test(m.option)).map((m: any) => m.option.split(" ")[0]).join("+")}`);
+  const lines = r.cart.map((l: any) => `${l.quantity}×${kindOfItem(l.itemId)}:${l.modifiers.filter((m: any) => !/Taquero|Salsa|^\(QD\)/.test(m.option)).map((m: any) => m.option.split(" ")[0]).join("+")}`);
   assert.deepEqual(lines.filter((x: string) => x.includes("taco")).sort(), ["1×taco:Alpastor", "1×taco:Bistec", "1×taco:Tripa", "1×taco:Tripa"]);
   assert.deepEqual(lines.filter((x: string) => x.includes("quesadilla")), ["1×quesadilla:Bistec"]);
 });

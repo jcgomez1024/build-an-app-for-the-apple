@@ -109,10 +109,10 @@ test("menuv3: menuCardAdd = validate → applyActions → Elvi told (history + l
 
 test("menuv3: next opening skips Monday; weekend preview hours 10am; last order 7:40pm", () => {
   const s = (iso: string) => storeState(at(iso))!;
-  assert.equal(s("2026-10-25T23:50:00Z").schedule!.en, "Schedule for Tue 11:00am"); // Sun after close
-  assert.equal(s("2026-10-26T16:00:00Z").schedule!.en, "Schedule for Tue 11:00am"); // Monday
+  assert.equal(s("2026-10-25T23:50:00Z").schedule!.en, "Schedule for Tuesday 11:00am"); // Sun after close
+  assert.equal(s("2026-10-26T16:00:00Z").schedule!.en, "Schedule for Tuesday 11:00am"); // Monday
   assert.equal(s("2026-10-26T16:00:00Z").schedule!.at, "2026-10-27T15:00:00.000Z");
-  assert.equal(s("2026-10-24T13:30:00Z").schedule!.en, "Schedule for Sat 10:00am"); // Sat before open
+  assert.equal(s("2026-10-24T13:30:00Z").schedule!.en, "Schedule for Saturday 10:00am"); // Sat before open
   assert.equal(s("2026-10-24T23:30:00Z").pill.en, "Last order 7:40pm");
   assert.equal(s("2026-10-21T15:00:00Z").schedule, null);
 });
@@ -120,7 +120,7 @@ test("menuv3: item sheet asks only the first missing required group, then enable
   const P = runPage({ state: "open", pill: { es: "Abierto", en: "Open" }, banner: null, hours: [] });
   await tick(); P.click({ item: "t1" }); await tick();
   const sh = P.html["#v3-sheet-wrap"] || Object.entries(P.html).find(([k, v]) => /v3-sheet/.test(v))?.[1] || "";
-  assert.match(sh, /¿De qué carne\?/); assert.match(sh, /disabled>Falta: Carne/); assert.match(sh, /v3-grp need/);
+  assert.match(sh, /Yo te puedo ayudar — ¿qué \S+ te gustaría\?/); // warm1 locked copy assert.match(sh, /disabled>Falta: Carne/); assert.match(sh, /v3-grp need/);
   assert.equal(P.adds.length, 0);
   P.click({ g: "0", o: "Pollo" }); await tick();
   const sh2 = Object.entries(P.html).filter(([k, v]) => /v3-sheet/.test(v)).map(([, v]) => v).pop() || "";

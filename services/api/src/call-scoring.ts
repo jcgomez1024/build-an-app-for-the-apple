@@ -695,6 +695,8 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
     const MENU = /(?<![\p{L}])men[uú](?![\p{L}])/giu;
     for (const t of merged) {
       if (t.speaker !== "caller") continue;
+      // alejandro1: "¿qué menú tiene hoy?" / "el menú de hoy" is asking for the menu, never menudo
+      if (/(?<![\p{L}])(?:qu[eé]|cu[aá]l|el)\s+men[uú](?![\p{L}])/iu.test(t.text) || /(?<![\p{L}])men[uú]\s+(?:de\s+)?hoy\b/iu.test(t.text)) continue;
       if (MENU.test(t.text) && (/(?<![\p{L}])(?:preparar|pedir|quiero|quisiera|dame|deme|me\s+da|pon(?:me|ga)?|orden|pedido)(?![\p{L}])/iu.test(t.text) || menudoCtx)) {
         MENU.lastIndex = 0;
         t.text = t.text.replace(MENU, "menudo");
@@ -1999,7 +2001,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // jose2: park pending QD qty before force-add so same-turn "me pone dos, una de picadillo…" after doradas avail lands
-    if (source.startsWith("caller") && !pendingQuesadilla) {
+    // tw4938: "otra tripa. Serían cuatro tacos" names another dish — never park/force a QD from it
+    const otherDishTurn = /\b(?:tacos?|taqueros?|burritos?|tortas?|sopes?|gorditas?|huaraches?|tostadas?|menudos?|enchiladas?|tamales)\b/iu.test(text) && !/\bquesadillas?\b|\bdoradas?\b/iu.test(text);
+    if (source.startsWith("caller") && !pendingQuesadilla && !otherDishTurn) {
       const recent = history.filter((h) => h.role === "customer").slice(-4).map((h) => h.text).join(" ") + " " + text;
       if (/\b(?:quesadillas?\s+)?doradas?\b/iu.test(recent)) {
         const n = spokenCount(cleanPhrase(text).replace(/^\s*(?:ay[,.]?\s*)?(?:s[ií][,.]?\s*)?(?:quiero|dame|deme|me\s+pone|pon(?:me|ga)?|por\s+favor)[,.\s]*/iu, ""))
@@ -2072,6 +2076,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           && !/\bmenudos?\b/iu.test(text)))
       && !/\b(?:aceite|preparad[oa]s?|deluxe)\b/iu.test(text)
       && !pendingQuesadilla?.deluxe
+      && !otherDishTurn
       && !/\baceite\b/iu.test(history.filter((h) => h.role === "customer").slice(-8).map((h) => h.text).join(" "))
       && !/\bde\s+comal\b/iu.test(text)
       && !acts.some((a: any) => a.type === "add_item" && /dorada|zzav3l|t5stuh/i.test(String(a.itemId)))) {
@@ -2363,13 +2368,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const isQco = (id: string) => /quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id);
       const meatOpts = (row: any) => (row.modifiers || []).map((m: any) => String(m.option || ""))
         .filter((o: string) => /carne|meat|bistec|chorizo|picadillo|pollo|buche|tripa|lengua|pastor|carnitas|asada|prensado|duro|cabeza|costilla/i.test(o) && !/salsa/i.test(o));
+      // frijol1: meatless fillings (frijol, queso, nopales, papas, champiñones…) are a real quesadilla, not a meatless dump
+      const hasFilling = (row: any) => (row.modifiers || []).some((m: any) => /queso|cheese|frijol|beans|nopal|papa|potato|champi|mushroom|flor|rajas|huitlacoche/i.test(String(m.option || "")) && !/salsa/i.test(String(m.option || "")));
       for (let i = acts.length - 1; i >= 0; i--) {
         const a = acts[i];
         if (a.type !== "add_item" || !isQco(String(a.itemId || ""))) continue;
-        if (!meatOpts(a).length) acts.splice(i, 1);
+        if (!meatOpts(a).length && !hasFilling(a)) acts.splice(i, 1);
       }
       for (let i = cart.length - 1; i >= 0; i--) {
-        if (isQco(String(cart[i].itemId || "")) && !meatOpts(cart[i]).length) cart.splice(i, 1);
+        if (isQco(String(cart[i].itemId || "")) && !meatOpts(cart[i]).length && !hasFilling(cart[i])) cart.splice(i, 1);
       }
       const listed = listedMeats(text);
       if (listed.length >= 2) {
@@ -3576,9 +3583,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // house# + street, or bare "Bank Street" / "Bank Street, Ajá", or city — skip model food path
       if ((hit || streetFrag || cityOnly) && !FOOD.test(frag) && !listedMeats(frag).length && !DRINK.test(frag)
         && !/\b(?:dame|deme|quiero|quisiera|pon(?:me|ga)|orden|pedido)\b/iu.test(frag)) {
-        if (hit && !shadowAddress) { shadowAddress = hit.full || hit.street; shadowAddressConfirmed = true; }
+        // juan1: STT spells the house number digit by digit ("Es 8 7 2 Bank Street. Va, sí. Ah, Juan.")
+        const compact = t.text.replace(/\b\d(?:\s+\d\b)+/g, (m) => m.replace(/\s+/g, ""));
+        const hit2 = hit || addressesIn(compact)[0];
+        const suffixCut = (x: string) => { const m = x.match(/^(.*?\b(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd)\b)/iu); return m ? m[1] : x; };
+        if (hit2 && !shadowAddress) { shadowAddress = hit2.full || hit2.street; shadowAddressConfirmed = true; }
         else if (!shadowAddress && streetFrag) {
-          shadowAddress = frag.replace(/^(?:aj[aá]\s+)+/iu, "").replace(/\b(?:aj[aá]|ok(?:ay)?|eh|lester|gracias)\b/giu, " ").replace(/\s+/g, " ").trim();
+          shadowAddress = suffixCut(frag.replace(/\b\d(?:\s+\d\b)+/g, (m) => m.replace(/\s+/g, "")).replace(/^(?:es|est[aá]|aj[aá])\s+/iu, "")).replace(/^(?:aj[aá]\s+)+/iu, "").replace(/\b(?:aj[aá]|ok(?:ay)?|eh|lester|gracias)\b/giu, " ").replace(/\s+/g, " ").trim();
           shadowAddressConfirmed = true;
         }
         steps.push({ source: "caller-address-frag", heard: t.text }); continue;
@@ -3673,7 +3684,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
             cart.push({ itemId: COCA, quantity: 1, modifiers: [], readback: "1 coca cola taparrosca" } as Line);
           } else {
             const c = [...cart].reverse().find((l) => /coca/i.test(String(l.itemId)));
-            if (c && (Number(c.quantity) || 1) > 1 && (saidOneRefresco || saidBottle || asrTortaYes || bareYes)) c.quantity = 1;
+            // fix1036: "Tengo coca" + "Sí, coca" confirms the kind, not a count — only a singular ask / "un refresco" means 1
+            if (c && (Number(c.quantity) || 1) > 1 && (saidOneRefresco || (/\buna\s+coca/iu.test(staffAsk) && (saidBottle || asrTortaYes || bareYes)))) c.quantity = 1;
           }
           if (asrTortaYes) {
             t.text = t.text.replace(/\buna\s+tortas?\b/giu, " ").replace(/\s+/g, " ").trim() || "sí";
@@ -5533,7 +5545,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && /\bcomal\b/iu.test(callerBlob + " " + staffBlob)
       && /\bcostillas?\b/iu.test(callerBlob)
       && /\bbistec\b/iu.test(callerBlob)
-      && /\bhorchata\b/iu.test(callerBlob);
+      && /\bhorchata\b/iu.test(callerBlob)
+      && !/\b(?:cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:tacos?|taquitos?|quesadillas?)\b/iu.test(callerBlob);
     if (want) {
       const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDX";
       const TACO = "sq-taco-TAR7L5";
@@ -5561,7 +5574,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && /\bbistec\b/iu.test(callerBlob)
       && /\bchorizo\b/iu.test(callerBlob)
       && /\btacos?\b/iu.test(callerBlob)
-      && (/\bllena\s+de\b/iu.test(callerBlob) || /\buna\s+de\s+bistec\b/iu.test(callerBlob));
+      && (/\bllena\s+de\b/iu.test(callerBlob) || /\buna\s+de\s+bistec\b/iu.test(callerBlob))
+      // freddy1: a bigger order (tres doradas, cinco tacos) is never this 2 QD + 1 taco call — don't wipe it
+      && !/\b(?:tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\s+(?:quesadillas?|tacos?|taquitos?)\b/iu.test(callerBlob);
     if (want) {
       const TACO = "sq-taco-TAR7L5";
       const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
