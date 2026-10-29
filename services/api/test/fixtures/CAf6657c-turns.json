@@ -1,0 +1,247 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.96,
+  "end": 2.261,
+  "text": "Si buenas tardes, cocina Ellis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.401,
+  "end": 3.961,
+  "text": "Buenas tardes.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 5.081,
+  "end": 5.982,
+  "text": "¿Qué te pongo una vez?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.582,
+  "end": 6.002,
+  "text": "Me pone",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.722,
+  "end": 9.563,
+  "text": "dos quesadillas de bistec,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 10.383,
+  "end": 12.684,
+  "text": "De tortilla de maíz en el comal, de harina o doradas.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.184,
+  "end": 14.044,
+  "text": "de maíz en el comal,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 16.285,
+  "end": 16.905,
+  "text": "con frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 18.065,
+  "end": 21.386,
+  "text": "Dos de bistec con frijoles en el comal, ¿qué más, joven?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.186,
+  "end": 28.648,
+  "text": "Aparte me pone otras dos, me pone una de costilla y una de bistec, igual con frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 31.229,
+  "end": 34.39,
+  "text": "Una de costilla con frijoles",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 35.19,
+  "end": 35.29,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 36.27,
+  "end": 38.511,
+  "text": "y la, permíteme, ¿y la otra de qué mano?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.871,
+  "end": 41.272,
+  "text": "De bistec con frijoles también.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 45.313,
+  "end": 46.173,
+  "text": "¿Qué quieren? Dos gor,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 45.393,
+  "end": 47.073,
+  "text": "Algo más, jovenas, dime.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 47.534,
+  "end": 48.474,
+  "text": "otras dos gorditas.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 49.373,
+  "end": 50.433,
+  "text": "Dos gorditas también, ¿de qué?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 51.495,
+  "end": 52.935,
+  "text": "Una de bistec y una de carnitas.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 58.614,
+  "end": 59.114,
+  "text": "¿Qué más, mano?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 58.797,
+  "end": 61.138,
+  "text": "Y a la de, a la de bistec, ¿me le puede poner queso?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 61.975,
+  "end": 62.335,
+  "text": "¿A cuál?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 63.68,
+  "end": 64.2,
+  "text": "¿Y tú, Cristian?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 63.895,
+  "end": 65.535,
+  "text": "¿A las dos quesos y gorditas, a las gorditas?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 67.161,
+  "end": 68.162,
+  "text": "A la de bistec nada más.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 69.996,
+  "end": 70.536,
+  "text": "¿Qué más, joven?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.363,
+  "end": 74.144,
+  "text": "Y otras dos quesadillas de bistec con frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 78.737,
+  "end": 79.197,
+  "text": "¿Qué más, mano?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 80.067,
+  "end": 80.567,
+  "text": "Sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 81.458,
+  "end": 101.908,
+  "text": "Bueno, mira, entonces tengo primero dos de bistec con frijoles, una de costilla también de de con frijolitos, luego me agregaste otra de bistec con frijoles, vienen dos gorditas, pero una lleva queso, la de bistec, la otra es normal con carnitas, y a última me agrega dos quesos, dos quesos. Todavía más de bistecos frijoles, ¿estamos bien? Van a ser cuarenta y uno, ¿tu nombre?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 95.494,
+  "end": 100.956,
+  "text": "Ujú. Ujú. Sí. Sí, sí, eso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 102.837,
+  "end": 103.137,
+  "text": "Pancho.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 103.871,
+  "end": 105.875,
+  "text": "Dame veinte minutos, Pancho, si me haces favor, ¿sale?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 106.579,
+  "end": 106.819,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 107.297,
+  "end": 107.638,
+  "text": "Gracias.",
+  "language": "es"
+ }
+]

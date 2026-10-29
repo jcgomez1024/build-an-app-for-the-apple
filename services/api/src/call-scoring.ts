@@ -2,6 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
+import { callerLedger, priceCents, spokenTotalDollars } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
 export type Speaker = "caller" | "staff";
@@ -6641,6 +6642,21 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           l.modifiers.push({ step: SAL, option: "Medium Salsa Verde" });
         }
         steps.push({ source: "end-salsa-verde", heard: "pura verde" });
+      }
+    }
+  }
+  // pancho1 (CAf6657ca96ab5a47427631b6550d10d45 ~1:54 PM ET Oct 29): staff option lists / confirmations / readbacks added
+  // phantom lines (QD from "o doradas", extra gorditas, "QCO de frijoles"). When a caller-only ledger prices to the
+  // staff's spoken total and the cart doesn't, the ledger is the order.
+  {
+    const ledger = callerLedger(origTurns);
+    const said = spokenTotalDollars(origTurns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" . "));
+    if (ledger && said) {
+      const lc = priceCents(ledger), cc = priceCents(cart);
+      if (lc != null && Math.abs(lc - said * 100) <= 100 && (cc == null || Math.abs(cc - said * 100) > 100)) {
+        cart.length = 0; cart.push(...(ledger as Line[]));
+        steps.push({ source: "end-ledger-total", heard: `$${said} = ${ledger.map((l) => l.readback).join(", ")}` });
+        if (!fulfillment) fulfillment = "PICKUP";
       }
     }
   }
