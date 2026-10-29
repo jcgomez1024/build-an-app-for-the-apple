@@ -1,0 +1,261 @@
+[
+  {
+    "speaker": "staff",
+    "start": 7.862,
+    "end": 8.042,
+    "text": "Bueno.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 9.163,
+    "end": 10.364,
+    "text": "Hola, buenos días.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 11.243,
+    "end": 11.583,
+    "text": "Sí, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 12.164,
+    "end": 13.225,
+    "text": "Disculpe, ¿tiene abierto?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 14.363,
+    "end": 17.464,
+    "text": "Vamos abriendo apenas, bueno, hacemos eso un poquito más tarde, pero dígame.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 18.246,
+    "end": 21.488,
+    "text": "Okey, ah, ¿le puedo hacer una orden o o sería más tarde?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 22.905,
+    "end": 27.487,
+    "text": "Mira, si me das unos 20 minutos te la hago, porque acabo de prender la plancha, pero sí te la hacemos, ¿cómo ves?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 28.03,
+    "end": 28.85,
+    "text": "Okey, sí, está bien.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 29.567,
+    "end": 30.067,
+    "text": "Dame, dime.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 32.351,
+    "end": 32.632,
+    "text": "¿Perdón?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 33.328,
+    "end": 35.228,
+    "text": "Sí, dime qué te pondríamos, si quieres.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 34.992,
+    "end": 38.454,
+    "text": "Oh, ah, ¿me puedes poner dos quesadillas de picadillo",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 39.414,
+    "end": 41.075,
+    "text": "de comal? Sí, de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 41.97,
+    "end": 42.55,
+    "text": "¿Qué más, joven?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 42.095,
+    "end": 44.436,
+    "text": "Ah, menudo no venden ahora, ¿verdad?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 45.271,
+    "end": 47.411,
+    "text": "Menudo, sí, sí tengo, joven.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 48.077,
+    "end": 49.618,
+    "text": "Okey, ¿me puede poner un plato grande?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 49.092,
+    "end": 49.592,
+    "text": "Oh, ve, ve.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 50.512,
+    "end": 56.793,
+    "text": "Sí, perdón, me dijiste picadillo, ¿verdad? Que te la puse costilla, perdón. ¿Y un menudo qué más, qué más?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 52.739,
+    "end": 52.839,
+    "text": "Sí.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 55.16,
+    "end": 55.52,
+    "text": "No, no, no.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 57.2,
+    "end": 62.803,
+    "text": "A un menudo grande y me puedes poner otras tres quesadillas de comal.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 63.754,
+    "end": 63.854,
+    "text": "¿Ah?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 64.404,
+    "end": 68.585,
+    "text": "Pero si me las pones dos de prensado y una de de",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 69.766,
+    "end": 71.627,
+    "text": "de combinada, de bistec con chorizo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 72.415,
+    "end": 72.996,
+    "text": "¿Qué más, joven?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 74.148,
+    "end": 75.749,
+    "text": "Ah, ¿tienes aguas frescas?",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 76.576,
+    "end": 77.856,
+    "text": "¿De horchata y de Jamaica?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 78.61,
+    "end": 84.252,
+    "text": "Me pones tres, ah, grandes, me pones una de dos de horchata y una de jamaica.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 85.838,
+    "end": 91.718,
+    "text": "Dos de horchata y una de Jamaica. ¿Qué más, joven? ¿Era todo?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 88.854,
+    "end": 88.994,
+    "text": "Ajá.",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 90.035,
+    "end": 93.076,
+    "text": "¿Quieres algo más? No, será todo. Sí, será todo.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 93.299,
+    "end": 93.699,
+    "text": "¿Tu nombre?",
+    "language": "es"
+  },
+  {
+    "speaker": "caller",
+    "start": 94.417,
+    "end": 94.877,
+    "text": "Santiago.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 95.719,
+    "end": 97.979,
+    "text": "Dame unos veinte, por lo menos, no Santiago, si me das favor, vale.",
+    "language": "en"
+  },
+  {
+    "speaker": "caller",
+    "start": 98.299,
+    "end": 100.199,
+    "text": "Sí, sí, está bien. Okay, muchas gracias.",
+    "language": "es"
+  },
+  {
+    "speaker": "staff",
+    "start": 99.24,
+    "end": 100.06,
+    "text": "Gracias, joven, va.",
+    "language": "es"
+  }
+]

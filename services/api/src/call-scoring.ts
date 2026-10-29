@@ -607,6 +607,42 @@ export function rewriteCallerText(text: string): string {
   return s;
 }
 export function prepMergedCallerTurns(merged: { speaker: string; text: string }[]): void {
+  // ca2e1da7 (Santiago): a caller line cut mid-item ("…y una de de" | "de combinada, de bistec con chorizo")
+  // is ONE clause — join the dangling "una de" with the next caller turn so the 2nd item isn't lost.
+  for (let i = 0; i < merged.length - 1; i++) {
+    const t = merged[i]; if (t.speaker !== "caller") continue;
+    if (!/\b(?:un[oa]?|dos|tres|cuatro|cinco|\d+)\s+de(?:\s+de)*\s*[,.…]*\s*$/iu.test(t.text)) continue;
+    let j = i + 1; while (j < merged.length && merged[j].speaker !== "caller" && /^\W*\s*$/u.test(merged[j].text)) j++;
+    if (j >= merged.length || merged[j].speaker !== "caller") continue;
+    t.text = (t.text.replace(/(?:\s+de)+\s*[,.…]*\s*$/iu, " de ") + merged[j].text.replace(/^\s*(?:de\s+)+/iu, "")).replace(/\s+/g, " ");
+    merged[j].text = ""; }
+  // ca2e1da7: "otras tres quesadillas de comal" … "dos de prensado y una de combinada, de bistec con chorizo"
+  // → stamp the dish + tortilla onto each "N de X" clause; "combinada de A con B" = one mixed-meat line.
+  { let dish = "";
+    for (const t of merged) { if (t.speaker !== "caller" || !t.text) continue;
+      // only a bare group announce ("otras tres quesadillas de comal" — tortilla said, no meat) carries to the NEXT caller turn
+      const d = [...t.text.matchAll(new RegExp(String.raw`\b(?:otr[oa]s?\s+)?(?:\d+|dos|tres|cuatro|cinco|seis)\s+(quesadillas?|tacos?|gorditas?|sopes?)(\s+de\s+(?:comal|harina|ma[ií]z|aceite))(?!\s+(?:de\s+|del\s+)?(?:${MEAT_LIST}))\s*[.,]?\s*$`, "giu"))].pop();
+      const prevDish = dish; dish = d ? `${d[1].replace(/s$/i, "")}${d[2]}` : "";
+      if (d || !prevDish) continue;
+      dish = ""; const useDish = prevDish;
+      if (!new RegExp(String.raw`\b(?:un[oa]?|dos|tres|cuatro|\d+)\s+(?:de\s+)+(?:combinada,?\s+de\s+)?(?:${MEAT_LIST})\b[^.?]*\by\s+un[oa]?\s+de\s+`, "iu").test(t.text)
+        && !/\bun[oa]?\s+de\s+combinada\b/iu.test(t.text)) continue;
+      if (new RegExp(String.raw`\b${useDish.split(" ")[0]}s?\s+de\s+(?:${MEAT_LIST})`, "iu").test(t.text)) continue;
+      t.text = t.text
+        .replace(/\b(?:de\s+){2,}/giu, "de ") // stutter "una de de (combinada)"
+        .replace(/\bcombinada,?\s+de\s+/giu, "")
+        .replace(new RegExp(String.raw`\b(un[oa]?|dos|tres|cuatro|cinco|\d+)\s+de\s+(?=(?:${MEAT_LIST})\b)`, "giu"), (_m, n) => {
+          const one = /^(?:un[oa]?|1)$/i.test(n); const [w, ...rest] = useDish.split(" ");
+          return `${one ? (/^(?:quesadilla|gordita)/i.test(w) ? "una" : "un") : n} ${one ? w : w + "s"}${rest.length ? " " + rest.join(" ") : ""} de `; });
+    } }
+  // ca2e1da7: "¿me puede poner un plato grande?" right after asking for menudo = the menudo (32oz con tortillas),
+  // not a new dish — Elvi looped the pata prompt. No pata said → sin pata.
+  { let menudoAt = -9;
+    for (let i = 0; i < merged.length; i++) { const t = merged[i]; if (t.speaker !== "caller") continue;
+      if (/(?<![\p{L}])menudos?(?![\p{L}])/iu.test(t.text)) { menudoAt = i; }
+      if (i - menudoAt <= 4 && /\b(?:un|el)\s+plato\s+grande\b/iu.test(t.text) && !/\b(?:tacos?|quesadillas?|gorditas?|platillos?\s+de)\b/iu.test(t.text)) {
+        const pata = merged.some((x) => x.speaker === "caller" && /\bcon\s+patas?\b/iu.test(x.text));
+        t.text = t.text.replace(/\b(?:un|el)\s+plato\s+grande\b/iu, pata ? "un Con Pata Menudo 32oz y Tortillas (4)" : "un Menudo con Tortillas (4)"); menudoAt = i; } } }
   // fixmeat1 (Jesús): "de chorizo, que diga, perdón, del pastor" — the self-correction replaces the meat
   const FIXW = String.raw`(?:que\s+diga|perd[oó]n|digo|mejor|no+)`;
   for (const t of merged) if (t.speaker === "caller")
@@ -7144,6 +7180,71 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
+
+  // ca2e1da7 (Santiago): QCO (quesadilla de comal) lines follow the spoken meat clauses — "dos quesadillas de comal de
+  // prensado y una quesadilla de comal de bistec con chorizo" = 2 prensado + 1 mixed bistec/chorizo. Fixes model drops
+  // (mixed line lost / qty shrunk) and phantom single-meat re-adds on the courtesy close ("Sí, está bien. Okay").
+  {
+    const QID = "sq-quesadilla-HLT6CR";
+    const MOPT: Array<[RegExp, string]> = [[/^(?:bistec|asada)$/i, "Bistec / Steak"], [/^chorizo$/i, "Chorizo / Mexican Sausage"],
+      [/^prensado$/i, "Prensado / Spicy Pork (+$0.50)"], [/^picadillo$/i, "Picadillo / Ground Beef with Potatoes"], [/^pollo$/i, "Pollo / Chicken"]];
+    const optOf = (w: string) => MOPT.find(([re]) => re.test(w))?.[1];
+    const isQCO = (l: any) => String(l.itemId) === QID && (l.modifiers || []).some((m: any) => /\(QCO\)/.test(String(m.option)));
+    const meatsOf = (l: any) => (l.modifiers || []).filter((m: any) => /Q Carnes/i.test(String(m.step))).map((m: any) => String(m.option).split(" /")[0].toLowerCase()).sort().join("+");
+    const MW = "bistec|asada|chorizo|prensado|picadillo|pollo";
+    const clauses: Array<{ n: number; meats: string[] }> = [];
+    for (const t of (merged as any[])) { if (t.speaker !== "caller" || !t.text) continue;
+      const re = new RegExp(String.raw`\b(una?|dos|tres|cuatro|cinco|\d+)\s+quesadillas?\s+(?:de\s+comal\s+de\s+(${MW})(?:\s+con\s+(${MW}))?|de\s+(${MW})\s+de\s+comal)\b`, "giu");
+      for (const m of t.text.matchAll(re)) { const n = /^un/i.test(m[1]) ? 1 : spokenCount(m[1]); if (!n) continue;
+        const meats = [m[2] || m[4], m[3]].filter(Boolean).map((x: string) => x.toLowerCase().replace(/^asada$/, "bistec"));
+        if (meats.every((x) => optOf(x))) clauses.push({ n, meats }); }
+      // "dos quesadillas de comal de prensado, una de bistec con chorizo" — bare "una de X" inherits the comal dish
+      if (/\bquesadillas?\s+de\s+comal\s+de\b/iu.test(t.text))
+        for (const m of t.text.matchAll(new RegExp(String.raw`(?:,|\by)\s+(una?|dos|tres)\s+de\s+(${MW})(?:\s+con\s+(${MW}))?\b`, "giu"))) {
+          const n = /^un/i.test(m[1]) ? 1 : spokenCount(m[1]); const meats = [m[2], m[3]].filter(Boolean).map((x: string) => x.toLowerCase().replace(/^asada$/, "bistec"));
+          if (n && meats.every((x) => optOf(x))) clauses.push({ n, meats }); } }
+    const lines = cart.filter(isQCO);
+    const key = (ms: string[]) => ms.map((x) => optOf(x)!.split(" /")[0].toLowerCase()).sort().join("+");
+    const want = new Map<string, { n: number; meats: string[] }>();
+    for (const c of clauses) { const k = key(c.meats); const w = want.get(k); if (w) w.n += c.n; else want.set(k, { ...c }); }
+    const have = new Map<string, number>(); for (const l of lines) have.set(meatsOf(l), (have.get(meatsOf(l)) || 0) + (Number(l.quantity) || 1));
+    const differs = want.size >= 2 && lines.length > 0 && ([...want].some(([k, w]) => have.get(k) !== w.n) || [...have.keys()].some((k) => !want.has(k)));
+    if (differs) {
+      const salsa = lines.flatMap((l: any) => l.modifiers || []).find((m: any) => /Salsa/i.test(String(m.step)));
+      const at = cart.indexOf(lines[0]);
+      for (const l of lines) cart.splice(cart.indexOf(l), 1);
+      const rebuilt = [...want.values()].map((w) => ({
+        itemId: QID, quantity: w.n,
+        modifiers: [{ step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" },
+          ...w.meats.map((x) => ({ step: "(B) Q Carnes / Meats", option: optOf(x)! })), ...(salsa ? [salsa] : [])],
+        readback: `${w.n} quesadilla comal ${w.meats.join(" con ")}`,
+      } as Line));
+      cart.splice(Math.max(0, at), 0, ...rebuilt);
+    }
+  }
+  // ca2e1da7 (Santiago): "dos de horchata y una de jamaica" (staff repeated) — agua fresca qty follows the spoken
+  // count (last caller/staff mention), never 1 when 2 were said and repeated.
+  {
+    const FLAV: Array<[RegExp, RegExp]> = [[/horchata/i, /horchatas?/], [/jamaica/i, /jamaicas?/], [/tamarindo/i, /tamarindos?/], [/pi[nñ]a/i, /pi[nñ]as?/], [/pepino/i, /pepinos?/]];
+    const said = turns.filter((t: any) => t.speaker === "caller" || t.speaker === "staff").map((t: any) => String(t.text || ""));
+    for (const [idRe, wRe] of FLAV) {
+      const lines = cart.filter((l) => /agua-fresca/i.test(String(l.itemId)) && idRe.test(String(l.itemId)));
+      if (lines.length !== 1) continue;
+      let n = 0;
+      for (const tx of said) for (const m of tx.matchAll(new RegExp(String.raw`\b(un[oa]?|dos|tres|cuatro|cinco|seis|\d+)\s+(?:aguas?\s+)?de\s+${wRe.source}\b`, "giu"))) n = /^un/i.test(m[1]) ? 1 : (spokenCount(m[1]) || n);
+      if (n > (Number(lines[0].quantity) || 1) && n <= 6) lines[0].quantity = n;
+    }
+  }
+
+  // ca2e1da7 (Santiago): staff quoted a ready time ("dame unos veinte", "si me das unos 20 minutos te la hago") and
+  // nobody mentioned delivery/an address → the caller is picking up.
+  if (!fulfillment && cart.length) {
+    const all = turns.map((t: any) => String(t.text || "")).join(" ");
+    const staffAll = turns.filter((t: any) => t.speaker === "staff").map((t: any) => String(t.text || "")).join(" ");
+    const deliv = /\b(?:delivery|deliver|domicilio|a\s+domicilio|env[ií]o|entrega|direcci[oó]n|address|doordash|uber\s*eats|grubhub|llevar\s+a\s+mi\s+casa|me\s+la\s+(?:lleva|traen?))\b/iu.test(all);
+    const ready = /\b(?:dame|deme|d[eé]jame|me\s+das|en)\s+(?:unos?\s+)?(?:\d+|cinco|diez|quince|veinte|veinticinco|treinta|media\s+hora)\b(?:\s+minutos)?/iu.test(staffAll);
+    if (!deliv && ready && !address) fulfillment = "PICKUP";
+  }
 
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened
   if (!cart.length) {
