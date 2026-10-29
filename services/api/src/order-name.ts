@@ -492,7 +492,30 @@ function streetTokensFromTurns(turns: Array<{ speaker: string; text: string }>):
 /** Listen-only name: answer to "¿a nombre de quién?" first, else staff addressing the caller by name. */
 export const nameFromTranscript = (turns: Array<{ speaker: "caller" | "staff"; text: string }>) => nameFromStaffAsk(turns) || nameFromStaffVocative(turns);
 /** name3p2: same, plus whether the caller gave it in the third person (then it must not be saved to their phone). */
-export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" } | null {
+/** eesha1 (CA9724e1): the caller spelling a name ("two Es, S H A" / "double E S H A" / "E-E-S-H-A") beats how staff says it (Isha). */
+export function spelledNameFromCall(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  const NUM: Record<string, number> = { two: 2, double: 2, three: 3, triple: 3, dos: 2, doble: 2 };
+  let found: string | null = null;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    let s = String(t.text || "");
+    // "two Es, two Es" said twice → once
+    s = s.replace(/\b(two|double|three|triple|dos|doble)\s+([A-Za-z])(?:'?s)?\b(?:[,\s]+\1\s+\2(?:'?s)?\b)+/giu, "$1 $2");
+    s = s.replace(/\b(two|double|three|triple|dos|doble)\s+([A-Za-z])(?:'?s)?(?![A-Za-z])/giu, (_m, n, l) => Array(NUM[n.toLowerCase()] || 2).fill(l.toUpperCase()).join(" "));
+    s = s.replace(/(?<![A-Za-z])([A-Za-z])-(?=[A-Za-z](?![A-Za-z]))/g, "$1 ");
+    for (const m of s.matchAll(/(?:^|[^A-Za-z])((?:[A-Za-z][\s.,]+){2,13}[A-Za-z])(?![A-Za-z])/g)) {
+      const letters = m[1].split(/[\s.,]+/).filter(Boolean);
+      if (letters.length < 3 || !letters.every((p) => /^[A-Za-z]$/.test(p))) continue;
+      if (letters.join("").toLowerCase() === "abc") continue;
+      const n = nameFromSpelledLetters(letters.join(" "));
+      if (n) found = n;
+    }
+  }
+  return found;
+}
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled" } | null {
+  const spelled = spelledNameFromCall(turns);
+  if (spelled) return { name: spelled, thirdPerson: false, source: "spelled" };
   const fromAsk = nameFromStaffAsk(turns);
   const fromVoc = fromAsk ? null : nameFromStaffVocative(turns);
   // joseA1: volunteered "Es José Acevedo" — prefer full volunteer over staff vocative ("Gracias, José")

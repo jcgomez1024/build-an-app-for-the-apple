@@ -1,0 +1,261 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.5,
+  "end": 0.7,
+  "text": "Hello?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.96,
+  "end": 4.281,
+  "text": "Can I place an order for pickup?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.861,
+  "end": 5.882,
+  "text": "Yes, what can I get for ya?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.141,
+  "end": 10.602,
+  "text": "I want a fried quesad, fried steak quesadilla.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.523,
+  "end": 13.984,
+  "text": "Rice steak quesadilla, did you want that deluxe?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 15.082,
+  "end": 15.382,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 16.104,
+  "end": 16.405,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 18.043,
+  "end": 18.463,
+  "text": "I want a,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.903,
+  "end": 21.863,
+  "text": "rice and beans.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.766,
+  "end": 24.647,
+  "text": "Rice and bean side, okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.624,
+  "end": 29.424,
+  "text": "Are you gonna want two, one of those? I want two of those rice and beans.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.948,
+  "end": 33.169,
+  "text": "Two of the rice and beans, got it. Anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 32.985,
+  "end": 33.385,
+  "text": "And then what,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 34.385,
+  "end": 35.045,
+  "text": "and then what do you want?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 36.425,
+  "end": 37.946,
+  "text": "And then two steak tacos",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 38.951,
+  "end": 40.511,
+  "text": "Two steak tacos, did you want",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.906,
+  "end": 40.106,
+  "text": "on a",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.531,
+  "end": 49.334,
+  "text": "flour or corn comal or street? Corn two steak, got it, comal.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.646,
+  "end": 44.346,
+  "text": "flour and corn.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 45.367,
+  "end": 46.247,
+  "text": "Corn tortillas.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 49.747,
+  "end": 50.967,
+  "text": "What do you want on it? Onion.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 52.368,
+  "end": 53.448,
+  "text": "And just cheese on it.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.695,
+  "end": 55.535,
+  "text": "Just cheese on it?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 56.328,
+  "end": 57.749,
+  "text": "Just meat and cheese, that's it.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 59.077,
+  "end": 60.838,
+  "text": "Meat and cheese, got it.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 62.539,
+  "end": 72.645,
+  "text": "Okay, anything else for you? And can I just get your name for the order, please? I'm sorry?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 65.271,
+  "end": 70.832,
+  "text": "Nope, that'll be it. Esha,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.913,
+  "end": 75.394,
+  "text": "two Es, two Es S H A.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 76.787,
+  "end": 76.807,
+  "text": "S",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 78.588,
+  "end": 78.608,
+  "text": "H",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 79.509,
+  "end": 90.235,
+  "text": "A. All right, Isha, give us about 15, 20 minutes, we should have this for you. Two types of sour cream with your order, okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 84.676,
+  "end": 87.297,
+  "text": "Okay, and then wait, can I get two sides of sour cream?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 90.978,
+  "end": 91.158,
+  "text": "Yeah,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 91.796,
+  "end": 93.177,
+  "text": "Would that be all, Isha? All right,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 92.358,
+  "end": 92.818,
+  "text": "and that's it.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 94.117,
+  "end": 96.619,
+  "text": "give us about 15, 20, we should have this for you.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 96.639,
+  "end": 97.54,
+  "text": "All right, thank you, bye bye.",
+  "language": "en"
+ }
+]

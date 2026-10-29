@@ -149,3 +149,61 @@ export function priceAnswer(text: string, lang: "es" | "en" = "es"): string | nu
   const label = lang === "en" ? `${st ? st.en + " " : ""}${d.en.replace(/^the /, "")}` : `${d.es}${st ? " " + st.es : ""}`;
   return lang === "en" ? `The ${label} is ${money}.` : `${label[0].toUpperCase() + label.slice(1)} está a ${money}.`;
 }
+
+// eesha1 (CA9724e14b637b408eb8048e12d8646967 ~5:12 PM ET Oct 29): English caller-only ledger for quesadillas (fried → QD,
+// staff "deluxe?" + caller "yes" → DELUXE Preparada), steak tacos (corn/comal/flour/street; "just meat and cheese" → meat +
+// Con Queso Fresco, no onion/cilantro), "rice and beans" sides and "sides of sour cream" (2oz Crema). Staff readbacks never add.
+const EN_CNT: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6 };
+const EN_MEAT: Record<string, string> = { steak: "Bistec / Steak", asada: "Bistec / Steak", bistec: "Bistec / Steak", chicken: "Pollo / Chicken", pollo: "Pollo / Chicken", pastor: "Alpastor / Roasted Pork", chorizo: "Chorizo / Mexican Sausage", carnitas: "Carnitas / Pulled Pork", rib: "Costilla / Beef Rib", costilla: "Costilla / Beef Rib", lengua: "Lengua / Beef Tongue", tongue: "Lengua / Beef Tongue", cabeza: "Cabeza / Beef Head", buche: "Buche / Pork Stomach" };
+const EN_MW = Object.keys(EN_MEAT).join("|");
+const EN_OTHER = /\b(?:burritos?|tortas?|sopes?|tostadas?|flautas?|menudo|nachos|tamales?|enchiladas?|gorditas?|combo|platter|drinks?|soda|coke|horchata|jamaica|chips|guac\w*|salsa)\b/;
+export function callerLedgerEn(turns: Array<{ speaker: string; text: string }>): LedgerLine[] | null {
+  type T = { kind: "qd" | "q" | "taco" | "rb" | "crema"; n: number; meat?: string; style?: "comal" | "harina" | "street"; deluxe?: boolean; cheeseOnly?: boolean };
+  const items: T[] = [];
+  let lastStaff = "", last: T | null = null;
+  const num = (w?: string) => (w ? EN_CNT[w] || 0 : 0);
+  for (const t of turns) {
+    const x = nf(t.text);
+    if (t.speaker !== "caller") { lastStaff = x; continue; }
+    if (EN_OTHER.test(x)) return null;
+    // "yes" to staff "did you want that deluxe?"
+    if (/\bdeluxe\b/.test(lastStaff) && /^(?:yes|yeah|yep|sure|ok(?:ay)?)\b/.test(x) && last && (last.kind === "qd" || last.kind === "q")) { last.kind = "qd"; last.deluxe = true; }
+    const q = x.match(new RegExp(String.raw`\b(?:(a|an|one|two|three|four|\d)\s+)?(fried\s+|crispy\s+)?(?:(${EN_MW})\s+)?(fried\s+)?quesadillas?(?:\s+(?:of|with)\s+(${EN_MW}))?`));
+    if (q && (q[3] || q[5])) { last = { kind: q[2] || q[4] ? "qd" : "q", n: num(q[1]) || 1, meat: EN_MEAT[q[3] || q[5]] }; if (/\bdeluxe\b/.test(x)) last.deluxe = true; items.push(last); }
+    const tc = x.match(new RegExp(String.raw`\b(a|an|one|two|three|four|five|six|\d)\s+(${EN_MW})\s+tacos?\b|\b(a|an|one|two|three|four|five|six|\d)\s+tacos?\s+(?:of|with)\s+(${EN_MW})\b`));
+    if (tc) { last = { kind: "taco", n: num(tc[1] || tc[3]) || 1, meat: EN_MEAT[tc[2] || tc[4]] }; items.push(last); }
+    if (/\brice\s+and\s+beans?\b/.test(x)) {
+      const m = x.match(/\b(a|an|one|two|three|four|\d)\s+(?:(?:side|order)s?\s+of\s+|of\s+(?:those|these|the)\s+)?rice\s+and\s+beans?/);
+      const ex = items.find((i) => i.kind === "rb");
+      if (ex) { if (m && num(m[1]) > ex.n) ex.n = num(m[1]); last = ex; }
+      else { last = { kind: "rb", n: (m && num(m[1])) || 1 }; items.push(last); }
+    }
+    const cr = x.match(/\b(a|an|one|two|three|four|\d)\s+(?:sides?|orders?|cups?)\s+of\s+(?:sour\s+cream|crema)\b|\b(?:side|extra)\s+(?:of\s+)?(?:sour\s+cream|crema)\b/);
+    if (cr) { const ex = items.find((i) => i.kind === "crema"); const n = num(cr[1]) || 1; if (ex) ex.n = Math.max(ex.n, n); else items.push({ kind: "crema", n }); }
+    const taco = [...items].reverse().find((i) => i.kind === "taco");
+    if (taco && last === taco || (taco && /\b(?:corn|flour|comal|street|cheese)\b/.test(x) && !q)) {
+      if (taco) {
+        if (/\bcorn\b|\bcomal\b/.test(x) && !/\bflour\s+(?:and|or)\s+corn\b/.test(x) || /\bcorn\s+tortillas?\b/.test(x)) taco.style = "comal";
+        else if (/\bflour\b/.test(x) && !/\bcorn\b/.test(x)) taco.style = "harina";
+        else if (/\bstreet\b/.test(x)) taco.style = "street";
+        if (/\b(?:just|only)\s+(?:meat\s+and\s+)?cheese\b/.test(x)) taco.cheeseOnly = true;
+      }
+    }
+  }
+  if (!items.length) return null;
+  const out: LedgerLine[] = [];
+  for (const i of items) {
+    if ((i.kind === "qd" || i.kind === "q" || i.kind === "taco") && !i.meat) return null;
+    if (i.kind === "qd") out.push({ itemId: i.deluxe ? "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L" : "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: i.n, modifiers: [{ step: "(A) QD Options", option: i.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: i.meat! }], readback: `${i.n} QD ${i.deluxe ? "DELUXE" : "REGULAR"} ${i.meat!.split(" /")[0].toLowerCase()}` });
+    else if (i.kind === "q") return null; // plain quesadilla style handled by the Spanish ledger / live flow
+    else if (i.kind === "taco") {
+      if (!i.style) return null;
+      const st = i.style === "comal" ? "(TCO) Taco Comal / Homemade (+$1.00)" : i.style === "harina" ? "(THR) Taco Harina / Flour (+$0.50)" : "(TST) Taco Taquero / Street Taco";
+      const mods = [{ step: "(A) T Tortilla Options", option: st }, { step: "(B) T Carnes / Meats Opciones", option: i.meat! }];
+      if (i.cheeseOnly) mods.push({ step: "(C) Con / With", option: "**Con Queso Fresco / With Cheese (+$0.50)" });
+      out.push({ itemId: "sq-taco-TAR7L5", quantity: i.n, modifiers: mods, readback: `${i.n} ${st.slice(1, 4)} ${i.meat!.split(" /")[0].toLowerCase()}${i.cheeseOnly ? " solo carne + queso fresco" : ""}` });
+    } else if (i.kind === "rb") out.push({ itemId: "sq-sides-arroz-rice-and-frijole-beans-I5HNHW", quantity: i.n, modifiers: [{ step: "Sides options", option: "Arroz-Rice and Frijole-Beans" }], readback: `${i.n} side arroz y frijoles` });
+    else out.push({ itemId: "sq-extras-crema-sour-cream-2oz-KL2XTU", quantity: i.n, modifiers: [{ step: "Extras options", option: "Crema / Sour Cream 2oz" }], readback: `${i.n} side crema 2oz` });
+  }
+  return out;
+}

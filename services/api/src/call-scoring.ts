@@ -2,7 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
-import { callerLedger, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
+import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
 export type Speaker = "caller" | "staff";
@@ -6666,6 +6666,25 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (lc != null && Math.abs(lc - said * 100) <= 100 && (cc == null || Math.abs(cc - said * 100) > 100)) {
         cart.length = 0; cart.push(...(ledger as Line[]));
         steps.push({ source: "end-ledger-total", heard: `$${said} = ${ledger.map((l) => l.readback).join(", ")}` });
+        if (!fulfillment) fulfillment = "PICKUP";
+      }
+    }
+  }
+  // eesha1 (CA9724e1): English caller ledger. With a spoken total it must match (±$1); with none, it replaces the live cart only
+  // when it keeps every live line's dish kind and adds more units (live rang 1 QD REGULAR and dropped sides/tacos/crema).
+  {
+    const led = callerLedgerEn(origTurns);
+    if (led && led.length) {
+      const said = spokenTotalDollars(origTurns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" . "));
+      const lc = priceCents(led), cc = priceCents(cart);
+      const kind = (id: string) => (/quesadilla-dorada|qd-/.test(id) ? "qd" : /taco/.test(id) ? "taco" : /sides/.test(id) ? "rb" : /extras/.test(id) ? "x" : id);
+      const units = (ls: any[]) => ls.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+      const covers = cart.every((l: any) => led.some((g) => kind(g.itemId) === kind(String(l.itemId))));
+      const ok = said ? lc != null && Math.abs(lc - said * 100) <= 100 && (cc == null || Math.abs(cc - said * 100) > 100)
+        : covers && units(led) > units(cart) && lc != null;
+      if (ok) {
+        cart.length = 0; cart.push(...(led as Line[]));
+        steps.push({ source: "end-ledger-en", heard: `${said ? "$" + said + " = " : ""}${led.map((l) => l.readback).join(", ")}` });
         if (!fulfillment) fulfillment = "PICKUP";
       }
     }
