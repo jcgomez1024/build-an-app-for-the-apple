@@ -695,6 +695,21 @@ function dropOffDishAdds(result: ElviResponse, heard: string, menu: MenuItem[]):
   return { ...result, actions: result.actions.filter((a) => a.type !== "add_item"), reply: "", audioBase64: undefined, audioMimeType: undefined };
 }
 
+const DISH_GENERIC = /^(orden|order|regular|grande|large|small|chica|mediana|especial|platillo|plate|traditional|tradicional|online|mesa|with|con|para)$/;
+const dPlain = (t: string) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** chui1: true when the caller's words name this dish (a ≥4-letter word of its name/readback/aliases, plural-tolerant). Unknown item → true. */
+export function dishNamedIn(item: any, text: string): boolean {
+  if (!item) return true;
+  const said = dPlain(text);
+  const base = [item.name, item.readbackName, item.nameEs].filter(Boolean).map((n: any) => dPlain(String(n)).replace(/\(.*?\)/g, " "));
+  const baseW = new Set(base.flatMap((n) => n.split(/[^a-z]+/)).filter((w) => w.length >= 4 && !DISH_GENERIC.test(w)));
+  // aliases scraped from the description ("pico de gallo", "classic toppings and chips") are ingredients, not the dish: keep only short aliases that share a name word
+  const names = [...base, ...(item.aliases || []).map((n: any) => dPlain(String(n))).filter((n: string) => n.split(/\s+/).length <= 3 && n.split(/[^a-z]+/).some((w) => baseW.has(w)))];
+  if (/\(qd\)/i.test(String(item.name)) && /\bqd\b|\bdorad/.test(said)) return true;
+  const words = names.flatMap((n) => n.split(/[^a-z]+/)).filter((w) => w.length >= 4 && !DISH_GENERIC.test(w));
+  if (!words.length) return true;
+  return words.some((w) => new RegExp(`\\b${w.slice(0, Math.max(4, w.length - 2))}`).test(said));
+}
 export async function guardClaimedAdds(result: ElviResponse, transcript: string, language: Language, menu: MenuItem[] = [], history?: ConversationTurn[]): Promise<ElviResponse> {
   if (result.pendingGuides?.length) return result;
   // Answering a build question ("Carne 1: elige una" → "2 pastor y 2 asada"): read it with the dish it answers.
@@ -751,6 +766,8 @@ export async function guardClaimedAdds(result: ElviResponse, transcript: string,
   const strip = { audioBase64: undefined, audioMimeType: undefined };
   if (resolved && resolved.reason !== "unknown_menu_item") {
     const message = String(resolved.message || "").trim();
+    // chui1: a fuzzy resolver guess for a dish the caller never named ("…pico con chips grande… Chui" → Traditional Elvis Bowl) never asks its questions.
+    if (resolved.ok === false && message && !dishNamedIn(menu.find((m) => m.id === resolved.selectedItem?.itemId), transcript)) return result;
     if (resolved.ok === false && message) {
       let reply = resolved.reason === "missing_required_modifiers" ? requiredChoiceQuestion(resolved, language, menu) : message;
       // Name the dish in the question ("Pambazo: which meat?") so the short answer continues it.

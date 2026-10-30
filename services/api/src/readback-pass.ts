@@ -282,7 +282,26 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     const note = "vapor: " + g.map(([o, n]) => `${n} ${VFILL.find(([, x]) => x === o)![2]}`).join(", ");
     cart.push({ itemId: VAPOR_ID, quantity: 1, modifiers: g.slice(0, 3).map(([o]) => ({ step, option: o })), elviNotes: [note] });
   }
-  else if (want) cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: [] });
+  else if (want) {
+    // chui1: "una orden de tacos al vapor" / "de" / "pollo, por favor" — fillings named without counts after the vapor ask.
+    const ci = turns.findIndex((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text));
+    const after = turns.slice(ci).filter((t) => t.speaker === "caller").slice(0, 4).map((t) => t.text).join(" ");
+    const named = VFILL.filter(([, , w]) => new RegExp(`\\b(?:de|con|y|,)\\s+${w === "frijol" ? "frijol(?:es)?" : w === "papa" ? "papas?" : w === "prensado" ? "prensados?" : w}\\b`, "iu").test(after.replace(/[.¿?!]+/g, " ")));
+    const fills = named.map(([, o]) => o);
+    const note = fills.length === 1 ? [`vapor: 5 ${named[0][2]}`] : fills.length ? [`vapor: ${named.map(([, , w]) => w).join(", ")}`] : [];
+    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.slice(0, 3).map((o) => ({ step, option: o })), ...(note.length ? { elviNotes: note } : {}) });
+  }
+}
+
+// chui1 (CA95e4264e): "quesadilla dorada de bistec" + "Supreme" — supreme/suprema = DELUXE Preparada (catalog: "(QD) DELUXE Preparada").
+const QD_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", QD_DLX = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+export function applyQdSupreme(cart: any[], turns: T): void {
+  const said = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  if (!/\bsuprem[ea]s?\b|\bpreparad[ao]s?\b|\bdeluxe\b/iu.test(said) || /\bregular(?:es)?\b/iu.test(said)) return;
+  const qd = cart.filter((l) => l.itemId === QD_REG); if (qd.length !== 1 || cart.some((l) => l.itemId === QD_DLX)) return;
+  qd[0].itemId = QD_DLX;
+  for (const m of qd[0].modifiers || []) if (/REGULAR Dorada/i.test(String(m.option))) m.option = "(QD) DELUXE Preparada";
+  if (qd[0].readback) qd[0].readback = String(qd[0].readback).replace(/\bregular\b/i, "DELUXE");
 }
 
 // vapor1: "una quesitoto de chorizo" / "quesitorta" / "queso torta de X" → (QTO) Queso Torta with the meat, when the cart lacks it.

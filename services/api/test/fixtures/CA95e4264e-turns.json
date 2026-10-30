@@ -1,0 +1,107 @@
+[
+ {
+  "speaker": "caller",
+  "start": 5.402,
+  "end": 6.423,
+  "text": "¿puedo poner una orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 10.505,
+  "end": 13.506,
+  "text": "Me das, ¿crees que sería de bistec, doradas?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.687,
+  "end": 17.748,
+  "text": "Supreme. Hey.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.73,
+  "end": 22.61,
+  "text": "¿Y me da una orden de tacos al vapor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 27.233,
+  "end": 27.333,
+  "text": "de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 32.635,
+  "end": 33.455,
+  "text": "pollo, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 36.157,
+  "end": 36.757,
+  "text": "Sí, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.578,
+  "end": 41.619,
+  "text": "¿Y me das un pico con chips",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.02,
+  "end": 43.34,
+  "text": "grande?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 47.082,
+  "end": 47.482,
+  "text": "Un pico.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 56.266,
+  "end": 57.047,
+  "text": "Haceria todo.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 69.193,
+  "end": 69.293,
+  "text": "Si.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.274,
+  "end": 72.514,
+  "text": "Chui.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 80.898,
+  "end": 81.559,
+  "text": "Okay, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 83.7,
+  "end": 83.84,
+  "text": "Bye.",
+  "language": "en"
+ }
+]

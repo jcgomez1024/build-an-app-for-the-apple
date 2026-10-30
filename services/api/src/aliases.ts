@@ -16,6 +16,8 @@ let cache: Alias[] = [];
 export const BUILTIN_ALIASES: Alias[] = compileAliases([
   // vapor1 (CA331ca94): "tacos sudados" / "de canasta" / "de vapor" are Tacos al Vapor; ASR "quesitoto" is a quesitorta
   { id: "vapor1-name", match: String.raw`\btacos?\s+(?:sudad[oi]s|de\s+canasta|de\s+vapor)\b`, to: "tacos al vapor", scope: ["phone", "app"] },
+  // chui1: no catalog item says "supreme" — callers mean preparada / DELUXE
+  { id: "chui1-supreme", match: String.raw`\bsuprem[ea]s?\b`, to: "preparada", scope: ["phone", "app"] },
   { id: "vapor1-quesitoto", match: String.raw`\bquesitot[oa](s?)\b`, to: "quesitorta$1", scope: ["phone", "app"] },
   { id: "coctel1-name", match: String.raw`\bc[oó]ctel(?:es)?\s+de\s+camar[oó]n(?!es\s*\/|\s*\/)(?:es)?\b(?!\s*\/)|\bshrimp\s+c[oó]ctel\b(?!\s*\()`, to: "Coctel de Camarones / Shrimp Cocktail", scope: ["phone", "app"] },
   { id: "coctel1-variant", match: String.raw`\b(?:nada\s+m[aá]s|s[oó]lo|solamente|just|only)\s+(?:el\s+|de\s+|the\s+)?(?:c[oó]ctel(?!\s+de\s+camar)|camar[oó]n(?:es)?|shrimp)\b(?!\s*(?:y|and|con|with)\s+(?:pulpo|calamar))`, to: "Coctel de Camaron / Shrimp", scope: ["phone", "app"], forbids: String.raw`pulpo|calamar|octopus` },

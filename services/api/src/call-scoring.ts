@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -37,6 +37,12 @@ export function splitWavChannels(buf: Buffer): Buffer[] {
 }
 
 /** Seconds of real speech energy (20 ms frames above an RMS floor). Echo/line noise stays near 0. */
+/** chui1: copy of a 16-bit mono WAV with every sample scaled by g (clipped). */
+export function withGain(wav: Buffer, g: number): Buffer {
+  const b = Buffer.from(wav);
+  for (let i = 44; i + 1 < b.length; i += 2) b.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(b.readInt16LE(i) * g))), i);
+  return b;
+}
 function activeSeconds(wav: Buffer, rate = 8000, floor = 900) {
   const frame = Math.max(1, Math.round(rate * 0.02));
   let active = 0;
@@ -92,7 +98,11 @@ export async function transcribeDualChannel(wav: Buffer, opts: { callerChannel?:
     if (!track || peak(track) < 200) continue; // silent track
     // Staff leg with no real speech (only a faint echo of the caller) is skipped; STT invents words from echo.
     if (speaker === "staff" && activeSeconds(track, track.readUInt32LE(24)) < 0.5) continue;
-    const { words, language } = await sttWords(track);
+    let { words, language } = await sttWords(track);
+    // chui1 (CA95e4264e): a quiet staff leg (peak ~10k, 26 s of speech) came back from STT as "" — retry louder.
+    if (!words.length && activeSeconds(track, track.readUInt32LE(24)) >= 2) for (const g of [2, 3]) {
+      const again = await sttWords(withGain(track, g)); if (again.words.length) { ({ words, language } = again); break; }
+    }
     turns.push(...utterances(words, speaker, language === "en" ? "en" : "es"));
   }
   // The staff whisper ("Llamada de María.") may land at the start of the staff track; it isn't conversation.
@@ -550,7 +560,7 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\bde\s+vit[eé]z?(?!\p{L})/giu, "de bistec");
   s = s.replace(/\bvit[eé]z?(?!\p{L})/giu, "bistec");
   // gino1: "quesadillas de bistec supreme" → keep meat/qty, mark dorada deluxe
-  if (/\bquesadillas?\b/iu.test(s)) s = s.replace(/\bsupreme\b/giu, "doradas deluxe preparadas");
+  if (/\b(?:quesadillas?|doradas?|qd)\b/iu.test(s)) s = s.replace(/\bsuprem[ea]s?\b/giu, "doradas deluxe preparadas"); // chui1: + doradas/qd, suprema
   // carlos1: "otros tres, no, dos tacos…" — mid-phrase count correction
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s*,?\s+no[,.]?\s+(${NUMW})\s+`, "giu"), "$2 ");
   // gino1: "un taco taquero de lengua y uno de chorizo" → one of each (not one mixed line)
@@ -7589,7 +7599,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
 
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
-  applyEnchiladaOrder(cart as any[], turns as any); // manuel1 (last: after every readback rebuild)
+  applyEnchiladaOrder(cart as any[], turns as any); applyQdSupreme(cart as any[], turns as any); // manuel1, chui1 (last: after every readback rebuild)
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 
