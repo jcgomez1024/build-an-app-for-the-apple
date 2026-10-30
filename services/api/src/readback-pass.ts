@@ -152,3 +152,49 @@ export function addStaffConfirmedTacos(cart: any[], turns: T): void {
   const street = /\b(?:chiquitos?|taquer[oa]s?|street|peque[ñn]os?)\b/iu.test(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "));
   cart.push({ itemId: TACO_ID, quantity: total, modifiers: [{ step: "(A) T Tortilla Options", option: street ? "(TST) Taco Taquero / Street Taco" : "(TCO) Taco Comal / Homemade (+$1.00)" }, { step: "(B) T Carnes / Meats Opciones", option: meat }] });
 }
+// larry2 (CA04884ea, Oct 30 12:42 PM ET): English staff read-back "So I got your two onions and peppers, two street tacos,
+// two burrito grande, steak, rice and beans, deluxe, and then eight quesadilla flour steak and your quesadillas. One homemade.
+// And one flower." → ring read-back lines the cart is missing (side, grande burritos, plain quesadillas by tortilla).
+const QID = "sq-quesadilla-HLT6CR", BID = "sq-burrito-TGWBEN", XID = "sq-extras-mild-salsa-asada-2oz-T6PGNT";
+const EN = "(\\d+|one|two|three|four|five|six)";
+const BMEAT: Array<[RegExp, string]> = [[/steak/iu, "Bistec / Steak"], ...TMEAT, [/chicken|pollo/iu, "Pollo / Chicken"], [/carnitas/iu, "Carnitas / Fried Pork"]];
+export function staffReadback(turns: T): string {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.speaker !== "staff" || !/\b(?:so\s+)?i\s+(?:got|have)\s+(?:your|you)\b/iu.test(t.text)) continue;
+    let s = t.text; for (let j = i + 1; j < turns.length && turns[j].speaker === "staff"; j++) s += " " + turns[j].text;
+    return s;
+  }
+  return "";
+}
+export function applyEnglishReadback(cart: any[], turns: T): void {
+  const rb = staffReadback(turns); if (!rb) return;
+  const side = rb.match(new RegExp(`\\b${EN}\\s+(?:grilled\\s+)?onions?\\s+(?:and|&)\\s+peppers?\\b`, "iu"));
+  const had = side && cart.find((l) => l.itemId === XID && (l.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m.option))));
+  if (had) had.quantity = nOf(side![1]) || had.quantity;
+  else if (side) cart.push({ itemId: XID, quantity: nOf(side[1]) || 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] });
+  const bur = rb.match(new RegExp(`\\b${EN}\\s+(?:burritos?\\s+grandes?|grande\\s+burritos?)\\b([^.]*)`, "iu"));
+  if (bur && !cart.some((l) => l.itemId === BID)) {
+    const rest = bur[2].split(/\band\s+then\b/iu)[0];
+    const mods: any[] = [{ step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" }];
+    const mm = BMEAT.find(([re]) => re.test(rest)); if (mm) mods.push({ step: "(B) Burrito Carne Options", option: mm[1] });
+    if (/\brice\b/iu.test(rest)) mods.push({ step: "(C) Burrito Options", option: "Arroz / Rice" });
+    if (/\bbeans\b/iu.test(rest)) mods.push({ step: "(C) Burrito Options", option: "Frijoles Refritos / Refried Beans" });
+    if (/\bdeluxe\b/iu.test(rest)) mods.push({ ...DELUXE });
+    cart.push({ itemId: BID, quantity: nOf(bur[1]) || 1, modifiers: mods });
+  }
+  // "your quesadillas. One homemade. And one flower." — plain quesadillas listed by tortilla only
+  const qs = rb.match(/\byour\s+quesadillas?\b[.,]?((?:\s*(?:and\s+)?(?:\d+|one|two|three|four)\s+(?:homemade|comal|flour|flower|harina|street)\b[.,]?)+)/iu);
+  if (qs) {
+    const qn = cart.filter((l) => l.itemId === QID).reduce((a, l) => a + (l.quantity || 1), 0);
+    const plain = [...qs[1].matchAll(/(\d+|one|two|three|four)\s+(homemade|comal|flour|flower|harina|street)/giu)];
+    const want = plain.reduce((a, m) => a + nOf(m[1]), 0);
+    const told = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ").match(new RegExp(`\\b${EN}\\s+(?:of\\s+(?:the|your)\\s+)?quesadillas?\\b`, "giu")) || [];
+    const callerTotal = told.reduce((a, s) => a + nOf(s.split(/\s+/)[0]), 0);
+    if (want && qn + want <= Math.max(callerTotal, qn + want))
+      for (const m of plain) {
+        const w = m[2].toLowerCase(); const opt = /flour|flower|harina/.test(w) ? "(QHR) Quesadilla Harina / Flour (+$0.75)" : /street/.test(w) ? "(QST) Quesadilla Taquera / Street Quesadilla" : "(QCO) Quesadilla Comal / Homemade (+$1.00)";
+        cart.push({ itemId: QID, quantity: nOf(m[1]) || 1, modifiers: [{ step: "(A) Q Tortilla Options", option: opt }] });
+      }
+  }
+}

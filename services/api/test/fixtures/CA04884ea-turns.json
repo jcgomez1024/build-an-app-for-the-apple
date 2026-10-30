@@ -1,0 +1,373 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.922,
+  "end": 1.283,
+  "text": "Larry.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.34,
+  "end": 2.581,
+  "text": "Hello.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 3.267,
+  "end": 4.269,
+  "text": "Hey, how are you?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.121,
+  "end": 6.001,
+  "text": "Good, good.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.874,
+  "end": 7.676,
+  "text": "Okay, Larry.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.261,
+  "end": 10.082,
+  "text": "May I put in my order? I'm a little late.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 9.58,
+  "end": 14.065,
+  "text": "Sure, hold on a second. You just one second, please. Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.683,
+  "end": 13.503,
+  "text": "Yeah, yeah, go ahead.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 102.931,
+  "end": 104.711,
+  "text": "Did that dude get back to you about the",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 105.772,
+  "end": 107.132,
+  "text": "thingy thing from Progressivo?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 111.694,
+  "end": 113.295,
+  "text": "More or less than what you said.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 118.676,
+  "end": 170.264,
+  "text": "Yeah. Yes. All right. Hey, you guys got a case of beer today?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 163.771,
+  "end": 165.271,
+  "text": "Yes, Larry.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 167.812,
+  "end": 168.112,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 170.813,
+  "end": 171.033,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 172.064,
+  "end": 175.165,
+  "text": "Yes. Alright, I need two of the quesadilla.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 173.053,
+  "end": 173.153,
+  "text": "So,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 175.774,
+  "end": 176.554,
+  "text": "so two orders.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 177.305,
+  "end": 177.405,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 178.114,
+  "end": 179.135,
+  "text": "You want homemade, right?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 181.386,
+  "end": 183.366,
+  "text": "what's the other option? Flour?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 184.136,
+  "end": 184.556,
+  "text": "flour.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 186.267,
+  "end": 189.668,
+  "text": "Man, let me, let me get one with flour and one homemade.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 190.197,
+  "end": 193.298,
+  "text": "Okay, so one flour and one homemade. Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 193.348,
+  "end": 195.469,
+  "text": "Yes, ma'am. Alright, and then,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 196.529,
+  "end": 199.59,
+  "text": "I need eight of your steak quesadillas.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 200.399,
+  "end": 204.241,
+  "text": "Eight. You want the flour, right?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 201.47,
+  "end": 201.61,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 204.831,
+  "end": 204.971,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 206.161,
+  "end": 206.521,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 208.782,
+  "end": 209.582,
+  "text": "Anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 209.312,
+  "end": 212.852,
+  "text": "And then, yeah, let me get two of your grande burritos.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 213.924,
+  "end": 222.247,
+  "text": "With everything on ice, right? Steak. Okay, rice and beans and deluxe.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 215.733,
+  "end": 217.553,
+  "text": "Yep, yep, yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 219.774,
+  "end": 219.894,
+  "text": "And,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 223.428,
+  "end": 223.768,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 223.475,
+  "end": 227.755,
+  "text": "and then two of your, steak, street tacos.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 228.85,
+  "end": 229.85,
+  "text": "To the street.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 231.21,
+  "end": 234.592,
+  "text": "Anything else? Onions and peppers?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 232.637,
+  "end": 236.059,
+  "text": "No, no ma'am, that's it. Oh, the peppers, yeah, yeah, yeah, those.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 236.072,
+  "end": 236.272,
+  "text": "Two?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 237.22,
+  "end": 237.36,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 238.333,
+  "end": 242.755,
+  "text": "Okay. So I got your two onions and peppers, two street tacos,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 244.235,
+  "end": 245.736,
+  "text": "two burrito grande,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 247.496,
+  "end": 259.022,
+  "text": "steak, rice and beans, deluxe, and then eight quesadilla flour steak and your quesadillas. One homemade. And one flower.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 257.112,
+  "end": 257.272,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 259.874,
+  "end": 260.054,
+  "text": "Yep.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 260.705,
+  "end": 261.005,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 262.115,
+  "end": 262.375,
+  "text": "All right.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 262.888,
+  "end": 265.452,
+  "text": "Okay, Larry, give me like twenty minutes. Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 263.456,
+  "end": 264.056,
+  "text": "Twenty minutes?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 265.917,
+  "end": 266.238,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 267.278,
+  "end": 269.399,
+  "text": "Thank you. Yes, ma'am. Bye.",
+  "language": "en"
+ }
+]

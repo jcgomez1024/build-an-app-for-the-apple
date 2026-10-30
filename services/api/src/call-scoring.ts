@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -3748,8 +3748,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
       // larry1: staff offers a side ("you want onions and peppers?") → caller "yes… two of those": ring that side.
-      { if (/\b(?:want|quieres?|gusta)\b[^?]*\b(?:onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?)/iu.test(rawStaff)) { sideOffer = rawStaff; sideOfferAge = 0; } else sideOfferAge++;
-        const off = (sideOfferAge <= 2 ? sideOffer : "").match(/\b(?:want|quieres?|gusta)\b[^?]*?\b((?:grilled\s+)?onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?(?:\s+asados?)?)\b[^?]*\?/iu);
+      { if (/\b(?:want|quieres?|gusta)\b[^?]*\b(?:onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?)/iu.test(rawStaff) || /(?:^|[?.!]\s*)(?:grilled\s+)?onions?\s+(?:and|y)\s+peppers?\s*\?/iu.test(rawStaff)) { sideOffer = rawStaff; sideOfferAge = 0; } else sideOfferAge++;
+        const off = (sideOfferAge <= 2 ? sideOffer : "").match(/(?:\b(?:want|quieres?|gusta)\b[^?]*?|(?:^|[?.!]\s*))\b((?:grilled\s+)?onions?\s+(?:and|y)\s+peppers?|cebollas?\s+y\s+chiles?(?:\s+asados?)?)\b[^?]*\?/iu);
         const yes = /\b(yes|yeah|yep|sure|s[ií]|aj[aá])\b/iu.test(t.text);
         const m2 = t.text.match(/\b(\d|one|two|three|four|una?|dos|tres|cuatro)\s+(?:of\s+)?(?:those|them|these|esos?|esas?|de\s+es[oa]s)\b/iu);
         if (off && yes && !dishesNamed(t.text).size) { const said2 = `${m2 ? m2[1] : "1"} Extras: Cebolla y Chiles Asados (grilled onions and peppers side)`;
@@ -4475,6 +4475,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (ct && !cart.some((l: any) => l.itemId === DIPS_ID)) { const m = ct.match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?Dips Pico`, "iu"));
       cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
   // brenda1: staff-accepted burrito deluxe / rice / beans (+ "not too much rice" note), read-back salsa preference, side salsas listed
+  applyEnglishReadback(cart as any[], turns as any); // larry2
   applyBurritoReadback(cart as any[], turns as any);
   applyReadbackSalsaPref(cart as any[], turns as any);
   // marina1: staff-confirmed "Tres órdenes de birria", birria's own tortillas, "que sean tres de horchata y dos de Jamaica", staff-confirmed tacos

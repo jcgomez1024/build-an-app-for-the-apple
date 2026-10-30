@@ -2060,7 +2060,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           ...((hasOrder ? await applyCallDelivery(CallSid, caller, result.turns as any, isTrainingCaller(caller)).catch(() => null) : null) || {}),
         }, describe, result.elviOrder?.cart || [], result.elviOrder);
         learnCallerLanguage(CallSid, caller, result.turns, callLang.get(CallSid));
-        scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));
+        // rec3: a swept (late, lost-callback) recording never texts staff.
+        if (!body?._swept) scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));
         // namecheck1: Elvi's shadow order always carries the name she heard (practice for live orders).
         try { const hn = heardShadowName(result.turns as any, heardOrderName); if (hn && result.elviOrder) (result.elviOrder as any).customerName = hn; } catch {}
         if (Number(RecordingDuration) > 0) talkSecByCall.set(CallSid, Math.max(Number(RecordingDuration), talkSecByCall.get(CallSid) || 0));
@@ -2083,7 +2084,37 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         handleRecording(j.body, j.leg);
       }
     } catch { /* none pending */ }
+    sweepLostRecordings().catch(() => {});
   }, 5000).unref?.();
+  // rec3 (CA2fa762e / CAb3acddf, Oct 30): a restart kills an in-flight job begun on older code, or drops a callback that
+  // arrives while the server is down (Twilio doesn't retry). Every 10 min (and at boot) find calls that ended 3–20 min ago
+  // with no recording event or journal, and ingest their completed Twilio recording (read-only list; no staff SMS).
+  async function sweepLostRecordings() {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+    const ended = new Map<string, number>(), done = new Set<string>(), answered = new Set<string>();
+    for (const d of [0, 1]) {
+      const f = path.join(logDir, `${new Date(Date.now() - d * 86400_000).toISOString().slice(0, 10)}.jsonl`);
+      let txt = ""; try { txt = fs.readFileSync(f, "utf8"); } catch { continue; }
+      for (const line of txt.split("\n")) { if (!line) continue; let j: any; try { j = JSON.parse(line); } catch { continue; }
+        if (!j.callSid) continue;
+        if (j.event === "ring_end") ended.set(j.callSid, Date.parse(j.ts));
+        if (j.event === "answered") answered.add(j.callSid);
+        if (/^recording/.test(String(j.event))) done.add(j.callSid); }
+    }
+    let pend = ""; try { pend = fs.readdirSync(pendingDir).map((f) => fs.readFileSync(path.join(pendingDir, f), "utf8")).join(" "); } catch {}
+    for (const [sid, at] of ended) {
+      const age = Date.now() - at;
+      if (!answered.has(sid) || done.has(sid) || age < 3 * 60_000 || age > 20 * 60_000 || pend.includes(sid)) continue;
+      try {
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Recordings.json?CallSid=${sid}`, { headers: { Authorization: twAuth() }, signal: AbortSignal.timeout(15_000) });
+        const rec = ((await r.json()) as any).recordings?.find((x: any) => x.status === "completed");
+        if (!rec) continue;
+        logCall({ event: "recording_swept", callSid: sid, recordingSid: rec.sid });
+        handleRecording({ RecordingUrl: `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Recordings/${rec.sid}`, RecordingSid: rec.sid, CallSid: sid, RecordingDuration: rec.duration, _swept: "1" }, "");
+      } catch { /* try next sweep */ }
+    }
+  }
+  if (process.env.NODE_ENV !== "test" && !process.env.TWILIO_TEST_AUDIO) setInterval(() => { sweepLostRecordings().catch(() => {}); }, 10 * 60_000).unref?.();
 
   // Legacy ring-through status (old calls in flight); never dials anything.
   app.post("/api/twilio/dial-status", form, guard, (req, res) => {
