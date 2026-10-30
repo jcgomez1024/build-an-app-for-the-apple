@@ -204,7 +204,7 @@ export function applyEnglishReadback(cart: any[], turns: T): void {
 
 // alexvoc1 (CA12e9407, Oct 30 12:55 PM ET): "¿ahí va?" … "ahorita la llevamos ya pa allá. Entonces fueron las tres birrias…" —
 // a status / confirmation call about an order already placed, with no new-order words from the caller.
-const STATUS = /\b(?:ya\s+va\s+(?:pa|para)\s+all[aá]|(?:la|se\s+la|te\s+la|se\s+lo)\s+llevamos|ya\s+(?:viene|sali[oó]|va\s+en\s+camino)|en\s+camino|ah[ií]\s+va|on\s+(?:its|it's|the)\s+way|already\s+(?:left|out)|where'?s\s+my\s+order|d[oó]nde\s+(?:va|est[aá])\s+mi\s+(?:orden|pedido|comida)|(?:ya\s+)?(?:me|le|te)\s+lleg[oó])\b/iu;
+const STATUS = /\b(?:ya\s+va\s+(?:pa|para)\s+all[aá]|(?:la|se\s+la|te\s+la|se\s+lo)\s+llevamos|ya\s+(?:viene|sali[oó]|va\s+en\s+camino)|en\s+camino|on\s+(?:its|it's|the)\s+way|already\s+(?:left|out)|where'?s\s+my\s+order|d[oó]nde\s+(?:va|est[aá])\s+mi\s+(?:orden|pedido|comida)|(?:ya\s+)?(?:me|le|te)\s+lleg[oó])\b/iu;
 const NEW_ORDER = /\b(?:quiero|quisiera|me\s+(?:da|das|pone|puede|regala)|ponme|dame|agr[eé]g|a[ñn]ad|tambi[eé]n\s+(?:quiero|me)|i\s+(?:want|need|would\s+like)|i'?d\s+like|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|put\s+in\s+(?:an?|my)\s+order|para\s+ordenar|hacer\s+(?:un|una)\s+(?:orden|pedido)|pedir|place\s+an?\s+order|otr[ao]\s+orden)\b/iu;
 export function isStatusFollowUpCall(turns: Array<{ speaker: string; text: string; end?: number }>): boolean {
   if (!turns.some((t) => STATUS.test(t.text))) return false;
@@ -212,4 +212,80 @@ export function isStatusFollowUpCall(turns: Array<{ speaker: string; text: strin
   if (turns.some((t) => t.speaker === "staff" && /\b(?:qu[eé]\s+(?:le|te)\s+(?:vamos\s+a\s+dar|damos|doy|sirvo)|qu[eé]\s+(?:va|vas)\s+a\s+(?:querer|ordenar|llevar)|what\s+can\s+i\s+(?:get|do)\s+for\s+you|what\s+would\s+you\s+like)\b/iu.test(t.text))) return false;
   const dur = Math.max(0, ...turns.map((t) => Number(t.end) || 0));
   return dur > 0 && dur <= 120;
+}
+
+// vapor1 (CA331ca94, Oct 30 1:53 PM ET, Víctor): "dos órdenes de tacos al vapor … uno de papa, uno de frijol y tres de prensado,
+// y luego cuatro de prensado y uno de frijoles" → 2 × Tacos al Vapor (5 each, per-order filling mix), never Taco de Comal.
+export const VAPOR_ID = "sq-tacos-al-vapor-steamed-tacos-QYJLW5";
+export const VAPOR_WORDS = /\btacos?\s+(?:al|de)\s+vapor\b|\bal\s+vapor\b|\bde\s+vapor\b|\bsudad[oi]s?\b|\bde\s+canasta\b|\bsteamed\s+tacos?\b/iu;
+const VFILL: Array<[RegExp, string, string]> = [[/^papas?$/iu, "Papas / Potatoes", "papa"], [/^frijol(?:es)?$/iu, "Frijoles / Beans", "frijol"],
+  [/^prensados?$/iu, "Prensado / Pork", "prensado"], [/^pollo$/iu, "Pollo / Chicken", "pollo"], [/^queso$/iu, "Queso / Cheese", "queso"]];
+const VNUM: Record<string, number> = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, diez: 10 };
+const vn = (w: string) => VNUM[w.toLowerCase()] ?? (Number(w) || 0);
+const VPAIR = /\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco)\s+(?:de\s+)?(papas?|frijol(?:es)?|prensados?|pollo|queso)\b/giu;
+const VPAIR2 = /\b(prensados?|papas?|frijol(?:es)?|pollo|queso)\s+(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco)\b(?!\s+de)/giu;
+function vaporChunks(text: string): Array<Array<[string, number]>> | null {
+  const pairs: Array<{ i: number; f: string; n: number }> = [];
+  for (const m of text.matchAll(VPAIR)) pairs.push({ i: m.index!, f: m[2], n: vn(m[1]) });
+  for (const m of text.matchAll(VPAIR2)) if (!pairs.some((p) => Math.abs(p.i - m.index!) < 12)) pairs.push({ i: m.index!, f: m[1], n: vn(m[2]) });
+  pairs.sort((a, b) => a.i - b.i);
+  const out: Array<Array<[string, number]>> = []; let cur: Array<[string, number]> = [], sum = 0;
+  for (const p of pairs) {
+    const f = VFILL.find(([re]) => re.test(p.f)); if (!f || !p.n) return null;
+    const ex = cur.find((c) => c[0] === f[1]); if (ex) ex[1] += p.n; else cur.push([f[1], p.n]); sum += p.n;
+    if (sum === 5) { out.push(cur); cur = []; sum = 0; } else if (sum > 5) return null;
+  }
+  return cur.length || !out.length ? null : out;
+}
+export function vaporOrderCount(turns: T): number {
+  let n = 0;
+  for (const t of turns) if (t.speaker === "caller" && VAPOR_WORDS.test(t.text)) for (const m of t.text.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?\b(?:\s+de\s+(?:tacos?\s+)?(?:al\s+vapor|de\s+vapor|sudados?|de\s+canasta))?/giu)) n = Math.max(n, vn(m[1]));
+  return n;
+}
+/** Live + replay: rebuild Tacos al Vapor orders (5 per order) from the latest turn whose filling counts split into whole orders. */
+export function applyVaporOrders(cart: any[], turns: T): void {
+  // only when the CALLER orders vapor (a staff special-of-the-day list is not an order)
+  if (!turns.some((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text))) return;
+  const want = vaporOrderCount(turns);
+  let groups: Array<Array<[string, number]>> | null = null;
+  for (let i = turns.length - 1; i >= 0 && !groups; i--) {
+    const g = vaporChunks(turns[i].text); if (g && (!want || g.length === want)) groups = g;
+  }
+  if (!groups) {
+    const g = vaporChunks(turns.map((t) => t.text).join(" ")); if (g && (!want || g.length === want)) groups = g;
+  }
+  const fillRe = /papa|potato|frijol|bean|prensado|pork|pollo|chicken|queso|cheese/i;
+  const said = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  const tortSaid = /\b(?:comal|harina|flour|taquer[oa]s?|street|dorad[oa]s?|hech[oa]s?\s+a\s+mano)\b/iu.test(said);
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const l = cart[i]; if (l.itemId === VAPOR_ID) { if (groups || want) cart.splice(i, 1); continue; }
+    if (tortSaid || !/^sq-taco-/i.test(String(l.itemId))) continue;
+    const meats = (l.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/^\s*\(T\w*\)|tortilla|salsa|cebolla|cilantro/i.test(o));
+    if (meats.every((o: string) => fillRe.test(o))) cart.splice(i, 1);
+  }
+  const step = "(A) Tacos al Vapor Carne Options (ONLINE)";
+  if (groups) for (const g0 of groups) {
+    const g = [...g0].sort((a, b) => VFILL.findIndex(([, x]) => x === a[0]) - VFILL.findIndex(([, x]) => x === b[0]));
+    const note = "vapor: " + g.map(([o, n]) => `${n} ${VFILL.find(([, x]) => x === o)![2]}`).join(", ");
+    cart.push({ itemId: VAPOR_ID, quantity: 1, modifiers: g.slice(0, 3).map(([o]) => ({ step, option: o })), elviNotes: [note] });
+  }
+  else if (want) cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: [] });
+}
+
+// vapor1: "una quesitoto de chorizo" / "quesitorta" / "queso torta de X" → (QTO) Queso Torta with the meat, when the cart lacks it.
+const TORTA_ID = "sq-torta-4GNTTE";
+const QT_MEAT: Array<[RegExp, string]> = [[/^(?:bistec|asada|steak)$/iu, "Bistec / Steak"], [/^chorizo$/iu, "Chorizo / Mexican Sausage"], [/^pollo|chicken$/iu, "Pollo / Chicken"],
+  [/^(?:al\s*)?pastor$/iu, "Alpastor / Roasted Pork"], [/^carnitas$/iu, "Carnitas / Pulled Pork"], [/^buche$/iu, "Buche / Pork Stomach"], [/^tripas?$/iu, "Tripa / Beef Tripe"],
+  [/^lengua$/iu, "Lengua / Beef Tongue"], [/^cabeza$/iu, "Cabeza / Beef Head"], [/^prensado$/iu, "Prensado / Spicy Pork"], [/^milanesa$/iu, "Milanesa / Breaded Steak"]];
+export const QUESITORTA = /\b(?:quesitort[ao]s?|quesitot[ao]s?|queso\s*tortas?)\b/iu;
+export function applyQuesoTortaSpoken(cart: any[], turns: T): void {
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    for (const m of t.text.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro)?\s*(?:quesitort[ao]s?|quesitot[ao]s?|queso\s*tortas?)\s+de\s+(al\s+pastor|\p{L}+)/giu)) {
+      const meat = QT_MEAT.find(([re]) => re.test(m[2]))?.[1]; if (!meat) continue;
+      const has = cart.some((l) => String(l.itemId).startsWith("sq-torta-") && (l.modifiers || []).some((x: any) => /QTO/.test(String(x.option))) && (l.modifiers || []).some((x: any) => String(x.option) === meat));
+      if (has) continue;
+      cart.push({ itemId: TORTA_ID, quantity: m[1] ? vn(m[1]) || 1 : 1, modifiers: [{ step: "(A) Torta Options", option: "(QTO) Queso Torta (+$0.50)" }, { step: "(B) Q Carnes / Meats", option: meat }] });
+    }
+  }
 }

@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -615,7 +615,7 @@ export function rewriteCallerText(text: string): string {
     s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+al\s+(pastor)\b`, "giu"), (_m, n) => `${n} gorditas de pastor`);
   }
   // kevin1 (CA58ec0f): ASR "quesitota" → quesitorta; "sopa de lata" → coca de lata
-  s = s.replace(/\bquesitotas?\b/giu, "quesitorta");
+  s = s.replace(/\bquesitot[ao]s?\b/giu, "quesitorta"); // vapor1: "quesitoto"
   // ca39e2bb: ASR "queso bruta" → quesitorta (QTO)
   s = s.replace(/\bqueso\s+brutas?\b/giu, "quesitorta");
   s = s.replace(/\bsopa\s+de\s+lata\b/giu, "coca de lata");
@@ -4484,6 +4484,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // marina1: staff-confirmed "Tres órdenes de birria", birria's own tortillas, "que sean tres de horchata y dos de Jamaica", staff-confirmed tacos
   applyStaffOrderCount(cart as any[], turns as any); dropIncludedTortillas(cart as any[], turns as any);
   applyDrinkRestatement(cart as any[], turns as any); addStaffConfirmedTacos(cart as any[], turns as any);
+  applyVaporOrders(cart as any[], turns as any); applyQuesoTortaSpoken(cart as any[], turns as any); // vapor1
   if (!cart.some((l: any) => l.itemId === EXTRAS_ID && (l.modifiers || []).some((m: any) => /Salsa|Guacamole/i.test(String(m.option)))))
     for (const s of sideSalsas(turns as any)) cart.push({ itemId: EXTRAS_ID, quantity: s.quantity, modifiers: [{ step: "Extras options", option: s.option }] } as any);
   fulfillment = detectFulfillment(turns as any).fulfillment as any;

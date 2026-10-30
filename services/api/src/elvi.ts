@@ -505,7 +505,8 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
   // tortilla3 (Carlos): an item with a tortilla type choice is never silently defaulted — when the caller hasn't said a
   // type anywhere on the call, hold the add and ask "¿comal o harina?" / "corn or flour?".
   const custAll = [...custTurns, t].join(" ");
-  if (!TORT_TYPE_SAID.test(custAll)) {
+  // vapor1: tacos al vapor / sudados / de canasta never get a tortilla-type question
+  if (!TORT_TYPE_SAID.test(custAll) && !/\b(?:al|de)\s+vapor\b|\bsudad[oi]s\b|\bde\s+canasta\b|\bsteamed\b/iu.test(custAll)) {
     for (const a of actions as any[]) {
       if (a?.type !== "add_item") continue; const item = menu.find((i: any) => i.id === a.itemId); if (!item) continue;
       const g = (item.modifierGroups || []).find((g: any) => /tortilla|shell/i.test(g.name) && !EXTRA_TORT.test(g.name) && (g.minSelections ?? 0) > 0

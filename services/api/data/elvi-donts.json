@@ -32,6 +32,7 @@
     "Do NOT treat STT 'menos' / 'orden de menos' as a torta (or ignore staff 'Un menudo, ¿con pata o sin pata?'). Alias menos→menudo; when staff confirms menudo and caller says Sin/Con pata, that wins — drop phantom torta and never steal staff Bistec into it. Miriam CA477ac6 10/25.",
     "Do NOT stamp EXTRA Pata / Beef Feet when the caller only said 'con pata' — ring the catalog Menudo con Pata SKU. EXTRA Pata modifier only if they ask for *extra* pata on top. Same for EXTRA Carne: normal protein ≠ EXTRA carne. Miguel CA7e1ee4 10/25.",
     "Do NOT save interrogatives/vocatives as order names (Cuál, Quién, Qué, Dónde, Cuándo, Which, Who…). Staff '¿Cuál, joven?' is not a name. CA68be4828 10/25.",
-    "Do NOT time-only-link ('only ticket in 20 min') a call with an empty cart — birria/menu inquiries must not steal the nearest Square ticket. Prefer same-call / matching cart lines. CAfc91cd 10/25."
+    "Do NOT time-only-link ('only ticket in 20 min') a call with an empty cart — birria/menu inquiries must not steal the nearest Square ticket. Prefer same-call / matching cart lines. CAfc91cd 10/25.",
+    "Tacos al vapor / de vapor / sudados / de canasta are ONE item (Tacos al Vapor / Steamed Tacos, 5 per order) filled with papa, frijol, prensado, pollo or queso — never Taco de Comal, never ask comal/harina/taquero tortilla or bistec/cabeza/carnitas/chorizo. Ask only how many orders and the filling mix per order. 'Quesitorta / quesitoto / queso torta de X' is (QTO) Queso Torta with meat X."
   ]
 }

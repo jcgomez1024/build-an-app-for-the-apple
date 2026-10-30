@@ -914,7 +914,7 @@ export function buildTicketLines(
     choices = applied.choices;
     // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
     // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
-    const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*extra\b/iu.test(String(n)));
+    const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:)/iu.test(String(n))); // vapor1: per-order filling mix
     const notes = [...new Set([...(applied.notes || []), ...additiveNotes])];
     const name = stripOnline(l.name);
     const flags = [
