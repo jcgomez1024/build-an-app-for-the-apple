@@ -2,6 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
+import { applyAskedDishes } from "./asked-dishes.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
@@ -7600,6 +7601,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
 
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   applyEnchiladaOrder(cart as any[], turns as any); applyQdSupreme(cart as any[], turns as any); // manuel1, chui1 (last: after every readback rebuild)
+  { // maria2: a dish Elvi asked side questions about is always in the cart
+    const menuFn = (run as any).menu; const menu = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    if (menu) applyAskedDishes(cart as any[], steps, turns as any, menu); }
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

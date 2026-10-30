@@ -1,0 +1,184 @@
+[
+ {
+  "speaker": "caller",
+  "start": 9.663,
+  "end": 10.003,
+  "text": "Ay, Dios.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 10.984,
+  "end": 11.205,
+  "text": "Hello.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.624,
+  "end": 12.824,
+  "text": "Bueno.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.246,
+  "end": 15.126,
+  "text": "Hello, ¿buena?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 16.806,
+  "end": 19.106,
+  "text": "Este, quería hacer una orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 20.088,
+  "end": 21.229,
+  "text": "Ah, sí, claro, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.608,
+  "end": 26.689,
+  "text": "Este, voy a querer cuatro gorditas de comal de costilla",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 27.551,
+  "end": 32.033,
+  "text": "Muy bien. Cuatro gorditas de comal de costilla, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.93,
+  "end": 28.95,
+  "text": "y",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 32.871,
+  "end": 35.212,
+  "text": "y una orden de de chile rellenos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 36.195,
+  "end": 39.776,
+  "text": "Una orden de chiles rellenos, okay. Los chiles rellenos,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.737,
+  "end": 43.258,
+  "text": "ah, arroz y frijol, ¿está bien?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.835,
+  "end": 43.955,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 44.858,
+  "end": 46.059,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.616,
+  "end": 47.136,
+  "text": "Nada más.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 48.74,
+  "end": 51.521,
+  "text": "Los chiles rellenos vienen de queso solamente, ¿está bien?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 52.018,
+  "end": 52.558,
+  "text": "Sí, está bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 53.322,
+  "end": 54.642,
+  "text": "Okay, ¿a qué nombre sería?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.499,
+  "end": 56.019,
+  "text": "Hola, María.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.803,
+  "end": 58.684,
+  "text": "María, okay, María, dame.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 59.685,
+  "end": 61.506,
+  "text": "Unos quince minutos.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.624,
+  "end": 64.486,
+  "text": "okay, está bien. ¿Cuánto va a ser, no sabes?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 65.29,
+  "end": 66.891,
+  "text": "Ah, sería, María,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 68.212,
+  "end": 70.654,
+  "text": "treinta y cinco, treinta y cinco cerrados.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 68.871,
+  "end": 71.714,
+  "text": "A ver. Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 73.136,
+  "end": 75.258,
+  "text": "Okay, está, okay, okay, gracias. Okay, bye.",
+  "language": "es"
+ }
+]

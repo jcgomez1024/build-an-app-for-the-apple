@@ -1522,7 +1522,7 @@ app.post("/api/realtime/session", (req, res) => {
 });
 
 // Listen-only phone training (shadow order only; never checkout).
-const shadowTurn = (sessionKey: string) => async (transcript: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => {
+const shadowTurn = (sessionKey: string) => Object.assign(async (transcript: string, language: "es" | "en", history: Array<{ role: "customer" | "assistant"; text: string }>) => {
   const tenant = resolveTenant(undefined);
   const menu = await getMenu(buildSquareConfig(tenant));
   const resolverMenu = await getFullMenu(buildSquareConfig(tenant)).catch(() => menu);
@@ -1530,7 +1530,7 @@ const shadowTurn = (sessionKey: string) => async (transcript: string, language: 
     { transcript: transcript.slice(0, 1000), language, menu, history, resolverMenu, sessionKey } as any,
     { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model }
   );
-};
+}, { menu: () => getMenu(buildSquareConfig(resolveTenant(undefined))) }); // maria2: post-call asked-dish pass
 registerTwilioRoutes(app, shadowTurn, (e164, signal) => findCustomerGivenNameReadOnly(e164, buildSquareConfig(resolveTenant(undefined)), signal),
   // auditor1: ticket lines use the exact Square POS item/variation names and POS prices (read-only catalog).
   async (cart) => { const cfg = buildSquareConfig(resolveTenant(undefined)); return toPosLines(elviLines(cart, await getFullMenu(cfg)), await loadPosCatalog(cfg)); });
