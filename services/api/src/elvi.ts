@@ -2140,7 +2140,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { const tx = String(input.transcript || ""); const h = input.history || []; const lastStaff = String([...h].reverse().find((x) => x.role === "assistant")?.text || "");
     if (Array.isArray((out as any)?.actions) && (restaurantConfirm(tx) || sideAnswerTurn(tx, lastStaff) || salsaOnlyTurn(tx)))
       (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(tx) && /extras|salsa/i.test(String(a.itemId))) || ((input as any).cart || []).some((l: any) => l?.itemId === a.itemId)); } catch { /* keep */ }
-  try { return noOfferUnavailable(out, input); } catch { return out; }
+  try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
+  try { return noHollowAdd(out, input); } catch { return out; }
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */
 export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviResponse {
@@ -2170,14 +2171,29 @@ export function expandOtraList(text: string): string {
 // Huevo con chile and every guisado are real (B) Q Carnes / Meats choices on quesadilla/gordita/taco (site-catalog) —
 // never deny a real filling; answer with the guisados and keep the cart unchanged.
 const GUISADOS_ES = ["prensado", "duro", "deshebrada", "picadillo", "nopales con papas", "papas con rajas", "huevo con chile"];
-const FILLING_ASK = /\b(?:guisados?|huevo\s+con\s+chile|papas\s+con\s+rajas|nopales\s+con\s+papas|picadillo|deshebrada|prensado|chicharr[oó]n|duro|spicy\s+egg|stews?)\b/iu;
+const FILLING_ASK = /\b(?:papas(?:\s+con\s+(?:chorizo|nopales))?|guisados?|huevo\s+con\s+chile|papas\s+con\s+rajas|nopales\s+con\s+papas|picadillo|deshebrada|prensado|chicharr[oó]n|duro|spicy\s+egg|stews?)\b/iu;
 const DENIAL = /\bno\s+(?:est[aá]|lo\s+tenemos|la\s+tenemos|tenemos|manejamos)(?!\p{L})[^.?!]*|\bnot\s+on\s+(?:the|our)\s+menu\b|\bwe\s+don'?t\s+(?:have|carry)\b/iu;
+// maria3 (CA2a89f700, Oct 30 5:43 PM ET): "Ah, me lo hace," → "Agregado." with no add_item; "nopales con papas" → "Listo." with an
+// empty cart. Never claim an add that did not land: ask what to add (or which choice is missing) instead.
+const DISH_OR_FILLING = /\b(?:tacos?|quesadillas?|doradas?|gorditas?|tortas?|pambazos?|sopes?|huaraches?|burritos?|tamales?|enchiladas?|nachos|platillos?|chiles?\s+rellenos?|menudo|pozole|birria|bistec|chorizo|pastor|carnitas|cabeza|lengua|tripas?|pollo|costilla|asada|papas|nopales|prensado|picadillo|deshebrada|huevo|frijoles|arroz)\b/iu;
+export function noHollowAdd(r: ElviResponse, input: ElviRequest): ElviResponse {
+  const reply = String((r as any)?.reply || "").trim();
+  if (((r as any)?.actions || []).some((a: any) => a?.type === "add_item")) return r;
+  const claimsAdd = /^(?:¡?\s*)?(?:agregad[oa]s?|a[ñn]adid[oa]s?|added|got it,? added)\b/iu.test(reply)
+    || (/^(?:listo|ready|done)[.!]?$/iu.test(reply) && DISH_OR_FILLING.test(String(input?.transcript || "")));
+  if (!claimsAdd) return r;
+  const en = (r as any).language === "en" || input.language === "en";
+  return { ...r, audioBase64: undefined, audioMimeType: undefined, reply: en ? "Sure, what should I add, and with what?" : "¿Sí? ¿Qué le agrego y de qué?" } as any;
+}
 export function noFalseFillingDenial(r: ElviResponse, input: ElviRequest): ElviResponse {
   const heard = String(input?.transcript || ""); const reply = String((r as any)?.reply || "");
   if (!FILLING_ASK.test(heard) || !DENIAL.test(reply)) return r;
   // a filling the caller did not ask about (e.g. "no tenemos mole") may still be denied
   if (!/men[uú]|eso|esa|ese|have|carry/iu.test(reply)) return r;
   const en = (r as any).language === "en" || input.language === "en";
+  // maria3: "¿no tiene papas con chorizo?" — the meat list has Nopales con Papas + Chorizo (two meats allowed)
+  if (/\bpapas\b/iu.test(heard) && /\bchorizo\b/iu.test(heard))
+    return { ...r, reply: en ? "Yes — we can do nopales con papas with chorizo. Want it like that?" : "Sí, se lo hacemos de nopales con papas y chorizo. ¿Así se lo pongo?", actions: (r as any).actions || [] } as ElviResponse;
   const dish = (heard.match(/\b(quesadillas?|gorditas?|tacos?|sopes?|burritos?|tortas?)\b/iu) || [])[1];
   const reply2 = en
     ? `Yes, we have ${dish ? `${dish.toLowerCase()} with ` : ""}spicy egg (huevo con chile) and guisados: prensado, duro, deshebrada, picadillo, nopales con papas and papas con rajas. Which would you like?`

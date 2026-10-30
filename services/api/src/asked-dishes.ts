@@ -60,3 +60,53 @@ export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu:
     steps.push({ source: "asked-dish", heard: String(s.heard).slice(0, 80), item: item.id });
   });
 }
+
+// maria3 (CA2a89f700, Oct 30 5:43 PM ET): callback "acabo de hacer una orden… ¿no me pueden adherir un pambazo?" — staff
+// confirmed "papas con nopales y chorizo, lleva todo… lechuga, crema, queso fresco"; Elvi's cart stayed empty → noOrder.
+// An add-on callback is an order: ring the named dish from the confirmed choices and tag it for the earlier ticket.
+export const ADD_ON = /\b(?:agr[eé]g\w*|a[ñn]ad\w*|adher\w*|adjunt\w*|tambi[eé]n\s+quiero|se\s+me\s+olvid\w*|acabo\s+de\s+(?:hacer|pedir|ordenar)\s+(?:una|la|mi)\s+orden|add\s+(?:to|on)\b|forgot\s+to\s+(?:add|order)|i\s+just\s+(?:placed|made)\s+an?\s+order)/iu;
+export const ADD_ON_NOTE = "AGREGAR a la orden anterior de este número";
+const spanishWords = (o: string) => plain(String(o).split(" / ")[0].replace(/\(\+?\$[\d.]+\)/g, " ")).split(" ").filter((w) => w.length >= 4 && w !== "con");
+const saysAll = (words: string[], text: string) => { const has = new Set(plain(text).split(" ").map(stem)); return words.length > 0 && words.every((w) => has.has(stem(w))); };
+const firstAt = (words: string[], text: string) => Math.min(...words.map((w) => { const i = plain(text).search(new RegExp(`\\b${stem(w)}`)); return i < 0 ? 1e9 : i; }));
+
+export function applyAddOnCallback(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (cart.length || !Array.isArray(menu) || !menu.length) return false;
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  if (!ADD_ON.test(caller)) return false;
+  const dishes = menu.filter((i) => (i.modifierGroups || []).length && dishNamedIn(i, caller) && !/drink|bebida/i.test(String(i.category || "")));
+  // prefer the item whose own name word the caller said earliest; one dish per add-on callback unless clearly more
+  const at = (i: any) => firstAt(plain(String(i.name).split(" / ")[0]).split(" ").filter((w) => w.length >= 4 && !/elvis/.test(w)), caller);
+  const dish = dishes.sort((a, b) => at(a) - at(b))[0];
+  if (!dish || at(dish) >= 1e9) return false;
+  const all = turns.map((t) => t.text).join(" ");
+  const after = all.slice(Math.max(0, plain(all).search(new RegExp(`\\b${stem(plain(String(dish.name).split(" ")[0]))}`))));
+  const modifiers: any[] = [], notes: string[] = [ADD_ON_NOTE];
+  for (const g of dish.modifierGroups || []) {
+    const opts: string[] = (g.options || []).map((o: any) => (typeof o === "string" ? o : o.name));
+    const hits = opts.filter((o) => !/double|extra|\+\$/i.test(o) && saysAll(spanishWords(o), after))
+      .filter((o, _i, arr) => !arr.some((p) => p !== o && spanishWords(p).length > spanishWords(o).length && spanishWords(o).every((w) => spanishWords(p).includes(w))))
+      .sort((a, b) => firstAt(spanishWords(a), after) - firstAt(spanishWords(b), after));
+    const req = (g.minSelections ?? 0) > 0;
+    if (!req && /salsa|extra|agua/i.test(g.name)) continue;
+    const keep = g.maxSelections ? hits.slice(0, g.maxSelections) : hits;
+    for (const o of keep) modifiers.push({ step: g.name, option: o });
+    if (req && !keep.length) notes.push(`confirmar ${g.name}`);
+  }
+  const q = plain(caller).match(/\b(\d+|dos|tres|cuatro|two|three|four)\s+\w+/);
+  cart.push({ itemId: dish.id, quantity: q && plain(q[0]).includes(stem(plain(String(dish.name).split(" ")[0]))) ? (Number(q[1]) || NUM[q[1]] || 1) : 1, modifiers, elviNotes: notes, addOn: true });
+  return true;
+}
+
+/** maria3: point the add-on note at the same caller's most recent earlier order (last 3 h) from the call log. */
+export function attachAddOnNote(order: any, caller: string, events: any[], nowMs = Date.now(), callSid = ""): string | null {
+  if (!order?.addOn || !caller) return null;
+  const prior = events.filter((e) => e?.event === "recording" && e.caller === caller && e.callSid !== callSid && Array.isArray(e.lines) && e.lines.length
+    && nowMs - Date.parse(e.ts) < 3 * 3600e3 && Date.parse(e.ts) <= nowMs).sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))[0];
+  if (!prior) return null;
+  const when = new Date(Date.parse(prior.ts)).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+  const note = `AGREGAR a la orden de ${when}${prior.name ? ` (${prior.name})` : ""} — llamada …${String(prior.callSid).slice(-6)}`;
+  for (const l of order.cart || []) if (l.addOn) l.elviNotes = (l.elviNotes || []).map((n: string) => (n === ADD_ON_NOTE ? note : n));
+  order.addOnTo = prior.callSid;
+  return prior.callSid;
+}

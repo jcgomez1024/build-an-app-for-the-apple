@@ -13,6 +13,7 @@ import express from "express";
 import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual, savePickupName} from "./caller-memory.js";
 import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, provisionalDeliveryFeeCents, type Quote } from "./delivery-zone.js";
+import { attachAddOnNote } from "./asked-dishes.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
 import { searchOrdersReadOnly, paymentReceiptReadOnly } from "./square.js";
 import { squareRefs } from "./call-accuracy.js";
@@ -2012,6 +2013,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         fs.writeFileSync(file, buf);
         const prev = segments.get(CallSid);
         const result = await scoreRecording(buf, `call-${String(CallSid).replace(/[^a-zA-Z0-9]/g, "").slice(-40)}${prev ? `-s${prev.files.length + 1}` : ""}`, shadowOrder, { callerChannel, before: prev?.turns });
+        // maria3: an add-on callback's line points at the caller's earlier order (no Square ticket merge exists)
+        try { if ((result.elviOrder as any)?.addOn) { const day = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }); attachAddOnNote(result.elviOrder, caller, readCallEvents(logDir, [day]), Date.now(), CallSid); } } catch { /* note stays generic */ }
         const files = [...(prev?.files || []), path.relative(apiRoot, file)];
         segments.set(CallSid, { turns: result.turns, files, at: Date.now() });
         let name: string | null = callNames.get(CallSid) ?? ticketsByCall.get(CallSid)?.name ?? null;

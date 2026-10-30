@@ -1,0 +1,128 @@
+[
+ {
+  "speaker": "staff",
+  "start": 2.081,
+  "end": 13.285,
+  "text": "¿Cocina Elvis? Ah, claro, María, este, ¿de qué lo quieres?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.981,
+  "end": 9.303,
+  "text": "Mira, acabo de hacer una orden ahorita para María. Este, ¿no me pueden adherir este un pambazo?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.505,
+  "end": 16.446,
+  "text": "De, normalmente, ¿de qué los hacen?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 17.546,
+  "end": 22.168,
+  "text": "Del de lo que tú quieras, pero normalmente de chorizo, como tú gustes.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 23.369,
+  "end": 25.129,
+  "text": "O, ¿no tiene así como papas con chorizo?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.829,
+  "end": 27.21,
+  "text": "Sí, no, o,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 27.09,
+  "end": 28.55,
+  "text": "Ah, me lo hace,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.711,
+  "end": 34.373,
+  "text": "no, no, pero te le podemos poner papas con nopales y chorizo, como tú gustes.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 35.173,
+  "end": 37.154,
+  "text": "a ver. No, está bien, este, papas con nopales. Mmm,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 38.394,
+  "end": 41.955,
+  "text": "Papas con nopales y chorizo, y lleva todo, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 40.875,
+  "end": 41.035,
+  "text": "ajá.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 42.676,
+  "end": 42.776,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 43.596,
+  "end": 45.637,
+  "text": "Lechuga, crema, queso fresco.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.217,
+  "end": 46.317,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 47.697,
+  "end": 49.538,
+  "text": "Muy bien, ok, está muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.258,
+  "end": 53.38,
+  "text": "Okay, okay, gracias. Okay, okay, bye.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 51.179,
+  "end": 52.159,
+  "text": "Gracias, María.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.06,
+  "end": 54.22,
+  "text": "Bye.",
+  "language": "es"
+ }
+]

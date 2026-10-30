@@ -220,6 +220,8 @@ export function isStatusFollowUpCall(turns: Array<{ speaker: string; text: strin
   if (!turns.some((t) => STATUS.test(t.text))) return false;
   const caller = turns.filter((t) => t.speaker === "caller");
   if (caller.some((t) => NEW_ORDER.test(t.text) || FOOD_W.test(t.text))) return false;
+  // maria3: an add-on callback ("agrégame…", "se me olvidó…", "acabo de hacer una orden… ¿me pueden adherir…?") is an order, never status
+  if (caller.some((t) => /\b(?:agr[eé]g\w*|a[ñn]ad\w*|adher\w*|tambi[eé]n\s+quiero|se\s+me\s+olvid\w*|add\s+(?:to|on)\b|forgot\s+to\s+(?:add|order))/iu.test(t.text))) return false;
   if (turns.some((t) => t.speaker === "staff" && STAFF_ORDERING.test(t.text))) return false;
   // counted menu items from the caller only pass when staff first recapped the order already placed (drink-count confirmation)
   const recapAt = turns.findIndex((t) => t.speaker === "staff" && STAFF_RECAP.test(t.text) && STATUS.test(t.text));
