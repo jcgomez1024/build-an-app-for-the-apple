@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { spokenLedger, staffUnavailable } from "./spoken-ledger.js";
+import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -877,6 +877,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     const r = await run(text, language, history.slice(-24));
+    // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
+    const unaSplit = unaSplitMeats(text);
+    if (unaSplit && Array.isArray((r as any)?.actions)) applyUnaSplit((r as any).actions.filter((a: any) => a?.type === "add_item"), unaSplit);
     sizeAnswer = /^\W*(?:a\s+|el\s+|un\s+|lo\s+)?(?:regular|grande|chico|mediano|small|medium|large)\W*$/iu.test(text);
     // larry1: "eight of your steak quesadillas" → Elvi asks the tortilla → "flour": the answer keeps the count of the turn that asked.
     { const pa = history[history.length - 1]?.text || "", pc = history[history.length - 2]?.text || "";
@@ -884,7 +887,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const NRE = /\b(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/i;
       const mq = /\?\s*$/.test(pa) && !/algo más|anything else/i.test(pa) ? pc.match(NRE) : null;
       const noun = mq ? dishNoun(pc) : "";
-      if (mq && noun && !NRE.test(text)) { const n = NUM[mq[1].toLowerCase()] ?? Number(mq[1]);
+      if (mq && noun && !NRE.test(text) && !unaSplit) { const n = NUM[mq[1].toLowerCase()] ?? Number(mq[1]);
         if (n >= 2 && n <= 30) for (const a of (r?.actions || []) as any[]) if (a.type === "add_item" && (Number(a.quantity) || 1) === 1 && String(a.itemId).toLowerCase().includes(String(noun).toLowerCase().replace(/s$/, ""))) a.quantity = n; } }
     // suggest1: listen-only — staff, not Elvi, answer the caller, so Elvi's offer never becomes answerable here.
     const said = String(r?.reply || ""), offer = String(r?.offerText || "");
@@ -1660,6 +1663,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           if (pendingSpokenQty && kindMatch(ik, pendingSpokenQty.kind)) {
             // julio1c: "una quesadilla de comal de duro" is a 1-of-N meat split, not the deferred "dos"
             if (/\buna\s+quesadilla\b/iu.test(text) && /\bcomal\b/iu.test(text)) { pendingSpokenQty = null; }
+            // gio1: "una de tripa y de bistec" splits the announced "dos" across the lines — never stamps it on one
+            else if (unaSplitMeats(text)) { pendingSpokenQty = null; }
             else { a.quantity = pendingSpokenQty.n; pendingSpokenQty = null; appliedPending = true; }
           }
           // tw4938: "Tres tacos: uno de X, uno de Y…" → N lines at qty 1, not each line × N

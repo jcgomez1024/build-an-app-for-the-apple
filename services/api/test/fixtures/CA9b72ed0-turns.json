@@ -1,0 +1,78 @@
+[
+ {
+  "speaker": "staff",
+  "text": "Cocina Elvis."
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, puedes dar una orden."
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, sí, claro, dígame."
+ },
+ {
+  "speaker": "caller",
+  "text": "Me puedes dar dos quesadillas"
+ },
+ {
+  "speaker": "staff",
+  "text": "Sí, ¿de qué te las doy?"
+ },
+ {
+  "speaker": "caller",
+  "text": "de comal, está bien."
+ },
+ {
+  "speaker": "staff",
+  "text": "Muy bien, ¿de qué?"
+ },
+ {
+  "speaker": "staff",
+  "text": "¿Al nombre de quién serían?"
+ },
+ {
+  "speaker": "caller",
+  "text": "De de"
+ },
+ {
+  "speaker": "caller",
+  "text": "de geal."
+ },
+ {
+  "speaker": "staff",
+  "text": "Gio, muy bien."
+ },
+ {
+  "speaker": "staff",
+  "text": "¿Y de qué serían las dos quesadillas?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Ah, una de tripa y de bistec."
+ },
+ {
+  "speaker": "staff",
+  "text": "Muy bien, una de tripa y una de bistec. ¿Algo más, Gio?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Es todo."
+ },
+ {
+  "speaker": "staff",
+  "text": "Okay, entonces te tengo una quesadilla del comal de bistec y una de tripa. Dame unos quince minutos, Gio, ¿no está bien?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Okay."
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, está bien."
+ },
+ {
+  "speaker": "staff",
+  "text": "Okay."
+ }
+]

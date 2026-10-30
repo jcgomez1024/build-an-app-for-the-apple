@@ -1,4 +1,4 @@
-import { staffUnavailable } from "./spoken-ledger.js";
+import { staffUnavailable, unaSplitMeats, applyUnaSplit } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
 import WebSocket from "ws";
@@ -2112,6 +2112,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   const r = await chatWithElviPaths(input, runtimeConfig);
   let out = r; try { out = caseFix(r, input); } catch { /* keep r */ }
   try { out = noFalseFillingDenial(out, input); } catch { /* keep */ }
+  // gio1: "una de tripa y de bistec" after "dos quesadillas" → each add is qty 1 (live)
+  try { const ms = input?.transcript ? unaSplitMeats(String(input.transcript)) : null; if (ms && out?.actions?.length) { const acts = out.actions.map((a: any) => ({ ...a })); if (applyUnaSplit(acts.filter((a: any) => a.type === "add_item"), ms)) out = { ...out, actions: acts }; } } catch { /* keep */ }
   try { return noOfferUnavailable(out, input); } catch { return out; }
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */

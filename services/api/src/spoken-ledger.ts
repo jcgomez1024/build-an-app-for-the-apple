@@ -149,3 +149,23 @@ export function staffUnavailable(turns: T[]): string[] {
   }
   return [...out];
 }
+
+/** gio1: "una de tripa y (una) de bistec" — each named meat is ONE unit; an announced "dos quesadillas" is shared across the split
+ * lines, never stamped on each/one. Returns the meats split this way (normalized), or null. */
+export function unaSplitMeats(text: string): string[] | null {
+  const x = nf(text);
+  const m = x.match(/\buna?\s+de\s+([a-z]+(?:\s+con\s+[a-z]+)?)((?:\s*,?\s*(?:y\s+)?(?:una?\s+|otr[ao]\s+)?de\s+[a-z]+(?:\s+con\s+[a-z]+)?)+)/);
+  if (!m) return null;
+  const rest = [...m[2].matchAll(/de\s+([a-z]+(?:\s+con\s+[a-z]+)?)/g)].map((r) => r[1]);
+  const meats = [m[1], ...rest].filter((w) => !/^(comal|harina|maiz|todo|eso|esas?|esos?|dos|tres|cuatro|aceite)$/.test(w));
+  return meats.length >= 2 ? meats : null;
+}
+/** Set qty 1 on lines whose meat option is one of the una-split meats. Mutates & returns whether anything changed. */
+export function applyUnaSplit(lines: any[], meats: string[]): boolean {
+  let ch = false;
+  for (const l of lines) {
+    const opt = nf((l.modifiers || []).map((o: any) => String(o.option || "")).join(" "));
+    if (meats.some((w) => new RegExp(`\\b${w.split(" ")[0]}\\b`).test(opt)) && Number(l.quantity) > 1) { l.quantity = 1; ch = true; }
+  }
+  return ch;
+}
