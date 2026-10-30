@@ -1,0 +1,177 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.241,
+  "end": 1.521,
+  "text": "Qué bueno.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.481,
+  "end": 3.642,
+  "text": "¿Se me puede hacer una orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.462,
+  "end": 5.442,
+  "text": "Claro que sí, a ver, dime.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.843,
+  "end": 10.825,
+  "text": "¿Me puede hacer una gordita de de chorizo con frijoles?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 12.425,
+  "end": 17.067,
+  "text": "Una gordita de chorizo con frijoles, ¿te gustaría con queso o sin queso? Disculpa.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 17.708,
+  "end": 18.168,
+  "text": "Con queso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.01,
+  "end": 23.01,
+  "text": "De comal, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.249,
+  "end": 22.789,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.09,
+  "end": 24.93,
+  "text": "Claro, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 26.251,
+  "end": 31.914,
+  "text": "¿me la puedes hacer dos con toda la, o sea, con lettuce y sour cream?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 31.933,
+  "end": 35.075,
+  "text": "Tipo de gallo, ok, muy bien, de deluxe.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 34.735,
+  "end": 37.136,
+  "text": "Y queso fresco, por favor, también.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 37.255,
+  "end": 37.556,
+  "text": "Claro,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 38.656,
+  "end": 39.096,
+  "text": "¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.177,
+  "end": 41.718,
+  "text": "y lo, ¿me puedes dar dos street tacos",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 42.838,
+  "end": 44.158,
+  "text": "Ajá, ¿de qué te gusta?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.099,
+  "end": 43.559,
+  "text": "de biste?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 45.199,
+  "end": 48.34,
+  "text": "Los three tacos de biste, taquero, ok.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 49.141,
+  "end": 52.763,
+  "text": "Y me puedes dar dos quesadillas de comal, de biste.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 53.942,
+  "end": 56.163,
+  "text": "Los quesadillas comal de biste, ok.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 57.366,
+  "end": 57.946,
+  "text": "Y serio todo.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 59.325,
+  "end": 61.447,
+  "text": "¿Me darías tu nombre para tu orden, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.25,
+  "end": 71.758,
+  "text": "Sí, Angie. Yeah. Okay, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 66.652,
+  "end": 70.536,
+  "text": "Muy bien, Angie, danos unos quince a veinte minutos por lo menos, ¿no? Y te tenemos tu orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 72.558,
+  "end": 73.379,
+  "text": "A ti, hasta luego.",
+  "language": "es"
+ }
+]

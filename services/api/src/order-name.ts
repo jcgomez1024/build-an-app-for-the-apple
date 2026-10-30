@@ -682,7 +682,7 @@ const NUM_TOKEN = /^(?:\d+|cero|uno?|una|dos|tres|cuatro|cinco|seis|siete|ocho|n
 export function isNumberName(name: string): boolean {
   const w = String(name || "").trim().split(/[\s.,-]+/).filter(Boolean);
   // cmissing1: sign-offs are never a name ("Bye" from "Bye." at the end of the call)
-  if (w.length && w.every((x) => /^(?:bye|byebye|goodbye|bye-bye|thanks?|thank|you|later|see|ya|cheers|adios|adi[oó]s|gracias|okay|ok|hasta|luego)$/i.test(x))) return true;
+  if (w.length && w.every((x) => /^(?:bye|byebye|goodbye|bye-bye|thanks?|thank|you|later|see|ya|cheers|adios|adi[oó]s|gracias|okay|ok|hasta|luego|serious|seriously|yeah|yes|yep|yup|sure|really|what|right|hello|hi|hey|no|nope|uh|um|huh|si|s[ií]|bueno|claro|oye|mande)$/i.test(x))) return true;
   return !w.length || /\d/.test(name) || w.every((x) => NUM_TOKEN.test(x));
 }
 function readBackName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" } | null {

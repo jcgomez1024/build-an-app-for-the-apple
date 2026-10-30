@@ -1,0 +1,77 @@
+[
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 6,
+  "modifiers": [
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   }
+  ],
+  "readback": "6 quesadilla comal bistec"
+ },
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Prensado / Spicy Pork (+$0.50)"
+   }
+  ],
+  "readback": "1 quesadilla comal prensado"
+ },
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) REGULAR Dorada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Prensado / Spicy Pork"
+   }
+  ],
+  "readback": "1 QD regular prensado"
+ },
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) REGULAR Dorada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Alpastor / Roasted Pork"
+   }
+  ],
+  "readback": "1 QD regular pastor"
+ },
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) REGULAR Dorada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   }
+  ],
+  "readback": "1 QD regular bistec"
+ }
+]

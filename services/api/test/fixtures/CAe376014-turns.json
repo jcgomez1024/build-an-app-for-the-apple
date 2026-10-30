@@ -1,0 +1,121 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.68,
+  "end": 1.02,
+  "text": "Sí, bueno.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.741,
+  "end": 4.942,
+  "text": "Ah, bueno, no sé, es que tiene enchilada.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.482,
+  "end": 7.303,
+  "text": "Buenas noches. Enchiladas, sí, amigazo.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.843,
+  "end": 10.884,
+  "text": "Ah, ¿me pones dos órdenes, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.605,
+  "end": 12.565,
+  "text": "¿De qué te gustarían?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.325,
+  "end": 14.186,
+  "text": "¿De qué, qué vienen?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.826,
+  "end": 18.367,
+  "text": "Queso, papas, frijol, pollo prensado.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.688,
+  "end": 24.109,
+  "text": "Ah, una de puro pollo, una orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.37,
+  "end": 27.671,
+  "text": "Una de puro pollo, muy bien. ¿Y la otra?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.471,
+  "end": 31.892,
+  "text": "De papas y de, y las otras de frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.833,
+  "end": 34.754,
+  "text": "Y de frijol, muy bien. ¿Algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 35.734,
+  "end": 36.514,
+  "text": "Ah, nada más.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 37.255,
+  "end": 39.375,
+  "text": "¿Me darías tu nombre para tu orden, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.996,
+  "end": 40.336,
+  "text": "Miguel.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.496,
+  "end": 46.478,
+  "text": "Muy bien, Miguel, danos unos veinte, veinte minutos por lo menos, ¿no? Y te te tenemos tu orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 47.298,
+  "end": 48.119,
+  "text": "Okey, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 48.799,
+  "end": 49.559,
+  "text": "A ti, hasta luego.",
+  "language": "es"
+ }
+]

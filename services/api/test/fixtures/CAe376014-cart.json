@@ -1,0 +1,22 @@
+[
+ {
+  "itemId": "sq-enchiladas-orden-de-enchiladas-6-6QOYJ5",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(A) Enchiladas Carne Options (ONLINE)",
+    "option": "Pollo / Chicken"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ }
+]

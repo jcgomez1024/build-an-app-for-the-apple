@@ -1,0 +1,55 @@
+[
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 4,
+  "modifiers": [
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   },
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) REGULAR Dorada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Chorizo / Mexican Sausage"
+   }
+  ],
+  "readback": "QD regular chorizo"
+ },
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Chorizo / Mexican Sausage"
+   },
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ }
+]

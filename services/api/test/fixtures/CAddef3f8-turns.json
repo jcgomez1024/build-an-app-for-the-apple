@@ -1,0 +1,107 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.301,
+  "end": 2.241,
+  "text": "Cocina Elvis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.642,
+  "end": 5.022,
+  "text": "Ah, sí, bueno, quería poner una orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.003,
+  "end": 6.943,
+  "text": "Ah, claro, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.384,
+  "end": 9.885,
+  "text": "Ah, me da cuatro quesadillas de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.406,
+  "end": 15.667,
+  "text": "de bistec, hechas, sí,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.087,
+  "end": 14.607,
+  "text": "Del Comal.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 17.068,
+  "end": 18.049,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.129,
+  "end": 20.37,
+  "text": "y dos quesadillas de chorizo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 21.43,
+  "end": 22.311,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 23.751,
+  "end": 24.112,
+  "text": "Es todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.132,
+  "end": 30.995,
+  "text": "Entonces te tengo cuatro del del Comal de bistec y dos quesadillas de Comal de chorizo, Luis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 32.135,
+  "end": 32.235,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 33.136,
+  "end": 36.097,
+  "text": "Ok, dame unos veinte minutos, Luis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 37.138,
+  "end": 38.438,
+  "text": "Okay, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 39.259,
+  "end": 39.799,
+  "text": "Gracias a ti.",
+  "language": "es"
+ }
+]

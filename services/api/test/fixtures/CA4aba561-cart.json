@@ -1,0 +1,63 @@
+[
+ {
+  "itemId": "sq-gordita-M647RE",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Chorizo / Mexican Sausage"
+   },
+   {
+    "step": "(A) Gordita Options",
+    "option": "(QGD) Queso Gordita (+$0.50)"
+   },
+   {
+    "step": "(C) Con / With",
+    "option": "**Con Frijoles / With Beans (+$0.50)"
+   },
+   {
+    "step": "(E) DELUXE Options",
+    "option": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)"
+   }
+  ]
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TST) Taco Taquero / Street Taco"
+   }
+  ],
+  "elviNotes": [
+   "confirmar (B) T Carnes / Meats Opciones"
+  ],
+  "asked": true
+ },
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+    "isDefault": true
+   }
+  ],
+  "elviNotes": [
+   "confirmar (B) Q Carnes / Meats"
+  ],
+  "asked": true
+ },
+ {
+  "itemId": "sq-extras-mild-salsa-asada-2oz-T6PGNT",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "Extras options",
+    "option": "Crema / Sour Cream 2oz"
+   }
+  ]
+ }
+]

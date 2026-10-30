@@ -1,0 +1,324 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.08,
+  "end": 1.621,
+  "text": "Carolina.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 5.942,
+  "end": 6.422,
+  "text": "Carolina.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.563,
+  "end": 7.703,
+  "text": "Bueno, ok.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 7.703,
+  "end": 8.203,
+  "text": "Sí, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 9.444,
+  "end": 14.186,
+  "text": "Me das dos quesadillas de tortilla de comal de bistec.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 14.965,
+  "end": 16.886,
+  "text": "Muy bien, ¿algo más, Carolina?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 17.247,
+  "end": 18.047,
+  "text": "Una quesadilla",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.048,
+  "end": 21.809,
+  "text": "preparada de aceite de chicharrón prensado.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.788,
+  "end": 24.189,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.19,
+  "end": 29.992,
+  "text": "Ah, una quesadilla preparada de aceite de bistec.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 30.951,
+  "end": 32.372,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 33.453,
+  "end": 35.174,
+  "text": "Tres tacos de al pastor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.993,
+  "end": 36.673,
+  "text": "¿Taqueros",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 37.593,
+  "end": 38.274,
+  "text": "o del comal?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 37.655,
+  "end": 39.816,
+  "text": "Sí, todos taqueros, todos taqueros.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 39.394,
+  "end": 41.955,
+  "text": "Okey. Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 41.116,
+  "end": 43.758,
+  "text": "Tres tacos de al pastor, tres tacos de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 45.538,
+  "end": 45.578,
+  "text": "ah,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.799,
+  "end": 47.139,
+  "text": "costilla.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 48.377,
+  "end": 49.758,
+  "text": "¿Tres tacos taqueros de costilla?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.84,
+  "end": 51,
+  "text": "Ajá.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 51.758,
+  "end": 52.819,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 53.922,
+  "end": 57.723,
+  "text": "Tres tacos taqueros de tripas que no estén tan doradas.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 59.141,
+  "end": 61.122,
+  "text": "Okay, muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.104,
+  "end": 63.564,
+  "text": "Y tres tacos de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 64.685,
+  "end": 66.005,
+  "text": "ay, ya no sé qué se me antoja tanto.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 67.705,
+  "end": 68.265,
+  "text": "Ah,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 69.205,
+  "end": 69.965,
+  "text": "de que estará bueno.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.786,
+  "end": 73.666,
+  "text": "Dame tres tacos de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 76.746,
+  "end": 78.366,
+  "text": "del cabeza.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 79.128,
+  "end": 81.189,
+  "text": "Cabeza, muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 81.267,
+  "end": 82.487,
+  "text": "Sería todo, sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 82.929,
+  "end": 101.796,
+  "text": "Mira, te tengo dos quesadillas del comal de biste, una quesadilla preparada de prensado, una quesadilla preparada de biste, tres tacos taqueros de al pastor, tres tacos taqueros de costilla, tres tacos taqueros de tripa, y por último los tres tacos de cabeza, ¿correcto, Carolina?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 87.848,
+  "end": 88.548,
+  "text": "La niña que quiere.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 102.93,
+  "end": 111.591,
+  "text": "¿Cuántos? Y dos tacos de bistec. Sí, sí, ¿y cuántos millones te debo?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 105.757,
+  "end": 109.258,
+  "text": "Oh, te pongo otros dos tacos de biste, taqueros, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 110.439,
+  "end": 110.779,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 112.92,
+  "end": 115.001,
+  "text": "Ah, serían Ahí siéntate, Carolina.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 115.851,
+  "end": 118.532,
+  "text": "Ay, Dios mío santísimo. Okay, todo eso comí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 120.365,
+  "end": 121.686,
+  "text": "Okay, Carolina, dame",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 121.112,
+  "end": 123.914,
+  "text": "No, está bien. Y un agua de horchata, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 124.568,
+  "end": 126.209,
+  "text": "una water chata, claro.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 128.391,
+  "end": 129.231,
+  "text": "Muy bien, Carolina.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 128.415,
+  "end": 137.039,
+  "text": "Sería todo. Okay, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 130.212,
+  "end": 134.675,
+  "text": "Dame unos, uh, unos veinte minutos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 137.437,
+  "end": 138.438,
+  "text": "Gracias a ti, Carolina.",
+  "language": "es"
+ }
+]

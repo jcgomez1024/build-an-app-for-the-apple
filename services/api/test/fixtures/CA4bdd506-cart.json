@@ -1,0 +1,133 @@
+[
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) DELUXE Preparada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   }
+  ],
+  "readback": "quesadilla dorada deluxe"
+ },
+ {
+  "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(QD) Style",
+    "option": "(QD) DELUXE Preparada"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Prensado / Spicy Pork"
+   }
+  ],
+  "readback": "quesadilla comal prensado"
+ },
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   },
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 3,
+  "modifiers": [
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Alpastor / Roasted Pork"
+   },
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TST) Taco Taquero / Street Taco"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ],
+  "readback": "taco taquero"
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 3,
+  "modifiers": [
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Alpastor / Roasted Pork"
+   },
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TST) Taco Taquero / Street Taco"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ],
+  "readback": "taco taquero"
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 3,
+  "modifiers": [
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Cabeza / Beef Head (+$0.50)"
+   },
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Bistec / Steak"
+   },
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TST) Taco Taquero / Street Taco"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+  "quantity": 1
+ }
+]
