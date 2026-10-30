@@ -204,14 +204,27 @@ export function applyEnglishReadback(cart: any[], turns: T): void {
 
 // alexvoc1 (CA12e9407, Oct 30 12:55 PM ET): "¿ahí va?" … "ahorita la llevamos ya pa allá. Entonces fueron las tres birrias…" —
 // a status / confirmation call about an order already placed, with no new-order words from the caller.
-const STATUS = /\b(?:ya\s+va\s+(?:pa|para)\s+all[aá]|(?:la|se\s+la|te\s+la|se\s+lo)\s+llevamos|ya\s+(?:viene|sali[oó]|va\s+en\s+camino)|en\s+camino|on\s+(?:its|it's|the)\s+way|already\s+(?:left|out)|where'?s\s+my\s+order|d[oó]nde\s+(?:va|est[aá])\s+mi\s+(?:orden|pedido|comida)|(?:ya\s+)?(?:me|le|te)\s+lleg[oó])\b/iu;
-const NEW_ORDER = /\b(?:quiero|quisiera|me\s+(?:da|das|pone|puede|regala)|ponme|dame|agr[eé]g|a[ñn]ad|tambi[eé]n\s+(?:quiero|me)|i\s+(?:want|need|would\s+like)|i'?d\s+like|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|put\s+in\s+(?:an?|my)\s+order|para\s+ordenar|hacer\s+(?:un|una)\s+(?:orden|pedido)|pedir|place\s+an?\s+order|otr[ao]\s+orden)\b/iu;
+// manuel1 (CAe49b30, 2:02 PM ET): "Ahí va todo, ¿verdad?" on a real enchiladas order fired the old classifier and lost the
+// whole order. A false status call loses an order, so: strong delivery-status phrase required, and ANY ordering language,
+// staff order-taking question, or food / counted menu item from the caller → NOT a status call. When unsure → normal order.
+const STATUS = /\b(?:ya\s+va\s+(?:pa|para)\s+all[aá]|(?:la|se\s+la|te\s+la|se\s+lo)\s+llevamos|ya\s+(?:viene|sali[oó]|va\s+en\s+camino)|va\s+en\s+camino|on\s+(?:its|it's|the)\s+way|already\s+(?:left|out\s+for\s+delivery)|where'?s\s+my\s+(?:order|food)|d[oó]nde\s+(?:va|est[aá])\s+mi\s+(?:orden|pedido|comida))\b/iu;
+const NEW_ORDER = /\b(?:quiero|quisiera|prepar\w*|una\s+orden|[oó]rden(?:es)?\s+de|me\s+(?:da|das|de|des|pone|pones|puede|puedes|podr[ií]a|regala|haces|hace|manda|mandas)|p[oó]n(?:me|ga|gan|le)|dame|deme|agr[eé]g\w*|a[ñn]ad\w*|tambi[eé]n\s+(?:quiero|me)|para\s+llevar|to\s+go|pick\s*-?\s*up|i\s+(?:want|need|would\s+like)|i'?d\s+like|i'?ll\s+(?:have|take|get)|can\s+i\s+(?:get|have|order)|could\s+i\s+(?:get|have)|let\s+me\s+(?:get|have)|(?:put\s+in|place)\s+an?\s+order|order|ordenar|hacer\s+(?:un|una)\s+(?:orden|pedido)|pedir|pedido\s+nuevo|otr[ao]\s+orden|regulares|preparad\w*|con\s+todo)\b/iu;
+const STAFF_ORDERING = /\b(?:qu[eé]\s+(?:le|te)\s+(?:vamos\s+a\s+dar|damos|doy|sirvo|pongo)|de\s+qu[eé]\s+(?:se\s+)?(?:las?|los?|te|le)\s+(?:pongo|vamos)|qu[eé]\s+(?:va|vas)\s+a\s+(?:querer|ordenar|llevar)|algo\s+m[aá]s|a\s+qu[eé]\s+nombre|tu\s+nombre|su\s+nombre|le\s+pongo|vienen\s+(?:seis|cinco|tres|\d+)|preparad[ao]s\s+o\s+regular|what\s+can\s+i\s+(?:get|do)\s+for\s+you|what\s+would\s+you\s+like|anything\s+else|name\s+(?:for|on)\s+the\s+order)\b/iu;
+const FOOD_W = /\b(?:tacos?|quesadillas?|qd|doradas?|burritos?|tortas?|quesitortas?|gorditas?|huaraches?|sopes?|pozole|menudo|mole|platillos?|enchiladas?|tamales?|tostadas?|nachos?|birrias?|pambazos?|flautas?|chiles?\s+rellenos?|combos?|chilaquiles|coctel|c[oó]ctel|caldo|consom[eé])\b/iu;
+const ITEM_COUNT = /\b(?:\d+|un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|diez|one|two|three|four|five|six)\s+(?:de\s+)?(?:\p{L}+\s+)?(?:tacos?|quesadillas?|doradas?|burritos?|tortas?|gorditas?|enchiladas?|aguas?|horchatas?|jamaicas?|sodas?|cocas?|jarritos?|birrias?|[oó]rden(?:es)?|bistec|pastor|chorizo|prensado|pollo|carnitas|duro)\b/iu;
+// a staff recap of the order already placed ("Entonces fueron las tres birrias, diez tacos, tres aguas…")
+const STAFF_RECAP = /\b(?:fueron|eran|era)\s+(?:las?|los?)\b|\b(?:your|su|tu)\s+(?:order|orden|pedido)\s+(?:was|fue|ya)\b/iu;
 export function isStatusFollowUpCall(turns: Array<{ speaker: string; text: string; end?: number }>): boolean {
-  if (!turns.some((t) => STATUS.test(t.text))) return false;
-  if (turns.some((t) => t.speaker === "caller" && NEW_ORDER.test(t.text))) return false;
-  if (turns.some((t) => t.speaker === "staff" && /\b(?:qu[eé]\s+(?:le|te)\s+(?:vamos\s+a\s+dar|damos|doy|sirvo)|qu[eé]\s+(?:va|vas)\s+a\s+(?:querer|ordenar|llevar)|what\s+can\s+i\s+(?:get|do)\s+for\s+you|what\s+would\s+you\s+like)\b/iu.test(t.text))) return false;
   const dur = Math.max(0, ...turns.map((t) => Number(t.end) || 0));
-  return dur > 0 && dur <= 120;
+  if (!(dur > 0 && dur <= 120)) return false;
+  if (!turns.some((t) => STATUS.test(t.text))) return false;
+  const caller = turns.filter((t) => t.speaker === "caller");
+  if (caller.some((t) => NEW_ORDER.test(t.text) || FOOD_W.test(t.text))) return false;
+  if (turns.some((t) => t.speaker === "staff" && STAFF_ORDERING.test(t.text))) return false;
+  // counted menu items from the caller only pass when staff first recapped the order already placed (drink-count confirmation)
+  const recapAt = turns.findIndex((t) => t.speaker === "staff" && STAFF_RECAP.test(t.text) && STATUS.test(t.text));
+  for (let i = 0; i < turns.length; i++) if (turns[i].speaker === "caller" && ITEM_COUNT.test(turns[i].text) && (recapAt < 0 || i < recapAt)) return false;
+  return true;
 }
 
 // vapor1 (CA331ca94, Oct 30 1:53 PM ET, Víctor): "dos órdenes de tacos al vapor … uno de papa, uno de frijol y tres de prensado,
@@ -288,4 +301,68 @@ export function applyQuesoTortaSpoken(cart: any[], turns: T): void {
       cart.push({ itemId: TORTA_ID, quantity: m[1] ? vn(m[1]) || 1 : 1, modifiers: [{ step: "(A) Torta Options", option: "(QTO) Queso Torta (+$0.50)" }, { step: "(B) Q Carnes / Meats", option: meat }] });
     }
   }
+}
+
+// manuel1 (CAe49b30): "una orden de enchiladas … tres de chorizo y tres de prensado" → staff "No [hay/tengo] chorizo, solamente queso,
+// papa, frijoles, pollo y prensado" → "las seis de prensado" → 1 Orden de Enchiladas (6), all prensado. A filling the staff named
+// for the enchiladas ("la orden de enchilada, la seis de prensado") never becomes a stray dorada / taco line.
+export const ENCH_ID = "sq-enchiladas-orden-de-enchiladas-6-6QOYJ5";
+const EFILL: Array<[RegExp, string, string]> = [[/^queso$/iu, "Queso / Cheese", "queso"], [/^papas?$/iu, "Papas / Potatoes", "papa"], [/^frijol(?:es)?$/iu, "Frijol / Beans", "frijol"],
+  [/^pollo$/iu, "Pollo / Chicken", "pollo"], [/^prensados?$/iu, "Prensado / Pork", "prensado"]];
+const DISHES = /\b(enchiladas?|quesadillas?|doradas?|tacos?|gorditas?|tortas?|burritos?|sopes?|huaraches?)\b/giu;
+const dishKey = (w: string) => /^enchil/i.test(w) ? "enchilada" : /^(?:quesadill|dorad)/i.test(w) ? "quesadilla" : w.toLowerCase().replace(/s$/, "");
+const lineDish = (id: string) => /enchilad/i.test(id) ? "enchilada" : /^sq-(?:qd|quesadilla)/i.test(id) ? "quesadilla" : (id.match(/^sq-([a-z]+)/i)?.[1] || "").replace(/s$/, "");
+function mergedTurns(turns: T): Array<{ speaker: string; text: string }> {
+  const out: Array<{ speaker: string; text: string }> = [];
+  for (const t of turns) { const l = out[out.length - 1]; if (l && l.speaker === t.speaker) l.text += " " + t.text; else out.push({ speaker: t.speaker, text: t.text }); }
+  return out;
+}
+/** meat word → dishes it was attached to (nearest dish word before it in the same merged turn) */
+function meatDishes(turns: T, meat: RegExp): Set<string> {
+  const out = new Set<string>();
+  for (const t of mergedTurns(turns)) {
+    const dishes = [...t.text.matchAll(DISHES)].map((m) => ({ i: m.index!, k: dishKey(m[1]) }));
+    for (const m of t.text.matchAll(new RegExp(meat.source, "giu"))) { const d = dishes.filter((x) => x.i < m.index!).pop(); if (d) out.add(d.k); }
+  }
+  return out;
+}
+export function applyEnchiladaOrder(cart: any[], turns: T): void {
+  const callerT = turns.filter((t) => t.speaker === "caller");
+  const ordered = callerT.find((t) => /\benchiladas?\b/iu.test(t.text) && /\b(?:orden(?:es)?|prepar\w*|quiero|me\s+(?:da|das|pones?|puedes)|dame|\d+|un[ao]?|dos|tres)\b/iu.test(t.text));
+  if (!ordered) return;
+  if (turns.some((t) => t.speaker === "staff" && /\benchiladas?\b/iu.test(t.text) && /\b(?:hasta\s+ma[ñn]ana|no\s+(?:hay|tenemos|hicimos|hicieron)|se\s+acabaron)\b/iu.test(t.text))) return;
+  const nOrd = Math.max(1, ...callerT.map((t) => t.text.match(/\b(\d|un[ao]?|dos|tres)\s+[oó]rden(?:es)?\s+de\s+enchiladas?\b/iu)).filter(Boolean).map((m) => vn(m![1])));
+  // fillings the staff said they don't have ("No, tengo chorizo, solamente…" is ASR for "no tengo")
+  const gone = new Set<string>();
+  for (const t of turns) if (t.speaker === "staff") for (const m of t.text.matchAll(/\bno,?\s+(?:tengo|hay|tenemos|me\s+queda)\s+(?:de\s+)?(\p{L}+)/giu)) gone.add(m[1].toLowerCase());
+  // latest turn after the enchilada order whose filling counts make whole orders of 6 (or "las seis / todas de X")
+  const start = turns.indexOf(ordered); let mix: Array<[string, number]> | null = null;
+  for (let i = turns.length - 1; i >= start && !mix; i--) {
+    const tx = turns[i].text;
+    const all = tx.match(/\b(?:las?|los?)\s+(?:seis|6|doce|12|todas?)\s+(?:de\s+)?(\p{L}+)/iu);
+    if (all) { const f = EFILL.find(([re]) => re.test(all[1])); if (f) { mix = [[f[1], 6 * nOrd]]; break; } }
+    const pairs = [...tx.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+(?:de\s+)?(\p{L}+)/giu)];
+    const got: Array<[string, number]> = []; let ok = pairs.length > 0, sum = 0;
+    for (const p of pairs) { const f = EFILL.find(([re]) => re.test(p[2])); if (!f || gone.has(p[2].toLowerCase())) { ok = false; break; } got.push([f[1], vn(p[1])]); sum += vn(p[1]); }
+    if (ok && sum === 6 * nOrd && /\benchilad|\bde\s+(?:queso|papa|frijol|pollo|prensado)/iu.test(tx)) mix = got;
+  }
+  const ex = cart.find((l) => l.itemId === ENCH_ID);
+  const step = "(A) Enchiladas Carne Options (ONLINE)";
+  const keepOther = (ex?.modifiers || []).filter((m: any) => m.step !== step && !/Carne Options/i.test(String(m.step)));
+  const mods = mix ? mix.map(([o]) => ({ step, option: o })) : (ex?.modifiers || []).filter((m: any) => !gone.has(String(m.option).split(" / ")[0].toLowerCase()));
+  const note = mix ? ["enchiladas: " + mix.map(([o, n]) => `${n} ${EFILL.find(([, x]) => x === o)![2]}`).join(", ")] : [];
+  if (ex) { ex.modifiers = [...mods, ...keepOther]; ex.quantity = nOrd; if (note.length) ex.elviNotes = [...(ex.elviNotes || []).filter((n: string) => !/^enchiladas:/.test(n)), ...note]; }
+  else cart.push({ itemId: ENCH_ID, quantity: nOrd, modifiers: mods, ...(note.length ? { elviNotes: note } : {}) });
+  // a filling only ever attached to the enchiladas is not another dish's meat
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const l = cart[i]; if (l.itemId === ENCH_ID) continue; const d = lineDish(String(l.itemId)); if (!d) continue;
+    const meats = (l.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => /Carnes|Meats/i.test("") || /\//.test(o)).map((o: string) => o.split(" / ")[0].trim().toLowerCase());
+    const fill = meats.find((m: string) => EFILL.some(([re]) => re.test(m))); if (!fill || meats.length > 1) continue;
+    const ds = meatDishes(turns, new RegExp(String.raw`\b${fill}\w*\b`));
+    if (ds.has("enchilada") && !ds.has(d)) cart.splice(i, 1);
+  }
+  // "dos quesadillas doradas … de chicharrón duro" → the one QD meat line carries the caller's count
+  const qn = Math.max(0, ...callerT.map((t) => t.text.match(/\b(\d|un[ao]?|dos|tres|cuatro|cinco|seis)\s+(?:quesadillas?\s+|qd\s+(?:regular\s+|deluxe\s+)?)?doradas?\b/iu)).filter(Boolean).map((m) => vn(m![1])));
+  const qd = cart.filter((l) => /^sq-qd-/i.test(String(l.itemId)));
+  if (qn && qd.length === 1 && qd[0].quantity < qn) qd[0].quantity = qn;
 }

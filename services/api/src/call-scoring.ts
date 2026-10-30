@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -7589,6 +7589,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
 
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
+  applyEnchiladaOrder(cart as any[], turns as any); // manuel1 (last: after every readback rebuild)
   return { cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 
