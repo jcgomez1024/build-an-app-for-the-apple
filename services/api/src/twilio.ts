@@ -3,7 +3,7 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName } from "./order-name.js";
+import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative } from "./order-name.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -2019,7 +2019,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         // ordername1 (Carlos 10/24): bare / "De X" after name-ask → ticket + customer name log.
         // Pickup-only (lastPickupName, not contact): "para X" / "for X" / "la va a recoger" / picking-up.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
-        const heardOrderName = heardInfo?.name || null;
+        // alexvoc1: a staff vocative the caller denied ("Alex, ¿no?" → "yo soy otro") is never the order name or memory.
+        const heardOrderName = heardInfo?.name && !deniedVocative(result.turns as any, heardInfo.name) ? heardInfo.name : null;
         // mau1 (CAc68af8): no food ordered → never persist customerName / pickup name to memory
         const hasOrder = Array.isArray(result.elviOrder?.cart) && result.elviOrder.cart.length > 0;
         if (heardOrderName) {
@@ -2051,7 +2052,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           callSid: CallSid,
           at: callStartedAt.get(CallSid) || ticketsByCall.get(CallSid)?.at || new Date().toISOString(),
           caller, name, receiptCode: receiptCode(CallSid),
-          language: callLang.get(CallSid) || "es", phase: "final", training: isTrainingCaller(caller),
+          language: callLang.get(CallSid) || "es", phase: (result.elviOrder as any)?.statusCall ? "listening" : "final", training: isTrainingCaller(caller), // alexvoc1: status call never finalizes a ticket
           transcript: result.transcript,
           source: elviPhoneSource(called), phoneDisplay: formatTicketPhone(caller),
           fulfillment: "TO GO / LLEVAR",

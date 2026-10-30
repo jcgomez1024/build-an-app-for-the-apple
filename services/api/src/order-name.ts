@@ -254,7 +254,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     if (/c[oó]mo\s+se\s+llama/iu.test(turns[i].text)
       && !/\b(?:tu\s+nombre|su\s+nombre|a\s+nombre|your\s+name|me\s+llamo)\b/iu.test(turns[i].text)
       && /\b(?:pura|puro|esto|esa|ese|aquel|menudo|taco|quesadilla|birria|mole|caldo)\b/iu.test(turns[i].text)) continue;
-    // alex1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
+    // alexvoc1: Wally (ASR) then Alex — take the LAST valid caller answer in the next few turns (incl. after "¿Cómo?").
     let lastCaller: string | null = null;
     let spelledCaller: string | null = null;
     let staffEcho: string | null = null;
@@ -407,7 +407,27 @@ function isKitchenVocativeHit(text: string, name: string): boolean {
   return false;
 }
 
+// alexvoc1 (CA12e9407, Oct 30 12:55 PM ET): staff "…Alex, ¿no?" → caller "Quién sabe, yo soy otro grupo" — a denied
+// vocative is never the name. Blank it in that staff turn and look again.
+const DENY_NAME = /\b(?:qui[eé]n\s+sabe|soy\s+otr[oa]|no\s+soy|otro\s+grupo|no\s+me\s+llamo|se\s+equivoc|equivocad[oa]|not\s+me|that'?s\s+not\s+me|i'?m\s+not|wrong\s+(?:person|guy|number)|my\s+name\s+is\s+not)\b/iu;
 export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  let ts = turns;
+  for (let k = 0; k < 4; k++) {
+    const n = nameFromStaffVocativeRaw(ts); if (!n) return null;
+    const re = new RegExp(`\\b${n.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "iu");
+    const i = ts.findIndex((t) => t.speaker === "staff" && re.test(t.text));
+    const next = i >= 0 ? ts.slice(i + 1).find((t) => t.speaker === "caller") : undefined;
+    if (!next || !DENY_NAME.test(next.text)) return n;
+    ts = ts.map((t, j) => (j === i ? { ...t, text: t.text.replace(new RegExp(re.source, "giu"), "") } : t));
+  }
+  return null;
+}
+export function deniedVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>, name: string): boolean {
+  const esc = name.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); const re = new RegExp(`\\b${esc}\\b`, "iu");
+  return turns.some((t, i) => t.speaker === "staff" && re.test(t.text) && DENY_NAME.test(turns.slice(i + 1).find((u) => u.speaker === "caller")?.text || ""))
+    && !turns.some((t) => t.speaker === "caller" && new RegExp(`\\b(?:soy|me\\s+llamo|i'?m|my\\s+name\\s+is|this\\s+is|habla)\\s+${esc}\\b`, "iu").test(t.text));
+}
+function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   // luke1 (CA661a30): staff close "Okay, okay, look," = ASR for returning caller Luke (ticket name)
   // cacc9783 (Tabby): staff "Okay, and" is conjunction filler (NOT_NAMES and) — never order_name And
   for (const turn of turns) {

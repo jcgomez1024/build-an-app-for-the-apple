@@ -123,9 +123,12 @@ export function dropIncludedTortillas(cart: any[], turns: T): void {
 }
 /** "Que sean tres de horchata y dos de Jamaica" — the caller's final restatement sets the totals per agua. */
 export function applyDrinkRestatement(cart: any[], turns: T): void {
-  const last = [...turns].reverse().find((t) => t.speaker === "caller" && /\b(?:que\s+sean|ser[ií]an|en\s+total|total)\b/iu.test(t.text) && /\b(?:horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)\b/iu.test(t.text));
+  // alexvoc1: a caller turn listing counts for 2+ flavors ("tres de horchata y dos de Jamaica") restates totals too.
+  const PAIR = new RegExp(`\\b${NW}\\s+(?:de\\s+)?(?:horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)s?\\b`, "giu");
+  const KW = /\b(?:que\s+sean|ser[ií]an|en\s+total|total)\b/iu;
+  const last = [...turns].reverse().find((t) => t.speaker === "caller" && /\b(?:horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)\b/iu.test(t.text) && (KW.test(t.text) || (t.text.match(PAIR) || []).length >= 2));
   if (!last) return;
-  const tail = last.text.slice(last.text.search(/\b(?:que\s+sean|ser[ií]an|en\s+total|total)\b/iu));
+  const tail = KW.test(last.text) ? last.text.slice(last.text.search(KW)) : last.text;
   for (const m of tail.matchAll(new RegExp(`\\b${NW}\\s+(?:de\\s+)?(horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)s?\\b`, "giu"))) {
     const n = nOf(m[1]), key = m[2].toLowerCase().replace("ñ", "n").replace(/[óò]/, "o");
     const ls = cart.filter((l) => new RegExp(`agua-fresca-${key}`, "i").test(String(l.itemId)));
@@ -197,4 +200,16 @@ export function applyEnglishReadback(cart: any[], turns: T): void {
         cart.push({ itemId: QID, quantity: nOf(m[1]) || 1, modifiers: [{ step: "(A) Q Tortilla Options", option: opt }] });
       }
   }
+}
+
+// alexvoc1 (CA12e9407, Oct 30 12:55 PM ET): "¿ahí va?" … "ahorita la llevamos ya pa allá. Entonces fueron las tres birrias…" —
+// a status / confirmation call about an order already placed, with no new-order words from the caller.
+const STATUS = /\b(?:ya\s+va\s+(?:pa|para)\s+all[aá]|(?:la|se\s+la|te\s+la|se\s+lo)\s+llevamos|ya\s+(?:viene|sali[oó]|va\s+en\s+camino)|en\s+camino|ah[ií]\s+va|on\s+(?:its|it's|the)\s+way|already\s+(?:left|out)|where'?s\s+my\s+order|d[oó]nde\s+(?:va|est[aá])\s+mi\s+(?:orden|pedido|comida)|(?:ya\s+)?(?:me|le|te)\s+lleg[oó])\b/iu;
+const NEW_ORDER = /\b(?:quiero|quisiera|me\s+(?:da|das|pone|puede|regala)|ponme|dame|agr[eé]g|a[ñn]ad|tambi[eé]n\s+(?:quiero|me)|i\s+(?:want|need|would\s+like)|i'?d\s+like|can\s+i\s+(?:get|have|order)|let\s+me\s+(?:get|have)|put\s+in\s+(?:an?|my)\s+order|para\s+ordenar|hacer\s+(?:un|una)\s+(?:orden|pedido)|pedir|place\s+an?\s+order|otr[ao]\s+orden)\b/iu;
+export function isStatusFollowUpCall(turns: Array<{ speaker: string; text: string; end?: number }>): boolean {
+  if (!turns.some((t) => STATUS.test(t.text))) return false;
+  if (turns.some((t) => t.speaker === "caller" && NEW_ORDER.test(t.text))) return false;
+  if (turns.some((t) => t.speaker === "staff" && /\b(?:qu[eé]\s+(?:le|te)\s+(?:vamos\s+a\s+dar|damos|doy|sirvo)|qu[eé]\s+(?:va|vas)\s+a\s+(?:querer|ordenar|llevar)|what\s+can\s+i\s+(?:get|do)\s+for\s+you|what\s+would\s+you\s+like)\b/iu.test(t.text))) return false;
+  const dur = Math.max(0, ...turns.map((t) => Number(t.end) || 0));
+  return dur > 0 && dur <= 120;
 }

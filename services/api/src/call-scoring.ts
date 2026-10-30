@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -774,7 +774,7 @@ export function mixMeats(acts: any[], text: string) {
     acts.splice(j, 1);
     return;
   }
-  // alex1e: single "chorizo con bistec" line — stamp the missing meat (model/force-add often keeps one)
+  // alexvoc1e: single "chorizo con bistec" line — stamp the missing meat (model/force-add often keeps one)
   for (const a of acts) {
     if (a.type !== "add_item") continue;
     const have = meatOf(a);
@@ -792,6 +792,9 @@ export function mixMeats(acts: any[], text: string) {
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
   // catalog price (data/site-catalog.json), never a modifier upcharge ("$1" for QCO) or a meat prompt.
+  // alexvoc1: "ya va pa allá" / restating the drinks on an order already placed — no new cart.
+  if (isStatusFollowUpCall(turns as any))
+    return { cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true } as any;
   if (isQuestionOnlyCall(turns)) {
     const steps: any[] = [];
     const ctx: string[] = []; let lastReply = "";
@@ -910,13 +913,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const prevReply = history.length >= 4 ? history[history.length - 3].text : "";
     const answering = /\?\s*$/.test(prevReply) && !/algo más|anything else/i.test(prevReply);
     const prevCaller = history.length >= 4 ? history[history.length - 4].text : "";
-    // alex1: "Y en otro no me le puede poner este," + "en vez de huevos bistec" — the previous half-sentence asked for ANOTHER one
+    // alexvoc1: "Y en otro no me le puede poner este," + "en vez de huevos bistec" — the previous half-sentence asked for ANOTHER one
     const names0 = FOOD.test(text) || DRINK.test(text) || ORDER_QTY.test(text) || (/\b(otr[oa]s?|another|one more)\b/i.test(prevCaller) && /[,]\s*$/.test(prevCaller.trim()) && !FOOD.test(prevCaller));
     // case1: "…la otra" / "las de bistec" points at a dish already rung — choices for it, not a new one
     const definite = /\b(la|el|las|los)\s+otr[oa]s?\b|\b(?:o\s+)?las,?\s+de\b/i.test(text) && !/\b(\d+|dos|tres|cuatro|una m[aá]s|otra m[aá]s)\b/i.test(text) && !FOOD.test(text);
     const names = names0 && !definite;
     // sopesaso1: …but if the re-add carries new choices ("bistec con chicharrón del duro", "con todo") it updates that dish.
-    // alex1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
+    // alexvoc1: "sí, unos normales y otros con bistec, sí" confirms lines already rung — re-adds of an identical line are dropped
     // burrito2: same for the scorer's own "así está bien" auto-accept turn (it never orders anything new)
     const confirming = /^\s*(s[ií]|aj[aá]|ok|okay|yes|yeah|yep|yup|sure|go ahead|all right|alright|that'?s fine|fine)(?=[\s,.!]|$)/i.test(text) && !/\b(\d+|dos|tres|cuatro|cinco|seis|m[aá]s|more|tambi[eé]n|also)\b/i.test(text);
     const sig = (x: any) => `${x.itemId}|${(x.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/salsa asada/i.test(o)).sort().join(",")}`;
@@ -1844,7 +1847,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const r2: any = await run(text, language, []);
       for (const a of r2?.actions || []) if (a.type === "add_item" && !/dorada/i.test(String(a.itemId))) acts.push(a);
     }
-    // alex1d: trailing "Aparte." = separate line, not DELUXE ***APARTE side mod.
+    // alexvoc1d: trailing "Aparte." = separate line, not DELUXE ***APARTE side mod.
     if (source.startsWith("caller") && /(?:^|[.!?]\s*)aparte\b|\baparte\s*[.!?]\s*$/iu.test(text)
       && !/\b(?:todo|everything|con\s+todo)\s+aparte\b/iu.test(text)) {
       for (const a of acts as any[]) {
@@ -1930,7 +1933,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
-    // alex1c: explicit comal (no aceite/dorada/preparada) must stay QCO — model often returns Regular Dorada.
+    // alexvoc1c: explicit comal (no aceite/dorada/preparada) must stay QCO — model often returns Regular Dorada.
     if (source.startsWith("caller") && /\b(?:de\s+)?comal\b/iu.test(text)
       && !/\b(?:aceite|doradas?|preparad[oa]s?|deluxe)\b/iu.test(text)) {
       const QCO = "sq-quesadilla-HLT6CR";
@@ -1985,7 +1988,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         return true; // meatless dumps — strip and park/rebuild
       })()) {
-      // alex1: allow another Deluxe line when cart already has one
+      // alexvoc1: allow another Deluxe line when cart already has one
       // gino1: drop mistaken Platillo/Guisado / comal QCO the model invented on an aceite answer
       // nayeli1: drop meatless deluxe dumps so we park pending or add per-meat
       for (let i = acts.length - 1; i >= 0; i--) {
@@ -4094,7 +4097,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // name1 (Paco): staff "¿a qué nombre sería la orden?" → "de Paco" is only the name — never a new burrito/taco.
-    // alex1e: bare staff "Nombre." / "¿Cómo?" → "Wally."/"Alex." must not invent a dish either.
+    // alexvoc1e: bare staff "Nombre." / "¿Cómo?" → "Wally."/"Alex." must not invent a dish either.
     // carlos-qd1: "A nombre de Carlos" — ORDER_QTY matches leading "A" (QTY includes a/an), so
     // !ORDER_QTY used to miss the name phrase and let the model dump a phantom QD+salsa.
     { const nameAsk = /\b(?:a\s+qu[eé]\s+nombre|qu[eé]\s+nombre|nombre\s+(?:ser[ií]a|para|de)|name\s+for\s+(?:the|your)\s+order|under\s+what\s+name|(?:su\s+|tu\s+|el\s+)?nombre)\b|\byour\s+name\b|^\s*¿?\s*c[oó]mo\s*\??\s*$/iu.test(lastStaff);
