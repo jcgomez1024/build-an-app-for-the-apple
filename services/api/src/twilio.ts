@@ -1994,12 +1994,16 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
 
   // Dual-channel recording of a bridged call (stored on the customer's CallSid). Clean two-person queue bridges put
   // the customer on channel 1 and staff on channel 2 — set TWILIO_QUEUE_CALLER_CHANNEL=1 (see .env.twilio).
-  app.post("/api/twilio/recording", form, guard, (req, res) => {
-    res.sendStatus(204); // ack fast; process in background
-    const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = req.body || {};
-    if (!RecordingUrl || !RecordingSid) return;
-    const caller = callers.get(CallSid) || req.body?.From || "";
-    const callerChannel: 1 | 2 = req.query.leg === "queue" ? (process.env.TWILIO_QUEUE_CALLER_CHANNEL === "1" ? 1 : 2) : 1;
+  // rec2 (CAb3acddf, Oct 30 12:10 PM ET): Twilio gets the 204 right away and never retries, so a restart while a recording is
+  // downloading/transcribing (~2 min) lost the call. Each callback is journaled to data/pending-recordings until it finishes and resumed at boot.
+  const pendingDir = path.join(apiRoot, "data/pending-recordings");
+  const handleRecording = (body: any, leg: string) => {
+    const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = body || {};
+    if (!RecordingUrl || !RecordingSid || !/^RE[0-9a-zA-Z]{10,40}$/.test(String(RecordingSid))) return;
+    const journal = path.join(pendingDir, `${RecordingSid}.json`);
+    try { fs.mkdirSync(pendingDir, { recursive: true }); fs.writeFileSync(journal, JSON.stringify({ body, leg, at: Date.now() })); } catch {}
+    const caller = callers.get(CallSid) || body?.From || "";
+    const callerChannel: 1 | 2 = leg === "queue" ? (process.env.TWILIO_QUEUE_CALLER_CHANNEL === "1" ? 1 : 2) : 1;
     (async () => {
       try {
         const buf = await download(`${RecordingUrl}.wav?RequestedChannels=2`);
@@ -2063,9 +2067,23 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         logCall({ event: "recording", callSid: CallSid, caller, name, greetingLanguage: callLang.get(CallSid), recordingSid: RecordingSid, durationSec: RecordingDuration, file: path.relative(apiRoot, file), segments: files.length, callerChannel, lines, ticketPhase: ticket.phase, ...result });
       } catch (e) {
         logCall({ event: "recording_error", callSid: CallSid, caller, recordingSid: RecordingSid, error: e instanceof Error ? e.message : String(e) });
-      }
+      } finally { try { fs.unlinkSync(journal); } catch {} }
     })();
+  };
+  app.post("/api/twilio/recording", form, guard, (req, res) => {
+    res.sendStatus(204); // ack fast; process in background (journaled)
+    handleRecording(req.body, String(req.query.leg || ""));
   });
+  if (process.env.NODE_ENV !== "test" && !process.env.TWILIO_TEST_AUDIO) setTimeout(() => {
+    try {
+      for (const f of fs.readdirSync(pendingDir).filter((x) => x.endsWith(".json"))) {
+        const j = JSON.parse(fs.readFileSync(path.join(pendingDir, f), "utf8"));
+        if (Date.now() - Number(j.at || 0) > 2 * 3600_000) { fs.unlinkSync(path.join(pendingDir, f)); continue; }
+        logCall({ event: "recording_resumed", callSid: j.body?.CallSid, recordingSid: j.body?.RecordingSid });
+        handleRecording(j.body, j.leg);
+      }
+    } catch { /* none pending */ }
+  }, 5000).unref?.();
 
   // Legacy ring-through status (old calls in flight); never dials anything.
   app.post("/api/twilio/dial-status", form, guard, (req, res) => {

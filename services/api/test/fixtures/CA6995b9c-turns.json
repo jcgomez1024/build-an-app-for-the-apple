@@ -1,0 +1,513 @@
+[
+ {
+  "speaker": "caller",
+  "start": 3.961,
+  "end": 5.081,
+  "text": "can I place an order, please?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.422,
+  "end": 7.702,
+  "text": "sure, what can I get for you?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.861,
+  "end": 10.361,
+  "text": "this is, this is the Elvis, right?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.483,
+  "end": 11.723,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.522,
+  "end": 12.822,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.862,
+  "end": 16.682,
+  "text": "do you guys have the, excuse me, do you guys have the tripas?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 17.945,
+  "end": 18.165,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.663,
+  "end": 20.463,
+  "text": "Is it, is it a tripas,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.063,
+  "end": 24.583,
+  "text": "quesadilla or burrito or?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.147,
+  "end": 26.368,
+  "text": "You can do, you can do quesadilla.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 27.844,
+  "end": 28.204,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 29.244,
+  "end": 30.144,
+  "text": "How much is one,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.124,
+  "end": 32.044,
+  "text": "tripa quesadilla?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 33.95,
+  "end": 40.812,
+  "text": "actually, we have different prices. Well, for the homemade, it's three, four fifty.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 37.265,
+  "end": 37.545,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.906,
+  "end": 45.146,
+  "text": "And that's for one quesadilla?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 47.614,
+  "end": 47.834,
+  "text": "yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 49.087,
+  "end": 49.367,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.427,
+  "end": 51.147,
+  "text": "can I get two,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 52.267,
+  "end": 55.908,
+  "text": "tripas? Yes, homemade, homemade quesadillas?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 52.295,
+  "end": 52.535,
+  "text": "Two?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 53.656,
+  "end": 53.876,
+  "text": "Yeah.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.516,
+  "end": 58.216,
+  "text": "It, yes. Anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 57.688,
+  "end": 57.948,
+  "text": "And then.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 58.948,
+  "end": 60.109,
+  "text": "Yes, excuse me.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.209,
+  "end": 63.59,
+  "text": "can I get, two",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 65.091,
+  "end": 66.791,
+  "text": "lengua, burritos, please?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 67.658,
+  "end": 68.918,
+  "text": "Oh, with everything on it?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 69.693,
+  "end": 70.273,
+  "text": "Yes, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 70.778,
+  "end": 71.578,
+  "text": "You want deluxe?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 73.394,
+  "end": 73.734,
+  "text": "The what?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 74.659,
+  "end": 77.779,
+  "text": "Deluxe, like with lettuce, pickles, sour cream.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 78.896,
+  "end": 82.218,
+  "text": "Oh, yeah, I mean, but, you know, a lot of, you know, more,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 83.138,
+  "end": 84.559,
+  "text": "lengua, but yeah, you know.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 85.8,
+  "end": 86.181,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 88.081,
+  "end": 89.461,
+  "text": "Rice and beans is fine?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 91.521,
+  "end": 92.102,
+  "text": "yeah, just,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 93.022,
+  "end": 94.463,
+  "text": "not too much rice, but yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 95.842,
+  "end": 96.162,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 100.843,
+  "end": 102.003,
+  "text": "Okay, anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 103.766,
+  "end": 104.287,
+  "text": "can I get,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 106.047,
+  "end": 107.548,
+  "text": "as far as the salsa, can I get,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 109.589,
+  "end": 113.61,
+  "text": "at least maybe two, two green, one red, and",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 114.811,
+  "end": 115.871,
+  "text": "the avocado salsa?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 117.866,
+  "end": 119.067,
+  "text": "Yes, hold on.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 120.313,
+  "end": 120.593,
+  "text": "Oh, okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 122.688,
+  "end": 125.948,
+  "text": "so you want rain?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 131.857,
+  "end": 132.537,
+  "text": "Two green,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 133.838,
+  "end": 137.679,
+  "text": "one red, and maybe, two, avocado slices.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 138.712,
+  "end": 148.135,
+  "text": "Yeah. and can I get your name for your order, please?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 139.92,
+  "end": 141.421,
+  "text": "Okay, and, and that's it.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 149.023,
+  "end": 149.263,
+  "text": "Yes,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 150.204,
+  "end": 150.604,
+  "text": "Brandon.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 152.336,
+  "end": 153.076,
+  "text": "Brandon.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 166.259,
+  "end": 166.92,
+  "text": "Brandon.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 167.95,
+  "end": 168.19,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 169.14,
+  "end": 171.581,
+  "text": "Okay, Brenda. So I got your order,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 172.582,
+  "end": 173.862,
+  "text": "and can you give me like",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 175.303,
+  "end": 176.043,
+  "text": "fifteen minutes?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 177.073,
+  "end": 177.873,
+  "text": "Yeah, sure.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 177.904,
+  "end": 181.085,
+  "text": "So just to double check, you want two homemade quesadilla,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 182.346,
+  "end": 182.746,
+  "text": "tripa,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 183.594,
+  "end": 183.814,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 184.507,
+  "end": 188.928,
+  "text": "salsa verde, and then you want two burritos, I put grande,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 189.909,
+  "end": 194.01,
+  "text": "with lengua, beans, rice, and deluxe, and you want,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 195.651,
+  "end": 198.252,
+  "text": "just a little bit of rice, and you want",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 199.432,
+  "end": 201.453,
+  "text": "red salsa and guacamole salsa.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 202.677,
+  "end": 204.798,
+  "text": "And two green sauces, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 205.055,
+  "end": 206.115,
+  "text": "Yes, yes, I got it.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 206.838,
+  "end": 207.558,
+  "text": "Okay, thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 208.236,
+  "end": 217.1,
+  "text": "Thank you, Brenda. Bye. it's thirty-five twenty-five. Thank you, Brenda.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 210.319,
+  "end": 211.019,
+  "text": "how much do you know?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 214.939,
+  "end": 215.54,
+  "text": "Okay, thank you.",
+  "language": "en"
+ }
+]

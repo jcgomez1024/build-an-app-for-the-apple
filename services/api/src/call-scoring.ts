@@ -3,6 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -882,6 +883,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
       && (isAvailQ(text) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
       (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item");
+    // brenda1: "this is the Elvis, right?" (pozole), "more lengua" / "not too much rice" after staff's "rice and beans is fine?" (mole),
+    // "two green, one red, the avocado salsa" (tacos/huarache) — none of these start a new dish.
+    if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
+      && (restaurantConfirm(text) || sideAnswerTurn(text, recentStaff.slice(-1).join(" ")) || salsaOnlyTurn(text)))
+      (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(text) && a.itemId === EXTRAS_ID) || cart.some((l: any) => l.itemId === a.itemId)); // a re-add of a dish already ordered is an update
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
     const unaSplit = unaSplitMeats(text);
     if (unaSplit && Array.isArray((r as any)?.actions)) applyUnaSplit((r as any).actions.filter((a: any) => a?.type === "add_item"), unaSplit);
@@ -4468,6 +4474,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   { const ct = turns.filter((t) => t.speaker === "caller").map((t) => rewriteCallerText(t.text)).find((x) => /Dips Pico de Gallo con Chips/.test(x));
     if (ct && !cart.some((l: any) => l.itemId === DIPS_ID)) { const m = ct.match(new RegExp(String.raw`\b(${NUMW})\s+(?:\p{L}+\s+){0,2}?Dips Pico`, "iu"));
       cart.push({ itemId: DIPS_ID, quantity: m ? spokenCount(m[1]) || 1 : 1, modifiers: [{ step: "Dips", option: "Pico de Gallo con Chips" }] } as any); } }
+  // brenda1: staff-accepted burrito deluxe / rice / beans (+ "not too much rice" note), read-back salsa preference, side salsas listed
+  applyBurritoReadback(cart as any[], turns as any);
+  applyReadbackSalsaPref(cart as any[], turns as any);
+  if (!cart.some((l: any) => l.itemId === EXTRAS_ID && (l.modifiers || []).some((m: any) => /Salsa|Guacamole/i.test(String(m.option)))))
+    for (const s of sideSalsas(turns as any)) cart.push({ itemId: EXTRAS_ID, quantity: s.quantity, modifiers: [{ step: "Extras options", option: s.option }] } as any);
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
   // cad71199: street address without explicit pickup → DELIVERY (Lester Bank Street)
   {

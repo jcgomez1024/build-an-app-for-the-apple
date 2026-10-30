@@ -1,3 +1,4 @@
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn } from "./readback-pass.js";
 import { staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
@@ -2117,6 +2118,10 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   // anthony1: "Y, ¿tienes pollo a la crema? Ajá" is a question — never ring an item for it (no count, no order verb)
   try { const tx = String(input.transcript || ""); if (isAvailQ(tx) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(tx) && Array.isArray((out as any)?.actions))
     (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item"); } catch { /* keep */ }
+  // brenda1: "this is the Elvis, right?", "more lengua" / "not too much rice" after a sides question, "two green, one red" salsas — no new dish.
+  try { const tx = String(input.transcript || ""); const h = input.history || []; const lastStaff = String([...h].reverse().find((x) => x.role === "assistant")?.text || "");
+    if (Array.isArray((out as any)?.actions) && (restaurantConfirm(tx) || sideAnswerTurn(tx, lastStaff) || salsaOnlyTurn(tx)))
+      (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(tx) && /extras|salsa/i.test(String(a.itemId))) || ((input as any).cart || []).some((l: any) => l?.itemId === a.itemId)); } catch { /* keep */ }
   try { return noOfferUnavailable(out, input); } catch { return out; }
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */

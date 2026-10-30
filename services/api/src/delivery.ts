@@ -84,6 +84,10 @@ export function addressesIn(text: string): Address[] {
     .replace(/\b(\d)\s+(\d)\s+(\d)\s+(\d)?\b/g, (_, a, b, c, d) => d != null ? a + b + c + d : a + b + c)
     .replace(/\b(\d)\s+(\d{2,4})\b/g, "$1$2")
     .replace(/\b(\d{2,4})\s+(\d)\b/g, "$1$2");
+  // brenda1: prices are never addresses — "it's 35 25", "that's 35.25", "$12.50", "total is 20 dollars", "son 35 con 25"
+  t = t.replace(/\$\s*\d+(?:[.,]\d{1,2})?/g, " ")
+    .replace(/\b(?:it'?s|it\s+is|that'?s|that\s+is|that\s+will\s+be|that'?ll\s+be|total(?:\s+is)?|comes\s+to|be|son|ser[ií]an?|ser[aá]|cuesta|es|fueron|price\s+is|precio\s+es)\s+\d{1,3}(?:[.,]\d{2}|\s+(?:con\s+)?\d{2}(?![a-z0-9])(?!\s*(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd|court|ct|way)\b))\b(?:\s*(?:dollars?|d[oó]lares|bucks|cents?|centavos))?/giu, " ")
+    .replace(/\b\d+(?:[.,]\d{1,2})?\s*(?:dollars?|d[oó]lares|bucks|cents?|centavos)\b/giu, " ");
   // cad71199: "478, Bank Street" / "4 78, Bank Street" → "478 Bank Street"
   t = t.replace(/\b(\d{1,6}),\s+(?=[a-záéíóúñ])/giu, "$1 ");
   const out: Array<{ at: number; a: Address }> = [];
@@ -116,7 +120,7 @@ export function addressesIn(text: string): Address[] {
       out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
     }
     // gerardo1 (CAdf3a04): "fairground número 85" / "Fairground 85" / "85 Fairground" (no St/Ave spoken)
-    const BAD2 = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
+    const BAD2 = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
     const key3 = (st: string) => st.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
     for (const m of t.matchAll(/\b([a-záéíóúñ][a-záéíóúñ.'-]{3,})\s+(?:n[uú]mero\s+)?(\d{2,6})\b/giu)) {
       const name = title(m[1]);
