@@ -17,6 +17,7 @@ import { meatOptSaid, enforceSiteAvailability, completeWithSiteDefaults, dropUna
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
 import { applySharedAliases } from "./aliases.js";
+import { RELLENO_RE, normalizeRelleno, rellenoItem, rellenoMods } from "./order-repair.js";
 import { deliveryDialogRules } from "./delivery.js";
 import { cachedAppQuote as cachedQuote, quoteAppAddress as quoteDeliveryAddress } from "./delivery-zone.js"; // appdelivery1: app tools quote website fees
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
@@ -2125,6 +2126,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   // jesus2: the shared spoken aliases (data/aliases, "app" scope) reach the LIVE turn too — guisquel→bistec,
   // queso burias→Queso Birrias, street corn→esquite, cuca de vino→coca de vidrio — not only shadow scoring.
   if (input?.transcript) { const t = applySharedAliases(String(input.transcript), "app"); if (t !== input.transcript) input = { ...input, transcript: t }; }
+  // nicky1: "chila/chili rellenos", "stuffed (poblano) peppers" → "chiles rellenos" for every path
+  if (input?.transcript) { const t = normalizeRelleno(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // paco1: "una quesadilla de A, otra de B, otra de C" → each una/otra is its own named line for every path
   if (input?.transcript) { const t = expandOtraList(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // case1: every path (deterministic turns and the model) gets the caller's-words cleanup
@@ -2143,7 +2146,50 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
   try { out = noHollowAdd(out, input); } catch {}
   let o2 = out; try { o2 = noEchoReAdd(out, input); } catch { /* keep */ }
-  try { return noPhantomDish(o2, input); } catch { return o2; }
+  try { o2 = noPhantomDish(o2, input); } catch { /* keep */ }
+  try { o2 = rellenoGuard(o2, input); } catch { /* keep */ }
+  try { return noUnrungQuote(o2, input); } catch { return o2; }
+}
+/** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides
+ *  line); a later "corn/flour tortillas" updates the rung relleno. The reply quotes the relleno and its real price. */
+export function rellenoGuard(r: any, input: any) {
+  const tx = String(input?.transcript || "");
+  if (!RELLENO_RE.test(tx.toLowerCase()) && !/\b(corn|flour|maiz|maíz|harina)\b/i.test(tx)) return r;
+  const menu: any[] = input?.resolverMenu || input?.menu || [];
+  const rel = rellenoItem(menu); if (!rel) return r;
+  const en = input?.language === "en";
+  const acts: any[] = r?.actions || [];
+  const cart: any[] = input?.cart || [];
+  const inCart = cart.find((l: any) => l?.itemId === rel.id) || acts.find((a: any) => a?.type === "add_item" && a.itemId === rel.id);
+  const say = (mods: any[], qty: number) => { const parts = mods.filter((m) => !/tipo/i.test(m.step)).map((m) => String(m.option).replace(/^3 x /, ""));
+    return `${qty > 1 ? `${qty} × ` : ""}${rel.name}${parts.length ? `: ${parts.join(", ")}` : ""}. $${((rel.priceCents || 0) * qty / 100).toFixed(2)}. ${en ? "Anything else?" : "¿Algo más?"}`; };
+  if (RELLENO_RE.test(tx.toLowerCase()) && !inCart) {
+    if (/\b(do|does|have|got|tienen?|hay)\b[^.?]*\?\s*$/i.test(tx) && !/\b(can i|could i|i want|i'?ll|give me|get me|dame|quiero|me da|order of|orden de)\b/i.test(tx)) return r; // availability question
+    const isDrink = (id: string) => /^sq-drink-/.test(id);
+    const other = acts.filter((a) => a?.type === "add_item" && !isDrink(String(a.itemId)));
+    const m = tx.toLowerCase().match(/\b(\d+|dos|tres|two|three|four)\s+(?:orders? of |[oó]rdenes de )?chiles rellenos/);
+    const qty = m ? ({ dos: 2, two: 2, tres: 3, three: 3, four: 4 } as any)[m[1]] || Number(m[1]) || 1 : 1;
+    const mods = rellenoMods(tx, rel);
+    const keep = acts.filter((a) => !other.includes(a));
+    return { ...r, actions: [...keep, { type: "add_item", itemId: rel.id, quantity: qty, modifiers: mods }], reply: say(mods, qty) };
+  }
+  if (inCart && /\b(corn|flour|maiz|maíz|harina)\b/i.test(tx) && /tortilla/i.test(tx) && !acts.some((a: any) => a?.type === "add_item" || a?.type === "update_item")) {
+    const t = rellenoMods(tx, rel).filter((m) => /tortilla/i.test(m.step)); if (!t.length) return r;
+    const mods = [...(inCart.modifiers || []).filter((m: any) => !/^\(C\) Tortilla/i.test(m.step)), ...t];
+    return { ...r, actions: [...acts, { type: "update_item", itemId: rel.id, quantity: inCart.quantity || 1, modifiers: mods, correction: true }], reply: say(mods, inCart.quantity || 1) };
+  }
+  return r;
+}
+/** nicky1: a "Dish: …. $N" reply with no add/update action quotes a dish that is not in the cart → drop the quote. */
+export function noUnrungQuote(r: any, input: any) {
+  const reply = String(r?.reply || ""); const acts: any[] = r?.actions || [];
+  if (!/\$\d+\.\d\d/.test(reply) || acts.some((a: any) => a?.type === "add_item" || a?.type === "update_item")) return r;
+  const menu: any[] = input?.resolverMenu || input?.menu || []; const cart: any[] = input?.cart || [];
+  const head = reply.split(/[:.]/)[0].replace(/^\d+\s*×\s*/, "").trim().toLowerCase();
+  const quoted = menu.filter((i: any) => head.startsWith(String(i.name || "").toLowerCase().split(/[\s/]/)[0]) && String(i.name || "").length > 2);
+  if (!quoted.length || quoted.some((i: any) => cart.some((l: any) => l?.itemId === i.id))) return r;
+  const en = input?.language === "en";
+  return { ...r, reply: en ? "Got it. Anything else?" : "Muy bien. ¿Algo más?" };
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */
 export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviResponse {

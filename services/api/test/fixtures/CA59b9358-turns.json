@@ -1,0 +1,156 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.621,
+  "end": 2.761,
+  "text": "Go see now, Elvis.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.862,
+  "end": 4.982,
+  "text": "Yeah, can I get a order?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.042,
+  "end": 6.243,
+  "text": "yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.503,
+  "end": 9.124,
+  "text": "Do you guys have chila rellenos today?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 9.804,
+  "end": 9.984,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 11.024,
+  "end": 15.486,
+  "text": "Okay, can I get a order of chila rellenos with the rice and beans on the side?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 13.585,
+  "end": 13.806,
+  "text": "yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 15.046,
+  "end": 15.306,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 17.387,
+  "end": 29.092,
+  "text": "Okay, raisin beans. Anything else you wanna, anything else? corn. Yeah, I got it.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.689,
+  "end": 25.75,
+  "text": "yeah, can you make it with the, corn tortillas?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 29.712,
+  "end": 29.992,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 30.492,
+  "end": 31.193,
+  "text": "Anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.173,
+  "end": 34.294,
+  "text": "And, no, that'll be it. And how long do you think that'll be?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 33.353,
+  "end": 34.174,
+  "text": "Okay, can I,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.534,
+  "end": 38.215,
+  "text": "like, give me like fifteen minutes. Can I get your name for your order?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 37.515,
+  "end": 37.755,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.076,
+  "end": 39.336,
+  "text": "Nikki?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.476,
+  "end": 41.697,
+  "text": "Nicky. Okay, Nicky.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 43.578,
+  "end": 45.638,
+  "text": "give me like fifteen minutes, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 45.898,
+  "end": 46.139,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 46.819,
+  "end": 47.219,
+  "text": "Thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 48.059,
+  "end": 48.459,
+  "text": "Thank you.",
+  "language": "en"
+ }
+]

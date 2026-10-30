@@ -82,3 +82,76 @@ export function ringUnnamedSodas(cart: any[], turns: Turn[], menu: any[]): boole
   cart.push({ itemId: soda.id, quantity: Math.max(...ns), modifiers: [], elviNotes: [lata ? "soda de lata, sabor no dicho — confirmar" : "soda, sabor no dicho — confirmar"], ...(person ? { person } : {}) });
   return true;
 }
+
+// nicky1 (CA59b9358c1de5beb6d29ecfed4f6f7269, Oct 30 7:08 PM ET): STT "chila rellenos" → the model rang a Burrito, quoted
+// Enchiladas, and the cart ended with only a side of rice and beans (the platillo's own sides).
+export const RELLENO_RE = /\bchil(?:e|i|a|ie)s?\s+rellen[oa]s?\b|\bstuffed\s+(?:poblano\s+)?peppers?\b|\bstuffed\s+poblanos?\b/;
+export const normalizeRelleno = (t: string) => String(t || "").replace(/\bchil(?:e|i|a|ie)s?\s+rellen[oa]s?\b/gi, "chiles rellenos").replace(/\bstuffed\s+(?:poblano\s+)?peppers?\b|\bstuffed\s+poblanos?\b/gi, "chiles rellenos");
+export const rellenoItem = (menu: any[]) => (menu || []).find((m) => /^sq-chiles-rellenos-platillo/.test(String(m?.id))) || (menu || []).find((m) => /stuffed poblano/i.test(String(m?.name)) && !/extra/i.test(String(m?.name)));
+/** Side and tortilla options the caller said for the relleno platillo (catalog option names). */
+export function rellenoMods(text: string, item: any): any[] {
+  const p = plain(text); const gs: any[] = item?.modifierGroups || []; const out: any[] = [];
+  const pick = (gre: RegExp, ore: RegExp) => { const g = gs.find((g) => gre.test(g.name)); const o = g && (g.options || []).map(optName).find((o: string) => ore.test(o)); if (o) out.push({ step: g.name, option: o }); };
+  const tipo = gs.find((g) => /tipo/i.test(g.name)); if (tipo && (tipo.options || []).length === 1) out.push({ step: tipo.name, option: optName(tipo.options[0]) });
+  if (/\b(only|just|solo|nomas|puro) (rice|arroz)\b/.test(p)) pick(/lado|side/i, /only rice|solo arroz/i);
+  else if (/\b(only|just|solo|nomas|puro)s? (beans|frijoles)\b/.test(p)) pick(/lado|side/i, /only beans|solo frijoles/i);
+  else if (/\b(rice|arroz)\b/.test(p) && /\b(beans?|frijol(es)?)\b/.test(p)) pick(/lado|side/i, /^arroz.*frijol/i);
+  if (/\b(corn|maiz)\b/.test(p)) pick(/^\(C\) Tortilla/i, /corn/i);
+  else if (/\b(flour|harina)\b/.test(p)) pick(/^\(C\) Tortilla/i, /flour|harina/i);
+  return out;
+}
+const isSidesRiceBeans = (l: any, menu: any[]) => { const it = menu.find((m) => m.id === l.itemId); return /^sq-sides-/.test(String(l.itemId)) && /arroz|rice|frijol|beans/i.test(`${it?.name} ${(l.modifiers || []).map((m: any) => m.option).join(" ")} ${l.itemId}`); };
+/** Caller named chiles rellenos → exactly that platillo is rung (with its said side/tortilla); the platillo's rice-and-beans
+ *  never also rings as a Sides line, and a Burrito/Enchilada the caller never named goes. */
+export function applyRellenoOrder(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const callerTs = turns.filter((t) => t.speaker === "caller").map((t) => normalizeRelleno(plain(t.text)));
+  const blob = callerTs.join(" ");
+  const rel = rellenoItem(menu);
+  if (!rel || !RELLENO_RE.test(blob.replace(/chiles rellenos/g, "chile relleno"))) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const id = String(cart[i].itemId);
+    if ((/burrito/.test(id) && !/\bburritos?\b/.test(blob)) || (/enchilada/.test(id) && !/\benchiladas?\b/.test(blob))) { cart.splice(i, 1); changed = true; }
+  }
+  let line = cart.find((l) => l.itemId === rel.id);
+  const mods = rellenoMods(blob, rel);
+  if (!line) {
+    const m = blob.match(/\b(\d+|dos|tres|cuatro|two|three|four)\s+(?:orders? of |ordenes de |)chiles rellenos/);
+    const person = [...cart].reverse().find((l) => l.person)?.person;
+    line = { itemId: rel.id, quantity: m ? numOf(m[1]) || 1 : 1, modifiers: mods, ...(person ? { person } : {}) }; cart.push(line); changed = true;
+  } else for (const x of mods) if (!(line.modifiers || []).some((y: any) => y.step === x.step)) { line.modifiers = [...(line.modifiers || []), x]; changed = true; }
+  const ownSides = (line.modifiers || []).some((x: any) => /lado|side/i.test(x.step)) || /\bon the side\b|\bde lado\b/.test(blob);
+  const extraSide = /\b(extra|another|separate|aparte|additional) (side|order) of (rice|beans)|\b(extra|otra orden de) (arroz|frijoles)\b|\bside of rice and beans too\b/.test(blob);
+  if (ownSides && !extraSide) for (let i = cart.length - 1; i >= 0; i--) if (isSidesRiceBeans(cart[i], menu)) { cart.splice(i, 1); changed = true; }
+  return changed;
+}
+
+// cafa1 (CAaf4f6793b63b50b32e85935eed78f077, Oct 30 7:06 PM ET): "una quesadilla de bistec preparada… en aceite" rang the QD
+// right, and the style question left a meatless Quesadilla Taquera "confirmar (B) Q Carnes". A line whose meat was never set
+// (from a style/clarification question) is dropped when another line of the same dish family already carries a meat.
+export function dropMeatlessDup(cart: any[], menu: any[]): boolean {
+  let changed = false;
+  const fam = (l: any) => plain(menu.find((m) => m.id === l.itemId)?.name || String(l.itemId).replace(/^sq-|-[A-Z0-9]{6}$/g, "").replace(/-/g, " ")).split(" ").filter((w) => w.length >= 4 && !/^q[a-z]?$/.test(w)).map(stem);
+  const meatOf = (l: any) => { const g = groupsOf(menu, l.itemId).find((g) => /carne|meat/i.test(g.name) && !/combo|extra/i.test(g.name)); return g ? { g, has: (l.modifiers || []).some((x: any) => x.step === g.name) } : null; };
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const l = cart[i]; const m = meatOf(l);
+    if (!m || m.has || !(l.elviNotes || []).some((n: string) => /confirmar.*(carne|meat)/i.test(n))) continue;
+    const f = new Set(fam(l));
+    const twin = cart.some((o, j) => j !== i && fam(o).some((w) => f.has(w)) && (meatOf(o)?.has || (o.modifiers || []).some((x: any) => /carne|meat/i.test(x.step))));
+    if (twin) { cart.splice(i, 1); changed = true; }
+  }
+  return changed;
+}
+/** Caller asked for salsa de árbol: set it where the catalog has it, else a staff note on each line's salsa (no árbol in catalog). */
+export function applyArbolSalsa(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (!turns.some((t) => t.speaker === "caller" && /\barbol\b/.test(plain(t.text)))) return false;
+  let changed = false;
+  for (const l of cart) {
+    const g = groupsOf(menu, l.itemId).find((g) => /salsa/i.test(g.name) && !/extra|side/i.test(g.name));
+    if (!g) continue;
+    const arbol = (g.options || []).map(optName).find((o: string) => /arbol/i.test(plain(o)));
+    if (arbol) { l.modifiers = [...(l.modifiers || []).filter((x: any) => x.step !== g.name), { step: g.name, option: arbol }]; changed = true; }
+    else if (!(l.elviNotes || []).some((n: string) => /arbol|árbol/i.test(n))) { l.elviNotes = [...(l.elviNotes || []), "salsa de árbol"]; changed = true; }
+  }
+  return changed;
+}

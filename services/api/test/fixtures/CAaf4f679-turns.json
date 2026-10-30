@@ -1,0 +1,163 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.38,
+  "end": 3.821,
+  "text": "Cocina Elvis, buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 4.641,
+  "end": 16.322,
+  "text": "Sí, buenos días. ¿Estás puesto en orden? Buenos días. No, pero está empezando el día.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.762,
+  "end": 7.703,
+  "text": "Buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 10.483,
+  "end": 14.045,
+  "text": "No, no, pues hasta ustedes buenos días, pero para mí buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.023,
+  "end": 20.223,
+  "text": "Eh, está bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 21.503,
+  "end": 22.743,
+  "text": "Mira, pues, por un orden.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.128,
+  "end": 25.629,
+  "text": "Sí, ¿qué le ponemos?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.544,
+  "end": 29.784,
+  "text": "Dame una quesadilla de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.925,
+  "end": 33.945,
+  "text": "de bistec preparada.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.352,
+  "end": 36.352,
+  "text": "Dorada, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 36.565,
+  "end": 37.545,
+  "text": "En aceite, sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 38.553,
+  "end": 39.553,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.394,
+  "end": 41.794,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 43.354,
+  "end": 43.995,
+  "text": "¿De viste?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.466,
+  "end": 43.486,
+  "text": "Y",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.327,
+  "end": 49.947,
+  "text": "y me pones dos tacos de dos tacos de bistec y",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 46.616,
+  "end": 47.156,
+  "text": "¿Algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.907,
+  "end": 51.727,
+  "text": "dos de tripas.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 52.667,
+  "end": 53.348,
+  "text": "Sí, taqueros.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.238,
+  "end": 55.499,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 54.448,
+  "end": 55.168,
+  "text": "Sí, del chiquito.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 56.968,
+  "end": 57.649,
+  "text": "Sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 71.495,
+  "end": 81.639,
+  "text": "Árbol. Okey, está bien, gracias.",
+  "language": "es"
+ }
+]

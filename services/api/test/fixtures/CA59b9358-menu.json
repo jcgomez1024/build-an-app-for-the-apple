@@ -1,0 +1,1725 @@
+[
+ {
+  "id": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+  "name": "(QD) Quesadilla Dorada",
+  "nameEs": "(QD) Quesadilla Dorada",
+  "aliases": [
+   "(QD) Quesadilla Dorada",
+   "qd quesadilla dorada",
+   "(QD) Quesadilla Dorada (QD) REGULAR Dorada",
+   "qd quesadilla dorada qd regular dorada",
+   "qd quesadilla dorada online qd regular dorada",
+   "our signature quesadilla dorada made with your choice of meat features a deep fried crispy golden crust with cheesy melted cheese inside",
+   "choose your version deluxe upgrade loaded with extra fillings regular quesadilla dorada 0",
+   "00 deluxe preparada 0",
+   "50 choose your meat 1 required up to 2 comes with onion",
+   "cilantro",
+   "and lime on the side on regular lettuce",
+   "pico de gallo",
+   "fresco cheese and sour cream on deluxe your choice of salsa mild medium hot",
+   "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+   "qd quesadilla dorada qd deluxe preparada",
+   "qd quesadilla dorada online qd deluxe preparada"
+  ],
+  "priceCents": 550,
+  "description": "Our signature Quesadilla Dorada made with your choice of meat features a deep fried crispy golden crust with cheesy melted cheese inside.\nChoose your version: (Deluxe Upgrade loaded with extra fillings)\nRegular Quesadilla Dorada — +$0.00\nDeluxe Preparada — +$0.50\nChoose your meat:\n1 Required up to 2\nComes with:\nOnion, cilantro, and lime on the side (on Regular)\nLettuce, Pico de Gallo, Fresco Cheese and Sour Cream (on Deluxe)\nYour choice of salsa: Mild • Medium • Hot",
+  "imageUrl": "https://items-images-production.s3.us-west-2.amazonaws.com/files/12e268af64fcddb96067e446182e99725c8aa7ca/original.png",
+  "squareCatalogObjectId": "DANMDMZDAJYSE6ERXUY5EKGZ",
+  "squareVariationId": "T5STUHPP2VAYOTSXM6QKVI7E",
+  "modifierGroups": [
+   {
+    "id": "reviewed-qd-quesadilla-dorada-options",
+    "name": "(QD) Quesadilla Dorada options",
+    "options": [
+     {
+      "id": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+      "name": "(QD) REGULAR Dorada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+      "name": "(QD) DELUXE Preparada",
+      "priceDeltaCents": 50
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1
+   },
+   {
+    "id": "7EDP2ESGPXH6LOH3VH5S6436",
+    "name": "(B) Q Carnes / Meats",
+    "options": [
+     {
+      "id": "Q567C5ONYK4GFIKEJPNZCIMA",
+      "name": "Bistec / Steak",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "I6UBWAGOSTHKU4PSZ5QCI75Y",
+      "name": "Cabeza / Beef Head (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "HIDNVR6XGNL6UBHL3NSZ6GUW",
+      "name": "Carnitas / Pulled Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "V5BPWSEFRA4N453RPYQ72PWG",
+      "name": "Chorizo / Mexican Sausage",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "HRIOGYVHNTV6QZQL73CK4BG7",
+      "name": "Costilla / Beef Rib",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "5DMPUTUVANL66FSNQ6VO7SLL",
+      "name": "Pollo / Chicken",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "URRFY6CQD3NQLGPUWYCJ4HC3",
+      "name": "Alpastor / Roasted Pork",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "SXOTOV6MRDQUL5A5SPYTOARI",
+      "name": "Buche / Pork Stomach (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "DGY4LH4ZMFJ73E3TD76LJYIU",
+      "name": "Lengua / Beef Tongue (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "EQISBDVCMUNRMZQI6OWZGZMN",
+      "name": "Tripa / Beef Tripe (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "K3TIYJBQ4BYUUNKH4RSL3IJW",
+      "name": "Prensado / Spicy Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "F43DOHI6ATRX7CP53EAYV4RE",
+      "name": "Duro / Pork Rinds",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "O72VHSWI4R27GTXN3TOK4YHE",
+      "name": "Deshebrada / Shredded Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RUY5G4LZTKUGCYMAVKUA6YQW",
+      "name": "Picadillo / Ground Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "UT4YKZU4BB72PMHQFWSLE6BH",
+      "name": "Nopales con Papas / Cacti with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "YMTP4W7VAHVSXJ7MADBQQP4F",
+      "name": "Papas Con Rajas / Poblano with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "4ULPJIE3ESFL5ZL6JDNZ7Y5N",
+      "name": "Huevo con Chile / Spicy Egg",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "BXM4XMTO3Q26SSPKHCCOUISH",
+      "name": "Vegetales / Vegetarian",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "H5A6DKD5JHXCNVB3TYQ4I256",
+      "name": "Frijoles Refritos / Refried Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "MGKNDOLAWMK453Z5DZALBGF6",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "XEZ3P2E3OJMZ3SHMVYJH7ILB",
+      "name": "Queso Derretido / Melted Cheese",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EK5WVZACDPDK3I7KYU6EPREU",
+      "name": "Birria de Chivo / Goat Birria (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 2,
+    "allowQuantities": false
+   },
+   {
+    "id": "NELO3B4HDM5ZGT4NKKPM5LJH",
+    "name": "(C) Con / With",
+    "options": [
+     {
+      "id": "OAAVWEX7ND23PQWFU6MYTK65",
+      "name": "**Con Frijoles / With Beans (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "QWYJABOSEHJ5JMM74IKAK77Q",
+      "name": "**Con Arroz / With Rice (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "4TRCE2IOO7IWI6GPIVVYTKZH",
+      "name": "**Con Queso Fresco / With Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "W2NNG4SDYJBPGBAF4RSEC4VF",
+      "name": "**EXTRA Queso Derretido / Melted Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "YZENJVT5AIICNWEI5PTZUNTE",
+    "name": "(I) Salsa Preferencia / Preference",
+    "options": [
+     {
+      "id": "5QO6JMUFJOLLKYNK7WLCGZJ4",
+      "name": "Mild Salsa Asada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "S3PRZRTT6BZPQVKJRFTPIDTX",
+      "name": "Mild Salsa Tomato",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EXEKI453HU3HWE57N5LDFLFF",
+      "name": "Medium Salsa Verde",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "D5TEYNXWGMVFPZWE7CWB4YV2",
+      "name": "Hot Salsa Roja",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "CE6FQ2CYWRHIO43H3SZXLXG4",
+    "name": "(C) QA Dorada Extras",
+    "options": [
+     {
+      "id": "2SKCY25VAPGBRSNR6D3XJ4AK",
+      "name": "***EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "XIYJAMIF7PX7IU7IY4SCLA2O",
+      "name": "***EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "JIAR4FVWIZIWXLG72CM3MBVB",
+      "name": "***EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "T6LKDHIAI2X7E6JPWO3KD4BG",
+      "name": "***EXTRA Guacamole Salsa 2oz (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "XGHSY67T5ICST2IJNJFWXOKT",
+      "name": "***EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "T2THZP6V6RJHSRPA56BSRBMZ",
+      "name": "***EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "R2TPI723PLLMAFPGISDDZJKC",
+      "name": "***EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "5VJG6PEEO3V5ICWOSWTPV3A6",
+      "name": "***EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "R6ZRR6T4LOZTZ76JF4TYIK6B",
+      "name": "***EXTRA Cebolla y Chiles Asados (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "Q43CXTQCF6W6R4SKF34757T4",
+      "name": "DELUXE ***APARTE / EVERTHING ON SIDE*** (+$1.50)",
+      "priceDeltaCents": 150
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "REGULAR Dorada",
+  "readbackNameEs": "REGULAR Dorada"
+ },
+ {
+  "id": "sq-enchiladas-orden-de-enchiladas-6-6QOYJ5",
+  "name": "Enchiladas",
+  "nameEs": "Enchiladas",
+  "aliases": [
+   "Enchiladas",
+   "enchiladas",
+   "Enchiladas Orden de Enchiladas (6)",
+   "enchiladas orden de enchiladas 6",
+   "enchiladas online orden de enchiladas 6",
+   "experience the rich and authentic flavors of traditional mexican enchiladas rojas with our selection of delicious fillings",
+   "made with love and care",
+   "these enchiladas are sure to satisfy your cravings and transport your taste buds to the streets of mexico",
+   "order now and indulge in a truly satisfying meal",
+   "enchilada",
+   "orden de enchiladas"
+  ],
+  "priceCents": 1499,
+  "description": "Experience the rich and authentic flavors of traditional Mexican enchiladas rojas with our selection of delicious fillings. Made with love and care, these enchiladas are sure to satisfy your cravings and transport your taste buds to the streets of Mexico. Order now and indulge in a truly satisfying meal!",
+  "imageUrl": "https://items-images-production.s3.us-west-2.amazonaws.com/files/972d98b0c232ea6763fb198a3471defa96386093/original.png",
+  "squareCatalogObjectId": "BFVZ4YOEIBN4AN6HV3VGDALJ",
+  "squareVariationId": "6QOYJ55FY32K4PZDMNF5AKJV",
+  "modifierGroups": [
+   {
+    "id": "WLW7KHPHIDSHZLNRTHTBGLNO",
+    "name": "(A) Enchiladas Carne Options (ONLINE)",
+    "options": [
+     {
+      "id": "PFVRBRA3WIMRNPURH5LJZELP",
+      "name": "Queso / Cheese",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "DI6MVOEZ34MCK3RPJBOJ2SAA",
+      "name": "Papas / Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "AMP4YWTHMLXGBWGVUQZSRBAH",
+      "name": "Frijol / Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "JPZIORKMZONI6PJNPQXLTKHT",
+      "name": "Pollo / Chicken",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RZ2EHKEDBURE47J5BDDMMTA3",
+      "name": "Prensado / Pork",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 4,
+    "allowQuantities": false
+   },
+   {
+    "id": "AOCNLOQFHYIUB6OQTWJW7HYA",
+    "name": "(B) ET Side",
+    "options": [
+     {
+      "id": "3AT5R6IC7XMH2HY4RJTQ3YG3",
+      "name": "***EXTRA SIDE Arroz-Rice and Frijoles-Beans (+$4.00)",
+      "priceDeltaCents": 400
+     },
+     {
+      "id": "RYAIDH3VHMXZWKJY2U7EOBUK",
+      "name": "***EXTRA SIDE SOLO Arroz / Rice (+$3.00)",
+      "priceDeltaCents": 300
+     },
+     {
+      "id": "ZL4WWEHZZR4CG43SMQV7M6IS",
+      "name": "***EXTRA SIDE SOLO Frijoles / Beans (+$3.00)",
+      "priceDeltaCents": 300
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "ZDOZO55XVDGIWNJFBLLYSPWO",
+    "name": "(C) EXTRAS",
+    "options": [
+     {
+      "id": "Z374MHZPYDCN3QGCGQIYP6TY",
+      "name": "***EXTRA Milanesa Pollo / Breaded Chicken (+$3.00)",
+      "priceDeltaCents": 300
+     },
+     {
+      "id": "GVXRLNMEVCSTNC43S5R2PP27",
+      "name": "***EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "JHBPDYEPM67QML2FGIEB7JIG",
+      "name": "***EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "PB5VU2ZA63YD7D3M3YUUXXLI",
+      "name": "***EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "4U4XJCZPKSDDZNJXLNO6TNDI",
+      "name": "***EXTRA Guacamole Salsa 2oz (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "LR4WII7H7PJZ4E5RNNSUS5CX",
+      "name": "***EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "B7VC656GJJNNT4D45SVNE7RT",
+      "name": "***EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "6QXUP4EMKFHWS3SZ5BKN5STS",
+      "name": "***EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "3MKPGNOIUSXK6KS3UJCNPDR2",
+      "name": "***EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "PRR26ZRNZZI7ITHDLJ2BZDWD",
+      "name": "***EXTRA Cebolla y Chiles Asados (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "XKCHBR7CO6QJJCQIV7O3UZ6J",
+    "name": "(I) ADD Agua Fresca",
+    "options": [
+     {
+      "id": "7VYD2I6FV3LFEJVKYVIVGUOO",
+      "name": "*** HORCHATA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     },
+     {
+      "id": "2P5TTRSBGSFUDTRNGRSM2MVB",
+      "name": "*** JAMAICA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "YZENJVT5AIICNWEI5PTZUNTE",
+    "name": "(I) Salsa Preferencia / Preference",
+    "options": [
+     {
+      "id": "5QO6JMUFJOLLKYNK7WLCGZJ4",
+      "name": "Mild Salsa Asada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "S3PRZRTT6BZPQVKJRFTPIDTX",
+      "name": "Mild Salsa Tomato",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EXEKI453HU3HWE57N5LDFLFF",
+      "name": "Medium Salsa Verde",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "D5TEYNXWGMVFPZWE7CWB4YV2",
+      "name": "Hot Salsa Roja",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "Enchiladas",
+  "readbackNameEs": "Enchiladas"
+ },
+ {
+  "id": "sq-sides-arroz-rice-26S6E6",
+  "name": "Sides",
+  "nameEs": "Sides",
+  "aliases": [
+   "Sides",
+   "sides",
+   "Sides Arroz / Rice",
+   "sides arroz rice",
+   "sides online arroz rice",
+   "1 x side",
+   "Sides Frijoles / Beans",
+   "sides frijoles beans",
+   "sides online frijoles beans",
+   "Sides Arroz - Rice and Frijole - Beans",
+   "sides arroz rice and frijole beans",
+   "sides online arroz rice and frijole beans",
+   "Sides GRANDE Arroz - Rice",
+   "sides grande arroz rice",
+   "sides online grande arroz rice",
+   "Sides GRANDE Frijoles / Beans",
+   "sides grande frijoles beans",
+   "sides online grande frijoles beans",
+   "Sides GRANDE Arroz - Rice / Frijoles - Beans",
+   "sides grande arroz rice frijoles beans",
+   "sides online grande arroz rice frijoles beans"
+  ],
+  "priceCents": 400,
+  "description": "1 x SIDE",
+  "imageUrl": "https://square-production.s3.amazonaws.com/files/605415a156a7ef41a51bf522aafcf53af55ed3f4/original.jpeg",
+  "squareCatalogObjectId": "OJGTLDFWAYP3TGHEHS54PU6F",
+  "squareVariationId": "26S6E6Z2PMZ5OK5NC43BKN7A",
+  "modifierGroups": [
+   {
+    "id": "reviewed-sides-options",
+    "name": "Sides options",
+    "options": [
+     {
+      "id": "sq-sides-arroz-rice-26S6E6",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "sq-sides-frijoles-beans-FK2O6W",
+      "name": "Frijoles / Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "sq-sides-arroz-rice-and-frijole-beans-I5HNHW",
+      "name": "Arroz - Rice and Frijole - Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "sq-sides-grande-arroz-rice-QPUFQG",
+      "name": "GRANDE Arroz - Rice",
+      "priceDeltaCents": 300
+     },
+     {
+      "id": "sq-sides-grande-frijoles-beans-Y3Q5GR",
+      "name": "GRANDE Frijoles / Beans",
+      "priceDeltaCents": 300
+     },
+     {
+      "id": "sq-sides-grande-arroz-rice-frijoles-beans-OTJKZV",
+      "name": "GRANDE Arroz - Rice / Frijoles - Beans",
+      "priceDeltaCents": 400
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1
+   }
+  ],
+  "readbackName": "Sides Arroz / Rice",
+  "readbackNameEs": "Sides Arroz / Rice"
+ },
+ {
+  "id": "sq-burrito-TGWBEN",
+  "name": "Burrito",
+  "nameEs": "Burrito",
+  "aliases": [
+   "Burrito",
+   "burrito",
+   "burrito online",
+   "our traditional burrito is filled with your choice of meat",
+   "rice",
+   "refried beans",
+   "sour cream",
+   "cheese and classic toppings",
+   "wrapped in a warm flour tortilla",
+   "burrito choose your tortilla choice upgrade to grande regular 10 0",
+   "00 grande 12 3",
+   "00 choose your options and meat 1 required up to 2 comes with onion",
+   "cilantro",
+   "and lime on the side your choice of salsa mild medium hot",
+   "burritos"
+  ],
+  "priceCents": 800,
+  "description": "Our Traditional Burrito is filled with your choice of meat, rice, refried beans, sour cream, cheese and classic toppings, wrapped in a warm flour tortilla.\nBurrito Choose your Tortilla choice: (upgrade to Grande)\nRegular ‘10 — +$0.00\nGrande ‘12 — +$3.00\nChoose your options and meat:\n1 Required up to 2\nComes with:\nOnion, cilantro, and lime on the side\nYour choice of salsa: Mild • Medium • Hot",
+  "imageUrl": "https://square-production.s3.amazonaws.com/files/bf23c8b2a6c10e4e7b76ad0a3e7e75bf2c2fb92c/original.jpeg",
+  "squareCatalogObjectId": "2OHEN2ZG54KBZ2TEIVSBN7MC",
+  "squareVariationId": "TGWBEN2U7COFGTCOAGFB2BQR",
+  "modifierGroups": [
+   {
+    "id": "LENNHUIA2RIMS7H7PJXAKSIL",
+    "name": "(A) Burrito Size",
+    "options": [
+     {
+      "id": "Z5B3EE755MYIKMKLKYATP45V",
+      "name": "Grande '12 (+$3.00)",
+      "priceDeltaCents": 300
+     },
+     {
+      "id": "Z56NXF7FBNLRNHKTRHMRSA2N",
+      "name": "Regular '10",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1,
+    "defaultOptions": [
+     "Grande '12 (+$3.00)"
+    ],
+    "allowQuantities": false
+   },
+   {
+    "id": "N3OFVQ37K56E4PFQZYXLW6NS",
+    "name": "(B) Burrito Carne Options",
+    "options": [
+     {
+      "id": "UF7YCLXFT2FBZIWIXXF7OSWU",
+      "name": "Bistec / Steak",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "YQ33HPOZKPQGJXBDBBYC5AF4",
+      "name": "Cabeza / Beef Head (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "3QH2V3VWYST5NX26ZGHKZDU7",
+      "name": "Carnitas / Pulled Pork (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "IIRZQKWQSX7EGHVW2E3PZ25W",
+      "name": "Chorizo / Mexican Sausage",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "MRY2IZGL6UQMFBFCYVI7EWQO",
+      "name": "Costilla / Beef Rib",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "F6KYGJREU74V2HOWES4MN6NL",
+      "name": "Pollo / Chicken",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "VDUTXDW7IG2A32EPPHTOFZ42",
+      "name": "Alpastor / Roasted Pork",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "7XSHHRIMJ2XROAMSVMWUH4BX",
+      "name": "Buche / Pork Stomach (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "STRFR3D67BTDZNEGR5RW5YU5",
+      "name": "Lengua / Beef Tongue (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "55JIFKZDIPNNJAPBCHIBOSFO",
+      "name": "Tripas / Beef Tripe (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "P5ANYVGPKDHPXZFPIGQNZYW3",
+      "name": "Prensado / Spicy Pork (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "4AZVDPE2DDLPYGAY4WEV3AWH",
+      "name": "Duro / Pork Rinds",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "6WUIWKZBBQJTK735G4B4W2WU",
+      "name": "Deshebrada / Shredded Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "MNGQV3SYGI4EP2V6Q6RQ5MKK",
+      "name": "Picadillo / Ground Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "2GN4GQHNMUEO5XFZJ7LERHTI",
+      "name": "Nopales con Papas / Cacti with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "HGJCQ37EWPSXJ6SHTIMGBKH2",
+      "name": "Papas Con Rajas / Poblano with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "FN64RQ43BQ6HRKW3DQLCDBHI",
+      "name": "Huevo con Chile / Spicy Egg",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "MR255DUP4KWMQP2ESHH6TYEF",
+      "name": "Vegetales / Vegetarian",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "YXP7BP6AOLRHFLIR73CN6KML",
+      "name": "Frijoles Refritos / Refried Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "SHVW6C6LAASSCN66B3AWNCSN",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "PZNMHR7JBTSBLWJCGFVUCNWW",
+      "name": "Chile Relleno De Queso / Cheese Chile Relleno",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "F5LZXW6XLMWKHNXEBPSG7UQZ",
+      "name": "Birria de Chivo / Goat Birria (+$1.75)",
+      "priceDeltaCents": 175
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 2,
+    "allowQuantities": false
+   },
+   {
+    "id": "6EVTISY6TJ2YVIWNGCMOLG5F",
+    "name": "(C) Burrito Options",
+    "options": [
+     {
+      "id": "4223WCXJZCNQEWAZ6YVIBC4K",
+      "name": "Frijoles Refritos / Refried Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "KBSNV6PND3V4JNAURGEPFROG",
+      "name": "DOUBLE Frijoles Refritos / Refried Beans (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "Y3XQ4EUTMD2ZWAHKHFSKMNXJ",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "C3SI3C7IIKLDK2R7A5ZMOZSL",
+      "name": "DOUBLE Arroz / Rice (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "HD25NALANY5BRIYZ7T2YKEL2",
+      "name": "Queso Fresco / Cheese",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "VBINDH5477RDEXVXTWF3BHNZ",
+      "name": "DOUBLE Queso Fresco / Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "ZV6UA7BZ3UZYHU2EQPHTKVP6",
+      "name": "Crema / Sour Cream",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "Q3XQLD2MKCOWYI6JUUOWDSEZ",
+      "name": "DOUBLE Crema / Sour Cream (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "J6IMVE7E24AZ2YKJSPRLYION",
+      "name": "Cebolla / Onion",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "OWKA2UT32POOXDLJR6EF43FS",
+      "name": "DOUBLE Cebolla / Onion (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "VYIDYSC234ACKBGLEDD6DK76",
+      "name": "Cilantro",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "QDHQXZ6IHSKEHCS5JBOKGV6S",
+      "name": "DOUBLE Cilantro (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "VJYZYELO4AMM5YA5VRE6CFXQ",
+      "name": "Queso Dip (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "I3XXIXDIUJZQGWWLF7DIK3DU",
+      "name": "DOUBLE Queso Dip (+$2.00)",
+      "priceDeltaCents": 200
+     },
+     {
+      "id": "NOZ6AUDXCZE22NITALHN6R6C",
+      "name": "Guacamole Dip (+$2.00)",
+      "priceDeltaCents": 200
+     },
+     {
+      "id": "V3BJJBJIV2BPZSZCGHVWI33U",
+      "name": "DOUBLE Guacamole Dip (+$4.00)",
+      "priceDeltaCents": 400
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "ALAQMBL32VPR5WHB24FXLI2F",
+    "name": "(E) DELUXE Options",
+    "options": [
+     {
+      "id": "5JLGLBAHL4IAAEHKTGHTV6FX",
+      "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "XKCHBR7CO6QJJCQIV7O3UZ6J",
+    "name": "(I) ADD Agua Fresca",
+    "options": [
+     {
+      "id": "7VYD2I6FV3LFEJVKYVIVGUOO",
+      "name": "*** HORCHATA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     },
+     {
+      "id": "2P5TTRSBGSFUDTRNGRSM2MVB",
+      "name": "*** JAMAICA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "ZNQF7CKKH37QWDGCYDEZNC5L",
+    "name": "(F) CB Extras",
+    "options": [
+     {
+      "id": "WWOOCEBGBE4ENEX7Y3JNUZOV",
+      "name": "***EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "O3R4XUMT4K6KAJRN4MAIFNLC",
+      "name": "***EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "QPDE4OIPTFWFXX6JYMCXZDPN",
+      "name": "***EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "ZYFQXSB5NLRQ3LKZ56WSMW6H",
+      "name": "***EXTRA Guacamole Salsa 2oz (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "33FBNTN2FAGHZMZOH5JTTSXA",
+      "name": "***EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "WUAUH74IRA2WCKZ5OUPVRG6T",
+      "name": "***EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "5KRLZ64H4GGPIB6RJVFIKNKW",
+      "name": "***EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "DC2WFMN55P4VFUHZ2NQBGDF7",
+      "name": "***EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "SGWBQHAPUFRXI5LVOIAMIDXJ",
+      "name": "***EXTRA Cebolla y Chiles Asados (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "Y6L2LM4JPKIHPXGDNIKAYUOJ",
+      "name": "***EXTRA QUESO DIP 5oz SIDE (+$4.00)",
+      "priceDeltaCents": 400
+     },
+     {
+      "id": "4D6ECMWC3VEF4VXU5V7CAWNJ",
+      "name": "***EXTRA GUACAMOLE 5oz SIDE (+$4.00)",
+      "priceDeltaCents": 400
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "Burrito",
+  "readbackNameEs": "Burrito"
+ },
+ {
+  "id": "sq-quesadilla-HLT6CR",
+  "name": "Quesadilla",
+  "nameEs": "Quesadilla",
+  "aliases": [
+   "Quesadilla",
+   "quesadilla",
+   "quesadilla online",
+   "our classic single quesadilla made fresh to order with your choice of meat",
+   "tortilla options available upgrade from street style corn qst quesadilla taquera street taco 0",
+   "00 qhr quesadilla harina flour 0",
+   "75 qco quesadilla comal homemade 1",
+   "00 choose your meat 1 required up to 2 comes with onion",
+   "cilantro",
+   "and lime on the side your choice of salsa mild medium hot",
+   "single quesadilla",
+   "one quesadilla",
+   "cheese quesadilla"
+  ],
+  "priceCents": 350,
+  "description": "Our classic single Quesadilla made fresh to order with your choice of meat.\nTortilla options available: (upgrade from street-style corn):\n(QST) Quesadilla Taquera / Street Taco — +$0.00\n(QHR) Quesadilla Harina / Flour — +$0.75\n(QCO) Quesadilla Comal / Homemade — +$1.00\nChoose your meat:\n1 Required up to 2\nComes with:\nOnion, cilantro, and lime on the side\nYour choice of salsa: Mild • Medium • Hot",
+  "imageUrl": "https://square-production.s3.amazonaws.com/files/480ad3f3acf6f32d7af9cae198622c1537821cc8/original.jpeg",
+  "squareCatalogObjectId": "NAEUYWHLVJ5CZEHSFX5BX4MG",
+  "squareVariationId": "HLT6CRMV4NGQWHKNF4OCFHXP",
+  "modifierGroups": [
+   {
+    "id": "3JFYSKKGJABCTTOM5IFGY45L",
+    "name": "(A) Q Tortilla Options",
+    "options": [
+     {
+      "id": "3CATZN4B5D454VRE53FFL62L",
+      "name": "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "GZPAHWOZ4BJWDI4TZWR2XA4X",
+      "name": "(QHR) Quesadilla Harina / Flour (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "MSSELB37BV25TILCS3YLBHAR",
+      "name": "(QST) Quesadilla Taquera / Street Quesadilla",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1,
+    "defaultOptions": [
+     "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    ],
+    "allowQuantities": false
+   },
+   {
+    "id": "7EDP2ESGPXH6LOH3VH5S6436",
+    "name": "(B) Q Carnes / Meats",
+    "options": [
+     {
+      "id": "Q567C5ONYK4GFIKEJPNZCIMA",
+      "name": "Bistec / Steak",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "I6UBWAGOSTHKU4PSZ5QCI75Y",
+      "name": "Cabeza / Beef Head (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "HIDNVR6XGNL6UBHL3NSZ6GUW",
+      "name": "Carnitas / Pulled Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "V5BPWSEFRA4N453RPYQ72PWG",
+      "name": "Chorizo / Mexican Sausage",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "HRIOGYVHNTV6QZQL73CK4BG7",
+      "name": "Costilla / Beef Rib",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "5DMPUTUVANL66FSNQ6VO7SLL",
+      "name": "Pollo / Chicken",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "URRFY6CQD3NQLGPUWYCJ4HC3",
+      "name": "Alpastor / Roasted Pork",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "SXOTOV6MRDQUL5A5SPYTOARI",
+      "name": "Buche / Pork Stomach (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "DGY4LH4ZMFJ73E3TD76LJYIU",
+      "name": "Lengua / Beef Tongue (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "EQISBDVCMUNRMZQI6OWZGZMN",
+      "name": "Tripa / Beef Tripe (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "K3TIYJBQ4BYUUNKH4RSL3IJW",
+      "name": "Prensado / Spicy Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "F43DOHI6ATRX7CP53EAYV4RE",
+      "name": "Duro / Pork Rinds",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "O72VHSWI4R27GTXN3TOK4YHE",
+      "name": "Deshebrada / Shredded Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RUY5G4LZTKUGCYMAVKUA6YQW",
+      "name": "Picadillo / Ground Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "UT4YKZU4BB72PMHQFWSLE6BH",
+      "name": "Nopales con Papas / Cacti with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "YMTP4W7VAHVSXJ7MADBQQP4F",
+      "name": "Papas Con Rajas / Poblano with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "4ULPJIE3ESFL5ZL6JDNZ7Y5N",
+      "name": "Huevo con Chile / Spicy Egg",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "BXM4XMTO3Q26SSPKHCCOUISH",
+      "name": "Vegetales / Vegetarian",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "H5A6DKD5JHXCNVB3TYQ4I256",
+      "name": "Frijoles Refritos / Refried Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "MGKNDOLAWMK453Z5DZALBGF6",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "XEZ3P2E3OJMZ3SHMVYJH7ILB",
+      "name": "Queso Derretido / Melted Cheese",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EK5WVZACDPDK3I7KYU6EPREU",
+      "name": "Birria de Chivo / Goat Birria (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 2,
+    "allowQuantities": false
+   },
+   {
+    "id": "NELO3B4HDM5ZGT4NKKPM5LJH",
+    "name": "(C) Con / With",
+    "options": [
+     {
+      "id": "OAAVWEX7ND23PQWFU6MYTK65",
+      "name": "**Con Frijoles / With Beans (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "QWYJABOSEHJ5JMM74IKAK77Q",
+      "name": "**Con Arroz / With Rice (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "4TRCE2IOO7IWI6GPIVVYTKZH",
+      "name": "**Con Queso Fresco / With Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "W2NNG4SDYJBPGBAF4RSEC4VF",
+      "name": "**EXTRA Queso Derretido / Melted Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "ALAQMBL32VPR5WHB24FXLI2F",
+    "name": "(E) DELUXE Options",
+    "options": [
+     {
+      "id": "5JLGLBAHL4IAAEHKTGHTV6FX",
+      "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "PH66UPKWONXLRLXA5Q4PGUAA",
+    "name": "(F) GQT Extras",
+    "options": [
+     {
+      "id": "A2CRLMSOG4TAZMAJBDUPC5A6",
+      "name": "**EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "4UGNAWEYJLR4DPCJMWXXUMMF",
+      "name": "**EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "KZMNEJMUGRUN3L4QFKC4ULPL",
+      "name": "**EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "TZOC4R4RSXHNRPN6QD4GHQDB",
+      "name": "**EXTRA Guacamole Salsa 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "3TG2G2WH6S65YVLTEHW5V3LB",
+      "name": "**EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "VY6XRSLPWICUU5AHXFIPOUIW",
+      "name": "**EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "PE6SLBRDS2WRHEH6QENMJXCQ",
+      "name": "**EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "TDHWJ3UITW33WBJBSL7YLRO4",
+      "name": "**EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "QY2OD4PWYVH7IGBEPX2OIBUM",
+      "name": "**EXTRA Cebolla y Chiles Asados (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "YZENJVT5AIICNWEI5PTZUNTE",
+    "name": "(I) Salsa Preferencia / Preference",
+    "options": [
+     {
+      "id": "5QO6JMUFJOLLKYNK7WLCGZJ4",
+      "name": "Mild Salsa Asada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "S3PRZRTT6BZPQVKJRFTPIDTX",
+      "name": "Mild Salsa Tomato",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EXEKI453HU3HWE57N5LDFLFF",
+      "name": "Medium Salsa Verde",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "D5TEYNXWGMVFPZWE7CWB4YV2",
+      "name": "Hot Salsa Roja",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "defaultOptions": [
+     "Mild Salsa Asada"
+    ],
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "Quesadilla",
+  "readbackNameEs": "Quesadilla"
+ },
+ {
+  "id": "sq-taco-TAR7L5",
+  "name": "Taco",
+  "nameEs": "Taco",
+  "aliases": [
+   "Taco",
+   "taco",
+   "taco online",
+   "our classic single taco made fresh to order with your choice of meat",
+   "tortilla options available upgrade from street style corn tst taco taquero street taco 0",
+   "00 thr taco harina flour 0",
+   "50 tco taco comal homemade 1",
+   "00 choose your meat 1 required up to 2 comes with onion",
+   "cilantro",
+   "and lime on the side your choice of salsa mild medium hot",
+   "single taco",
+   "one taco"
+  ],
+  "priceCents": 300,
+  "description": "Our classic single taco made fresh to order with your choice of meat.\nTortilla options available: (upgrade from street-style corn):\n(TST) Taco Taquero / Street Taco — +$0.00\n(THR) Taco Harina / Flour — +$0.50\n(TCO) Taco Comal / Homemade — +$1.00\nChoose your meat:\n1 Required up to 2\nComes with:\nOnion, cilantro, and lime on the side\nYour choice of salsa: Mild • Medium • Hot",
+  "imageUrl": "https://square-production.s3.amazonaws.com/files/cda7633ae8e60f989d4894e3ceb6fb1de8ce1915/original.jpeg",
+  "squareCatalogObjectId": "Z5B6CQ5LRTEWTKEBV73MXZRF",
+  "squareVariationId": "TAR7L52SFLNVB47QOE4SICME",
+  "modifierGroups": [
+   {
+    "id": "UPDX25DC4DVI2KCDC7N3T3W7",
+    "name": "(A) T Tortilla Options",
+    "options": [
+     {
+      "id": "PTHUWHOLUVOXBS2NLAHFSR42",
+      "name": "(TCO) Taco Comal / Homemade (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "2TSSKIQYAPSRCRLW43LWLJHC",
+      "name": "(THR) Taco Harina / Flour (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "V4C4A5LABVZTPXQPHZGZZ7DA",
+      "name": "(TST) Taco Taquero / Street Taco",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1,
+    "defaultOptions": [
+     "(TCO) Taco Comal / Homemade (+$1.00)"
+    ],
+    "allowQuantities": false
+   },
+   {
+    "id": "CWGBINEIFJ6U6MAPUUF3IKDJ",
+    "name": "(B) T Carnes / Meats Opciones",
+    "options": [
+     {
+      "id": "P4TER6IY5EV74ELEVWYZGKFQ",
+      "name": "Bistec / Steak",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "XVHAMBKCQKDLVBJI3JGLBJXX",
+      "name": "Cabeza / Beef Head (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "XSC2EIWVCQSZTOWL2ZQCRGI7",
+      "name": "Carnitas / Pulled Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "LJEELXG4KOY376FPCTZ4A5NY",
+      "name": "Chorizo / Mexican Sausage",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "3X2RN77L4YAITXHBYIEOTQ4T",
+      "name": "Costilla / Beef Rib",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "W5U6MSIMCN5F53EDJ7RLJ2CY",
+      "name": "Pollo / Chicken",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "PWBGYFWL2TAL7FOJISYR4AMJ",
+      "name": "Alpastor / Roasted Pork",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "5PXRTTYRKQBC6K3NHH6JIZSE",
+      "name": "Buche / Pork Stomach (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "A2C7PMUP3JX6THQKKJE3KUMF",
+      "name": "Lengua / Beef Tongue (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "PHKJRU64HBPUFDBVCNDESY4X",
+      "name": "Tripa / Beef Tripe (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "OJJQL3COUWIPGD4VQGZIPIJN",
+      "name": "Prensado / Spicy Pork (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "SZYLLC3OMLXYV66Z2IQXP76Z",
+      "name": "Duro / Pork Rinds",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RY2HOT3ERWLUDPMGG23626WA",
+      "name": "Deshebrada / Shredded Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "HLYK4BMPLFFQ5NPTK3X5O7NS",
+      "name": "Picadillo / Ground Beef with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RV2RPJLNLJ4YYTJGSAIDGAWJ",
+      "name": "Nopales con Papas / Cacti with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "JJFBDA5KVO4IOYLZCACCDG4V",
+      "name": "Papas Con Rajas / Poblano with Potatoes",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "7XWZA7YWUMTJUXI2BKANRXDD",
+      "name": "Huevo con Chile / Spicy Egg",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "XUFL4UK3ZYAWZI6VIFBL2MOB",
+      "name": "Vegetales / Vegetarian",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "WWXS57W4IZJ5W3NRYEWREFFP",
+      "name": "Frijoles Refritos / Refried Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "DKJX7CAILIVTS7WRGUYYFAZJ",
+      "name": "Arroz / Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "IBE4HZGYXOMW4AVPVLGFEA5E",
+      "name": "Birria de Chivo / Goat Birria (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 2,
+    "allowQuantities": false
+   },
+   {
+    "id": "NELO3B4HDM5ZGT4NKKPM5LJH",
+    "name": "(C) Con / With",
+    "options": [
+     {
+      "id": "OAAVWEX7ND23PQWFU6MYTK65",
+      "name": "**Con Frijoles / With Beans (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "QWYJABOSEHJ5JMM74IKAK77Q",
+      "name": "**Con Arroz / With Rice (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "4TRCE2IOO7IWI6GPIVVYTKZH",
+      "name": "**Con Queso Fresco / With Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     },
+     {
+      "id": "W2NNG4SDYJBPGBAF4RSEC4VF",
+      "name": "**EXTRA Queso Derretido / Melted Cheese (+$0.50)",
+      "priceDeltaCents": 50
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "ALAQMBL32VPR5WHB24FXLI2F",
+    "name": "(E) DELUXE Options",
+    "options": [
+     {
+      "id": "5JLGLBAHL4IAAEHKTGHTV6FX",
+      "name": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "PH66UPKWONXLRLXA5Q4PGUAA",
+    "name": "(F) GQT Extras",
+    "options": [
+     {
+      "id": "A2CRLMSOG4TAZMAJBDUPC5A6",
+      "name": "**EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "4UGNAWEYJLR4DPCJMWXXUMMF",
+      "name": "**EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "KZMNEJMUGRUN3L4QFKC4ULPL",
+      "name": "**EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "TZOC4R4RSXHNRPN6QD4GHQDB",
+      "name": "**EXTRA Guacamole Salsa 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "3TG2G2WH6S65YVLTEHW5V3LB",
+      "name": "**EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "VY6XRSLPWICUU5AHXFIPOUIW",
+      "name": "**EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "PE6SLBRDS2WRHEH6QENMJXCQ",
+      "name": "**EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "TDHWJ3UITW33WBJBSL7YLRO4",
+      "name": "**EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "QY2OD4PWYVH7IGBEPX2OIBUM",
+      "name": "**EXTRA Cebolla y Chiles Asados (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "YZENJVT5AIICNWEI5PTZUNTE",
+    "name": "(I) Salsa Preferencia / Preference",
+    "options": [
+     {
+      "id": "5QO6JMUFJOLLKYNK7WLCGZJ4",
+      "name": "Mild Salsa Asada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "S3PRZRTT6BZPQVKJRFTPIDTX",
+      "name": "Mild Salsa Tomato",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EXEKI453HU3HWE57N5LDFLFF",
+      "name": "Medium Salsa Verde",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "D5TEYNXWGMVFPZWE7CWB4YV2",
+      "name": "Hot Salsa Roja",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "Taco",
+  "readbackNameEs": "Taco"
+ },
+ {
+  "id": "sq-chiles-rellenos-platillo-stuffed-poblano-pepper-EUM4MG",
+  "name": "Chiles Rellenos / Stuffed Poblano Peppers",
+  "nameEs": "Chiles Rellenos / Stuffed Poblano Peppers",
+  "aliases": [
+   "Chiles Rellenos / Stuffed Poblano Peppers",
+   "chiles rellenos stuffed poblano peppers",
+   "Chiles Rellenos Platillo / Stuffed Poblano Pepper",
+   "chiles rellenos platillo stuffed poblano pepper",
+   "chiles rellenos platillo stuffed poblano pepper online",
+   "indulge in the rich and authentic flavors of traditional mexican cuisine with our platillo de chiles reyenos",
+   "these stuffed poblano peppers are a culinary masterpiece",
+   "filled with melting cheese and other mouthwatering ingredients",
+   "experience the true taste of mexico with every bite",
+   "order now",
+   "chiles rellenos",
+   "chile relleno",
+   "chili relleno",
+   "stuffed poblano",
+   "stuffed pepper",
+   "stuffed peppers"
+  ],
+  "priceCents": 1499,
+  "description": "Indulge in the rich and authentic flavors of traditional Mexican cuisine with our Platillo de Chiles Reyenos. These stuffed Poblano peppers are a culinary masterpiece, filled with melting cheese and other mouthwatering ingredients. Experience the true taste of Mexico with every bite.- order now!",
+  "imageUrl": "https://items-images-production.s3.us-west-2.amazonaws.com/files/046be6341113bab7826498a2653dd5a6cbba273e/original.jpeg",
+  "squareCatalogObjectId": "JFC5DFLCFYEVJ6AU5GEQGMS3",
+  "squareVariationId": "EUM4MGBDYSM3LSDSY6JPZECG",
+  "modifierGroups": [
+   {
+    "id": "2G5DAYC4HG4MVNKH2IB7RRR2",
+    "name": "(A) Tipo de Chiles Relleno",
+    "options": [
+     {
+      "id": "K45HLBYEDGOPE67AFPCY7US7",
+      "name": "QUESO / CHEESE",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "3PXC4BXHHPNNTGIBIOB4WZN4",
+    "name": "(B) Lado / Side",
+    "options": [
+     {
+      "id": "W4XF77HAGGBEIV2CF4NYUE6I",
+      "name": "Arroz-Rice and Frijoles-Beans",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "RBNGWBHXDHPNVI3APTC7DR5Z",
+      "name": "SOLO Arroz / ONLY Rice",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "IKIQ3B6OTR5S6L662L64KS2C",
+      "name": "SOLO Frijoles / ONLY Beans",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "EIJVOH6PSIJZR7DSLVAIHH5R",
+    "name": "(C) Tortilla Options",
+    "options": [
+     {
+      "id": "PJTWPD3VXPJHFG67CTVFKM3Y",
+      "name": "3 x (Corn) Corn Tortilla",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "OPMEY25IP4G7ITCIBK4PONTR",
+      "name": "3 x (Flour) Harina Tortilla",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 1,
+    "maxSelections": 1,
+    "defaultOptions": [
+     "3 x (Corn) Corn Tortilla"
+    ],
+    "allowQuantities": false
+   },
+   {
+    "id": "UMBJ2J4XF3XJSA3SF3UZXGLS",
+    "name": "(CC) EXTRA Tortillas",
+    "options": [
+     {
+      "id": "BB7YTMBAGOWSXUMHFNCGAGW5",
+      "name": "***EXTRA 3 x Comal / Homemade Tortilla (+$4.00)",
+      "priceDeltaCents": 400
+     },
+     {
+      "id": "ZKZFEDRPNHJ2JNWK5YENXP5R",
+      "name": "***EXTRA 3 x Harina / Four Tortilla (+$4.00)",
+      "priceDeltaCents": 400
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "HRTF7D4XGBMVO3QHB2SADS6K",
+    "name": "(D) Extras Chiles Rellenos",
+    "options": [
+     {
+      "id": "FXQ7DDISGS7FIRNFJPINV66Y",
+      "name": "**EXTRA SIDE Crema / Sour Cream (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "5IL36G7ACIPHBBIOSPDH2PIE",
+      "name": "**EXTRA SIDE Queso Fresco / Fresco Cheese (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "4RRAWZTQTINFOLEIVLB5Y7KW",
+      "name": "**EXTRA Half Limon / Lime (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "5NTOGCNXKPF2XUFZQYFFYW5J",
+      "name": "**EXTRA Guacamole Salsa 2oz (+$1.00)",
+      "priceDeltaCents": 100
+     },
+     {
+      "id": "XVZVSDEFWOI7T53PEFMBITFZ",
+      "name": "**EXTRA Mild Salsa Asada 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "KQBSND7R2WXBVTT4QMGF3JTL",
+      "name": "**EXTRA Mild Salsa Tomato 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "HJM7PCX2AL7ERQYB35WKX7XX",
+      "name": "**EXTRA Medium Salsa Verde 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     },
+     {
+      "id": "BQZKBGDS2DQPDGP2FXK5VPU6",
+      "name": "**EXTRA Hot Salsa Roja 2oz (+$0.75)",
+      "priceDeltaCents": 75
+     }
+    ],
+    "minSelections": 0,
+    "allowQuantities": false
+   },
+   {
+    "id": "XKCHBR7CO6QJJCQIV7O3UZ6J",
+    "name": "(I) ADD Agua Fresca",
+    "options": [
+     {
+      "id": "7VYD2I6FV3LFEJVKYVIVGUOO",
+      "name": "*** HORCHATA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     },
+     {
+      "id": "2P5TTRSBGSFUDTRNGRSM2MVB",
+      "name": "*** JAMAICA 32oz (+$5.00)",
+      "priceDeltaCents": 500
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   },
+   {
+    "id": "YZENJVT5AIICNWEI5PTZUNTE",
+    "name": "(I) Salsa Preferencia / Preference",
+    "options": [
+     {
+      "id": "5QO6JMUFJOLLKYNK7WLCGZJ4",
+      "name": "Mild Salsa Asada",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "S3PRZRTT6BZPQVKJRFTPIDTX",
+      "name": "Mild Salsa Tomato",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "EXEKI453HU3HWE57N5LDFLFF",
+      "name": "Medium Salsa Verde",
+      "priceDeltaCents": 0
+     },
+     {
+      "id": "D5TEYNXWGMVFPZWE7CWB4YV2",
+      "name": "Hot Salsa Roja",
+      "priceDeltaCents": 0
+     }
+    ],
+    "minSelections": 0,
+    "maxSelections": 1,
+    "allowQuantities": false
+   }
+  ],
+  "readbackName": "Stuffed Poblano Pepper",
+  "readbackNameEs": "Chiles Rellenos Platillo"
+ },
+ {
+  "id": "sq-drink-coca-cola-JJE4KC",
+  "name": "Coca Cola",
+  "nameEs": "Coca Cola",
+  "aliases": [
+   "coca cola",
+   "coca cola",
+   "coca colas",
+   "coke",
+   "coca"
+  ],
+  "priceCents": 350,
+  "description": "1 x Bottle",
+  "imageUrl": "https://square-production.s3.amazonaws.com/files/3d70b24aba5716fe3b4a69fcdc5f6ad520ca343f/original.jpeg",
+  "squareCatalogObjectId": "GLLQGR2TFKU23KVUE4VOTXDE",
+  "squareVariationId": "JJE4KCJT752VBETFD7PWKLKN",
+  "category": "drinks",
+  "readbackName": "Coca Cola",
+  "readbackNameEs": "Coca Cola"
+ }
+]
