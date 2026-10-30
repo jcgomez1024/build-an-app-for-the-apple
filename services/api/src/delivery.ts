@@ -88,7 +88,10 @@ export function addressesIn(text: string): Address[] {
   t = t.replace(/\$\s*\d+(?:[.,]\d{1,2})?/g, " ")
     .replace(/\b(?:it'?s|it\s+is|that'?s|that\s+is|that\s+will\s+be|that'?ll\s+be|total(?:\s+is)?|comes\s+to|be|son|ser[ií]an?|ser[aá]|cuesta|es|fueron|price\s+is|precio\s+es)\s+\d{1,3}(?:[.,]\d{2}|\s+(?:con\s+)?\d{2}(?![a-z0-9])(?!\s*(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd|court|ct|way)\b))\b(?:\s*(?:dollars?|d[oó]lares|bucks|cents?|centavos))?/giu, " ")
     .replace(/\b\d+(?:[.,]\d{1,2})?\s*(?:dollars?|d[oó]lares|bucks|cents?|centavos)\b/giu, " ");
-  // cad71199: "478, Bank Street" / "4 78, Bank Street" → "478 Bank Street"
+  // chalino1 (CAe85a69): phone digits are never a house number — "dame tu número… 2 6 2 2 9", "my number is 262…", "phone 262…"
+  // ("el número de tu casa" / "house number" are not phone cues).
+  t = t.replace(/\b(?:(?:tu|su|mi|your|my|el|the)\s+(?:n[uú]mero(?!\s+de\s+(?:tu|su|la|mi)\s+casa)|tel[eé]fono|cel(?:ular)?|phone(?:\s+number)?|cell(?:\s+number)?|number)|tel[eé]fono|phone\s+number|call\s+back\s+number)\b([^\d]{0,40}?)((?:\d[\d\s().-]*)+)/giu, (_m, gap) => " " + gap + " ");
+    // cad71199: "478, Bank Street" / "4 78, Bank Street" → "478 Bank Street"
   t = t.replace(/\b(\d{1,6}),\s+(?=[a-záéíóúñ])/giu, "$1 ");
   const out: Array<{ at: number; a: Address }> = [];
   for (const m of t.matchAll(ADDR_EN)) {
@@ -158,6 +161,8 @@ export function detectAddress(turns: Turnish[]): { address: Address | null; conf
       best = { address: a, by: t.speaker || "caller" };
     }
   }
+  // chalino1: the caller's answer to "¿el número de tu casa?" beats a loose unconfirmed "rollo. 24" (price) match.
+  { const h = houseNumberAnswer(turns); if (h && (!best || (seen[addressKey(best.address.street)]?.size || 0) < 2)) return { address: h, confirmed: false, by: "caller" }; }
   if (!best) return { address: null, confirmed: false, by: null };
   return { address: best.address, confirmed: (seen[addressKey(best.address.street)]?.size || 0) > 1, by: best.by };
 }
@@ -213,4 +218,27 @@ export function deliveryDialogRules(opts: { verifiedSavedStreet?: string | null 
     "After you have the address, call set_address and check_delivery_zone. When confirming, say the city, the delivery fee and the ETA from its result in one short sentence (use its message; if fee_confirmed is false, say the fee is approximate and staff will confirm it). If it says needs_confirm, say staff will confirm the delivery zone and fee — never guess a fee. If it is outside the delivery area, say so and offer pickup.",
     "Delivery needs a food subtotal of at least $10 before the delivery fee. If the cart is under $10, say: \"El mínimo para entrega es de $10.\" (English: \"The delivery minimum is $10.\") and offer to add something or switch to pickup. There is no service fee.",
   ].join(" ");
+}
+
+const ES_UNITS: Record<string, number> = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+/** chalino1: staff "¿me das el número de tu casa?" → caller "en la Portland." / "es 2:46" (STT clock) → "246 Portland". The caller's
+ *  street word next to the ask + the caller's number after it; suffix unknown so none is invented. */
+export function houseNumberAnswer(turns: Turnish[]): Address | null {
+  const ts = [...turns].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
+  const ask = /n[uú]mero\s+de\s+(?:tu|su|la)\s+casa|house\s+number|address\s+number|n[uú]mero\s+de\s+(?:la\s+)?direcci[oó]n/iu;
+  const i = ts.findIndex((t) => t.speaker === "staff" && ask.test(t.text));
+  if (i < 0) return null;
+  const near = ts.slice(Math.max(0, i - 2), i + 4).filter((t) => (t.speaker || "caller") === "caller");
+  let street: string | null = null;
+  for (const t of near) {
+    const m = String(t.text).match(/\b(?:en|a)\s+(?:la|el)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][a-záéíóúñ'-]{3,}(?:\s+[A-Z][a-z]{2,})?)/u);
+    if (m && !/^(calle|casa|esquina|tienda|escuela|iglesia|parte)$/i.test(m[1])) street = title(m[1]);
+  }
+  let num: string | null = null;
+  for (const t of ts.slice(i + 1, i + 5).filter((t) => (t.speaker || "caller") === "caller")) {
+    const m = String(t.text).match(/\b(\d{1,2}):(\d{2})\b|\b(\d{2,6})\b/);
+    if (m) { num = m[3] || m[1] + m[2]; break; }
+  }
+  if (!street || !num) return null;
+  return fmt({ street: `${num} ${street}` });
 }

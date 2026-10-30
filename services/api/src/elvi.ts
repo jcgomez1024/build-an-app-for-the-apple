@@ -2142,7 +2142,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
       (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(tx) && /extras|salsa/i.test(String(a.itemId))) || ((input as any).cart || []).some((l: any) => l?.itemId === a.itemId)); } catch { /* keep */ }
   try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
   try { out = noHollowAdd(out, input); } catch {}
-  try { return noEchoReAdd(out, input); } catch { return out; }
+  let o2 = out; try { o2 = noEchoReAdd(out, input); } catch { /* keep */ }
+  try { return noPhantomDish(o2, input); } catch { return o2; }
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */
 export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviResponse {
@@ -2330,4 +2331,28 @@ export function noEchoReAdd(r: any, input: any) {
   if (keep.length === acts.length) return r;
   const en = input?.language === "en";
   return { ...r, actions: keep, reply: keep.some((a) => a?.type === "add_item") ? r.reply : (en ? "Got it. What else?" : "Muy bien. ¿Qué más?") };
+}
+
+/** chalino1 (CAe85a69, Oct 30 6:54 PM ET): "Me llama mucho el heno" → add 2 Chilaquiles con Huevo. An add whose dish, aliases and options
+ *  are never said, with no quantity in the turn and no mention of the dish in Elvi's last line (an offer/"¿cuántos?"), is a mishear. */
+export function noPhantomDish(r: any, input: any) {
+  const acts: any[] = r?.actions || [];
+  if (!acts.some((a) => a?.type === "add_item")) return r;
+  const said = echoPlain(input?.transcript || "");
+  if (!said || /\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six|same|again|lo mismo|otr[ao]s?|igual|another|more|m[aá]s|s[ií]|yes|yeah|ok(?:ay)?|eso|esa|ese|that|those|this)\b/.test(said)) return r;
+  const hist: any[] = input?.history || [];
+  const lastA = echoPlain([...hist].reverse().find((h) => h?.role === "assistant")?.text || "");
+  const stem = (w: string) => w.replace(/(es|s)$/, "").slice(0, 6);
+  const has = new Set([...said.split(/\s+/), ...lastA.split(/\s+/)].filter(Boolean).map(stem));
+  const named = (a: any) => {
+    const item = (input?.menu || []).find((i: any) => i.id === a.itemId);
+    if (!item) return true;
+    const texts = [item?.name, item?.nameEs, ...(item?.aliases || []), ...(a.modifiers || []).filter((m: any) => !m.isDefault).map((m: any) => m.option)];
+    const words = echoPlain(texts.filter(Boolean).join(" ")).split(/\s+/).filter((w) => w.length >= 4 && !ECHO_STOP.has(w));
+    return words.some((w) => has.has(stem(w)));
+  };
+  const keep = acts.filter((a) => a?.type !== "add_item" || named(a));
+  if (keep.length === acts.length) return r;
+  const en = input?.language === "en";
+  return { ...r, actions: keep, reply: keep.some((a) => a?.type === "add_item") ? r.reply : (en ? "Sorry, what would you like to order?" : "Perdón, ¿qué le vamos a preparar?") };
 }

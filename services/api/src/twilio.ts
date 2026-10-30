@@ -3,7 +3,7 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative } from "./order-name.js";
+import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName } from "./order-name.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -2023,7 +2023,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         // Pickup-only (lastPickupName, not contact): "para X" / "for X" / "la va a recoger" / picking-up.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
         // alexvoc1: a staff vocative the caller denied ("Alex, ¿no?" → "yo soy otro") is never the order name or memory.
-        const heardOrderName = heardInfo?.name && !deniedVocative(result.turns as any, heardInfo.name) ? heardInfo.name : null;
+        const heardOrderName = heardInfo?.name && !isNumberName(heardInfo.name) && !deniedVocative(result.turns as any, heardInfo.name) ? heardInfo.name : null;
         // mau1 (CAc68af8): no food ordered → never persist customerName / pickup name to memory
         const hasOrder = Array.isArray(result.elviOrder?.cart) && result.elviOrder.cart.length > 0;
         if (heardOrderName) {

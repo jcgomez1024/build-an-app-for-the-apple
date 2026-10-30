@@ -363,6 +363,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
 }
 /** Listen-only: save the heard name only when the number has no saved name. */
 export function rememberHeardNameIfNone(phone: string, name: string): boolean {
+  if (isNumberName(name)) return false; // chalino1: digits/number words never saved as a name
   if (isOrderOnlyName(name)) return false; // shannon1 / name3p2: ticket/pickup only
   if (savedCallerName(phone)) return false;
   const saved = saveCallerName(phone, name, "elvi");
@@ -547,7 +548,10 @@ export function groupOrderNames(turns: Array<{ speaker: "caller" | "staff"; text
 }
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {
   const group = groupOrderNames(turns);
-  const r = nameFromTranscriptInfoBase(turns);
+  let r = nameFromTranscriptInfoBase(turns);
+  // chalino1 (CAe85a69, Oct 30 6:54 PM ET): the phone digits said after the name ask ("seis", "dos noventa y cuatro")
+  // became the name "Seis". Number words / digits are never names → the staff read-back ("Chalino, muy bien") instead.
+  if (r && isNumberName(r.name)) r = readBackName(turns);
   if (group.length >= 2) return r ? { ...r, group } : { name: group[0], thirdPerson: true, source: "volunteer", group };
   if (r) return r;
   const callerTurns = turns.filter((t) => t.speaker === "caller");
@@ -671,4 +675,28 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
   const streets = streetTokensFromTurns(turns);
   if (streets.has(foldName(name.split(/\s+/)[0] || ""))) return null;
   return { name, thirdPerson, source };
+}
+
+const NUM_TOKEN = /^(?:\d+|cero|uno?|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|diecis[eé]is|diecisiete|dieciocho|diecinueve|veinte|veinti\p{L}+|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien(?:to)?|mil|y|as[ií]|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|and|oh)$/iu;
+/** chalino1: "Seis", "Noventa Y Así", "2 6 2" — a number, never a name. */
+export function isNumberName(name: string): boolean {
+  const w = String(name || "").trim().split(/[\s.,-]+/).filter(Boolean);
+  return !w.length || /\d/.test(name) || w.every((x) => NUM_TOKEN.test(x));
+}
+function readBackName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" } | null {
+  const ask = /\b(?:tu|su)\s+nombre\b|\bnombre\b.*\?|\byour\s+name\b|\bname\s+for\b/iu;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "staff" || !ask.test(turns[i].text)) continue;
+    for (const t of turns.slice(i + 1, i + 5)) {
+      const m = t.speaker === "staff" && String(t.text).trim().match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,})\s*[,.]\s*(?:muy\s+bien|ok(?:ay)?|perfecto|gracias|listo|got\s+it|thank)/u);
+      if (m && !isNumberName(m[1]) && !NOT_NAME.test(m[1]) && !NOT_NAMES.test(m[1])) return { name: m[1], thirdPerson: false, source: "staff-ask" };
+    }
+    for (const t of turns.slice(i + 1, i + 3)) {
+      if (t.speaker !== "caller") continue;
+      const c = [...String(t.text).matchAll(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,})\b/gu)].map((m) => m[1]).filter((x) => !isNumberName(x) && !NOT_NAME.test(x) && !NOT_NAMES.test(x));
+      if (c.length === 1) return { name: c[0], thirdPerson: false, source: "staff-ask" };
+    }
+    return null;
+  }
+  return null;
 }

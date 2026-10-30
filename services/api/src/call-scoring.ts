@@ -4,6 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
+import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
@@ -4683,6 +4684,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // When set_address ran → confirmed. When delivery + caller address heard → confirmed (staff may not read back).
   const detA = detectAddress(turns as any);
   // let: late case rebuilds (cad71199) may fill address after this point
+  // chalino1 (CAe85a69): a captured address whose house number is the phone digits ("26229 Chalino. St") is not an address.
+  if (shadowAddress) {
+    const house = (String(shadowAddress).match(/^\s*(\d{3,6})\b/) || [])[1];
+    const ts = turns as any[];
+    const phoneDigits = ts.map((t, i) => /\b(?:n[uú]mero(?!\s+de\s+(?:tu|su|la|mi)\s+casa)|tel[eé]fono|phone|number|cel(?:ular)?)\b/iu.test(String(t.text))
+      ? ts.slice(i, i + 5).map((x) => String(x.text).replace(/\D/g, "")).join("") : "").join("|");
+    if (house && phoneDigits.includes(house)) { steps.push({ source: "address-phone-digits", heard: shadowAddress }); shadowAddress = null; shadowAddressConfirmed = false; }
+  }
   let address = shadowAddress || detA.address?.full || detA.address?.street || null;
   let addressConfirmed = shadowAddressConfirmed || detA.confirmed
     || (!!address && fulfillment === "DELIVERY" && !!detA.address);
@@ -7606,7 +7615,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const menuFn = (run as any).menu; const menu = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
     if (menu) applyAskedDishes(cart as any[], steps, turns as any, menu);
     if (menu && applyAddOnCallback(cart as any[], turns as any, menu)) (steps as any).addOn = true;
-    if (menu) { applySplitCorrection(cart as any[], turns as any, menu); applySidesAndToppings(cart as any[], turns as any, menu); } }
+    if (menu) { applySplitCorrection(cart as any[], turns as any, menu); applySidesAndToppings(cart as any[], turns as any, menu);
+      dropUnsaidDishes(cart as any[], turns as any, menu); applyCountedDishMeat(cart as any[], turns as any, menu); ringUnnamedSodas(cart as any[], turns as any, menu); } }
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 
