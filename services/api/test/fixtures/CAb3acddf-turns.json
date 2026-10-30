@@ -1,0 +1,793 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.24,
+  "end": 1.24,
+  "text": "Buenos días.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.301,
+  "end": 3.661,
+  "text": "Sí, buenos días.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 4.662,
+  "end": 5.262,
+  "text": "Sí, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.102,
+  "end": 5.682,
+  "text": "Este,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.622,
+  "end": 12.744,
+  "text": "una una preguntita de, este, es que lo lo vimos en por",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.925,
+  "end": 20.427,
+  "text": "por internet la la las cosas que tiene, pero no sé qué tiene hoy para para el almuerzo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 21.629,
+  "end": 26.771,
+  "text": "De especial tenemos hoy enchiladas y tacos al vapor,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 29.21,
+  "end": 29.41,
+  "text": "Ajá.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.872,
+  "end": 37.155,
+  "text": "quesadillas doradas, tortas gorditas, quesadillas del comal, tacos del comal,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 38.135,
+  "end": 39.476,
+  "text": "sopesazos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.416,
+  "end": 42.477,
+  "text": "Chile rellenos, pozole.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 44.895,
+  "end": 47.056,
+  "text": "Y Virria no tiene o barbacoa.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 45.698,
+  "end": 50.319,
+  "text": "Ah, tenemos birria.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 52.139,
+  "end": 52.499,
+  "text": "Birria.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 53.878,
+  "end": 55.078,
+  "text": "Virria de es de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.999,
+  "end": 56.339,
+  "text": "de Chivo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.861,
+  "end": 56.961,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 58.78,
+  "end": 59.22,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 60.18,
+  "end": 60.26,
+  "text": "¿Te,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 61.741,
+  "end": 61.841,
+  "text": "te,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 65.783,
+  "end": 66.643,
+  "text": "tienes una birria, Cocho?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 68.604,
+  "end": 68.704,
+  "text": "¿Sí?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 70.925,
+  "end": 71.145,
+  "text": "Eh, sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 73.126,
+  "end": 74.286,
+  "text": "Okay, um,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 75.707,
+  "end": 77.988,
+  "text": "me da, ¿tú de una vas a querer birria?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 79.087,
+  "end": 80.087,
+  "text": "Una orden de birria.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 81.169,
+  "end": 83.891,
+  "text": "Tres, tres, tres de, de birria.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 84.608,
+  "end": 85.869,
+  "text": "Tres órdenes de birria.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 86.932,
+  "end": 90.714,
+  "text": "Ajá, y de, de, de tacos, ¿qué tiene?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 87.649,
+  "end": 88.31,
+  "text": "¿Algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 91.971,
+  "end": 98.632,
+  "text": "De de de carnes tenemos bistec, cabeza, carnita, chorizo, al Torvuche lengua tripa.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 100.078,
+  "end": 104.06,
+  "text": "Okay, hay de tripa y de, de, de asada, ¿no tienes?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 104.494,
+  "end": 105.354,
+  "text": "Sí, de asada.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 106.521,
+  "end": 107.101,
+  "text": "¿Cuántos dices?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 108.642,
+  "end": 110.582,
+  "text": "Me da una orden de cuatro de asada.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 111.156,
+  "end": 112.657,
+  "text": "Del comal o taquero.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 117.124,
+  "end": 120.085,
+  "text": "¿Cuál es, cuál es, cuál, cuál me, me, me?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 117.398,
+  "end": 117.578,
+  "text": "Tac-",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 119.119,
+  "end": 122.279,
+  "text": "tacos grandes, o sea, los tacos grandes o taco chiquito.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 124.605,
+  "end": 126.346,
+  "text": "Eh, los normales, los chiquitos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 126.861,
+  "end": 127.981,
+  "text": "Okay, ¿cuántos te doy?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 129.166,
+  "end": 129.486,
+  "text": "Cinco.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 130.282,
+  "end": 132.542,
+  "text": "Cinco de asada. Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 133.647,
+  "end": 135.767,
+  "text": "O, otra orden de cinco, igual.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 136.524,
+  "end": 138.984,
+  "text": "Okay, otra orden de cinco tacos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 139.965,
+  "end": 141.085,
+  "text": "Muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 142.428,
+  "end": 143.568,
+  "text": "Ah, ¿de beber qué tiene?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 145.126,
+  "end": 149.467,
+  "text": "De beber tenemos horchata, jarritos, coca, sangría,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 150.368,
+  "end": 152.508,
+  "text": "square. Spray.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 154.89,
+  "end": 155.71,
+  "text": "¿De tomar qué quiere?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 162.211,
+  "end": 164.691,
+  "text": "¿Me da una, eh, quiere una horchata,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 165.731,
+  "end": 165.951,
+  "text": "Lola?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 167.271,
+  "end": 168.431,
+  "text": "¿Dos horchata, tú digas?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 170.032,
+  "end": 170.892,
+  "text": "¿No quiere de Jamaica?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 171.473,
+  "end": 171.593,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 173.092,
+  "end": 173.332,
+  "text": "Me da",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 174.793,
+  "end": 176.853,
+  "text": "dos de Jamaica y un",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 178.213,
+  "end": 180.134,
+  "text": "y un y una de",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 181.655,
+  "end": 182.155,
+  "text": "Orchata.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 182.334,
+  "end": 182.734,
+  "text": "una de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 184.875,
+  "end": 193.777,
+  "text": "horchata y tú pan. Que sean tres de horchata y dos de Jamaica.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 194.718,
+  "end": 196.319,
+  "text": "Okay, muy bien, ¿algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 197.818,
+  "end": 200.978,
+  "text": "No, es todo, y pero sí tiene de de libres.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 199.4,
+  "end": 199.8,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 201.82,
+  "end": 202.621,
+  "text": "¿A dónde sería?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 204.463,
+  "end": 228.881,
+  "text": "Bueno, pero allá En los segundos me le pone la car,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 204.779,
+  "end": 207.92,
+  "text": "Ah, estamos como a quince minutos.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 213.781,
+  "end": 219.602,
+  "text": "Estamos a a quince minutos. Y bueno.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 240.087,
+  "end": 240.167,
+  "text": "Uh,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 250.508,
+  "end": 252.048,
+  "text": "ah. Okay. A ver, ¿dónde sería el delivery?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 253.87,
+  "end": 257.67,
+  "text": "híjole, ¿cómo le hiciera?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 260.491,
+  "end": 263.832,
+  "text": "Espéreme tantito, yo yo le digo le digo es es",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 265.052,
+  "end": 268.853,
+  "text": "la dirección. Espéreme tantito. Es que nosotros venimos desde",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 270.133,
+  "end": 271.193,
+  "text": "desde a",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 273.133,
+  "end": 275.274,
+  "text": "de Akron, Ohio, y pues.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 275.236,
+  "end": 276.257,
+  "text": "Don Carlos,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 277.737,
+  "end": 282.058,
+  "text": "una orden me sale a quince y la otra me sale, la regular me sale a doce.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 283.556,
+  "end": 284.296,
+  "text": "Este es",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 286.436,
+  "end": 290.737,
+  "text": "Es este seis siete setenta West.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 291.481,
+  "end": 292.902,
+  "text": "Entonces, ¿a cuánto se los cobro?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 295.042,
+  "end": 295.182,
+  "text": "Ok.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 297.879,
+  "end": 302.021,
+  "text": "¿Sí le, sí le puedo mandar la, la, la, la, la ubicación o la dirección?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 303.425,
+  "end": 306.626,
+  "text": "Ah, si quiere me puede mandar la ubicación.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 309.723,
+  "end": 313.564,
+  "text": "Okay, le, le, le mando la ubicación entonces, en tiempo real.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 315.128,
+  "end": 316.649,
+  "text": "Ok, o me ma, me, mm,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 318.589,
+  "end": 342.016,
+  "text": "a ver, apunta el número que le voy a dar, es 4 40 2 89 85",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 321.786,
+  "end": 324.447,
+  "text": "Oye, espérame tantito, cuatro cuarenta.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 328.448,
+  "end": 342.672,
+  "text": "Espérame tantito, espérame un segundo. No. Cuatro cuarenta. Dos ochenta y nueve.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 344.853,
+  "end": 346.613,
+  "text": "O- ochenta y cinco, cero cuatro.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 349.174,
+  "end": 358.377,
+  "text": "Entonces, mándale la ubicación. No, es cuatro cuarenta. Espérame tantito, espérame tantito, porque no me dio",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 350.838,
+  "end": 366.243,
+  "text": "4 40 2 89 85 0 4.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 360.058,
+  "end": 363.659,
+  "text": "bien el, no lo apunté bien el número. ¿Es cuatro cuarenta? Dos, dos ochenta",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 369.361,
+  "end": 375.423,
+  "text": "y nueve. No, no lo apuntamos bien. ¿Le, le puedo marcar el? Es que, okay, dos ochenta y cinco.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 382.286,
+  "end": 382.626,
+  "text": "Sí, ¿es ese?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 383.626,
+  "end": 385.427,
+  "text": "Okay, ahorita le mando la ubicación.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 386.168,
+  "end": 390.61,
+  "text": "Okey, o me marca otra vez en cinco minutos, para asegurarme.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 390.389,
+  "end": 390.589,
+  "text": "Okay,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 391.729,
+  "end": 391.989,
+  "text": "okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 392.61,
+  "end": 394.291,
+  "text": "¿A qué nombre la orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 394.83,
+  "end": 396.591,
+  "text": "Ah, el nombre de Marina Aguilar.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 397.211,
+  "end": 401.012,
+  "text": "Marina Aguilar, ¿y sería aquí en ¿En o en en dónde?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 403.113,
+  "end": 406.213,
+  "text": "Aquí en en en Penfield, aquí saltamos a quince minutos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 406.894,
+  "end": 409.534,
+  "text": "Okay, está bien, entonces sería en Pensil, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 409.174,
+  "end": 411.775,
+  "text": "Aquí es, aquí, aquí estoy, aquí estoy en Perry.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 412.715,
+  "end": 413.815,
+  "text": "O en Perry, okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 414.976,
+  "end": 417.776,
+  "text": "Manue, Man, Manuel Aguilar,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 414.996,
+  "end": 416.096,
+  "text": "Sigue aquí cerquita, son",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 419.217,
+  "end": 419.777,
+  "text": "Marine.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 420.657,
+  "end": 420.957,
+  "text": "Mari.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 424.998,
+  "end": 428.999,
+  "text": "Ahorita me marca para que me confirme la la dirección bien, okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 430.139,
+  "end": 430.439,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 431.039,
+  "end": 431.699,
+  "text": "Gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 432.68,
+  "end": 432.94,
+  "text": "Okay.",
+  "language": "es"
+ }
+]

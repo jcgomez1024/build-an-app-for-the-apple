@@ -96,3 +96,59 @@ export function applyReadbackSalsaPref(cart: any[], turns: Array<{ speaker: stri
     }
   }
 }
+
+// ---- marina1 (CAb3acddf, Oct 30 12:03 PM ET, Spanish delivery): 3 birria de chivo, 2×5 tacos taqueros de asada, 3 horchatas, 2 jamaicas.
+type T = Array<{ speaker: string; text: string }>;
+const N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, doce: 12, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+const nOf = (w: string) => N[w.toLowerCase()] ?? (Number(w) || 0);
+const NW = "(\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)";
+/** Staff confirms the caller's count ("Tres, tres de birria" → "Tres órdenes de birria"): that dish's total is that count. */
+export function applyStaffOrderCount(cart: any[], turns: T): void {
+  for (let i = 1; i < turns.length; i++) {
+    const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = t.text.match(new RegExp(`^\\W*${NW}\\s+[oó]rden(?:es)?\\s+de\\s+(birria|menudo|pozole|barbacoa)\\b`, "iu"));
+    if (!m) continue;
+    const n = nOf(m[1]), prev = turns.slice(Math.max(0, i - 2), i).filter((u) => u.speaker === "caller").map((u) => u.text).join(" ");
+    if (n < 1 || !new RegExp(`\\b${m[1]}\\b`, "iu").test(prev)) continue; // the caller said that number
+    const ls = cart.filter((l) => String(l.itemId).toLowerCase().startsWith(`sq-${m[2].toLowerCase()}`));
+    if (!ls.length) continue;
+    ls[0].quantity = n; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+  }
+}
+/** A plate whose item already includes tortillas (birria "y tortillas de comal", menudo con tortillas) — separate tortilla orders the caller never asked for are its tortillas. */
+export function dropIncludedTortillas(cart: any[], turns: T): void {
+  if (!cart.some((l) => /^sq-(?:birria|menudo|pozole)/i.test(String(l.itemId)) && /tortillas/i.test(String(l.itemId)))) return;
+  if (turns.some((t) => t.speaker === "caller" && /\btortillas?\b/iu.test(t.text))) return;
+  for (let i = cart.length - 1; i >= 0; i--) if (/^sq-tortillas/i.test(String(cart[i].itemId))) cart.splice(i, 1);
+}
+/** "Que sean tres de horchata y dos de Jamaica" — the caller's final restatement sets the totals per agua. */
+export function applyDrinkRestatement(cart: any[], turns: T): void {
+  const last = [...turns].reverse().find((t) => t.speaker === "caller" && /\b(?:que\s+sean|ser[ií]an|en\s+total|total)\b/iu.test(t.text) && /\b(?:horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)\b/iu.test(t.text));
+  if (!last) return;
+  const tail = last.text.slice(last.text.search(/\b(?:que\s+sean|ser[ií]an|en\s+total|total)\b/iu));
+  for (const m of tail.matchAll(new RegExp(`\\b${NW}\\s+(?:de\\s+)?(horchata|jamaica|tamarindo|pi[ñn]a|mel[oó]n|lim[oó]n)s?\\b`, "giu"))) {
+    const n = nOf(m[1]), key = m[2].toLowerCase().replace("ñ", "n").replace(/[óò]/, "o");
+    const ls = cart.filter((l) => new RegExp(`agua-fresca-${key}`, "i").test(String(l.itemId)));
+    if (!ls.length || n < 1) continue;
+    ls[0].quantity = n; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+  }
+}
+const TACO_ID = "sq-taco-TAR7L5";
+const TMEAT: Array<[RegExp, string]> = [[/asada|bistec/iu, "Bistec / Steak"], [/pastor/iu, "Alpastor / Roasted Pork"], [/chorizo/iu, "Chorizo / Mexican Sausage"], [/lengua/iu, "Lengua / Beef Tongue (+$0.50)"]];
+/** Tacos only staff confirmed ("Cinco de asada." … "otra orden de cinco tacos") when Elvi has none: add them; chiquitos/taquero → TST, comal → TCO. */
+export function addStaffConfirmedTacos(cart: any[], turns: T): void {
+  if (cart.some((l) => /taco/i.test(String(l.itemId)))) return;
+  const all = turns.map((t) => t.text).join(" ");
+  if (!/\btacos?\b/iu.test(all)) return;
+  let meat = "", total = 0;
+  for (const t of turns) {
+    if (t.speaker !== "staff") continue;
+    const m = t.text.match(new RegExp(`\\b${NW}\\s+(?:tacos?\\s+)?de\\s+(asada|bistec|pastor|chorizo|lengua)\\b`, "iu"));
+    if (m) { const mm = TMEAT.find(([re]) => re.test(m[2])); if (mm) { meat = mm[1]; total += nOf(m[1]); } continue; }
+    const o = t.text.match(new RegExp(`\\botra\\s+orden\\s+de\\s+${NW}\\s+tacos?\\b`, "iu"));
+    if (o && meat) total += nOf(o[1]);
+  }
+  if (!meat || total < 1) return;
+  const street = /\b(?:chiquitos?|taquer[oa]s?|street|peque[ñn]os?)\b/iu.test(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "));
+  cart.push({ itemId: TACO_ID, quantity: total, modifiers: [{ step: "(A) T Tortilla Options", option: street ? "(TST) Taco Taquero / Street Taco" : "(TCO) Taco Comal / Homemade (+$1.00)" }, { step: "(B) T Carnes / Meats Opciones", option: meat }] });
+}

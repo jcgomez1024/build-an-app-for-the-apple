@@ -260,6 +260,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     let staffEcho: string | null = null;
     let staffEchoHits = 0;
     let aNombreDe: string | null = null;
+    let fullCaller: string | null = null;
     for (const t of turns.slice(i + 1, i + 10)) {
       if (t.speaker === "caller") {
         const spelled = nameFromSpelledLetters(t.text);
@@ -273,7 +274,10 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
           lastCaller = n;
           if (spelled) spelledCaller = spelled; // joel1: J O E L beats staff Joey/Jane echo
           // carlos1: prefer explicit "A nombre de Carlos" over later gratitude leftovers
-          if (/(?:a\s+nombre\s+de|mi\s+nombre\s+es|me\s+llamo|my\s+name\s+is)\s+/iu.test(t.text)) aNombreDe = n;
+          if (/(?:a\s+nombre\s+de|(?:el|su|mi)\s+nombre\s+(?:de|es)|me\s+llamo|my\s+name\s+is)\s+/iu.test(t.text)) aNombreDe = n;
+          // marina1: "Marina Aguilar" then a garbled "Marine" — the full spoken name wins over a later fragment of it
+          if (/\s/.test(n)) fullCaller = n;
+          else if (fullCaller && foldName(n).slice(0, 3) === foldName(fullCaller).slice(0, 3)) lastCaller = fullCaller;
         }
       }
       // victor1/alex1/jose1/gino1: staff echo after junk ASR —

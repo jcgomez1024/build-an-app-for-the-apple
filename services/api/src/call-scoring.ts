@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -4477,6 +4477,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // brenda1: staff-accepted burrito deluxe / rice / beans (+ "not too much rice" note), read-back salsa preference, side salsas listed
   applyBurritoReadback(cart as any[], turns as any);
   applyReadbackSalsaPref(cart as any[], turns as any);
+  // marina1: staff-confirmed "Tres órdenes de birria", birria's own tortillas, "que sean tres de horchata y dos de Jamaica", staff-confirmed tacos
+  applyStaffOrderCount(cart as any[], turns as any); dropIncludedTortillas(cart as any[], turns as any);
+  applyDrinkRestatement(cart as any[], turns as any); addStaffConfirmedTacos(cart as any[], turns as any);
   if (!cart.some((l: any) => l.itemId === EXTRAS_ID && (l.modifiers || []).some((m: any) => /Salsa|Guacamole/i.test(String(m.option)))))
     for (const s of sideSalsas(turns as any)) cart.push({ itemId: EXTRAS_ID, quantity: s.quantity, modifiers: [{ step: "Extras options", option: s.option }] } as any);
   fulfillment = detectFulfillment(turns as any).fulfillment as any;
