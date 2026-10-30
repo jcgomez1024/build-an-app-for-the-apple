@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
-import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa } from "./order-repair.js";
+import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
@@ -409,6 +409,14 @@ const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|mante
 // "entonces te tengo…") means the call is not info-only — "¿De qué carne hay?" had dropped every caller turn.
 const ASKS_TO_ORDER2 = /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner|mandar|tomar|apartar)\b|\bme\s+(?:prepara|hace|manda|aparta)s?\b/iu;
 const STAFF_TOOK_ORDER = /\ba?l?\s*nombre\s+de\s+qui[eé]n\b|\bqu[eé]\s+nombre\b|\b(?:dame|deme|d[eé]jame)\s+(?:unos?\s+)?\w+\s+minutos\b|\bentonces\s+(?:te\s+)?tengo\b|\btienes\s+una\s+orden\b|\bte\s+voy\s+a\s+dar\b|\bname\s+for\s+(?:the|your)\s+order\b|\bgive\s+me\s+(?:like\s+|about\s+)?\w+\s+minutes\b|\bso\s+i\s+(?:got|have)\b/iu;
+export function isCallBackNoOrder(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  if (!caller.some((t) => /\b(?:i'?ll|i\s+will|we'?ll|let\s+me)\s+call\s+(?:you\s+)?back\b|\bcall\s+(?:you\s+)?(?:back\s+)?later\b|\b(?:te|le|les)\s+(?:hablo|llamo|marco)\s+(?:m[aá]s\s+(?:tarde|al\s+rato)|luego|al\s+rato|despu[eé]s|otra\s+vez)\b|\b(?:luego|al\s+rato)\s+(?:te|le)\s+(?:hablo|llamo|marco)\b/iu.test(t))) return false;
+  if (turns.some((t) => t.speaker === "staff" && STAFF_TOOK_ORDER.test(t.text))) return false;
+  const order = (t: string) => ASKS_TO_ORDER2.test(t) || (ASKS_TO_ORDER.test(t) && !/\bcall/i.test(t) && !/^\W*(?:i\s+was\s+)?calling\s+to\s+see\b/i.test(t.replace(/^\W*(?:hi|hello|hey)[,.\s]+/i, ""))) ||
+    /\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro|cinco|seis)\s+(?:orders?\s+of\s+|[oó]rdenes\s+de\s+)?\p{L}{3,}/iu.test(t);
+  return !caller.some(order);
+}
 export function isQuestionOnlyCall(turns: Array<{ speaker: string; text: string }>): boolean {
   const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text);
   if (!caller.length) return false;
@@ -808,6 +816,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // alexvoc1: "ya va pa allá" / restating the drinks on an order already placed — no new cart.
   if (isStatusFollowUpCall(turns as any))
     return { cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true } as any;
+  // cmissing1: only availability questions + "I'll call you back" / "le hablo luego" — no cart, no final ticket.
+  if (isCallBackNoOrder(turns as any))
+    return { cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
   if (isQuestionOnlyCall(turns)) {
     const steps: any[] = [];
     const ctx: string[] = []; let lastReply = "";
@@ -7617,6 +7628,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (menu && applyAddOnCallback(cart as any[], turns as any, menu)) (steps as any).addOn = true;
     if (menu) { applySplitCorrection(cart as any[], turns as any, menu); applySidesAndToppings(cart as any[], turns as any, menu);
       dropUnsaidDishes(cart as any[], turns as any, menu); applyCountedDishMeat(cart as any[], turns as any, menu); ringUnnamedSodas(cart as any[], turns as any, menu);
+      dropStaffUnavailable(cart as any[], turns as any); // cmissing1
       applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu); } } // nicky1, cafa1
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }

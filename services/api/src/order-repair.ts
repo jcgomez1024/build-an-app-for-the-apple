@@ -1,3 +1,4 @@
+import { staffUnavailable, isAvailQ } from "./spoken-ledger.js";
 // chalino1 (CAe85a692542519dbf86de4d11c3304029, Oct 30 6:54 PM ET, Chalino, Spanish delivery, staff-answered):
 // "unas dos tortas de bistec" + "sin queso" + taco de comal de carnitas + "unas dos sodas… de lata". The shadow rang a phantom
 // 2 Chilaquiles ("me llama mucho el heno"), 1→2 Queso Torta bistec+carnitas (the taco's "de carnitas" merged in), and no sodas.
@@ -152,6 +153,23 @@ export function applyArbolSalsa(cart: any[], turns: Turn[], menu: any[]): boolea
     const arbol = (g.options || []).map(optName).find((o: string) => /arbol/i.test(plain(o)));
     if (arbol) { l.modifiers = [...(l.modifiers || []).filter((x: any) => x.step !== g.name), { step: g.name, option: arbol }]; changed = true; }
     else if (!(l.elviNotes || []).some((n: string) => /arbol|árbol/i.test(n))) { l.elviNotes = [...(l.elviNotes || []), "salsa de árbol"]; changed = true; }
+  }
+  return changed;
+}
+
+// cmissing1 (CA8e3de9a540a201d103dfe502e5df4aa2, Oct 30 7:26 PM ET): staff "Not today." to "how about ceviche?" and the
+// asked-dish pass still rang a Ceviche. A dish staff said is unavailable never stays in the cart unless the caller ordered it
+// again after that answer.
+export function dropStaffUnavailable(cart: any[], turns: Turn[]): boolean {
+  const off = staffUnavailable(turns as any);
+  if (!off.length) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const id = String(cart[i].itemId || "").toLowerCase();
+    const d = off.find((d) => id.includes(d.replace(/\s+/g, "-")));
+    if (!d) continue;
+    const reordered = turns.some((t) => t.speaker === "caller" && plain(t.text).includes(d) && !isAvailQ(t.text)); // "Sí, el pozole rojo, por favor"
+    if (!reordered) { cart.splice(i, 1); changed = true; }
   }
   return changed;
 }

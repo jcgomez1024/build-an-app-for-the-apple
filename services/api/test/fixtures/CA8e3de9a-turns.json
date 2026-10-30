@@ -1,0 +1,86 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.32,
+  "end": 1.361,
+  "text": "Cocina Elvis.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 0.861,
+  "end": 1.441,
+  "text": "but, no.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.102,
+  "end": 6.425,
+  "text": "Hi, I was calling to see if you guys have, pozole verde.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 7.586,
+  "end": 9.587,
+  "text": "No, we don't have pozole verde.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 11.388,
+  "end": 12.629,
+  "text": "Okay, how about ceviche?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.428,
+  "end": 12.169,
+  "text": "Not today.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.83,
+  "end": 14.511,
+  "text": "Camarones?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 15.451,
+  "end": 17.873,
+  "text": "yeah, we have camarones today, cocktail.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 20.255,
+  "end": 20.635,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.656,
+  "end": 24.118,
+  "text": "okay, I will call you back. Thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 24.758,
+  "end": 27.16,
+  "text": "Thank you. Bye-bye.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 26.96,
+  "end": 27.14,
+  "text": "Bye.",
+  "language": "en"
+ }
+]

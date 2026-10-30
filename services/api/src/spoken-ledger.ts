@@ -40,9 +40,16 @@ const QB_ID = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome
 const JARRITO_ID = "sq-drink-jarrito-mandarina-mandarin-I4GNSG";
 const AVQ = /^(?:(?:y|e|eh|ah|em|este|oiga|oye|disculpe|hola|bueno|si)\s+)*(?:y\s+)?(?:tienes?|tienen|hay|venden|manejan)\b/;
 /** "¿tienes pollo a la crema? Ajá" / "tiene quesadilla de birria" — asks, orders nothing (no order verb or count+dish). */
+// cmissing1 (CA8e3de9a): English "calling to see if you guys have pozole verde", "how about ceviche?", "what about X?",
+// "is there X?", "any X today?" — asks, orders nothing (same rule as the Spanish ¿tiene/hay).
+const AVQ_EN = /^(?:(?:hi|hey|hello|yes|yeah|ok(?:ay)?|so|and|oh|um|uh|but|no|i\s+was\s+(?:calling|wondering|checking)\s+(?:to\s+(?:see|ask|check)\s+)?(?:if|whether)|calling\s+to\s+see\s+if|just\s+wondering\s+if|i\s+wanted\s+to\s+(?:see|know|ask)\s+if)\s+)*(?:(?:do|does)\s+)?(?:you|y'?all)(?:\s+guys)?(?:\s+still)?\s+(?:have|got|carry|sell|make|serve)\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:how|what)\s+about\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:is|are)\s+there\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:got\s+)?any\s+[a-z ]{2,30}(?:\s+today|\s+tonight|\s+left)?$/;
+const ORDER_EN = /\b(?:can\s+i\s+(?:get|have|order)|could\s+i\s+(?:get|have)|i'?ll\s+(?:take|have|get)|i\s+(?:want|need)|i'?d\s+like|let\s+me\s+(?:get|have)|give\s+me|get\s+me|order\s+of|for\s+pickup|to\s+go)\b/;
 export function isAvailQ(x: string): boolean {
-  const y = nf(x);
-  return AVQ.test(y) && !/\b(?:me\s+da|dame|deme|me\s+pone|ponme|pongame|quiero|quisiera|me\s+das|una\s+orden)\b/.test(y);
+  const y = nf(x).replace(/\bi\s+was\s+calling\s+to\s+see\s+if\b/, "calling to see if");
+  if (/\b(?:me\s+da|dame|deme|me\s+pone|ponme|pongame|quiero|quisiera|me\s+das|una\s+orden)\b/.test(y) || ORDER_EN.test(y)) return false;
+  // a "how about X" after the caller already ordered is a suggestion ask, still no add: no count words allowed
+  if (/\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro)\s+[a-z]/.test(y) && !AVQ.test(y)) return false;
+  return AVQ.test(y) || AVQ_EN.test(y.replace(/^(?:(?:but|no|hi|hey|ok(?:ay)?)\s+)+/, "").replace(/^i\s+was\s+/, "i was "));
 }
 /** A caller turn whose food words are all in the staff's last lines ("Coctel de camarón." after staff "cóctel de camarón"). */
 export function isEchoOfStaff(x: string, staff: string): boolean {
@@ -189,7 +196,12 @@ export function staffUnavailable(turns: T[]): string[] {
   for (let i = 1; i < turns.length; i++) {
     const s = turns[i]; if (s.speaker !== "staff") continue;
     const x = nf(s.text);
-    if (!/\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:nos\s+)?acab[oa]\b|\bya\s+no\s+(?:hay|tenemos)\b|\bno\s+tenemos\b|\bmanana\s+si\b/.test(x)) continue;
+    const en = /^(?:no\s+)?we\s+(?:don'?t|do\s+not)\b|\bnot\s+today\b|\b(?:don'?t|do\s+not)\s+have\b|\bsold\s+out\b|\bran\s+out\b|\bwe'?re\s+out\s+of\b|\bnot\s+(?:available|right\s+now)\b/.test(x);
+    if (!en && !/\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:nos\s+)?acab[oa]\b|\bya\s+no\s+(?:hay|tenemos)\b|\bno\s+tenemos\b|\bmanana\s+si\b|^no\s+(?:hoy|ahorita)\b|\bhoy\s+no\b/.test(x)) continue;
+    // cmissing1: the dish the caller just asked about ("how about ceviche?" → staff "Not today.")
+    const ask = turns[i - 1]?.speaker === "caller" && isAvailQ(turns[i - 1].text) ? turns[i - 1] : null;
+    if (ask) { const w = nf(ask.text).replace(/\b(?:today|tonight|hoy|left|still|guys|you|have|got|any|about|how|what|is|are|there|do|does|tienen?|tienes|hay|calling|see|if|i|was|to|hi|but|no|okay|ok|the|some|y|el|la|los|las|de)\b/g, " ").trim().split(/\s+/).find((w) => w.length >= 4);
+      if (w) out.add(w.replace(/s$/, "")); }
     const prev = turns.slice(Math.max(0, i - 3), i + 1).map((t) => nf(t.text)).join(" ");
     for (const m of prev.matchAll(/\b(enchiladas?|tacos?\s+al\s+vapor|tamales?|pozole|menudo|mole|chilaquiles|birria|caldo|guisados?|tostadas?|flautas?)\b/g)) out.add(m[1].replace(/s$/, "").replace(/^taco al vapor$/, "tacos al vapor"));
   }
