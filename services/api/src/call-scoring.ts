@@ -3,6 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
+import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
@@ -873,7 +874,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (source.startsWith("caller")) text = text.replace(/\b(de\s+)?qu[eé]\?\s*/giu, " ").replace(/\b(\p{L}+)(?:[.,]?\s+\1\b)+/giu, "$1").replace(/\s+/g, " ").trim() || text;
     if (source === "caller" || source === "caller-retry") {
       const p = personSwitch(text);
-      if (p === "+") { personSegStart = cart.length; person = `plato ${++plateN + 1}`; }
+      if (p === "+") { if (!(person && personSegStart === cart.length)) person = `plato ${++plateN + 1}`; personSegStart = cart.length; } // lena1: "another order?"… "for the other order" = one new group
       else if (p === "me") { personSegStart = cart.length; person = "me"; }
       else if (p) {
         // agustin1: closing stamp ("esa sería/es para Tony", "ese es para el chaparro") backfills the open ticket.
@@ -7604,7 +7605,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   { // maria2: a dish Elvi asked side questions about is always in the cart
     const menuFn = (run as any).menu; const menu = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
     if (menu) applyAskedDishes(cart as any[], steps, turns as any, menu);
-    if (menu && applyAddOnCallback(cart as any[], turns as any, menu)) (steps as any).addOn = true; }
+    if (menu && applyAddOnCallback(cart as any[], turns as any, menu)) (steps as any).addOn = true;
+    if (menu) { applySplitCorrection(cart as any[], turns as any, menu); applySidesAndToppings(cart as any[], turns as any, menu); } }
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

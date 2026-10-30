@@ -1,0 +1,254 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.841,
+  "end": 2.781,
+  "text": "Well, see now, Elvis.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 4.101,
+  "end": 5.201,
+  "text": "Can I place an order for pickup?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 9.123,
+  "end": 10.463,
+  "text": "Yes, what can I get for you?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 11.942,
+  "end": 12.603,
+  "text": "Can I have,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.603,
+  "end": 15.683,
+  "text": "two flour steak quesadillas?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 16.706,
+  "end": 20.147,
+  "text": "Sure, two flowers, tres quesadillas, anything else?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 21.484,
+  "end": 23.565,
+  "text": "And, can I have a guacamole salsa?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 27.269,
+  "end": 28.71,
+  "text": "You want guacamole salsa?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 29.926,
+  "end": 30.486,
+  "text": "Yes, please.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 31.19,
+  "end": 31.531,
+  "text": "Okay.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 33.447,
+  "end": 36.868,
+  "text": "And then, that's it for that one. And then, can I place another order?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 37.853,
+  "end": 41.134,
+  "text": "Yes, so guacamole salsa, you want,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 43.394,
+  "end": 46.235,
+  "text": "you want the four ounces or the two ounces?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 47.73,
+  "end": 48.03,
+  "text": "The two.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 48.876,
+  "end": 49.256,
+  "text": "The two?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.51,
+  "end": 50.75,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 51.497,
+  "end": 54.898,
+  "text": "Okay, and then for the other order, what do you want?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 59.032,
+  "end": 63.354,
+  "text": "And then for the other order, can I do one chorizo steak quesadilla, flour?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 70.277,
+  "end": 71.878,
+  "text": "And then can I do a flour steak?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 73.739,
+  "end": 74.019,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 75.279,
+  "end": 86.364,
+  "text": "No, this, no, one ch, one chorizo and then one steak one. You want sour cream? And then can I get a two sour creams",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 89.186,
+  "end": 90.226,
+  "text": "and extra lines?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 97.269,
+  "end": 99.71,
+  "text": "Yes, and then only cilantro on those quesadillas.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 102.191,
+  "end": 102.752,
+  "text": "Okay, thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 120.14,
+  "end": 121.321,
+  "text": "Cilantro and onions,",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 122.844,
+  "end": 123.084,
+  "text": "Okay,",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 123.783,
+  "end": 125.004,
+  "text": "okay? Okay, can I get your name?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 125.486,
+  "end": 126.527,
+  "text": "okay. Lena.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 129.068,
+  "end": 129.408,
+  "text": "Raina?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 130.871,
+  "end": 131.711,
+  "text": "Lena with a L.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 132.611,
+  "end": 133.492,
+  "text": "Oh, Lena.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 134.654,
+  "end": 134.934,
+  "text": "Yes.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 135.614,
+  "end": 137.816,
+  "text": "Okay, okay, Lena, so I got your order.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 138.937,
+  "end": 139.818,
+  "text": "Okay, thank you so much.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 140.298,
+  "end": 142.16,
+  "text": "Thank you. Bye-bye.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 141.819,
+  "end": 141.999,
+  "text": "Bye.",
+  "language": "en"
+ }
+]

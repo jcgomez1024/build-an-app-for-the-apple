@@ -2141,7 +2141,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
     if (Array.isArray((out as any)?.actions) && (restaurantConfirm(tx) || sideAnswerTurn(tx, lastStaff) || salsaOnlyTurn(tx)))
       (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(tx) && /extras|salsa/i.test(String(a.itemId))) || ((input as any).cart || []).some((l: any) => l?.itemId === a.itemId)); } catch { /* keep */ }
   try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
-  try { return noHollowAdd(out, input); } catch { return out; }
+  try { out = noHollowAdd(out, input); } catch {}
+  try { return noEchoReAdd(out, input); } catch { return out; }
 }
 /** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */
 export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviResponse {
@@ -2302,4 +2303,31 @@ async function chatWithTextAgent(input: ElviRequest, runtime: XaiRuntimeConfig, 
   }
   const reply = enforceOrderTakerReply(text.trim(), input.language) || defaultReply(input.language);
   return { language: input.language, reply, actions: sanitizeActions(actionCalls, input.menu), engine: "xai", rawJson: JSON.stringify({ language: input.language, reply, actions: actionCalls }) } as ElviResponse;
+}
+
+
+// lena1 (CA7629f001, Oct 30 6:34 PM ET): "that's it for that one… can I place another order?" and "The two" (guac size) each
+// re-fired add_item for the 2 steak quesadillas Elvi had just confirmed. After an "Anything else?" confirmation, an add_item
+// whose dish/meat/tortilla the caller never said this turn is an echo of the prior line — drop it.
+const echoPlain = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ");
+const ECHO_STOP = new Set(["with", "options", "option", "preferencia", "preference", "salsa", "mild", "asada", "extra"]);
+export function noEchoReAdd(r: any, input: any) {
+  const acts: any[] = r?.actions || [];
+  if (!acts.some((a) => a?.type === "add_item")) return r;
+  const hist: any[] = input?.history || [];
+  const lastA = [...hist].reverse().find((h) => h?.role === "assistant")?.text || "";
+  if (!/anything else|algo m[aá]s|\?\s*$/i.test(lastA) || !/anything else|algo m[aá]s/i.test(lastA)) return r;
+  const said = echoPlain(input?.transcript || "");
+  if (/\b(same|again|another one|one more|otr[ao] igual|lo mismo|otr[ao] m[aá]s|double that)\b/.test(said)) return r;
+  const has = new Set(said.split(/\s+/).filter(Boolean).map((w) => w.replace(/(es|s)$/, "").slice(0, 6)));
+  const named = (a: any) => {
+    const item = (input?.menu || []).find((i: any) => i.id === a.itemId);
+    const texts = [item?.name, item?.nameEs, ...(item?.aliases || []).filter((x: string) => String(x).trim().split(/\s+/).length <= 3), ...(a.modifiers || []).filter((m: any) => !m.isDefault).map((m: any) => m.option)];
+    const words = echoPlain(texts.filter(Boolean).join(" ")).split(/\s+/).filter((w) => w.length >= 4 && !ECHO_STOP.has(w));
+    return words.some((w) => has.has(w.replace(/(es|s)$/, "").slice(0, 6)));
+  };
+  const keep = acts.filter((a) => a?.type !== "add_item" || named(a));
+  if (keep.length === acts.length) return r;
+  const en = input?.language === "en";
+  return { ...r, actions: keep, reply: keep.some((a) => a?.type === "add_item") ? r.reply : (en ? "Got it. What else?" : "Muy bien. ¿Qué más?") };
 }
