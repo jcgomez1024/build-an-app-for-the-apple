@@ -12,7 +12,7 @@ const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
 const MOLE = "sq-mole-tradicional-platillo-4THFAW";
 const TORTA = "sq-torta-4GNTTE";
 
-const turns = JSON.parse(readFileSync("/tmp/CAa1999d-turns.json", "utf8"));
+const turns = JSON.parse(readFileSync(new URL("../fixtures/CAa1999d-turns.json", import.meta.url), "utf8"));
 
 test("adriana1: 2 SIN menudo + 1 mole Solo Arroz; no Con Pata; no torta; mole not qty 4", async () => {
   const run = async (text: string) => {

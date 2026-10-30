@@ -1,0 +1,114 @@
+[
+ {
+  "speaker": "staff",
+  "text": "Ah, ¿cocina Elvis?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Hola, ah, quería ver si tienen quesadillas de guisado o de huevo con chile."
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, sí, claro."
+ },
+ {
+  "speaker": "caller",
+  "text": "O, ¿de qué guisados tienen?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Mira, tenemos huevo con chile y luego los guisados tenemos prensado, duro, deshebrada, picadillo, nopales con papas,"
+ },
+ {
+  "speaker": "staff",
+  "text": "papas con rajas."
+ },
+ {
+  "speaker": "caller",
+  "text": "Me puede dar una quesadilla, ah, de papas con razas, otra de picadillo, otra de huevo con chile,"
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, ¿la quieres al comal o dorada?"
+ },
+ {
+  "speaker": "caller",
+  "text": "ah,"
+ },
+ {
+  "speaker": "caller",
+  "text": "al comal."
+ },
+ {
+  "speaker": "staff",
+  "text": "Al comal. Entonces te tengo una de picadillo, una de huevo con chile y la otra, ¿de qué me dijiste, perdón?"
+ },
+ {
+  "speaker": "caller",
+  "text": "De papas con razas."
+ },
+ {
+  "speaker": "staff",
+  "text": "Muy bien, y la,"
+ },
+ {
+  "speaker": "caller",
+  "text": "¿Y qué más, qué más tiene? ¿De qué otro guisado tiene?"
+ },
+ {
+  "speaker": "staff",
+  "text": "ah, tengo duro. Pensado."
+ },
+ {
+  "speaker": "caller",
+  "text": "¿No tiene deshebradas?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, sí, tengo deshebrada, perdón, también."
+ },
+ {
+  "speaker": "caller",
+  "text": "Okey, ¿me puede dar otra deshebrada y sería todo? Sí. Sería todo."
+ },
+ {
+  "speaker": "staff",
+  "text": "Okay, entonces te pongo una de deshebrada."
+ },
+ {
+  "speaker": "staff",
+  "text": "¿Algo más?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Entonces te tengo una quesadilla del comal de picadillo, una quesadilla de comal de huevo con chile, una quesadilla de comal de papas con rajas y por último la quesadilla de comal de deshebrada."
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, sería todo."
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, ¿me das tu nombre, por favor?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Paco."
+ },
+ {
+  "speaker": "staff",
+  "text": "Taco. Muy bien, este, ¿me puedes dar unos quince minutos, por favor?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, está bien, ahorita llevo como unos 25, gracias."
+ },
+ {
+  "speaker": "staff",
+  "text": "Okay, gracias."
+ },
+ {
+  "speaker": "caller",
+  "text": "Está bien."
+ }
+]

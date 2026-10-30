@@ -1,3 +1,4 @@
+import { staffUnavailable } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
 import WebSocket from "ws";
@@ -2105,9 +2106,55 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   // jesus2: the shared spoken aliases (data/aliases, "app" scope) reach the LIVE turn too — guisquel→bistec,
   // queso burias→Queso Birrias, street corn→esquite, cuca de vino→coca de vidrio — not only shadow scoring.
   if (input?.transcript) { const t = applySharedAliases(String(input.transcript), "app"); if (t !== input.transcript) input = { ...input, transcript: t }; }
+  // paco1: "una quesadilla de A, otra de B, otra de C" → each una/otra is its own named line for every path
+  if (input?.transcript) { const t = expandOtraList(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // case1: every path (deterministic turns and the model) gets the caller's-words cleanup
   const r = await chatWithElviPaths(input, runtimeConfig);
-  try { return caseFix(r, input); } catch { return r; }
+  let out = r; try { out = caseFix(r, input); } catch { /* keep r */ }
+  try { out = noFalseFillingDenial(out, input); } catch { /* keep */ }
+  try { return noOfferUnavailable(out, input); } catch { return out; }
+}
+/** Once the restaurant side said a dish isn't available ("hasta mañana", "no hay"), Elvi's reply never offers/confirms it again this call. */
+export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviResponse {
+  const turns = (input.history || []).map((h) => ({ speaker: (h.role === "assistant" ? "staff" : "caller") as "staff" | "caller", text: String(h.text || "") }));
+  const off = staffUnavailable(turns);
+  if (!off.length || !r?.reply) return r;
+  const nfx = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const reply = nfx(r.reply);
+  const hit = off.filter((d) => new RegExp(`\\b${d.replace(/\s+/g, "\\s+")}s?\\b`).test(reply));
+  const dropAct = (a: any) => a?.type === "add_item" && off.some((d) => String(a.itemId || "").includes(d.replace(/\s+/g, "-")));
+  const actions = (r.actions || []).filter((a: any) => !dropAct(a));
+  if (!hit.length) return actions.length === (r.actions || []).length ? r : { ...r, actions };
+  // a reply that itself says it isn't available is fine
+  if (/\bno\s+(?:hay|tenemos)\b|\bhasta\s+manana\b|\bnot\s+(?:available|today)\b|\btomorrow\b|\bse\s+acab/.test(reply)) return { ...r, actions };
+  const en = input.language === "en";
+  const names = hit.join(en ? " and " : " ni ");
+  return { ...r, actions, reply: en ? `Sorry, ${names} isn't available today. What else can I get you?` : `Perdón, hoy no tenemos ${names}. ¿Qué más le pongo?` };
+}
+export function expandOtraList(text: string): string {
+  const m = text.match(/\b(un|una|uno)\s+(quesadillas?|gorditas?|tacos?|tortas?|sopes?|burritos?|huaraches?)\b/iu);
+  if (!m || !/\botr[ao]s?\s+de\b/iu.test(text.slice((m.index || 0) + m[0].length))) return text;
+  const head = text.slice(0, (m.index || 0) + m[0].length), dish = m[2].replace(/s$/i, "");
+  const art = /a$/i.test(dish) ? "una" : "un";
+  return head + text.slice(head.length).replace(/,?\s*\b(?:y\s+)?otr[ao]\s+de\b/giu, `, ${art} ${dish.toLowerCase()} de`).replace(/^\s*,?\s*(?:ah|eh|este)\s*,?\s*(?=de\b)/iu, " ");
+}
+// paco1 (CAcadbe8d, Oct 30): "¿tienen quesadillas de guisado o de huevo con chile?" got "No, eso no está en el menú".
+// Huevo con chile and every guisado are real (B) Q Carnes / Meats choices on quesadilla/gordita/taco (site-catalog) —
+// never deny a real filling; answer with the guisados and keep the cart unchanged.
+const GUISADOS_ES = ["prensado", "duro", "deshebrada", "picadillo", "nopales con papas", "papas con rajas", "huevo con chile"];
+const FILLING_ASK = /\b(?:guisados?|huevo\s+con\s+chile|papas\s+con\s+rajas|nopales\s+con\s+papas|picadillo|deshebrada|prensado|chicharr[oó]n|duro|spicy\s+egg|stews?)\b/iu;
+const DENIAL = /\bno\s+(?:est[aá]|lo\s+tenemos|la\s+tenemos|tenemos|manejamos)(?!\p{L})[^.?!]*|\bnot\s+on\s+(?:the|our)\s+menu\b|\bwe\s+don'?t\s+(?:have|carry)\b/iu;
+export function noFalseFillingDenial(r: ElviResponse, input: ElviRequest): ElviResponse {
+  const heard = String(input?.transcript || ""); const reply = String((r as any)?.reply || "");
+  if (!FILLING_ASK.test(heard) || !DENIAL.test(reply)) return r;
+  // a filling the caller did not ask about (e.g. "no tenemos mole") may still be denied
+  if (!/men[uú]|eso|esa|ese|have|carry/iu.test(reply)) return r;
+  const en = (r as any).language === "en" || input.language === "en";
+  const dish = (heard.match(/\b(quesadillas?|gorditas?|tacos?|sopes?|burritos?|tortas?)\b/iu) || [])[1];
+  const reply2 = en
+    ? `Yes, we have ${dish ? `${dish.toLowerCase()} with ` : ""}spicy egg (huevo con chile) and guisados: prensado, duro, deshebrada, picadillo, nopales con papas and papas con rajas. Which would you like?`
+    : `Sí, tenemos ${dish ? `${dish.toLowerCase()} de ` : ""}huevo con chile y de guisado: ${GUISADOS_ES.slice(0, -1).join(", ")}. ¿De cuál le pongo?`;
+  return { ...r, reply: reply2, actions: (r as any).actions || [] } as ElviResponse;
 }
 async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
   if (input?.transcript) { const t = rewriteSlang(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; } // a1: approved slang

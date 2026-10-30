@@ -1,0 +1,98 @@
+[
+ {
+  "speaker": "staff",
+  "text": "¿Cocinais?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Ah, buenas, buenas tardes."
+ },
+ {
+  "speaker": "caller",
+  "text": "¿Me podría hacer una orden?"
+ },
+ {
+  "speaker": "staff",
+  "text": "¿Cerdos también?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Sí, claro."
+ },
+ {
+  "speaker": "caller",
+  "text": "Ah, dos menudo sin pata."
+ },
+ {
+  "speaker": "staff",
+  "text": "Dos menudos sin pata, claro, ¿algo más?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, ¿me puede hacer un platillo de mole con arroz?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Ah, el mole solamente ya lo tenemos puro pollo desmoni, desmenuzado. ¿Lo quieres así?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, está bien, sí está bien así."
+ },
+ {
+  "speaker": "staff",
+  "text": "Okay, okay. Okay, entonces te tengo un platillo,"
+ },
+ {
+  "speaker": "caller",
+  "text": "Y, y eso es todo."
+ },
+ {
+  "speaker": "staff",
+  "text": "un platillo de mole."
+ },
+ {
+  "speaker": "caller",
+  "text": "¿Con arroz?"
+ },
+ {
+  "speaker": "staff",
+  "text": "Ajá, con arroz y eh los dos menudos regulares. ¿Algo más?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Ajá."
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí, por favor, sí. Eso es todo."
+ },
+ {
+  "speaker": "staff",
+  "text": "¿A qué nombre sería la orden?"
+ },
+ {
+  "speaker": "caller",
+  "text": "Adriana."
+ },
+ {
+  "speaker": "staff",
+  "text": "Adriana, ok, Adriana, dame unos 25 minutos, por favor."
+ },
+ {
+  "speaker": "caller",
+  "text": "Sí."
+ },
+ {
+  "speaker": "caller",
+  "text": "Okay, está bien, gracias."
+ },
+ {
+  "speaker": "staff",
+  "text": "Gracias a ti. Bye."
+ },
+ {
+  "speaker": "caller",
+  "text": "Bye."
+ }
+]

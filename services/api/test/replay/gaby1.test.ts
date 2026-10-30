@@ -16,7 +16,7 @@ const TST = "sq-taco-TAR7L5";
 const RICE = "sq-sides-arroz-rice-26S6E6";
 const TOR_X = "sq-tortillas-extras-1-x-tortilla-comal-ADELFI";
 
-const turns = JSON.parse(readFileSync("/tmp/CA69ea0e-turns.json", "utf8"));
+const turns = JSON.parse(readFileSync(new URL("../fixtures/CA69ea0e-turns.json", import.meta.url), "utf8"));
 
 test("gaby1: name is Gaby — never menu word Menudo", () => {
   const n = nameFromTranscript(turns as any);
