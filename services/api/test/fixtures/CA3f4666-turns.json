@@ -1,0 +1,184 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.86,
+  "end": 1.861,
+  "text": "Buenas noches, cocinar Luis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.021,
+  "end": 4.862,
+  "text": "Si me gusta, es una orden para,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 7.904,
+  "end": 9.024,
+  "text": "¿o Marta, nombre de Marta?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 10.763,
+  "end": 11.443,
+  "text": "Dígame, ¿qué vas a hacer?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.266,
+  "end": 14.307,
+  "text": "Este, si me puede poner,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 15.527,
+  "end": 20.57,
+  "text": "ah, tres gorditas de chicharrón prensado, por favor, con frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 22.106,
+  "end": 24.047,
+  "text": "Tres gorditas de chicharrón prensado",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 24.772,
+  "end": 24.992,
+  "text": "Ajá.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.587,
+  "end": 26.507,
+  "text": "con frijoles.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 27.293,
+  "end": 28.654,
+  "text": "Sí, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.468,
+  "end": 44.632,
+  "text": "Okay. Eh, ¿salsa de cuál quieres? Eh, permítame tantito.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 30.735,
+  "end": 36.278,
+  "text": "Y si me le puede a a poner aparte más salsita, sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 40.359,
+  "end": 41.72,
+  "text": "Mmm, ¿tiene de lasada?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 49.334,
+  "end": 49.714,
+  "text": "Salsa",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 53.355,
+  "end": 53.775,
+  "text": "de,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.775,
+  "end": 56.556,
+  "text": "¿de cuatro onzas o de dos onzas?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 57.389,
+  "end": 58.629,
+  "text": "De cuatro, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 59.198,
+  "end": 60.96,
+  "text": "De cuatro, okey, una salsa asada.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 61.991,
+  "end": 63.812,
+  "text": "Sí, sería todo.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 64.324,
+  "end": 65.266,
+  "text": "Okey, a nombre de...",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 66.214,
+  "end": 66.594,
+  "text": "Marta.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 68.195,
+  "end": 68.735,
+  "text": "Correcto.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 69.271,
+  "end": 71.494,
+  "text": "Okey, danos quince minutos, por favor, Marta.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.217,
+  "end": 73.358,
+  "text": "Muchas gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 73.797,
+  "end": 74.998,
+  "text": "No, de que esté, hasta luego.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 75.239,
+  "end": 76.04,
+  "text": "Muchas gracias.",
+  "language": "es"
+ }
+]

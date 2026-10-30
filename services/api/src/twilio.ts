@@ -2022,7 +2022,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           // Customer: bare name / "De Luis." after name-ask. Pickup-only: para/for/recoger (thirdPerson).
           const pickupOnly = !!heardInfo?.thirdPerson;
           let savedNow = false;
-          if (hasOrder) {
+          const groupOrder = (heardInfo?.group?.length || 0) >= 2; // osmar1: multi-name group order → ticket labels only, no caller memory
+          if (hasOrder && !groupOrder) {
             if (pickupOnly) {
               try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
               markOrderOnlyName(heardOrderName);
@@ -2031,7 +2032,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
               if (!savedNow) { try { savePickupName(caller, heardOrderName); } catch { /* best effort */ } } // still remember ticket name on phone
             }
           }
-          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly, noOrder: !hasOrder });
+          logCall({ event: "order_name", callSid: CallSid, caller, name: heardOrderName, from: heardInfo?.source || "staff-ask", savedToMemory: savedNow, pickupOnly, noOrder: !hasOrder, ...(groupOrder ? { group: heardInfo!.group } : {}) });
           if (hasOrder) {
             name = cleanFirstName(heardOrderName) || name;
             callNames.set(CallSid, name);

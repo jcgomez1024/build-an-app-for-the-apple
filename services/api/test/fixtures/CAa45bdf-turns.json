@@ -1,0 +1,240 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.84,
+  "end": 1.501,
+  "text": "Cocina Elvis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.321,
+  "end": 4.621,
+  "text": "Bueno, bueno, gracias, disculpe, ¿qué tienes ahorita de",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.582,
+  "end": 5.922,
+  "text": "comer?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 6.623,
+  "end": 8.784,
+  "text": "Puro tacos, quesadilla y torta, amigazo.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 9.743,
+  "end": 12.323,
+  "text": "Oh, no hicieron, este, guisados nada, no.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 13.406,
+  "end": 13.726,
+  "text": "¿Perdón?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.404,
+  "end": 16.625,
+  "text": "Hoy no hicieron enchiladas o tacos al vapor, no.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 17.147,
+  "end": 21.329,
+  "text": "Ah, no, eso es hasta mañana. Eso sí mañana sí se los tenemos, sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.665,
+  "end": 20.346,
+  "text": "Esa es la mañana.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 22.066,
+  "end": 25.007,
+  "text": "Okey, entonces además tienes puros tacos y quesadillas, dices.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.551,
+  "end": 27.672,
+  "text": "Tacos, quesadillas y tortas, así es.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 28.508,
+  "end": 29.108,
+  "text": "¿Quieres",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 28.812,
+  "end": 30.253,
+  "text": "O chiles rellenos de queso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.089,
+  "end": 32.149,
+  "text": "chiles rellenos de queso?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.814,
+  "end": 33.254,
+  "text": "Así es.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 33.989,
+  "end": 34.97,
+  "text": "¿Cuántos lleva la orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.555,
+  "end": 35.815,
+  "text": "Dos.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 36.69,
+  "end": 40.871,
+  "text": "¿Quieres chiles rellenos? Bueno, ¿me puedes poner dos órdenes de chiles rellenos, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.397,
+  "end": 42.798,
+  "text": "¿Con arroz y frijol los dos?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.612,
+  "end": 47.293,
+  "text": "Este, que sea, que sea más arroz que frijoles, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 48,
+  "end": 48.521,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 49.374,
+  "end": 52.475,
+  "text": "Okey, paso más o menos como qué tiempo estará lista con.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 50.141,
+  "end": 50.542,
+  "text": "¿Con tus",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 53.003,
+  "end": 54.584,
+  "text": "tortillas de maíz o harina?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 55.315,
+  "end": 56.416,
+  "text": "De maíz, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 56.925,
+  "end": 58.306,
+  "text": "Muy bien, en las dos, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 58.837,
+  "end": 59.518,
+  "text": "Sí, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 60.067,
+  "end": 61.508,
+  "text": "¿Me das tu nombre para tu orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 62.24,
+  "end": 63.561,
+  "text": "Efraín Ramírez Hernández.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 64.069,
+  "end": 67.891,
+  "text": "Muy bien, Efraín, dame unos veinte, quince, no, ahorita te lo tenemos.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 68.306,
+  "end": 70.347,
+  "text": "Okey, yo paso como en unos veinticinco minutos.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 70.573,
+  "end": 72.394,
+  "text": "Está bien, aquí te la tenemos, ¿sale?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.549,
+  "end": 73.53,
+  "text": "Okey, sale, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 73.854,
+  "end": 74.555,
+  "text": "A ti, hasta luego.",
+  "language": "es"
+ }
+]

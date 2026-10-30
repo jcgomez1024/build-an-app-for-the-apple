@@ -513,7 +513,27 @@ export function spelledNameFromCall(turns: Array<{ speaker: "caller" | "staff"; 
   }
   return found;
 }
-export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled" } | null {
+// osmar1 (CA20f62b): 2+ distinct "a nombre de X" sub-orders → group order: ticket labels only, never caller memory.
+// alejandro1 (CA6e99c9): a bare "Alejandro." from the caller near the end (after the name-ask audio drop) is his self-given name.
+const NOT_NAME = /^(?:okay|ok|bueno|gracias|nada|s[ií]|no|hola|igual|una?|dos|tres|cuatro|eso|perfecto|claro|listo|adi[oó]s|ándale|andale|exacto|mande)$/iu;
+export function groupOrderNames(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string[] {
+  const out = new Map<string, string>();
+  for (const t of turns) if (t.speaker === "caller") for (const m of String(t.text).matchAll(/\ba\s+nombre\s+de\s+([A-ZÁÉÍÓÚÑ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}]+)?)/gu)) out.set(foldName(m[1]), m[1]);
+  return [...out.values()];
+}
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {
+  const group = groupOrderNames(turns);
+  const r = nameFromTranscriptInfoBase(turns);
+  if (group.length >= 2) return r ? { ...r, group } : { name: group[0], thirdPerson: true, source: "volunteer", group };
+  if (r) return r;
+  const callerTurns = turns.filter((t) => t.speaker === "caller");
+  for (const t of callerTurns.slice(-3)) {
+    const m = String(t.text).trim().match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,}){0,2})\.?$/u);
+    if (m && !NOT_NAME.test(m[1].split(/\s+/)[0])) return { name: m[1], thirdPerson: false, source: "volunteer" };
+  }
+  return null;
+}
+function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled" } | null {
   const spelled = spelledNameFromCall(turns);
   if (spelled) return { name: spelled, thirdPerson: false, source: "spelled" };
   const fromAsk = nameFromStaffAsk(turns);

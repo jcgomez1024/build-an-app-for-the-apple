@@ -3,6 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
+import { spokenLedger, staffUnavailable } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -820,7 +821,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
       else if (a.type === "update_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
-        if (i >= 0) { cart[i] = { ...cart[i], quantity: a.quantity ?? cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
+        if (i >= 0) { cart[i] = { ...cart[i], quantity: Number(a.quantity) > 0 ? a.quantity : cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
       } else if (a.type === "remove_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) cart.splice(i, 1);
@@ -7533,6 +7534,24 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // glass Coke: same SKU, read back "de vidrio", never taparrosca
     if (said.some((t) => /\b(?:vidrio|glass)\b/.test(t.x) && !/\btaparrosca\b/.test(t.x)) && !/\btaparrosca\b/.test(callerAll))
       for (const l of cart as any[]) if (/coca/i.test(String(l.itemId))) l.readback = `${Number(l.quantity) || 1} coca cola de vidrio`;
+  }
+
+  // marta1/alejandro1/osmar1/efrain1 (Oct 29): caller-spoken ledger for gorditas/tacos/tortas/chiles rellenos. When every
+  // announced count ("seis gorditas", "cuatro tacos", "dos órdenes de chiles rellenos") is explained by caller words, that
+  // ledger is the order: staff readbacks never add phantom lines, option answers never leave the cart empty.
+  {
+    const sl = spokenLedger(origTurns as any);
+    // only item-level disagreement (missing/phantom dish, unit count) — modifier details stay with the turn-by-turn shadow
+    const sig = (ls: any[]) => { const m: Record<string, number> = {}; for (const l of ls) m[l.itemId] = (m[l.itemId] || 0) + (Number(l.quantity) || 1); return JSON.stringify(Object.entries(m).sort()); };
+    const units = (ls: any[]) => ls.reduce((n, l) => n + (Number(l.quantity) || 1), 0);
+    if (sl && sl.lines.length && (units(sl.lines) >= 3 || !cart.length) && sig(sl.lines) !== sig(cart)) {
+      cart.length = 0; cart.push(...(sl.lines as any[]));
+      steps.push({ source: "end-spoken-ledger", heard: sl.lines.map((l) => l.readback).join(", ") });
+      if (!fulfillment) fulfillment = "PICKUP";
+    }
+    // staff unavailability overrides the menu: a dish staff said is not today never stays on the ticket
+    const off = staffUnavailable(origTurns as any);
+    if (off.length) for (let i = cart.length - 1; i >= 0; i--) if (off.some((d) => String(cart[i].itemId).includes(d.replace(/\s+/g, "-")))) { steps.push({ source: "end-staff-unavailable", heard: String(cart[i].itemId) }); cart.splice(i, 1); }
   }
 
   // mau1 (CAc68af8): no food ordered (empty cart) → never lock DELIVERY/PICKUP as if an order happened

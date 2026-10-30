@@ -1,0 +1,177 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.76,
+  "end": 1.4,
+  "text": "Cocina Elvis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.461,
+  "end": 3.741,
+  "text": "Sí, buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 6.922,
+  "end": 9.703,
+  "text": "¿Me puedes poner seis nuditos, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 10.564,
+  "end": 12.404,
+  "text": "Seis gorditas, ¿de qué te gustarían?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 14.504,
+  "end": 16.105,
+  "text": "Va a ser uno de nopales con papas,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 16.726,
+  "end": 20.227,
+  "text": "Una de nopales con papas. ¿Te gustaría con queso o sin queso?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 19.065,
+  "end": 22.286,
+  "text": "uno de, no, sin queso. Eh,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 23.068,
+  "end": 23.568,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.527,
+  "end": 27.308,
+  "text": "¿qué más tienes aparte de nopales con papas?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 28.409,
+  "end": 34.271,
+  "text": "Está el chicharrón prensado, duro, deshebrada, picadillo, nopales con papas,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 35.172,
+  "end": 36.332,
+  "text": "papas con rajas.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 35.45,
+  "end": 41.172,
+  "text": "Okay, va a ser uno de, uno de picadillo y uno de de cebrada, por favor.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 41.774,
+  "end": 44.415,
+  "text": "Una de picadillo y una de deshebrada.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 46.576,
+  "end": 46.996,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 46.833,
+  "end": 49.474,
+  "text": "Y en otro plato, y en otro plato me vas a poner",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.394,
+  "end": 53.515,
+  "text": "uno de de al de prensado con nopales.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 54.958,
+  "end": 58.299,
+  "text": "Una de prensado con nopales, todo va sin queso, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 59.137,
+  "end": 60.298,
+  "text": "Un, dos pesos.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 63.059,
+  "end": 64.82,
+  "text": "Una de deshebrada con nopales.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 72.744,
+  "end": 73.445,
+  "text": "La otra de,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 74.405,
+  "end": 76.066,
+  "text": "¿de qué más tienes? A ver, déjale pienso.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 78.367,
+  "end": 81.529,
+  "text": "Igual de prensado con nopales, igual que la primera.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 85.871,
+  "end": 87.252,
+  "text": "Nada más, ¿y cuánto tiempo pasó?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 92.174,
+  "end": 92.635,
+  "text": "Alejandro.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 96.757,
+  "end": 97.737,
+  "text": "Okay, está bueno, gracias.",
+  "language": "es"
+ }
+]
