@@ -10,7 +10,7 @@ const nf = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace
 // ASR aliases for dish nouns / meats heard on the phone line
 const ALIAS: Array<[RegExp, string]> = [
   [/\bnuditos\b/g, "gorditas"], [/\bgorditos\b/g, "gorditas"], [/\bde\s+cebrada\b/g, "de deshebrada"], [/\bcebrada\b/g, "deshebrada"],
-  [/\blasada\b/g, "la asada"], [/\bpapas\s+con\s+razas\b/g, "papas con rajas"], [/\bde\s+razas\b/g, "de rajas"], [/\bchicharron\s+prensado\b/g, "prensado"], [/\bchicharron\s+duro\b/g, "duro"], [/\b(de\s+)+(al\s+)?(de\s+)+/g, "de "],
+  [/\blasada\b/g, "la asada"], [/\bquesi[bv]irrias?\b|\bquesa[bv]irrias?\b|\bquesadillas?\s+de\s+birrias?\b/g, "queso birrias"], [/\b(?:misteados?|mixteados?|mezclados?|surtidos?)\b/g, "mezclados"], [/\bpapas\s+con\s+razas\b/g, "papas con rajas"], [/\bde\s+razas\b/g, "de rajas"], [/\bchicharron\s+prensado\b/g, "prensado"], [/\bchicharron\s+duro\b/g, "duro"], [/\b(de\s+)+(al\s+)?(de\s+)+/g, "de "],
 ];
 const CNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
 const NUM = "un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\\d+";
@@ -35,20 +35,58 @@ const DISH: Record<Dish, { id: string; meatStep: string; base?: { step: string; 
 const dishOf = (w: string): Dish => (/^quesadill/.test(w) ? "q" : /^gordit/.test(w) ? "g" : /^taco/.test(w) ? "t" : /^torta/.test(w) ? "to" : "cr");
 const DISHW = "quesadillas?|gorditas?|tacos?|tortas?|(?:ordenes\\s+de\\s+)?chiles?\\s+rellenos?";
 const OTHER = /\b(?:burritos?|sopes?|tostadas?|flautas?|menudo|caldo|pozole|huaraches?|doradas?|aguas?|coca|refrescos?|sodas?|nachos|tamales?|enchiladas?|chilaquiles|especial|combo|birrias?|mole|platillo|pambazos?|esquites?|elotes?)\b/;
+const QB_ID = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7";
+// no flavor said ("mezclados") → the Jarrito line carries the mixed note; staff picks the flavors
+const JARRITO_ID = "sq-drink-jarrito-mandarina-mandarin-I4GNSG";
+const AVQ = /^(?:(?:y|e|eh|ah|em|este|oiga|oye|disculpe|hola|bueno|si)\s+)*(?:y\s+)?(?:tienes?|tienen|hay|venden|manejan)\b/;
+/** "¿tienes pollo a la crema? Ajá" / "tiene quesadilla de birria" — asks, orders nothing (no order verb or count+dish). */
+export function isAvailQ(x: string): boolean {
+  const y = nf(x);
+  return AVQ.test(y) && !/\b(?:me\s+da|dame|deme|me\s+pone|ponme|pongame|quiero|quisiera|me\s+das|una\s+orden)\b/.test(y);
+}
+/** A caller turn whose food words are all in the staff's last lines ("Coctel de camarón." after staff "cóctel de camarón"). */
+export function isEchoOfStaff(x: string, staff: string): boolean {
+  const y = nf(x).replace(/\b(?:dice|dices|eh|ah|aja|ok|si|y|este|pues)\b/g, " ").replace(/\s+/g, " ").trim();
+  if (!y || !staff.trim()) return false;
+  const words = y.split(" ").filter((w) => w.length > 2 && !/^(?:del?|las?|los?|con|una?|uno)$/.test(w));
+  if (!words.length || words.length > 6) return false;
+  const st = nf(staff);
+  // only a staff menu listing ("tenemos enchiladas, tacos al vapor, … cóctel de camarón") — not a question being answered
+  if (!/\b(?:tenemos|hay|tambien|manejamos|nomas|solo)\b/.test(st) || /\b(?:o|cual|cuales|que|cuantos?|quieres?|gusta)\b/.test(st)) return false;
+  const stem = (w: string) => w.replace(/(?:es|s)$/, "");
+  return words.every((w) => new RegExp(`\\b${stem(w)}`).test(st)) && !/\b(?:dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\b/.test(y);
+}
 type Item = { dish: Dish; meat?: string; n: number; grp: number; notes: string[]; plate: number; person?: string };
 type Grp = { dish: Dish; want: number; grp: number; open?: boolean; sinQueso?: boolean; style?: string; side?: string; tort?: string; cebolla?: boolean };
 
 export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[] } | null {
   const items: Item[] = []; const groups: Grp[] = [];
-  let cur: Grp | null = null, plate = 1, salsa: { oz: 2 | 4 | null; flavor: string } | null = null, lastStaff = "";
+  let cur: Grp | null = null, plate = 1, salsa: { oz: 2 | 4 | null; flavor: string } | null = null, lastStaff = "", prevStaff = "";
+  let qb: { n: number; style?: string } | null = null, qbAsked = false, jar: { n: number; mixed: boolean } | null = null, jarAsk = false;
   const fill = (g: Grp) => items.filter((i) => i.grp === g.grp).reduce((s, i) => s + i.n, 0);
   for (const t of turns) {
     let x = nf(t.text); for (const [re, to] of ALIAS) x = x.replace(re, to);
     if (t.speaker !== "caller") {
-      lastStaff = x;
+      prevStaff = lastStaff; lastStaff = x;
+      if (qb && /\bqueso\s+birrias\s+del\s+comal\b/.test(x)) qb.style = qb.style || "comal";
+      if (/\bcuantos\s+jarritos\b/.test(x)) jarAsk = true;
       if (/\btodo\s+va\s+sin\s+queso\b/.test(x)) groups.forEach((g) => (g.sinQueso = true));
       continue;
     }
+    // anthony1: caller repeating the staff's menu list ("Tacos al vapor, enchilada, dice" / "Coctel de camarón") orders nothing
+    if (isEchoOfStaff(x, lastStaff + " " + prevStaff)) continue;
+    // anthony1: "¿tiene quesadilla de birria?" → "Sí" → "¿me da una orden de esa? De quesadilla" = 1 Queso Birrias
+    if (/\bqueso\s+birrias\b/.test(x) && isAvailQ(x)) { qbAsked = true; continue; }
+    if (qbAsked && !qb && /\b(?:una\s+orden|uno|una)\s+de\s+(?:esa|esas|esos|ese)\b/.test(x)) { qb = { n: 1, style: /\bcomal\b/.test(x) ? "comal" : undefined }; continue; }
+    if (/\bqueso\s+birrias\b/.test(x) && !isAvailQ(x)) { const m = x.match(new RegExp(`\\b(${NUM})\\s+(?:ordenes?\\s+de\\s+)?queso\\s+birrias\\b`)); qb = { n: m ? n(m[1]) : 1, style: /\bcomal\b/.test(x) ? "comal" : qb?.style }; continue; }
+    // jarritos: "jarrito" + "¿cuántos jarritos?" → "cuatro" → "¿mezclados?" → "sí, mezclado"
+    if (/\bjarritos?\b/.test(x)) { const m = x.match(new RegExp(`\\b(${NUM})\\s+jarritos?\\b`)); jar = jar || { n: 0, mixed: false }; if (m) jar.n = n(m[1]); }
+    if (jarAsk && jar && !jar.n) { const m = x.match(new RegExp(`^(?:\\S+\\s+){0,2}?(${NUM})\\b`)); if (m) { jar.n = n(m[1]); jarAsk = false; continue; } }
+    if (jar && /\bmezclados\b/.test(x + " " + (/^\s*(?:si|aja|ok|claro)\b/.test(x) ? lastStaff : ""))) { jar.mixed = true; if (!new RegExp(`\\b(?:${DISHW})\\b`).test(x)) continue; }
+    // a yes to staff's "¿del comal?" sets the open group's tortilla (before any question in the same turn)
+    if (cur && /\bcomal\b/.test(lastStaff) && /^\s*(?:si|aja|claro|ok|okay)\b/.test(x) && cur.dish !== "cr") cur.style = cur.style || "comal";
+    // anthony1: a pure availability question ("¿tienes pollo a la crema? Ajá") orders nothing
+    if (isAvailQ(x) && !new RegExp(`\\b(?:${NUM})\\s+(?:${DISHW})\\b`).test(x)) continue;
     // an unanswered staff menu list in a caller turn ("¿qué más tienes?") adds nothing
     if (/\bque\s+(?:mas\s+)?tienes?\b/.test(x) && !new RegExp(`\\b(?:${NUM})\\s+de\\b`).test(x)) continue;
     const bad = x.match(OTHER); if (bad && !/\bno\s+hicieron\b|\bhoy\s+no\b|\btienes?\b|\bdices\b|\bhay\b/.test(x)) return null;
@@ -68,18 +106,23 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       const same = groups.find((g) => g.dish === dish && g.want === want && (!mt || !items.some((i) => i.grp === g.grp) || items.some((i) => i.grp === g.grp && i.meat === mt)));
       if (same) { cur = same; if (mt && !items.some((i) => i.grp === same.grp)) items.push({ dish, meat: mt, n: want, grp: same.grp, notes: [], plate }); }
       else { cur = { dish, want, grp: groups.length + 1, open: openList }; groups.push(cur); }
-      if (same) { /* restated */ } else if (ann[3]) items.push({ dish: cur.dish, meat: meat(ann[3]), n: cur.want, grp: cur.grp, notes: [], plate });
+      // anthony1: "ocho gorditas de asada. Cuatro y cuatro" — a split count after the meat means only the first part is that meat
+      const split = ann[3] ? x.slice((ann.index || 0) + ann[0].length).match(new RegExp(`^\\s*(${NUM})\\s+y\\s+(${NUM})\\b`)) : null;
+      if (!same && split && n(split[1]) + n(split[2]) === cur.want) items.push({ dish: cur.dish, meat: meat(ann[3]), n: n(split[1]), grp: cur.grp, notes: [], plate });
+      else if (same) { /* restated */ } else if (ann[3]) items.push({ dish: cur.dish, meat: meat(ann[3]), n: cur.want, grp: cur.grp, notes: [], plate });
       else if (cur.dish === "cr") items.push({ dish: "cr", n: cur.want, grp: cur.grp, notes: [], plate });
     }
     if (cur) {
       const g: Grp = cur;
       // "uno de nopales con papas", "dos de pastor y dos de cabeza", "una de prensado con nopales", "igual de prensado …"
       const rest = ann ? x.slice((ann.index || 0) + ann[0].length) : x;
-      for (const m of rest.matchAll(new RegExp(`\\b(?:(${NUM})\\s+de\\s+|igual\\s+de\\s+|(otr[ao]s?)\\s+(?:de\\s+)?)(?:la\\s+)?(${MW})(\\s+con\\s+nopales)?\\b`, "g"))) {
+      for (const m of rest.matchAll(new RegExp(`\\b(?:(${NUM})\\s+(?:de\\s+|del\\s+|(?=(?:al\\s+)?(?:pastor|asada|bistec|carnitas|chorizo)\\b))|igual\\s+de\\s+|(otr[ao]s?)\\s+(?:de\\s+)?)(?:la\\s+|al\\s+)?(${MW})(\\s+con\\s+nopales)?\\b`, "g"))) {
         // paco1: every "una de / otra de" in an open (una …) list is its own line
         if (m[2] && !g.open) continue;
         if (g.open && fill(g) >= g.want && (m[2] || m[1])) g.want += m[1] ? n(m[1]) : 1;
         if (fill(g) >= g.want) break;
+        // restatement inside a split ("cuatro de asada y cuatro pastor" after 4 asada already) is not more asada
+        if (m[1] && n(m[1]) > 1 && !g.open && items.some((i) => i.grp === g.grp && i.plate === plate && i.meat === meat(m[3]) && i.n === n(m[1]))) continue;
         const q = Math.min(m[1] ? n(m[1]) : 1, g.want - fill(g));
         items.push({ dish: g.dish, meat: meat(m[3]), n: q, grp: g.grp, notes: m[4] ? ["con nopales"] : [], plate });
       }
@@ -108,6 +151,7 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       tgt.forEach((i) => (i.person = who[1]));
     }
   }
+  if (jar && !jar.n) return null;
   if (!groups.length || groups.some((g) => fill(g) !== g.want)) return null;
   const lines: SpokenLine[] = [];
   for (const it of items) {
@@ -132,6 +176,8 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
     }
     lines.push({ itemId: D.id, quantity: it.n, modifiers: mods, readback: rb, ...(notes.length ? { elviNotes: notes } : {}), ...(it.person ? { person: it.person } : {}) });
   }
+  if (qb) lines.push({ itemId: QB_ID, quantity: qb.n, modifiers: [{ step: "(A) Queso Birrias Options", option: qb.style === "taquera" ? "(QST) 3 x Queso Birrias Taquera / Street con Consome/Broth" : "(QCO) 3 x Queso Birrias Comal / Homemade con Consome/Broth" }], readback: `${qb.n} queso birrias${qb.style === "comal" ? " del comal" : ""}` });
+  if (jar && jar.n) lines.push({ itemId: JARRITO_ID, quantity: jar.n, modifiers: [], readback: `${jar.n} jarritos${jar.mixed ? " mezclados" : ""}`, ...(jar.mixed ? { elviNotes: ["sabores mezclados / mixed flavors"] } : {}) });
   if (salsa && salsa.oz) lines.push({ itemId: "sq-extras-mild-salsa-asada-2oz-T6PGNT", quantity: 1, modifiers: [{ step: "Extras options", option: `${salsa.flavor === "verde" ? "Medium Salsa Verde" : "Mild Salsa Asada"} ${salsa.oz}oz` }], readback: `1 salsa ${salsa.flavor} ${salsa.oz}oz` });
   const people = [...new Set(items.map((i) => i.person).filter((p): p is string => !!p))];
   return { lines, people };

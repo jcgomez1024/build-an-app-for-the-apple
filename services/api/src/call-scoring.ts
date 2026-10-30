@@ -3,7 +3,7 @@
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { applySharedAliases } from "./aliases.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit } from "./spoken-ledger.js";
+import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -877,6 +877,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     const r = await run(text, language, history.slice(-24));
+    // anthony1: a caller availability question ("¿tienes pollo a la crema?") or an echo of staff's menu list ("Coctel de camarón")
+    // orders nothing — drop any adds the model made on that turn.
+    if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
+      && (isAvailQ(text) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
+      (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item");
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
     const unaSplit = unaSplitMeats(text);
     if (unaSplit && Array.isArray((r as any)?.actions)) applyUnaSplit((r as any).actions.filter((a: any) => a?.type === "add_item"), unaSplit);

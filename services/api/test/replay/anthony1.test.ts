@@ -1,62 +1,52 @@
-// anthony1: fried corn doradas → 3 QD Deluxe steak + 1 QD Regular steak cheese; sides rice+beans; no phantoms
+// anthony1 (CA17f2b5c, Oct 30 11:55 AM ET, pickup, staff-answered): 1 Queso Birrias del comal, 4 tacos de comal de asada,
+// 4 gorditas asada + 4 gorditas pastor, 4 jarritos mezclados. Live miss: phantom Coctel de Camarón (staff listed it), QCO pollo,
+// gordita pollo DELUXE (caller only asked "¿tienes pollo a la crema?"), gordita bistec 8+1 + pastor 1, no tacos, 1 Jarrito Tamarindo.
+// Tacos = 4: caller said "cuatro tacos de asada"; staff read back "tres" and caller only said "más o menos".
 import { test } from "node:test";
 import assert from "node:assert/strict";
-const { shadowOrderFromTurns, prepMergedCallerTurns, DORADA_DELUXE_ID, DORADA_REG_ID } = await import("../../src/call-scoring.ts");
+import { readFileSync } from "node:fs";
+import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
+import { isAvailQ, isEchoOfStaff } from "../../src/spoken-ledger.ts";
+const turns = JSON.parse(readFileSync(new URL("../fixtures/CA17f2b5c-turns.json", import.meta.url), "utf8"));
+const G = "sq-gordita-M647RE", Q = "sq-quesadilla-HLT6CR", QB = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7";
+const gm = (m: string, x: any[] = []) => [{ step: "(A) Gordita Options", option: "(GD) Gordita" }, { step: "(B) Q Carnes / Meats", option: m }, ...x];
+const add = (itemId: string, quantity: number, modifiers: any[] = []) => ({ type: "add_item", itemId, quantity, modifiers });
+const opts = (l: any) => (l.modifiers || []).map((m: any) => String(m.option)).join("|");
+const units = (ls: any[]) => ls.reduce((n, l) => n + l.quantity, 0);
 
-test("anthony1: fried ones with corn rewrites to quesadillas doradas", () => {
-  const merged = [
-    { speaker: "caller", text: "can I get four of the five quesadillas?" },
-    { speaker: "staff", text: "homemade or refried?" },
-    { speaker: "caller", text: "the fried ones with corn, the corn tortilla ones?" },
-  ];
-  prepMergedCallerTurns(merged as any);
-  assert.match(merged[0].text, /four quesadillas/i);
-  assert.match(merged[2].text, /quesadillas doradas/i);
-  assert.doesNotMatch(merged[2].text, /fried ones|corn tortilla ones/i);
+const miss = async (t: string) => {
+  if (/^Coctel de camar/i.test(t)) return { reply: "ok", actions: [add("sq-coctel-de-camaron-X", 1)] };
+  if (/me da una orden de esa/i.test(t)) return { reply: "ok", actions: [add(Q, 1, [{ step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }, { step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }])] };
+  if (/^Y, ¿tienes pollo a la crema/i.test(t)) return { reply: "ok", actions: [add(G, 1, gm("Pollo / Chicken", [{ step: "(C) Deluxe", option: "DELUXE" }]))] };
+  if (/ocho gorditas/i.test(t)) return { reply: "ok", actions: [add(G, 8, gm("Bistec / Steak"))] };
+  if (/Cuatro de asada y cuatro pastor/i.test(t)) return { reply: "ok", actions: [add(G, 1, gm("Bistec / Steak")), add(G, 1, gm("Alpastor / Roasted Pork"))] };
+  if (/^\W*cuatro\W*$/i.test(t)) return { reply: "ok", actions: [add("sq-drink-jarrito-tamarindo-tamarind-YEOHG5", 1)] };
+  return { reply: "ok", actions: [] };
+};
+
+test("anthony1: replay with the live miss shape → QB comal 1, 4 TCO asada, 4+4 gorditas, 4 jarritos mezclados; no phantoms", async () => {
+  const r: any = await shadowOrderFromTurns(turns, miss as any);
+  const cart = r.cart;
+  assert.ok(!cart.some((l: any) => /coctel/i.test(l.itemId)), "no coctel");
+  assert.ok(!cart.some((l: any) => /Pollo|DELUXE/i.test(opts(l))), "no pollo / deluxe");
+  assert.ok(!cart.some((l: any) => l.itemId === Q), "no plain quesadilla");
+  const qb = cart.filter((l: any) => l.itemId === QB);
+  assert.equal(units(qb), 1); assert.match(opts(qb[0]), /\(QCO\)/);
+  const tacos = cart.filter((l: any) => /taco/.test(l.itemId));
+  assert.equal(units(tacos), 4); assert.ok(tacos.every((l: any) => /\(TCO\)/.test(opts(l)) && /Bistec/.test(opts(l))));
+  const g = cart.filter((l: any) => l.itemId === G);
+  assert.equal(units(g.filter((l: any) => /Bistec/.test(opts(l)))), 4);
+  assert.equal(units(g.filter((l: any) => /Alpastor/.test(opts(l)))), 4);
+  const j = cart.filter((l: any) => /jarrito/.test(l.itemId));
+  assert.equal(units(j), 4); assert.match(String(j.map((l: any) => l.elviNotes)), /mezclad|mixed/i);
 });
 
-test("anthony1: 3 deluxe + 1 regular + sides; drop rellenos/burrito invent", async () => {
-  const DEL = DORADA_DELUXE_ID;
-  const REG = DORADA_REG_ID;
-  const TCO = "sq-taco-comal-homemade-corn-tortilla-taco-comal-U6KZVH";
-  const REL = "sq-chiles-rellenos-platillo-stuffed-poblano-pepper-EUM4MG";
-  const BUR = "sq-burrito-TGWBEN";
-  const RICE = "sq-sides-arroz-rice-26S6E6";
-  const BEANS = "sq-sides-frijoles-beans-FK2O6W";
-  const run = async (text: string) => {
-    // model mistakes: TCO on fried, invent rellenos/burrito on sides
-    if (/doradas|fried|quesadillas/i.test(text) && !/side/i.test(text))
-      return { actions: [{ type: "add_item", itemId: TCO, quantity: 1, modifiers: [{ option: "Bistec / Steak" }, { option: "DELUXE" }] }], reply: "?" };
-    if (/side of rice|sides rice/i.test(text))
-      return { actions: [{ type: "add_item", itemId: REL, quantity: 1, modifiers: [] }], reply: "?" };
-    if (/side of|beans|frijoles/i.test(text))
-      return { actions: [{ type: "add_item", itemId: BUR, quantity: 1, modifiers: [{ option: "Bistec / Steak" }, { option: "Grande '12 (+$3.00)" }] }], reply: "?" };
-    return { actions: [], reply: "?" };
-  };
-  const r: any = await shadowOrderFromTurns([
-    { speaker: "caller", start: 0, end: 1, text: "can I get four of the five quesadillas?", language: "en" },
-    { speaker: "staff", start: 1, end: 2, text: "four quesadillas, you want the homemade or refried?", language: "en" },
-    { speaker: "caller", start: 2, end: 3, text: "the fried ones with corn, the corn tortilla ones?", language: "en" },
-    { speaker: "staff", start: 3, end: 4, text: "Okay, the fried, what kind of meat do you want?", language: "en" },
-    { speaker: "caller", start: 4, end: 5, text: "Yeah. can I do steak for all of them?", language: "en" },
-    { speaker: "staff", start: 5, end: 6, text: "Four, four of them. You want deluxe?", language: "en" },
-    { speaker: "caller", start: 6, end: 7, text: "Yeah. can I get three of those deluxe?", language: "en" },
-    { speaker: "caller", start: 7, end: 8, text: "And then one just,", language: "en" },
-    { speaker: "caller", start: 8, end: 9, text: "no, one with just steak and cheese only.", language: "en" },
-    { speaker: "staff", start: 9, end: 10, text: "Okay, so you want three deluxe and just one with steak and cheese.", language: "en" },
-    { speaker: "caller", start: 10, end: 11, text: "Yeah.", language: "en" },
-    { speaker: "caller", start: 11, end: 12, text: "Yeah, can I get a side of rice", language: "en" },
-    { speaker: "caller", start: 12, end: 13, text: "and then a side of refried beans?", language: "en" },
-    { speaker: "staff", start: 13, end: 14, text: "Okay, can I get your name?", language: "en" },
-    { speaker: "caller", start: 14, end: 15, text: "Anthony.", language: "en" },
-  ] as any, run as any);
-  const deluxe = r.cart.filter((l: any) => l.itemId === DEL);
-  const regular = r.cart.filter((l: any) => l.itemId === REG);
-  const dQty = deluxe.reduce((n: number, l: any) => n + (Number(l.quantity) || 1), 0);
-  const rQty = regular.reduce((n: number, l: any) => n + (Number(l.quantity) || 1), 0);
-  assert.equal(dQty, 3, "3 deluxe: " + JSON.stringify(r.cart));
-  assert.equal(rQty, 1, "1 regular: " + JSON.stringify(r.cart));
-  assert.equal(r.cart.filter((l: any) => l.itemId === RICE).reduce((n: number, l: any) => n + (Number(l.quantity) || 1), 0), 1, "1 side rice: " + JSON.stringify(r.cart));
-  assert.equal(r.cart.filter((l: any) => l.itemId === BEANS).reduce((n: number, l: any) => n + (Number(l.quantity) || 1), 0), 1, "1 side beans: " + JSON.stringify(r.cart));
-  assert.ok(!r.cart.some((l: any) => /taco|relleno|poblano|burrito/i.test(String(l.itemId))), "no phantoms: " + JSON.stringify(r.cart));
+test("anthony1: availability questions and staff-menu echoes are not orders", () => {
+  assert.ok(isAvailQ("Y, ¿tienes pollo a la crema? Ajá,"));
+  assert.ok(isAvailQ("Tiene quesadilla de birria."));
+  assert.ok(!isAvailQ("¿me da una orden de esa, porfa?"));
+  assert.ok(!isAvailQ("cuatro tacos de asada"));
+  assert.ok(isEchoOfStaff("Coctel de camarón.", "Tenemos enchiladas, este, tacos al vapor, cóctel de camarón."));
+  assert.ok(!isEchoOfStaff("pastor", "¿de pastor o de cabeza?"));
+  assert.ok(!isEchoOfStaff("cuatro de asada", "tenemos asada"));
 });
