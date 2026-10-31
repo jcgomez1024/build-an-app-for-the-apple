@@ -595,7 +595,7 @@ export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; tex
   return null;
 }
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
-  let r = nameFromTranscriptInfo0(turns); if (!r) return r;
+  let r = nameFromTranscriptInfo0(turns); if (!r) { const n = staffStatedName(turns); return n ? { name: n, thirdPerson: false, source: "staff-ask" } : r; }
   if ((r.source === "staff-ask" || r.source === "vocative") && !r.group) { const d = directNameAnswer(turns);
     if (d && foldName(d) !== foldName(r.name.split(/\s+/)[0]) && turns.some((t) => t.speaker === "caller" && NICK_CUE.test(String(t.text)))) r = { ...r, name: d }; }
   if (r.source === "vocative" || r.source === "staff-ask") { const own = callerOwnSpelling(turns, r.name.split(/\s+/)[0]); if (own) r = { ...r, name: [own, ...r.name.split(/\s+/).slice(1)].join(" ") }; }
@@ -759,5 +759,17 @@ function readBackName(turns: Array<{ speaker: "caller" | "staff"; text: string }
     }
     return null;
   }
+  return null;
+}
+
+// guero1 (CA0376b4, Oct 31 12:43 PM ET): staff "A ver, ¿cómo te voy a poner? Güero, … así." — staff states the order name
+// right after its own name question (caller: "como tú quieras") → that name.
+const STAFF_NAME_Q = /(?:c[oó]mo te (?:voy a )?pongo|c[oó]mo (?:te|le) voy a poner|a nombre de qui[eé]n|a qu[eé] nombre|what name)\??/i;
+const NOT_STAFF_NAME = /^(?:ok(?:ay)?|bueno|a|ver|as[ií]|s[ií]|no|pues|este|eh|mmm|claro|gracias|bye|perfecto|listo|y|o)$/i;
+export function staffStatedName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff") continue; const m = String(t.text).match(STAFF_NAME_Q); if (!m) continue;
+    const after = String(t.text).slice((m.index || 0) + m[0].length).trim();
+    const w = after.match(/^[¿¡"]?([A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]{2,})\b[,.!]?/u);
+    if (w && !NOT_STAFF_NAME.test(w[1])) return w[1]; }
   return null;
 }

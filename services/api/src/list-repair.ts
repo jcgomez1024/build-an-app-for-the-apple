@@ -655,3 +655,57 @@ export function applyReadbackCounts(cart: any[], turns: Turn[]): boolean {
     ls[0].quantity = p.qty; for (const x of ls.slice(1)) cart.splice(cart.indexOf(x), 1); changed = true; }
   return changed;
 }
+
+// qco5 (CA1c1052, Oct 31 12:39 PM ET): "cinco quesadillas de maíz … dos de bistec y una … otras dos … del pastor … esa de
+// costilla" rang 2 costilla (count carried) and a phantom 6 corn tortillas from "¿tiene tortilla de harina o de maíz?".
+const TORT_ORDER = new RegExp(`\\b(?:${NUMW}|orden(?:es)?|paquetes?|docenas?|media|extra|aparte|mas)\\s+(?:\\w+\\s+){0,2}?tortillas?\\b|\\btortillas? (?:aparte|extra)\\b`);
+/** A tortilla pack nobody ordered — the caller only asked which tortilla (harina/maíz) the dishes come in. */
+export function dropTortillaStyleAsk(cart: any[], turns: Turn[]): boolean {
+  if (!cart.some((l) => /^sq-tortillas-/.test(String(l.itemId))) || !cart.some((l) => kindOfLine(l))) return false;
+  const ms = turns.filter((t) => t.speaker === "caller" && /\btortillas?\b/.test(plain(t.text))).map((t) => plain(t.text));
+  if (ms.some((p) => TORT_ORDER.test(p))) return false;
+  let ch = false; for (let i = cart.length - 1; i >= 0; i--) if (/^sq-tortillas-/.test(String(cart[i].itemId))) { cart.splice(i, 1); ch = true; } return ch;
+}
+/** "cinco quesadillas" stated, cart sums more: a line whose meat no one ever counted above 1 ("esa de costilla") goes to 1. */
+export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
+  let ch = false;
+  for (const [fam, re] of [["q", /\bquesadillas\b/], ["taco", /\btacos\b/]] as const) {
+    let N = 0; for (const t of turns) { if (t.speaker !== "caller") continue; const m = plain(t.text).match(new RegExp(`\\b(${NUMW})\\s+${re.source.slice(2)}`)); if (m) N = Math.max(N, numOf(m[1])); }
+    const ls = cart.filter((l) => kindOfLine(l) && famOf(kindOfLine(l)!) === fam); if (!N || N < 2) continue;
+    let sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum <= N) continue;
+    const counted: Record<string, number> = {};
+    for (const t of turns) { const p = plain(t.text); for (const m of p.matchAll(new RegExp(`\\b(${NUMW})\\s+(?=((?:\\w+\\s*){0,4}))`, "g"))) { const seg = m[2].split(new RegExp(`\\b(?:${NUMW})\\b`))[0]; const k = meatIn(seg); if (k) counted[k] = Math.max(counted[k] || 0, numOf(m[1])); } }
+    for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
+      const nq = Math.max(counted[k] || 1, q - (sum - N)); sum -= q - nq; l.quantity = nq; ch = true; }
+  }
+  return ch;
+}
+// guero1 (CA0376b4, Oct 31 12:43 PM ET): staff recap "por último serían dos de preparadas de al pastor no crema y una
+// preparada de de viste no crema" … "Y dos tacos de lengua de comal y un taco de comal de al pastor" — the recap (split
+// over staff turns around caller acks) rebuilds the taco/quesadilla/QD lines, deluxe ids and "sin crema" notes.
+const RECAP = /\b(?:por ultimo|serian|seria|entonces (?:son|serian|es)|te tengo|le tengo)\b/;
+export function staffRecapText(turns: Turn[]): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff" || !RECAP.test(plain(t.text))) continue;
+    const parts: string[] = [];
+    for (let j = i; j < Math.min(turns.length, i + 6); j++) { const x = turns[j]; const p = plain(fixBistecStt(x.text));
+      if (x.speaker === "staff" && new RegExp(`\\b(${NUMW})\\b`).test(p) && (meatIn(p) || /\bviste\b/.test(p))) parts.push(p); }
+    if (!parts.length) continue;
+    let txt = parts.join(" y ").replace(/\bde (?:de )?viste\b/g, "de bistec").replace(/\b(?:de )+(preparad|dorad)/g, "$1")
+      .replace(new RegExp(`\\b(${NUMW}) (preparad[ao]s?|dorad[ao]s?)\\b`, "g"), "$1 quesadillas $2");
+    return txt;
+  }
+  return null;
+}
+export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const txt = staffRecapText(turns); if (!txt) return false;
+  const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
+  const nx = turns.find((t, i) => i > 0 && t.speaker === "caller" && /^(?:no\b|falta|cambia)/.test(plain(t.text)) && turns.slice(0, i).some((s) => s.speaker === "staff" && plain(s.text).includes(txt.slice(0, 12))));
+  if (nx) return false;
+  if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu)) return false;
+  const sinCrema = /\b(?:no|sin) crema\b/.test(txt);
+  for (const l of cart) { if (kindOfLine(l) !== "qd") continue;
+    if ((l.modifiers || []).some((m: any) => /DELUXE Preparada/i.test(String(m.option))) && !QD_DLX.test(String(l.itemId))) {
+      l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)|DELUXE|APARTE/i.test(String(m.option)))]; }
+    if (sinCrema && QD_DLX.test(String(l.itemId)) && !(l.elviNotes || []).some((n: string) => /crema/i.test(n))) l.elviNotes = [...(l.elviNotes || []), "sin crema"]; }
+  return true;
+}
