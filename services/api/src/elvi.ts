@@ -2,6 +2,7 @@ import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn } from "./readback-pas
 import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
+import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
 import { staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
@@ -58,7 +59,7 @@ type ElviRequest = {
   /** Order session (persistent order context until submit/cancel). */
   sessionKey?: string;
   /** ordername1: Elvi taking a phone order (server-side only, never from the web body). savedName = caller memory. */
-  phoneOrder?: { savedName?: string | null; orderName?: string | null };
+  phoneOrder?: { savedName?: string | null; orderName?: string | null; callerPhone?: string | null };
 };
 
 export type ElviAudioRequest = {
@@ -2126,6 +2127,9 @@ export function appSmallSopeReply(input: { transcript?: string; language?: strin
     : "Online we only have the 10-inch Sopesaso Elvis. Would you like the 10-inch, or would you rather call us for the small sopes?" } as ElviResponse;
 }
 export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<XaiRuntimeConfig>): Promise<ElviResponse> {
+  // blocklist1: a no-pickup/delivery caller never gets an order opened — just the "come to the restaurant" line.
+  { const ph = input?.phoneOrder?.callerPhone; if (ph && blockedCaller(ph)) { const l = blockedLanguages(null, input.transcript)[0];
+    const lang = (input.language === "en" || input.language === "es") ? input.language : l; return { language: lang, reply: blockedReply(lang), actions: [] } as any; } }
   // jesus2: the shared spoken aliases (data/aliases, "app" scope) reach the LIVE turn too — guisquel→bistec,
   // queso burias→Queso Birrias, street corn→esquite, cuca de vino→coca de vidrio — not only shadow scoring.
   if (input?.transcript) { const t = applySharedAliases(String(input.transcript), "app"); if (t !== input.transcript) input = { ...input, transcript: t }; }

@@ -1,0 +1,6 @@
+{
+  "_help": "No pickup/delivery by phone. Elvi says (in the caller's language) they must come to the restaurant to order, then hangs up: no queue, no ring, no ticket, no staff SMS. Add {phone, name, note}; any US format works (normalized to E.164). Re-read on every call, no restart needed.",
+  "numbers": [
+    { "phone": "+12622941427", "name": "Chalino", "note": "Carlos, Oct 30 2026: no pickup/delivery orders by phone; must order at the restaurant." }
+  ]
+}

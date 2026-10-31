@@ -5,6 +5,7 @@
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
 import { nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName } from "./order-name.js";
 import crypto from "node:crypto";
+import { blockedCaller, blockedLanguages, BLOCKED_TEXT } from "./phone-blocklist.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1514,6 +1515,15 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     }
     const sid = String(req.body?.CallSid || "");
     const to = String(req.body?.To || "");
+    // blocklist1: no-pickup/delivery list → tell them in their language, hang up. No queue/ring → no recording/ticket/SMS.
+    const blocked = blockedCaller(from);
+    if (blocked) {
+      let lang: string | null = null; try { lang = savedLanguage(from).language || knownCaller(from, sid).language || null; } catch { /* both */ }
+      const langs = blockedLanguages(lang);
+      logCall({ event: "incoming", callSid: sid, caller: from, calledNumber: to, greeting: "blocked", flow: "blocked" });
+      logCall({ event: "blocked_no_order", callSid: sid, caller: from, calledNumber: to, name: blocked.name, language: langs.join("+") });
+      return res.type("text/xml").send(xml(`${langs.map((l) => sayIn(l, BLOCKED_TEXT[l])).join("")}<Hangup/>`));
+    }
     if (sid) {
       callers.set(sid, from);
       if (!callStartedAt.has(sid)) callStartedAt.set(sid, new Date().toISOString());
@@ -2004,6 +2014,10 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
     const journal = path.join(pendingDir, `${RecordingSid}.json`);
     try { fs.mkdirSync(pendingDir, { recursive: true }); fs.writeFileSync(journal, JSON.stringify({ body, leg, at: Date.now() })); } catch {}
     const caller = callers.get(CallSid) || body?.From || "";
+    if (blockedCaller(caller)) { // blocklist1: never score/ticket/SMS a blocked number
+      logCall({ event: "recording_skipped_blocked", callSid: CallSid, caller, recordingSid: RecordingSid });
+      try { fs.unlinkSync(journal); } catch {} return;
+    }
     const callerChannel: 1 | 2 = leg === "queue" ? (process.env.TWILIO_QUEUE_CALLER_CHANNEL === "1" ? 1 : 2) : 1;
     (async () => {
       try {
@@ -2103,6 +2117,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         if (!j.callSid) continue;
         if (j.event === "ring_end") ended.set(j.callSid, Date.parse(j.ts));
         if (j.event === "answered") answered.add(j.callSid);
+        if (j.event === "blocked_no_order") done.add(j.callSid); // blocklist1
         if (/^recording/.test(String(j.event))) done.add(j.callSid); }
     }
     let pend = ""; try { pend = fs.readdirSync(pendingDir).map((f) => fs.readFileSync(path.join(pendingDir, f), "utf8")).join(" "); } catch {}
