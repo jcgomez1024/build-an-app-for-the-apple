@@ -460,3 +460,38 @@ export function liveChristopher(r: any, input: any) {
   if (asadosSideSaid(lastTwo) && !hasAsados(cartNow)) { const add: any[] = []; if (applyAsadosSide(add, lastTwo, menu)) return { ...r, actions: [...acts, { type: "add_item", ...add[0] }] }; }
   return ch || ch2 ? { ...r, actions: acts } : r;
 }
+
+// hominy1 (CAa025cf, Oct 31 10:21 AM ET): "un menudo con maíz de pozole" = menudo with hominy (a note), never a Pozole dish.
+const HOMINY = /\bmenudos?\b[^|]{0,40}?\bcon (?:el |la )?(?:maiz(?: de pozole)?|pozole|hominy)\b|\bmenudo with hominy\b/;
+const POZOLE_DISH = /\b(?:una?|dos|tres|\d+|orden(?:es)? de|order of)\s+(?:de )?pozoles?\b(?! con)|\bpozole (?:rojo|verde|blanco)\b/;
+export const hominyOnMenudo = (text: string) => HOMINY.test(plain(text));
+export function applyMenudoHominy(cart: any[], turns: Turn[]): boolean {
+  const c = said(turns, "caller"); if (!HOMINY.test(c)) return false;
+  const dishSaid = POZOLE_DISH.test(c.replace(new RegExp(HOMINY.source, "g"), " "));
+  let changed = false;
+  if (!dishSaid) for (let i = cart.length - 1; i >= 0; i--) if (/^sq-pozole-/.test(String(cart[i].itemId))) { cart.splice(i, 1); changed = true; }
+  const m = cart.find((l) => /menudo/i.test(String(l.itemId)));
+  if (m && !(m.elviNotes || []).some((n: string) => /maiz|maíz|hominy/i.test(n))) { m.elviNotes = [...(m.elviNotes || []), "con maíz de pozole (hominy)"]; changed = true; }
+  return changed;
+}
+// dayana2 (CAa2bf38): staff "¿preparadas o normales?" / "¿Tres?" rang a 2nd REGULAR QD twin of the DELUXE bistec pair.
+const QD_REG = /^sq-qd-.*regular/i, QD_DLX = /^sq-qd-.*(?:deluxe|preparada)/i;
+const callerSaidNormalQd = (c: string) => /\b(?:normal(?:es)?|regular(?:es)?|sencillas?|sin preparar|plain)\b/.test(c);
+const qdMeat = (l: any) => meatIn(plain((l.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step))).map((m: any) => m.option).join(" ")));
+export function dropQdRegularTwin(cart: any[], turns: Turn[]): boolean {
+  if (callerSaidNormalQd(said(turns, "caller"))) return false; let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (!QD_REG.test(String(l.itemId))) continue;
+    if (cart.some((d) => d !== l && QD_DLX.test(String(d.itemId)) && qdMeat(d) === qdMeat(l))) { cart.splice(i, 1); changed = true; } }
+  return changed;
+}
+/** Live: no Pozole add on a "menudo con maíz de pozole" turn; no REGULAR QD add twinning a rung DELUXE one unless the caller said normal. */
+export function liveHominyQd(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; if (!acts.length) return r;
+  const tx = String(input?.transcript || ""); const cart: any[] = input?.cart || [];
+  const out = acts.filter((a) => {
+    if (a.type === "add_item" && /^sq-pozole-/.test(String(a.itemId)) && hominyOnMenudo(tx) && !POZOLE_DISH.test(plain(tx).replace(new RegExp(HOMINY.source, "g"), " "))) return false;
+    if (a.type === "add_item" && QD_REG.test(String(a.itemId)) && !callerSaidNormalQd(plain(tx))
+      && [...cart, ...acts.filter((x) => x !== a)].some((d) => QD_DLX.test(String(d.itemId)) && qdMeat(d) === qdMeat(a))) return false;
+    return true; });
+  return out.length === acts.length ? r : { ...r, actions: out };
+}

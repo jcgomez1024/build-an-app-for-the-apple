@@ -565,8 +565,24 @@ export function withSurname(turns: Array<{ speaker: "caller" | "staff"; text: st
   if (fn && fn.toLowerCase() !== sur.toLowerCase()) return `${fn} ${sur}`;
   return name;
 }
+// dayana2 (CAa2bf38): caller "Oh, Dayana." / staff "¿qué te vamos a poner, Diana?" → the caller's own spelling wins over the
+// staff's variant (same first letter, edit distance ≤ 2).
+const editDist = (a: string, b: string) => { const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } }
+  return d[b.length]; };
+export function callerOwnSpelling(turns: Array<{ speaker: "caller" | "staff"; text: string }>, name: string): string | null {
+  const f = foldName(name); if (f.length < 4) return null;
+  // the caller said the staff form themselves (marina1 "Marina Aguilar" → later garble "Marine") → keep it
+  if (turns.some((t) => t.speaker === "caller" && (String(t.text).match(/\p{L}+/gu) || []).some((w) => foldName(w) === f))) return null;
+  // only a short name-answer turn ("Oh, Dayana."), never a word inside a sentence (eva1 "Está", marina1)
+  for (const t of turns) { if (t.speaker !== "caller" || String(t.text).trim().split(/\s+/).length > 3) continue;
+    for (const w of String(t.text).match(/\p{Lu}[\p{L}]+/gu) || []) { const g = foldName(w);
+      if (g !== f && g[0] === f[0] && g.length >= 4 && editDist(g, f) <= 2 && !NOT_NAMES.test(w) && !NOT_NAME.test(w)) return w; } }
+  return null;
+}
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
-  const r = nameFromTranscriptInfo0(turns); if (!r) return r;
+  let r = nameFromTranscriptInfo0(turns); if (!r) return r;
+  if (r.source === "vocative" || r.source === "staff-ask") { const own = callerOwnSpelling(turns, r.name.split(/\s+/)[0]); if (own) r = { ...r, name: [own, ...r.name.split(/\s+/).slice(1)].join(" ") }; }
   const full = withSurname(turns, r.name); return full && full !== r.name ? { ...r, name: full } : r;
 }
 function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {

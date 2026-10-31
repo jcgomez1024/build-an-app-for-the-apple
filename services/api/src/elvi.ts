@@ -1,5 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn } from "./readback-pass.js";
-import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher } from "./list-repair.js";
+import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
 import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
@@ -2159,6 +2159,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = noRiceBeansFilling(o2, input); o2 = noReaskAnswered(o2, input); o2 = noUnknownHours(o2, input); } catch { /* keep */ } // aaron1, dayana1
   try { o2 = liveSideSize(o2, input); } catch { /* keep */ } // braulio1
   try { o2 = liveChristopher(o2, input); } catch { /* keep */ } // christopher1, daniela1
+  try { o2 = liveHominyQd(o2, input); } catch { /* keep */ } // hominy1, dayana2
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides

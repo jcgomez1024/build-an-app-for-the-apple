@@ -1,0 +1,87 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "text": "Buenos días."
+  },
+  {
+   "speaker": "caller",
+   "text": "Bueno."
+  },
+  {
+   "speaker": "caller",
+   "text": "Buenos días, eh, ¿me puedes listar un menudo con maíz de pozole para recoger en unos quince minutos o veinte?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Ah,"
+  },
+  {
+   "speaker": "staff",
+   "text": "¿con maíz?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, menudo con maíz de pozole, es para para la casa, don Carlos."
+  },
+  {
+   "speaker": "staff",
+   "text": "Oh, déjame ver, no, no te conocía la voz, mano."
+  },
+  {
+   "speaker": "staff",
+   "text": "Ah,"
+  },
+  {
+   "speaker": "staff",
+   "text": "permíteme,"
+  },
+  {
+   "speaker": "staff",
+   "text": "maíz con pozole, maíz, ah, es una nuevo, pero con maíz, ah."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Qué más, mano?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí."
+  },
+  {
+   "speaker": "caller",
+   "text": "Nada más."
+  },
+  {
+   "speaker": "staff",
+   "text": "Okay, dame unos veinte, ¿está bien?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Okay, muchas gracias."
+  },
+  {
+   "speaker": "staff",
+   "text": "Órale."
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "menudo"
+  },
+  {
+   "itemId": "sq-pozole-rojo-red-pozole-DQ7X4J",
+   "quantity": 1,
+   "modifiers": [],
+   "readback": "pozole rojo"
+  }
+ ]
+}

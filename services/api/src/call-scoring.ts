@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
-import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide } from "./list-repair.js";
+import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -7644,7 +7644,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       applyRiceBeansSide(cart as any[], turns as any, menu); applyCremaOnSide(cart as any[], turns as any, menu); // aaron1
       applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu);
       applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu);
-      applyMenudoSinPata(cart as any[], turns as any, menu); applySaidMeat(cart as any[], turns as any, menu); applyAsadosSide(cart as any[], turns as any, menu); } } // nicky1, cafa1, braulio1, christopher1, daniela1
+      applyMenudoSinPata(cart as any[], turns as any, menu); applySaidMeat(cart as any[], turns as any, menu); applyAsadosSide(cart as any[], turns as any, menu);
+      applyMenudoHominy(cart as any[], turns as any); dropQdRegularTwin(cart as any[], turns as any); } } // hominy1, dayana2; nicky1, cafa1, braulio1, christopher1, daniela1
   // relleno2 (CA8f33ce5): staff-unavailable wins over EVERY re-add pass (asked-dishes, relleno, readback…) — run it last.
   dropStaffUnavailable(cart as any[], turns as any);
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket

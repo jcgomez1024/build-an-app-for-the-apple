@@ -1,0 +1,215 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "text": "Bueno, cocina Elvis."
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, buenos días."
+  },
+  {
+   "speaker": "staff",
+   "text": "Sí, dime."
+  },
+  {
+   "speaker": "caller",
+   "text": "Oh, si me podría hacer un pedido en estudio."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿A qué?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Perdón."
+  },
+  {
+   "speaker": "caller",
+   "text": "Si me podría hacer un pedido en estudio."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Quién eres?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Oh, Dayana."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿La de los departamentos?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí."
+  },
+  {
+   "speaker": "staff",
+   "text": "Okay, ¿qué te vamos a poner, Diana?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Oh, dos quesadillas doradas de,"
+  },
+  {
+   "speaker": "staff",
+   "text": "Juan,"
+  },
+  {
+   "speaker": "caller",
+   "text": "de bistec"
+  },
+  {
+   "speaker": "staff",
+   "text": "dime, ¿preparadas o normales?"
+  },
+  {
+   "speaker": "caller",
+   "text": "preparadas."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Tres, las tres son iguales?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Dos."
+  },
+  {
+   "speaker": "staff",
+   "text": "Dos, ¿qué más?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Y dos quesadillas de"
+  },
+  {
+   "speaker": "staff",
+   "text": "De Comal,"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿de qué las quieres?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Esas de bistec."
+  },
+  {
+   "speaker": "staff",
+   "text": "Dos, ¿qué más?"
+  },
+  {
+   "speaker": "caller",
+   "text": "No, y refresco de tapar. ¿Cuál tienes?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Tengo Coca, Pepsi"
+  },
+  {
+   "speaker": "staff",
+   "text": "y Square."
+  },
+  {
+   "speaker": "caller",
+   "text": "Una coca y un Squirt, por favor."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Será todo, Diana?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí."
+  },
+  {
+   "speaker": "staff",
+   "text": "Tengo dos doradas deluxe de Bistec, tengo dos de Comal de Bistec, tu Coca y tu Square y el delivery, ¿sí?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí."
+  },
+  {
+   "speaker": "staff",
+   "text": "Van a ser 34 dólares, dame 25 minutos si me haces favor."
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, solo que no tengo ca."
+  },
+  {
+   "speaker": "staff",
+   "text": "Vale, así nosotros llevamos camión, Diana."
+  },
+  {
+   "speaker": "caller",
+   "text": "Okay, muchas gracias."
+  },
+  {
+   "speaker": "staff",
+   "text": "Ándale."
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(QD) Style",
+     "option": "(QD) DELUXE Preparada"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-drink-coca-cola-JJE4KC",
+   "quantity": 1,
+   "modifiers": []
+  },
+  {
+   "itemId": "sq-drink-squirt-AIHAAZ",
+   "quantity": 1,
+   "modifiers": []
+  },
+  {
+   "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    }
+   ],
+   "elviNotes": [
+    "confirmar (QD) Quesadilla Dorada options"
+   ],
+   "asked": true
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    }
+   ],
+   "asked": true
+  }
+ ]
+}
