@@ -845,3 +845,27 @@ export function liveStrongHorchata(r: any, input: any) {
   const q = tx.match(new RegExp(`\\b(${NUMW})\\s+(?:agua|water|vaso)s?\\b`));
   return { ...r, actions: [...acts, { type: "add_item", itemId: HORCHATA_ID, quantity: q ? Math.max(1, numOf(q[1])) : 1, modifiers: [], readback: "horchata" }] };
 }
+
+// irene1 (CAa5a670, Oct 31 5:09 PM ET): "una coca de bot…" → "una coca, no sé de cuál…, de taparrosca, de botella" →
+// "Una de taparrosca" rang 3 Cokes. Re-mentioning / clarifying the same drink ("una (de) X") is the same drink, not another.
+const DRINK_ID = /^sq-drink-/i;
+const MORE_DRINK = /\b(?:otra|otro|otras|otros|mas|tambien|another|also|extra|cada\s+un[oa]|para\s+cada)\b/;
+const DRINK_N = new RegExp(`\\b(${NUMW})\\s+(?:de\\s+)?(?:cocas?|coca\\s+colas?|cokes?|pepsis?|sprites?|fantas?|jarritos?|refrescos?|sodas?|aguas?|botellas?|latas?|taparroscas?|horchatas?|jamaicas?|tamarindos?|drinks?|de\\s+(?:taparrosca|botella|lata|vidrio|plastico))\\b`, "g");
+const drinkSaidMax = (t: string) => Math.max(0, ...[...t.matchAll(DRINK_N)].map((m) => numOf(m[1])));
+export function mergeReMentionedDrink(cart: any[], turns: Turn[]): boolean {
+  const callerTx = said(turns, "caller"); if (MORE_DRINK.test(callerTx.replace(/\bno se\b/g, ""))) return false;
+  const said1 = drinkSaidMax(callerTx); if (said1 !== 1) return false; let ch = false;
+  const seen = new Map<string, any>();
+  for (let i = 0; i < cart.length; i++) { const l = cart[i]; if (!DRINK_ID.test(String(l.itemId))) continue;
+    const k = String(l.itemId) + JSON.stringify(l.modifiers || []); const first = seen.get(k);
+    if (!first) { seen.set(k, l); continue; }
+    if ((first.quantity || 1) === 1 && (l.quantity || 1) === 1) { cart.splice(i--, 1); ch = true; } }
+  return ch;
+}
+export function liveDrinkReMention(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const cart: any[] = input?.cart || [];
+  const tx = plain(String(input?.transcript || "")); if (MORE_DRINK.test(tx) || drinkSaidMax(tx) > 1) return r;
+  const out = acts.filter((a) => !(a.type === "add_item" && DRINK_ID.test(String(a.itemId)) && (a.quantity || 1) === 1
+    && cart.some((l) => l.itemId === a.itemId && JSON.stringify(l.modifiers || []) === JSON.stringify(a.modifiers || []))));
+  return out.length === acts.length ? r : { ...r, actions: out };
+}
