@@ -549,7 +549,7 @@ export function dropQdComalTwin(cart: any[], turns: Turn[]): boolean { let chang
 const DLX_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
 /** Caller said "preparada(s)" and never normal/regular → REGULAR QD lines become DELUXE Preparada. */
 export function applyQdPreparada(cart: any[], turns: Turn[]): boolean {
-  const c = said(turns, "caller"); if (!/\bpreparad[ao]s?\b/.test(c) || callerSaidNormalQd(c.replace(/\bpreparad[ao]s? o (?:normal|regular)(?:es)?\b/g, ""))) return false;
+  const c = preparadaWords(said(turns, "caller")); if (!/\bpreparad[ao]s?\b/.test(c) || callerSaidNormalQd(c.replace(/\bpreparad[ao]s? o (?:normal|regular)(?:es)?\b/g, ""))) return false;
   let changed = false;
   for (const l of cart) { if (!QD_REG.test(String(l.itemId)) && !(kindOfLine(l) === "qd" && (l.modifiers || []).some((m: any) => /REGULAR Dorada/i.test(String(m.option))))) continue;
     if (QD_DLX.test(String(l.itemId))) continue;
@@ -683,7 +683,7 @@ export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
 // guero1 (CA0376b4, Oct 31 12:43 PM ET): staff recap "por último serían dos de preparadas de al pastor no crema y una
 // preparada de de viste no crema" … "Y dos tacos de lengua de comal y un taco de comal de al pastor" — the recap (split
 // over staff turns around caller acks) rebuilds the taco/quesadilla/QD lines, deluxe ids and "sin crema" notes.
-const RECAP = /\b(?:por ultimo|serian|seria|entonces (?:son|serian|es)|te tengo|le tengo)\b/;
+const RECAP = /\b(?:tengo en|por ultimo|serian|seria|entonces (?:son|serian|es)|te tengo|le tengo)\b/;
 export function staffRecapText(turns: Turn[]): string | null {
   for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff" || !RECAP.test(plain(t.text))) continue;
     const parts: string[] = [];
@@ -702,6 +702,7 @@ export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolea
   const nx = turns.find((t, i) => i > 0 && t.speaker === "caller" && /^(?:no\b|falta|cambia)/.test(plain(t.text)) && turns.slice(0, i).some((s) => s.speaker === "staff" && plain(s.text).includes(txt.slice(0, 12))));
   if (nx) return false;
   if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu)) return false;
+  applyQdPreparada(cart, turns.map((t) => ({ ...t, text: preparadaWords(t.text) })));
   const sinCrema = /\b(?:no|sin) crema\b/.test(txt);
   for (const l of cart) { if (kindOfLine(l) !== "qd") continue;
     if ((l.modifiers || []).some((m: any) => /DELUXE Preparada/i.test(String(m.option))) && !QD_DLX.test(String(l.itemId))) {
@@ -709,3 +710,36 @@ export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolea
     if (sinCrema && QD_DLX.test(String(l.itemId)) && !(l.elviNotes || []).some((n: string) => /crema/i.test(n))) l.elviNotes = [...(l.elviNotes || []), "sin crema"]; }
   return true;
 }
+
+// rolando1 (CA4f6740, Oct 31 1:21 PM ET): "doradas … ¿preparadas? … de las que dicen verdura" = DELUXE Preparada.
+export const preparadaWords = (s: string) => String(s || "").replace(/\b(?:de )?(?:las|los) que (?:dicen|traen|llevan|tienen) (?:la )?verduras?\b|\bcon (?:toda )?(?:la )?verduras?\b|\bwith (?:the )?veggies\b/giu, "preparadas");
+// marta1 (CAc8d287, Oct 31 1:15 PM ET): 2 QCO buche → "buche con chorizo" → staff "Buche con chorizo, las dos." rang
+// 2 plain buche + 1 buche/chorizo; "una de chicharrón prestado" (STT for prensado) never rang.
+const MIX = /\b([a-z]+) con ([a-z]+)\b[^|]*?\b(?:las|los) (?:dos|tres|cuatro|cinco)\b|\b(?:las|los) (dos|tres|cuatro|cinco)\b[^|]*?\b([a-z]+) con ([a-z]+)\b/;
+export function applyMixAll(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let ch = false;
+  for (const t of turns) { const m = plain(t.text).match(MIX); if (!m) continue; const a = meatIn(m[1] || m[4] || ""), b = meatIn(m[2] || m[5] || ""); if (!a || !b || a === b) continue;
+    const ls = cart.filter((l) => kindOfLine(l) && (l.modifiers || []).some((x: any) => meatIn(plain(x.option)) === a)); if (ls.length < 2) continue;
+    const mixed = ls.find((l) => (l.modifiers || []).some((x: any) => meatIn(plain(x.option)) === b)); if (!mixed) continue;
+    const n = ls.filter((l) => kindOfLine(l) === kindOfLine(mixed)).reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    const want = m[3] ? numOf(m[3]) : numOf(plain(t.text).match(/\b(?:las|los) (dos|tres|cuatro|cinco)\b/)![1]);
+    for (const l of ls) if (l !== mixed && kindOfLine(l) === kindOfLine(mixed)) cart.splice(cart.indexOf(l), 1);
+    mixed.quantity = Math.min(want, n) || want; ch = true; }
+  return ch;
+}
+export const fixPrensadoStt = (s: string) => String(s || "").replace(/\bchicharr[oó]n (?:prestado|pensado|presado|prendado)\b/giu, "chicharrón prensado");
+/** "Y una de chicharrón prensado" in a quesadilla/taco run (staff "También de comal") with no line of that meat → add it. */
+export function addSaidMeatLine(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let ch = false;
+  turns.forEach((t, i) => { if (t.speaker !== "caller") return; const p = plain(fixPrensadoStt(t.text));
+    const m = p.match(new RegExp(`\\b(${NUMW}) (?:de |del )(?:chicharron )?([a-z]+)\\b`)); if (!m) return; const meat = meatIn(m[2]); if (!meat || /\b(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|orden)\b/.test(p)) return;
+    if (cart.some((l) => (l.modifiers || []).some((x: any) => meatIn(plain(x.option)) === meat) || plain(String(l.itemId)).includes(meat))) return;
+    const ctx = turns.slice(Math.max(0, i - 4), i + 3).map((x) => plain(x.text)).join(" | ");
+    const kind: Kind | null = /\bquesadillas?\b/.test(ctx) ? "quesadilla" : /\btacos?\b/.test(ctx) ? "taco" : null; if (!kind) return;
+    if (turns.slice(i + 1, i + 3).some((x) => x.speaker === "staff" && /^no\b|no (?:tenemos|hay)|se (?:nos )?acab/.test(plain(x.text)))) return;
+    const l: any = { itemId: (baseItem(menu, kind) || {}).id, quantity: numOf(m[1]) || 1, modifiers: [] }; if (!l.itemId) return;
+    setLine(l, { kind, meat, qty: l.quantity, style: /\bcomal\b/.test(ctx) ? "comal" : undefined }, menu);
+    if (!(l.modifiers || []).some((x: any) => meatIn(plain(x.option)) === meat)) return; cart.push(l); ch = true; });
+  return ch;
+}
+export function applyMarta1(cart: any[], turns: Turn[], menu: any[]) { applyMixAll(cart, turns, menu); addSaidMeatLine(cart, turns, menu); }

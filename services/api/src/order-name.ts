@@ -235,6 +235,7 @@ export function wrapUpNameQuestion(lang: Lang, saved: string | null | undefined)
 /** Save the order name as Elvi-heard ("elvi"); a staff-entered (manual) name is never overwritten. */
 export function rememberOrderName(phone: string, name: string): { saved: boolean; reason: string } {
   if (isOrderOnlyName(name)) return { saved: false, reason: "third-person" }; // name3p2
+  name = destutterName(name);
   const plan = planCallerName(phone, name, "elvi");
   if (!plan.save) return { saved: false, reason: plan.reason };
   const saved = saveCallerName(phone, name, "elvi");
@@ -595,6 +596,12 @@ export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; tex
   return null;
 }
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const r = nameFromTranscriptInfo1(turns); if (!r) return r;
+  // marta1 (CAc8d287, Oct 31 1:15 PM ET): a junk "spelled" name ("Yam") never beats staff's "doña Marta" / "don X".
+  if (r.source === "spelled") { const v = donaVocative(turns); if (v && foldName(v) !== foldName(r.name)) return { ...r, name: v, source: "vocative" }; }
+  const n = destutterName(r.name); return n !== r.name ? { ...r, name: n } : r;
+}
+function nameFromTranscriptInfo1(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   let r = nameFromTranscriptInfo0(turns); if (!r) { const n = staffStatedName(turns); return n ? { name: n, thirdPerson: false, source: "staff-ask" } : r; }
   if ((r.source === "staff-ask" || r.source === "vocative") && !r.group) { const d = directNameAnswer(turns);
     if (d && foldName(d) !== foldName(r.name.split(/\s+/)[0]) && turns.some((t) => t.speaker === "caller" && NICK_CUE.test(String(t.text)))) r = { ...r, name: d }; }
@@ -771,5 +778,17 @@ export function staffStatedName(turns: Array<{ speaker: "caller" | "staff"; text
     const after = String(t.text).slice((m.index || 0) + m[0].length).trim();
     const w = after.match(/^[¿¡"]?([A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]{2,})\b[,.!]?/u);
     if (w && !NOT_STAFF_NAME.test(w[1])) return w[1]; }
+  return null;
+}
+
+/** rolando1 (CA4f6740, Oct 31 1:21 PM ET): "Ro-Rolando" (STT stutter) → "Rolando"; also "Ma- Marta", "Ro Rolando". */
+export function destutterName(name: string): string {
+  return String(name || "").replace(/(^|\s)([A-Za-zÁÉÍÓÚÑáéíóúñü]{1,4})[-‐–]\s*([A-Za-zÁÉÍÓÚÑáéíóúñü]{3,})/gu, (m, sp, a, b) => (foldName(b).startsWith(foldName(a)) ? sp + b.charAt(0).toUpperCase() + b.slice(1) : m))
+    .replace(/(^|\s)([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{0,3})\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{3,})/gu, (m, sp, a, b) => (a.length < b.length && foldName(b).startsWith(foldName(a)) ? sp + b : m));
+}
+/** Staff's "doña Marta" / "don Rafa" (a respectful vocative naming the caller). */
+export function donaVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = String(t.text).match(/\b(?:[Dd]oña|[Dd]on)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,})\b/u); if (m) return m[1]; }
   return null;
 }
