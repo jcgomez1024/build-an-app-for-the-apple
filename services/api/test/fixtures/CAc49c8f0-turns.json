@@ -1,0 +1,268 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.2,
+  "end": 1.16,
+  "text": "Cocina en diez.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.521,
+  "end": 3.101,
+  "text": "Buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 3.821,
+  "end": 4.502,
+  "text": "Buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 5.161,
+  "end": 8.362,
+  "text": "¿Me puedes preparar cuatro tacos de tortilla de comal?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 9.823,
+  "end": 11.844,
+  "text": "Cuatro tacos de comal de costilla.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 12.683,
+  "end": 15.043,
+  "text": "No, no, no, cuatro, no, de costilla no.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 16.183,
+  "end": 18.104,
+  "text": "No, apenas le voy a decir de qué van a ser.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 19.787,
+  "end": 20.247,
+  "text": "Muy bien.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 21.664,
+  "end": 22.124,
+  "text": "Me pone,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 25.849,
+  "end": 28.07,
+  "text": "Ay, eso es. I'm",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 29.046,
+  "end": 30.426,
+  "text": "me pone dos de tripa.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.891,
+  "end": 31.211,
+  "text": "sorry. Sí, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 32.912,
+  "end": 33.392,
+  "text": "Sí, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 34.347,
+  "end": 35.027,
+  "text": "Dos de tripa.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 36.173,
+  "end": 38.994,
+  "text": "Dos tacos de tripa del comal.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 39.888,
+  "end": 39.988,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.895,
+  "end": 42.635,
+  "text": "Muy bien. ¿Algo más?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 42.229,
+  "end": 42.249,
+  "text": "Y,",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.489,
+  "end": 44.769,
+  "text": "sí, sí van a ser cuatro.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 45.676,
+  "end": 45.916,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 48.19,
+  "end": 51.51,
+  "text": "Entonces dos de tripa, uno de lengua.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 52.459,
+  "end": 54.179,
+  "text": "Muy bien, del comal también, ¿verdad?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 54.611,
+  "end": 57.172,
+  "text": "Sí, y otro de cabeza.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 58.201,
+  "end": 60.002,
+  "text": "Muy bien, ¿sería todo para su orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 60.792,
+  "end": 60.912,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 61.883,
+  "end": 63.203,
+  "text": "¿A qué nombre sería la orden?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 64.313,
+  "end": 64.613,
+  "text": "Oscar.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 65.605,
+  "end": 65.885,
+  "text": "¿Perdón?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 66.714,
+  "end": 67.054,
+  "text": "Oscar.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 67.926,
+  "end": 73.389,
+  "text": "Oscar, muy bien. Este, de hecho tengo otro Oscar, ¿me puede dar su apellido, por favor?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 75.375,
+  "end": 75.636,
+  "text": "¿Mandé?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 76.67,
+  "end": 80.612,
+  "text": "Ah, tengo otro Oscar en que está esperando también, so, ¿me puede dar su apellido?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 81.357,
+  "end": 82.217,
+  "text": "O Martínez.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 82.753,
+  "end": 85.355,
+  "text": "Martínez, muy bien. Este,",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 87.175,
+  "end": 91.017,
+  "text": "deme unos veinte minutos, ¿está bien?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 90.979,
+  "end": 92.299,
+  "text": "Okay, gracias.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 92.138,
+  "end": 94.339,
+  "text": "Okey, gracias a usted, buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 94.26,
+  "end": 95,
+  "text": "Sí. Bueno.",
+  "language": "es"
+ }
+]

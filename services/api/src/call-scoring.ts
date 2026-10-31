@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
-import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders } from "./list-repair.js";
+import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -7632,6 +7632,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       dropStaffUnavailable(cart as any[], turns as any); // cmissing1
       applyStaffReadback(cart as any[], turns as any, menu); fillMeatlessFromCaller(cart as any[], turns as any, menu); // carolina1/luis1/oscar1/angie1
       dropDeluxeComponentSides(cart as any[], turns as any); applySaidQuesoFresco(cart as any[], turns as any, menu); splitEnchiladaOrders(cart as any[], turns as any, menu); // angie1, miguel1
+      applyNegatedMeat(cart as any[], turns as any, menu); dropUnsaidDorados(cart as any[], turns as any); // oscar2
       applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu); } } // nicky1, cafa1
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }

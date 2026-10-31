@@ -1,0 +1,69 @@
+[
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 4,
+  "modifiers": [
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Costilla / Beef Rib"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada"
+   },
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Tripa / Beef Tripe (+$0.50)"
+   }
+  ]
+ },
+ {
+  "itemId": "sq-taco-TAR7L5",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(A) T Tortilla Options",
+    "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+   },
+   {
+    "step": "(B) T Carnes / Meats Opciones",
+    "option": "Cabeza / Beef Head (+$0.50)"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ },
+ {
+  "itemId": "sq-tacos-dorados-tacos-dorados-OHFWF3",
+  "quantity": 1,
+  "modifiers": [
+   {
+    "step": "(A) Nachos Carne Options",
+    "option": "Cabeza / Beef Head (+$1.00)"
+   }
+  ],
+  "asked": true
+ }
+]

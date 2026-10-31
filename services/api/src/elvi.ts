@@ -1,4 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn } from "./readback-pass.js";
+import { noNegatedMeat } from "./list-repair.js";
 import { staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
@@ -2148,6 +2149,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   let o2 = out; try { o2 = noEchoReAdd(out, input); } catch { /* keep */ }
   try { o2 = noPhantomDish(o2, input); } catch { /* keep */ }
   try { o2 = rellenoGuard(o2, input); } catch { /* keep */ }
+  try { o2 = noNegatedMeat(o2, input); } catch { /* keep */ } // oscar2
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides

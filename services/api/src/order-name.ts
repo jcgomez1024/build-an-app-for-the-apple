@@ -546,7 +546,28 @@ export function groupOrderNames(turns: Array<{ speaker: "caller" | "staff"; text
   for (const t of turns) if (t.speaker === "caller") for (const m of String(t.text).matchAll(/\ba\s+nombre\s+de\s+([A-ZÁÉÍÓÚÑ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}]+)?)/gu)) out.set(foldName(m[1]), m[1]);
   return [...out.values()];
 }
-export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {
+/** oscar2 (CAc49c8f0): staff "¿me puede dar su apellido?" → "O Martínez" — the surname joins the first name given earlier ("Oscar Martínez"). */
+export function withSurname(turns: Array<{ speaker: "caller" | "staff"; text: string }>, name: string | null | undefined): string | null {
+  if (!name) return name ?? null;
+  const i = turns.findIndex((t) => t.speaker === "staff" && /\b(?:apellido|last\s+name|surname)\b/iu.test(t.text));
+  if (i < 0) return name;
+  const ans = turns.slice(i + 1).find((t) => t.speaker === "caller" && !/^\s*¿?\s*(?:mand[eé]|qu[eé]|c[oó]mo|perd[oó]n|what)(?!\p{L})/iu.test(t.text));
+  if (!ans) return name;
+  const w = (ans.text.match(/\p{Lu}[\p{L}'-]+/gu) || []).filter((x) => !NOT_NAMES.test(x) && !/^(?:Es|Soy|Mi|Apellido|Se)$/u.test(x));
+  if (!w.length) return name;
+  const first = turns.slice(0, i).map((t) => t.text).join(" ").match(new RegExp(`\\b(${name.split(/\s+/)[0].replace(/[^\p{L}]/gu, "")})\\b`, "iu")) ? name.split(/\s+/)[0] : null;
+  const prior = first || [...turns.slice(0, i)].reverse().find((t) => t.speaker === "caller" && nameFromAnswer(t.text))?.text;
+  const fn = first || (prior ? nameFromAnswer(prior) : null);
+  const sur = w[w.length - 1];
+  if (fn && w.length >= 2 && w[0].toLowerCase() === fn.toLowerCase()) return `${fn} ${sur}`;
+  if (fn && fn.toLowerCase() !== sur.toLowerCase()) return `${fn} ${sur}`;
+  return name;
+}
+export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const r = nameFromTranscriptInfo0(turns); if (!r) return r;
+  const full = withSurname(turns, r.name); return full && full !== r.name ? { ...r, name: full } : r;
+}
+function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {
   const group = groupOrderNames(turns);
   let r = nameFromTranscriptInfoBase(turns);
   // chalino1 (CAe85a69, Oct 30 6:54 PM ET): the phone digits said after the name ask ("seis", "dos noventa y cuatro")

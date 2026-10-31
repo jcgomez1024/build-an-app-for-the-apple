@@ -179,3 +179,65 @@ export function splitEnchiladaOrders(cart: any[], turns: Turn[], menu: any[]): b
   if (!cart[cart.indexOf(l) + 1].elviNotes) delete cart[cart.indexOf(l) + 1].elviNotes;
   return true;
 }
+
+// oscar2 (CAc49c8f0, 7:51 PM ET): staff guessed "¿cuatro tacos de comal de costilla?" → "No, no, no… de costilla no" — a negated meat
+// is never rung; the group's meats come from the caller's own "dos de tripa, uno de lengua… y otro de cabeza".
+const MEAT_WORDS = "bistec?k?|steak|asada|(?:al )?pastor|costillas?|tripas?|cabezas?|prensado|lenguas?|chorizo|pollo|chicken|carnitas|buche|birria|deshebrada|picadillo";
+/** Meats the caller negated in this utterance: "de X no", "X no", "no X" (not a tag question "de X, ¿no?"). */
+export function negatedMeats(text: string): string[] {
+  const raw = String(text || "");
+  const p = plain(raw); const out = new Set<string>();
+  for (const m of p.matchAll(new RegExp(`\\b(?:de\\s+)?(${MEAT_WORDS})\\s+no\\b`, "g"))) {
+    // "de costilla, ¿no?" is a confirmation, not a negation
+    const word = m[1].split(" ").pop()!; const at = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").indexOf(word);
+    if (at >= 0 && /^\s*,?\s*¿?\s*no\s*\?/u.test(raw.slice(at + word.length).normalize("NFD").replace(/\p{M}/gu, ""))) continue;
+    const k = meatIn(m[1]); if (k) out.add(k);
+  }
+  for (const m of p.matchAll(new RegExp(`\\b(?:no\\s+(?:de|of|quiero|want)|not|no)\\s+(${MEAT_WORDS})\\b(?!\\s+(?:si|yes))`, "g"))) { const k = meatIn(m[1]); const prev = p.slice(0, m.index).trim().split(" ").pop() || ""; if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0]) && !meatIn(prev)) out.add(k); }
+  return [...out];
+}
+const isNeg = (t: Turn, meat: string) => t.speaker === "caller" && negatedMeats(t.text).includes(meat);
+/** Post-call: a line whose meat the caller negated (and never later asked for) loses it; a "cuatro tacos" group is split into the meats the caller listed. */
+export function applyNegatedMeat(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let changed = false;
+  for (const l of [...cart]) {
+    const k = kindOfLine(l); const meat = k && meatOfLine(l); if (!k || !meat) continue;
+    const ni = turns.findIndex((t) => isNeg(t, meat)); if (ni < 0) continue;
+    // asked for again later, positively ("sí, de costilla")
+    if (turns.slice(ni + 1).some((t) => t.speaker === "caller" && meatIn(plain(t.text)) === meat && !negatedMeats(t.text).includes(meat))) continue;
+    const later: Record<string, number> = {};
+    for (const t of turns.slice(ni + 1)) { if (t.speaker !== "caller") continue;
+      for (const m of plain(t.text).matchAll(new RegExp(`\\b(${NUMW}|otro|otra)\\s+(?:tacos?\\s+)?(?:de|del)\\s+(${MEAT_WORDS})\\b`, "g"))) {
+        const mm = meatIn(m[2]); if (!mm || mm === meat) continue; const q = /^otr/.test(m[1]) ? 1 : numOf(m[1]);
+        later[mm] = Math.max(later[mm] || 0, q); } } // a restated "dos de tripa" restates
+    const style = (l.modifiers || []).find((m: any) => /tortilla options/i.test(m.step))?.option;
+    const st: Exp["style"] = /taquer|street/i.test(style || "") ? "taquero" : /comal/i.test(style || "") ? "comal" : /harina|flour/i.test(style || "") ? "harina" : undefined;
+    const group = l.quantity || 1; const sum = Object.values(later).reduce((a, b) => a + b, 0);
+    cart.splice(cart.indexOf(l), 1); changed = true;
+    if (!sum || sum > group) continue;
+    for (const [mm, q] of Object.entries(later)) {
+      const ex = cart.find((x) => kindOfLine(x) === k && meatOfLine(x) === mm);
+      if (ex) { ex.quantity = Math.max(ex.quantity || 0, q); continue; }
+      const b = baseItem(menu, k); if (!b) continue; const nl: any = { itemId: b.id, quantity: q, modifiers: [] }; setLine(nl, { kind: k, meat: mm, qty: q, style: st }, menu); cart.push(nl);
+    }
+  }
+  return changed;
+}
+/** Tacos Dorados the caller never asked for ("dorados", "flautas", "crispy rolled") next to plain tacos of that meat are a phantom. */
+export function dropUnsaidDorados(cart: any[], turns: Turn[]): boolean {
+  const caller = plain(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "));
+  if (/\b(?:dorad[oa]s?|flautas?|rolled|crispy)\b/.test(caller)) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (!/^sq-tacos-dorados-/.test(String(l.itemId))) continue;
+    const m = meatOfLine(l); if (cart.some((x) => kindOfLine(x) === "taco" && (!m || meatOfLine(x) === m))) { cart.splice(i, 1); changed = true; } }
+  return changed;
+}
+/** Live: an add/update action carrying a meat the caller just negated drops that meat (Elvi then asks which). */
+export function noNegatedMeat(r: any, input: any) {
+  const neg = negatedMeats(String(input?.transcript || "")); if (!neg.length || !Array.isArray(r?.actions)) return r;
+  let hit = false;
+  const actions = r.actions.map((a: any) => { if (!a || !Array.isArray(a.modifiers)) return a;
+    const mods = a.modifiers.filter((m: any) => { const k = meatIn(plain(m.option)); const bad = !!k && neg.includes(k) && /carne|meat/i.test(String(m.step || m.groupName || "")); if (bad) hit = true; return !bad; });
+    return mods.length === a.modifiers.length ? a : { ...a, modifiers: mods }; });
+  return hit ? { ...r, actions } : r;
+}
