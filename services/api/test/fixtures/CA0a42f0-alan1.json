@@ -1,0 +1,332 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 2.181,
+   "end": 3.021,
+   "text": "Joaquina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.401,
+   "end": 13.302,
+   "text": "Hola, buenas tardes. Ah, quería hacer un pedido, me pondría dos tortas, me pondría dos tortas, un,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.683,
+   "end": 8.583,
+   "text": "Ah, claro, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.264,
+   "end": 14.245,
+   "text": "Claro, dos tortas, ¿de qué se las ponemos?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.302,
+   "end": 18.263,
+   "text": "una de bistec y si tiene pastor,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.106,
+   "end": 19.226,
+   "text": "Muy bien. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.563,
+   "end": 22.483,
+   "text": "me pone una de bistec y una de pastor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.328,
+   "end": 27.769,
+   "text": "Muy bien, una de, una torta de bistec y la otra de al pastor. ¿Algo más para su orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.764,
+   "end": 28.164,
+   "text": "Ah, ot,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.124,
+   "end": 31.885,
+   "text": "me pone unas dos igual, una y una.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.691,
+   "end": 34.552,
+   "text": "O en otra orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.505,
+   "end": 36.626,
+   "text": "Ajá, otra orden igual.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 37.693,
+   "end": 40.433,
+   "text": "De bistec y de al pastor. Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 41.486,
+   "end": 43.887,
+   "text": "Ah, sería todo, sería nombre de Alan.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 46.616,
+   "end": 47.056,
+   "text": "Alan.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.107,
+   "end": 48.287,
+   "text": "Ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.296,
+   "end": 51.137,
+   "text": "Muy bien, entonces te tengo",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 52.558,
+   "end": 55.959,
+   "text": "dos tortas de bistec y dos tortas de al pastor, Alan.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.011,
+   "end": 58.653,
+   "text": "Sí, ¿cómo en cuánto tiempo estaría?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 62.976,
+   "end": 64.897,
+   "text": "Quince minutos, bueno, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Alpastor / Roasted Pork"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Bistec / Steak"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Joaquina Elvis."
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, quería hacer un pedido, me pondría dos tortas, me pondría dos tortas, un,",
+    "language": "es",
+    "reply": "Torta: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, claro, dígame."
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, dos tortas, ¿de qué se las ponemos?"
+   },
+   {
+    "source": "caller-meat",
+    "heard": "una Ah, quería hacer un pedido, me pondría dos tortas, me pondría dos tortas, un de bistec y si tiene pastor",
+    "language": "es",
+    "reply": "2 tortas: 1 bistec, 1 pastor, torta, salsa asada. $9.50. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-expanded",
+    "heard": "una de bistec y si tiene pastor,",
+    "asked": "Ah, quería hacer un pedido, me pondría dos tortas, me pondría dos tortas, un,",
+    "expanded": [
+     "una Ah, quería hacer un pedido, me pondría dos tortas, me pondría dos tortas, un de bistec y si tiene pastor"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien. Sí."
+   },
+   {
+    "source": "caller",
+    "heard": "me pone una de bistec, una de pastor",
+    "language": "es",
+    "reply": "2 tortas: 1 bistec, 1 pastor, torta, salsa asada. $9.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, una de, una torta de bistec y la otra de al pastor. ¿Algo más para su orden?"
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, ot, me pone unas dos igual",
+    "language": "es",
+    "reply": "Torta: bistec y pastor. $4.75. ¿Algo más?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "caller-count",
+    "heard": "una y una"
+   },
+   {
+    "source": "staff",
+    "heard": "O en otra orden."
+   },
+   {
+    "source": "caller",
+    "heard": "Ajá, otra orden igual",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "De bistec y de al pastor. Muy bien, ¿algo más?"
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, sería todo, sería nombre de Alan",
+    "language": "es",
+    "reply": "Gracias, Alan. Revisa tu orden y cuando estés listo, pasa a pagar.",
+    "actions": [
+     "set_customer"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Alan."
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Ajá."
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, entonces te tengo"
+   },
+   {
+    "source": "staff",
+    "heard": "dos tortas de bistec y dos tortas de al pastor, Alan."
+   },
+   {
+    "source": "caller",
+    "heard": "Sí, ¿cómo en cuánto tiempo estaría Quince minutos, bueno",
+    "language": "es",
+    "reply": "Quince minutos, anotado. ¿Algo más?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Alan"
+ }
+}

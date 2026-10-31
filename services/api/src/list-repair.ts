@@ -630,3 +630,28 @@ export function liveLuis3(r: any, input: any) {
   const reply = fixMenudoReply(r?.reply, [...out.filter((a) => a.type === "add_item" || a.type === "update_item"), ...(out.some((a) => /^sq-menudo-/.test(String(a.itemId))) ? [] : cart)]);
   return out === acts && reply === String(r?.reply || "") ? r : { ...r, actions: out, reply };
 }
+
+// alan1 (CA0a42f0, Oct 31 12:27 PM ET): "una de bistec y una de pastor" + "otra orden igual" → staff "entonces te tengo |
+// dos tortas de bistec y dos tortas de al pastor" (read-back split over two staff turns); Elvi rang 3 bistec + 1 pastor.
+// The final staff read-back's "N <dish> de <meat>" counts win for each (dish, meat) it names (any dish kind, joined turns).
+export function finalReadbackPairs(turns: Turn[]): Array<{ id: RegExp; meat: string; qty: number }> {
+  let i = -1; turns.forEach((t, j) => { if (t.speaker === "staff" && READBACK.test(plain(t.text))) i = j; }); if (i < 0) return [];
+  let txt = plain(turns[i].text); for (let j = i + 1; j < turns.length && turns[j].speaker === "staff"; j++) txt += " " + plain(turns[j].text);
+  txt = txt.slice(txt.search(READBACK));
+  const re = new RegExp(`\\b(${NUMW})\\s+(?:(?:ordenes|orden) de\\s+)?([a-z]+)?\\s*(?:[a-z]+\\s+)?de\\s+((?:al\\s+)?[a-z]+)`, "g");
+  const out: Array<{ id: RegExp; meat: string; qty: number }> = []; let last: RegExp | null = null; let m: RegExpExecArray | null;
+  while ((m = re.exec(txt))) { const id = (m[2] && kindRe(m[2])) || last; const meat = meatIn(m[3]); if (!id || !meat) continue; last = id;
+    const prev = out.find((o) => o.id === id && o.meat === meat); if (prev) prev.qty += numOf(m[1]); else out.push({ id, meat, qty: numOf(m[1]) }); }
+  return out;
+}
+/** The line's meat from its carne/meat step only (never "Mild Salsa Asada"); "Alpastor" = al pastor. */
+const carneOf = (l: any) => { const m = (l.modifiers || []).find((x: any) => /carne|meat|relleno|filling/i.test(String(x.step)));
+  return m ? meatIn(plain(String(m.option)).replace(/\balpastor\b/, "al pastor")) : null; };
+export function applyReadbackCounts(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  for (const p of finalReadbackPairs(turns)) { if (p.id.source.includes("taco") || p.id.source.includes("quesadilla")) continue; // applyStaffReadback owns tacos/q
+    const ls = cart.filter((l) => p.id.test(String(l.itemId)) && carneOf(l) === p.meat); if (!ls.length || !p.qty) continue;
+    const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum === p.qty && ls.length === 1) continue;
+    ls[0].quantity = p.qty; for (const x of ls.slice(1)) cart.splice(cart.indexOf(x), 1); changed = true; }
+  return changed;
+}
