@@ -263,6 +263,8 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     let aNombreDe: string | null = null;
     let fullCaller: string | null = null;
     for (const t of turns.slice(i + 1, i + 10)) {
+      // juan9 (CA170467, Oct 31 6:57 PM ET): "Así es." confirming staff's readback is not a name answer
+      if (t.speaker === "caller" && /^\s*(?:as[ií]\s+es|eso\s+es|correcto|exacto|perfecto|est[aá]\s+bien|de\s+acuerdo)\b[\s.,!¡]*$/iu.test(t.text)) continue;
       if (t.speaker === "caller") {
         const spelled = nameFromSpelledLetters(t.text);
         let n = spelled || nameFromAnswer(t.text);
@@ -531,7 +533,7 @@ export function spelledNameFromCall(turns: Array<{ speaker: "caller" | "staff"; 
     s = s.replace(/\b(two|double|three|triple|dos|doble)\s+([A-Za-z])(?:'?s)?\b(?:[,\s]+\1\s+\2(?:'?s)?\b)+/giu, "$1 $2");
     s = s.replace(/\b(two|double|three|triple|dos|doble)\s+([A-Za-z])(?:'?s)?(?![A-Za-z])/giu, (_m, n, l) => Array(NUM[n.toLowerCase()] || 2).fill(l.toUpperCase()).join(" "));
     s = s.replace(/(?<![A-Za-z])([A-Za-z])-(?=[A-Za-z](?![A-Za-z]))/g, "$1 ");
-    for (const m of s.matchAll(/(?:^|[^A-Za-z])((?:[A-Za-z][\s.,]+){2,13}[A-Za-z])(?![A-Za-z])/g)) {
+    for (const m of s.matchAll(/(?:^|[^\p{L}])((?:[A-Za-z][\s.,]+){2,13}[A-Za-z])(?![\p{L}])/gu)) { // juan9: "¿a, a cómo" — the c of "cómo" is not a spelled letter
       const letters = m[1].split(/[\s.,]+/).filter(Boolean);
       if (letters.length < 3 || !letters.every((p) => /^[A-Za-z]$/.test(p))) continue;
       if (letters.join("").toLowerCase() === "abc") continue;

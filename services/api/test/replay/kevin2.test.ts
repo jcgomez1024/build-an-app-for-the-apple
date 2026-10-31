@@ -31,3 +31,14 @@ test("kevin2: leading filler skipped before 'a nombre de'; filler words never na
   assert.equal(N.nameFromTranscriptInfo([{ speaker: "caller", text: "Nomás a nombre de Ana, por favor." }] as any)?.name, "Ana");
   assert.equal(N.nameFromTranscriptInfo([{ speaker: "staff", text: "¿A nombre de quién?" }, { speaker: "caller", text: "Solamente." }] as any)?.name ?? null, null);
 });
+test("kevin2b: late tortilla choice — 'el del comal está bien' → QCO queso birrias; '¿No tiene taqueras?' 'Sí' → TST bistec", () => {
+  const c = structuredClone(d.cart.cart); assert.ok(L.applyLateTortillaChoice(c, d.turns, menu));
+  const ops = (l: any) => l.modifiers.map((m: any) => m.option).join(" ");
+  assert.match(ops(c[0]), /\(QCO\) 3 x Queso Birrias/); assert.doesNotMatch(ops(c[0]), /\(QST\)/);
+  assert.match(ops(c[1]), /\(TST\)/); assert.doesNotMatch(ops(c[1]), /\(TCO\)/);
+  assert.equal(L.applyLateTortillaChoice(c, d.turns, menu), false);
+});
+test("kevin2b: staff listing both prices + caller 'okay' picks nothing", () => {
+  const c = [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(A) T Tortilla Options", option: "(TCO) Taco Comal / Homemade (+$1.00)" }] }];
+  assert.equal(L.applyLateTortillaChoice(c, [{ speaker: "caller", text: "dos tacos" }, { speaker: "staff", text: "los de comal a cuatro y taqueros a tres" }, { speaker: "caller", text: "okay" }] as any, menu), false);
+});

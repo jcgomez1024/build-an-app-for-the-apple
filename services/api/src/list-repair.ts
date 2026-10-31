@@ -999,3 +999,32 @@ export function liveEsquiteAsk(r: any, input: any) {
   const id = (input?.menu || []).find?.((x: any) => /^sq-esquite-/.test(x.id))?.id || "sq-esquite-elvis-esquite-16oz-SGPEZK";
   return { ...r, actions: [...acts, { type: "add_item", itemId: id, quantity: m[1] ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "esquite" }] };
 }
+
+// kevin2b (CAdd19f3, Oct 31 6:51 PM ET): staff "del comal." → "el del comal está bien" (queso birrias rang QST), and after
+// "dos tacos de bistec" the caller's "¿No tiene taqueras?" … "Sí, por favor" (tacos rang TCO). The tortilla word applies to the
+// food family last talked about (queso birrias / tacos / quesadillas): said by the caller, or a caller yes to a staff turn naming it.
+type TFam = "qb" | "taco" | "quesadilla";
+const TFAM_WORD: Array<[RegExp, TFam | "other"]> = [[/\bque?s[aei]\s*v?birrias?\b|\bquesabirrias?\b|\bquesi\s*birrias?\b|\bque?s[aei]v?irrias?\b/, "qb"], [/\btacos?\b/, "taco"],
+  [/\bquesadillas?\b/, "quesadilla"], [/\b(?:esquites?|elotes?|jarritos?|horchatas?|aguas?|cocas?|refrescos?|sodas?|burritos?|tortas?|sopes?|gorditas?|menudo|pozole)\b/, "other"]];
+const tStyle = (p: string): "comal" | "taquero" | "harina" | null => /\bcomal(?:es)?\b|\bhechas? a mano\b/.test(p) ? "comal" : /\btaquer[oa]s?\b|\bstreet\b/.test(p) ? "taquero" : /\bharina\b|\bflour\b/.test(p) ? "harina" : null;
+const lastFam = (p: string): TFam | "other" | null => { let best: [number, TFam | "other"] | null = null;
+  for (const [re, f] of TFAM_WORD) for (const m of p.matchAll(new RegExp(re.source, "g"))) if (!best || (m.index || 0) >= best[0]) best = [m.index || 0, f]; return best?.[1] || null; };
+export function applyLateTortillaChoice(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const choice: Partial<Record<TFam, "comal" | "taquero" | "harina">> = {}; let fam: TFam | "other" | null = null;
+  turns.forEach((t, i) => { const p = plain(t.text); const st = tStyle(p);
+    const f0 = lastFam(p.replace(/\b(?:comal(?:es)?|taquer[oa]s?|harina)\b/g, ""));
+    if (st && t.speaker === "caller") { const target = f0 && f0 !== "other" ? f0 : fam; if (target && target !== "other") choice[target] = st; }
+    if (st && t.speaker === "staff" && [/\bcomal/, /\btaquer/, /\bharina/].filter((r) => r.test(p)).length === 1) { const target = f0 && f0 !== "other" ? f0 : fam; const nx = turns[i + 1];
+      if (target && target !== "other" && nx?.speaker === "caller" && /^(?:si|claro|ok|okay|esta bien|ajam?|correcto|por favor|yes|sale|va)\b/.test(plain(nx.text))) choice[target] = st; }
+    if (f0) fam = f0; });
+  let changed = false;
+  for (const l of cart) { const id = String(l.itemId);
+    const f: TFam | null = /^sq-queso-birrias-/.test(id) ? "qb" : /^sq-taco-/.test(id) ? "taco" : /^sq-quesadilla-/.test(id) ? "quesadilla" : null; if (!f || !choice[f]) continue;
+    const base = menu.find((m) => m.id === id); const g = (base?.modifierGroups || []).find((x: any) => /tortilla options|queso birrias options/i.test(x.name)); if (!g) continue;
+    const want = choice[f]!; const code = f === "taco" ? { comal: "TCO", taquero: "TST", harina: "THR" }[want] : { comal: "QCO", taquero: "QST", harina: "QHR" }[want];
+    const opt = (g.options || []).map(oname).find((o: string) => o.startsWith(`(${code})`)); if (!opt) continue;
+    const cur = (l.modifiers || []).find((m: any) => m.step === g.name || /^\((?:TCO|TST|THR|QCO|QST|QHR)\)/.test(String(m.option)));
+    if (cur?.option === opt) continue;
+    l.modifiers = [...(l.modifiers || []).filter((m: any) => m !== cur), { step: g.name, option: opt }]; changed = true; }
+  return changed;
+}
