@@ -373,7 +373,7 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(cu[aá]nt[oa]s?|cu[aá]les|c[oó]mo|d[oó]nde|cu[aá]ndo|qui[eé]n(?:es)?|perd[oó]n(?:e|eme|ame)?|disculp[ae]|disc[uú]lp(?:e|a)(?:me|nos)?|permiso|what|how|where|when|who|which|ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|and|just|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]tame|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|mire|m[aá]ndeme|m[aá]ndame|mande|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
+const NOT_NAMES = /^(cu[aá]nt[oa]s?|cu[aá]les|c[oó]mo|d[oó]nde|cu[aá]ndo|qui[eé]n(?:es)?|perd[oó]n(?:e|eme|ame)?|disculp[ae]|disc[uú]lp(?:e|a)(?:me|nos)?|permiso|what|how|where|when|who|which|ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|and|just|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]t[aeií]?me|permitime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|mire|m[aá]ndeme|m[aá]ndame|mande|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo)$/iu;
 /** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
 export function nameFromSpelledLetters(text: string): string | null {
   let s = String(text || "").trim();
@@ -596,7 +596,12 @@ export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; tex
   return null;
 }
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
-  const r = nameFromTranscriptInfo1(turns); if (!r) return r;
+  const prop = staffProposedName(turns);
+  let r = nameFromTranscriptInfo1(turns);
+  if (r && isFillerName(r.name)) r = null;
+  // acevedo1: staff "¿Acevedo?" + caller "Sí" beats a vocative/volunteer/spelled guess
+  if (prop && (!r || (r.source !== "staff-ask" && foldName(r.name.split(/\s+/)[0]) !== foldName(prop)))) return { name: prop, thirdPerson: false, source: "staff-ask" };
+  if (!r) return r;
   // marta1 (CAc8d287, Oct 31 1:15 PM ET): a junk "spelled" name ("Yam") never beats staff's "doña Marta" / "don X".
   if (r.source === "spelled") { const v = donaVocative(turns); if (v && foldName(v) !== foldName(r.name)) return { ...r, name: v, source: "vocative" }; }
   const n = destutterName(r.name); return n !== r.name ? { ...r, name: n } : r;
@@ -790,5 +795,22 @@ export function destutterName(name: string): string {
 export function donaVocative(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff") continue;
     const m = String(t.text).match(/\b(?:[Dd]oña|[Dd]on)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,})\b/u); if (m) return m[1]; }
+  return null;
+}
+
+// acevedo1 (CA99d48f, Oct 31 1:46 PM ET): staff filler "Okay, permíteme." became the order name. Fillers are never names
+// (accent/spelling-insensitive: permíteme, permiteme, permítame, permitame, permitime, pérmitame…).
+export function isFillerName(name: string): boolean {
+  const f = String(name || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z ]/g, "").trim();
+  return /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
+}
+/** Staff proposes a name as a bare question ("¿Acevedo?") and the caller says yes → that name. */
+export function staffProposedName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = 0; i < turns.length - 1; i++) { const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = String(t.text).trim().match(/^¿?\s*(?:(?:[Dd]on|[Dd]oña|[Ee]res|[Ee]s)\s+)?([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,})?)\s*\?$/u); if (!m) continue;
+    const name = m[1]; if (isFillerName(name) || NOT_NAME.test(name) || NOT_NAMES.test(name) || NOT_STAFF_NAME.test(name) || isNumberName(name)) continue;
+    if (/^(?:Comal|Harina|Bistec|Pastor|Delivery|Domicilio|Pickup|Mande|Cu[aá]ntos?|Cu[aá]ntas?|Qu[eé]|D[oó]nde|Adónde|Ad[oó]nde|Algo|Nada|Verdad|Seguro|Preparadas?|Doradas?|Regulares?|Okay|Bueno|Listo)$/i.test(name.split(/\s+/)[0])) continue;
+    const nx = turns.slice(i + 1).find((x) => x.speaker === "caller");
+    if (nx && YES.test(String(nx.text)) && String(nx.text).trim().split(/\s+/).length <= 4) return name; }
   return null;
 }

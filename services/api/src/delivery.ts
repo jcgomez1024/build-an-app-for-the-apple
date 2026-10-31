@@ -93,6 +93,9 @@ export function addressesIn(text: string): Address[] {
   t = t.replace(/\b(?:(?:tu|su|mi|your|my|el|the)\s+(?:n[uú]mero(?!\s+de\s+(?:tu|su|la|mi)\s+casa)|tel[eé]fono|cel(?:ular)?|phone(?:\s+number)?|cell(?:\s+number)?|number)|tel[eé]fono|phone\s+number|call\s+back\s+number)\b([^\d]{0,40}?)((?:\d[\d\s().-]*)+)/giu, (_m, gap) => " " + gap + " ");
     // cad71199: "478, Bank Street" / "4 78, Bank Street" → "478 Bank Street"
   t = t.replace(/\b(\d{1,6}),\s+(?=[a-záéíóúñ])/giu, "$1 ");
+  // acevedo1 (CA99d48f): "127 calle Amor" (number before calle/avenida) → "127 Amor St"; never "127 Calle St".
+  t = t.replace(/\b(\d{1,6})\s+(calle|avenida|av\.?)\s+([a-záéíóúñ][a-záéíóúñ.'-]{2,}(?:\s+[a-záéíóúñ][a-záéíóúñ.'-]{2,})?)\b/giu,
+    (_m, n, k, name) => `${n} ${name.replace(/\s+(?:por favor|please|oiga|mano)$/i, "")} ${/^av/i.test(k) ? "Avenue" : "Street"}`);
   const out: Array<{ at: number; a: Address }> = [];
   for (const m of t.matchAll(ADDR_EN)) {
     const words = m[2].trim().split(/\s+/);
@@ -111,7 +114,7 @@ export function addressesIn(text: string): Address[] {
   }
   // caguamas1/callback1: "a la William 544" / "544 La Williams" (no St/Ave). Require street-like token; reject "25 por"/time phrases.
   if (!out.length) {
-    const BAD = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo)$/i;
+    const BAD = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo)$/i;
     for (const m of t.matchAll(/\b(?:a\s+(?:a\s+)?(?:la\s+)?)([a-záéíóúñ][a-záéíóúñ.'-]{2,})\s+(\d{2,6})\b/giu)) {
       const name = title(m[1]);
       if (BAD.test(name) || name.length < 4) continue;
@@ -123,7 +126,7 @@ export function addressesIn(text: string): Address[] {
       out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
     }
     // gerardo1 (CAdf3a04): "fairground número 85" / "Fairground 85" / "85 Fairground" (no St/Ave spoken)
-    const BAD2 = /^(tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
+    const BAD2 = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
     const key3 = (st: string) => st.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
     for (const m of t.matchAll(/\b([a-záéíóúñ][a-záéíóúñ.'-]{3,})\s+(?:n[uú]mero\s+)?(\d{2,6})\b/giu)) {
       const name = title(m[1]);

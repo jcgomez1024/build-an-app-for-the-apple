@@ -4714,7 +4714,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   let address = shadowAddress || detA.address?.full || detA.address?.street || null;
   let addressConfirmed = shadowAddressConfirmed || detA.confirmed
-    || (!!address && fulfillment === "DELIVERY" && !!detA.address);
+    // acevedo1: a caller-only address nobody read back stays unconfirmed (the ticket keeps its confirm flag)
+    || (!!address && fulfillment === "DELIVERY" && !!detA.address && detA.by === "staff");
   // anthony1d: fried/dorada corn quesadillas → 3 QD Deluxe steak + 1 QD Regular steak (cheese); sides; drop phantoms
   {
     const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
