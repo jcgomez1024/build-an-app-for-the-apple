@@ -18,13 +18,14 @@ export type SavedAddress = { address: string; street: string; firstUsedAt: strin
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi|hasta(\s+luego)?|nos\s+vemos|good\s*bye|bye(\s*bye)?|cu[ií]date|chao|chau|adi[oó]s|perm[ií]t[aeií]?me(?:lo)?|perm[ií]ta(?:me)?|esp[eé]r[ae]me|un\s+momento)\b/i;
+const JUNK_FOOD = /^(?:t[aá]quer[oa]s?|comal(?:es)?|harina|tacos?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|bistec|biste|pastor|asada|horchata|deluxe|regular(?:es)?|grandes?|doradas?|preparad[oa]s?)$/i; // hector2
 /** Full name as typed, trimmed and Title Cased; null for junk (digits only, Receipt/Cliente/Guest/TO GO, 1 letter, >40 chars). */
 export function cleanFullName(raw: string | null | undefined): string | null {
   // sean1 (CA249b7d): "under Ryan or Sean" / "Ana o Luis" → first name only; drop the trailing or/o and the alternate
   const s = String(raw || "").replace(/\s+/g, " ").trim().replace(/\s+(?:or|o)(?:\s+\p{L}[\p{L}'-]*)?\s*[.,!?]*$/iu, "").trim();
   if (s.length < 2 || s.length > 40) return null;
   if (!/\p{L}{2,}/u.test(s) || /^[\d\s#().+-]+$/.test(s) || /#\s*\d|\d{3,}/.test(s)) return null;
-  if (JUNK.test(s)) return null;
+  if (JUNK.test(s) || JUNK_FOOD.test(s.trim())) return null;
   if (!cleanFirstName(s)) return null;
   return s.toLocaleLowerCase("es").replace(/(^|[\s'’-])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es"));
 }

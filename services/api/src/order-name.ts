@@ -800,9 +800,11 @@ export function donaVocative(turns: Array<{ speaker: "caller" | "staff"; text: s
 
 // acevedo1 (CA99d48f, Oct 31 1:46 PM ET): staff filler "Okay, permíteme." became the order name. Fillers are never names
 // (accent/spelling-insensitive: permíteme, permiteme, permítame, permitame, permitime, pérmitame…).
+// hector2 (CA17937e): staff "¿Táqueros?" (tortilla style ask) + "Sí" saved as the name. Menu / style words are never names.
+const FOOD_STAFF_WORD = /^(?:(?:los|las|el|la|de|del)\s+)?(?:taquer[oa]s?|comal(?:es)?|harina|maiz|tacos?|quesadillas?|gorditas?|burritos?|burros?|tortas?|sopes?|sopesa[sz]os?|tostadas?|tamales?|menudos?|pozoles?|birria|bistec|biste|asada|pastor|alpastor|carnitas|chorizo|pollo|cabeza|lengua|tripas?|buche|prensado|deshebrada|picadillo|costilla|horchata|jamaica|tamarindo|aguas?|refrescos?|cocas?|deluxe|regulares?|grandes?|chic[oa]s?|doradas?|fritas?|preparad[oa]s?|verduras?|todo|cebolla|cilantro|salsa|picante|picoso|frijoles?|arroz|crema|queso)$/;
 export function isFillerName(name: string): boolean {
   const f = String(name || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z ]/g, "").trim();
-  return /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
+  return FOOD_STAFF_WORD.test(f) || /^(?:serian?|seria|son|seran?|es|eso|esto|entonces|total|cuanto|cuantos|listo|muy bien|perfecto|claro|gracias|okey|okay|ok)$/.test(f) || /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
 }
 /** Staff proposes a name as a bare question ("¿Acevedo?") and the caller says yes → that name. */
 export function staffProposedName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {

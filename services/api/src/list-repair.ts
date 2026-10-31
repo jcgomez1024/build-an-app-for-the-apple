@@ -775,7 +775,7 @@ export function addStaffConfirmedDrink(cart: any[], turns: Turn[], menu: any[]):
       cart.push({ itemId: id, quantity: qty, modifiers: [], readback: name.source.replace(/\\b/g, "") }); ch = true; } });
   return ch;
 }
-export function applyAlex3(cart: any[], turns: Turn[], menu: any[]) { dropTruncatedRepeatTwin(cart, turns); addStaffConfirmedDrink(cart, turns, menu); }
+export function applyAlex3(cart: any[], turns: Turn[], menu: any[]) { dropTruncatedRepeatTwin(cart, turns); addStaffConfirmedDrink(cart, turns, menu); addStrongAsrHorchata(cart, turns); }
 
 // andrew1 (CA67453b, Oct 31 3:46 PM ET): "un sopesazo de asada" rang with only "Mild Salsa Asada" and no meat.
 // "de asada" on a dish with a meat step = carne asada = Bistec, never a salsa pick (unless "salsa asada" was said).
@@ -828,4 +828,20 @@ export function applyBurritoSaid(cart: any[], turns: Turn[]): boolean {
     l.modifiers = (l.modifiers || []).filter((x: any) => !words.some((w) => plain(x.option).startsWith(w.replace(/s$/, ""))));
     const notes = new Set([...(l.elviNotes || []), ...words.map((w) => `no ${w}`)]); if (notes.size !== (l.elviNotes || []).length) { l.elviNotes = [...notes]; ch = true; } } }
   return ch;
+}
+
+// hector2 (CA17937e, Oct 31 4:28 PM ET): "1 water de Ochata" (ASR) is an agua de horchata even with no staff repeat.
+const STRONG_HORCHATA = /\b(?:agua|water|vaso)\s+(?:de\s+)?(?:h?o\s*chata|or?chata|ochata)\b/;
+const HORCHATA_ID = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+export function addStrongAsrHorchata(cart: any[], turns: Turn[]): boolean {
+  if (cart.some((l) => /horchata/i.test(String(l.itemId)))) return false;
+  const t = turns.find((x) => x.speaker === "caller" && STRONG_HORCHATA.test(plain(x.text))); if (!t) return false;
+  const q = plain(t.text).match(new RegExp(`\\b(${NUMW})\\s+(?:agua|water|vaso)s?\\b`)); 
+  cart.push({ itemId: HORCHATA_ID, quantity: q ? Math.max(1, numOf(q[1])) : 1, modifiers: [], readback: "horchata" }); return true;
+}
+export function liveStrongHorchata(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const tx = plain(String(input?.transcript || ""));
+  if (!STRONG_HORCHATA.test(tx) || [...(input?.cart || []), ...acts].some((l: any) => /horchata/i.test(String(l.itemId)))) return r;
+  const q = tx.match(new RegExp(`\\b(${NUMW})\\s+(?:agua|water|vaso)s?\\b`));
+  return { ...r, actions: [...acts, { type: "add_item", itemId: HORCHATA_ID, quantity: q ? Math.max(1, numOf(q[1])) : 1, modifiers: [], readback: "horchata" }] };
 }
