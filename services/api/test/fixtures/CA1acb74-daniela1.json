@@ -1,0 +1,152 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "text": "Buenos días, cocina Elvis."
+  },
+  {
+   "speaker": "caller",
+   "text": "Hola, buenos días. Quiero hacer una orden."
+  },
+  {
+   "speaker": "staff",
+   "text": "Ah, sí, claro, dígame."
+  },
+  {
+   "speaker": "caller",
+   "text": "Me da un menudo"
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, ¿con pata o regular?"
+  },
+  {
+   "speaker": "caller",
+   "text": "regular."
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, ¿algo más?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Y me da dos quesadillas de harin, de harina de bistec y dos de maíz de bistec. Y un agua de horchata grande, por favor."
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien."
+  },
+  {
+   "speaker": "staff",
+   "text": "He ido del comal de biste. ¿Algo más?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, una horchata grande. Okey, está muy bien. ¿Algo más?"
+  },
+  {
+   "speaker": "caller",
+   "text": "No, nada más."
+  },
+  {
+   "speaker": "staff",
+   "text": "Entonces le tengo el menudo, dos quesadillas de harina de biste y dos quesadillas del comal de biste y por último la horchata."
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, por favor, y si me puede poner al lado chiles de los toreados con cebolla."
+  },
+  {
+   "speaker": "staff",
+   "text": "Ah, toreados."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Cebolla y chiles asados?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, por favor."
+  },
+  {
+   "speaker": "staff",
+   "text": "Okey, muy bien, sí, está bien."
+  },
+  {
+   "speaker": "caller",
+   "text": "Okay, nada más, al nom, al nombre de de Daniela."
+  },
+  {
+   "speaker": "staff",
+   "text": "Muchas gra, ah, da."
+  },
+  {
+   "speaker": "staff",
+   "text": "Daniela, muy bien, dame unos quince minutos, Daniela."
+  },
+  {
+   "speaker": "caller",
+   "text": "Okay, gracias."
+  },
+  {
+   "speaker": "staff",
+   "text": "Gracias a ti."
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "menudo"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+   "quantity": 1,
+   "modifiers": []
+  }
+ ]
+}

@@ -1,0 +1,108 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "text": "Buenos días."
+  },
+  {
+   "speaker": "caller",
+   "text": "Primero que, me preparo menudo, por favor."
+  },
+  {
+   "speaker": "staff",
+   "text": "Claro, un menudito, al, ¿lo quieren con pata o sin pata?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Sin patas."
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, ¿algo más?"
+  },
+  {
+   "speaker": "caller",
+   "text": "Y una quesadilla de,"
+  },
+  {
+   "speaker": "caller",
+   "text": "de tripo, porfa."
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, del comal, ¿verdad? Se la ponemos."
+  },
+  {
+   "speaker": "caller",
+   "text": "Sí, está bien. No, nada más era esa."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Algo más?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, entonces, ¿a qué nombre sería la orden?"
+  },
+  {
+   "speaker": "caller",
+   "text": "A Christopher."
+  },
+  {
+   "speaker": "staff",
+   "text": "¿Christopher?"
+  },
+  {
+   "speaker": "staff",
+   "text": "Muy bien, Christopher, dame unos"
+  },
+  {
+   "speaker": "staff",
+   "text": "unos quince minutos."
+  },
+  {
+   "speaker": "caller",
+   "text": "Ok, está bien, gracias."
+  },
+  {
+   "speaker": "staff",
+   "text": "Gracias a ti."
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "Menudo options",
+     "option": "Con Pata Menudo 32oz y Tortillas (4)"
+    },
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "asked": true
+  }
+ ]
+}

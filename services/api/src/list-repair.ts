@@ -391,3 +391,72 @@ export function liveSideSize(r: any, input: any) {
   if (!o) return r; const en = input?.language === "en";
   return { ...r, actions: [{ type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: [{ step: g.name, option: o }] }], reply: en ? `${big ? "Large" : "Small"}. Anything else?` : `${big ? "Grande" : "Chica"}. ¿Algo más?` };
 }
+
+// christopher1 (CAdd2004, Oct 31 10:07 AM ET): "¿con pata o sin pata?" → "Sin patas." rang the Con Pata option; "quesadilla de
+// tripo" (STT for tripa) rang Bistec. daniela1 (CA1acb74): "al lado chiles de los toreados con cebolla" + staff "¿Cebolla y chiles
+// asados?" → "Sí" never rang Extras Cebolla y Chiles Asados.
+const said = (turns: Turn[], who: string) => turns.filter((t) => t.speaker === who).map((t) => plain(t.text)).join(" | ");
+/** Caller chose no pata: "sin pata(s)", or "regular"/"normal" answering "¿con pata o …?". Never when the caller said "con pata". */
+export function callerSinPata(turns: Turn[]): boolean {
+  const c = said(turns, "caller"); if (/\bcon (?:la )?patas?\b/.test(c) && !/\bsin (?:la )?patas?\b/.test(c)) return false;
+  if (/\bsin (?:la )?patas?\b/.test(c)) return !/\bcon (?:la )?patas?\b/.test(c.replace(/\b(?:no|sin)\b[^|]*?\bcon (?:la )?patas?\b/g, ""));
+  return turns.some((t, i) => t.speaker === "caller" && /^(?:la |el )?(?:regular|normal|sencillo)\b/.test(plain(t.text))
+    && /\bcon (?:la )?patas?\b[^?]*\b(?:o|or)\b/.test(plain([...turns.slice(Math.max(0, i - 2), i)].reverse().find((x) => x.speaker === "staff")?.text || "")));
+}
+const CON_PATA = /con pata|extra pata|beef feet/i;
+const fixMenudoMods = (mods: any[], menuItem: any) => {
+  const g = (menuItem?.modifierGroups || []).find((g: any) => (g.options || []).some((o: any) => CON_PATA.test(oname(o))));
+  const reg = g && (g.options || []).map(oname).find((o: string) => /menudo/i.test(o) && !CON_PATA.test(o));
+  let hit = false; const out = (mods || []).filter((m: any) => { if (CON_PATA.test(String(m.option))) { hit = true; return false; } return true; });
+  if (hit && reg && g && !out.some((m: any) => m.step === g.name)) out.unshift({ step: g.name, option: reg });
+  return { mods: out, hit };
+};
+export function applyMenudoSinPata(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (!callerSinPata(turns)) return false; let changed = false;
+  for (const l of cart) { if (!/menudo/i.test(String(l.itemId))) continue;
+    if (/con-pata/i.test(String(l.itemId))) { const reg = menu.find((m) => /^sq-menudo-/.test(m.id) && /menudo/i.test(m.id) && !/con-pata/.test(m.id)); if (reg) { l.itemId = reg.id; changed = true; } }
+    const r = fixMenudoMods(l.modifiers, menu.find((m) => m.id === l.itemId)); if (r.hit) { l.modifiers = r.mods; changed = true; } }
+  return changed;
+}
+/** STT "tripo"/"tripita(s)" = tripa. */
+export const fixTripaStt = (s: string) => String(s || "").replace(/\btrip(?:o|os|itas?)\b/giu, "tripa");
+const DISH_RE = /\b(?:quesadillas?|tacos?|tortas?|gorditas?|sopes?|huaraches?|burritos?)\b/;
+/** The caller named exactly one meat for a q/taco line ("quesadilla de tripo") but the line has another, never-said meat → that meat. */
+export function applySaidMeat(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const c = plain(fixTripaStt(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "))).replace(/\bsalsa (?:de )?asada\b|\bchiles? asad[oa]s?\b/g, " "); let changed = false;
+  if (!DISH_RE.test(c)) return false;
+  const saidMeats = new Set(MEATS.filter(([re]) => re.test(c)).map(([, k]) => k)); if (saidMeats.size !== 1) return false;
+  const want = [...saidMeats][0];
+  for (const l of cart) { if (!kindOfLine(l)) continue; const m = (l.modifiers || []).find((x: any) => /carne|meat/i.test(String(x.step))); if (!m) continue;
+    const k = meatIn(plain(String(m.option))); if (!k || k === want || saidMeats.has(k)) continue;
+    const g = (menu.find((x) => x.id === l.itemId)?.modifierGroups || []).find((g: any) => g.name === m.step);
+    const o = (g?.options || []).map(oname).find((o: string) => meatIn(plain(o)) === want);
+    if (o) { m.option = o; changed = true; } else { l.elviNotes = [...(l.elviNotes || []), want]; changed = true; } }
+  return changed;
+}
+const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toreados?|asados?)\b|\b(?:toreados?|asados?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b/;
+const ASADOS_STAFF = /\bcebollas? y chiles? asados\b|\b(?:chiles )?toreados\b/;
+const YES = /^(?:si|yes|yeah|ok(?:ay)?|aja|claro|por favor|eso)\b/;
+export const asadosSideSaid = (turns: Turn[]) => turns.some((t, i) => t.speaker === "caller" && (ASADOS_CALLER.test(plain(t.text))
+  || (YES.test(plain(t.text)) && ASADOS_STAFF.test(plain([...turns.slice(Math.max(0, i - 2), i)].reverse().find((x) => x.speaker === "staff")?.text || "")))));
+const hasAsados = (cart: any[]) => cart.some((l) => (l.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m.option))));
+export function applyAsadosSide(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (hasAsados(cart) || !asadosSideSaid(turns)) return false;
+  const ex = menu.find((m) => (m.modifierGroups || []).some((g: any) => /^extras options$/i.test(g.name) && (g.options || []).some((o: any) => /^cebolla y chiles asados$/i.test(oname(o)))));
+  if (!ex) return false;
+  cart.push({ itemId: ex.id, quantity: 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] }); return true;
+}
+/** Live: same three repairs on the turn's add/update actions (menu = input.menu). */
+export function liveChristopher(r: any, input: any) {
+  const menu: any[] = input?.menu || input?.resolverMenu || []; const h: any[] = input?.history || [];
+  const turns: Turn[] = [...h.map((x: any) => ({ speaker: x.role === "assistant" ? "staff" : "caller", text: String(x.text || "") })), { speaker: "caller", text: String(input?.transcript || "") }];
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; if (!menu.length) return r;
+  const lines = acts.filter((a) => a.type === "add_item" || a.type === "update_item");
+  const tmp = lines.map((a) => ({ itemId: a.itemId, modifiers: (a.modifiers || []).map((m: any) => ({ ...m })) }));
+  const turnOnly: Turn[] = turns.slice(-3);
+  const ch = applyMenudoSinPata(tmp, turns, menu) || false; const ch2 = applySaidMeat(tmp, turnOnly, menu);
+  if (ch || ch2) tmp.forEach((t, i) => { lines[i].itemId = t.itemId; lines[i].modifiers = t.modifiers; });
+  const lastTwo = turns.slice(-3); const cartNow = [...(input?.cart || []), ...tmp];
+  if (asadosSideSaid(lastTwo) && !hasAsados(cartNow)) { const add: any[] = []; if (applyAsadosSide(add, lastTwo, menu)) return { ...r, actions: [...acts, { type: "add_item", ...add[0] }] }; }
+  return ch || ch2 ? { ...r, actions: acts } : r;
+}
