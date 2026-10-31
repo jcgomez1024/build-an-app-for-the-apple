@@ -776,3 +776,56 @@ export function addStaffConfirmedDrink(cart: any[], turns: Turn[], menu: any[]):
   return ch;
 }
 export function applyAlex3(cart: any[], turns: Turn[], menu: any[]) { dropTruncatedRepeatTwin(cart, turns); addStaffConfirmedDrink(cart, turns, menu); }
+
+// andrew1 (CA67453b, Oct 31 3:46 PM ET): "un sopesazo de asada" rang with only "Mild Salsa Asada" and no meat.
+// "de asada" on a dish with a meat step = carne asada = Bistec, never a salsa pick (unless "salsa asada" was said).
+const SOPES = /^sq-sope(?:s|z)a?so/i;
+const ASADA_MEAT = (t: string) => /\b(?:de|con)\s+(?:as\s+)?asada\b/.test(t) && !/\bsalsa\s+(?:de\s+)?asada\b/.test(t);
+const hasMeat = (l: any) => (l.modifiers || []).some((m: any) => /carne|meat/i.test(String(m.step)));
+function asadaBistec(l: any) {
+  l.modifiers = [{ step: "(A) Elvis Carne / Meat Options", option: "Bistec / Steak" }, ...(l.modifiers || []).map((m: any) => /^Mild Salsa Asada$/.test(m.option) ? { ...m, isDefault: true } : m)];
+}
+export function applySopesAsada(cart: any[], turns: Turn[]): boolean {
+  if (!ASADA_MEAT(said(turns, "caller").replace(/\|/g, " ")) ) return false; let ch = false;
+  for (const l of cart) if (SOPES.test(String(l.itemId)) && !hasMeat(l)) { asadaBistec(l); ch = true; }
+  return ch;
+}
+export function liveSopesAsada(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const tx = plain(String(input?.transcript || ""));
+  if (!ASADA_MEAT(tx)) return r; let ch = false;
+  const out = acts.map((a) => { if ((a.type === "add_item" || a.type === "update_item") && SOPES.test(String(a.itemId)) && !hasMeat(a)) { const b = { ...a }; asadaBistec(b); ch = true; return b; } return a; });
+  return ch ? { ...r, actions: out } : r;
+}
+
+// luis8 (CAf762f3, Oct 31 3:47 PM ET): "dos burritos de deshebrada" → staff "¿grandes o regulares?" → "Regulares" →
+// "menos cebolla y cilantro". Elvi rang 2 GRANDE deluxe + a phantom 1 regular deshebrada+bistec.
+const BURRITO = /^sq-burrito-/i;
+const burMeats = (l: any) => (l.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step))).map((m: any) => meatIn(plain(m.option))).filter(Boolean);
+export function applyBurritoSaid(cart: any[], turns: Turn[]): boolean {
+  let ch = false; const lines = () => cart.filter((l) => BURRITO.test(String(l.itemId)));
+  if (!lines().length) return false;
+  const callerTx = said(turns, "caller"), all = turns.map((t) => plain(t.text)).join(" | ");
+  // 1. counted burritos with one meat: lines beyond that count with an unsaid meat mix are phantoms
+  const m = callerTx.match(new RegExp(`\\b(${NUMW}) burritos?(?: (?:regulares|grandes))? de ([a-z]+)`));
+  if (m && !/\b(?:otro|otra|mas|y un[oa]?) burritos?\b/.test(callerTx.slice((m.index || 0) + m[0].length))) {
+    const n = numOf(m[1]), meat = meatIn(m[2]);
+    if (n && meat) for (let i = cart.length - 1; i >= 0 && lines().reduce((a, l) => a + (l.quantity || 1), 0) > n; i--) {
+      const l = cart[i]; if (!BURRITO.test(String(l.itemId))) continue; const ms = burMeats(l);
+      if (ms.length !== 1 || ms[0] !== meat) { cart.splice(i, 1); ch = true; } }
+  }
+  // 2. staff "¿grandes o regulares?" → caller's answer sets the size
+  turns.forEach((t, i) => { if (t.speaker !== "staff" || !/\bgrandes?\b.*\bregular(?:es)?\b|\bregular(?:es)?\b.*\bgrandes?\b/.test(plain(t.text))) return;
+    const ans = turns.slice(i + 1, i + 3).find((x) => x.speaker === "caller"); if (!ans) return; const a = plain(ans.text);
+    const size = /\bregular(?:es)?\b/.test(a) ? "Regular '10" : /\bgrandes?\b/.test(a) ? "Grande '12 (+$3.00)" : null; if (!size) return;
+    for (const l of lines()) { const s = (l.modifiers || []).find((x: any) => /burrito size/i.test(String(x.step)));
+      if (s && s.option !== size) { s.option = size; ch = true; } else if (!s) { l.modifiers = [{ step: "(A) Burrito Size", option: size }, ...(l.modifiers || [])]; ch = true; } } });
+  // 3. DELUXE only when someone said deluxe/preparado
+  if (!/\b(?:deluxe|delux|preparad[oa]s?)\b/.test(all)) for (const l of lines()) { const k = (l.modifiers || []).length;
+    l.modifiers = (l.modifiers || []).filter((x: any) => !/deluxe/i.test(String(x.step))); if (l.modifiers.length !== k) ch = true; }
+  // 4. "menos/sin cebolla y cilantro" → notes (and never the add-on options)
+  const neg = callerTx.match(/\b(?:menos|sin|no)\s+((?:cebolla|cilantro|crema|queso|arroz|frijoles?)(?:\s+(?:y|ni|ni\s+tampoco)\s+(?:cebolla|cilantro|crema|queso|arroz|frijoles?))*)/);
+  if (neg) { const words = neg[1].split(/\s+(?:y|ni|ni tampoco)\s+/); for (const l of lines()) {
+    l.modifiers = (l.modifiers || []).filter((x: any) => !words.some((w) => plain(x.option).startsWith(w.replace(/s$/, ""))));
+    const notes = new Set([...(l.elviNotes || []), ...words.map((w) => `no ${w}`)]); if (notes.size !== (l.elviNotes || []).length) { l.elviNotes = [...notes]; ch = true; } } }
+  return ch;
+}
