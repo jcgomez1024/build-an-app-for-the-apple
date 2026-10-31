@@ -580,8 +580,24 @@ export function callerOwnSpelling(turns: Array<{ speaker: "caller" | "staff"; te
       if (g !== f && g[0] === f[0] && g.length >= 4 && editDist(g, f) <= 2 && !NOT_NAMES.test(w) && !NOT_NAME.test(w)) return w; } }
   return null;
 }
+// angel1 (CA898bd1, Oct 31 11:23 AM ET): "¿A nombre de quién sería?" → caller "De Ángel." then "me conoce como Ángel o hasta
+// Guamas" → staff misheard nickname "Kawama" became the name. The caller's direct "De/A/Para X" answer to the name ask wins
+// over a later staff repeat; a nickname ("me conoce(n) como", "me dicen", "apodo") is never the order name.
+const NAME_ASK = /a nombre de qui[eé]n|(?:su|tu) nombre|c[oó]mo (?:te|se) llama|what(?:'s| is) (?:your|the) name|name (?:for|on) the order/i;
+const NICK_CUE = /\b(?:me|lo|le) (?:conoce[ns]?|dicen|llaman)\b|\bapodo\b|\bconocen como\b|\bknow me as\b|\bcall me\b/i;
+export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "staff" || !NAME_ASK.test(String(turns[i].text))) continue;
+    for (let j = i + 1; j < Math.min(turns.length, i + 3); j++) { if (turns[j].speaker !== "caller") continue;
+      const m = String(turns[j].text).match(/(?:^|[.,;!?]\s*)(?:[Dd]e|[Aa]|[Pp]ara)\s+(\p{Lu}[\p{L}]{2,})\.?\s*$/u);
+      if (m && !NOT_NAMES.test(m[1]) && !NOT_NAME.test(m[1]) && !isNumberName(m[1])) return m[1];
+      break; } }
+  return null;
+}
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   let r = nameFromTranscriptInfo0(turns); if (!r) return r;
+  if ((r.source === "staff-ask" || r.source === "vocative") && !r.group) { const d = directNameAnswer(turns);
+    if (d && foldName(d) !== foldName(r.name.split(/\s+/)[0]) && turns.some((t) => t.speaker === "caller" && NICK_CUE.test(String(t.text)))) r = { ...r, name: d }; }
   if (r.source === "vocative" || r.source === "staff-ask") { const own = callerOwnSpelling(turns, r.name.split(/\s+/)[0]); if (own) r = { ...r, name: [own, ...r.name.split(/\s+/).slice(1)].join(" ") }; }
   const full = withSurname(turns, r.name); return full && full !== r.name ? { ...r, name: full } : r;
 }

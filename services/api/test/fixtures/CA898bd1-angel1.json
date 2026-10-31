@@ -1,0 +1,535 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.82,
+   "end": 3.061,
+   "text": "Cocina Elvis, buenos,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.601,
+   "end": 3.341,
+   "text": "Bueno, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 3.962,
+   "end": 4.922,
+   "text": "buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.282,
+   "end": 6.802,
+   "text": "Si quieren cargar, ¿si tienes birria?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.423,
+   "end": 8.244,
+   "text": "Ah, sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.103,
+   "end": 10.743,
+   "text": "¿Me pueden cargar una birria, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.185,
+   "end": 12.505,
+   "text": "Claro, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.324,
+   "end": 14.624,
+   "text": "Base de de levri.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.687,
+   "end": 17.668,
+   "text": "Ah, delivery, claro, de que,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.225,
+   "end": 19.626,
+   "text": "Sí. La",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 18.968,
+   "end": 19.388,
+   "text": "muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.469,
+   "end": 21.169,
+   "text": "¿Sería todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.666,
+   "end": 21.126,
+   "text": "la calle es",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 22.186,
+   "end": 23.407,
+   "text": "Sí, y una coca.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.471,
+   "end": 25.151,
+   "text": "Muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.952,
+   "end": 30.773,
+   "text": "¿Me puedes dar tu dirección, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.369,
+   "end": 55.176,
+   "text": "Sí, la calle es Argón 565. Sí, bueno, 65.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 37.476,
+   "end": 38.517,
+   "text": "Okay, calle",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.337,
+   "end": 41.178,
+   "text": "Argonne,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 48.421,
+   "end": 54.704,
+   "text": "quinientos, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 55.764,
+   "end": 56.344,
+   "text": "Setenta",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.036,
+   "end": 74.178,
+   "text": "6, 6 5. Es 5 6 5. Ah, sí, 4 40 8 10, 4 40",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 62.045,
+   "end": 62.065,
+   "text": "y",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 64.966,
+   "end": 73.947,
+   "text": "cinco. Okay, seis cinco. Okay, okay. Ah, este, ¿también me puedes dar tu número de teléfono? Sí, sí, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 75.028,
+   "end": 83.649,
+   "text": "Ocho. Ujú. Ujú. Noventa y siete. ¿A nombre de quién sería?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 75.399,
+   "end": 84.64,
+   "text": "8 10 91 97. De Ángel.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 85.589,
+   "end": 86.37,
+   "text": "Ángel.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 86.78,
+   "end": 94.621,
+   "text": "Ya, el señor ya me conoce como Ángel o hasta Guamas. El señor o el hijo. Sí, ah, pero Ángel, así que lo diga.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 90.73,
+   "end": 91.21,
+   "text": "Kawama.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 95.311,
+   "end": 96.471,
+   "text": "Okay, yo le digo,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 97.752,
+   "end": 99.592,
+   "text": "okay, este, Ángel, este.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 101.932,
+   "end": 103.953,
+   "text": "Ahorita te llevamos tu orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 104.783,
+   "end": 109.963,
+   "text": "¿En cuánto tiempo? Está bien, sale.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 106.294,
+   "end": 108.074,
+   "text": "Dame unos veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 109.894,
+   "end": 110.034,
+   "text": "Ok.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 110.963,
+   "end": 111.484,
+   "text": "¿Cuánto va a ser?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 112.355,
+   "end": 113.895,
+   "text": "Ah, serían...",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 116.116,
+   "end": 116.696,
+   "text": "veintinueve.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 117.507,
+   "end": 117.867,
+   "text": "Está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 119.488,
+   "end": 121.03,
+   "text": "Sí, ahora pues sale, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "orden de birria"
+   },
+   {
+    "itemId": "sq-drink-coca-cola-JJE4KC",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Cocina Elvis, buenos,"
+   },
+   {
+    "source": "staff",
+    "heard": "buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "quieren cargar, ¿si tienes birria",
+    "language": "es",
+    "reply": "1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal: Elige la opción de birria.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, sí, claro."
+   },
+   {
+    "source": "caller",
+    "heard": "Me pueden cargar una birria",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, ¿algo más?"
+   },
+   {
+    "source": "caller",
+    "heard": "Base de levri",
+    "language": "es",
+    "reply": "1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal: Elige la opción de birria.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, delivery, claro, de que,"
+   },
+   {
+    "source": "caller",
+    "heard": "Sí. La",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "muy bien."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Sería todo?"
+   },
+   {
+    "source": "caller",
+    "heard": "la calle es Sí,",
+    "language": "es",
+    "reply": "Parece incompleto. ¿Me repite el nombre de la calle?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "una coca cola",
+    "language": "es",
+    "reply": "Coca Cola. $3.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Me puedes dar tu dirección, por favor?"
+   },
+   {
+    "source": "caller-address-frag",
+    "heard": "Sí, la calle es Argón 565. Sí, bueno, 65."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, calle"
+   },
+   {
+    "source": "staff",
+    "heard": "Argonne,"
+   },
+   {
+    "source": "staff",
+    "heard": "quinientos, sí."
+   },
+   {
+    "source": "staff",
+    "heard": "Setenta"
+   },
+   {
+    "source": "caller",
+    "heard": "6, 6 5. Es 5 6 5. Ah, sí, 4 40 8 10, 4 40",
+    "language": "es",
+    "reply": "No capté el número. ¿Me lo dice despacio, dígito por dígito?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "y"
+   },
+   {
+    "source": "staff",
+    "heard": "cinco. Okay, seis cinco. Okay, okay. Ah, este, ¿también me puedes dar tu número de teléfono? Sí, sí, dígame."
+   },
+   {
+    "source": "staff",
+    "heard": "Ocho. Ujú. Ujú. Noventa y siete. ¿A nombre de quién sería?"
+   },
+   {
+    "source": "caller",
+    "heard": "8 10 91 97. De Ángel",
+    "language": "es",
+    "reply": "Gracias, Ángel. Revisa tu orden y cuando estés listo, pasa a pagar.",
+    "actions": [
+     "set_customer"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Ángel."
+   },
+   {
+    "source": "caller",
+    "heard": "Ya, el señor ya me conoce como Ángel o hasta Guamas. El señor o el hijo. Sí, ah, pero Ángel, así que lo diga",
+    "language": "es",
+    "reply": "Listo.",
+    "actions": [
+     "set_customer"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Kawama."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, yo le digo,"
+   },
+   {
+    "source": "staff",
+    "heard": "okay, este, Ángel, este."
+   },
+   {
+    "source": "staff",
+    "heard": "Ahorita te llevamos tu orden."
+   },
+   {
+    "source": "caller",
+    "heard": "En cuánto tiempo? Está bien, sale",
+    "language": "es",
+    "reply": "No tengo el tiempo exacto. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Dame unos veinte minutos."
+   },
+   {
+    "source": "staff",
+    "heard": "Ok."
+   },
+   {
+    "source": "caller",
+    "heard": "Cuánto va a ser",
+    "language": "es",
+    "reply": "No veo artículos en el carrito. ¿Quiere ordenar algo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, serían..."
+   },
+   {
+    "source": "staff",
+    "heard": "veintinueve."
+   },
+   {
+    "source": "caller",
+    "heard": "Está bien Sí, ahora pues sale",
+    "language": "es",
+    "reply": "Ok. ¿Para recoger o a domicilio?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Ok. ¿Recoger o domicilio?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Necesito saber: ¿recoger o domicilio?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Entiendo, pero sin recoger o domicilio no puedo avanzar. ¿Cuál elige?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Sin eso no puedo completar el pedido. ¿Recoger?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "DELIVERY",
+  "address": "565 Es Argón St",
+  "addressConfirmed": true,
+  "customerName": "Kawama"
+ }
+}
