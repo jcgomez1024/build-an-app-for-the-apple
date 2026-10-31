@@ -969,3 +969,33 @@ export function liveJarritoAsk(r: any, input: any) {
   const tx = plain(String(input?.transcript || "")); const ask = jarritoAsk(tx); if (!ask || ask.flavor) return r;
   return { ...r, actions: [...acts, { type: "add_item", itemId: JAR_PLACEHOLDER, quantity: 1, modifiers: [], readback: "un jarrito (sabor por confirmar)" }] };
 }
+
+// kevin1 (CAdd19f3, Oct 31 6:51 PM ET): "un esquite, por favor" + staff "¿El esquite lo quiere con tajín?" "Sí" → no esquite rang.
+// Caller asks for N esquites and the cart has none → add N; tajín from "con/sin tajín" or a yes to staff's tajín question.
+const ESQ_ASK = new RegExp(`\\b(?:(${NUMW})\\s+)?esquites?\\b`);
+function esquiteTajin(turns: Turn[]): "con" | "sin" | "doble" | null {
+  let r: "con" | "sin" | "doble" | null = null;
+  turns.forEach((t, i) => { const p = plain(t.text); if (!/tajin/.test(p)) return;
+    if (t.speaker === "caller") { r = /\b(?:sin|no)\s+(?:el\s+)?tajin/.test(p) ? "sin" : /\b(?:doble|extra)\s+(?:de\s+)?tajin|tajin\s+doble/.test(p) ? "doble" : /\bcon\s+tajin/.test(p) ? "con" : r; return; }
+    const nx = turns.slice(i + 1).find((x) => x.speaker === "caller"); const a = nx ? plain(nx.text) : "";
+    if (/\?|quiere|lleva|con tajin/.test(p) && /^(?:si|claro|ok|okay|esta bien|ajam?|correcto|por favor|yes)\b/.test(a)) r = r || "con";
+    else if (/^no\b/.test(a)) r = "sin"; });
+  return r;
+}
+export function addAskedEsquite(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const item = menu.find((x) => /^sq-esquite-/.test(x.id)); if (!item) return false;
+  const g = (item.modifierGroups || [])[0]; const want = esquiteTajin(turns);
+  const opt = g && want && (g.options || []).map(oname).find((o: string) => want === "sin" ? /NO TAJIN/i.test(o) : want === "doble" ? /DOUBLE Tajin/i.test(o) : /^Tajin/i.test(o));
+  const have = cart.find((l) => /^sq-esquite-/.test(String(l.itemId)));
+  if (have) { if (opt && !(have.modifiers || []).some((x: any) => /tajin/i.test(x.option))) { have.modifiers = [...(have.modifiers || []), { step: g.name, option: opt }]; return true; } return false; }
+  const m = said(turns, "caller").match(ESQ_ASK); if (!m) return false;
+  cart.push({ itemId: item.id, quantity: m[1] ? numOf(m[1]) || 1 : 1, modifiers: opt ? [{ step: g.name, option: opt }] : [] });
+  return true;
+}
+export function liveEsquiteAsk(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const cart: any[] = input?.cart || [];
+  if (acts.some((a) => a.type === "add_item" && /^sq-esquite-/.test(String(a.itemId))) || cart.some((l) => /^sq-esquite-/.test(String(l.itemId)))) return r;
+  const m = plain(String(input?.transcript || "")).match(ESQ_ASK); if (!m) return r;
+  const id = (input?.menu || []).find?.((x: any) => /^sq-esquite-/.test(x.id))?.id || "sq-esquite-elvis-esquite-16oz-SGPEZK";
+  return { ...r, actions: [...acts, { type: "add_item", itemId: id, quantity: m[1] ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "esquite" }] };
+}

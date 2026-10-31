@@ -613,7 +613,10 @@ function nameFromTranscriptInfo1(turns: Array<{ speaker: "caller" | "staff"; tex
   if (r.source === "vocative" || r.source === "staff-ask") { const own = callerOwnSpelling(turns, r.name.split(/\s+/)[0]); if (own) r = { ...r, name: [own, ...r.name.split(/\s+/).slice(1)].join(" ") }; }
   const full = withSurname(turns, r.name); return full && full !== r.name ? { ...r, name: full } : r;
 }
+const NAME_LEAD_FILLER = /^\s*(?:(?:eh+|este|pues|bueno|solamente|s[oó]lo|nom[aá]s|nada\s+m[aá]s|mire|oiga)[\s,.]+)+(?=(?:a\s+)?(?:nombre|ser[ií]a|es\s+para|para)\b)/iu;
 function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled"; group?: string[] } | null {
+  // kevin1 (CAdd19f3, Oct 31 6:51 PM ET): "Solamente a nombre de Kevin" → "Solamente". Leading filler before a name phrase is dropped.
+  turns = turns.map((t) => t.speaker === "caller" ? { ...t, text: String(t.text).replace(NAME_LEAD_FILLER, "") } : t);
   const group = groupOrderNames(turns);
   let r = nameFromTranscriptInfoBase(turns);
   // chalino1 (CAe85a69, Oct 30 6:54 PM ET): the phone digits said after the name ask ("seis", "dos noventa y cuatro")
@@ -649,7 +652,8 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
     if (/\bmi\s+espa[nñ]ol\b/iu.test(t.text) || /\bes\s+muy\s+mal\b/iu.test(t.text)) continue;
     // Verb match case-insensitive; name token must be a real capitalized name (reject "Ah, es en")
     const seriaNombre = /\bser[ií]a\s+(?:el\s+)?nombre\s+(?:de\b|(?=\s+\p{Lu}))/iu.test(t.text)
-      || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text);
+      || /\b(?:el\s+)?nombre\s+ser[ií]a\b/iu.test(t.text)
+      || /^\s*[aA]\s+nombre\s+de\s+(?=\p{Lu})/u.test(t.text); // kevin1: bare "A nombre de Kevin" (after filler strip)
     // English volunteer: "Yeah, it's Josh." / "I'm Josh" / "my name is Josh" (josh1 CAaaa9a2)
     // ca20b6c0: "puedo aportar una orden para Carlos" / "una orden para X" = pickup ticket name
     const ordenPara = /\b(?:una?\s+)?(?:[oó]rden|pedido)\s+para\b/iu.test(t.text);
@@ -804,7 +808,7 @@ export function donaVocative(turns: Array<{ speaker: "caller" | "staff"; text: s
 const FOOD_STAFF_WORD = /^(?:(?:los|las|el|la|de|del)\s+)?(?:taquer[oa]s?|comal(?:es)?|harina|maiz|tacos?|quesadillas?|gorditas?|burritos?|burros?|tortas?|sopes?|sopesa[sz]os?|tostadas?|tamales?|menudos?|pozoles?|birria|bistec|biste|asada|pastor|alpastor|carnitas|chorizo|pollo|cabeza|lengua|tripas?|buche|prensado|deshebrada|picadillo|costilla|horchata|jamaica|tamarindo|aguas?|refrescos?|cocas?|deluxe|regulares?|grandes?|chic[oa]s?|doradas?|fritas?|preparad[oa]s?|verduras?|todo|cebolla|cilantro|salsa|picante|picoso|frijoles?|arroz|crema|queso)$/;
 export function isFillerName(name: string): boolean {
   const f = String(name || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z ]/g, "").trim();
-  return FOOD_STAFF_WORD.test(f) || /^(?:serian?|seria|son|seran?|es|eso|esto|entonces|total|cuanto|cuantos|listo|muy bien|perfecto|claro|gracias|okey|okay|ok|amables?|favor|porfa|porfavor|disculpe?|perdon|oiga|joven|senorita|senora|senor|amigo|amiga)$/.test(f) || /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
+  return FOOD_STAFF_WORD.test(f) || /^(?:serian?|seria|son|seran?|es|eso|esto|entonces|total|cuanto|cuantos|listo|muy bien|perfecto|claro|gracias|okey|okay|ok|amables?|favor|porfa|porfavor|solamente|solo|nomas|nada mas|pues|bueno|este|mire|oye|disculpe?|perdon|oiga|joven|senorita|senora|senor|amigo|amiga)$/.test(f) || /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
 }
 /** Staff proposes a name as a bare question ("¿Acevedo?") and the caller says yes → that name. */
 export function staffProposedName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
