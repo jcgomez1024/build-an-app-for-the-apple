@@ -869,3 +869,75 @@ export function liveDrinkReMention(r: any, input: any) {
     && cart.some((l) => l.itemId === a.itemId && JSON.stringify(l.modifiers || []) === JSON.stringify(a.modifiers || []))));
   return out.length === acts.length ? r : { ...r, actions: out };
 }
+
+// agustin2 (CA3888d0, Oct 31 5:02 PM ET): a relayed multi-order call — each sub-order's items, then "esa orden es para X".
+// The closure names the group so far. With ≥3 closures the caller's own words rebuild the taco / quesadilla / QD / quesitorta
+// lines (counts, "N de <meat>" splits, harina/comal/taquera/aceite, preparadas, con frijoles / cebolla asada). After-call only.
+const RELAY_CLOSE = /\b(?:(?:esa|esta|eso|este)\s+(?:orden\s+)?(?:es|va)\s+para|(?:^|\b(?:oh|ah|ajá|aja)\s+)para)\s+(?:el\s+|la\s+)?([a-z]{3,})\b/;
+const RELAY_MEATS: Array<[RegExp, string]> = [[/\bbistec?k?\b|\bbiste\b|\bsteak\b|(?<!cebolla(?:s)? )\basada\b/, "Bistec"], [/\b(?:al )?pastor\b/, "Alpastor"], [/\bcostillas?\b/, "Costilla"], [/\btripas?\b/, "Tripa"],
+  [/\bcabezas?\b/, "Cabeza"], [/\bprensado\b/, "Prensado"], [/\blenguas?\b/, "Lengua"], [/\bchorizo\b/, "Chorizo"], [/\bpollo\b/, "Pollo"], [/\bcarnitas\b/, "Carnitas"],
+  [/\bbuche\b/, "Buche"], [/\b(?:chicharron\s+)?duro\b/, "Duro"], [/\bdeshebrada\b/, "Deshebrada"], [/\bpicadillo\b/, "Picadillo"]];
+const relayMeat = (t: string) => { let best: [number, string] | null = null; for (const [re, k] of RELAY_MEATS) { const m = t.match(re); if (m && (!best || (m.index || 0) < best[0])) best = [m.index || 0, k]; } return best?.[1] || null; };
+type RelayFam = "quesadilla" | "taco" | "torta";
+const FAM_RE = /\b(quesadillas?|tacos?|quesitortas?|queso\s+tortas?|tortas?|burritos?|burros?)\b/;
+const famOfWord = (w: string): RelayFam | "burrito" => /quesadilla/.test(w) ? "quesadilla" : /taco/.test(w) ? "taco" : /torta/.test(w) ? "torta" : "burrito";
+export type RelayLine = { group: string; fam: RelayFam; qty: number; meat: string; style: string | null; qd: "regular" | "preparada" | null; beans: boolean; onion: boolean; note?: string };
+export function relayGroups(turns: Turn[]): Array<{ name: string; text: string }> | null {
+  const out: Array<{ name: string; text: string }> = []; let cur = "";
+  for (const t of turns) { if (t.speaker !== "caller") continue; const p = plain(t.text); const m = p.match(RELAY_CLOSE);
+    if (m && !/^(?:llevar|recoger|aca|aqui|alla|hoy|ahorita|las|los|que|mi|mis|su)$/.test(m[1])) { cur += " " + p.slice(0, m.index); const name = m[1];
+      if (FAM_RE.test(cur)) out.push({ name, text: cur.trim() }); cur = " " + p.slice((m.index || 0) + m[0].length); }
+    else cur += " | " + p; }
+  if (FAM_RE.test(cur)) out.push({ name: "", text: cur.trim() });
+  return out.filter((g) => g.name).length >= 3 ? out : null;
+}
+export function parseRelayGroup(g: { name: string; text: string }): RelayLine[] | null {
+  const t = g.text.replace(/\bcebollas?\s+asadas?\b/g, "cebolla_asada");
+  const heads = [...t.matchAll(new RegExp(`\\b(${NUMW})\\s+(?:${FAM_RE.source.slice(3, -3)})`, "g"))]
+    .map((m) => ({ i: m.index || 0, qty: numOf(m[1]), fam: famOfWord(m[0]) })).filter((h) => h.qty > 0);
+  if (!heads.length) return null;
+  const fams = [...new Set(heads.map((h) => h.fam))]; const lines: RelayLine[] = [];
+  for (const fam of fams) { if (fam === "burrito") continue;
+    const hs = heads.filter((h) => h.fam === fam); const qty = hs[hs.length - 1].qty;
+    const start = hs[0].i; const nextOther = heads.find((h) => h.i > start && h.fam !== fam && !hs.includes(h));
+    const seg = t.slice(start, nextOther ? nextOther.i : undefined);
+    const style = /\bharina\b/.test(seg) ? "harina" : /\bcomal\b/.test(seg) ? "comal" : /\btaquer[oa]s?\b/.test(seg) ? "taquero" : null;
+    const qd = fam === "quesadilla" && /\b(?:aceite|fritas?|doradas?)\b/.test(seg) ? (/\bpreparad[oa]s?\b/.test(seg) ? "preparada" : "regular") : null;
+    const splits = [...seg.matchAll(new RegExp(`\\b(${NUMW})\\s+de\\s+((?:chicharron\\s+)?[a-z]+)`, "g"))].map((m) => ({ i: m.index || 0, qty: numOf(m[1]), meat: relayMeat(m[2]) })).filter((s) => s.qty && s.meat);
+    const sum = splits.reduce((a, s) => a + s.qty, 0);
+    if (splits.length && sum === qty) splits.forEach((s, k) => { const tail = seg.slice(s.i, splits[k + 1]?.i);
+      const nop = /\bnopal(?:es)?\b/.test(tail);
+      lines.push({ group: g.name, fam, qty: s.qty, meat: s.meat!, style, qd, beans: /\bfrijol(?:es)?\b/.test(tail) && !/\bsin\s+frijol/.test(tail), onion: /cebolla_asada/.test(tail), ...(nop ? { note: "con nopales" } : {}) }); });
+    else { const meat = relayMeat(seg); if (!meat) return null;
+      lines.push({ group: g.name, fam, qty, meat, style, qd, beans: /\bcon\s+frijol/.test(seg), onion: /cebolla_asada/.test(seg) }); } }
+  return lines;
+}
+function relayCartLine(e: RelayLine, menu: any[]): any | null {
+  const id = e.fam === "taco" ? /^sq-taco-/ : e.fam === "torta" ? /^sq-torta-/ : e.qd ? /^sq-qd-.*regular/ : /^sq-quesadilla-/;
+  const base = menu.find((m) => id.test(m.id)); if (!base) return null; const gs: any[] = base.modifierGroups || [];
+  const opt = (gre: RegExp, ore: RegExp) => { const g = gs.find((x) => gre.test(x.name)); const o = g && (g.options || []).map(oname).find((x: string) => ore.test(x)); return o ? { step: g.name, option: o } : null; };
+  const mods = [
+    e.fam === "torta" ? opt(/torta options/i, /\(QTO\)/) : e.qd ? opt(/\(QD\).*options/i, e.qd === "preparada" ? /DELUXE Preparada/ : /REGULAR/) : e.style ? opt(/tortilla options/i, e.style === "harina" ? /\(QHR\)/ : e.style === "comal" ? /\((?:QCO|TCO)\)/ : /\((?:QST|TST)\)/) : null,
+    opt(/carne|meat/i, new RegExp(`^${e.meat}\\b`, "i")),
+    e.beans ? opt(/con \/ with/i, /Frijoles/) : null,
+    e.onion ? opt(/extras/i, /Cebolla y Chiles Asados/) : null,
+  ].filter(Boolean);
+  if (!mods.some((m: any) => /carne|meat/i.test(m.step))) return null;
+  return { itemId: base.id, quantity: e.qty, modifiers: mods, forName: e.group ? e.group[0].toUpperCase() + e.group.slice(1) : undefined, ...(e.note ? { elviNotes: [e.note] } : {}) };
+}
+export function applyRelayOrders(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const gs = relayGroups(turns); if (!gs || !menu?.length) return false;
+  const lines: any[] = [];
+  for (const g of gs) { const ls = parseRelayGroup(g); if (!ls) return false; for (const e of ls) { const l = relayCartLine(e, menu); if (!l) return false; lines.push(l); } }
+  if (!lines.length) return false;
+  const FOODISH = /^sq-(?:taco|quesadilla|qd|torta)-/;
+  for (let i = cart.length - 1; i >= 0; i--) if (FOODISH.test(String(cart[i].itemId))) cart.splice(i, 1);
+  cart.unshift(...lines);
+  // "dos botecitos de crema" rang as salsa-asada cups → crema on the side of that group's first line
+  const callerTx = said(turns, "caller"); const cm = callerTx.match(new RegExp(`\\b(${NUMW})\\s+botecitos?\\s+de\\s+crema\\b`));
+  if (cm && !/\bbotecitos?\s+de\s+salsa\b/.test(callerTx)) { const si = cart.findIndex((l) => /^sq-extras-.*salsa/.test(String(l.itemId))); if (si >= 0) cart.splice(si, 1);
+    const g = gs.find((x) => /botecitos?\s+de\s+crema/.test(x.text)); const host = cart.find((l) => l.forName === g?.name) || cart[0];
+    host.modifiers.push({ step: "(F) GQT Extras", option: "**EXTRA SIDE Crema / Sour Cream (+$0.75)", quantity: numOf(cm[1]) });
+    host.elviNotes = [...(host.elviNotes || []), `${numOf(cm[1])} crema aparte`]; }
+  return true;
+}
