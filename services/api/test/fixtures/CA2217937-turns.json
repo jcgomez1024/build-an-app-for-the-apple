@@ -1,0 +1,149 @@
+[
+ {
+  "speaker": "staff",
+  "start": 1.28,
+  "end": 2.101,
+  "text": "Buenas noches.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.981,
+  "end": 4.521,
+  "text": "How you doing? Can I place an order for pickup?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 5.582,
+  "end": 6.662,
+  "text": "yes, what can I get for you?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 8.062,
+  "end": 21.566,
+  "text": "can I get two flour steak quesadilla deluxe with, sour cream on the side as well? Do, do y'all have like a little lunch, like with the rice and beans that come with, like a lunch special that come with the rice and beans on the side?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.684,
+  "end": 22.908,
+  "text": "Yeah. no.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 25.367,
+  "end": 28.408,
+  "text": "Okay. Or a combo, y'all don't have combos?",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 29.07,
+  "end": 32.391,
+  "text": "I got the combo rice and beans. You want that one?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.789,
+  "end": 33.909,
+  "text": "Okay, can I get, yeah, let me get the combo.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 34.632,
+  "end": 39.334,
+  "text": "So you got two flour steak quesadilla deluxe with sour",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 40.574,
+  "end": 41.394,
+  "text": "on the side.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 43.375,
+  "end": 49.817,
+  "text": "Okay, let me put sour on the side and then a combo of rice and beans.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 43.932,
+  "end": 44.152,
+  "text": "See.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 50.834,
+  "end": 51.214,
+  "text": "Correct.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 51.918,
+  "end": 53.699,
+  "text": "Okay, okay, I got it for you.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 54.775,
+  "end": 57.096,
+  "text": "All right. Or, you know, yeah, okay, thank you, that'll work.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 57.861,
+  "end": 58.622,
+  "text": "Aaron, ready?",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 59.419,
+  "end": 62.146,
+  "text": "Yes, ma'am.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 60.747,
+  "end": 62.65,
+  "text": "Okay, give me like twenty minutes.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 63.469,
+  "end": 63.85,
+  "text": "All right.",
+  "language": "en"
+ },
+ {
+  "speaker": "staff",
+  "start": 64.414,
+  "end": 64.834,
+  "text": "Thank you.",
+  "language": "en"
+ },
+ {
+  "speaker": "caller",
+  "start": 65.595,
+  "end": 65.996,
+  "text": "Thank you.",
+  "language": "en"
+ }
+]

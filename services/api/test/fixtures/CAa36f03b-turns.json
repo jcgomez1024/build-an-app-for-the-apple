@@ -1,0 +1,100 @@
+[
+ {
+  "speaker": "staff",
+  "start": 0.28,
+  "end": 1.101,
+  "text": "Sofina Elvis.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 2.261,
+  "end": 2.361,
+  "text": "Sí.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 3.862,
+  "end": 4.342,
+  "text": "Sí, dígame.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 3.922,
+  "end": 9.565,
+  "text": "Pero no, yo. ¿Podrían hacer un pedido, pero a domicilio?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 5.463,
+  "end": 6.063,
+  "text": "Buenas noches.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 11.065,
+  "end": 12.266,
+  "text": "Ah, déjame ver, ¿ok?",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 13.186,
+  "end": 13.467,
+  "text": "Okay.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 13.287,
+  "end": 14.187,
+  "text": "Permíteme un poquito.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 16.248,
+  "end": 17.509,
+  "text": "No, ese es de llevar.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 27.574,
+  "end": 29.835,
+  "text": "Discúlpeme, pero ahorita ya no hay.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 31.976,
+  "end": 33.076,
+  "text": "Oh, ¿y a qué hora cierra?",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 34.377,
+  "end": 35.978,
+  "text": "Cerramos a las diez.",
+  "language": "es"
+ },
+ {
+  "speaker": "caller",
+  "start": 37.098,
+  "end": 38.299,
+  "text": "Ah, okay, okay, está.",
+  "language": "es"
+ },
+ {
+  "speaker": "staff",
+  "start": 39.099,
+  "end": 39.94,
+  "text": "Ajá, gracias.",
+  "language": "es"
+ }
+]

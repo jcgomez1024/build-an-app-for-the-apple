@@ -241,3 +241,69 @@ export function noNegatedMeat(r: any, input: any) {
     return mods.length === a.modifiers.length ? a : { ...a, modifiers: mods }; });
   return hit ? { ...r, actions } : r;
 }
+
+// aaron1 (CA2217937, Oct 30 7:57 PM ET, English pickup): "two flour steak quesadilla deluxe, sour cream on the side … rice and beans
+// on the side" → staff "combo of rice and beans". Elvi put Con Frijoles in the quesadillas, never rang the sour cream on the side
+// or the rice-and-beans side.
+const RICE_BEANS = /\b(?:rice\s+(?:and|&|n)\s+beans|beans\s+(?:and|&)\s+rice|arroz\s+y\s+frijol(?:es)?|frijoles\s+y\s+arroz)\b/i;
+/** Beans/rice only ever said as "rice and beans" are the side, not a filling. */
+export function beansOnlyAsSide(text: string): boolean {
+  const p = String(text || "").toLowerCase();
+  return RICE_BEANS.test(p) && !/\b(?:with|con)\s+(?:(?:beans|frijol(?:es)?)(?!\s+(?:and|&|y)\s+(?:rice|arroz))|(?:rice|arroz)(?!\s+(?:and|&|n|y)\s+(?:beans|frijol)))\b/i.test(p);
+}
+export function applyRiceBeansSide(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const said = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" . ");
+  if (!RICE_BEANS.test(said) || !beansOnlyAsSide(said)) return false;
+  // staff said none / caller declined → nothing
+  if (turns.some((t) => t.speaker === "staff" && /\b(?:no\s+(?:tenemos|hay)\s+arroz|no\s+rice|out\s+of\s+rice)\b/i.test(t.text))) return false;
+  let changed = false;
+  for (const l of cart) { if (!/^sq-(?:quesadilla|qd|taco|gordita|burrito|torta)-/.test(String(l.itemId))) continue;
+    const before = (l.modifiers || []).length; l.modifiers = (l.modifiers || []).filter((m: any) => !/^\*\*Con (?:Frijoles|Arroz)\b/i.test(String(m.option))); if (l.modifiers.length !== before) changed = true; }
+  const agreed = turns.some((t) => t.speaker === "staff" && RICE_BEANS.test(t.text)) || /\b(?:on the side|aparte|de lado)\b/i.test(said);
+  const hasSide = cart.some((l) => /^sq-sides-|^sq-combo-/.test(String(l.itemId)) || (l.modifiers || []).some((m: any) => /COMBO Sides|ET Side/i.test(String(m.step))));
+  const side = menu.find((m) => /^sq-sides-arroz-rice/.test(m.id));
+  if (agreed && !hasSide && side) {
+    const g = (side.modifierGroups || [])[0]; const opt = (g?.options || []).map(oname).find((o: string) => /^Arroz - Rice and Frijole/i.test(o));
+    if (opt) { cart.push({ itemId: side.id, quantity: 1, modifiers: [{ step: g.name, option: opt }] }); changed = true; }
+  }
+  return changed;
+}
+/** "sour cream on the side": deluxe already includes crema → a note on that line; without deluxe → the EXTRA SIDE Crema. */
+export function applyCremaOnSide(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const t = turns.find((x) => x.speaker === "caller" && /\b(?:sour\s*cream|crema)\b[^.?]{0,20}\b(?:on\s+the\s+side|aparte|a\s+un\s+lado|de\s+lado)\b/i.test(x.text));
+  if (!t) return false;
+  const food = cart.filter((l) => /^sq-(?:quesadilla|qd|taco|gordita|burrito|torta|tostada|sope)/.test(String(l.itemId)));
+  if (!food.length) return false;
+  let changed = false;
+  for (const l of food) {
+    if ((l.elviNotes || []).some((n: string) => /crema.*(?:aparte|side)/i.test(n)) || (l.modifiers || []).some((m: any) => /EXTRA SIDE Crema/i.test(m.option))) continue;
+    if ((l.modifiers || []).some((m: any) => /^DELUXE/i.test(m.option))) { l.elviNotes = [...(l.elviNotes || []), "crema / sour cream aparte (on the side)"]; changed = true; continue; }
+    const g = groups(menu, l.itemId).find((g) => (g.options || []).some((o: any) => /EXTRA SIDE Crema/i.test(oname(o))));
+    if (g) { l.modifiers = [...(l.modifiers || []), { step: g.name, option: (g.options || []).map(oname).find((o: string) => /EXTRA SIDE Crema/i.test(o)) }]; changed = true; }
+  }
+  return changed;
+}
+/** Live: "rice and beans" in the turn never becomes a Con Frijoles / Con Arroz filling. */
+export function noRiceBeansFilling(r: any, input: any) {
+  const tx = String(input?.transcript || ""); if (!beansOnlyAsSide(tx) || !Array.isArray(r?.actions)) return r;
+  let hit = false;
+  const actions = r.actions.map((a: any) => { if (!Array.isArray(a?.modifiers)) return a; const ms = a.modifiers.filter((m: any) => !/^\*\*Con (?:Frijoles|Arroz)\b/i.test(String(m.option))); if (ms.length !== a.modifiers.length) hit = true; return { ...a, modifiers: ms }; });
+  if (!hit) return r;
+  return { ...r, actions, reply: String(r.reply || "").replace(/,?\s*with (?:beans|rice)(?=,|\.)/gi, "") };
+}
+/** Live: staff already answered which combo / staff picked the dish, and the cart has the dish with its choices → no re-ask. */
+export function noReaskAnswered(r: any, input: any) {
+  const reply = String(r?.reply || ""); if (!reply.trim().endsWith("?") || (r?.actions || []).length) return r;
+  const h: any[] = input?.history || []; const lastStaff = String([...h].reverse().find((x) => x.role === "assistant")?.text || "");
+  const staffTurns = h.filter((x: any) => x.role === "assistant").map((x: any) => String(x.text || "")).join(" ");
+  const cart: any[] = input?.cart || []; const en = input?.language === "en"; const ack = { ...r, reply: en ? "Okay." : "Muy bien." };
+  // "Which combo? Tacos, Quesadillas…" after staff said "the combo rice and beans"
+  if (/\b(?:which|qu[eé]|cu[aá]l)\s+combo\b/i.test(reply) && RICE_BEANS.test(staffTurns + " " + lastStaff)) return ack;
+  // re-asking tortilla / meat for a dish whose every cart line already has both
+  const asks = reply.match(/\b(quesadillas?|tacos?|gorditas?|tortas?|burritos?)\b/i); if (!asks) return r;
+  const re = new RegExp(`^sq-${asks[1].toLowerCase().replace(/s$/, "")}`);
+  const lines = cart.filter((l) => re.test(String(l.itemId))); if (!lines.length) return r;
+  const done = lines.every((l) => (l.modifiers || []).some((m: any) => /tortilla|shell|options/i.test(String(m.step)) && !/salsa|deluxe/i.test(String(m.step))) && (l.modifiers || []).some((m: any) => /carne|meat/i.test(String(m.step))));
+  if (done && /\b(?:what meat|qu[eé] carne|how many|cu[aá]nt[oa]s|comal|harina|taquer|bistec,|or\b)/i.test(reply) && !/\b(?:another|otra|more|m[aá]s)\b/i.test(String(input?.transcript || ""))) return ack;
+  return r;
+}

@@ -1,0 +1,29 @@
+[
+ {
+  "itemId": "sq-quesadilla-HLT6CR",
+  "quantity": 2,
+  "modifiers": [
+   {
+    "step": "(A) Q Tortilla Options",
+    "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+   },
+   {
+    "step": "(C) Con / With",
+    "option": "**Con Frijoles / With Beans (+$0.50)"
+   },
+   {
+    "step": "(E) DELUXE Options",
+    "option": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)"
+   },
+   {
+    "step": "(B) Q Carnes / Meats",
+    "option": "Bistec / Steak"
+   },
+   {
+    "step": "(I) Salsa Preferencia / Preference",
+    "option": "Mild Salsa Asada",
+    "isDefault": true
+   }
+  ]
+ }
+]
