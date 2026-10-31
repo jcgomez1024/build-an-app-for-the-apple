@@ -941,3 +941,31 @@ export function applyRelayOrders(cart: any[], turns: Turn[], menu: any[]): boole
     host.elviNotes = [...(host.elviNotes || []), `${numOf(cm[1])} crema aparte`]; }
   return true;
 }
+
+// mario1 (CA3870a1, Oct 31 5:23 PM ET): "y de tomarme tres un carrito" — a jarrito asked for (ASR: carrito/harrito/jarri…) in a drink
+// context with no flavor said and no jarrito in the cart → 1 jarrito, flavor flagged for staff. Never guess the flavor.
+const JAR_WORD = /\b(?:j|h|c)arritos?\b|\bjarri\w*/;
+const JAR_CTX = new RegExp(`\\b(?:de|para)\\s+tomar(?:me|te)?\\b[^|]{0,40}?\\b(?:(${NUMW})\\s+)?(?:j|h|c)arritos?\\b|\\b(?:(${NUMW})\\s+)?jarritos?\\b`);
+const JAR_FLAVORS: Array<[RegExp, RegExp]> = [[/\btamarindo\b/, /tamarindo/], [/\bfresa\b/, /fresa/], [/\blimon\b/, /limon/], [/\bpina\b/, /pina/], [/\bmango\b/, /mango/], [/\bmandarina\b/, /mandarina/]];
+export const JAR_PLACEHOLDER = "sq-drink-jarrito-mandarina-mandarin-I4GNSG"; // same placeholder spoken-ledger uses
+function jarritoAsk(text: string): { qty: number; flavor: RegExp | null } | null {
+  const m = text.match(JAR_CTX); if (!m) return null; const n = m[1] || m[2]; const tail = text.slice(m.index || 0, (m.index || 0) + m[0].length + 60);
+  const fl = JAR_FLAVORS.find(([re]) => re.test(tail));
+  return { qty: n && /^(?:un[ao]?|1)$/.test(n) ? 1 : n ? numOf(n) || 1 : 1, flavor: fl ? fl[1] : null };
+}
+export function addAskedJarrito(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const ask = jarritoAsk(said(turns, "caller")); if (!ask) return false;
+  const ph = cart.find((l) => l.itemId === JAR_PLACEHOLDER);
+  if (ph && !ask.flavor && !/mandarina/.test(said(turns, "staff")) && !(ph.elviNotes || []).length) { ph.elviNotes = ["jarrito, sabor no dicho — confirmar"]; return true; }
+  if (cart.some((l) => /^sq-drink-jarrito-/.test(String(l.itemId)))) return false;
+  const item = ask.flavor ? menu.find((x) => /^sq-drink-jarrito-/.test(x.id) && ask.flavor!.test(x.id)) : menu.find((x) => x.id === JAR_PLACEHOLDER);
+  if (!item) return false;
+  cart.push({ itemId: item.id, quantity: 1, modifiers: [], ...(ask.flavor ? {} : { elviNotes: ["jarrito, sabor no dicho — confirmar"] }) });
+  return true;
+}
+export function liveJarritoAsk(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const cart: any[] = input?.cart || [];
+  if (acts.some((a) => a.type === "add_item" && /^sq-drink-/.test(String(a.itemId))) || cart.some((l) => /^sq-drink-jarrito-/.test(String(l.itemId)))) return r;
+  const tx = plain(String(input?.transcript || "")); const ask = jarritoAsk(tx); if (!ask || ask.flavor) return r;
+  return { ...r, actions: [...acts, { type: "add_item", itemId: JAR_PLACEHOLDER, quantity: 1, modifiers: [], readback: "un jarrito (sabor por confirmar)" }] };
+}
