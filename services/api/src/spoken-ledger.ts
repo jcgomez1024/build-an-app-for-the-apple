@@ -191,19 +191,34 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
 }
 
 /** Dishes staff said are not available today ("eso es hasta mañana", "no hay", "se acabó"), from the caller's question. */
+// relleno2: "se me acabaron", "se acabó", "ya no hay/tengo/queda", "no me quedan", "se terminaron", "agotado" (plus the older list)
+export const UNAVAIL_ES = /\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:(?:me|nos|le|les)\s+)?(?:acab|termin)(?:o|a|aron|an)\b|\bya\s+no\s+(?:hay|tengo|tenemos|queda|quedan|(?:me|nos)\s+queda(?:n)?)\b|\bno\s+(?:me|nos)\s+queda(?:n)?\b|\bno\s+(?:tenemos|tengo)\b(?!\s+(?:de\s+)?(?:chorizo|bistec|steak|asada|pastor|alpastor|pollo|carnitas|cabeza|lengua|tripa|buche|prensado|costilla|birria|deshebrada|picadillo|duro|chicharron|queso|papa|frijol|nopal|hongo|flor|rajas|huevo|camaron|pescado)\w*\b)|\bagotad[oa]s?\b|\bmanana\s+si\b|^no\s+(?:hoy|ahorita)\b|\bhoy\s+no\b/;
+/** A staff "unavailable" dish key ("chile relleno", "pozole verde") matches a menu id when every word stem is in it. */
+export function unavailMatchesId(d: string, id: string): boolean {
+  const x = String(id || "").toLowerCase(); const ws = d.split(/\s+/).filter((w) => w.length >= 3);
+  return ws.length > 0 && ws.every((w) => x.includes(w.replace(/(?:es|s)$/, "").slice(0, Math.max(4, w.length - 2))));
+}
+/** Index of the last staff turn that declared dish d unavailable (−1 if none). */
+export function staffUnavailableAt(turns: T[], d: string): number {
+  for (let i = turns.length - 1; i >= 1; i--) if (turns[i].speaker === "staff" && staffUnavailable(turns.slice(0, i + 1)).includes(d) && !staffUnavailable(turns.slice(0, i)).includes(d)) return i;
+  return -1;
+}
 export function staffUnavailable(turns: T[]): string[] {
   const out = new Set<string>();
   for (let i = 1; i < turns.length; i++) {
     const s = turns[i]; if (s.speaker !== "staff") continue;
     const x = nf(s.text);
     const en = /^(?:no\s+)?we\s+(?:don'?t|do\s+not)\b|\bnot\s+today\b|\b(?:don'?t|do\s+not)\s+have\b|\bsold\s+out\b|\bran\s+out\b|\bwe'?re\s+out\s+of\b|\bnot\s+(?:available|right\s+now)\b/.test(x);
-    if (!en && !/\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:nos\s+)?acab[oa]\b|\bya\s+no\s+(?:hay|tenemos)\b|\bno\s+tenemos\b|\bmanana\s+si\b|^no\s+(?:hoy|ahorita)\b|\bhoy\s+no\b/.test(x)) continue;
+    if (!en && !UNAVAIL_ES.test(x)) continue;
     // cmissing1: the dish the caller just asked about ("how about ceviche?" → staff "Not today.")
     const ask = turns[i - 1]?.speaker === "caller" && isAvailQ(turns[i - 1].text) ? turns[i - 1] : null;
     if (ask) { const w = nf(ask.text).replace(/\b(?:today|tonight|hoy|left|still|guys|you|have|got|any|about|how|what|is|are|there|do|does|tienen?|tienes|hay|calling|see|if|i|was|to|hi|but|no|okay|ok|the|some|y|el|la|los|las|de)\b/g, " ").trim().split(/\s+/).find((w) => w.length >= 4);
       if (w) out.add(w.replace(/s$/, "")); }
     const prev = turns.slice(Math.max(0, i - 3), i + 1).map((t) => nf(t.text)).join(" ");
     for (const m of prev.matchAll(/\b(enchiladas?|tacos?\s+al\s+vapor|tamales?|pozole|menudo|mole|chilaquiles|birria|caldo|guisados?|tostadas?|flautas?)\b/g)) out.add(m[1].replace(/s$/, "").replace(/^taco al vapor$/, "tacos al vapor"));
+    // relleno2 (CA8f33ce5): "Chile relleno se me acabaron" — more dishes, said in the staff turn or the ask just before it
+    for (const m of prev.matchAll(/\b(chiles?\s+rellenos?|sopes?|huaraches?|ceviche|cocteles?|camarones|tamales?|pambazos?|tlayudas?|alambres?|molcajetes?|fajitas?|chicharron(?:es)?|elotes?|esquites?|champurrado|atole|horchata|jamaica|tamarindo|flan|churros?)\b/g))
+      out.add(m[1].replace(/^chiles?\s+rellenos?$/, "chile relleno").replace(/es$/, (e) => (/(?:camarones|chicharrones)$/.test(m[1]) ? "es" : e)).replace(/(?<=[aeiou])s$/, ""));
   }
   return [...out];
 }

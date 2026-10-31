@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
-import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide } from "./list-repair.js";
+import { applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -414,9 +414,12 @@ const INFO_Q = /\b(?:vegetarian[oa]?s?|vegan[oa]?s?|meat|carne|pork|puerco|mante
 // "entonces te tengo…") means the call is not info-only — "¿De qué carne hay?" had dropped every caller turn.
 const ASKS_TO_ORDER2 = /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as)\s+(?:preparar|hacer|dar|poner|mandar|tomar|apartar)\b|\bme\s+(?:prepara|hace|manda|aparta)s?\b/iu;
 const STAFF_TOOK_ORDER = /\ba?l?\s*nombre\s+de\s+qui[eé]n\b|\bqu[eé]\s+nombre\b|\b(?:dame|deme|d[eé]jame)\s+(?:unos?\s+)?\w+\s+minutos\b|\bentonces\s+(?:te\s+)?tengo\b|\btienes\s+una\s+orden\b|\bte\s+voy\s+a\s+dar\b|\bname\s+for\s+(?:the|your)\s+order\b|\bgive\s+me\s+(?:like\s+|about\s+)?\w+\s+minutes\b|\bso\s+i\s+(?:got|have)\b/iu;
+// relleno2: + "ahorita hablo para atrás", "le llamo de nuevo", "vuelvo a llamar"
+const CALLBACK_RE = /\b(?:i'?ll|i\s+will|we'?ll|let\s+me)\s+call\s+(?:you\s+)?back\b|\bcall\s+(?:you\s+)?(?:back\s+)?later\b|\b(?:te|le|les)\s+(?:hablo|llamo|marco)\s+(?:m[aá]s\s+(?:tarde|al\s+rato)|luego|al\s+rato|despu[eé]s|otra\s+vez)\b|\b(?:luego|al\s+rato)\s+(?:te|le)\s+(?:hablo|llamo|marco)\b|\b(?:hablo|llamo|marco)\s+(?:para\s+atr[aá]s|de\s+nuevo|otra\s+vez)\b|\bahorita\s+(?:(?:te|le|les)\s+)?(?:hablo|llamo|marco)\b|\bvuelvo\s+a\s+(?:llamar|hablar|marcar)\b/iu;
+const CALLBACK_SAID = (turns: Array<{ speaker: string; text: string }>) => turns.some((t) => t.speaker === "caller" && CALLBACK_RE.test(String(t.text || "")));
 export function isCallBackNoOrder(turns: Array<{ speaker: string; text: string }>): boolean {
   const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
-  if (!caller.some((t) => /\b(?:i'?ll|i\s+will|we'?ll|let\s+me)\s+call\s+(?:you\s+)?back\b|\bcall\s+(?:you\s+)?(?:back\s+)?later\b|\b(?:te|le|les)\s+(?:hablo|llamo|marco)\s+(?:m[aá]s\s+(?:tarde|al\s+rato)|luego|al\s+rato|despu[eé]s|otra\s+vez)\b|\b(?:luego|al\s+rato)\s+(?:te|le)\s+(?:hablo|llamo|marco)\b/iu.test(t))) return false;
+  if (!caller.some((t) => CALLBACK_RE.test(t))) return false;
   if (turns.some((t) => t.speaker === "staff" && STAFF_TOOK_ORDER.test(t.text))) return false;
   const order = (t: string) => ASKS_TO_ORDER2.test(t) || (ASKS_TO_ORDER.test(t) && !/\bcall/i.test(t) && !/^\W*(?:i\s+was\s+)?calling\s+to\s+see\b/i.test(t.replace(/^\W*(?:hi|hello|hey)[,.\s]+/i, ""))) ||
     /\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro|cinco|seis)\s+(?:orders?\s+of\s+|[oó]rdenes\s+de\s+)?\p{L}{3,}/iu.test(t);
@@ -7639,7 +7642,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       dropDeluxeComponentSides(cart as any[], turns as any); applySaidQuesoFresco(cart as any[], turns as any, menu); splitEnchiladaOrders(cart as any[], turns as any, menu); // angie1, miguel1
       applyNegatedMeat(cart as any[], turns as any, menu); dropUnsaidDorados(cart as any[], turns as any); // oscar2
       applyRiceBeansSide(cart as any[], turns as any, menu); applyCremaOnSide(cart as any[], turns as any, menu); // aaron1
-      applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu); } } // nicky1, cafa1
+      applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu);
+      applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu); } } // nicky1, cafa1, braulio1
+  // relleno2 (CA8f33ce5): staff-unavailable wins over EVERY re-add pass (asked-dishes, relleno, readback…) — run it last.
+  dropStaffUnavailable(cart as any[], turns as any);
+  // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
+  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

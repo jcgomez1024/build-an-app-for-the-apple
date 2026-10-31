@@ -307,3 +307,87 @@ export function noReaskAnswered(r: any, input: any) {
   if (done && /\b(?:what meat|qu[eé] carne|how many|cu[aá]nt[oa]s|comal|harina|taquer|bistec,|or\b)/i.test(reply) && !/\b(?:another|otra|more|m[aá]s)\b/i.test(String(input?.transcript || ""))) return ack;
   return r;
 }
+
+// braulio1 (CA690aaab, Oct 30 8:48 PM ET, Spanish staff-answered pickup): "dos tortas de tripas bien doradas … solas, la verdura
+// aparte", "dos tacos, tres tacos chicos de bistec", "una orden de arroz … ¿chica o grande? Chica".
+const DISH_KIND: Array<[RegExp, RegExp]> = [[/\btortas?\b/, /^sq-torta-/], [/\bhuaraches?\b|\bguaraches?\b/, /^sq-huarache-/], [/\bgorditas?\b/, /^sq-gordita-/],
+  [/\bsopes?\b/, /^sq-sope/], [/\bburritos?\b/, /^sq-burrito-/], [/\btacos?\b/, /^sq-taco-/], [/\bquesadillas?\b/, /^sq-quesadilla-|^sq-qd-/]];
+const kindRe = (p: string) => { let best: [number, RegExp] | null = null; for (const [w, id] of DISH_KIND) { const m = p.match(w); if (m && (!best || (m.index || 0) < best[0])) best = [m.index || 0, id]; } return best?.[1] || null; };
+const meatOpt = (l: any) => (l.modifiers || []).map((m: any) => meatIn(plain(m.option))).find(Boolean) || null;
+/** "torta/taco de tripa bien dorada" — dorada cooks the meat: never a Quesadilla Dorada; it's the note "tripa bien dorada". */
+export function applyMeatBienDorada(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  for (const t of turns) { if (t.speaker !== "caller") continue; const p = plain(t.text);
+    for (const m of p.matchAll(/\b(tortas?|tacos?|huaraches?|guaraches?|gorditas?|sopes?|burritos?)\s+de\s+([a-z]+?)s?\s+(?:bien\s+)?dorad[oa]s?\b/g)) {
+      const meat = meatIn(m[2]); const kid = kindRe(m[1]); if (!meat || !kid) continue;
+      const saidQd = turns.some((x) => x.speaker === "caller" && /\bquesadillas?\s+dorad|\bqd\b|\bdoradas?\s+de\b|^\W*(?:unas?\s+|\d+\s+|dos\s+|tres\s+)?doradas?\b/.test(plain(x.text)));
+      if (!saidQd) for (let i = cart.length - 1; i >= 0; i--) if (/^sq-qd-/.test(cart[i].itemId) && meatOpt(cart[i]) === meat) { cart.splice(i, 1); changed = true; }
+      const note = `${meat} bien dorada`;
+      for (const l of cart) if (kid.test(l.itemId) && meatOpt(l) === meat && !(l.elviNotes || []).includes(note)) { l.elviNotes = [...(l.elviNotes || []), note]; changed = true; }
+    } }
+  return changed;
+}
+/** "solas" / "la verdura aparte" said about the dish of this or the previous caller turn: plain (no Queso upgrade nobody said) + note. */
+export function applySolasVerduraAparte(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let changed = false; const callers = turns.filter((t) => t.speaker === "caller");
+  callers.forEach((t, k) => { const p = plain(t.text);
+    const aparte = /\b(?:verduras?|vegetales|toppings?|veggies)\s+(?:por\s+)?(?:aparte|separado|on the side)\b|\baparte\s+la\s+verdura\b/.test(p);
+    const solas = /\bsol[ao]s\b|\bsol[ao]\b(?!\s+(?:arroz|frijol))/.test(p);
+    if (!aparte && !solas) return;
+    const kid = kindRe(p) || (callers[k - 1] && kindRe(plain(callers[k - 1].text))); if (!kid) return;
+    for (const l of cart) { if (!kid.test(l.itemId)) continue;
+      if (aparte && !(l.elviNotes || []).includes("verdura aparte")) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; changed = true; }
+      if (solas && !callers.some((c) => /\bqueso\b|\bcheese\b/.test(plain(c.text)))) {
+        const g = groups(menu, l.itemId).find((g) => (g.options || []).map(oname).some((o: string) => /^\(QTO\) Queso Torta/.test(o)));
+        const plainOpt = g && (g.options || []).map(oname).find((o: string) => /^\(TO\) Torta$/.test(o));
+        if (plainOpt) { const ms = (l.modifiers || []).map((m: any) => /^\(QTO\)/.test(m.option) ? { ...m, option: plainOpt } : m); if (JSON.stringify(ms) !== JSON.stringify(l.modifiers)) { l.modifiers = ms; changed = true; } }
+        l.elviNotes = (l.elviNotes || []).filter((n: string) => !/^confirmar \(B\) Torta Carne/.test(n) || !meatOpt(l));
+      } }
+  });
+  return changed;
+}
+/** "dos tacos, tres tacos chicos de bistec" — the last count said for that dish+meat in the turn wins (and the staff readback agrees). */
+export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  for (const t of turns) { if (t.speaker !== "caller") continue; const p = plain(t.text);
+    const hits = [...p.matchAll(new RegExp(`\\b(${NUMW})\\s+(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b((?:\\s+(?!(?:${NUMW})\\b)[a-z]+)*)`, "g"))];
+    if (hits.length < 2) continue;
+    const last = hits[hits.length - 1]; const meat = meatIn(last[3]); const kid = kindRe(last[2]); const n = numOf(last[1]);
+    if (!meat || !kid || !n || !hits.slice(0, -1).some((h) => kindRe(h[2])?.source === kid.source && !meatIn(h[3]))) continue;
+    const ls = cart.filter((l) => kid.test(l.itemId) && meatOpt(l) === meat); if (ls.length !== 1 || ls[0].quantity === n) continue;
+    const later = turns.slice(turns.indexOf(t) + 1).filter((x) => x.speaker === "caller").some((x) => kindRe(plain(x.text))?.source === kid.source && meatIn(plain(x.text)) === meat);
+    if (!later) { ls[0].quantity = n; changed = true; }
+  }
+  return changed;
+}
+const SIZE_WORD = /^\W*(?:la\s+|el\s+|una?\s+)?(chic[ao]|small|peque[nñ][ao]|regular|grande|large|big)\b/;
+/** "¿chica o grande?" → "Chica": the open Sides line gets the catalog size option (chica/small = regular, grande = GRANDE). */
+export function applySideSize(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let changed = false;
+  turns.forEach((t, i) => { if (t.speaker !== "caller") return; const m = plain(t.text).match(SIZE_WORD); if (!m) return;
+    const ask = turns.slice(Math.max(0, i - 2), i).reverse().find((x) => x.speaker === "staff");
+    if (!ask || !/\b(?:chic[ao]|small|regular)\b[^?]*\b(?:o|or)\b[^?]*\b(?:grande|large)\b/.test(plain(ask.text))) return;
+    const said = plain(ask.text) + " " + turns.slice(Math.max(0, i - 4), i).map((x) => plain(x.text)).join(" ");
+    const l = [...cart].reverse().find((l) => /^sq-sides-/.test(l.itemId) && !(l.modifiers || []).length && (/arroz|rice/.test(said) || /frijol|beans/.test(said)));
+    const item = l && menu.find((x) => x.id === l.itemId); if (!item) return;
+    const g = (item.modifierGroups || [])[0]; if (!g) return; const opts: string[] = (g.options || []).map(oname); const big = /grande|large|big/.test(m[1]);
+    const rice = /arroz|rice/.test(said), beans = /frijol|beans/.test(said);
+    const o = opts.find((o) => (big ? /^GRANDE/i.test(o) : !/^GRANDE/i.test(o)) && (rice && beans ? /rice/i.test(o) && /beans/i.test(o) : rice ? /rice/i.test(o) && !/beans/i.test(o) : /beans/i.test(o) && !/rice/i.test(o)));
+    if (o) { l.modifiers = [{ step: g.name, option: o }]; changed = true; }
+  });
+  return changed;
+}
+/** Live: bare "Chica"/"Grande" answering "¿chica o grande?" about the side just rung → set its size, never "Not added". */
+export function liveSideSize(r: any, input: any) {
+  const tx = plain(String(input?.transcript || "")); const m = tx.match(SIZE_WORD); if (!m || tx.split(" ").length > 4) return r;
+  const h: any[] = input?.history || []; const lastStaff = plain(String([...h].reverse().find((x) => x.role === "assistant")?.text || ""));
+  if (!/\b(?:chic[ao]|small|regular)\b[^?]*\b(?:o|or)\b[^?]*\b(?:grande|large)\b/.test(lastStaff)) return r;
+  if ((r?.actions || []).some((a: any) => a.type === "add_item" || a.type === "update_item")) return r;
+  const cart: any[] = input?.cart || []; const l = [...cart].reverse().find((l) => /^sq-sides-/.test(String(l.itemId))); if (!l) return r;
+  const item = (input?.menu || input?.resolverMenu || []).find((x: any) => x.id === l.itemId); const g = item?.modifierGroups?.[0]; if (!g) return r;
+  const big = /grande|large|big/.test(m[1]); const rice = /arroz|rice/.test(lastStaff), beans = /frijol|beans/.test(lastStaff);
+  const opts: string[] = (g.options || []).map(oname);
+  const o = opts.find((o) => (big ? /^GRANDE/i.test(o) : !/^GRANDE/i.test(o)) && (rice && beans ? /rice/i.test(o) && /beans/i.test(o) : rice ? /rice/i.test(o) && !/beans/i.test(o) : beans ? /beans/i.test(o) && !/rice/i.test(o) : true));
+  if (!o) return r; const en = input?.language === "en";
+  return { ...r, actions: [{ type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: [{ step: g.name, option: o }] }], reply: en ? `${big ? "Large" : "Small"}. Anything else?` : `${big ? "Grande" : "Chica"}. ¿Algo más?` };
+}

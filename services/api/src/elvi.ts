@@ -1,6 +1,7 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn } from "./readback-pass.js";
-import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered } from "./list-repair.js";
+import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
+import { unavailMatchesId } from "./spoken-ledger.js";
 import { staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ } from "./spoken-ledger.js";
 import { readFileSync } from "node:fs";
 import { storeState } from "./menu-v3.js";
@@ -2152,6 +2153,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = rellenoGuard(o2, input); } catch { /* keep */ }
   try { o2 = noNegatedMeat(o2, input); } catch { /* keep */ } // oscar2
   try { o2 = noRiceBeansFilling(o2, input); o2 = noReaskAnswered(o2, input); o2 = noUnknownHours(o2, input); } catch { /* keep */ } // aaron1, dayana1
+  try { o2 = liveSideSize(o2, input); } catch { /* keep */ } // braulio1
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides
@@ -2203,8 +2205,18 @@ export function noOfferUnavailable(r: ElviResponse, input: ElviRequest): ElviRes
   const nfx = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const reply = nfx(r.reply);
   const hit = off.filter((d) => new RegExp(`\\b${d.replace(/\s+/g, "\\s+")}s?\\b`).test(reply));
-  const dropAct = (a: any) => a?.type === "add_item" && off.some((d) => String(a.itemId || "").includes(d.replace(/\s+/g, "-")));
+  const offId = (id: string) => off.some((d) => String(id || "").includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(id || "")));
+  const dropAct = (a: any) => (a?.type === "add_item" || a?.type === "update_item") && offId(a.itemId);
   const actions = (r.actions || []).filter((a: any) => !dropAct(a));
+  // relleno2 (CA8f33ce5): rung before staff said "se me acabaron" → take it back off (unless the caller re-orders it now),
+  // and stop asking its side questions.
+  const tx = nfx(String(input.transcript || ""));
+  const stale = ((input as any).cart || []).filter((l: any) => offId(l.itemId) && !off.some((d) => unavailMatchesId(d, tx) || tx.includes(d)));
+  if (stale.length) {
+    for (const l of stale) if (!actions.some((a: any) => a.type === "remove_item" && a.itemId === l.itemId)) actions.push({ type: "remove_item", itemId: l.itemId, quantity: l.quantity || 1 } as any);
+    const en0 = input.language === "en";
+    return { ...r, actions, reply: (input as any).cart.length === stale.length ? (en0 ? "Okay, thank you." : "Muy bien, gracias.") : (en0 ? "Okay. Anything else?" : "Muy bien. ¿Algo más?") };
+  }
   if (!hit.length) return actions.length === (r.actions || []).length ? r : { ...r, actions };
   // a reply that itself says it isn't available is fine
   if (/\bno\s+(?:hay|tenemos)\b|\bhasta\s+manana\b|\bnot\s+(?:available|today)\b|\btomorrow\b|\bse\s+acab/.test(reply)) return { ...r, actions };

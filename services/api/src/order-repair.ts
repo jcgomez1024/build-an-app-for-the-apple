@@ -1,4 +1,4 @@
-import { staffUnavailable, isAvailQ } from "./spoken-ledger.js";
+import { staffUnavailable, isAvailQ, unavailMatchesId, staffUnavailableAt } from "./spoken-ledger.js";
 // chalino1 (CAe85a692542519dbf86de4d11c3304029, Oct 30 6:54 PM ET, Chalino, Spanish delivery, staff-answered):
 // "unas dos tortas de bistec" + "sin queso" + taco de comal de carnitas + "unas dos sodas… de lata". The shadow rang a phantom
 // 2 Chilaquiles ("me llama mucho el heno"), 1→2 Queso Torta bistec+carnitas (the taco's "de carnitas" merged in), and no sodas.
@@ -166,9 +166,11 @@ export function dropStaffUnavailable(cart: any[], turns: Turn[]): boolean {
   let changed = false;
   for (let i = cart.length - 1; i >= 0; i--) {
     const id = String(cart[i].itemId || "").toLowerCase();
-    const d = off.find((d) => id.includes(d.replace(/\s+/g, "-")));
+    const d = off.find((d) => id.includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, id));
     if (!d) continue;
-    const reordered = turns.some((t) => t.speaker === "caller" && plain(t.text).includes(d) && !isAvailQ(t.text)); // "Sí, el pozole rojo, por favor"
+    // relleno2: only a re-order AFTER staff said it's out counts (the original ask "una orden de chiles rellenos" doesn't)
+    const at = staffUnavailableAt(turns, d);
+    const reordered = turns.some((t, k) => k > at && t.speaker === "caller" && (plain(t.text).includes(d) || unavailMatchesId(d, plain(t.text))) && !isAvailQ(t.text)); // "Sí, el pozole rojo, por favor"
     if (!reordered) { cart.splice(i, 1); changed = true; }
   }
   return changed;
