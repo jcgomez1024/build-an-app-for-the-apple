@@ -51,8 +51,10 @@ export function detectFulfillment(turns: Turnish[]): { fulfillment: Fulfillment 
       out = { fulfillment: "PICKUP", by: "staff", heard: t.text.slice(0, 160) };
       continue;
     }
-    const f = fulfillmentIn(t.text);
-    if (f) out = { fulfillment: f, by: t.speaker || "caller", heard: t.text.slice(0, 160) };
+    const f = fulfillmentIn(t.text.replace(/\bdeliver(?:ie|y\u2019?)s\b/giu, "delivery"))
+      // alex3: staff "ahorita te la llevamos" / "se la llevamos" = staff took it as a delivery
+      || ((t.speaker === "staff") && /\b(?:te|se)\s+(?:la|lo|las|los)\s+llev(?:amos|o)\b/iu.test(t.text) && !/\bpara\s+llevar\b/iu.test(t.text) ? "DELIVERY" as Fulfillment : null);
+    if (f && !(out.fulfillment === "DELIVERY" && f === "PICKUP" && out.by === "staff" && t.speaker === "staff" && /llev/i.test(t.text))) out = { fulfillment: f, by: t.speaker || "caller", heard: t.text.slice(0, 160) };
   }
   return out;
 }
@@ -244,4 +246,11 @@ export function houseNumberAnswer(turns: Turnish[]): Address | null {
   }
   if (!street || !num) return null;
   return fmt({ street: `${num} ${street}` });
+}
+
+/** alex3: a caller's "Aquí en Perry" with no street → the town (never a street), for an unconfirmed zone/fee quote. */
+export function cityHeard(turns: Turnish[]): string | null {
+  const re = new RegExp(`\\b(?:aqu[ií]\\s+en|estoy\\s+en|vivo\\s+en|en|in|to)\\s+(${CITIES})\\b`, "iu");
+  for (const t of [...turns].reverse()) { if (t.speaker === "staff") continue; const m = String(t.text).match(re); if (m) return `${title(m[1])}, OH`; }
+  return null;
 }

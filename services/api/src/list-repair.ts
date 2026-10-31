@@ -743,3 +743,36 @@ export function addSaidMeatLine(cart: any[], turns: Turn[], menu: any[]): boolea
   return ch;
 }
 export function applyMarta1(cart: any[], turns: Turn[], menu: any[]) { applyMixAll(cart, turns, menu); addSaidMeatLine(cart, turns, menu); }
+
+// alex3 (CA63e343, Oct 31 2:10 PM ET): staff half-repeat "Tres ques," rang a phantom 3 QST bistec next to the 3 QD bistec
+// the caller ordered; "una guarda chata" (ASR) → staff "un agua de horchata" was missed.
+const Q_PLAIN = /^sq-quesadilla-/i, Q_DORADA = /^sq-qd-/i;
+const QUES_WORD = /\bques(?:adillas?|o?s)?\b/g;
+/** A plain quesadilla line twinning a QD line (same qty + meat) is a truncated staff repeat unless the caller asked for quesadillas twice. */
+export function dropTruncatedRepeatTwin(cart: any[], turns: Turn[]): boolean {
+  const asks = turns.filter((t) => t.speaker === "caller" && /\bquesadillas?\b/.test(plain(t.text))).length;
+  let ch = false;
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (!Q_PLAIN.test(String(l.itemId))) continue;
+    const m = qdMeat(l); if (!m) continue;
+    const twin = cart.some((d) => d !== l && Q_DORADA.test(String(d.itemId)) && (d.quantity || 1) === (l.quantity || 1) && qdMeat(d) === m);
+    const qLines = cart.filter((d) => Q_PLAIN.test(String(d.itemId)) || Q_DORADA.test(String(d.itemId))).length;
+    if (twin && asks < qLines) { cart.splice(i, 1); ch = true; } }
+  return ch;
+}
+const DRINK_ASR: Array<[RegExp, RegExp, string]> = [
+  [/\b(?:guar?d?a\s*chata|agua\s*(?:de\s*)?chata|hor?chata|orchata|ojata)\b/, /\bhorchata\b/, "sq-drink-agua-fresca-horchata-32oz-HL6HPK"],
+  [/\b(?:ja\s*maica|agua\s*(?:de\s*)?maica|hamaica)\b/, /\bjamaica\b/, "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG"],
+];
+/** Caller says a garbled agua fresca and the next staff turn names it → add it once (qty from the staff/caller "un/dos"). */
+export function addStaffConfirmedDrink(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let ch = false;
+  turns.forEach((t, i) => { if (t.speaker !== "caller") return; const c = plain(t.text);
+    for (const [asr, name, id] of DRINK_ASR) { if (!asr.test(c)) continue;
+      const st = turns.slice(i + 1, i + 3).find((x) => x.speaker === "staff"); if (!st || !name.test(plain(st.text))) continue;
+      if (cart.some((l) => String(l.itemId).includes(id.split("-").slice(0, 5).join("-")))) continue;
+      if (menu?.length && !menu.some((m: any) => m.id === id)) continue;
+      const q = plain(st.text).match(/\b(dos|tres|cuatro|2|3|4)\s+aguas?\b/); const qty = q ? ({ dos: 2, tres: 3, cuatro: 4 } as any)[q[1]] || Number(q[1]) : 1;
+      cart.push({ itemId: id, quantity: qty, modifiers: [], readback: name.source.replace(/\\b/g, "") }); ch = true; } });
+  return ch;
+}
+export function applyAlex3(cart: any[], turns: Turn[], menu: any[]) { dropTruncatedRepeatTwin(cart, turns); addStaffConfirmedDrink(cart, turns, menu); }

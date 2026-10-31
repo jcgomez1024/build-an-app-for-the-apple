@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import express from "express";
 import { knownCaller, rememberCaller, callerName, setOnNameSaved, cleanFirstName, type NameSource, saveCallerFulfillment, savedDelivery, deliveryProfile, deliveryProfileNote, savedCallerName, PHOTO_DIR , savedLanguage, setCallerLanguageKey, setCallerLanguageManual, savePickupName} from "./caller-memory.js";
-import { detectFulfillment, detectAddress, type Fulfillment } from "./delivery.js";
+import { detectFulfillment, detectAddress, cityHeard, type Fulfillment } from "./delivery.js";
 import { cachedQuote, quoteDeliveryAddress, provisionalDeliveryFeeCents, type Quote } from "./delivery-zone.js";
 import { attachAddOnNote } from "./asked-dishes.js";
 import { learnReadbackName, nameExtractEnabled, type ReadbackDecision } from "./name-extract.js";
@@ -620,7 +620,8 @@ async function applyCallDelivery(callSid: string, caller: string, turns: Array<{
   const a = f.fulfillment === "DELIVERY" ? detectAddress(turns) : { address: null, confirmed: false, by: null };
   if (!f.fulfillment) return null;
   let quote: Quote | null = null;
-  const addr = a.address?.full || (f.fulfillment === "DELIVERY" ? savedDelivery(caller).address?.address || null : null);
+  // alex3: no street said and none saved → the caller's town (unconfirmed) so the zone/fee still quotes
+  const addr = a.address?.full || (f.fulfillment === "DELIVERY" ? savedDelivery(caller).address?.address || cityHeard(turns) || null : null);
   if (f.fulfillment === "DELIVERY" && addr) { try { quote = await quoteDeliveryAddress(addr); } catch { quote = null; } }
   callDelivery.set(callSid, { fulfillment: f.fulfillment, address: addr, street: a.address?.street || null, confirmed: a.confirmed, quote });
   // hector1: address taken → never leave feeCents null (geocode fail still gets near-zone provisional)
