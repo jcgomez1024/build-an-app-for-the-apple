@@ -1,0 +1,425 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 2.901,
+   "end": 3.921,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.061,
+   "end": 6.742,
+   "text": "buenos días. Buenos, una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.362,
+   "end": 9.002,
+   "text": "Sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.563,
+   "end": 12.323,
+   "text": "Tienen, venden tacos de birria.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.804,
+   "end": 13.924,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.685,
+   "end": 17.225,
+   "text": "¿Cuántos tienen?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 19.005,
+   "end": 20.606,
+   "text": "¿Me puedes poner tres tacos de birria?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.346,
+   "end": 22.826,
+   "text": "¿Tres del comal te los pongo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 24.347,
+   "end": 25.687,
+   "text": "De como la tortilla taquera.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.268,
+   "end": 28.188,
+   "text": "Con tortilla taquera.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.868,
+   "end": 30.028,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.769,
+   "end": 31.469,
+   "text": "Y un menudo",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.389,
+   "end": 34.229,
+   "text": "Claro, ¿lo quieres regular o con pata?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.09,
+   "end": 36.05,
+   "text": "regular sin pata.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.75,
+   "end": 37.99,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 38.011,
+   "end": 39.811,
+   "text": "Y media docena de tortillas.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.751,
+   "end": 43.512,
+   "text": "Media docena de tortillas, muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.052,
+   "end": 44.653,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.372,
+   "end": 53.175,
+   "text": "Entonces te tengo tres tacos taqueros de birria, un menudo regular y media docena de tortillas. ¿A qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.255,
+   "end": 52.375,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.735,
+   "end": 54.255,
+   "text": "¿De Luis?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 55.035,
+   "end": 57.696,
+   "text": "Luis. Okay, si me das unos quince minutos.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 58.465,
+   "end": 59.067,
+   "text": "Okay, sorry.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 59.665,
+   "end": 60.148,
+   "text": "Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 60.774,
+   "end": 61.577,
+   "text": "Gracias, Aria.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 3,
+    "modifiers": [
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Birria de Chivo / Goat Birria (+$0.75)"
+     },
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TST) Taco Taquero / Street Taco"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   },
+   {
+    "itemId": "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "12 tortillas comal"
+   },
+   {
+    "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "orden de birria"
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "Buenos",
+    "language": "es",
+    "reply": "Buenos días. ¿Qué le gustaría ordenar?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "una orden",
+    "language": "es",
+    "reply": "¿Una orden de qué? Por ejemplo enchiladas, tacos dorados o tacos al vapor.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, claro."
+   },
+   {
+    "source": "caller",
+    "heard": "Tienen, venden tacos de birria",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Sí."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "Cuántos tienen Me puedes poner tres tacos de birria",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "Cuántos tienen Me puedes poner tres tacos de birria",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tres del comal te los pongo?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Taco Taquero",
+    "language": "es",
+    "reply": "3 × Taco: taquero, birria de chivo, salsa asada. $11.25. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "",
+    "pick": "Taco Taquero"
+   },
+   {
+    "source": "caller",
+    "heard": "De como la tortilla taquera Con tortilla taquera",
+    "language": "es",
+    "reply": "3 × Taco: taquero, birria de chivo, salsa asada. $11.25. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, ¿algo más?"
+   },
+   {
+    "source": "caller",
+    "heard": "un menudo",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, ¿lo quieres regular o con pata?"
+   },
+   {
+    "source": "caller",
+    "heard": "regular sin pata",
+    "language": "es",
+    "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, ¿algo más?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "4 x (Corn) Comal Tortilla",
+    "language": "es",
+    "reply": "Menudo Con Pata Menudo 32oz y Tortillas (4): comal. $15.99. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Muy bien,",
+    "pick": "4 x (Corn) Comal Tortilla"
+   },
+   {
+    "source": "caller",
+    "heard": "Y media 12 x Tortilla Comal",
+    "language": "es",
+    "reply": "Tortillas 6 x Tortilla Taquera. $4.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Media docena de tortillas, muy bien, ¿algo más?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Sería todo."
+   },
+   {
+    "source": "staff",
+    "heard": "Entonces te tengo tres tacos taqueros de birria, un menudo regular y media docena de tortillas. ¿A qué nombre sería la orden?"
+   },
+   {
+    "source": "caller",
+    "heard": "Sí De Luis",
+    "language": "es",
+    "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Luis. Okay, si me das unos quince minutos."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, sorry."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Gracias, Aria."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Listo. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "Menudo, Menudo con Tortillas (4)",
+    "language": "es",
+    "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "DELIVERY",
+  "address": "12 Media St",
+  "addressConfirmed": true,
+  "customerName": "Luis"
+ }
+}

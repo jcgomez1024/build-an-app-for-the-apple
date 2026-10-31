@@ -495,3 +495,138 @@ export function liveHominyQd(r: any, input: any) {
     return true; });
   return out.length === acts.length ? r : { ...r, actions: out };
 }
+
+// menudo3 (CA435752, Oct 31 11:34 AM ET): "tres menudos, dos con pata" + staff "y uno regular, ¿verdad?" → "Sí" rang
+// 3 con pata + 2 more con pata. The caller's total N with M con pata = M con pata + (N−M) regular, one line each.
+const MENUDO_TOTAL = new RegExp(`\\b(${NUMW}) menudos?\\b`), PATA_N = new RegExp(`\\b(${NUMW}) (?:de |con )?(?:con )?pata\\b`);
+const REG_N = new RegExp(`\\b(${NUMW}) (?:regular(?:es)?|normal(?:es)?|sencillos?|sin pata)\\b`);
+export function menudoSplit(turns: Turn[]): { total: number; pata: number; reg: number } | null {
+  const c = said(turns, "caller"); const t = c.match(MENUDO_TOTAL); if (!t) return null; const total = numOf(t[1]);
+  const after = c.slice((t.index || 0) + t[0].length); const p = after.match(PATA_N) || c.match(PATA_N); if (!p) return null; const pata = numOf(p[1]);
+  if (!(total >= 2 && pata >= 1 && pata < total)) return null;
+  let reg = 0; const r = after.match(REG_N); if (r) reg = numOf(r[1]);
+  else turns.forEach((x, i) => { if (x.speaker === "staff" && REG_N.test(plain(x.text)) && /\bmenudo|regular|normal|sin pata/.test(plain(x.text))) {
+    const nx = turns.slice(i + 1, i + 3).find((y) => y.speaker === "caller"); if (nx && YES.test(plain(nx.text))) reg = numOf(plain(x.text).match(REG_N)![1]); } });
+  return reg && pata + reg === total ? { total, pata, reg } : null;
+}
+export function applyMenudoSplit(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const s = menudoSplit(turns); if (!s) return false;
+  const lines = cart.filter((l) => /^sq-menudo-/.test(String(l.itemId))); if (!lines.length) return false;
+  const isPata = (l: any) => /con-pata/.test(String(l.itemId)) || (l.modifiers || []).some((m: any) => CON_PATA.test(String(m.option)));
+  const q = (f: (l: any) => boolean) => lines.filter(f).reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  if (q(isPata) === s.pata && q((l) => !isPata(l)) === s.reg && lines.length <= 2) return false;
+  const tort = lines.flatMap((l) => l.modifiers || []).find((m: any) => /tortilla/i.test(String(m.step)) && !/extra/i.test(String(m.step)));
+  const pataId = menu.find((m) => /^sq-menudo-con-pata/.test(m.id))?.id || "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
+  const regId = menu.find((m) => /^sq-menudo-/.test(m.id) && !/con-pata/.test(m.id))?.id || "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+  const at = cart.indexOf(lines[0]); for (let i = cart.length - 1; i >= 0; i--) if (lines.includes(cart[i])) cart.splice(i, 1);
+  const tm = tort ? [{ ...tort }] : [];
+  cart.splice(at, 0, { itemId: pataId, quantity: s.pata, modifiers: [...tm], readback: `${s.pata} menudo con pata` },
+    { itemId: regId, quantity: s.reg, modifiers: [{ step: "Menudo options", option: "Menudo con Tortillas (4)" }, ...tm.map((m) => ({ ...m }))], readback: `${s.reg} menudo regular` });
+  return true;
+}
+// menudo3: staff reading the meat list ("cabeza, carnita, …, buche, lengua, … y birria") rang an "orden de birria"; the
+// caller only said "uno de buche". A dish only staff named in a meat-list read is never added.
+const LIST_DISHES: Array<[RegExp, RegExp]> = [[/\bbirrias?\b/, /^sq-birria/], [/\bmenud(?:o|os|ito|itos)\b/, /^sq-menudo-/], [/\bpozoles?\b/, /^sq-pozole-/]];
+const isMeatListRead = (t: Turn) => t.speaker === "staff" && MEATS.filter(([re]) => re.test(plain(t.text))).length >= 5;
+export function dropStaffListDish(cart: any[], turns: Turn[]): boolean {
+  if (!turns.some(isMeatListRead)) return false; const c = said(turns, "caller"); let changed = false;
+  for (const [w, id] of LIST_DISHES) { if (w.test(c)) continue;
+    for (let i = cart.length - 1; i >= 0; i--) if (id.test(String(cart[i].itemId))) { cart.splice(i, 1); changed = true; } }
+  return changed;
+}
+// alex2 (CAe64e71, 11:40 AM ET): "dos quesadillas de picadillo … las de picadillo serían de comal" + "otras dos de aceite / ¿Qué viste?
+// Preparadas" (= doradas de bistec, preparadas). Elvi: phantom QD regular picadillo, the bistec QD as REGULAR, no extra salsa asada.
+/** STT "qué viste" right after a meat ask = "bistec". */
+export const fixBistecStt = (s: string) => String(s || "").replace(/\bqu[eé] viste\b/giu, "bistec");
+const qcoMeat = (l: any) => /^sq-quesadilla-/.test(String(l.itemId)) && (l.modifiers || []).some((m: any) => /QCO|comal/i.test(String(m.option))) ? meatOfLine(l) : null;
+/** QD line twinning a QCO line of the same meat the caller said goes "de comal" → drop the QD. */
+export function dropQdComalTwin(cart: any[], turns: Turn[]): boolean { let changed = false;
+  const comalMeats = new Set(turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)).filter((p) => /\bcomal\b/.test(p) && !/\bdorad/.test(p)).map(meatIn).filter(Boolean));
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (kindOfLine(l) !== "qd") continue; const k = qdMeat(l) || meatOfLine(l);
+    if (k && comalMeats.has(k) && cart.some((d) => qcoMeat(d) === k)) { cart.splice(i, 1); changed = true; } }
+  return changed;
+}
+const DLX_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+/** Caller said "preparada(s)" and never normal/regular → REGULAR QD lines become DELUXE Preparada. */
+export function applyQdPreparada(cart: any[], turns: Turn[]): boolean {
+  const c = said(turns, "caller"); if (!/\bpreparad[ao]s?\b/.test(c) || callerSaidNormalQd(c.replace(/\bpreparad[ao]s? o (?:normal|regular)(?:es)?\b/g, ""))) return false;
+  let changed = false;
+  for (const l of cart) { if (!QD_REG.test(String(l.itemId)) && !(kindOfLine(l) === "qd" && (l.modifiers || []).some((m: any) => /REGULAR Dorada/i.test(String(m.option))))) continue;
+    if (QD_DLX.test(String(l.itemId))) continue;
+    l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)/.test(String(m.option)))];
+    if (l.readback) l.readback = String(l.readback).replace(/regular/i, "deluxe preparada"); changed = true; }
+  return changed;
+}
+// alex2: staff "¿No quieres salsa extra?" → "Sí, por favor, una." → "De la asada, ¿verdad?" → "Sí." = 1 Extras Mild Salsa Asada 2oz.
+const SALSA_FLAV: Array<[RegExp, string]> = [[/\basada\b/, "Mild Salsa Asada"], [/\bverde\b/, "Medium Salsa Verde"], [/\broja\b/, "Hot Salsa Roja"], [/\btomate|tomato\b/, "Mild Salsa Tomato"]];
+export function extraSalsaSaid(turns: Turn[]): { option: string; qty: number } | null {
+  for (let i = 0; i < turns.length; i++) { const p = plain(turns[i].text);
+    if (!/\bsalsas? extra\b|\bextra salsa\b|\bsalsa aparte\b/.test(p)) continue;
+    const win = turns.slice(i, i + 5); if (!win.some((t) => t.speaker === "caller" && (YES.test(plain(t.text)) || new RegExp(`\\b(${NUMW})\\b`).test(plain(t.text))))) continue;
+    if (win.some((t) => t.speaker === "caller" && /^no\b/.test(plain(t.text)))) continue;
+    const ws = win.map((t) => plain(t.text)).join(" | "); const f = SALSA_FLAV.find(([re]) => re.test(ws)); if (!f) continue;
+    const n = win.filter((t) => t.speaker === "caller").map((t) => plain(t.text).match(new RegExp(`\\b(${NUMW})\\b`))).find(Boolean);
+    return { option: `${f[1]} 2oz`, qty: n ? numOf(n[1]) || 1 : 1 }; }
+  return null;
+}
+export function applyExtraSalsa(cart: any[], turns: Turn[]): boolean {
+  const s = extraSalsaSaid(turns); if (!s) return false;
+  if (cart.some((l) => /^sq-extras-/.test(String(l.itemId)) && (l.modifiers || []).some((m: any) => /salsa/i.test(String(m.option))))) return false;
+  if (cart.some((l) => (l.modifiers || []).some((m: any) => /EXTRA .*salsa/i.test(String(m.option)) && /salsa/i.test(s.option.split(" ")[1] || "")))) return false;
+  cart.push({ itemId: "sq-extras-mild-salsa-asada-2oz-T6PGNT", quantity: s.qty, modifiers: [{ step: "Extras options", option: s.option }], readback: `${s.qty} salsa extra` }); return true;
+}
+/** Post-pass bundle for menudo3/alex2. */
+export function applyMenudo3Alex2(cart: any[], turns: Turn[], menu: any[]) {
+  const t2 = turns.map((t) => ({ ...t, text: fixBistecStt(t.text) }));
+  applyMenudoSplit(cart, t2, menu); dropStaffListDish(cart, t2); dropQdComalTwin(cart, t2); applyQdPreparada(cart, t2); applyExtraSalsa(cart, t2);
+}
+/** Live: never add a birria/menudo/pozole the caller didn't say right after staff read the meat list. */
+export function liveMenudo3(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; if (!acts.length) return r;
+  const h: any[] = input?.history || []; const lastStaff = [...h].reverse().find((x: any) => x.role === "assistant");
+  if (!lastStaff || !isMeatListRead({ speaker: "staff", text: String(lastStaff.text || "") })) return r;
+  const tx = plain(String(input?.transcript || ""));
+  const out = acts.filter((a) => !(a.type === "add_item" && LIST_DISHES.some(([w, id]) => id.test(String(a.itemId)) && !w.test(tx))));
+  return out.length === acts.length ? r : { ...r, actions: out };
+}
+
+// luis3 (CA7a1e91, Oct 31 11:43 AM ET): "Tienen, venden tacos de birria" + 3 tacos taqueros de birria rang a phantom
+// 1 lb Birria de Chivo; "media docena de tortillas" rang the 12-pack; reply said "Con Pata Menudo" for a regular menudo.
+const BIRRIA_IN_DISH = /\b(?:tacos?|quesadillas?|qd|doradas?|tortas?|burritos?|gorditas?|sopes?|huaraches?|consomes?|consome)\s+(?:\w+\s+){0,2}?de\s+birria\b/g;
+export function dropBirriaFromDish(cart: any[], turns: Turn[]): boolean {
+  const c = said(turns, "caller"); if (!BIRRIA_IN_DISH.test(c)) return false; BIRRIA_IN_DISH.lastIndex = 0;
+  if (/\bbirria\b/.test(c.replace(BIRRIA_IN_DISH, " "))) return false;
+  if (!cart.some((l) => !/^sq-birria/.test(String(l.itemId)) && (l.modifiers || []).some((m: any) => /birria/i.test(String(m.option))))) return false;
+  let changed = false; for (let i = cart.length - 1; i >= 0; i--) if (/^sq-birria/.test(String(cart[i].itemId))) { cart.splice(i, 1); changed = true; }
+  return changed;
+}
+const HALF_DOZEN = /\bmedia docena\b|\bhalf (?:a )?dozen\b|\bseis tortillas\b|\b6 tortillas\b/;
+export function applyHalfDozenTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const c = said(turns, "caller"); if (!HALF_DOZEN.test(c) || /\bdocena\b(?! de tortillas)[^|]*/.test(c.replace(/\bmedia docena\b/g, "")) && /\buna docena\b/.test(c)) return false;
+  let changed = false;
+  for (const l of cart) { const id = String(l.itemId); if (!/^sq-tortillas-12-x-/.test(id) || (Number(l.quantity) || 1) !== 1) continue;
+    const pre = id.replace(/^sq-tortillas-12-x-/, "sq-tortillas-6-x-").replace(/-[A-Z0-9]+$/, "-");
+    const six = menu.flatMap((m) => [m.id, ...(m.modifierGroups || []).flatMap((g: any) => (g.options || []).map((o: any) => o?.id))]).find((x) => typeof x === "string" && x.startsWith(pre));
+    if (!six) continue; l.itemId = six; l.modifiers = (l.modifiers || []).map((m: any) => ({ ...m, option: String(m.option).replace(/^12 x/, "6 x") }));
+    if (l.readback) l.readback = String(l.readback).replace(/\b12\b/, "6"); changed = true; }
+  return changed;
+}
+/** Reply naming "Con Pata Menudo" when nothing in the turn's lines is con pata → say the regular menudo. */
+export function fixMenudoReply(reply: string, lines: any[]): string {
+  const r = String(reply || ""); if (!/con pata menudo/i.test(r)) return r;
+  if (lines.some((l) => /con-pata/.test(String(l.itemId)) || (l.modifiers || []).some((m: any) => CON_PATA.test(String(m.option))))) return r;
+  if (!lines.some((l) => /^sq-menudo-/.test(String(l.itemId)))) return r;
+  if (/¿[^?]*\bo\b[^?]*con pata menudo/i.test(r) || /con pata menudo[^?]*\bo\b[^?]*\?/i.test(r)) return r; // a real "regular o con pata?" question
+  return r.replace(/(?:Menudo\s+)?Con Pata Menudo 32oz y Tortillas \(4\)/gi, "Menudo con Tortillas (4)");
+}
+export function applyLuis3(cart: any[], turns: Turn[], menu: any[]) { dropBirriaFromDish(cart, turns); applyHalfDozenTortillas(cart, turns, menu); }
+/** Live: no 1 lb birria added on a "tacos de birria" turn; regular-menudo reply never says con pata. */
+export function liveLuis3(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const cart: any[] = input?.cart || [];
+  const tx = plain(String(input?.transcript || "")); let out = acts;
+  if (BIRRIA_IN_DISH.test(tx)) { BIRRIA_IN_DISH.lastIndex = 0; if (!/\bbirria\b/.test(tx.replace(BIRRIA_IN_DISH, " ")))
+    out = acts.filter((a) => !(a.type === "add_item" && /^sq-birria/.test(String(a.itemId)))); }
+  BIRRIA_IN_DISH.lastIndex = 0;
+  const reply = fixMenudoReply(r?.reply, [...out.filter((a) => a.type === "add_item" || a.type === "update_item"), ...(out.some((a) => /^sq-menudo-/.test(String(a.itemId))) ? [] : cart)]);
+  return out === acts && reply === String(r?.reply || "") ? r : { ...r, actions: out, reply };
+}

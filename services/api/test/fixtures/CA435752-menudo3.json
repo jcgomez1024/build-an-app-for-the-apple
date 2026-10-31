@@ -1,0 +1,404 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.96,
+   "end": 2.621,
+   "text": "Cocina Elvis, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.361,
+   "end": 6.041,
+   "text": "Hola, buenos días. Ah, ¿puedo hacer una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.802,
+   "end": 7.543,
+   "text": "Claro, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.682,
+   "end": 11.442,
+   "text": "Me da tres menudos, dos con pata",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.844,
+   "end": 15.125,
+   "text": "Tres menos dos, muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.624,
+   "end": 17.644,
+   "text": "y",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.564,
+   "end": 20.544,
+   "text": "quesadilla dos con pata, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.307,
+   "end": 20.427,
+   "text": "Sí,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.347,
+   "end": 22.287,
+   "text": "y uno regular, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.005,
+   "end": 23.085,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.328,
+   "end": 25.248,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.186,
+   "end": 27.326,
+   "text": "Y también me da",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.446,
+   "end": 29.846,
+   "text": "cuatro quesadillas de comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.59,
+   "end": 31.571,
+   "text": "Muy bien, ¿de qué se la",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.551,
+   "end": 33.031,
+   "text": "ponemos?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.007,
+   "end": 55.572,
+   "text": "Ah, dos de bistec, ¿y de qué más tiene el día de hoy? Ah, me da unos de",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.273,
+   "end": 53.358,
+   "text": "Ah, tenemos cabeza, carnita, chorizo, costilla, pollo al pastor, buche, lengua, tripa, prensado, duro, deshebrada, picadillo, nopales con papas, papas con rajas, huevo con chile, frijoles y birria.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.012,
+   "end": 61.293,
+   "text": "Uno de, dos de, no, uno de buche y uno de cabeza.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 68.014,
+   "end": 68.515,
+   "text": "¿Sería todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 79.197,
+   "end": 79.277,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 82.117,
+   "end": 82.377,
+   "text": "¿José?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 87.318,
+   "end": 87.939,
+   "text": "Okay, está bien.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+    "quantity": 3,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "3 menudo con pata"
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "orden de birria"
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Buche / Pork Stomach"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Cabeza / Beef Head"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "Menudo options",
+      "option": "Con Pata Menudo 32oz y Tortillas (4)"
+     },
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "asked": true
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Cocina Elvis, buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, ¿puedo hacer una orden",
+    "language": "es",
+    "reply": "¡Claro! ¿Qué le gustaría ordenar?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, dígame."
+   },
+   {
+    "source": "caller",
+    "heard": "tres menudos",
+    "language": "es",
+    "reply": "Listo.",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "dos con pata",
+    "language": "es",
+    "reply": "Menudo con Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Tres menos dos, muy bien."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "y quesadilla dos con pata",
+    "language": "es",
+    "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Sí,"
+   },
+   {
+    "source": "staff",
+    "heard": "y uno regular, ¿verdad?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Sí."
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, ¿algo más?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Quesadilla Comal",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Muy bien,",
+    "pick": "Quesadilla Comal"
+   },
+   {
+    "source": "caller-count",
+    "heard": "Y"
+   },
+   {
+    "source": "caller",
+    "heard": "cuatro quesadillas de comal",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "cuatro quesadillas de comal",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, ¿de qué se la"
+   },
+   {
+    "source": "staff",
+    "heard": "ponemos?"
+   },
+   {
+    "source": "caller-meat-fragment",
+    "heard": "2 quesadillas de bistec de comal",
+    "language": "es",
+    "reply": "2 × Quesadilla: comal, bistec, salsa asada. $9.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-fragments",
+    "heard": "Ah, dos de bistec, ¿y de qué más tiene el día de hoy? Ah, me da unos de",
+    "dishes": [
+     "y quesadilla dos con pata"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, tenemos cabeza, carnita, chorizo, costilla, pollo al pastor, buche, lengua, tripa, prensado, duro, deshebrada, picadillo, nopales con papas, papas con rajas, huevo con chile, frijoles y birria."
+   },
+   {
+    "source": "caller-meat-fragment",
+    "heard": "un birria de buche y uno de cabeza Sería todo Sí José Okay, está bien",
+    "language": "es",
+    "reply": "2 quesadillas de comal: 1 birria de chivo, 1 cabeza, salsa asada. $10.25. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "asked-dish",
+    "heard": "dos con pata",
+    "item": "sq-menudo-menudo-con-tortillas-4-ZSRUX4"
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false
+ }
+}
