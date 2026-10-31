@@ -318,6 +318,10 @@ export function removalNotesIn(text: string): string[] {
   if (/\bnada\s+de\s+verduras?\b/iu.test(text) || /\bas[ií]\s+solitos?\b/iu.test(text)) {
     if (!out.includes("no verdura")) out.push("no verdura");
   }
+  // noe1 (CA8e26a89, Oct 30 8:08 PM ET): "con la verdura aparte" / "veggies on the side" → toppings packed separately
+  if (/\b(?:verduras?|vegetales|toppings?|veggies|cebolla\s+y\s+cilantro)\s+(?:(?:por\s+)?aparte|por\s+separado|de\s+lado|a\s+un\s+lado|on\s+the\s+side|separate(?:ly)?)\b/iu.test(text) || /\b(?:aparte|on\s+the\s+side)\s+(?:la|las|el|the)\s+(?:verduras?|vegetales|toppings?|veggies)\b/iu.test(text)) {
+    if (!out.includes("verdura aparte")) out.push("verdura aparte");
+  }
   return out;
 }
 const lineHasDeluxe = (l: any) => (l?.modifiers || []).some((m: any) => /\bDELUXE\b/i.test(String(m?.option || "")) && !/^\s*regular\b/i.test(String(m?.option || "")));
@@ -3572,6 +3576,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
         const rest = t.text.replace(/^\W*(?:(?:no|s[ií]|las?|los?|unas?)\s*,?\s*)?(regular(?:es)?|preparad[oa]s?|deluxe)\b[,.\s]*/iu, "").trim();
         steps.push({ source: "caller-dorada-style", heard: t.text });
+        attributeRemovals(t.text, ld); // noe1: "No regulares, con la verdura aparte" — the note rides on that Dorada
         if (rest && (/\bdoradas?\b/iu.test(rest) || listedMeats(rest).length > 0)) {
           t = { ...t, text: rest }; // fall through — oscar1 bistec dorada after style
           lastStaff = "";
