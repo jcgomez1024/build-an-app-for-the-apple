@@ -1,0 +1,166 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.221,
+   "end": 2.321,
+   "text": "Pozinairis,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 3.382,
+   "end": 4.222,
+   "text": "buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.043,
+   "end": 7.424,
+   "text": "Sí, sí, sí tiene birria.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.743,
+   "end": 7.144,
+   "text": "Sí, digan.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.444,
+   "end": 9.205,
+   "text": "Claro que sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.225,
+   "end": 12.386,
+   "text": "Sí, me pone una orden de birria",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.527,
+   "end": 14.768,
+   "text": "Claro, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.848,
+   "end": 17.769,
+   "text": "y y y me pone una docena de tortillas.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 18.47,
+   "end": 20.25,
+   "text": "Muy bien, ¿sería todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.931,
+   "end": 21.611,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 22.352,
+   "end": 24.193,
+   "text": "Muy bien, ¿al nombre de quién sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.992,
+   "end": 25.793,
+   "text": "A nombre, a nombre de Gustavo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.574,
+   "end": 27.774,
+   "text": "Gustavo, muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.835,
+   "end": 31.877,
+   "text": "Este, ¿me puede dar unos quince minutos, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.697,
+   "end": 33.377,
+   "text": "Sí, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.118,
+   "end": 35.919,
+   "text": "Muy bien, Gustavo, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.899,
+   "end": 37.619,
+   "text": "Sí, gracias.",
+   "language": "es"
+  }
+ ],
+ "posCatalog": {
+  "fetchedAt": "2026-10-31T00:00:00Z",
+  "items": [
+   {
+    "id": "5RHPISIPMSC5Y3OYUXBT5RI6",
+    "name": "Tortillas (ONLINE)",
+    "modifierListIds": [],
+    "variations": [
+     {
+      "id": "IABZCWHAIGM7IODUWSUGGDQM",
+      "name": "6 x Tortilla Taquera / Corn Street",
+      "priceCents": 400
+     },
+     {
+      "id": "VEQC2ZXIOMACRQSPYAYBJT3Z",
+      "name": "12 x Tortilla Taquera / Corn Street",
+      "priceCents": 600
+     },
+     {
+      "id": "4IXTCHYJP65YFLADZNSALG3K",
+      "name": "6 x Tortilla Harina / Flour",
+      "priceCents": 600
+     },
+     {
+      "id": "7M44SIJGZS3UIJD2XRRTV6XN",
+      "name": "12 x Tortilla Harina / Flour",
+      "priceCents": 800
+     },
+     {
+      "id": "YQG6N4IMYJQQR6B2YELPK6RD",
+      "name": "6 x Tortilla Comal / Handmade",
+      "priceCents": 700
+     },
+     {
+      "id": "VGID3HJ6257CRFOGZIXIT4J4",
+      "name": "12 x Tortilla Comal / Handmade",
+      "priceCents": 1200
+     }
+    ]
+   }
+  ],
+  "modifierLists": {}
+ }
+}

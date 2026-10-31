@@ -57,10 +57,15 @@ export function toPosLine(l: Line, cat: PosCatalog | null): Line {
   const posName = src.name.replace(CHANNEL, "").trim();
   const pos = cat.items.find((i) => i.name === posName) || src;
   let choices = [...(l.choices || [])];
-  let pv: Var | undefined = pos.variations.length === 1 ? pos.variations[0] : pos.variations.find((v) => !isRegular(srcVar.name) && norm(v.name) === norm(srcVar.name));
+  // gustavo1 (CAb35dd6f): norm() drops the "12 x " pack count, so "12 x Tortilla Comal" matched the 6-pack. Same variation id
+  // wins outright; name matches must also agree on the pack count.
+  const cnt = (n: string) => (String(n || "").match(/^\s*(\d+)\s*x\s+/i) || [])[1] || "";
+  const sameVar = (a: string, b: string) => norm(a) === norm(b) && cnt(a) === cnt(b);
+  let pv: Var | undefined = pos.variations.find((v) => v.id === l.variationId)
+    || (pos.variations.length === 1 ? pos.variations[0] : pos.variations.find((v) => !isRegular(srcVar.name) && sameVar(v.name, srcVar.name)));
   if (!pv) {
-    const i = choices.findIndex((c) => pos.variations.some((v) => norm(v.name) === norm(c)));
-    if (i >= 0) { pv = pos.variations.find((v) => norm(v.name) === norm(choices[i])); choices.splice(i, 1); }
+    const i = choices.findIndex((c) => pos.variations.some((v) => sameVar(v.name, c)));
+    if (i >= 0) { pv = pos.variations.find((v) => sameVar(v.name, choices[i])); choices.splice(i, 1); }
   }
   // sopesaso1: "Regular" online vs several POS sizes (Sopesaso Elvis 10” / 2 x Sopes / Sope) → closest price, first on ties.
   if (!pv && isRegular(srcVar.name) && pos.variations.length) pv = [...pos.variations].sort((a, b) => Math.abs(a.priceCents - srcVar.priceCents) - Math.abs(b.priceCents - srcVar.priceCents))[0];

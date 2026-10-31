@@ -384,6 +384,8 @@ export function nameFromSpelledLetters(text: string): string | null {
   const joined = parts.map((p) => p.toUpperCase()).join("");
   const name = joined.charAt(0) + joined.slice(1).toLowerCase();
   if (NOT_NAMES.test(name)) return null;
+  // gustavo1 (CAb35dd6f, "y y y me pone…" → "Yyy"): stutters/fillers aren't spelling — one repeated letter, 3+ in a row, or no vowel.
+  if (new Set(joined).size === 1 || /(.)\1\1/i.test(joined) || !/[AEIOUÁÉÍÓÚ]/i.test(joined)) return null;
   return cleanFullName(name) || name;
 }
 
@@ -583,7 +585,11 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   return null;
 }
 function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled" } | null {
-  const spelled = spelledNameFromCall(turns);
+  const spelled0 = spelledNameFromCall(turns);
+  // gustavo1: "a nombre de Gustavo" + staff "Gustavo, muy bien" beats a spelled result that isn't that name.
+  const askConf = spelled0 ? nameFromStaffAsk(turns) : null;
+  const confirmed = !!askConf && turns.some((t) => t.speaker === "staff" && foldName(t.text).includes(foldName(askConf)));
+  const spelled = spelled0 && confirmed && !foldName(askConf!).startsWith(foldName(spelled0)) && !foldName(spelled0).startsWith(foldName(askConf!)) ? null : spelled0;
   if (spelled) return { name: spelled, thirdPerson: false, source: "spelled" };
   const fromAsk = nameFromStaffAsk(turns);
   const fromVoc = fromAsk ? null : nameFromStaffVocative(turns);
