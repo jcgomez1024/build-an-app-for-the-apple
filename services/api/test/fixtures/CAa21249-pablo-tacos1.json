@@ -1,0 +1,167 @@
+{
+  "turns": [
+    {
+      "speaker": "caller",
+      "start": 8.383,
+      "end": 9.184,
+      "text": "Buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 11.965,
+      "end": 14.045,
+      "text": "Me puedes dar una cinco,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.487,
+      "end": 21.388,
+      "text": "ah, tacos de costilla del taquero, me puedes poner, ah, cinco,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 25.19,
+      "end": 30.952,
+      "text": "Muy bien,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 26.59,
+      "end": 27.851,
+      "text": "ah, y tres de tripa.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 31.632,
+      "end": 31.932,
+      "text": "Pablo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 33.493,
+      "end": 35.013,
+      "text": "Pablo,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 40.275,
+      "end": 49.099,
+      "text": "deme unos quince minutos.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 44.817,
+      "end": 45.918,
+      "text": "Sí, está, eso es todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 49.739,
+      "end": 50.259,
+      "text": "Sí, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 50.78,
+      "end": 51.5,
+      "text": "Gracias a usted.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-taco-TAR7L5",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(B) T Carnes / Meats Opciones",
+            "option": "Costilla / Beef Rib"
+          },
+          {
+            "step": "(A) T Tortilla Options",
+            "option": "(TST) Taco Taquero / Street Taco"
+          },
+          {
+            "step": "(I) Salsa Preferencia / Preference",
+            "option": "Mild Salsa Asada",
+            "isDefault": true
+          }
+        ],
+        "readback": "taco taquero"
+      },
+      {
+        "itemId": "sq-taco-TAR7L5",
+        "quantity": 3,
+        "modifiers": [
+          {
+            "step": "(B) T Carnes / Meats Opciones",
+            "option": "Tripa / Beef Tripe (+$0.50)"
+          },
+          {
+            "step": "(A) T Tortilla Options",
+            "option": "(TST) Taco Taquero / Street Taco"
+          }
+        ],
+        "readback": "3 taco tripa"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "source": "caller",
+      "heard": "una cinco, ah, tacos de costilla del taquero, me puedes poner, ah, cinco,",
+      "language": "es",
+      "reply": "Taco: taquero, costilla, salsa asada. $3.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien,"
+    },
+    {
+      "source": "caller",
+      "heard": "ah,, tres de tripa Pablo",
+      "language": "es",
+      "reply": "3 × Taco: taquero, salsa asada, tripa. $10.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Pablo,"
+    },
+    {
+      "source": "staff",
+      "heard": "deme unos quince minutos."
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, está, eso es todo Sí",
+      "language": "es",
+      "reply": "Taco: taquero, costilla y tripa. $3.50. ¿Algo más?",
+      "actions": [
+        "update_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Gracias a usted."
+    }
+  ],
+  "name": "Pablo",
+  "fulfillment": "PICKUP"
+}
