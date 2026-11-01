@@ -1,5 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
-import { liveAguacateFull, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
+import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
 import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
@@ -2137,6 +2137,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   if (input?.transcript) { const t = applySharedAliases(String(input.transcript), "app"); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // nicky1: "chila/chili rellenos", "stuffed (poblano) peppers" → "chiles rellenos" for every path
   if (input?.transcript) { const t = normalizeRelleno(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
+  // aaron-qd1: "fried steak quesadillas" → Quesadilla Dorada for every path
+  if (input?.transcript) { const t = normalizeFriedQuesadilla(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // paco1: "una quesadilla de A, otra de B, otra de C" → each una/otra is its own named line for every path
   if (input?.transcript) { const t = expandOtraList(String(input.transcript)); if (t !== input.transcript) input = { ...input, transcript: t }; }
   // case1: every path (deterministic turns and the model) gets the caller's-words cleanup
@@ -2184,6 +2186,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveQuesaAfterSoup(o2, input); } catch { /* keep */ } // coco-quesa1
   try { o2 = liveMenudoSoloCaldo(o2, input); } catch { /* keep */ } // victor-caldo1
   try { o2 = liveQBDecline(o2, input); } catch { /* keep */ } // jose-qb1
+  try { o2 = liveConsomeTotal(o2, input); } catch { /* keep */ } // pancho-consome1
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides

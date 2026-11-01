@@ -1895,3 +1895,78 @@ export function liveQBDecline(r: any, input: any) {
   const es = input?.language !== "en" || /\b(normales|no)\b/i.test(said);
   return { ...r, actions: keep, reply: askQB || keep.length !== acts.length ? (es ? "Muy bien, normales. ¿Algo más?" : "Okay, regular ones. Anything else?") : r.reply };
 }
+
+// ---- aaron-qd1 (CA62bea13): "three fried steak quesadillas" … "deluxe" = 3 QD (Quesadilla Dorada) bistec DELUXE;
+// "one flour steak quesadilla deluxe" = quesadilla harina bistec + DELUXE. fried / frita / dorada all mean the QD.
+const FQ_FRIED = "fried|deep\\s*fried|dorad[ao]s?|frit[ao]s?|golden";
+const FRIED_QUES = new RegExp(`(?<![\\p{L}\\d])(${NUMW})\\s+(?:${FQ_FRIED})\\s+(?:([\\p{L} ]{3,20}?)\\s+)?quesadillas?|(?<![\\p{L}\\d])(${NUMW})\\s+quesadillas?\\s+(?:${FQ_FRIED})(?:\\s+(?:de|of)\\s+([\\p{L} ]{3,20}))?`, "giu");
+const FQ_DLX = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", FQ_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+const FQ_DELUXE = { step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" };
+const fqN = (w: string) => numOf(w) || ({ one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 } as any)[String(w).toLowerCase()] || 0;
+/** Live/every path: "fried steak quesadillas" → "quesadillas doradas steak" so the resolver finds the QD instead of "not on our menu". */
+export function normalizeFriedQuesadilla(t: string): string {
+  return String(t || "").replace(new RegExp(`\\b(?:${FQ_FRIED})\\s+((?:[\\p{L}]+\\s+){0,2}?)quesadillas?\\b`, "giu"), (_m, meat) => `quesadilla dorada ${meat || ""}`.replace(/\s+$/, ""));
+}
+export function applyFriedQuesadilla(cart: any[], turns: Turn[]): boolean {
+  const ct = turns.map((t, i) => ({ ...t, i }));
+  let ch = false;
+  for (const t of ct) {
+    if (t.speaker !== "caller") continue;
+    for (const m of String(t.text || "").matchAll(FRIED_QUES)) {
+      const n = fqN(m[1] || m[3]); if (!n || n > 20) continue;
+      // window: this turn's tail + following turns until the next quesadilla is ordered
+      const tail = String(t.text).slice((m.index || 0) + m[0].length); const win = [m[0], tail];
+      for (const u of ct.slice(t.i + 1, t.i + 5)) { const s = String(u.text || ""); const cut = s.search(/\b(?:and\s+then|y\s+luego|let\s+me\s+get|me\s+(?:das|pones))\b|(?:^|\s)(?:una?|one|\d)\s+(?:\p{L}+\s+){0,2}quesadilla/iu); win.push(cut >= 0 ? s.slice(0, cut) : s); if (cut >= 0) break; }
+      const w = win.join(" ");
+      const meats = b22Meats(b22low([m[2] || m[4] || "", w].join(" "))); if (!meats.length) continue;
+      const deluxe = /\b(?:deluxe|delux|supreme|suprema|preparad[ao]s?)\b/i.test(w) && !/\bregular\b/i.test(w);
+      const have = cart.filter((l) => l.itemId === FQ_DLX || l.itemId === FQ_REG).reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+      if (have >= n) continue;
+      cart.push({ itemId: deluxe ? FQ_DLX : FQ_REG, quantity: n - have, modifiers: [{ step: "(QD) Style", option: deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: meats[0] }], readback: `${n - have} quesadilla dorada ${deluxe ? "deluxe" : "regular"}` });
+      ch = true;
+    }
+  }
+  // "<tortilla> <meat> quesadilla deluxe" → that quesadilla line gets DELUXE
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    for (const m of String(t.text || "").matchAll(/\b(flour|harina|comal|corn|homemade|taquera|street)\s+(?:[\p{L}]+\s+){0,2}quesadillas?\s+(?:deluxe|delux|supreme)\b|\bdeluxe\s+(flour|harina|comal|corn|taquera)\s+(?:[\p{L}]+\s+){0,2}quesadillas?\b/giu)) {
+      const tor = (m[1] || m[2]).toLowerCase(); const code = /flour|harina/.test(tor) ? "QHR" : /taquera|street/.test(tor) ? "QST" : "QCO";
+      for (const l of cart) if (l.itemId === QUES_ID && (l.modifiers || []).some((x: any) => String(x.option).includes(`(${code})`)) && !(l.modifiers || []).some((x: any) => /DELUXE/i.test(String(x.option)))) { l.modifiers = [...(l.modifiers || []), FQ_DELUXE]; ch = true; }
+    }
+  }
+  return ch;
+}
+
+// ---- pancho-consome1 (CA35a4a93): "que sean dos consomé y una birria nomás" = 2 consomés TOTAL counting the one the birria
+// includes → birria + 1 extra SOLO 16oz consomé. The last settled count replaces earlier ones.
+const CONS_TOTAL = new RegExp(`(?<![\\p{L}\\d])(${NUMW})\\s+consom[eé]s?(?:\\s+y)?\\s+(${NUMW})\\s+birrias?\\b|(?<![\\p{L}\\d])(${NUMW})\\s+birrias?\\s+y\\s+(${NUMW})\\s+consom[eé]s?\\b`, "giu");
+export function consomeTotalSaid(text: string): { consome: number; birria: number } | null {
+  let r: any = null;
+  for (const m of b22low(String(text || "")).matchAll(CONS_TOTAL)) r = m[1] ? { consome: fqN(m[1]), birria: fqN(m[2]) } : { consome: fqN(m[4]), birria: fqN(m[3]) };
+  return r && r.consome && r.birria ? r : null;
+}
+const isSoloCons = (l: any) => l.itemId === BIRRIA_ID && (l.modifiers || []).some((m: any) => /SOLO/i.test(String(m.option)));
+export function applyConsomeTotal(cart: any[], turns: Turn[]): boolean {
+  const ct = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  let said: any = null; for (let i = 0; i < ct.length; i++) said = consomeTotalSaid(ct[i] + (i + 1 < ct.length ? "" : "")) || consomeTotalSaid((ct[i - 1] || "") + " " + ct[i]) || said;
+  if (!said) return false;
+  const full = cart.filter((l) => l.itemId === BIRRIA_ID && !isSoloCons(l)).reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  if (full !== said.birria) return false;
+  const extra = Math.max(0, said.consome - said.birria);
+  const solos = cart.filter(isSoloCons); const cur = solos.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  if (cur === extra) return false;
+  for (let k = cart.length - 1; k >= 0; k--) if (isSoloCons(cart[k])) cart.splice(k, 1);
+  if (extra) cart.push({ itemId: BIRRIA_ID, quantity: extra, modifiers: [CONSOME_SOLO], readback: extra > 1 ? `${extra} consomés` : "consomé" });
+  return true;
+}
+/** Live: on the settled "N consomé y una birria", don't add more consomés; read back the real count. */
+export function liveConsomeTotal(r: any, input: any) {
+  const hist: any[] = input?.history || [];
+  const lastC = [...hist].reverse().find((h) => h.role === "customer" || h.role === "user");
+  const said = consomeTotalSaid(String(input?.transcript || "")) || consomeTotalSaid(`${lastC?.text || ""} ${input?.transcript || ""}`);
+  if (!said || !consomeTotalSaid(String(input?.transcript || "")) && !/birria|consom/i.test(String(input?.transcript || ""))) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const keep = acts.filter((a) => !((a?.type === "add_item" || a?.type === "update_item") && /consom/i.test(JSON.stringify(a))));
+  const extra = Math.max(0, said.consome - said.birria); const en = input?.language === "en";
+  return { ...r, actions: keep, reply: en ? `${said.birria} birria with its consomé${extra ? ` plus ${extra} extra consomé` : ""}. Anything else?` : `${said.birria === 1 ? "Una" : said.birria} birria con su consomé${extra ? ` y ${extra === 1 ? "un" : extra} consomé${extra > 1 ? "s" : ""} extra` : ""}. ¿Algo más?` };
+}

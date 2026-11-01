@@ -1,0 +1,289 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 1.4,
+      "end": 2.061,
+      "text": "Sí, buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.58,
+      "end": 11.802,
+      "text": "Are you going to place order for pickup? Hello? Yeah, can I place order for pickup?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 5.522,
+      "end": 6.142,
+      "text": "Sí, buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 8.703,
+      "end": 9.043,
+      "text": "Sí, dime.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 13.765,
+      "end": 16.165,
+      "text": "Give me one second. Hello?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.562,
+      "end": 15.902,
+      "text": "Alright.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.602,
+      "end": 18.462,
+      "text": "Hello, how you doing?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 19.106,
+      "end": 26.189,
+      "text": "Good, how you doing? Yeah, what can I get for you, sir?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 21.163,
+      "end": 22.923,
+      "text": "I'm good, can I place order for pickup this",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 28.184,
+      "end": 28.704,
+      "text": "can I get,",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 32.504,
+      "end": 38.445,
+      "text": "let me get three flour, or no, three fried steak quesadillas",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 39.533,
+      "end": 46.956,
+      "text": "Three, five deluxe steak. Any, yeah, yeah. Anything else?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.845,
+      "end": 40.385,
+      "text": "deluxe.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 42.646,
+      "end": 44.726,
+      "text": "Yes, fried, yes ma'am, steak.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 46.466,
+      "end": 50.487,
+      "text": "And then, let me get one flour steak quesadilla deluxe.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 51.437,
+      "end": 58.219,
+      "text": "Okay, deluxe. Okay, anything else? Yeah, I got it.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 54.767,
+      "end": 56.288,
+      "text": "No, so it's three, three,",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 57.568,
+      "end": 59.928,
+      "text": "fried and one flour. Okay.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 59.28,
+      "end": 59.42,
+      "text": "Yeah.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 64.09,
+      "end": 65.711,
+      "text": "Aaron, A A R O N.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 74.154,
+      "end": 75.655,
+      "text": "A A R O N.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 84.739,
+      "end": 85.359,
+      "text": "All right, thanks.",
+      "language": "en"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+        },
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        }
+      ],
+      "asked": true
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Sí, buenas tardes."
+    },
+    {
+      "source": "caller-fulfillment",
+      "heard": "Are you going to place order for pickup? Hello? Yeah, can I place order for pickup?"
+    },
+    {
+      "source": "caller",
+      "heard": "? Yeah, can I place order for pickup",
+      "language": "en",
+      "reply": "Pickup.",
+      "actions": [
+        "set_fulfillment"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, buenas tardes."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, dime."
+    },
+    {
+      "source": "staff",
+      "heard": "Give me one second. Hello?"
+    },
+    {
+      "source": "caller",
+      "heard": "Alright Hello, how you doing",
+      "language": "en",
+      "reply": "Ready.",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Good, how you doing? Yeah, what can I get for you, sir?"
+    },
+    {
+      "source": "caller",
+      "heard": "I'm good, can I place order for pickup this can I get, let me get three flour, or no",
+      "language": "en",
+      "reply": "Three flour. Go ahead.",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "three fried steak quesadillas",
+      "language": "en",
+      "reply": "Sorry, fried steak quesadillas isn't on our menu. Our most popular are Quesadilla, Quesadilla Dorada, Taco or Burrito. What sounds good?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Three, five deluxe steak. Any, yeah, yeah. Anything else?"
+    },
+    {
+      "source": "caller",
+      "heard": "deluxe Yes, fried, yes ma'am, steak And then, let me get one flour steak quesadilla deluxe",
+      "language": "en",
+      "reply": "Quesadilla: flour, deluxe: lettuce, pico, sour cream, steak, mild asada salsa. $5.00. Anything else?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, deluxe. Okay, anything else? Yeah, I got it."
+    },
+    {
+      "source": "caller",
+      "heard": "so it's three, fried",
+      "language": "en",
+      "reply": "Got it. What else?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "one flour. Okay",
+      "language": "en",
+      "reply": "Okay. Anything else?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Yeah."
+    },
+    {
+      "source": "caller",
+      "heard": "Aaron",
+      "language": "en",
+      "reply": "Thanks, Aaron. Review your order and check out when you're ready.",
+      "actions": [
+        "set_customer"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "A R O N A R O N All right",
+      "language": "en",
+      "reply": "Done.",
+      "actions": []
+    },
+    {
+      "source": "asked-dish",
+      "heard": "deluxe Yes, fried, yes ma'am, steak And then, let me get one flour steak quesadi",
+      "item": "sq-quesadilla-HLT6CR"
+    }
+  ],
+  "name": "Aaron",
+  "fulfillment": null
+}

@@ -1,0 +1,302 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.44,
+      "end": 1.26,
+      "text": "Cocina Elvis.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.041,
+      "end": 5.301,
+      "text": "Sí, buenas tardes, quiero hacer una orden para llevar, porfa.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 6.102,
+      "end": 7.442,
+      "text": "Sí, dígame qué le vamos a dar.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 8.462,
+      "end": 11.243,
+      "text": "Ah, un platillo de que si, de",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 12.203,
+      "end": 13.224,
+      "text": "birria de chivo, perdón.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 14.625,
+      "end": 17.026,
+      "text": "Un, una birria de chivo, claro, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 16.905,
+      "end": 16.985,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 18.345,
+      "end": 21.766,
+      "text": "Eh, una pregunta, ¿ya no, ya no dan consomé?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 22.988,
+      "end": 23.108,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 24.707,
+      "end": 30.048,
+      "text": "Okey, ah, lo que pasa es que la semana pasada ordené y no, no traía.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 30.93,
+      "end": 34.211,
+      "text": "Oh, ok, sí, sí, tra, trae. Oye, me aseguro que lleve.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 35.07,
+      "end": 36.37,
+      "text": "Okey, ¿me le pones una,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 37.47,
+      "end": 39.051,
+      "text": "una extra, porfa, que sean dos",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 40.033,
+      "end": 40.994,
+      "text": "Dos birrias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 40.151,
+      "end": 40.571,
+      "text": "consomé?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 41.832,
+      "end": 54.895,
+      "text": "No, que sean dos consomé y una birria nomás. Ajá. De pancho.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 52.037,
+      "end": 53.618,
+      "text": "Muy bien, ¿a qué nombre sería la orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 55.779,
+      "end": 59.26,
+      "text": "Pancho, ok, Pancho, dame unos quince minutos, veinte minutos.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 59.888,
+      "end": 60.391,
+      "text": "Gracias.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+      "quantity": 1,
+      "modifiers": [],
+      "readback": "orden de birria"
+    },
+    {
+      "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "Birria de Chivo / Goat Birria options",
+          "option": "SOLO / ONLY 16oz de Consome / Broth de Birria"
+        }
+      ],
+      "readback": "consomé"
+    },
+    {
+      "itemId": "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "Birria de Chivo / Goat Birria options",
+          "option": "SOLO / ONLY 16oz de Consome / Broth de Birria"
+        }
+      ],
+      "readback": "2 consomés"
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Cocina Elvis."
+    },
+    {
+      "source": "caller-fulfillment",
+      "heard": "Sí, buenas tardes, quiero hacer una orden para llevar, porfa."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, dígame qué le vamos a dar."
+    },
+    {
+      "source": "caller",
+      "heard": "Ah",
+      "language": "es",
+      "reply": "¿Listo para ordenar?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "un platillo de que si, de birria de chivo, perdón",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Un, una birria de chivo, claro, ¿algo más?"
+    },
+    {
+      "source": "caller",
+      "heard": "Sí Eh",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "una pregunta, ¿ya no, ya no dan consomé",
+      "language": "es",
+      "reply": "Sí, la Birria de Chivo sí incluye consomé. ¿La quieres con tortillas y consomé, o solo consomé?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sí."
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "La quieres con tortillas y consomé",
+      "language": "es",
+      "reply": "Birria de Chivo. $20.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "Okey, ah, lo que pasa es que la semana pasada ordené y no traía",
+      "language": "es",
+      "reply": "Parece que se cortó. ¿Qué no traía?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Oh, ok, sí, sí, tra, trae. Oye, me aseguro que lleve."
+    },
+    {
+      "source": "caller",
+      "heard": "Okey, ¿me le pones una",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "una extra, porfa, que sean dos",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Dos birrias."
+    },
+    {
+      "source": "caller",
+      "heard": "consomé",
+      "language": "es",
+      "reply": "Un consomé de 16 oz. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "que sean dos consomé",
+      "language": "es",
+      "reply": "2 consomés de 16 oz. ¿Algo más?",
+      "actions": [
+        "update_item",
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "una birria nomás. Ajá. De pancho",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿a qué nombre sería la orden?"
+    },
+    {
+      "source": "staff",
+      "heard": "Pancho, ok, Pancho, dame unos quince minutos, veinte minutos."
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Gracias."
+    }
+  ],
+  "name": "Pancho",
+  "fulfillment": "PICKUP"
+}
