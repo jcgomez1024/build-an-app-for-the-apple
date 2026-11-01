@@ -1490,3 +1490,145 @@ export function liveMenudoCountSinPata(r: any, input: any) {
   });
   return { ...r, actions: out, reply };
 }
+
+// ---- batch 22 (adolfo-combo1, kevin-combo1, angelica-tortillas1, nena1, edgar-mix1) ----
+const B22_MEATS: Array<[RegExp, string]> = [
+  [/bistec|asada|steak/, "Bistec / Steak"], [/chorizo/, "Chorizo / Mexican Sausage"], [/pollo|chicken/, "Pollo / Chicken"],
+  [/costilla/, "Costilla / Beef Rib"], [/pastor/, "Alpastor / Roasted Pork"], [/carnitas/, "Carnitas / Pulled Pork"],
+  [/cabeza/, "Cabeza / Beef Head"], [/buche/, "Buche / Pork Stomach"], [/lengua/, "Lengua / Beef Tongue"],
+  [/tripa/, "Tripa / Beef Tripe"], [/prensado/, "Prensado / Spicy Pork"], [/duro|chicharr/, "Duro / Pork Rinds"],
+  [/deshebrada/, "Deshebrada / Shredded Beef with Potatoes"], [/picadillo/, "Picadillo / Ground Beef with Potatoes"],
+  [/birria/, "Birria de Chivo / Goat Birria"],
+];
+const b22low = (s: any) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function b22Meats(text: string): string[] {
+  const out: Array<[number, string]> = [];
+  for (const [re, name] of B22_MEATS) { const g = new RegExp(re.source, "g"); let m; while ((m = g.exec(text))) out.push([m.index, name]); }
+  return out.sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+}
+const COMBO_Q_ID = "sq-combo-quesadillas-BATSPB";
+/** adolfo-combo1/kevin-combo1: "dos quesadillas combo" or 2 quesadillas + arroz y frijol → one COMBO Quesadillas line, each quesadilla its own meat; drop phantom singles. After-call. */
+export function applyQuesadillaCombo(cart: any[], turns: Turn[]): boolean {
+  const all = turns.map((t) => ({ sp: t.speaker, x: b22low(t.text) }));
+  const callerQ = all.filter((t) => t.sp === "caller" && /quesadilla/.test(t.x));
+  if (!callerQ.length) return false;
+  const comboSaid = all.some((t) => /combo/.test(t.x) && (t.sp === "caller" ? true : /quesadilla/.test(t.x)));
+  const twoQ = callerQ.some((t) => /(dos|2)\s+quesadillas?/.test(t.x));
+  const sides = all.some((t) => t.sp === "caller" && /(arroz|rice)/.test(t.x)) && all.some((t) => t.sp === "caller" && /(frijol|beans)/.test(t.x));
+  if (!(comboSaid || (twoQ && sides))) return false;
+  // more than 2 quesadillas said, or another quesadilla beyond the combo → leave alone
+  if (callerQ.some((t) => /(tres|cuatro|cinco|seis|[3-9])\s+quesadillas|otra\s+quesadilla|dos\s+combos/.test(t.x))) return false;
+  // meats: "uno de X y uno de Y" in caller turns after first quesadilla mention, else "quesadillas de X"
+  const firstQ = all.findIndex((t) => t.sp === "caller" && /quesadilla/.test(t.x));
+  let meats: string[] = [];
+  for (const t of all.slice(firstQ)) {
+    if (t.sp !== "caller") continue;
+    const parts = t.x.match(/un[oa]?\s+de\s+[a-z ]+?(?=,|\s+y\s+un|$|\.)/g);
+    if (parts && parts.length >= 2) { meats = parts.flatMap((p) => b22Meats(p).slice(0, 1)); if (meats.length >= 2) break; }
+  }
+  if (meats.length < 2) {
+    const q = callerQ.map((t) => b22Meats(t.x)).find((m) => m.length);
+    if (!q) return false;
+    meats = q.length >= 2 ? q.slice(0, 2) : [q[0], q[0]];
+  }
+  const callerTxt = all.filter((t) => t.sp === "caller").map((t) => t.x).join(" ");
+  const shell = /harina|flour/.test(callerTxt) ? "(QHR) 2 x Harina / Flour (+$1.00)" : /taquera|street/.test(callerTxt) && !/comal/.test(callerTxt) ? "(QST) 2 x Taquera / Street" : "(QCO) 2 x Comal / Homemade (+$2.00)";
+  const ra = /(arroz|rice)/.test(callerTxt), fr = /(frijol|beans)/.test(callerTxt);
+  const side = ra && !fr ? "SOLO Arroz - Rice" : fr && !ra ? "SOLO Frijoles Refritos - Refried Beans" : "Arroz - Rice and Frijoles Refritos - Refried Beans";
+  const prev = cart.find((l) => l?.itemId === COMBO_Q_ID);
+  const keep = (prev?.modifiers || []).filter((m: any) => !/^\((A|B|CD|D)\)/.test(String(m.step)));
+  const line: any = prev || { itemId: COMBO_Q_ID, quantity: 1 };
+  line.quantity = 1;
+  line.modifiers = [
+    { step: "(A) Q Tortilla Shell Option COMBO", option: shell },
+    { step: "(B) Item #1 Carne/Meat Option COMBO", option: "1 x " + meats[0] },
+    { step: "(CD) Item #2 Carne/Meat Option COMBO", option: "1 x " + meats[1] },
+    { step: "(D) COMBO Sides", option: side },
+    ...keep,
+  ];
+  const before = JSON.stringify(cart);
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const id = String(cart[i]?.itemId || "");
+    if (cart[i] !== line && (id === COMBO_Q_ID || /^sq-quesadilla-|^sq-qd-quesadilla/.test(id))) cart.splice(i, 1);
+  }
+  if (!cart.includes(line)) cart.push(line);
+  return JSON.stringify(cart) !== before;
+}
+
+/** angelica-tortillas1: duplicate tortilla pack lines → one; last "N docenas" said wins; drop a pack style never said. After-call. */
+export function applyTortillaPackDedupe(cart: any[], turns: Turn[]): boolean {
+  const packs = cart.filter((l) => /^sq-tortillas-/.test(String(l?.itemId || "")));
+  if (packs.length < 2) return false;
+  const callerTxt = turns.filter((t) => t.speaker === "caller").map((t) => b22low(t.text)).join(" ");
+  const before = JSON.stringify(cart);
+  const styleSaid = (id: string) => /taquera|street/.test(id) ? /taquer|street/.test(callerTxt) : /harina|flour/.test(id) ? /harina|flour/.test(callerTxt) : true;
+  const ids = [...new Set(packs.map((l) => l.itemId))];
+  const saidIds = ids.filter(styleSaid);
+  if (!saidIds.length) return false;
+  for (let i = cart.length - 1; i >= 0; i--) if (/^sq-tortillas-/.test(String(cart[i]?.itemId)) && !saidIds.includes(cart[i].itemId)) cart.splice(i, 1);
+  const NW: Record<string, number> = { una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+  let last: number | null = null;
+  for (const m of callerTxt.matchAll(/(\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+docenas?/g)) last = /\d/.test(m[1]) ? +m[1] : NW[m[1]];
+  for (const id of saidIds) {
+    const ls = cart.filter((l) => l?.itemId === id);
+    if (ls.length < 2 && last == null) continue;
+    const q = last != null && /-12-/.test(id) ? last : ls[ls.length - 1].quantity;
+    ls[0].quantity = q;
+    for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+  }
+  return JSON.stringify(cart) !== before;
+}
+
+/** nena1: "cuatro tortas de milanesa" → torta qty 4 and no carne modifier the caller never said with the torta. After-call. */
+export function applyTortaSaid(cart: any[], turns: Turn[]): boolean {
+  const tortas = cart.filter((l) => /^sq-torta-/.test(String(l?.itemId || "")));
+  if (tortas.length !== 1) return false;
+  const t = tortas[0];
+  const tt = turns.filter((x) => x.speaker === "caller").map((x) => b22low(x.text)).filter((x) => /tort[ao]s?(?![a-z])/.test(x) && !/tortilla/.test(x));
+  if (!tt.length) return false;
+  const NW: Record<string, number> = { una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
+  let n: number | null = null;
+  for (const x of tt) { const m = x.match(/(\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+tort[ao]s?(?![a-z])/); if (m) n = /\d/.test(m[1]) ? +m[1] : NW[m[1]]; }
+  const before = JSON.stringify(t);
+  if (n && n > 1) t.quantity = n;
+  const txt = tt.join(" ");
+  if ((t.modifiers || []).some((m: any) => /milanesa/i.test(m.option)) && /milanesa/.test(txt)) {
+    t.modifiers = t.modifiers.filter((m: any) => !/Carne|Meat/i.test(String(m.step)) || /milanesa/i.test(m.option) || b22Meats(b22low(m.option)).some((mm) => b22Meats(txt).includes(mm)));
+  }
+  return JSON.stringify(t) !== before;
+}
+
+/** edgar-mix1: taco line with 2+ meats when caller listed "uno de X, uno de Y" → one taco per meat; drop meatless taco lines beyond the tacos stated; collapse exact-duplicate burrito lines said once. After-call. */
+export function applyTacoMeatList(cart: any[], turns: Turn[]): boolean {
+  const before = JSON.stringify(cart);
+  const ct = turns.filter((t) => t.speaker === "caller").map((t) => b22low(t.text));
+  const listed = ct.filter((x) => /^(y\s+)?un[oa]?\s+del?\s+/.test(x.trim()) || /un[oa]\s+de\s+\w+\s+y\s+un[oa]\s+de/.test(x)).length >= 2;
+  const isTaco = (l: any) => /^sq-taco-/.test(String(l?.itemId || ""));
+  const meatMods = (l: any) => (l.modifiers || []).filter((m: any) => b22Meats(b22low(m.option)).length && !/salsa|tortilla|\(T[A-Z]+\)/i.test(m.option));
+  if (listed) {
+    for (const l of [...cart]) {
+      if (!isTaco(l) || l.quantity !== 1) continue;
+      const mm = meatMods(l);
+      if (mm.length < 2) continue;
+      const rest = l.modifiers.filter((m: any) => !mm.includes(m));
+      const idx = cart.indexOf(l);
+      cart.splice(idx, 1, ...mm.map((m: any) => ({ ...structuredClone(l), modifiers: [m, ...structuredClone(rest)], quantity: 1 })));
+    }
+    let stated = 0;
+    for (const x of ct) for (const m of x.matchAll(/(\d+|dos|tres|cuatro|cinco|seis)\s+tacos/g)) stated += /\d/.test(m[1]) ? +m[1] : ({ dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 } as any)[m[1]];
+    const withMeat = cart.filter((l) => isTaco(l) && meatMods(l).length).reduce((a, l) => a + (l.quantity || 1), 0);
+    if (stated && withMeat >= stated) for (let i = cart.length - 1; i >= 0; i--) if (isTaco(cart[i]) && !meatMods(cart[i]).length) cart.splice(i, 1);
+  }
+  // exact-duplicate burrito lines: keep one when caller never said 2 of that meat / "otro ... igual" of same meat
+  const key = (l: any) => l.itemId + "|" + (l.modifiers || []).map((m: any) => m.option).sort().join("|");
+  const seen = new Map<string, any>();
+  for (const l of [...cart]) {
+    if (!/^sq-burrito-/.test(String(l?.itemId || "")) || l.quantity !== 1) continue;
+    const k = key(l);
+    if (!seen.has(k)) { seen.set(k, l); continue; }
+    const meats = meatMods(l).flatMap((m: any) => b22Meats(b22low(m.option)));
+    const twice = ct.filter((x) => /burrito/.test(x) && meats.some((mm) => b22Meats(x).includes(mm))).length >= 2 || ct.some((x) => /(dos|2)\s+burritos/.test(x));
+    if (!twice) cart.splice(cart.indexOf(l), 1);
+  }
+  return JSON.stringify(cart) !== before;
+}

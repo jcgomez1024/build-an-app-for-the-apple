@@ -1,0 +1,305 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.58,
+   "end": 0.86,
+   "text": "Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.301,
+   "end": 4.443,
+   "text": "Eh, um, ¿puedo hacer un orden de pickup?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.363,
+   "end": 12.587,
+   "text": "¿Nada de berenjenas? Okay, el jamón con arroz y frijoles.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.604,
+   "end": 9.285,
+   "text": "Um, ¿me puede dar uno, dos quesadilla combo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.248,
+   "end": 13.348,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.628,
+   "end": 16.409,
+   "text": "Okay, ¿de qué te gustarían las quesadillas?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.59,
+   "end": 19.291,
+   "text": "Uno de bistec y uno de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.052,
+   "end": 22.793,
+   "text": "Una de bistec y una de chorizo, muy bien. ¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.594,
+   "end": 24.074,
+   "text": "Será todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.734,
+   "end": 26.175,
+   "text": "¿Me darías tu nombre para la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.875,
+   "end": 32.499,
+   "text": "Kevin. Okay, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.196,
+   "end": 31.258,
+   "text": "Muy bien, Kevin, danos unos quince, veinte minutos, ¿no? Y te la tenemos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.979,
+   "end": 33.159,
+   "text": "A ti.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    }
+   ],
+   "readback": "1 quesadilla bistec"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Chorizo / Mexican Sausage"
+    }
+   ],
+   "readback": "1 quesadilla chorizo"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Chorizo / Mexican Sausage"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-combo-quesadillas-BATSPB",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Shell Option COMBO",
+     "option": "(QCO) 2 x Comal / Homemade (+$2.00)"
+    },
+    {
+     "step": "(B) Item #1 Carne/Meat Option COMBO",
+     "option": "1 x Bistec / Steak",
+     "isDefault": true
+    },
+    {
+     "step": "(CD) Item #2 Carne/Meat Option COMBO",
+     "option": "1 x Bistec / Steak",
+     "isDefault": true
+    },
+    {
+     "step": "(D) COMBO Sides",
+     "option": "Arroz - Rice and Frijoles Refritos - Refried Beans",
+     "isDefault": true
+    }
+   ],
+   "asked": true
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, bueno."
+  },
+  {
+   "source": "caller-fulfillment",
+   "heard": "Eh, um, ¿puedo hacer un orden de pickup?"
+  },
+  {
+   "source": "staff",
+   "heard": "¿Nada de berenjenas? Okay, el jamón con arroz y frijoles."
+  },
+  {
+   "source": "caller",
+   "heard": "me puede dar uno",
+   "language": "es",
+   "reply": "Perdón, no tenemos eso en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "dos quesadilla combo Sí",
+   "language": "es",
+   "reply": "¿Tortilla hecha a mano (comal) como siempre, o de harina (+$1.00) o taquera de maíz?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, ¿de qué te gustarían las quesadillas?"
+  },
+  {
+   "source": "caller-meat",
+   "heard": "Uno quesadilla combo Sí de bistec",
+   "language": "es",
+   "reply": "¿Las dos de bistec?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "COMBO Quesadillas: ¿comal o harina?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller-meat",
+   "heard": "uno quesadilla combo Sí de chorizo",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller-meat-expanded",
+   "heard": "Uno de bistec y uno de chorizo.",
+   "asked": "dos quesadilla combo Sí",
+   "expanded": [
+    "Uno quesadilla combo Sí de bistec",
+    "uno quesadilla combo Sí de chorizo"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Una de bistec y una de chorizo, muy bien. ¿Algo más?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Quesadilla Comal",
+   "language": "es",
+   "reply": "Quesadilla: comal, chorizo, salsa asada. $4.50. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Una de bistec y una de chorizo, muy bien.",
+   "pick": "Quesadilla Comal"
+  },
+  {
+   "source": "caller",
+   "heard": "Será todo",
+   "language": "es",
+   "reply": "Muy bien. ¿Qué más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Me darías tu nombre para la orden?"
+  },
+  {
+   "source": "caller-name",
+   "heard": "Kevin. Okay, gracias."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, Kevin, danos unos quince, veinte minutos, ¿no? Y te la tenemos."
+  },
+  {
+   "source": "staff",
+   "heard": "A ti."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Combo de quesadillas: comal, 2 chorizo, arroz y frijoles, salsa asada. $12.99. ¿Algo más?",
+   "actions": [
+    "update_item"
+   ]
+  },
+  {
+   "source": "asked-dish",
+   "heard": "así está bien",
+   "item": "sq-combo-quesadillas-BATSPB"
+  }
+ ],
+ "name": "Kevin",
+ "fulfillment": "PICKUP"
+}

@@ -1,0 +1,1025 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.52,
+   "end": 1,
+   "text": "Sí, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.541,
+   "end": 4.721,
+   "text": "Oh, muy buenos días. Quería hacer una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.082,
+   "end": 4.282,
+   "text": "Bueno,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.382,
+   "end": 6.903,
+   "text": "ah, sí, dígame qué le vamos a dar.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.142,
+   "end": 11.302,
+   "text": "Y me me me pones un un burrito grande de bistec.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.205,
+   "end": 12.666,
+   "text": "¿Con todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.683,
+   "end": 17.324,
+   "text": "Sí, el Lexus, algo así le llaman, que viene con todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 16.367,
+   "end": 18.168,
+   "text": "Ah, ¿ Deluxe?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.584,
+   "end": 19.344,
+   "text": "Ándale, ese me lo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.849,
+   "end": 20.789,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.584,
+   "end": 24.745,
+   "text": "Me pones otro burrito grande también, pero de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.371,
+   "end": 26.532,
+   "text": "Muy bien, igual, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.446,
+   "end": 27.746,
+   "text": "Igual.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.593,
+   "end": 30.534,
+   "text": "Ok, muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.047,
+   "end": 33.367,
+   "text": "Y me pones tres tacos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.195,
+   "end": 34.736,
+   "text": "¿Del comal?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.027,
+   "end": 36.888,
+   "text": "Sí, de de comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 37.397,
+   "end": 38.157,
+   "text": "¿De qué te los pongo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.368,
+   "end": 40.088,
+   "text": "Uno de bistec,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.858,
+   "end": 41.419,
+   "text": "Muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 42.109,
+   "end": 42.989,
+   "text": "uno del pastor,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.62,
+   "end": 44.14,
+   "text": "Muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 45.989,
+   "end": 47.03,
+   "text": "y uno de picadillo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.982,
+   "end": 49.522,
+   "text": "Ok, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.39,
+   "end": 55.731,
+   "text": "Y me, sí, me pones dos, dos, ah, ay, ¿cómo se llama? Dos tacos,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.812,
+   "end": 57.872,
+   "text": "mm.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 59.893,
+   "end": 61.613,
+   "text": "Uno de deshebrada y uno de lengua.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 62.387,
+   "end": 66.769,
+   "text": "Uno de cebrada y uno de lengua. Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 65.434,
+   "end": 68.836,
+   "text": "Ajá. Y, y, sí, por último, bueno,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 70.356,
+   "end": 72.157,
+   "text": "me pones dos quesadillas de",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 73.057,
+   "end": 75.298,
+   "text": "tripa, pero que sea suavecita, no, no muy,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 76.438,
+   "end": 76.878,
+   "text": "así como,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 77.232,
+   "end": 77.572,
+   "text": "Dorada.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 78.499,
+   "end": 83.621,
+   "text": "no, no muy dor, no, no nada dorada, así se puede. Dos quesadillas.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 82.654,
+   "end": 83.554,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 85.061,
+   "end": 85.121,
+   "text": "Ah,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 86.582,
+   "end": 88.502,
+   "text": "sería todo, las quesadillas las quiero de,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 90.823,
+   "end": 103.448,
+   "text": "una de harina y la otra de comal. Ah. Ah, okey, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 93.718,
+   "end": 101.1,
+   "text": "Okay, una de a, a ver, permíteme. Las ult, las ul, las dos últimas que seguías te las puse del comal de tripa.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 105.428,
+   "end": 106.809,
+   "text": "Bueno, quería una de harina, pero.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 107.642,
+   "end": 112.224,
+   "text": "Okay, te la, te la cambio entonces, te pongo una de harina y una de, y una del comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 110.67,
+   "end": 111.751,
+   "text": "Sí, ahí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 113.131,
+   "end": 113.971,
+   "text": "Sí, ahí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 113.404,
+   "end": 118.646,
+   "text": "Muy bien, ok, está bien. Entonces te vuelvo a repetir tu orden. Es un burrito de bistec",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 117.612,
+   "end": 118.152,
+   "text": "A ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 119.627,
+   "end": 138.014,
+   "text": "y luego otro burrito de chorizo, deluxe, los dos, arroz y frijol, y luego un taco de comal de bistec, un taco de comal de al pastor, un taco de comal de picadillo, un taco de comal de deshebrada, un taco de comal de lengua, un una quesadilla de comal de tripa y una quesadilla de harina de tripa.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 122.413,
+   "end": 122.573,
+   "text": "Ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 123.634,
+   "end": 123.734,
+   "text": "Sí,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 139.057,
+   "end": 139.677,
+   "text": "sí. Sí, así es.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 140.135,
+   "end": 141.095,
+   "text": "Ok, dame tu nombre.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 142.438,
+   "end": 143.958,
+   "text": "Eh, Edgar. Sí. Okey, está",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 143.956,
+   "end": 147.677,
+   "text": "Edgar. Ok, Edgar, dame unos veinte minutos,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 145.278,
+   "end": 153.06,
+   "text": "bien. Okey, está bien, muchas gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 148.638,
+   "end": 149.658,
+   "text": "veinte a veinticinco,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 151.039,
+   "end": 152.179,
+   "text": "¿ok? Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 153.92,
+   "end": 154.18,
+   "text": "Adiós.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-burrito-TGWBEN",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Burrito Size",
+     "option": "Grande '12 (+$3.00)"
+    },
+    {
+     "step": "(B) Burrito Carne Options",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(E) DELUXE Options",
+     "option": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Arroz / Rice"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Frijoles Refritos / Refried Beans"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-burrito-TGWBEN",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) Burrito Carne Options",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) Burrito Size",
+     "option": "Grande '12 (+$3.00)"
+    },
+    {
+     "step": "(E) DELUXE Options",
+     "option": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Arroz / Rice"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Frijoles Refritos / Refried Beans"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-burrito-TGWBEN",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Burrito Size",
+     "option": "Grande '12 (+$3.00)"
+    },
+    {
+     "step": "(B) Burrito Carne Options",
+     "option": "Chorizo / Mexican Sausage"
+    },
+    {
+     "step": "(E) DELUXE Options",
+     "option": "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Arroz / Rice"
+    },
+    {
+     "step": "(C) Burrito Options",
+     "option": "Frijoles Refritos / Refried Beans"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Alpastor / Roasted Pork"
+    },
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ],
+   "readback": "3 taco alpastor+bistec"
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Picadillo / Ground Beef with Potatoes"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Deshebrada / Shredded Beef with Potatoes"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Lengua / Beef Tongue (+$0.50)"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Tripa / Beef Tripe (+$0.50)"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Lengua / Beef Tongue (+$0.50)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    }
+   ]
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    }
+   ],
+   "readback": "quesadilla comal chorizo"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Picadillo / Ground Beef"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    }
+   ],
+   "readback": "quesadilla comal picadillo"
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, dígame."
+  },
+  {
+   "source": "caller",
+   "heard": "Quería hacer una orden",
+   "language": "es",
+   "reply": "Adelante.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Bueno,"
+  },
+  {
+   "source": "staff",
+   "heard": "ah, sí, dígame qué le vamos a dar."
+  },
+  {
+   "source": "caller",
+   "heard": "Y me pones un burrito grande de bistec",
+   "language": "es",
+   "reply": "Burrito: grande, bistec. $11.00. La mayoría la pide con arroz, frijoles refritos, queso fresco y cebolla. ¿La quiere así?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿Con todo?"
+  },
+  {
+   "source": "caller-answer",
+   "heard": "La quiere así",
+   "language": "es",
+   "reply": "Burrito: bistec, grande. $11.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-answer",
+   "heard": "Sí, el Lexus, algo así le llaman, que viene con todo."
+  },
+  {
+   "source": "staff",
+   "heard": "Ah, ¿ Deluxe?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Ándale, ese me lo."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "otro burrito grande también, pero de chorizo",
+   "language": "es",
+   "reply": "Burrito: grande, chorizo. $11.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, igual, ¿verdad?"
+  },
+  {
+   "source": "caller",
+   "heard": "Igual",
+   "language": "es",
+   "reply": "Muy bien. ¿Qué más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Ok, muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "tres tacos",
+   "language": "es",
+   "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Del comal?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Taco Comal",
+   "language": "es",
+   "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "",
+   "pick": "Taco Comal"
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, de comal",
+   "language": "es",
+   "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "Sí, de comal",
+   "language": "es",
+   "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿De qué te los pongo?"
+  },
+  {
+   "source": "caller-meat",
+   "heard": "Uno tacos de bistec",
+   "language": "es",
+   "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "3 × Taco: comal, bistec, salsa asada. $12.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-meat-expanded",
+   "heard": "Uno de bistec,",
+   "asked": "tres tacos",
+   "expanded": [
+    "Uno tacos de bistec"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien."
+  },
+  {
+   "source": "caller",
+   "heard": "uno del pastor,",
+   "language": "es",
+   "reply": "Taco: comal, pastor y bistec. $4.00. ¿Algo más?",
+   "actions": [
+    "update_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien."
+  },
+  {
+   "source": "caller",
+   "heard": "uno de picadillo",
+   "language": "es",
+   "reply": "Taco: comal, picadillo. $4.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Ok, ¿algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "Y me, sí, me pones dos, ah, ay, ¿cómo se llama? Dos tacos, mm Uno de deshebrada, uno de lengua",
+   "language": "es",
+   "reply": "Taco: ya tengo 1 deshebrada y 1 lengua. ¿Taco Comal, Taco Harina o Taco Taquero?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Uno de cebrada y uno de lengua. Muy bien, ¿algo más?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Taco Comal",
+   "language": "es",
+   "reply": "2 tacos de comal: 1 deshebrada, 1 lengua, salsa asada. $8.50. ¿Algo más?",
+   "actions": [
+    "add_item",
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Uno de cebrada y uno de lengua. Muy bien,",
+   "pick": "Taco Comal"
+  },
+  {
+   "source": "caller",
+   "heard": "Ajá. Y, sí, por último, bueno",
+   "language": "es",
+   "reply": "Muy bien. ¿Qué más?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "dos quesadillas de tripa, pero que sea suavecita, no muy, así como,",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Dorada."
+  },
+  {
+   "source": "staff-dorada-not-comal",
+   "heard": "dorada",
+   "language": "en",
+   "reply": "2 × Quesadilla: comal, shredded beef with potatoes and beef tongue, mild asada salsa. $10.00. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-dorada-not-comal",
+   "heard": "Dorada. no, no muy dor, no, no nada dorada, así se puede. Dos quesadillas."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller-count",
+   "heard": "Ah,"
+  },
+  {
+   "source": "caller",
+   "heard": "sería todo, las quesadillas las quiero de, una de harina y la otra de comal. Ah, okey, está bien",
+   "language": "es",
+   "reply": ". ¿Algo más? No alcanzaré a oír bien «harina» / «comal». ¿Qué carne era?",
+   "actions": [
+    "add_item",
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, una de a, a ver, permíteme. Las ult, las ul, las dos últimas que seguías te las puse del comal de tripa."
+  },
+  {
+   "source": "caller",
+   "heard": "quería una de harina, pero",
+   "language": "es",
+   "reply": "Muy bien. ¿Qué más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, te la, te la cambio entonces, te pongo una de harina y una de, y una del comal."
+  },
+  {
+   "source": "caller-answer",
+   "heard": "Qué más",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "caller-answer",
+   "heard": "Sí, ahí, por favor Sí, ahí, por favor."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ok, está bien. Entonces te vuelvo a repetir tu orden. Es un burrito de bistec"
+  },
+  {
+   "source": "caller",
+   "heard": "A ver, dime",
+   "language": "es",
+   "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "y luego otro burrito de chorizo, deluxe, los dos, arroz y frijol, y luego un taco de comal de bistec, un taco de comal de al pastor, un taco de comal de picadillo, un taco de comal de deshebrada, un taco de comal de lengua, un una quesadilla de comal de tripa y una quesadilla de harina de tripa."
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "y luego otro burrito de chorizo, deluxe, los dos, arroz y frijol, y luego un taco de comal de bistec, un taco de comal de al pastor, un taco de comal de picadillo, un taco de comal de deshebrada, un taco de comal de lengua, un una quesadilla de comal de tripa y una quesadilla de harina de tripa.",
+   "language": "es",
+   "reply": "Burrito: deluxe: lechuga, pico, crema, grande, frijoles refritos, arroz; Taco: comal, salsa asada, con frijoles; Taco: comal, salsa asada, con frijoles; Taco: comal, salsa asada, con frijoles; Taco: comal, salsa asada, con frijoles; Taco: comal, salsa asada, con frijoles; Quesadilla: comal, tripa, salsa asada, con frijoles; Quesadilla: harina, tripa, salsa asada, con frijoles. $45.00. ¿Algo más?",
+   "actions": [
+    "add_item",
+    "add_item",
+    "add_item",
+    "add_item",
+    "add_item",
+    "add_item",
+    "add_item",
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "Ajá Sí, sí. Sí, así es."
+  },
+  {
+   "source": "staff",
+   "heard": "Ok, dame tu nombre."
+  },
+  {
+   "source": "caller",
+   "heard": "Edgar. Sí. Okey, está",
+   "language": "es",
+   "reply": "Gracias, Edgar. Revisa tu orden y cuando estés listo, pasa a pagar.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Edgar. Ok, Edgar, dame unos veinte minutos,"
+  },
+  {
+   "source": "caller",
+   "heard": "bien. Okey, está bien, muchas",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "veinte a veinticinco,"
+  },
+  {
+   "source": "staff",
+   "heard": "¿ok? Gracias."
+  },
+  {
+   "source": "staff",
+   "heard": "Adiós."
+  }
+ ],
+ "name": "Edgar",
+ "fulfillment": "PICKUP"
+}

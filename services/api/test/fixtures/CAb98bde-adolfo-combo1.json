@@ -1,0 +1,194 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.04,
+   "end": 1.561,
+   "text": "Sí, ya está. Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.601,
+   "end": 12.445,
+   "text": "Bueno, ¿puedo hacer un orden para encargar? Um, yo me voy a querer dos quesadillas de bistec de comal",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.962,
+   "end": 6.703,
+   "text": "Claro, claro, a ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.266,
+   "end": 15.507,
+   "text": "Dos quesadillas de bistec de comal, okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.187,
+   "end": 16.767,
+   "text": "y el",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.728,
+   "end": 21.809,
+   "text": "tambo de rice beans o rose beans, frijoles.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.11,
+   "end": 26.231,
+   "text": "Okay, quieres el combo de las dos quesadillas con arroz y frijol.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.452,
+   "end": 28.552,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.453,
+   "end": 30.993,
+   "text": "Okay. ¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.354,
+   "end": 37.416,
+   "text": "Oh, no, gracias, es todo. Um, Adolfo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.255,
+   "end": 35.815,
+   "text": "¿Me das tu nombre para la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.377,
+   "end": 42.538,
+   "text": "Adolfo, sale Adolfo, danos unos quince, veinte minutos, no, y te la tenemos.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.299,
+   "end": 45.96,
+   "text": "Okay, gracias. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 44.679,
+   "end": 44.839,
+   "text": "A ti.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(C) Con / With",
+     "option": "**Con Arroz / With Rice (+$0.50)"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    }
+   ],
+   "readback": "2 comal quesadillas steak rice"
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, ya está. Sí, bueno."
+  },
+  {
+   "source": "caller",
+   "heard": "puedo hacer un orden para encargar? Um, yo me voy a querer dos quesadillas de bistec de comal",
+   "language": "es",
+   "reply": "2 × Quesadilla: comal, bistec, salsa asada. $9.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Claro, claro, a ver, dime."
+  },
+  {
+   "source": "staff",
+   "heard": "Dos quesadillas de bistec de comal, okay."
+  },
+  {
+   "source": "caller",
+   "heard": "y el tambo de rice beans o rose beans, frijoles",
+   "language": "es",
+   "reply": "Quesadilla: comal, con frijoles, frijoles refritos y arroz, salsa asada. $5.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, quieres el combo de las dos quesadillas con arroz y frijol."
+  },
+  {
+   "source": "caller-ack",
+   "heard": "Sí."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay. ¿Algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "Oh, no, gracias, es todo. Um, Adolfo",
+   "language": "es",
+   "reply": "Gracias, Adolfo. Revisa tu orden y cuando estés listo, pasa a pagar.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿Me das tu nombre para la orden?"
+  },
+  {
+   "source": "staff",
+   "heard": "Adolfo, sale Adolfo, danos unos quince, veinte minutos, no, y te la tenemos."
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Okay, gracias. Sí."
+  },
+  {
+   "source": "staff",
+   "heard": "A ti."
+  }
+ ],
+ "name": "Adolfo",
+ "fulfillment": "PICKUP"
+}

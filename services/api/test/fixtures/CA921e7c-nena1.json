@@ -1,0 +1,404 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 2.941,
+   "end": 4.001,
+   "text": "Sí, buenas tardes, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.181,
+   "end": 6.181,
+   "text": "Buenas tardes.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.982,
+   "end": 7.362,
+   "text": "Sí, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.962,
+   "end": 10.322,
+   "text": "¿Me puedes hacer un pedido?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.223,
+   "end": 12.883,
+   "text": "Sí, cómo no, ¿qué te vamos a poner?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.063,
+   "end": 16.183,
+   "text": "Van a ser tres menudos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 16.884,
+   "end": 18.064,
+   "text": "A ver, permíteme, vaya para,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.065,
+   "end": 20.445,
+   "text": "para grabarlos de una vez, ¿no?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.845,
+   "end": 22.606,
+   "text": "Oh, ¿qué pasó?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.167,
+   "end": 28.767,
+   "text": "Aquí están, mira.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.807,
+   "end": 31.408,
+   "text": "Me hubieras dicho que era también en esa cali. Sí, era.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 42.01,
+   "end": 42.71,
+   "text": "A ver, dime ahora sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.829,
+   "end": 44.97,
+   "text": "Tres menudos con papa.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.492,
+   "end": 47.872,
+   "text": "¿Qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.67,
+   "end": 49.571,
+   "text": "¿Tiene tortas?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.612,
+   "end": 57.073,
+   "text": "Tortas, sí. Ah, es de Milanesa. De Milanesa.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.371,
+   "end": 54.171,
+   "text": "Me pone cuatro tortos de milanesa.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 61.434,
+   "end": 62.854,
+   "text": "Cuatro tortas de Milanesa.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 64.794,
+   "end": 65.214,
+   "text": "¿Qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 66.034,
+   "end": 68.654,
+   "text": "Hay una casa de charrón panizado y otra de duro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 69.395,
+   "end": 70.055,
+   "text": "Y de las de Comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 70.855,
+   "end": 70.975,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 74.016,
+   "end": 92.199,
+   "text": "¿Qué más? Ah, nena, vas a vas a venir por ella, ¿verdad? La llevo. Okay. No, está bien, nena. Entonces, mira, van a hacer, ah, tres menudo con pata, cuatro tortas de Milanesa y dos quesadillas de Comal, una de duro y una de apretado, ¿sí?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 75.155,
+   "end": 75.675,
+   "text": "Nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 78.176,
+   "end": 78.276,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 79.816,
+   "end": 82.037,
+   "text": "No, Don Carlos me los va a traer. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 92.138,
+   "end": 92.819,
+   "text": "Ándele.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 93.319,
+   "end": 95.979,
+   "text": "Van van a ser ochenta y ocho, nena. Dame unos veinticinco, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 94.959,
+   "end": 97.939,
+   "text": "Está bien, Don Carlos, muchas gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 97.099,
+   "end": 100.08,
+   "text": "Va, ándele. Bye. Bye.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 99.62,
+   "end": 100.7,
+   "text": "Bye.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+   "quantity": 3,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "menudo"
+  },
+  {
+   "itemId": "sq-torta-4GNTTE",
+   "quantity": 3,
+   "modifiers": [
+    {
+     "step": "(B) Torta Carne Options",
+     "option": "Milanesa Pollo (+$1.50)"
+    },
+    {
+     "step": "(B) Torta Carne Options",
+     "option": "Duro / Pork Rinds"
+    },
+    {
+     "step": "(A) Torta Options",
+     "option": "(TO) Torta"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, buenas tardes, dígame."
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, dime."
+  },
+  {
+   "source": "caller",
+   "heard": "Me puedes hacer",
+   "language": "es",
+   "reply": "Adelante.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, cómo no, ¿qué te vamos a poner?"
+  },
+  {
+   "source": "caller",
+   "heard": "Van a ser tres menudos",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "A ver, permíteme, vaya para,"
+  },
+  {
+   "source": "staff",
+   "heard": "para grabarlos de una vez, ¿no?"
+  },
+  {
+   "source": "staff",
+   "heard": "Oh, ¿qué pasó?"
+  },
+  {
+   "source": "staff",
+   "heard": "Aquí están, mira."
+  },
+  {
+   "source": "staff",
+   "heard": "Me hubieras dicho que era también en esa cali. Sí, era."
+  },
+  {
+   "source": "staff",
+   "heard": "A ver, dime ahora sí."
+  },
+  {
+   "source": "caller",
+   "heard": "Tres menudos con papa",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más?"
+  },
+  {
+   "source": "staff",
+   "heard": "Tortas, sí. Ah, es de Milanesa. De Milanesa."
+  },
+  {
+   "source": "caller",
+   "heard": "Me pone cuatro tortos de milanesa",
+   "language": "es",
+   "reply": "No tenemos milanesas. ¿Le ofrezco otra cosa: tacos, tortas, quesadillas…?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Cuatro tortas de Milanesa."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "tortas",
+   "language": "es",
+   "reply": "Torta: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Cuatro tortas de Milanesa.",
+   "pick": "tortas"
+  },
+  {
+   "source": "caller",
+   "heard": "Hay una casa de chicharrón panizado y otra de duro",
+   "language": "es",
+   "reply": "Sí, sí tenemos. ¿Cuántos le preparo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Y de las de Comal."
+  },
+  {
+   "source": "caller-ack",
+   "heard": "Sí."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más? Ah, nena, vas a vas a venir por ella, ¿verdad? La llevo. Okay. No, está bien, nena. Entonces, mira, van a hacer, ah, tres menudo con pata, cuatro tortas de Milanesa y dos quesadillas de Comal, una de duro y una de apretado, ¿sí?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Nada más Sí."
+  },
+  {
+   "source": "caller",
+   "heard": "Don Carlos me los va a traer. Sí Ándele",
+   "language": "es",
+   "reply": "3 × Torta: milanesa de pollo y chicharrón duro, salsa asada. $18.75. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Van van a ser ochenta y ocho, nena. Dame unos veinticinco, por favor."
+  },
+  {
+   "source": "caller",
+   "heard": "Está bien, Don Carlos, muchas",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Va, ándele. Bye. Bye."
+  },
+  {
+   "source": "caller-after-goodbye",
+   "heard": "Bye."
+  }
+ ],
+ "name": "Ándele",
+ "fulfillment": "DELIVERY"
+}

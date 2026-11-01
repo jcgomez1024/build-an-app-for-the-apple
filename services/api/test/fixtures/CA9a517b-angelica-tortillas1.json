@@ -1,0 +1,429 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.34,
+   "end": 0.64,
+   "text": "Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 1.961,
+   "end": 3.781,
+   "text": "Sí, bueno, disculpe, ¿todavía tienes tortillas a mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.321,
+   "end": 5.122,
+   "text": "Sí, claro que sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.002,
+   "end": 10.924,
+   "text": "No me podría, ahorita, ahorita vamos a coger, este, unas,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.584,
+   "end": 14.385,
+   "text": "póngame unas seis órdenes.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.365,
+   "end": 16.005,
+   "text": "¿Seis docenas?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.886,
+   "end": 20.267,
+   "text": "Sí, oh, no, póngame, ¿ vende por docena?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.766,
+   "end": 18.226,
+   "text": "Muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.927,
+   "end": 21.447,
+   "text": "Sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 22.748,
+   "end": 23.788,
+   "text": "Eh, póngame,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 24.989,
+   "end": 25.869,
+   "text": "¿a cómo va la docena?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.329,
+   "end": 27.069,
+   "text": "Te sale a doce.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.25,
+   "end": 28.65,
+   "text": "¿A doce?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.23,
+   "end": 29.33,
+   "text": "Ujú.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.97,
+   "end": 31.991,
+   "text": "Póngame unas dos docenas, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.431,
+   "end": 33.091,
+   "text": "¿Dos docenas?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.952,
+   "end": 34.472,
+   "text": "Sí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.872,
+   "end": 35.772,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.753,
+   "end": 37.193,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 37.793,
+   "end": 39.193,
+   "text": "¿Me darías tu nombre para tu orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 40.194,
+   "end": 47.636,
+   "text": "Ah, ponga el nombre de Angélica. Sí. Ah, ah,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 42.495,
+   "end": 46.236,
+   "text": "Angélica, muy bien. Danos uno, los quince a veinte, ¿no? Ahí te lo tenemos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.217,
+   "end": 50.197,
+   "text": "¿de quince a veinte minutos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.597,
+   "end": 51.258,
+   "text": "Quince a veinte minutos. Sí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.098,
+   "end": 55.199,
+   "text": "O, es que la, bueno, a ver, bueno, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 55.839,
+   "end": 56.319,
+   "text": "Sí, a ti.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.28,
+   "end": 57.44,
+   "text": "Bye.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H",
+   "quantity": 2,
+   "modifiers": []
+  },
+  {
+   "itemId": "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H",
+   "quantity": 2,
+   "modifiers": []
+  },
+  {
+   "itemId": "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H",
+   "quantity": 2,
+   "modifiers": []
+  },
+  {
+   "itemId": "sq-tortillas-6-x-tortilla-taquera-corn-street-IABZCW",
+   "quantity": 1,
+   "modifiers": [],
+   "elviNotes": [
+    "confirmar Tortillas options"
+   ],
+   "asked": true
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, bueno."
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, bueno, disculpe, ¿todavía tienes tortillas a mano",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, claro que sí."
+  },
+  {
+   "source": "caller",
+   "heard": "No me podría, ahorita vamos a coger, este, unas, póngame unas seis órdenes",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "No me podría, ahorita vamos a coger, este, unas, póngame unas seis órdenes",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Seis docenas?"
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, oh, no, póngame, ¿ vende por 12 x Tortilla Comal",
+   "language": "es",
+   "reply": "12 × Tortillas 12 x Tortilla Comal. $144.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien."
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, claro."
+  },
+  {
+   "source": "caller",
+   "heard": "póngame",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "a cómo va la 12 x Tortilla Comal",
+   "language": "es",
+   "reply": "12 × Tortillas 12 x Tortilla Comal. $144.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Te sale a doce."
+  },
+  {
+   "source": "caller",
+   "heard": "A doce",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Ujú."
+  },
+  {
+   "source": "caller",
+   "heard": "Póngame unas dos 12 x Tortilla Comal",
+   "language": "es",
+   "reply": "12 × Tortillas 12 x Tortilla Comal. $144.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿Dos docenas?"
+  },
+  {
+   "source": "caller-count",
+   "heard": "Sí"
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Sería todo."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Me darías tu nombre para tu orden?"
+  },
+  {
+   "source": "caller",
+   "heard": "Ah, ponga el nombre de Angélica. Sí. Ah,",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Angélica, muy bien. Danos uno, los quince a veinte, ¿no? Ahí te lo tenemos."
+  },
+  {
+   "source": "caller",
+   "heard": "de quince a veinte minutos",
+   "language": "es",
+   "reply": "Entendido, quince a veinte minutos. ¿Algo más, Angélica?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Quince a veinte minutos. Sí, por favor."
+  },
+  {
+   "source": "caller",
+   "heard": "O, es que la, bueno",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "a ver, bueno",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "a ver, bueno",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, a ti."
+  },
+  {
+   "source": "caller",
+   "heard": "Bye",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "Bye",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street, 12 x Tortilla Taquera / Corn Street, 6 x Tortilla Harina / Flour, 12 x Tortilla Harina / Flour, 6 x Tortilla Comal / Handmade o 12 x Tortilla Comal / Handmade?",
+   "actions": []
+  },
+  {
+   "source": "asked-dish",
+   "heard": "Sí, bueno, disculpe, ¿todavía tienes tortillas a mano",
+   "item": "sq-tortillas-6-x-tortilla-taquera-corn-street-IABZCW"
+  }
+ ],
+ "name": "Angélica",
+ "fulfillment": null
+}
