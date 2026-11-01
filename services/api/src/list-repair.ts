@@ -1180,3 +1180,46 @@ export function liveMeatSplitQty(r: any, input: any) {
   }
   return r;
 }
+
+// sergio1 (CA391bc9): "lo quiero cargadito… extra" + staff "Claro, extra carne" → EXTRA Carne / Meat (+$3) on the menudo.
+const EXTRA_CARNE_CALLER = /\bextra\s+(?:de\s+)?(?:carne|meat)\b|\bcargadit[oa]s?\b|\bcargad[oa]\s+de\b|\bcon\s+m[aá]s\s+carne\b|\bm[aá]s\s+carne\b|\bpoquito\s+m[aá]s\s+(?:de\s+)?carne\b|\bextra\s+meat\b|\bmore\s+meat\b|\bdouble\s+(?:the\s+)?meat\b|\bdoble\s+carne\b/iu;
+const EXTRA_CARNE_STAFF = /\bextra\s+(?:de\s+)?carne\b|\bextra\s+meat\b|\bcon\s+m[aá]s\s+carne\b|\bcargadit[oa]\b|\bdoble\s+carne\b|\bdouble\s+meat\b/iu;
+const NO_EXTRA = /\b(?:sin|no|without|nada\s+de)\s+(?:extra|m[aá]s\s+carne|cargad)/iu;
+/** Caller asked for extra meat ("extra carne", "cargadito", "con más carne"), or staff confirmed it. */
+export function wantsExtraCarne(callerText: string, staffText = ""): boolean {
+  const c = String(callerText || ""), s = String(staffText || "");
+  if (NO_EXTRA.test(c)) return false;
+  return EXTRA_CARNE_CALLER.test(c) || EXTRA_CARNE_STAFF.test(s);
+}
+/** The paid EXTRA Carne option on an item, from the menu (menudo "EXTRA Carne / Meat (+$3.00)", others "DOUBLE Carne / Meat"). */
+export function extraCarneOption(menu: any[], itemId: string): { step: string; option: string } | null {
+  const it = (menu || []).find((m: any) => m.id === itemId); if (!it) return null;
+  for (const g of it.modifierGroups || []) { if (!/extra\s+carne/i.test(String(g.name))) continue;
+    const o = (g.options || []).find((o: any) => /extra\s+carne|double\s+carne/i.test(String(o.name))); if (o) return { step: g.name, option: o.name }; }
+  return null;
+}
+const hasExtraCarne = (l: any) => (l.modifiers || []).some((m: any) => /extra\s+carne|double\s+carne/i.test(String(m.option)));
+/** After-call: exactly one line can take EXTRA Carne and the call asked for it → add it. */
+export function applyExtraCarne(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const c = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" | "), s = turns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" | ");
+  if (!wantsExtraCarne(c, s)) return false;
+  const el = cart.filter((l) => extraCarneOption(menu, String(l.itemId))); if (el.length !== 1 || hasExtraCarne(el[0])) return false;
+  el[0].modifiers = [...(el[0].modifiers || []), extraCarneOption(menu, String(el[0].itemId))]; return true;
+}
+/** Live: this turn (or staff's confirm in history) asks for extra meat → EXTRA Carne on the one eligible line (in actions or cart). */
+export function liveExtraCarne(r: any, input: any) {
+  const menu: any[] = input?.menu || []; if (!menu.length) return r;
+  const hist: any[] = input?.history || []; const recent = hist.slice(-4);
+  const c = [String(input?.transcript || ""), ...recent.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || ""))].join(" | ");
+  const s = recent.filter((h) => h.role === "staff").map((h) => String(h.text || "")).join(" | ");
+  if (!wantsExtraCarne(String(input?.transcript || ""), "") && !(wantsExtraCarne(c, s) && /\b(?:s[ií]|extra|exacto|aj[aá]|eso|yes|yeah)\b/iu.test(String(input?.transcript || "")))) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const addEl = acts.filter((a) => a?.type === "add_item" && extraCarneOption(menu, String(a.itemId)));
+  if (addEl.length === 1) { if (hasExtraCarne(addEl[0])) return r; const o = extraCarneOption(menu, String(addEl[0].itemId))!;
+    return { ...r, actions: acts.map((a) => (a === addEl[0] ? { ...a, modifiers: [...(a.modifiers || []), o] } : a)) }; }
+  if (addEl.length) return r;
+  const el = (input?.cart || []).filter((l: any) => extraCarneOption(menu, String(l.itemId))); if (el.length !== 1 || hasExtraCarne(el[0])) return r;
+  const l = el[0]; const o = extraCarneOption(menu, String(l.itemId))!; const en = input?.language === "en";
+  return { ...r, actions: [...acts.filter((a) => !(a?.type === "update_item" && a.itemId === l.itemId)), { type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: [...(l.modifiers || []), o], correction: true }],
+    reply: en ? "Extra meat added. Anything else?" : "Con extra carne. ¿Algo más?" };
+}

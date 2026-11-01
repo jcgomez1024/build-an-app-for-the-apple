@@ -1,0 +1,166 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.461,
+   "end": 1.721,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.101,
+   "end": 4.802,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.401,
+   "end": 9.742,
+   "text": "Hola, ¿cómo está? Este, una orden necesito, fíjese.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.164,
+   "end": 11.684,
+   "text": "Sí, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.263,
+   "end": 14.603,
+   "text": "Es un menudo,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.606,
+   "end": 16.666,
+   "text": "¿Un menudo claro?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.906,
+   "end": 18.887,
+   "text": "¿Con pata o regular?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.384,
+   "end": 21.164,
+   "text": "eh, re, este, sin patas.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.908,
+   "end": 22.748,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.505,
+   "end": 25.805,
+   "text": "Eh, me da este, de tomar, ¿qué tiene?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.35,
+   "end": 30.011,
+   "text": "Ah, Jamaica y horchata.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.952,
+   "end": 32.632,
+   "text": "O refresco.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.487,
+   "end": 42.789,
+   "text": "Oh, está bien solo el menudo, pero, este, me lo da cargado de trocitos de de de menudo, va, no importa si si es más caro, no importa, pero lo quiero cargadito de eso.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 44.196,
+   "end": 44.776,
+   "text": "¿Cómo, cómo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.27,
+   "end": 55.431,
+   "text": "O sea, de lo normal que le echen los trocitos de carne, que le echen un poquito más, ¿me entiendes? No importa si si si pago de más. Ajá, exacto, extra, ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 56.581,
+   "end": 59.724,
+   "text": "Claro, extra carne. Muy bien, sí está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 60.833,
+   "end": 62.834,
+   "text": "Ajá, ¿en cuántos minutos paso?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 63.828,
+   "end": 66.41,
+   "text": "Deme unos quince minutos, deme su nombre.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 67.636,
+   "end": 75.76,
+   "text": "Sergio, soy Sergio. Está bien. Está bien bajo, okey.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 70.314,
+   "end": 70.735,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 71.775,
+   "end": 74.278,
+   "text": "Okay, Sergio, dame unos quince minutos, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   }
+  ]
+ }
+}
