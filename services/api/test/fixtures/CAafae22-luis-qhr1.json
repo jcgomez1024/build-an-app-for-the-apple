@@ -1,0 +1,335 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 3.862,
+   "end": 4.462,
+   "text": "¿Sí, buenas días?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.423,
+   "end": 6.663,
+   "text": "Buenos días, ¿quieres hacer una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.684,
+   "end": 8.884,
+   "text": "A ver, dime qué te vamos a poner.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.805,
+   "end": 11.886,
+   "text": "Me pone tres menudos con patas",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.566,
+   "end": 13.687,
+   "text": "Tres menudos con pata.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.607,
+   "end": 15.108,
+   "text": "¿Qué más, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.008,
+   "end": 18.589,
+   "text": "y una quesadilla de de costilla en aceite",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.37,
+   "end": 20.21,
+   "text": "Preparado normal.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.031,
+   "end": 21.391,
+   "text": "normal",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.971,
+   "end": 22.331,
+   "text": "¿Qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.292,
+   "end": 26.653,
+   "text": "y otras tres quesadillas de tortilla de harina de usted con chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.134,
+   "end": 27.554,
+   "text": "De harina.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.514,
+   "end": 28.634,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.455,
+   "end": 30.035,
+   "text": "¿Qué más, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.076,
+   "end": 31.576,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.956,
+   "end": 32.236,
+   "text": "Nombre.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.497,
+   "end": 33.817,
+   "text": "Luis.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.357,
+   "end": 36.018,
+   "text": "Veinte minutos, joven, si me hace el favor, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.919,
+   "end": 37.859,
+   "text": "Sí, está muy bien, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+    "quantity": 3,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "3 menudo con pata"
+   },
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) REGULAR Dorada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Costilla / Beef Rib"
+     }
+    ],
+    "readback": "quesadilla dorada regular"
+   },
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) REGULAR Dorada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ],
+    "readback": "quesadilla dorada regular"
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "¿Sí, buenas días?"
+  },
+  {
+   "source": "caller",
+   "heard": "quieres hacer una orden",
+   "language": "es",
+   "reply": "Adelante. ¿Qué le gustaría?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "A ver, dime qué te vamos a poner."
+  },
+  {
+   "source": "caller",
+   "heard": "Me pone tres menudos con patas",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Tres menudos con pata."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más, mano?"
+  },
+  {
+   "source": "caller",
+   "heard": "una quesadilla de costilla de aceite",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller-meat-listed",
+   "heard": "una quesadilla de costilla",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Preparado normal."
+  },
+  {
+   "source": "caller",
+   "heard": "normal",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "normal",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Quesadilla Harina",
+   "language": "es",
+   "reply": "Quesadilla: harina, costilla, salsa asada. $4.25. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "",
+   "pick": "Quesadilla Harina"
+  },
+  {
+   "source": "caller",
+   "heard": "y otras tres quesadillas de tortilla de harina de usted con chorizo",
+   "language": "es",
+   "reply": "3 × Quesadilla: harina, chorizo, salsa asada. $12.75. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "De harina."
+  },
+  {
+   "source": "caller-ack",
+   "heard": "Sí."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más, joven?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Sería todo."
+  },
+  {
+   "source": "staff",
+   "heard": "Nombre."
+  },
+  {
+   "source": "caller-name",
+   "heard": "Luis."
+  },
+  {
+   "source": "staff",
+   "heard": "Veinte minutos, joven, si me hace el favor, sí."
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, está muy bien",
+   "language": "es",
+   "reply": "Muy bien. ¿Qué más?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "Qué más",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "asked-dish",
+   "heard": "una quesadilla de costilla de aceite",
+   "item": "sq-quesadilla-HLT6CR"
+  }
+ ],
+ "name": "Luis"
+}

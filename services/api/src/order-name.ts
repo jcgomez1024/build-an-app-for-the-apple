@@ -906,8 +906,17 @@ export function soundsLikeName(heard: string, known: string): boolean {
 export const FILLER_LEAD = /^(?:all[aá]|aqu[ií]|ac[aá]|ah[ií]|en|pues|este|eh|ah|oh|um|uh|y|o|la|el|por|para\s+all[aá])\s+\S/iu;
 export function isFillerLedName(name: string): boolean { const n = String(name || "").trim(); return n.split(/\s+/).length >= 2 && FILLER_LEAD.test(n); }
 /** Heard order name vs caller memory → the known name when it sounds alike; null when it's filler-led junk; else heard. */
-export function snapToKnownName(heard: string | null | undefined, known: Array<string | null | undefined>): string | null {
+/** saulbecerra1: the caller said the name and staff echoed it back ("Saúl, muy bien, Saúl Becerra") → it's what was said, not a near-miss. */
+export function staffConfirmedName(heard: string, turns?: Array<{ speaker?: string; text?: string }> | null): boolean {
+  const fold = (x: string) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const first = fold(String(heard || "").trim().split(/\s+/)[0] || ""); if (first.length < 3 || !Array.isArray(turns)) return false;
+  const re = new RegExp(`(?<![\\p{L}])${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "u");
+  const said = (sp: (s: string) => boolean) => turns.some((t) => sp(String(t?.speaker || "")) && re.test(fold(String(t?.text || ""))));
+  return said((s) => /staff/i.test(s)) && said((s) => /caller|customer/i.test(s));
+}
+export function snapToKnownName(heard: string | null | undefined, known: Array<string | null | undefined>, turns?: Array<{ speaker?: string; text?: string }> | null): string | null {
   const h = String(heard || "").trim(); if (!h) return null;
+  if (staffConfirmedName(h, turns) && !isFillerLedName(h)) return h;
   for (const k of known) { if (!k) continue; const kf = cleanFirstName(k) || k;
     if (soundsLikeName(h, k)) return k; if (soundsLikeName(h, kf)) return kf; }
   return isFillerLedName(h) ? null : h;

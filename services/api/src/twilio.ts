@@ -2041,7 +2041,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         const heardOrderName0 = heardInfo?.name && !isNumberName(heardInfo.name) && !deniedVocative(result.turns as any, heardInfo.name) ? heardInfo.name : null;
         // giancarlo1: heard name that sounds like the caller's known name → known name; filler-led junk ("Allá en Carlos") → none.
         let heardOrderName: string | null = heardOrderName0;
-        try { const mem = (JSON.parse(fs.readFileSync(path.join(logDir, "callers.json"), "utf8")) as any)[String(caller || "").replace(/\D/g, "").slice(-10)] || {}; heardOrderName = snapToKnownName(heardOrderName0, [mem.name, mem.lastPickupName]); } catch { /* keep heard */ }
+        try { const mem = (JSON.parse(fs.readFileSync(path.join(logDir, "callers.json"), "utf8")) as any)[String(caller || "").replace(/\D/g, "").slice(-10)] || {}; heardOrderName = snapToKnownName(heardOrderName0, [mem.name, mem.lastPickupName], result.turns as any); } catch { /* keep heard */ }
         // mau1 (CAc68af8): no food ordered → never persist customerName / pickup name to memory
         const hasOrder = Array.isArray(result.elviOrder?.cart) && result.elviOrder.cart.length > 0;
         if (heardOrderName) {

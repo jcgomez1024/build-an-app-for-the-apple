@@ -1,0 +1,410 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.06,
+   "end": 1.441,
+   "text": "¿Y qué bueno?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.601,
+   "end": 2.821,
+   "text": "Bueno,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.121,
+   "end": 4.521,
+   "text": "me pone,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.781,
+   "end": 8.082,
+   "text": "buenos días, me pone dos quesadillas en aceite",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.963,
+   "end": 10.704,
+   "text": "¿Los quesadillas en aceite? Claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.962,
+   "end": 11.902,
+   "text": "de de asada.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.585,
+   "end": 15.606,
+   "text": "Asada, ¿te gustarían preparadas?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.283,
+   "end": 18.224,
+   "text": "No, normal, así puro cilantro y cebolla.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.007,
+   "end": 22.548,
+   "text": "Normales, muy bien. ¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.924,
+   "end": 26.705,
+   "text": "Y tiene gorditas, tiene gorditas y me pone una gordita también.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.769,
+   "end": 24.449,
+   "text": "También, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.85,
+   "end": 31.791,
+   "text": "Dos doradas de asada y una gordita. ¿De qué te gustaría, amigazo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.647,
+   "end": 33.467,
+   "text": "De asada también.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.973,
+   "end": 36.573,
+   "text": "Muy bien, ¿con queso o sin queso?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 37.268,
+   "end": 41.308,
+   "text": "Sin queso, y aparte me pone un chile asado y cebolla.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.534,
+   "end": 39.114,
+   "text": "Perfecto.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 42.215,
+   "end": 45.476,
+   "text": "Cebolla asada y chile asado, muy bien. ¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.109,
+   "end": 46.569,
+   "text": "Nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 48.017,
+   "end": 48.677,
+   "text": "Perfecto.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.598,
+   "end": 51.278,
+   "text": "¿Me confirmas tu nombre, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.07,
+   "end": 52.931,
+   "text": "Saúl Becerra.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 54.039,
+   "end": 54.319,
+   "text": "¿Perdón?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 55.171,
+   "end": 56.211,
+   "text": "Saúl Becerra.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 57.082,
+   "end": 62.031,
+   "text": "Saúl, muy bien, Saúl Becerra. Dame unos veinte, quince minutos, no intertenemos orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 62.735,
+   "end": 63.196,
+   "text": "Sí, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 63.794,
+   "end": 64.195,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) REGULAR Dorada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "readback": "QD regular asada"
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-extras-mild-salsa-asada-2oz-T6PGNT",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "Extras options",
+      "option": "Cebolla y Chiles Asados"
+     }
+    ]
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "¿Y qué bueno?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Bueno, me pone,"
+  },
+  {
+   "source": "caller",
+   "heard": "me pone dos QD REGULAR Dorada",
+   "language": "es",
+   "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Los quesadillas en aceite? Claro."
+  },
+  {
+   "source": "caller-meat",
+   "heard": "dos QD REGULAR Dorada de asada",
+   "language": "es",
+   "reply": "Quesadilla Dorada REGULAR Dorada: bistec, salsa asada. $5.50. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-meat-expanded",
+   "heard": "de asada.",
+   "asked": "me pone dos QD REGULAR Dorada",
+   "expanded": [
+    "dos QD REGULAR Dorada de asada"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Asada, ¿te gustarían preparadas?"
+  },
+  {
+   "source": "caller",
+   "heard": "de comal, así puro cilantro y cebolla",
+   "language": "es",
+   "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Normales, muy bien. ¿Algo más?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "REGULAR Dorada",
+   "language": "es",
+   "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Normales, muy bien.",
+   "pick": "REGULAR Dorada"
+  },
+  {
+   "source": "caller",
+   "heard": "Y tiene gorditas, tiene gorditas y me pone una orden de gorditas gordita también",
+   "language": "es",
+   "reply": "Gordita: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "También, sí."
+  },
+  {
+   "source": "staff",
+   "heard": "Dos doradas de asada y una gordita. ¿De qué te gustaría, amigazo?"
+  },
+  {
+   "source": "caller-meat",
+   "heard": "Y tiene gorditas, tiene gorditas y me pone una orden de gorditas gordita también De asada también",
+   "language": "es",
+   "reply": "Gordita: bistec, salsa asada. $5.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-meat-expanded",
+   "heard": "De asada también.",
+   "asked": "Y tiene gorditas, tiene gorditas y me pone una orden de gorditas gordita también",
+   "expanded": [
+    "Y tiene gorditas, tiene gorditas y me pone una orden de gorditas gordita también De asada también"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ¿con queso o sin queso?"
+  },
+  {
+   "source": "caller-asados-side",
+   "heard": "Sin queso, y aparte me pone un chile asado y cebolla."
+  },
+  {
+   "source": "staff",
+   "heard": "Perfecto."
+  },
+  {
+   "source": "staff",
+   "heard": "Cebolla asada y chile asado, muy bien. ¿Algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Nada más."
+  },
+  {
+   "source": "staff",
+   "heard": "Perfecto."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Me confirmas tu nombre, por favor?"
+  },
+  {
+   "source": "caller-name",
+   "heard": "Saúl Becerra."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Perdón?"
+  },
+  {
+   "source": "caller",
+   "heard": "Saúl Becerra",
+   "language": "es",
+   "reply": "Gordita: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Saúl, muy bien, Saúl Becerra. Dame unos veinte, quince minutos, no intertenemos orden."
+  },
+  {
+   "source": "caller-thanks",
+   "heard": "Sí, está bien."
+  },
+  {
+   "source": "staff",
+   "heard": "Gracias."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "Gordita, Bistec",
+   "language": "es",
+   "reply": "Gordita: bistec, salsa asada. $5.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "asked-dish",
+   "heard": "dos QD REGULAR Dorada de asada",
+   "item": "sq-quesadilla-HLT6CR"
+  }
+ ],
+ "name": "Raúl"
+}

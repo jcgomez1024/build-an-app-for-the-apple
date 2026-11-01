@@ -2943,6 +2943,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
+    // luis-qhr1 (CAafae22): "otras tres quesadillas de tortilla de harina con chorizo" — flour wins over a QD carried over from an
+    // earlier "en aceite" line; a QD add on a harina/flour turn is a flour quesadilla (QHR), same meat and count.
+    if (source.startsWith("caller") && /\b(?:harina|flour)\b/iu.test(text) && !/\b(?:aceite|doradas?|fried|preparad[oa]s?|deluxe)\b/iu.test(text)) {
+      for (let k = 0; k < acts.length; k++) {
+        const a: any = acts[k];
+        if (a?.type !== "add_item" || (a.itemId !== DORADA_REG_ID && a.itemId !== DORADA_DELUXE_ID)) continue;
+        acts[k] = { ...a, itemId: "sq-quesadilla-HLT6CR", modifiers: [{ step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" }, ...(a.modifiers || []).filter((m: any) => /Carnes|Meats/i.test(String(m?.step || "")))], readback: "quesadilla harina" };
+      }
+      if (pendingQuesadilla) pendingQuesadilla = null;
+    }
     apply(acts);
     // roberto1: "Sí, huevo en orden" STT for "hacer una orden" — never invent Chilaquiles con Huevo / EXTRA Huevo
     if (source.startsWith("caller")
