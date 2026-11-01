@@ -1,0 +1,107 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.823,
+   "end": 2.403,
+   "text": "Sí, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.865,
+   "end": 9.073,
+   "text": "Hola, sí, buenos días, ah, quisiera cancelar el pedido de Daniel, los dos menudos. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.571,
+   "end": 8.131,
+   "text": "Cancelarlo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.273,
+   "end": 10.655,
+   "text": "Órale, pues, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 11.296,
+   "end": 12.117,
+   "text": "Sí, muchas gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "ah, quisiera cancelar el pedido de Daniel, los dos menudos. Sí",
+    "language": "es",
+    "reply": "Listo.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Cancelarlo."
+   },
+   {
+    "source": "staff",
+    "heard": "Órale, pues, está bien, gracias."
+   },
+   {
+    "source": "caller",
+    "heard": "Sí, muchas",
+    "language": "es",
+    "reply": "No tengo nada en el carrito. ¿Qué le gustaría ordenar?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Perfecto. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "Qué le gustaría ordenar",
+    "language": "es",
+    "reply": "Adelante, le escucho.",
+    "actions": []
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false
+ }
+}

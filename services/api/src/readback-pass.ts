@@ -387,3 +387,23 @@ export function applyEnchiladaOrder(cart: any[], turns: T): void {
   const qd = cart.filter((l) => /^sq-qd-/i.test(String(l.itemId)));
   if (qn && qd.length === 1 && qd[0].quantity < qn) qd[0].quantity = qn;
 }
+
+// daniel-cancel1 (CA175d967, Nov 1 8:40 AM ET): "quisiera cancelar el pedido de Daniel, los dos menudos" → staff "Cancelarlo… está
+// bien". A callback cancelling an earlier order is never a new order: empty cart, no auto-accept, no final ticket.
+const CANCEL_RE = /\b(?:cancel(?:ar(?:lo|la)?|a|e|o)?|cancell?(?:ing)?|anular)\b[^.?!]{0,25}?\b(?:(?:el|la|mi|su|my|the|our|this|that)\s+)?(?:pedido|orden|order|ordencita|pedidito)\b|\b(?:cancel(?:ar)?(?:lo|la)?)\b[^.?!]{0,10}$|\b(?:ya no (?:quiero|voy a querer) (?:el|la|mi) (?:pedido|orden))\b/i;
+const NEW_ORDER_AFTER = /\b(?:y (?:mejor|ahora) (?:quiero|me da|deme|ponme|pongame)|en vez de eso|instead|(?:and|but) (?:i(?:'d| would)? (?:want|like)|can i get|give me)|quiero ordenar|quisiera ordenar|para ordenar otra|place (?:a|an) (?:new )?order)\b/i;
+export function isCancelOrderCall(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  const i = caller.findIndex((t) => CANCEL_RE.test(t)); if (i < 0) return false;
+  const after = caller.slice(i).join(" ").slice(caller[i].search(CANCEL_RE));
+  return !NEW_ORDER_AFTER.test(after);
+}
+/** Live: the caller's turn cancels an earlier order → no item adds, and never "¿Qué le gustaría ordenar?" afterwards. */
+export function liveCancelOrder(r: any, input: any) {
+  const tx = String(input?.transcript || ""); const hist: any[] = input?.history || [];
+  const callerSaid = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), tx];
+  if (!isCancelOrderCall(callerSaid.map((text) => ({ speaker: "caller", text })))) return r;
+  const acts = (Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
+  const en = input?.language === "en"; const asks = /\b(?:ordenar|order|algo m[aá]s|anything else|le escucho|carrito|cart)\b/i.test(String(r?.reply || ""));
+  return { ...r, actions: acts, ...(asks || acts.length !== (r?.actions || []).length ? { reply: en ? "Okay, order cancelled." : "Muy bien, pedido cancelado." } : {}) };
+}
