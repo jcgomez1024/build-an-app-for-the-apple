@@ -1816,3 +1816,46 @@ export function soloCaldoResolve(result: any, text: string, menu: any[], qty?: n
     message: es ? `${n > 1 ? `${n} menudos` : "Un menudo"} solo caldo, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. ¿Algo más?` : `${n > 1 ? `${n} menudos` : "One menudo"}, broth only, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. Anything else?` });
   return true;
 }
+
+// ---- michael1: restated count replaces, staff-confirmed menudo is added ----
+const ld = (l: any) => `${l.itemId}|${(l.modifiers || []).filter((m: any) => !m?.isDefault && !/Salsa Preferencia/i.test(String(m?.step))).map((m: any) => m.option).sort().join("+")}`;
+const RQ_DISH: Array<[RegExp, (id: string) => boolean]> = [[/quesadillas?/, (id) => id === QUES_ID], [/tacos?/, (id) => /^sq-taco-/.test(id)], [/tortas?/, (id) => /^sq-torta-/.test(id)], [/burritos?/, (id) => /^sq-burrito-/.test(id)], [/gorditas?/, (id) => /gordita/.test(id)]];
+/** Count said for "<n> <dish> de <meat>" in a text (last mention wins). */
+function statedCount(text: string, dish: RegExp, meat: string): number {
+  const t = b22low(text); let n = 0;
+  const re = new RegExp(`(?<![a-z])(\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho)\\s+(?:${dish.source})\\s+(?:de\\s+)?([a-z ]{3,30}?)(?=[,.;?!]|\\s+(?:y|de comal|del comal|de harina|algo)\\b|$)`, "giu");
+  for (const m of t.matchAll(re)) if (b22Meats(m[2]).includes(meat)) n = numOf(m[1]);
+  return n;
+}
+/** After-call: identical lines (same item + options) are one order said twice ("una quesadilla de bistec" … "son dos quesadillas de bistec").
+ * Merge them; qty = staff final readback count, else the caller's last restated count. */
+export function applyRestatedQty(cart: any[], turns: Turn[]): boolean {
+  let ch = false;
+  const staffAll = turns.filter((t) => t.speaker === "staff").map((t) => String(t.text || ""));
+  const readback = [...staffAll].reverse().find((x) => /(te|le)\s+tengo|entonces|ser[ií]an?|tu\s+orden/iu.test(x)) || "";
+  const callerAll = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || "")).join(" . ");
+  const keys = Array.from(new Set(cart.map(ld)));
+  for (const k of keys) {
+    const ls = cart.filter((l) => ld(l) === k); if (ls.length < 2) continue;
+    const dish = RQ_DISH.find(([, f]) => f(ls[0].itemId)); if (!dish) continue;
+    const meats = (ls[0].modifiers || []).filter(isMeatMod).map((m: any) => m.option); if (meats.length !== 1) continue;
+    const n = statedCount(readback, dish[0], meats[0]) || statedCount(callerAll, dish[0], meats[0]);
+    const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+    if (!n || n >= sum) continue;
+    const keep = ls.reduce((a, l) => ((l.modifiers || []).length > (a.modifiers || []).length ? l : a), ls[0]);
+    for (let i = cart.length - 1; i >= 0; i--) if (ld(cart[i]) === k && cart[i] !== keep) cart.splice(i, 1);
+    keep.quantity = n; ch = true;
+  }
+  return ch;
+}
+/** After-call: staff said they're putting in a menudo ("un menudo te pongo") and read it back, but the line is missing → add it. */
+export function applyStaffMenudo(cart: any[], turns: Turn[]): boolean {
+  if (cart.some(isMenudo)) return false;
+  const staff = turns.filter((t) => t.speaker === "staff").map((t) => b22low(t.text));
+  const readback = [...staff].reverse().find((x) => /(te|le)\s+tengo|entonces|serian?|tu\s+orden/.test(x)) || "";
+  const m = readback.match(/(?<![a-z])(\d+|un|una|uno|dos|tres|cuatro)\s+menudos?(?![a-z])/);
+  if (!m) return false;
+  if (!staff.some((x) => x !== readback && /menudo/.test(x)) && !turns.some((t) => t.speaker === "caller" && /menudo/i.test(String(t.text || "")))) return false;
+  const pata = /menudos?\s+con\s+pata/.test(readback) && !/sin\s+pata/.test(readback);
+  cart.push(menLine(pata, numOf(m[1]) || 1)); return true;
+}

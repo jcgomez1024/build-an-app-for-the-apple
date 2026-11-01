@@ -31,7 +31,13 @@ export function cleanFullName(raw: string | null | undefined): string | null {
   if (!/\p{L}{2,}/u.test(s) || /^[\d\s#().+-]+$/.test(s) || /#\s*\d|\d{3,}/.test(s)) return null;
   if (JUNK.test(s) || JUNK_FOOD.test(s.trim())) return null;
   if (!cleanFirstName(s)) return null;
-  return s.toLocaleLowerCase("es").replace(/(^|[\s'’-])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es"));
+  return canonSttName(s.toLocaleLowerCase("es").replace(/(^|[\s'’-])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es")));
+}
+// michael1 (CA5ca258): STT spells common English first names the Spanish way ("Miquel" for Michael) → the spelling Square / staff use.
+const STT_NAME_FIX: Array<[RegExp, string]> = [[/^(?:miquel|mikel|maikel|maykel|maicol|maikol|maycol|michel)$/iu, "Michael"]];
+export function canonSttName(name: string): string {
+  const [first, ...rest] = String(name || "").split(" "); const fix = STT_NAME_FIX.find(([re]) => re.test(first))?.[1];
+  return fix ? [fix, ...rest].join(" ") : name;
 }
 const isTrainingNumber = (phone: string) => String(process.env.TWILIO_TRAINING_CALLERS || "").split(",").map(phoneKey).filter(Boolean).includes(phone);
 /** names1: what saveCallerName would do (no write). */

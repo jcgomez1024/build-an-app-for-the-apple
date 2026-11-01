@@ -1,0 +1,396 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.38,
+      "end": 1.201,
+      "text": "Cocina Elvis.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.681,
+      "end": 3.701,
+      "text": "¿Y",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 4.981,
+      "end": 21.025,
+      "text": "me pones una torta de bistec? ¿Y una quesadilla de bistec?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 8.244,
+      "end": 9.605,
+      "text": "Claro, un menudo te pongo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 11.085,
+      "end": 11.946,
+      "text": "Claro, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 14.987,
+      "end": 17.269,
+      "text": "Una torta de bistec, claro, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 21.791,
+      "end": 22.311,
+      "text": "¿Del comal?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 22.125,
+      "end": 22.345,
+      "text": "¿Dos?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 23.525,
+      "end": 25.185,
+      "text": "Son, son dos quesadillas de bistec.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 26.213,
+      "end": 29.455,
+      "text": "Muy bien, dos quesadillas de bistec de comal, ¿verdad? ¿Algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 29.166,
+      "end": 29.646,
+      "text": "¿De comas?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.567,
+      "end": 31.107,
+      "text": "Nada más.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 31.736,
+      "end": 38.759,
+      "text": "Ok, entonces te tengo un menudo, una torta de bistec y dos quesadillas de bistec del comal. ¿A qué nombre sería la orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.529,
+      "end": 39.909,
+      "text": "Miquel.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 40.84,
+      "end": 41.121,
+      "text": "Perdón.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 41.909,
+      "end": 42.289,
+      "text": "Miquel.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 43.603,
+      "end": 44.644,
+      "text": "Giselle, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 45.35,
+      "end": 54.652,
+      "text": "Miquel, con doble L. Ajá.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 46.746,
+      "end": 53.553,
+      "text": "Oh, Michelle, Michelle. Muy, muy bien, este, dame unos veinte minutos.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 56.396,
+      "end": 56.656,
+      "text": "¿Okay?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 56.554,
+      "end": 59.077,
+      "text": "Hi.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 57.657,
+      "end": 57.917,
+      "text": "Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 59.058,
+      "end": 59.639,
+      "text": "Gracias.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-torta-4GNTTE",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(A) Torta Options",
+          "option": "(TO) Torta"
+        },
+        {
+          "step": "(B) Torta Carne Options",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+        },
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        }
+      ],
+      "readback": "2 quesadilla bistec"
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Cocina Elvis."
+    },
+    {
+      "source": "caller",
+      "heard": "una torta de bistec? ¿",
+      "language": "es",
+      "reply": "Torta: bistec, salsa asada. $4.75. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "una quesadilla de bistec",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Claro, un menudo te pongo."
+    },
+    {
+      "source": "staff",
+      "heard": "Claro, ¿algo más?"
+    },
+    {
+      "source": "staff",
+      "heard": "Una torta de bistec, claro, ¿algo más?"
+    },
+    {
+      "source": "staff",
+      "heard": "¿Del comal?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Quesadilla Comal",
+      "language": "es",
+      "reply": "Quesadilla: comal, bistec, salsa asada. $4.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Claro, un menudo te pongo. Claro,  Una torta de bistec, claro,",
+      "pick": "Quesadilla Comal"
+    },
+    {
+      "source": "caller",
+      "heard": "Dos Son dos quesadillas de bistec",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, dos quesadillas de bistec de comal, ¿verdad? ¿Algo más?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Quesadilla Comal",
+      "language": "es",
+      "reply": "Quesadilla: comal, bistec, salsa asada. $4.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Muy bien, dos quesadillas de bistec de comal,",
+      "pick": "Quesadilla Comal"
+    },
+    {
+      "source": "caller-meat",
+      "heard": "Dos Son dos quesadillas de bistec De comas",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Quesadilla: comal, bistec, salsa asada. $4.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller-meat-expanded",
+      "heard": "¿De comas?",
+      "asked": "Dos Son, son dos quesadillas de bistec",
+      "expanded": [
+        "Dos Son, son dos quesadillas de bistec De comas"
+      ]
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Nada más."
+    },
+    {
+      "source": "staff",
+      "heard": "Ok, entonces te tengo un menudo, una torta de bistec y dos quesadillas de bistec del comal. ¿A qué nombre sería la orden?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "Miquel."
+    },
+    {
+      "source": "staff",
+      "heard": "Perdón."
+    },
+    {
+      "source": "caller",
+      "heard": "Miquel",
+      "language": "en",
+      "reply": "Thanks, Miquel. Review your order and check out when you're ready.",
+      "actions": [
+        "set_customer"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Giselle, ¿verdad?"
+    },
+    {
+      "source": "caller",
+      "heard": "Miquel, con doble L. Ajá",
+      "language": "es",
+      "reply": "Listo.",
+      "actions": [
+        "set_customer"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Oh, Michelle, Michelle. Muy, muy bien, este, dame unos veinte minutos."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Okay?"
+    },
+    {
+      "source": "staff",
+      "heard": "Okay."
+    },
+    {
+      "source": "staff",
+      "heard": "Gracias."
+    }
+  ],
+  "name": "Miquel",
+  "fulfillment": "PICKUP"
+}
