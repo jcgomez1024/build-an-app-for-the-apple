@@ -1671,3 +1671,10 @@ export function liveAguacateFull(r: any, input: any) {
     : r.reply;
   return { ...r, reply, actions: [...acts.filter((a) => !(refused && a?.type === "add_item" && /guacamole/i.test(JSON.stringify(a)))), { type: "add_item", itemId: it.id, quantity: n, modifiers: [] }] };
 }
+/** Resolver rescue: "un aguacate" came back unknown_menu_item → ring Aguacate FULL instead of "no tenemos aguacate". */
+export function aguacateResolve(text: string, menu: any[], language?: string): any | null {
+  const it = aguaItem(menu); const n = aguacateSaid(text); if (!it || !n) return null;
+  const en = language !== "es"; const $ = `$${((it.priceCents || 400) * n / 100).toFixed(2)}`;
+  return { ok: true, actions: [{ type: "add_item", itemId: it.id, quantity: n, modifiers: [] }],
+    message: en ? `${n > 1 ? `${n} whole avocados` : "One whole avocado"}, ${$}. Anything else?` : `${n > 1 ? `${n} aguacates enteros` : "Un aguacate entero"}, ${$}. ¿Algo más?` };
+}

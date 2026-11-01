@@ -1,3 +1,4 @@
+import { aguacateResolve } from "./list-repair.js";
 import crypto from "node:crypto";
 import { recall as recallMemory, readPending, decide, LEARN_DIR, rewriteSlang } from "./elvi-knowledge.js";
 import { splitDishClauses } from "./elvi.js";
@@ -962,6 +963,10 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
       }
     }
 
+    if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") { // brayan-aguacate1
+      const ag = aguacateResolve(String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], input.language);
+      if (ag) { for (const k of Object.keys(result as any)) delete (result as any)[k]; Object.assign(result as any, ag); }
+    }
     if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") {
       (result as any).message = await unavailableItemReply(text, input.language, items as any);
       (result as any).instruction = "Nothing was added to the cart. Do not say added. Say this message.";
@@ -1182,6 +1187,10 @@ app.post("/api/menu/resolve", async (req, res, next) => {
       }
     }
 
+    if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") { // brayan-aguacate1
+      const ag = aguacateResolve(String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], input.language);
+      if (ag) { for (const k of Object.keys(result as any)) delete (result as any)[k]; Object.assign(result as any, ag); }
+    }
     if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") {
       (result as any).message = await unavailableItemReply(text, input.language, items as any);
       (result as any).instruction = "Nothing was added to the cart. Do not say added. Say this message.";

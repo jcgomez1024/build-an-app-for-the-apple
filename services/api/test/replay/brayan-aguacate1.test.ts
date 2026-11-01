@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { applyAguacateFull, liveAguacateFull, aguacateSaid, AGUACATE_FULL_VAR } from "../../src/list-repair.ts";
+import { applyAguacateFull, liveAguacateFull, aguacateSaid, aguacateResolve, AGUACATE_FULL_VAR } from "../../src/list-repair.ts";
 import { nameFromTranscriptInfo, snapToKnownName } from "../../src/order-name.ts";
 const d = JSON.parse(readFileSync(new URL("../fixtures/CA1c9adf-brayan-aguacate1.json", import.meta.url), "utf8"));
 const AG = { id: "sq-extras-aguacate-full-QGR5AQ", name: "Aguacate FULL", squareVariationId: AGUACATE_FULL_VAR, priceCents: 400 };
@@ -29,4 +29,8 @@ test("brayan-aguacate1: 'Abra ya, por favor' is not a name; staff 'Brian' snaps 
   const n = nameFromTranscriptInfo(d.turns as any)?.name;
   assert.doesNotMatch(String(n), /Abra|Ya/);
   assert.equal(snapToKnownName(n, ["Bryan"], d.turns), "Bryan");
+});
+test("brayan-aguacate1: resolver unknown 'un aguacate' is rescued to Aguacate FULL", () => {
+  const r = aguacateResolve("un aguacate", menu, "es"); assert.equal(r.ok, true); assert.equal(r.actions[0].itemId, AG.id);
+  assert.match(r.message, /Un aguacate entero, \$4\.00/); assert.equal(aguacateResolve("con aguacate", menu, "es"), null);
 });

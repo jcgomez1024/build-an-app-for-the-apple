@@ -454,6 +454,8 @@ export async function getFullMenu(config?: Partial<SquareRuntimeConfig>): Promis
   });
 
   const squareMenu = buildMenuFromSquareCatalog(catalog.objects || []).map(withCallerWords)
+    .map((item) => { const v = item.squareVariationId ? IN_STORE_VARIATIONS.get(item.squareVariationId) : undefined; // brayan-aguacate1
+      return v ? { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined } : item; })
     .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
   if (squareMenu.length > 0) {
     return squareMenu;
@@ -487,6 +489,9 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
   const inStore: MenuItem[] = fullMenu.filter((item) => item.squareVariationId && IN_STORE_VARIATIONS.has(item.squareVariationId) && !covered.has(item.squareCatalogObjectId || ""))
     .map((item) => { const v = IN_STORE_VARIATIONS.get(item.squareVariationId!)!; return { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined }; });
   return [...reviewed, ...siteExtras, ...inStore, ...drinks].map((item) => withCallerWords(applySiteGroupRules(item)))
+    .filter((item, i, all) => all.findIndex((x) => x.id === item.id) === i)
+    .map((item) => { const v = item.squareVariationId ? IN_STORE_VARIATIONS.get(item.squareVariationId) : undefined; // brayan-aguacate1: own name, no inherited Extras/salsa aliases
+      return v ? { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined } : item; })
     .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
 }
 
