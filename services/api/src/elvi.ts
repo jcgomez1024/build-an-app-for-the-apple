@@ -1,4 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
+import { liveEtaAddressQty } from "./eta-qty.js";
 import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
@@ -2196,6 +2197,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveMenudoSoloCaldo(o2, input); } catch { /* keep */ } // victor-caldo1
   try { o2 = liveQBDecline(o2, input); } catch { /* keep */ } // jose-qb1
   try { o2 = liveConsomeTotal(o2, input); } catch { /* keep */ } // pancho-consome1
+  try { o2 = liveEtaAddressQty(o2, input); } catch { /* keep */ } // cristian-qd1
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides

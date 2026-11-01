@@ -1,0 +1,598 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.42,
+      "end": 0.74,
+      "text": "Sí, bueno.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.101,
+      "end": 3.681,
+      "text": "Sí, buenas tardes, cocina Elvis. Eh,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 6.502,
+      "end": 7.283,
+      "text": "tiene quesadillas de",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 8.223,
+      "end": 8.623,
+      "text": "doradas.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 9.523,
+      "end": 9.804,
+      "text": "Claro.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 11.484,
+      "end": 13.025,
+      "text": "Me pone tres, ¿tiene servicio a domicilio?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 14.125,
+      "end": 14.905,
+      "text": "¿Para dónde sería?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.966,
+      "end": 18.486,
+      "text": "Aquí en Nelson Street, 124. Sí, es Nelson Street,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 19.447,
+      "end": 22.708,
+      "text": "Jackson Street. Ah, ¿me das tu dirección bien, por favor?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 19.607,
+      "end": 27.249,
+      "text": "124.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 24.569,
+      "end": 31.271,
+      "text": "¿Número de casa? 124 Jackson Street.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 33.292,
+      "end": 33.572,
+      "text": "¿Perdón?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 34.332,
+      "end": 35.473,
+      "text": "Jackson Street, digo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 36.533,
+      "end": 38.934,
+      "text": "Es Nelson, está por la Jackson, es",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 38.234,
+      "end": 40.555,
+      "text": "Ah, Nelson. Ah, espérame, espérame.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.914,
+      "end": 42.655,
+      "text": "es por la, está por la 20, perdón.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 43.736,
+      "end": 44.276,
+      "text": "No, no, está bien.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.855,
+      "end": 44.816,
+      "text": "Sí, es Nelson Street.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 45.396,
+      "end": 47.837,
+      "text": "100 24 Nelson.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 47.917,
+      "end": 55.579,
+      "text": "Perdón, 114, disculpa. Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 51.438,
+      "end": 54.039,
+      "text": "No, no está bien. 114 Nelson",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 56.38,
+      "end": 57.52,
+      "text": "Street. Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 58.08,
+      "end": 60.761,
+      "text": "Eh, estoy aquí como a dos minutos, tres minutos.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 59.321,
+      "end": 60.781,
+      "text": "Muy bien, ¿y qué te vamos a poner?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 61.882,
+      "end": 63.722,
+      "text": "Tres quesadillas doradas.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 64.903,
+      "end": 66.343,
+      "text": "Tres quesadillas doradas.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 68.484,
+      "end": 69.844,
+      "text": "Okay, ¿de qué te gustarían?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 71.125,
+      "end": 73.266,
+      "text": "Pones una de carnitas.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 74.446,
+      "end": 75.866,
+      "text": "Ajá, ¿te gustaría preparada?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 77.008,
+      "end": 78.328,
+      "text": "Sí, con todo, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 78.727,
+      "end": 80.068,
+      "text": "Muy bien, una de carne,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 79.248,
+      "end": 80.249,
+      "text": "Una de chorizo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 81.328,
+      "end": 82.209,
+      "text": "una de chorizo",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 83.63,
+      "end": 84.49,
+      "text": "Y la otra de prensado.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 85.55,
+      "end": 87.83,
+      "text": "y una de prensado. Las tres preparadas, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 88.792,
+      "end": 89.532,
+      "text": "Sí, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 90.391,
+      "end": 91.292,
+      "text": "Muy bien, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 92.654,
+      "end": 93.174,
+      "text": "Siga todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 93.892,
+      "end": 95.393,
+      "text": "¿Me darías tu nombre para tu orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 96.455,
+      "end": 97.315,
+      "text": "Cristian Hernández.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 98.474,
+      "end": 103.576,
+      "text": "Muy bien, Cristian. Dame unos 20 minutos por lo menos, ¿no? Y ahorita te las te la llevamos.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 104.558,
+      "end": 107.479,
+      "text": "Sí, está bien, gracias. Gracias.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-chilaquiles-con-huevo-YWKBQV",
+        "quantity": 2,
+        "modifiers": []
+      },
+      {
+        "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(QD) Style",
+            "option": "(QD) DELUXE Preparada"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Carnitas / Pulled Pork (+$0.50)"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+        "quantity": 124,
+        "modifiers": [
+          {
+            "step": "(QD) Style",
+            "option": "(QD) DELUXE Preparada"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Chorizo / Mexican Sausage"
+          }
+        ],
+        "readback": "QD deluxe preparada chorizo"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Sí, bueno."
+    },
+    {
+      "source": "caller",
+      "heard": "cocina Elvis. Eh, doradas",
+      "language": "es",
+      "reply": "¿Sí? ¿Qué le agrego y de qué?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Claro."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Para dónde sería?"
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "Aquí en Nelson Street, 124. Sí, es Nelson Street,"
+    },
+    {
+      "source": "staff",
+      "heard": "Jackson Street. Ah, ¿me das tu dirección bien, por favor?"
+    },
+    {
+      "source": "caller",
+      "heard": "124",
+      "language": "es",
+      "reply": "No entendí la cantidad. ¿Cuántas doradas quiere?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Número de casa? 124 Jackson Street."
+    },
+    {
+      "source": "caller-clarify",
+      "heard": "¿Perdón?"
+    },
+    {
+      "source": "staff",
+      "heard": "Jackson Street, digo."
+    },
+    {
+      "source": "caller",
+      "heard": "Es Nelson, está por la Jackson, es",
+      "language": "es",
+      "reply": "Listo, Nelson. ¿La dirección completa en Jackson?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Ah, Nelson. Ah, espérame, espérame."
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "es por la, está por la 20, perdón."
+    },
+    {
+      "source": "staff",
+      "heard": "No, no, está bien."
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "Sí, es Nelson Street."
+    },
+    {
+      "source": "staff",
+      "heard": "100 24 Nelson."
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "Perdón, 114, disculpa. Sí."
+    },
+    {
+      "source": "staff",
+      "heard": "No, no está bien. 114 Nelson"
+    },
+    {
+      "source": "staff",
+      "heard": "Street. Okay."
+    },
+    {
+      "source": "caller",
+      "heard": "estoy aquí como a dos minutos",
+      "language": "es",
+      "reply": "2 × Chilaquiles con Huevo. $15.98. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "tres minutos",
+      "language": "es",
+      "reply": "Muy bien. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿y qué te vamos a poner?"
+    },
+    {
+      "source": "caller",
+      "heard": "Tres QD REGULAR Dorada",
+      "language": "es",
+      "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Tres quesadillas doradas."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, ¿de qué te gustarían?"
+    },
+    {
+      "source": "caller-meat",
+      "heard": "una QD REGULAR Dorada de carnitas",
+      "language": "es",
+      "reply": "Quesadilla Dorada REGULAR Dorada: carnitas, salsa asada. $6.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller-meat-expanded",
+      "heard": "Pones una de carnitas.",
+      "asked": "Tres QD REGULAR Dorada",
+      "expanded": [
+        "una QD REGULAR Dorada de carnitas"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Ajá, ¿te gustaría preparada?"
+    },
+    {
+      "source": "caller-dorada-yes-deluxe",
+      "heard": "Sí, con todo, por favor."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, una de carne,"
+    },
+    {
+      "source": "caller-meat-fragment",
+      "heard": "un qd de chorizo",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "caller-meat-fragments",
+      "heard": "Una de chorizo.",
+      "dishes": [
+        "Tres QD REGULAR Dorada"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "una de chorizo"
+    },
+    {
+      "source": "caller",
+      "heard": "Y la otra de prensado",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Y la otra de prensado",
+      "language": "es",
+      "reply": "REGULAR Dorada: ¿Regular o deluxe?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "y una de prensado. Las tres preparadas, ¿verdad?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "deluxe",
+      "language": "es",
+      "reply": "Muy bien. ¿Algo más?",
+      "actions": [
+        "remove_item"
+      ]
+    },
+    {
+      "source": "staff-pick",
+      "heard": "y una de prensado. Las tres preparadas,",
+      "pick": "deluxe"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí"
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿algo más?"
+    },
+    {
+      "source": "caller",
+      "heard": "Siga todo",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Me darías tu nombre para tu orden?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "Cristian Hernández."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, Cristian. Dame unos 20 minutos por lo menos, ¿no? Y ahorita te las te la llevamos."
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí, está bien, gracias. Gracias."
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Listo. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "(QD) Quesadilla Dorada, REGULAR Dorada",
+      "language": "es",
+      "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+      "actions": []
+    }
+  ],
+  "name": "Cristian",
+  "fulfillment": "DELIVERY"
+}

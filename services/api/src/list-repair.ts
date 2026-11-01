@@ -2063,7 +2063,7 @@ export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = f
 // gustavo-qd1 (CA7a1136): several dorada groups in one call — "tres quesadillas en aceite … de bistec … deluxe? sí, sin lechuga",
 // "otras dos en aceite, de cabeza … y la otra de bistec" (staff: "una de cabeza y una de bistec"), "otras dos en aceite de bistec
 // … con todo". Rebuild every QD line per group (qty/meat/style/notes); "en aceite" lines that landed as comal QCO go away.
-const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:quesadillas?|quesas?)\s+(?:en\s+aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b/iu;
+const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada" 
 const QG_N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
 const qgN = (w: string) => QG_N[w.toLowerCase()] || Number(w) || 0;
 export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat: string; n: number }>; deluxe: boolean; noLechuga: boolean }> {
@@ -2081,7 +2081,7 @@ export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat:
       for (const m of String(u.text || "").matchAll(/\b(una?|dos|tres|cuatro|\d)\s+de\s+([\p{L}]+)/giu)) { const mt = b22Meats(b22low(m[2]))[0]; if (mt) pairs.push({ meat: mt, n: qgN(m[1]) }); }
       if (pairs.length > 1 && pairs.reduce((a, p) => a + p.n, 0) === s.n) { split = pairs; break; } }
     if (!split) split = meats.length === 1 || meats.length > s.n ? [{ meat: meats[0], n: s.n }] : meats.map((mt, j) => ({ meat: mt, n: j === 0 ? s.n - (meats.length - 1) : 1 }));
-    const all = [turns[s.i], ...win]; let deluxe = /\b(?:preparad[ao]s?|deluxe|con todo)\b/i.test(plain(callerTxt)) && !/\b(?:regular|sencill)/i.test(plain(callerTxt));
+    const all = [turns[s.i], ...win]; const said = plain(callerTxt).replace(/\bqd regular dorada\b/g, " "); let deluxe = /\b(?:preparad[ao]s?|deluxe|con todo)\b/i.test(said) && !/\b(?:regular|sencill)/i.test(said);
     const prevStaff = turns.slice(Math.max(0, s.i - 2), s.i).filter((u) => u.speaker === "staff");
     for (const [j, u] of [...prevStaff.map((u) => [-1, u] as const), ...all.map((u, j) => [j, u] as const)]) {
       if (u.speaker !== "staff" || !/\b(?:preparad[ao]s?|deluxe)\b/i.test(plain(u.text)) || !/\?/.test(String(u.text))) continue;
