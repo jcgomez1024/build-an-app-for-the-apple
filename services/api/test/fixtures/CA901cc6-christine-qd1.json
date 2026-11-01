@@ -1,0 +1,813 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.4,
+   "end": 1.48,
+   "text": "For now, feathers.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.26,
+   "end": 6.781,
+   "text": "Hi, can I, place an order for pickup, please?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.543,
+   "end": 8.783,
+   "text": "Yes, what can I get for you?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.281,
+   "end": 12.482,
+   "text": "can I, do you have the fried quesadillas?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.385,
+   "end": 14.325,
+   "text": "Yeah, you want the last?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.962,
+   "end": 16.462,
+   "text": "yeah, so,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.983,
+   "end": 20.823,
+   "text": "one deluxe with,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.783,
+   "end": 23.363,
+   "text": "cheese and al pastor,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.188,
+   "end": 25.389,
+   "text": "Yeah.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.309,
+   "end": 28.089,
+   "text": "The quesadillas ones with cheese.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.544,
+   "end": 27.024,
+   "text": "and then",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.744,
+   "end": 30.864,
+   "text": "cheese and al pastor,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.031,
+   "end": 32.471,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.365,
+   "end": 34.645,
+   "text": "and then one,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.745,
+   "end": 38.125,
+   "text": "fried quesadilla without the cheese",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 40.046,
+   "end": 41.406,
+   "text": "and al pastor,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.475,
+   "end": 57.179,
+   "text": "Okay, I couldn't, I couldn't understand. So, you want both the last? So, you don't want cheese?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.266,
+   "end": 44.426,
+   "text": "and",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.767,
+   "end": 53.428,
+   "text": "both deluxe, but one with cheese and one without.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 58.129,
+   "end": 59.029,
+   "text": "On one of them.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.42,
+   "end": 63.401,
+   "text": "But it comes melted cheese. You still want it?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 65.931,
+   "end": 77.894,
+   "text": "one of them I want with melted cheese. Can I have one without the cheese? Cause I'd like, I'd like the fried quesadilla, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 72.063,
+   "end": 74.823,
+   "text": "actually, actually comes with cheese because they're quesadillas.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 78.584,
+   "end": 94.567,
+   "text": "Yeah, deep fried quesadilla. so you want deluxe but no cheese, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 79.634,
+   "end": 83.095,
+   "text": "Yeah, and, but you can just do with the meat, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 85.516,
+   "end": 86.936,
+   "text": "Cause we've done that before.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 89.357,
+   "end": 98.12,
+   "text": "No. I, yeah, I want al pastor",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 100.72,
+   "end": 105.962,
+   "text": "as the meat, but then one of them can have the cheese with the al pastor.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 105.23,
+   "end": 105.63,
+   "text": "Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 107.55,
+   "end": 115.812,
+   "text": "Deluxe too, right? So one with everything but no cheese, and one deluxe with cheese.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 109.683,
+   "end": 110.043,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 116.705,
+   "end": 117.065,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 117.632,
+   "end": 118.873,
+   "text": "Okay, anything else?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 120.006,
+   "end": 120.226,
+   "text": "yeah,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 122.627,
+   "end": 126.788,
+   "text": "one gordita with beans, beans and cheese,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 128.856,
+   "end": 129.316,
+   "text": "Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 130.009,
+   "end": 130.309,
+   "text": "and",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 131.21,
+   "end": 134.451,
+   "text": "one gordita with steak and,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 137.192,
+   "end": 137.812,
+   "text": "beans.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 137.239,
+   "end": 137.839,
+   "text": "And cheese?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 138.852,
+   "end": 140.173,
+   "text": "just steak and beans.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 140.98,
+   "end": 142.541,
+   "text": "Steak and beans, okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 142.734,
+   "end": 150.496,
+   "text": "Yeah. that's it. And when you make them deluxe, you'll put that, all the toppings on the side, correct?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 143.781,
+   "end": 153.445,
+   "text": "Anything else? Those are deluxe,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 151.557,
+   "end": 152.197,
+   "text": "Cause it's to go.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 155.365,
+   "end": 155.945,
+   "text": "so every,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 155.458,
+   "end": 159.099,
+   "text": "Well, no, with, with the deluxe fried quesadillas,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 160.48,
+   "end": 163.12,
+   "text": "make sure we have the toppings on the side.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 164.188,
+   "end": 168.009,
+   "text": "oh, the deluxe, everything.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 169.47,
+   "end": 169.77,
+   "text": "Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 171.671,
+   "end": 172.771,
+   "text": "Okay, I got it.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 171.723,
+   "end": 172.284,
+   "text": "No, thank you.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 174.505,
+   "end": 174.885,
+   "text": "Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 174.652,
+   "end": 175.672,
+   "text": "Can I get your Christine?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 176.166,
+   "end": 176.867,
+   "text": "Christine?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 179.188,
+   "end": 179.549,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 179.714,
+   "end": 188.798,
+   "text": "Okay. Okay, Christine. Okay, I got it. Give me like twenty minutes.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 181.53,
+   "end": 182.531,
+   "text": "In about how long?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 189.877,
+   "end": 190.898,
+   "text": "Okay, thank you.",
+   "language": "en"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) DELUXE Preparada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Alpastor / Roasted Pork"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Queso Derretido / Melted Cheese"
+     }
+    ],
+    "readback": "quesadilla dorada deluxe",
+    "elviNotes": [
+     "verdura aparte"
+    ]
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(C) Con / With",
+      "option": "**Con Frijoles / With Beans (+$0.50)"
+     },
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Queso Derretido / Melted Cheese"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(C) Con / With",
+      "option": "**Con Frijoles / With Beans (+$0.50)"
+     },
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+      "isDefault": true
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Queso Derretido / Melted Cheese"
+     }
+    ],
+    "asked": true,
+    "elviNotes": [
+     "verdura aparte"
+    ]
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "For now, feathers."
+  },
+  {
+   "source": "caller-fulfillment",
+   "heard": "Hi, can I, place an order for pickup, please?"
+  },
+  {
+   "source": "staff",
+   "heard": "Yes, what can I get for you?"
+  },
+  {
+   "source": "staff",
+   "heard": "Yeah, you want the last?"
+  },
+  {
+   "source": "caller",
+   "heard": "yeah, so",
+   "language": "en",
+   "reply": "I'm here.",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "one deluxe with, cheese and al pastor,",
+   "language": "en",
+   "reply": "Quesadilla Dorada REGULAR Dorada: everthing on side, al pastor and melted cheese, mild asada salsa. $7.00. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Yeah."
+  },
+  {
+   "source": "staff",
+   "heard": "The quesadillas ones with cheese."
+  },
+  {
+   "source": "caller",
+   "heard": "and then cheese and al pastor,",
+   "language": "en",
+   "reply": "Sure, what should I add, and with what?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Yes."
+  },
+  {
+   "source": "caller",
+   "heard": "and then one, quesadillas doradas without the cheese and al pastor,",
+   "language": "en",
+   "reply": ". Anything else?",
+   "actions": [
+    "update_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, I couldn't, I couldn't understand. So, you want both the last? So, you don't want cheese?"
+  },
+  {
+   "source": "caller",
+   "heard": "and both deluxe, but one with cheese",
+   "language": "en",
+   "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "one without On one of them",
+   "language": "en",
+   "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "that's fine",
+   "language": "en",
+   "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "one without On one of them",
+   "language": "en",
+   "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "But it comes melted cheese. You still want it?"
+  },
+  {
+   "source": "caller",
+   "heard": "one of them I want with melted cheese. Can I have one without the cheese? Cause I'd like, I'd like the quesadillas doradas, right",
+   "language": "en",
+   "reply": "REGULAR Dorada: Which meat would you like?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "actually, actually comes with cheese because they're quesadillas."
+  },
+  {
+   "source": "staff",
+   "heard": "Yeah, deep fried quesadilla. so you want deluxe but no cheese, right?"
+  },
+  {
+   "source": "caller",
+   "heard": "Yeah, and, but you can just do with the meat, right Cause we've done that before",
+   "language": "en",
+   "reply": "(QD) Quesadilla Dorada: REGULAR Dorada or DELUXE Preparada?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "I, yeah, I want al pastor as the meat, but then one of them can have the cheese with the al pastor",
+   "language": "en",
+   "reply": "(QD) Quesadilla Dorada: REGULAR Dorada or DELUXE Preparada?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "that's fine",
+   "language": "en",
+   "reply": "(QD) Quesadilla Dorada: REGULAR Dorada or DELUXE Preparada?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "I, yeah, I want al pastor as the meat, but then one of them can have the cheese with the al pastor",
+   "language": "en",
+   "reply": "(QD) Quesadilla Dorada: REGULAR Dorada or DELUXE Preparada?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay."
+  },
+  {
+   "source": "staff",
+   "heard": "Deluxe too, right? So one with everything but no cheese, and one deluxe with cheese."
+  },
+  {
+   "source": "caller-dorada-yes-deluxe",
+   "heard": "Yes Yes."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, anything else?"
+  },
+  {
+   "source": "caller-count",
+   "heard": "yeah"
+  },
+  {
+   "source": "caller",
+   "heard": "one gordita with beans and cheese,",
+   "language": "en",
+   "reply": "Gordita: with beans, melted cheese, mild asada salsa. $5.50. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Okay."
+  },
+  {
+   "source": "caller",
+   "heard": "one gordita with steak and, beans",
+   "language": "en",
+   "reply": "Gordita: with beans, steak and refried beans, mild asada salsa. $5.50. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "And cheese?"
+  },
+  {
+   "source": "caller",
+   "heard": "just steak and beans",
+   "language": "en",
+   "reply": "Got it. Anything else?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Steak and beans, okay."
+  },
+  {
+   "source": "caller",
+   "heard": "Yeah. that's it. And when you make them deluxe, you'll put that, all the toppings on the side, correct",
+   "language": "en",
+   "reply": "Yes, deluxe toppings go on the side.",
+   "actions": [
+    "set_fulfillment"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Anything else? Those are deluxe,"
+  },
+  {
+   "source": "caller-fulfillment",
+   "heard": "Cause it's to go."
+  },
+  {
+   "source": "staff",
+   "heard": "so every,"
+  },
+  {
+   "source": "caller",
+   "heard": "Well, no, with the deluxe quesadillas doradas, make sure we have the toppings on the side",
+   "language": "en",
+   "reply": "REGULAR Dorada: Which meat would you like?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "oh, the deluxe, everything."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, I got it."
+  },
+  {
+   "source": "caller-closing",
+   "heard": "No, thank you."
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Okay."
+  },
+  {
+   "source": "staff",
+   "heard": "Can I get your Christine?"
+  },
+  {
+   "source": "caller",
+   "heard": "Christine Yes",
+   "language": "en",
+   "reply": "Quesadilla Dorada DELUXE Preparada: Bistec, Cabeza, Carnitas or Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay. Okay, Christine. Okay, I got it. Give me like twenty minutes."
+  },
+  {
+   "source": "caller",
+   "heard": "In about how long",
+   "language": "en",
+   "reply": "Quesadilla Dorada DELUXE Preparada: Bistec, Cabeza, Carnitas or Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "that's fine",
+   "language": "en",
+   "reply": "Quesadilla Dorada DELUXE Preparada: Bistec, Cabeza, Carnitas or Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "In about how long",
+   "language": "en",
+   "reply": "Quesadilla Dorada DELUXE Preparada: Bistec, Cabeza, Carnitas or Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Okay, thank you."
+  },
+  {
+   "source": "auto",
+   "heard": "that's fine",
+   "language": "en",
+   "reply": "Quesadilla Dorada DELUXE Preparada: Bistec, Cabeza, Carnitas or Chorizo?",
+   "actions": []
+  },
+  {
+   "source": "asked-dish",
+   "heard": "one deluxe with, cheese and al pastor,",
+   "item": "sq-quesadilla-HLT6CR"
+  },
+  {
+   "source": "asked-dish",
+   "heard": "one of them I want with melted cheese. Can I have one without the cheese? Cause ",
+   "item": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH"
+  }
+ ],
+ "name": "Christine",
+ "fulfillment": "PICKUP"
+}

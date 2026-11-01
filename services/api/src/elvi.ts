@@ -452,6 +452,8 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
     }
     // jesus2: a Queso Torta already IS the cheese → no Queso Derretido unless they asked extra/más/melted
     if (on(/\(QTO\)/i) && !EXPLICIT_EXTRA_MELTED.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
+    // christine-qd1: "with cheese" on a QD/deluxe with a meat is its normal cheese, not paid Queso Derretido (only explicit extra/más/more)
+    if (on(/^\(QD\)/) && mods.some((m) => /carne|meat/i.test(String(m.step)) && !/queso derretido|melted cheese/i.test(String(m.option))) && !EXPLICIT_EXTRA_MELTED.test(t)) mods = mods.filter((m) => !/queso derretido|melted cheese/i.test(String(m.option)));
     // jesus2: two meats on one line ("de chorizo y bistec combinado", "con chorizo y bistec") → both (meat group up to 2)
     {
       const itemM = menu.find((i: any) => i.id === a.itemId);

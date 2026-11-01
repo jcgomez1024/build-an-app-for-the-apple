@@ -2203,3 +2203,28 @@ export function applyMultiMeatGroup(cart: any[], turns: Turn[], menu: any[] = []
   }
   return ch;
 }
+
+// christine-qd1 (CA901cc6, Sun Nov 1 4:57 PM ET): "with cheese" on a QD/deluxe is its normal cheese, not paid Queso Derretido
+// (only explicit extra/más/more cheese adds it); "one with cheese, one without" splits the same QD group — the orphan
+// cheese-only quesadilla becomes a second QD (same style/meat) noted "sin queso".
+const CQ_QD_RE = /\(QD\)|quesadilla-dorada/i;
+const cqIsQd = (l: any) => CQ_QD_RE.test(String(l.itemId)) || (l.modifiers || []).some((m: any) => /^\(QD\)/.test(String(m.option)));
+const cqMelted = (m: any) => /queso derretido|melted cheese/i.test(String(m.option));
+const CQ_EXTRA = /\b(?:extra\s+(?:de\s+)?queso|mas\s+queso|extra\s+(?:melted\s+)?cheese|more\s+(?:melted\s+)?cheese|queso\s+derretido\s+extra)\b/;
+const cqMeat = (l: any) => (l.modifiers || []).some((m: any) => /carne|meat/i.test(String(m.step)) && !cqMelted(m));
+export function applyQdCheeseSplit(cart: any[], turns: Turn[]): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text));
+  const all = caller.join(" "); let ch = false;
+  if (!CQ_EXTRA.test(all)) for (const l of cart) if (cqIsQd(l) && cqMeat(l) && l.modifiers.some(cqMelted)) { l.modifiers = l.modifiers.filter((m: any) => !cqMelted(m)); ch = true; }
+  const split = /\b(?:with(?:out)? (?:the )?(?:melted )?cheese|(?:con|sin) queso)\b/.test(all) && /\b(?:one|una?) (?:with|con)\b[^.]{0,40}\b(?:one|una?|otra|the other)\b[^.]{0,15}\b(?:without|sin)\b|\b(?:one|una?) (?:without|sin)\b[^.]{0,40}\b(?:one|una?|otra|the other)\b[^.]{0,15}\b(?:with|con)\b/.test(all);
+  if (!split) return ch;
+  const qd = cart.find((l) => cqIsQd(l) && cqMeat(l)); if (!qd) return ch;
+  if (cart.some((l) => (l.elviNotes || []).some((n: string) => /sin queso|no cheese/i.test(n)))) return ch;
+  const clone = () => ({ ...structuredClone(qd), quantity: 1, modifiers: structuredClone(qd.modifiers).filter((m: any) => !cqMelted(m)), elviNotes: [...(qd.elviNotes || []).filter((n: string) => !/sin queso/.test(n)), "sin queso"] });
+  const orphan = cart.find((l) => l !== qd && !cqIsQd(l) && /quesadilla/i.test(String(l.itemId)) && !cqMeat(l) && (l.modifiers || []).some(cqMelted));
+  const qdQty = cart.filter((l) => cqIsQd(l) && cqMeat(l)).reduce((a, l) => a + (l.quantity || 1), 0);
+  if (orphan) { cart.splice(cart.indexOf(orphan), 1, clone()); return true; }
+  if (qd.quantity >= 2) { qd.quantity -= 1; cart.splice(cart.indexOf(qd) + 1, 0, clone()); return true; }
+  if (qdQty === 1 && /\b(?:both|las dos|los dos|ambas)\b/.test(all)) { cart.splice(cart.indexOf(qd) + 1, 0, clone()); return true; }
+  return ch;
+}
