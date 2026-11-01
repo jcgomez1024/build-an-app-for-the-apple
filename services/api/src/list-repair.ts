@@ -1223,3 +1223,51 @@ export function liveExtraCarne(r: any, input: any) {
   return { ...r, actions: [...acts.filter((a) => !(a?.type === "update_item" && a.itemId === l.itemId)), { type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: [...(l.modifiers || []), o], correction: true }],
     reply: en ? "Extra meat added. Anything else?" : "Con extra carne. ¿Algo más?" };
 }
+
+// yomar1 (CAbc24f7): staff guesses "De comal, ¿verdad?" → caller "en aceite, preparadas" = correction: that item is QD Deluxe Preparada.
+const QD_DLX_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+const QD_STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
+const STAFF_TORT_GUESS = /\b(?:de\s+)?(?:comal|harina|ma[ií]z|hecha\s+a\s+mano|homemade|flour|corn)\b[^?]{0,20}(?:\?|verdad|no\b)|\b(?:verdad|cierto)\b[^?]{0,10}\b(?:comal|harina|ma[ií]z)\b/iu;
+const CALLER_QD_DLX = /\b(?:en\s+(?:\w+\s+)?aceite|doradas?|fritas?)\b[^|]{0,40}\bpreparad[oa]s?\b|\bpreparad[oa]s?\b[^|]{0,40}\b(?:en\s+(?:\w+\s+)?aceite|doradas?|fritas?)\b/iu;
+const meatOptOf = (l: any) => (l.modifiers || []).find((m: any) => /carnes?\s*\/\s*meats?/i.test(String(m.step)) && !/extra/i.test(String(m.step)));
+const toQdDeluxe = (l: any) => ({ ...l, itemId: QD_DLX_ID, modifiers: [QD_STYLE, ...(meatOptOf(l) ? [meatOptOf(l)] : [])], readback: "quesadilla dorada deluxe" });
+/** Caller's "en aceite / doradas … preparadas" right after a staff tortilla guess → the quesadilla just ordered is QD Deluxe Preparada. */
+export function qdCorrectionMeats(turns: Turn[]): Array<string | null> {
+  const out: Array<string | null> = [];
+  for (let i = 1; i < turns.length; i++) {
+    const t = turns[i]; if (t.speaker !== "caller" || !CALLER_QD_DLX.test(String(t.text || ""))) continue;
+    const g = turns.slice(Math.max(0, i - 2), i).find((x) => x.speaker === "staff" && STAFF_TORT_GUESS.test(String(x.text || ""))); if (!g) continue;
+    const before = turns.slice(Math.max(0, i - 5), turns.indexOf(g)).filter((x) => x.speaker === "caller").map((x) => plain(x.text)).join(" ");
+    if (!/\bquesadillas?\b/.test(before)) continue;
+    out.push(meatIn(before.slice(before.lastIndexOf("quesadilla"))));
+  }
+  return out;
+}
+export function applyQdCorrection(cart: any[], turns: Turn[]): boolean {
+  let ch = false;
+  for (const meat of qdCorrectionMeats(turns)) {
+    const ls = cart.filter((l) => /^sq-quesadilla-/.test(String(l.itemId)) && (!meat || meatOfLine(l) === meat));
+    const l = meat ? ls[0] : ls[ls.length - 1]; if (!l) continue;
+    if (meat && ls.length !== 1) continue;
+    cart[cart.indexOf(l)] = toQdDeluxe(l); ch = true;
+  }
+  return ch;
+}
+/** Live: "en aceite, preparadas" turn after a quesadilla → QD Deluxe Preparada (convert a plain add, or swap the cart line). */
+export function liveQdCorrection(r: any, input: any) {
+  const tx = String(input?.transcript || ""); if (!CALLER_QD_DLX.test(tx)) return r;
+  const hist: any[] = input?.history || []; const prevC = hist.filter((h) => h.role === "customer").slice(-3).map((h) => plain(h.text)).join(" ") + " " + plain(tx);
+  if (!/\bquesadillas?\b/.test(prevC)) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const en = input?.language === "en";
+  if (acts.some((a) => a?.type === "add_item" && /^sq-quesadilla-/.test(String(a.itemId)))) return { ...r, actions: acts.map((a) => (a?.type === "add_item" && /^sq-quesadilla-/.test(String(a.itemId)) ? toQdDeluxe(a) : a)) };
+  if (acts.some((a) => a?.type === "add_item" && a.itemId === QD_DLX_ID)) return r;
+  const cart: any[] = input?.cart || []; const last = [...cart].reverse().find((l) => /^sq-quesadilla-/.test(String(l.itemId)));
+  const meatW = meatIn(prevC.slice(prevC.lastIndexOf("quesadilla")));
+  const nm = prevC.match(new RegExp(`\\b(${NUMW})\\s+quesadillas?\\b`)); const qty = nm ? numOf(nm[1]) || 1 : 1;
+  const meatMod = (k: string | null) => k ? { step: "(B) Q Carnes / Meats", option: ({ bistec: "Bistec / Steak", chorizo: "Chorizo / Mexican Sausage", cabeza: "Cabeza / Beef Head (+$0.50)", carnitas: "Carnitas / Pulled Pork" } as any)[k] } : null;
+  if (last) { const nl = toQdDeluxe(last); return { ...r, actions: [{ type: "remove_item", itemId: last.itemId, quantity: last.quantity || 1 }, { type: "add_item", ...nl }],
+    reply: en ? `${nl.quantity} fried deluxe quesadillas. Anything else?` : `${nl.quantity} quesadillas doradas deluxe. ¿Algo más?` }; }
+  const mm = meatMod(meatW); if (!mm || !mm.option) return r;
+  return { ...r, actions: [...acts, { type: "add_item", itemId: QD_DLX_ID, quantity: qty, modifiers: [QD_STYLE, mm], readback: "quesadilla dorada deluxe" }],
+    reply: en ? `${qty} fried deluxe quesadillas, ${meatW}. Anything else?` : `${qty} quesadillas doradas deluxe de ${meatW}. ¿Algo más?` };
+}

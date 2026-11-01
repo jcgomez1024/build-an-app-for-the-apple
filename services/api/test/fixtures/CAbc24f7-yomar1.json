@@ -1,0 +1,191 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.46,
+   "end": 1.461,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.621,
+   "end": 3.461,
+   "text": "Ok, así puedo sin agua.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.222,
+   "end": 5.202,
+   "text": "Ah, sí, claro, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.263,
+   "end": 7.663,
+   "text": "Si me das dos quesadillas",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.984,
+   "end": 9.364,
+   "text": "de biste.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.204,
+   "end": 10.945,
+   "text": "De Comal, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.005,
+   "end": 14.046,
+   "text": "Ah, en en aceite, preparadas.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.926,
+   "end": 17.888,
+   "text": "Okay, muy bien, dos quesadillas en aceite preparadas",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.988,
+   "end": 22.43,
+   "text": "Y si me das dos, sí, dos de biste y si me das dos de",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.41,
+   "end": 23.81,
+   "text": "chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.33,
+   "end": 25.551,
+   "text": "Muy bien, ¿preparadas también?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.271,
+   "end": 26.371,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.971,
+   "end": 27.452,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.212,
+   "end": 28.512,
+   "text": "No más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.092,
+   "end": 30.493,
+   "text": "Okay, ¿a qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.333,
+   "end": 31.694,
+   "text": "¿Yo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.294,
+   "end": 34.035,
+   "text": "Yomar, muy bien, Yomar.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 35.595,
+   "end": 37.276,
+   "text": "Dame unos,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 39.577,
+   "end": 41.578,
+   "text": "ah, unos 25 minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 42.378,
+   "end": 43.038,
+   "text": "Ah, ok, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.398,
+   "end": 43.879,
+   "text": "Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.499,
+   "end": 44.739,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) DELUXE Preparada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ],
+    "readback": "quesadilla dorada deluxe"
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,5 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder } from "./readback-pass.js";
-import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne } from "./list-repair.js";
+import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
 import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
@@ -2173,6 +2173,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveCancelOrder(o2, input); } catch { /* keep */ } // daniel-cancel1
   try { o2 = liveMeatSplitQty(o2, input); } catch { /* keep */ } // julian1
   try { o2 = liveExtraCarne(o2, input); } catch { /* keep */ } // sergio1
+  try { o2 = liveQdCorrection(o2, input); } catch { /* keep */ } // yomar1
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides
