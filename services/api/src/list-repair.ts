@@ -1028,3 +1028,44 @@ export function applyLateTortillaChoice(cart: any[], turns: Turn[], menu: any[])
     l.modifiers = [...(l.modifiers || []).filter((m: any) => m !== cur), { step: g.name, option: opt }]; changed = true; }
   return changed;
 }
+
+// chuy2 (CAc212a3, Oct 31 8:18 PM ET): the caller's own recap — "son seis doradas de buche, tres y tres, pero las seis son regulares"
+// … "y las otras dos preparadas" … "¿cuántas quesadillas son? ocho y el burrito" — rebuilds the dorada lines when the recap
+// counts add up to the stated total. Comal/harina quesadilla lines go too when comal/harina was never said on this call.
+const QD_WORD = "(?:doradas?|doraditas?|fritas?|en aceite|quesadillas?(?: (?:doradas?|fritas?|en aceite))?)";
+export function applyQdRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const c = said(turns, "caller");
+  const m = c.match(new RegExp(`\\bson (${NUMW}) ${QD_WORD}(?: de ([a-z]+))?[^|]{0,80}?\\b(?:las|todas)(?: (?:${NUMW}|todas))? son (regulares|preparadas)`));
+  if (!m) return false; const n1 = numOf(m[1]); const meat1 = m[2] ? meatIn(m[2]) : null; if (!n1 || !meat1) return false;
+  const st1: "regular" | "preparada" = m[3] === "regulares" ? "regular" : "preparada";
+  const o = c.slice((m.index || 0) + m[0].length).match(new RegExp(`\\b(?:las|y las) otras (${NUMW}) (preparadas|regulares)`));
+  const n2 = o ? numOf(o[1]) : 0; const st2: "regular" | "preparada" = o?.[2] === "regulares" ? "regular" : "preparada";
+  let meat2 = meat1;
+  if (o) { const after = c.slice(c.indexOf(o[0])); const dm = [...after.matchAll(new RegExp(`${QD_WORD}[^|]{0,20}?\\bde ([a-z]+)[^|]{0,12}?\\b${o[2]}`, "g"))].pop(); const mm = dm ? meatIn(dm[1]) : null; if (mm) meat2 = mm; }
+  const tot = c.match(new RegExp(`\\b(${NUMW})\\s+y\\s+el\\s+(?:burrito|burro)\\b`)) || c.match(new RegExp(`\\bson\\s+(${NUMW})\\s+quesadillas\\b`));
+  if (!tot || numOf(tot[1]) !== n1 + n2) return false;
+  const base = baseItem(menu, "qd"); if (!base) return false;
+  const keepQ = /\b(?:comal|harina)\b/.test(c);
+  for (let i = cart.length - 1; i >= 0; i--) { const k = kindOfLine(cart[i]); if (k === "qd" || (k === "quesadilla" && !keepQ)) cart.splice(i, 1); }
+  const mk = (q: number, meat: string, qd: "regular" | "preparada") => { const l: any = { itemId: base.id, quantity: q, modifiers: [] }; setLine(l, { kind: "qd", meat, qty: q, qd }, menu); return l; };
+  const add = [mk(n1, meat1, st1)]; if (n2) add.push(mk(n2, meat2, st2));
+  const bi = cart.findIndex((l) => /^sq-burrito-/.test(String(l.itemId))); cart.splice(bi >= 0 ? bi : cart.length, 0, ...add);
+  return true;
+}
+// chuy2: "¿De qué quieres el burrito?" "De lengua, de lengua, de lengua con aguacate" rang buche. The meat the caller repeats right
+// after "burrito" (≥2 times, the only one said there) wins; "con aguacate" goes on as a note.
+export function applyBurritoMeatRepeat(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const bl = cart.filter((l) => /^sq-burrito-/.test(String(l.itemId))); if (bl.length !== 1) return false;
+  const ct = turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)); const i = ct.findIndex((t) => /\bburrit?os?\b|\bburros?\b/.test(t)); if (i < 0) return false;
+  const win = ct.slice(i, i + 5).join(" | "); const hits = [...win.matchAll(/\bde ([a-z]+)/g)].map((x) => meatIn(x[1])).filter(Boolean) as string[];
+  const counts = new Map<string, number>(); hits.forEach((h) => counts.set(h, (counts.get(h) || 0) + 1));
+  let changed = false; const l = bl[0];
+  if (counts.size === 1) { const [meat, n] = [...counts][0]; if (n >= 2 && meatOfLine(l) !== meat) {
+    const base = menu.find((x) => x.id === l.itemId); const g = (base?.modifierGroups || []).find((x: any) => /carne/i.test(x.name));
+    const opt = g && (g.options || []).map(oname).find((o: string) => plain(o).replace(/\s/g, "").includes(meat));
+    if (opt) { l.modifiers = [...(l.modifiers || []).filter((x: any) => x.step !== g.name), { step: g.name, option: opt }]; changed = true; } } }
+  const winA = ct.slice(i, i + 8).join(" | ");
+  if (/\bcon aguacate\b/.test(winA) && !(l.elviNotes || []).some((n: string) => /aguacate/i.test(n)) && !(l.modifiers || []).some((x: any) => /guacamole/i.test(x.option))) {
+    l.elviNotes = [...(l.elviNotes || []), "con aguacate"]; changed = true; }
+  return changed;
+}
