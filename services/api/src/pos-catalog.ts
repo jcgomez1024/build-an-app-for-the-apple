@@ -114,4 +114,13 @@ export function soloMenudoLine(l: Line, cat: PosCatalog | null): Line | null {
   const q = Number(l.quantity) || 1;
   return { ...mapped, baseName: pos.name, variationId: pv.id, name: `${pos.name} · ${pv.name}`, choices: posChoices, unitCents: unit, totalCents: unit * q };
 }
-export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.flatMap((l) => soloMenudoLine(l, cat) || smallSopeLines(l, cat) || [toPosLine(l, cat)]);
+/** juan-qd1 (CA36cd1a): small agua fresca ("horchata chica") → POS "Orchata 20oz" (online menu only has 32oz). */
+export function smallDrinkLine(l: Line, cat: PosCatalog | null): Line | null {
+  if ((l as any).posSize !== "small" || !cat || !l.variationId) return null;
+  const big: any = toPosLine(l, cat); const pos = cat.items.find((i) => i.name === big.baseName); if (!pos) return null;
+  const bv = pos.variations.find((v) => v.id === big.variationId); if (!bv || !/\b32\s*oz\b/i.test(bv.name)) return null;
+  const sv = pos.variations.find((v) => norm(v.name) === norm(bv.name.replace(/\b32\s*oz\b/i, "20oz"))); if (!sv) return null;
+  const q = Number(l.quantity) || 1, extra = (big.unitCents || 0) - bv.priceCents;
+  return { ...big, variationId: sv.id, name: `${pos.name} · ${sv.name}`, choices: [sv.name, ...(big.choices || []).filter((c: string) => norm(c) !== norm(bv.name))], unitCents: sv.priceCents + extra, totalCents: (sv.priceCents + extra) * q };
+}
+export const toPosLines = (lines: Line[], cat: PosCatalog | null) => lines.flatMap((l) => soloMenudoLine(l, cat) || smallSopeLines(l, cat) || (smallDrinkLine(l, cat) ? [smallDrinkLine(l, cat)!] : null) || [toPosLine(l, cat)]);

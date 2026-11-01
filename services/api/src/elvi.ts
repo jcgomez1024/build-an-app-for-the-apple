@@ -391,6 +391,8 @@ export function insteadOfEggs(input: ElviRequest): ElviResponse | null {
     actions: [another ? { type: "add_item", itemId: item.id, quantity: 1, modifiers: mods } : { type: "update_item", itemId: item.id, quantity: last.quantity, modifiers: mods, correction: true }] } as any;
 }
 
+const AVAIL_EMBED = /\b(?:no\s+s[eé]|quer[ií]a\s+(?:ver|saber)|quiero\s+saber|me\s+preguntaba|pregunt(?:o|aba)|i\s+(?:was\s+)?wonder(?:ing)?|not\s+sure|i\s+don'?t\s+know)\s+(?:si|if|whether)\s+(?:ustedes\s+|you\s+(?:guys\s+)?)?(?:tengan|tienen|tienes|tenga|tiene|hay|haya|habr[aá]|have|has|got|still\s+have)\s+([^?.,]{2,40}?)[\s?.!]*$/iu;
+const AVAIL_NI = /^[\s¿¡,.]*(?:y\s+)?ni\s+([^?.,]{2,40}?)(?:\s+(?:hoy|ahorita|tampoco))?[\s?.!]*$/iu;
 export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
   const t = String(input.transcript || "").trim();
   // avail2 (Oct 22 10:33): "¿tienen X?" … "¿Y agua de Jamaica?" — a bare "y/and + dish" right after an availability
@@ -400,6 +402,13 @@ export function availabilityQuestion(input: ElviRequest): ElviResponse | null {
     && !/\b(\d+|un[oa]?|dos|tres|cuatro|cinco|one|two|three|four|quiero|dame|deme|ponme|p[oó]ngame|agr[eé]g|want|give|add)\b/i.test(t)) {
     const es = input.language !== "en";
     return { language: input.language, engine: "xai", reply: es ? "Sí, también tenemos. ¿Le preparo algo?" : "Yes, we have that too. What can I get you?", actions: [] } as any;
+  }
+  // juan-qd1 (CA36cd1a): "quería ver si me podían preparar, no sé si tengan chilaquiles" / "Ni chiles rellenos hoy" (after a
+  // sold-out answer) are availability questions — never add the dish.
+  const emb = AVAIL_EMBED.exec(t) || (AVAIL_NI.test(t) && t.split(/\s+/).length <= 7 ? AVAIL_NI.exec(t) : null);
+  if (emb && !/\b(\d+|dos|tres|cuatro|cinco|two|three|four)\b/i.test(emb[1])) {
+    const es = input.language !== "en";
+    return { language: input.language, engine: "xai", reply: es ? "Déjeme confirmar con la cocina. ¿Qué más le preparo?" : "Let me check with the kitchen. What else can I get you?", actions: [] } as any;
   }
   const m = AVAIL_Q.exec(t); if (!m) return null;
   if (/\b(\d+|dos|tres|cuatro|cinco|two|three|four)\b/i.test(m[1])) return null;

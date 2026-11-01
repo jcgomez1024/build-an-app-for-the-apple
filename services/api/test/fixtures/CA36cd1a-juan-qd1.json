@@ -1,0 +1,355 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.92,
+      "end": 1.44,
+      "text": "Sí, buenas.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.481,
+      "end": 3.441,
+      "text": "Sí, buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.041,
+      "end": 4.821,
+      "text": "Buenas tardes, Juan.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 5.521,
+      "end": 7.102,
+      "text": "Quería hacer una orden, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 7.522,
+      "end": 8.562,
+      "text": "Claro que sí, a ver, dime.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 9.262,
+      "end": 11.002,
+      "text": "Pero sí, sí, no, pues si tienes delivery.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 11.882,
+      "end": 12.403,
+      "text": "Sí, claro.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 13.283,
+      "end": 16.964,
+      "text": "Okay, quería ver si me podían preparar, no sé si tengan chilaquiles.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.264,
+      "end": 19.184,
+      "text": "Chilaquiles.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 20.444,
+      "end": 22.985,
+      "text": "Híjoles, ahorita esos sí se me acabaron, Juan.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 25.006,
+      "end": 26.186,
+      "text": "Ni chiles rellenos hoy.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 26.806,
+      "end": 30.506,
+      "text": "También se me acabaron, ay, disculpa. Esos también se me acabaron.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 29.407,
+      "end": 30.247,
+      "text": "No, no, no, está bien.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 31.507,
+      "end": 35.268,
+      "text": "Okay, entonces, ¿me puedes poner dos quesadillas doradas, por favor, de huevo?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 36.288,
+      "end": 38.928,
+      "text": "Dos quesadillas doradas, ¿de qué me dijiste, perdón?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.529,
+      "end": 40.429,
+      "text": "De huevo, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 41.449,
+      "end": 43.109,
+      "text": "De chile con huevo, ¿las dos?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.89,
+      "end": 44.53,
+      "text": "Sí, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 45.329,
+      "end": 47.19,
+      "text": "Okay, ¿te gustarían preparadas?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 47.771,
+      "end": 50.691,
+      "text": "Sí, y me pones un agua de horchata chica, por favor, también.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 51.711,
+      "end": 55.972,
+      "text": "Y una water chata chica, okay. ¿Algo más, Juan?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 57.634,
+      "end": 58.394,
+      "text": "No, sería todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 59.733,
+      "end": 63.316,
+      "text": "Okey, danos unos veinte minutos por lo menos, no, ahorita te la llevamos.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 63.757,
+      "end": 64.978,
+      "text": "Okay, está muy bien, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 65.258,
+      "end": 66.819,
+      "text": "Dale, agradece a ti, hasta luego.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Huevo con Chile / Spicy Egg"
+        }
+      ]
+    },
+    {
+      "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+      "quantity": 1,
+      "modifiers": []
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Sí, buenas."
+    },
+    {
+      "source": "staff",
+      "heard": "Buenas tardes, Juan."
+    },
+    {
+      "source": "caller",
+      "heard": "Quería hacer una orden",
+      "language": "es",
+      "reply": "Adelante.",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Claro que sí, a ver, dime."
+    },
+    {
+      "source": "caller-fulfillment",
+      "heard": "Pero sí, sí, no, pues si tienes delivery."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, claro."
+    },
+    {
+      "source": "caller",
+      "heard": "quería ver si me podían preparar, no sé si tengan chilaquiles",
+      "language": "es",
+      "reply": "Chilaquiles con Huevo. $7.99. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Chilaquiles."
+    },
+    {
+      "source": "staff",
+      "heard": "Híjoles, ahorita esos sí se me acabaron, Juan."
+    },
+    {
+      "source": "caller",
+      "heard": "Ni chiles rellenos hoy",
+      "language": "es",
+      "reply": "Chiles Rellenos Platillo / Stuffed Poblano Pepper. $14.99. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "También se me acabaron, ay, disculpa. Esos también se me acabaron."
+    },
+    {
+      "source": "caller",
+      "heard": "está bien Okay, entonces, ¿me puedes poner dos QD REGULAR Dorada, de huevo",
+      "language": "en",
+      "reply": "Quesadilla Dorada REGULAR Dorada: spicy egg, mild asada salsa. $5.50. Anything else?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Dos quesadillas doradas, ¿de qué me dijiste, perdón?"
+    },
+    {
+      "source": "caller",
+      "heard": "De huevo",
+      "language": "es",
+      "reply": "Stuffed Poblano Pepper: ¿Arroz-Rice and Frijoles-Beans, SOLO Arroz o SOLO Frijoles? ¿Y 3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "De chile con huevo, ¿las dos?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "3 x (Corn) Corn Tortilla",
+      "language": "es",
+      "reply": "Stuffed Poblano Pepper: ¿Arroz-Rice and Frijoles-Beans, SOLO Arroz o SOLO Frijoles?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "De chile con huevo,",
+      "pick": "3 x (Corn) Corn Tortilla"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí"
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, ¿te gustarían preparadas?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí,"
+    },
+    {
+      "source": "caller",
+      "heard": "un agua de horchata chica, también",
+      "language": "es",
+      "reply": "Agua Fresca Horchata 32oz. $5.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Y una water chata chica, okay. ¿Algo más, Juan?"
+    },
+    {
+      "source": "caller-closing",
+      "heard": "No, sería todo."
+    },
+    {
+      "source": "staff",
+      "heard": "Okey, danos unos veinte minutos por lo menos, no, ahorita te la llevamos."
+    },
+    {
+      "source": "caller",
+      "heard": "está muy bien",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Dale, agradece a ti, hasta luego."
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street o 12 x Tortilla Taquera / Corn Street?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street o 12 x Tortilla Taquera / Corn Street?",
+      "actions": []
+    },
+    {
+      "source": "end-staff-unavailable",
+      "heard": "sq-chilaquiles-con-huevo-YWKBQV"
+    }
+  ],
+  "name": "Juan",
+  "fulfillment": "DELIVERY"
+}

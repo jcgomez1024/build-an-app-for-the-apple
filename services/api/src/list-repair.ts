@@ -2023,3 +2023,26 @@ export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let c
     cart.push({ itemId: QUES_ID, quantity: n, modifiers: [{ step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }, { step: "(B) Q Carnes / Meats", option: meats[0] }], readback: `${n} quesadilla de comal de ${meats[0]}` }); ch = true; }
   return ch;
 }
+
+// juan-qd1 (CA36cd1a): staff "¿te gustarían preparadas?" → caller "Sí, …" = the regular doradas become DELUXE Preparada.
+export function applyStaffPreparadaYes(cart: any[], turns: Turn[]): boolean { let ch = false;
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "staff") continue; const p = plain(t.text);
+    if (!/\bpreparad[ao]s?\b|\bdeluxe\b/.test(p) || !/\?/.test(t.text) || /\bo\s+(?:normal|regular)|\bor\s+regular\b/.test(p)) continue;
+    const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); if (!nx) continue; const q = plain(nx.text);
+    if (!/^(?:ah |eh |okay |ok )?(?:si|yes|yeah|claro|por favor|aja|las dos|ambas|both)\b/.test(q) || /\b(?:normal|regular)(?:es)?\b/.test(q)) continue;
+    for (const l of cart) { if (!QD_REG.test(String(l.itemId))) continue;
+      l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)/.test(String(m.option)))];
+      if (l.readback) l.readback = String(l.readback).replace(/regular(?: dorada)?/i, "deluxe preparada"); ch = true; } }
+  return ch;
+}
+// juan-qd1: "un agua de horchata chica / pequeña / small" → posSize small (POS 20oz).
+const AG_SMALL = /\b(?:chic[ao]s?|chiquit[ao]s?|pequen[ao]s?|small|little|20 ?oz|20 onzas)\b/;
+export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = false;
+  for (const [flav, idRe] of [["horchata", /horchata/i], ["jamaica", /jamaica/i], ["tamarindo", /tamarindo/i]] as Array<[string, RegExp]>) {
+    const said = turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)).filter((p) => p.includes(flav));
+    if (!said.length) continue; const last = said[said.length - 1];
+    const seg = last.slice(Math.max(0, last.indexOf(flav) - 30), last.indexOf(flav) + flav.length + 25);
+    if (!AG_SMALL.test(seg) || /\b(?:grande|large|32)\b/.test(seg)) continue;
+    for (const l of cart) if (idRe.test(String(l.itemId)) && l.posSize !== "small") { l.posSize = "small"; l.elviNotes = [...new Set([...(l.elviNotes || []), "chica"])]; ch = true; } }
+  return ch;
+}

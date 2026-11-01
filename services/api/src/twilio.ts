@@ -505,6 +505,13 @@ export type ElviTicketLine = {
   name: string; quantity: number; choices: string[]; notes?: string[];
   flag?: string | null; totalCents?: number; kind?: "food" | "drink" | "extra" | "fee" | "divider";
 };
+/** juan-qd1: a DELIVERY ticket with food always carries one Delivery Fee line (Delivery 1 $5 / Delivery 2 $8+). */
+export function withDeliveryFee(lines: ElviTicketLine[], fulfillment: string, feeCents?: number | null): ElviTicketLine[] {
+  if (!/DELIVERY|ENTREGA/i.test(String(fulfillment || ""))) return lines.filter((l) => !(l.kind === "fee" && (l as any).auto));
+  if (!lines.some((l) => l.kind !== "fee" && l.kind !== "divider") || lines.some((l) => l.kind === "fee" || /delivery\s*fee/i.test(l.name))) return lines;
+  const fee = Number(feeCents) > 0 ? Number(feeCents) : 500;
+  return [...lines, { name: `Delivery Fee · ${fee >= 800 ? "Delivery 2" : "Delivery 1"}`, quantity: 1, choices: [], totalCents: fee, kind: "fee", auto: true } as any];
+}
 export type ElviTicket = {
   callSid: string; at: string; caller: string; name: string | null; receiptCode: string;
   source: string; phoneDisplay: string;
@@ -974,6 +981,8 @@ async function upsertTicket(
     openAsk: partial.openAsk !== undefined ? partial.openAsk : prev?.openAsk,
     transcript: partial.transcript !== undefined ? partial.transcript : prev?.transcript
   };
+  // juan-qd1 (CA36cd1a): staff-confirmed delivery with no address yet still rings the Delivery Fee ($5 near zone until quoted)
+  try { const dq = callDelivery.get(t.callSid); t.lines = withDeliveryFee(t.lines, t.fulfillment, provisionalDeliveryFeeCents(dq?.quote || null, true)); } catch { /* ticket lines only */ }
   ticketsByCall.set(t.callSid, t);
   saveTickets();
   return t;
