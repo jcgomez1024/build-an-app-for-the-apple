@@ -2063,7 +2063,7 @@ export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = f
 // gustavo-qd1 (CA7a1136): several dorada groups in one call — "tres quesadillas en aceite … de bistec … deluxe? sí, sin lechuga",
 // "otras dos en aceite, de cabeza … y la otra de bistec" (staff: "una de cabeza y una de bistec"), "otras dos en aceite de bistec
 // … con todo". Rebuild every QD line per group (qty/meat/style/notes); "en aceite" lines that landed as comal QCO go away.
-const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada" 
+const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+(?:el\s+)?aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada" 
 const QG_N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
 const qgN = (w: string) => QG_N[w.toLowerCase()] || Number(w) || 0;
 export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat: string; n: number }>; deluxe: boolean; noLechuga: boolean }> {
@@ -2109,4 +2109,69 @@ export function applyQdGroups(cart: any[], turns: Turn[]): boolean {
     modifiers: [{ step: "(QD) Style", option: g.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: m.meat }],
     ...(g.noLechuga ? { elviNotes: ["no lechuga"] } : {}), readback: `${m.n} quesadilla dorada ${g.deluxe ? "deluxe" : "regular"}` });
   return true;
+}
+
+// ---- batch 34 ----
+const B34_YES = /^(?:\s*(?:yes|yeah|yep|sure|si|ok|okay|correct|all of (?:that|it)|con todo|everything|that'?s fine|esta bien)\b)/;
+const B34_SAME = /\b(?:same (?:thing|way)|the same|lo mismo|igual(?:es)?|same)\b/;
+const isBurr = (l: any) => /^sq-burrito-/.test(String(l.itemId));
+/** anastasia1 (CAb32fa45): multi-burrito fillings — meat said once ("chorizo burrito … two small … the same thing"),
+ *  caller "no beans" / elviNotes "no frijoles" strip beans, staff topping list answered yes → (C) toppings. Extends sophie1 to N burritos. After-call. */
+export function applyBurritoGroupFillings(cart: any[], turns: Turn[]): boolean {
+  const bs = cart.filter(isBurr); if (!bs.length) return false; let ch = false;
+  const cl = turns.filter((t) => t.speaker === "caller").map((t) => b22low(t.text));
+  const same = cl.some((x) => /burrito|small|grande|regular/.test(x) && B34_SAME.test(x)) || cl.some((x) => B34_SAME.test(x) && /\bno (?:beans?|frijol)/.test(x));
+  const noBeans = cl.some((x) => /\b(?:no|without|sin)\s+(?:refried\s+)?(?:beans?|frijol(?:es)?)\b/.test(x));
+  const meatTurn = cl.find((x) => /burrito/.test(x) && b22Meats(x).length);
+  const meat = meatTurn ? b22Meats(meatTurn)[0] : undefined;
+  const carneStep = "(B) Burrito Carne Options";
+  bs.forEach((l, i) => { l.modifiers = l.modifiers || [];
+    const notes = (l.elviNotes || []).map((n: any) => b22low(n)).join(" ");
+    if ((noBeans && (same || bs.length === 1 || i === 0)) || /no (?:frijol|beans?)/.test(notes)) {
+      const n0 = l.modifiers.length; l.modifiers = l.modifiers.filter((m: any) => !/Frijoles Refritos/.test(String(m.option))); if (l.modifiers.length !== n0) ch = true; }
+    if (meat && (same || bs.length === 1) && !l.modifiers.some((m: any) => /Carne/.test(String(m.step)) && !/Frijoles|Arroz/.test(String(m.option)))) { l.modifiers.push({ step: carneStep, option: meat }); ch = true; }
+  });
+  // staff offered a topping list and the caller said yes
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "staff") continue;
+    let x = b22low(t.text); let j = i + 1; while (j < turns.length && turns[j].speaker === "staff") { x += " " + b22low(turns[j].text); j++; }
+    if (!/burrito|big one|small one|grande|regular/.test(x) && !/rice|arroz/.test(x)) continue;
+    const tops = BF_TOP.filter(([re]) => re.test(x)).map((z) => z[1]); if (tops.length < 3) continue;
+    const ans = turns[j]; if (!ans || ans.speaker !== "caller" || !B34_YES.test(b22low(ans.text).replace(/[^a-z' ]/g, " ").trim())) continue;
+    const targets = same ? bs : /big one|grande|large/.test(x) ? bs.filter((l) => (l.modifiers || []).some((m: any) => /Grande/.test(String(m.option)))) : [bs[0]];
+    for (const l of targets) for (const o of tops) { if (o.startsWith("Frijoles") && (noBeans || (l.elviNotes || []).some((n: any) => /no frijol|no bean/i.test(n)))) continue;
+      if (!l.modifiers.some((m: any) => m.option === o)) { l.modifiers.push({ step: BF_C, option: o }); ch = true; } }
+  }
+  return ch;
+}
+/** anastasia1: "chorizo nachos" → (A) meat (not Melted Cheese); staff topping list answered yes → (B) Nachos Options. After-call. */
+const NACHO_TOP: Array<[RegExp, string]> = [[/\bbeans?\b|\bfrijol/, "Frijoles / Pinto Beans"], [/\blettuce\b|\blechuga\b/, "Lechuga / Lettuce"], [/\bpico\b/, "Pico de Gallo"], [/\bsour cream\b|\bcrema\b/, "Crema / Sour Cream"], [/\bcheese and\b|\bqueso fresco\b|\bfresco\b|\bcheese,/, "Queso Fresco / Cheese"], [/\bqueso dip\b|\bcheese dip\b/, "Queso Dip / Cheese Dip"], [/\bguac/, "Guacamole Dip"]];
+export function applyNachosSaid(cart: any[], turns: Turn[]): boolean {
+  const ns = cart.filter((l) => /^sq-nachos-/.test(String(l.itemId))); if (!ns.length) return false; let ch = false;
+  const A = "(A) Nachos Carne Options", B = "(B) Nachos Options";
+  const mt = turns.map((t) => b22low(t.text)).filter((x) => /nachos?/.test(x) && b22Meats(x).length);
+  const meat = mt.length ? b22Meats(mt[mt.length - 1])[0] : undefined;
+  const cheeseOnly = turns.some((t) => t.speaker === "caller" && /(melted cheese|queso derretido|just cheese|solo queso)/.test(b22low(t.text)));
+  for (const l of ns) { l.modifiers = l.modifiers || [];
+    const cur = l.modifiers.find((m: any) => m.step === A);
+    if (meat && !cheeseOnly && (!cur || /Queso Derretido/.test(cur.option))) { l.modifiers = l.modifiers.filter((m: any) => m.step !== A); l.modifiers.unshift({ step: A, option: meat.replace(/ with Potatoes$/, "") }); ch = true; } }
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "staff") continue; const x = b22low(t.text);
+    const tops = NACHO_TOP.filter(([re]) => re.test(x)).map((z) => z[1]); if (tops.length < 3) continue;
+    let j = i + 1; while (j < turns.length && turns[j].speaker === "staff") j++;
+    const ans = turns[j]; if (!ans || !B34_YES.test(b22low(ans.text).replace(/[^a-z' ]/g, " ").trim())) continue;
+    for (const l of ns) for (const o of tops) if (!l.modifiers.some((m: any) => m.option === o)) { l.modifiers.push({ step: B, option: o }); ch = true; } }
+  return ch;
+}
+/** julio-burrito1 (CA13404a): staff misheard "¿dos burritos … grandes?" — caller never said grande and answered "regular":
+ *  drop the phantom grande when a regular burrito already exists, else resize it to regular. After-call. */
+export function dropStaffGrandeBurrito(cart: any[], turns: Turn[]): boolean {
+  const cl = turns.filter((t) => t.speaker === "caller").map((t) => b22low(t.text));
+  if (cl.some((x) => /\b(?:grandes?|large|big|12)\b/.test(x)) || !cl.some((x) => /\bregular(?:es)?\b|\bsmall\b|\bchic[oa]s?\b/.test(x))) return false;
+  if (!turns.some((t) => t.speaker === "staff" && /burrito/.test(b22low(t.text)) && /grande/.test(b22low(t.text)))) return false;
+  let ch = false;
+  const isG = (l: any) => isBurr(l) && (l.modifiers || []).some((m: any) => /Grande/.test(String(m.option)));
+  const meatOf = (l: any) => (l.modifiers || []).find((m: any) => /Carne/.test(String(m.step)) && !/Frijoles|Arroz/.test(String(m.option)))?.option;
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (!isG(l)) continue;
+    if (cart.some((r) => r !== l && isBurr(r) && !isG(r) && (!meatOf(r) || !meatOf(l) || meatOf(r) === meatOf(l)))) { cart.splice(i, 1); ch = true; }
+    else { l.modifiers = l.modifiers.map((m: any) => /Grande/.test(String(m.option)) ? { step: m.step, option: "Regular '10" } : m); ch = true; } }
+  return ch;
 }

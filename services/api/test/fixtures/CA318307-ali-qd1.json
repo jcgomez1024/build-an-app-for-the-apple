@@ -1,0 +1,297 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 4.762,
+      "end": 5.062,
+      "text": "Hello.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 10.044,
+      "end": 11.225,
+      "text": "Bien, bien, Ali.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 12.163,
+      "end": 26.067,
+      "text": "Me estoy riendo porque, porque el teléfono me dijo, \"Hola, Ali, ¿puedes esperar un momento? Esta llama, esta llamada puede ser, ah, grabada\", pero me dio risa porque ya tienen mi número registrado. Solamente,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.408,
+      "end": 33.154,
+      "text": "Oh. Ah, sí, ya lo tenemos. Gracias, que estén bien. Sí, Ali, dime. Que esté bien, señor. ¿Qué te vamos a dar?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.468,
+      "end": 32.789,
+      "text": "solamente,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 33.869,
+      "end": 40.891,
+      "text": "solamente quiero dos, dos quesadillas en el aceite de, de chicharrón duro, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 41.357,
+      "end": 43.498,
+      "text": "Muy bien, las quieres preparadas, ¿verdad, Ali?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 44.052,
+      "end": 48.053,
+      "text": "No, no, no, no, nada, sola, sí, sa, cebolla y cilantro.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 45.439,
+      "end": 46.079,
+      "text": "Regulares.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 48.9,
+      "end": 50.501,
+      "text": "Okay, en aceite, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 51.014,
+      "end": 51.674,
+      "text": "Sí, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 52.382,
+      "end": 56.804,
+      "text": "Entonces te tengo dos quesadillas, pero doradas regulares en aceite de duro.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 57.816,
+      "end": 58.656,
+      "text": "Sí, muy bien.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 58.625,
+      "end": 59.245,
+      "text": "¿Algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 60.057,
+      "end": 60.998,
+      "text": "No, sería todo, Karen.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 61.587,
+      "end": 65.07,
+      "text": "Okay, Ali. Ah, dame unos quince minutos, Ali.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 66.025,
+      "end": 69.91,
+      "text": "Muy bien, muchas gracias. Bye.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 67.532,
+      "end": 69.794,
+      "text": "Muchas gracias a ti, Ali. Bye.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(QD) Style",
+            "option": "(QD) DELUXE Preparada"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Duro / Pork Rinds"
+          }
+        ],
+        "readback": "quesadilla dorada deluxe",
+        "elviNotes": []
+      },
+      {
+        "itemId": "sq-quesadilla-HLT6CR",
+        "quantity": 2,
+        "modifiers": [
+          {
+            "step": "(A) Q Tortilla Options",
+            "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Duro / Pork Rinds"
+          }
+        ],
+        "asked": true,
+        "elviNotes": []
+      }
+    ]
+  },
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Hello."
+    },
+    {
+      "source": "staff",
+      "heard": "Bien, bien, Ali."
+    },
+    {
+      "source": "caller",
+      "heard": "Me estoy riendo porque el teléfono me dijo, \"Hola, Ali, ¿puedes esperar un momento? Esta llama, esta llamada puede ser, ah, grabada\", pero me dio risa porque ya tienen mi número registrado. Solamente,",
+      "language": "es",
+      "reply": "Jaja, sí pasa. ¿Qué se le ofrece?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Oh. Ah, sí, ya lo tenemos. Gracias, que estén bien. Sí, Ali, dime. Que esté bien, señor. ¿Qué te vamos a dar?"
+    },
+    {
+      "source": "caller",
+      "heard": "solamente,",
+      "language": "es",
+      "reply": "Adelante.",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "solamente quiero dos quesadillas en el aceite de duro",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, las quieres preparadas, ¿verdad, Ali?"
+    },
+    {
+      "source": "caller",
+      "heard": "nada, sola, sí, sa, cebolla y cilantro",
+      "language": "en",
+      "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Regulares."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, en aceite, ¿verdad?"
+    },
+    {
+      "source": "staff-dorada-not-comal",
+      "heard": "dorada",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff-dorada-not-comal",
+      "heard": "Regulares. Okay, en aceite, ¿verdad? Sí, por favor."
+    },
+    {
+      "source": "staff",
+      "heard": "Entonces te tengo dos quesadillas, pero doradas regulares en aceite de duro."
+    },
+    {
+      "source": "staff-dorada-not-comal",
+      "heard": "dorada",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff-dorada-not-comal",
+      "heard": "Entonces te tengo dos quesadillas, pero doradas regulares en aceite de duro. Sí, muy bien."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Algo más?"
+    },
+    {
+      "source": "caller-closing",
+      "heard": "No, sería todo, Karen."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, Ali. Ah, dame unos quince minutos, Ali."
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Quesadilla Comal",
+      "language": "es",
+      "reply": "2 × Quesadilla: comal, chicharrón duro, salsa asada. $9.00. ¿La quiere con frijoles? Son $0.50 más.",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Okay, Ali. Ah, dame unos quince minutos, Ali.",
+      "pick": "Quesadilla Comal"
+    },
+    {
+      "source": "caller",
+      "heard": "Muy bien, muchas gracias. Bye",
+      "language": "es",
+      "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muchas gracias a ti, Ali. Bye."
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "asked-dish",
+      "heard": "solamente quiero dos quesadillas en el aceite de duro",
+      "item": "sq-quesadilla-HLT6CR"
+    }
+  ],
+  "name": "Ali",
+  "fulfillment": "PICKUP"
+}

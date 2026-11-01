@@ -1,0 +1,467 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.88,
+      "end": 1.06,
+      "text": "Hello?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.38,
+      "end": 3.761,
+      "text": "Can I place an order for pickup?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.321,
+      "end": 5.262,
+      "text": "Sure, what can I get for you?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 7.141,
+      "end": 10.422,
+      "text": "actually I have a question first. So you guys do like the chorizo nachos.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 9.163,
+      "end": 9.383,
+      "text": "Sure.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 11.623,
+      "end": 12.024,
+      "text": "Yes, we do.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 13.443,
+      "end": 17.904,
+      "text": "is there any way I can get the chips on the side? Cause I kinda drive a distance.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.665,
+      "end": 28.088,
+      "text": "Sure. Yeah, yeah, well, whatever, like the meat, we usually, what we do is we put the meat, the toppings, inside the container, and then your chips will be on the little bag.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 29.106,
+      "end": 31.546,
+      "text": "Okay, that'll work. Can I get an order of those?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 32.65,
+      "end": 34.11,
+      "text": "And nachos, chorizo, you said?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 35.127,
+      "end": 35.307,
+      "text": "Yes.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 36.851,
+      "end": 41.732,
+      "text": "Did you want beans, lettuce, pico de gallo, sour cream? Cheese and queso dip.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.449,
+      "end": 44.729,
+      "text": "Yeah, all of that is fine.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 44.253,
+      "end": 44.473,
+      "text": "Okay.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 45.474,
+      "end": 45.874,
+      "text": "Very good.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 47.53,
+      "end": 51.01,
+      "text": "And then can I get a chorizo burrito,",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 51.911,
+      "end": 53.631,
+      "text": "grande with no bean?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 53.216,
+      "end": 55.577,
+      "text": "And then no beans, got it.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 56.832,
+      "end": 61.432,
+      "text": "And then can I get two Small one. Oh go.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 58.398,
+      "end": 63.74,
+      "text": "Sorry, did would you, on, on the big one, did you want rice, fresco cheese, sour cream,",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 65.04,
+      "end": 65.94,
+      "text": "onion, and cilantro?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 67.513,
+      "end": 67.793,
+      "text": "Yes.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 68.501,
+      "end": 70.902,
+      "text": "Got it. And then you said two small ones?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 71.834,
+      "end": 80.075,
+      "text": "Yeah, two small trees of burritos are the same thing, Donna. No beans, correct.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 76.304,
+      "end": 76.804,
+      "text": "Also no,",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 81.606,
+      "end": 82.666,
+      "text": "One second.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 86.487,
+      "end": 86.947,
+      "text": "All ready.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 89.548,
+      "end": 90.028,
+      "text": "Anything else?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 89.797,
+      "end": 93.257,
+      "text": "And that's it. No, that's it, thank you.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 92.529,
+      "end": 92.949,
+      "text": "Very good.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 93.91,
+      "end": 95.29,
+      "text": "Can I get your name for the order, please?",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 96.698,
+      "end": 97.118,
+      "text": "Anastasia?",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 98.351,
+      "end": 99.071,
+      "text": "Anastasia.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 108.259,
+      "end": 108.84,
+      "text": "Yes, thank you.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 110,
+      "end": 110.06,
+      "text": "Bye.",
+      "language": "en"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-burrito-TGWBEN",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Burrito Size",
+            "option": "Grande '12 (+$3.00)"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Chorizo / Mexican Sausage"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Frijoles Refritos / Refried Beans"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-burrito-TGWBEN",
+        "quantity": 2,
+        "modifiers": [
+          {
+            "step": "(A) Burrito Size",
+            "option": "Regular '10"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Frijoles Refritos / Refried Beans"
+          }
+        ],
+        "elviNotes": [
+          "no frijoles"
+        ]
+      },
+      {
+        "itemId": "sq-nachos-elvis-ZMX4IH",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Nachos Carne Options",
+            "option": "Queso Derretido / Melted Cheese"
+          }
+        ],
+        "asked": true
+      }
+    ]
+  },
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Hello?"
+    },
+    {
+      "source": "caller-fulfillment",
+      "heard": "Can I place an order for pickup?"
+    },
+    {
+      "source": "staff",
+      "heard": "Sure, what can I get for you?"
+    },
+    {
+      "source": "caller",
+      "heard": "actually I have a question first. So you guys do like the chorizo nachos",
+      "language": "en",
+      "reply": "Yes, nachos come with your choice of meat, including chorizo. Want to add a plate?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sure."
+    },
+    {
+      "source": "staff",
+      "heard": "Yes, we do."
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "is there any way I can get the chips on the side? Cause I kinda drive a distance."
+    },
+    {
+      "source": "staff",
+      "heard": "Sure. Yeah, yeah, well, whatever, like the meat, we usually, what we do is we put the meat, the toppings, inside the container, and then your chips will be on the little bag."
+    },
+    {
+      "source": "caller",
+      "heard": "that'll work. Can I get an order of those",
+      "language": "en",
+      "reply": "Nachos Elvis: Frijoles, Lechuga, Pico de Gallo or Crema?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "And nachos, chorizo, you said?"
+    },
+    {
+      "source": "caller-ack",
+      "heard": "Yes."
+    },
+    {
+      "source": "staff",
+      "heard": "Did you want beans, lettuce, pico de gallo, sour cream? Cheese and queso dip."
+    },
+    {
+      "source": "caller",
+      "heard": "Yeah, all of that is fine",
+      "language": "en",
+      "reply": "Nachos Elvis: Bistec, Cabeza, Carnitas or Chorizo? And Frijoles, DOUBLE Frijoles, Lechuga or DOUBLE Lechuga?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Okay."
+    },
+    {
+      "source": "staff",
+      "heard": "Very good."
+    },
+    {
+      "source": "caller",
+      "heard": "And then can I get a chorizo burrito, grande with no bean",
+      "language": "en",
+      "reply": "Burrito: large, mexican sausage and refried beans. $11.00. Anything else?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "And then no beans, got it."
+    },
+    {
+      "source": "caller",
+      "heard": "And then can I get two Small one. Oh go",
+      "language": "en",
+      "reply": "Got it. What else?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sorry, did would you, on, on the big one, did you want rice, fresco cheese, sour cream,"
+    },
+    {
+      "source": "staff",
+      "heard": "onion, and cilantro?"
+    },
+    {
+      "source": "caller-ack",
+      "heard": "Yes."
+    },
+    {
+      "source": "staff",
+      "heard": "Got it. And then you said two small ones?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Yeah"
+    },
+    {
+      "source": "caller",
+      "heard": "two small trees of burritos are the same thing, Donna. No beans, correct",
+      "language": "en",
+      "reply": "2 × Burrito: small, refried beans. $16.00. Anything else?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Also no,"
+    },
+    {
+      "source": "staff",
+      "heard": "One second."
+    },
+    {
+      "source": "staff",
+      "heard": "All ready."
+    },
+    {
+      "source": "staff",
+      "heard": "Anything else?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "And that's it. No"
+    },
+    {
+      "source": "staff",
+      "heard": "Very good."
+    },
+    {
+      "source": "staff",
+      "heard": "Can I get your name for the order, please?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "Anastasia?"
+    },
+    {
+      "source": "staff",
+      "heard": "Anastasia."
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Yes, thank you Bye."
+    },
+    {
+      "source": "asked-dish",
+      "heard": "that'll work. Can I get an order of those",
+      "item": "sq-nachos-elvis-ZMX4IH"
+    }
+  ],
+  "name": "Anastasia",
+  "fulfillment": "PICKUP",
+  "address": "is there any way I can get the chips on the side Cause I kinda drive"
+}

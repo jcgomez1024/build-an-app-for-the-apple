@@ -1477,11 +1477,12 @@ function sanitizeActions(actions: unknown[], menu: MenuItem[]): ElviAction[] {
       });
       continue;
     }
-    if (value.type === "set_address" && typeof value.address === "string" && value.address.trim()) {
+    if (value.type === "set_address" && typeof value.address === "string" && value.address.trim() && (/\d/.test(value.address) || /^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(value.address.trim()))) { // anastasia1: transcript text ("chips on the side…") is never an address
       if (!launchConfig.deliveryEnabled) continue;
       cleaned.push({ type: "set_address", address: value.address.trim() });
       continue;
     }
+    if (value.type === "set_address") continue;
     if (value.type === "set_customer") {
       const customer: { name?: string; phone?: string; email?: string } = {};
       if (typeof value.name === "string" && value.name.trim()) customer.name = value.name.trim();

@@ -1,0 +1,508 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 1.24,
+      "end": 2.161,
+      "text": "Buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 6.282,
+      "end": 9.223,
+      "text": "Buenas tardes,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 6.482,
+      "end": 6.722,
+      "text": "Sí, di.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 10.543,
+      "end": 14.364,
+      "text": "Dos burritos de carne asada, muy bien. ¿Se los pongo grandes?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 11.543,
+      "end": 21.966,
+      "text": "este, ¿quieres ordenar un burrito, un burrito de carne asada, por favor? Este, un burrito, un burrito de carne asada. Regular.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.065,
+      "end": 20.466,
+      "text": "On, ok, grande o regular.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 22.647,
+      "end": 23.667,
+      "text": "Muy bien, ¿qué más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 25.107,
+      "end": 28.928,
+      "text": "Este, una dorada de asada también.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 29.729,
+      "end": 35.03,
+      "text": "Ok, frijoles, arroz, queso fresco, crema, cilantro y cebolla si va en el burrito, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 36.19,
+      "end": 36.31,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 37.271,
+      "end": 41.132,
+      "text": "Ok, una quesadilla dorada de bis, de asada, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 42.092,
+      "end": 42.792,
+      "text": "Sí, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 43.253,
+      "end": 45.413,
+      "text": "¿Algo más, la quiere preparada o regular?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 46.413,
+      "end": 46.853,
+      "text": "Regular.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 47.414,
+      "end": 48.374,
+      "text": "Muy bien, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 49.634,
+      "end": 53.095,
+      "text": "Este, um, dos salsas de,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 54.135,
+      "end": 55.975,
+      "text": "ah, salsa dorada.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 54.976,
+      "end": 57.258,
+      "text": "¿Dos extra salsas asada?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 57.116,
+      "end": 58.556,
+      "text": "Sí, por favor. Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 58.458,
+      "end": 60.419,
+      "text": "Sí, ¿sí es usted, verdad, Julio?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 61.878,
+      "end": 61.958,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 62.721,
+      "end": 67.944,
+      "text": "Ok, sí, es Julio, yo le pongo las dos salsas asadas que que siempre pide.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 69.123,
+      "end": 71.764,
+      "text": "Sí, y eso sería todo el día de hoy.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 70.005,
+      "end": 90.296,
+      "text": "Oh. Ok, Julio, este, entonces le tengo el burrito regular de asada y luego frijol, arroz, queso, queso, crema, cebolla y cilantro, y luego la quesadilla dorada de asada y sus dos salsitas, como siempre. Ok, Julio, deme unos quince minutitos.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 86.173,
+      "end": 87.694,
+      "text": "Perfecto, sí, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 91.296,
+      "end": 92.917,
+      "text": "Sí, está bien, gracias, hasta luego.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 92.397,
+      "end": 94.178,
+      "text": "Muy bien, muchas gracias, Julio.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 95.479,
+      "end": 95.919,
+      "text": "Sí, hasta luego.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-burrito-TGWBEN",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Burrito Size",
+            "option": "Grande '12 (+$3.00)"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Bistec / Steak"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Arroz / Rice"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Frijoles Refritos / Refried Beans"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-burrito-TGWBEN",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Burrito Size",
+            "option": "Regular '10"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Bistec / Steak"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Frijoles Refritos / Refried Beans"
+          },
+          {
+            "step": "(B) Burrito Carne Options",
+            "option": "Arroz / Rice"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Queso Fresco / Cheese"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Crema / Sour Cream"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Cebolla / Onion"
+          },
+          {
+            "step": "(C) Burrito Options",
+            "option": "Cilantro"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-extras-mild-salsa-asada-2oz-T6PGNT",
+        "quantity": 2,
+        "modifiers": [
+          {
+            "step": "Extras options",
+            "option": "Mild Salsa Asada 2oz"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(QD) Style",
+            "option": "(QD) REGULAR Dorada"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Bistec / Steak"
+          }
+        ],
+        "readback": "1 quesadilla dorada regular"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Buenas tardes."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, di."
+    },
+    {
+      "source": "staff",
+      "heard": "Dos burritos de carne asada, muy bien. ¿Se los pongo grandes?"
+    },
+    {
+      "source": "caller",
+      "heard": "quieres ordenar un burrito",
+      "language": "es",
+      "reply": "Burrito: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "un burrito de carne asada? Este",
+      "language": "es",
+      "reply": "Burrito: grande, bistec. $11.00. La mayoría la pide con arroz, frijoles refritos, queso fresco y cebolla. ¿La quiere así?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller",
+      "heard": "un burrito",
+      "language": "es",
+      "reply": "Burrito: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "un burrito de carne asada. Regular",
+      "language": "es",
+      "reply": "Burrito: grande, bistec. $11.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "On, ok, grande o regular."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿qué más?"
+    },
+    {
+      "source": "caller",
+      "heard": "una QD REGULAR Dorada de asada también",
+      "language": "es",
+      "reply": "Quesadilla Dorada REGULAR Dorada: bistec, salsa asada. $5.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller-meat-listed",
+      "heard": "una quesadilla de asada",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Ok, frijoles, arroz, queso fresco, crema, cilantro y cebolla si va en el burrito, ¿verdad?"
+    },
+    {
+      "source": "staff-toppings-yes",
+      "heard": "el burrito con todo, arroz frijoles queso fresco crema cilantro y cebolla",
+      "language": "es",
+      "reply": "Burrito: frijoles refritos y arroz, grande, frijoles refritos, arroz, queso fresco, crema, cebolla, cilantro. $11.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff-toppings-yes",
+      "heard": "Sí."
+    },
+    {
+      "source": "staff",
+      "heard": "Ok, una quesadilla dorada de bis, de asada, ¿verdad?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí"
+    },
+    {
+      "source": "staff",
+      "heard": "¿Algo más, la quiere preparada o regular?"
+    },
+    {
+      "source": "caller-dorada-style",
+      "heard": "Regular."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿algo más?"
+    },
+    {
+      "source": "caller",
+      "heard": "dos salsas de, ah, salsa asada",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Dos extra salsas asada?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sí. Sí"
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, ¿sí es usted, verdad, Julio?"
+    },
+    {
+      "source": "caller-ack",
+      "heard": "Sí."
+    },
+    {
+      "source": "staff",
+      "heard": "Ok, sí, es Julio, yo le pongo las dos salsas asadas que que siempre pide."
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, y eso sería todo el día de hoy",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Sí, y eso sería todo el día de hoy",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Oh. Ok, Julio, este, entonces le tengo el burrito regular de asada y luego frijol, arroz, queso, queso, crema, cebolla y cilantro, y luego la quesadilla dorada de asada y sus dos salsitas, como siempre. Ok, Julio, deme unos quince minutitos."
+    },
+    {
+      "source": "caller",
+      "heard": "Perfecto, sí, gracias Sí, está bien, gracias, hasta luego",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Perfecto, sí, gracias Sí, está bien, gracias, hasta luego",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, muchas gracias, Julio."
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, hasta luego",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Sí, hasta luego",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Extras: ¿Mild Salsa Asada 2oz o Mild Salsa Asada 4oz?",
+      "actions": []
+    },
+    {
+      "source": "asked-dish",
+      "heard": "una QD REGULAR Dorada de asada también",
+      "item": "sq-quesadilla-HLT6CR"
+    }
+  ],
+  "name": "Julio",
+  "fulfillment": "PICKUP"
+}
