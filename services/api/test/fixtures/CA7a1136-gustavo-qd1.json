@@ -1,0 +1,527 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 1.16,
+      "end": 1.46,
+      "text": "Sí, bueno.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.481,
+      "end": 4.542,
+      "text": "Hola, buenas tardes. Me gustaría hacer una orden.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.061,
+      "end": 6.042,
+      "text": "Buenas tardes. Claro, a ver, dime.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 7.943,
+      "end": 11.405,
+      "text": "Me podría preparar tres quesadillas en aceite",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 12.403,
+      "end": 14.964,
+      "text": "Tres quesadillas aceite dorada, ¿de qué te gustarían?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.446,
+      "end": 16.607,
+      "text": "de bistec, si mal no creo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 16.925,
+      "end": 17.425,
+      "text": "¿Las tres?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 18.788,
+      "end": 19.988,
+      "text": "Sí, las tres, las tres.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 20.126,
+      "end": 20.206,
+      "text": "¿Te,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 21.126,
+      "end": 23.086,
+      "text": "me, te gustarían deluxe preparadas?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 24.71,
+      "end": 27.612,
+      "text": "Ah, sí, pero sin, esas tres sin lechuga, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 29.372,
+      "end": 30.033,
+      "text": "No lechuga.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.973,
+      "end": 33.514,
+      "text": "Eh, también otras dos quesadillas en aceite.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 35.835,
+      "end": 38.136,
+      "text": "Tiene de cabeza, de cabeza.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 35.93,
+      "end": 36.75,
+      "text": "Dos más.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 38.891,
+      "end": 40.051,
+      "text": "Cabeza todavía, sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 41.737,
+      "end": 44.919,
+      "text": "¿Y qué más? Y la otra de bistec.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 46.293,
+      "end": 49.754,
+      "text": "Una de cabeza y una de bistec, ¿estas te gustarían deluxe?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 50.721,
+      "end": 57.704,
+      "text": "Desglos con, ¿que chupe todo? Sí, eso es normal con todo. Y otro, y dos, dos taquitos de bistec con",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 54.735,
+      "end": 55.735,
+      "text": "Con todo va, ok.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 58.744,
+      "end": 60.125,
+      "text": "tortilla de comal, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 60.797,
+      "end": 73.925,
+      "text": "Dos taquis de comal, de biste dos, ok. Quesadillas dos más de biste, doradas, ¿y esas preparadas?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 65.347,
+      "end": 69.008,
+      "text": "Y otras dos, y otras dos quesadillas en aceite de bistec, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 73.23,
+      "end": 73.31,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 74.691,
+      "end": 76.691,
+      "text": "Con todo vos. Sí, con todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 76.227,
+      "end": 76.407,
+      "text": "Ok.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 77.968,
+      "end": 78.468,
+      "text": "Muy bien.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 80.889,
+      "end": 81.33,
+      "text": "¿Algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 82.013,
+      "end": 82.814,
+      "text": "Ah, solamente.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 83.711,
+      "end": 85.272,
+      "text": "¿Me darías tu nombre para tu orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 85.335,
+      "end": 86.275,
+      "text": "Ah, Gustavo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 87.313,
+      "end": 87.753,
+      "text": "Gustavo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 88.696,
+      "end": 90.617,
+      "text": "Sí. ¿En cuánto, en cuánto tiempo?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 89.074,
+      "end": 90.235,
+      "text": "Muy bien, Gustavo, danos.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 91.476,
+      "end": 94.878,
+      "text": "Dame unos veinte, veinticinco, por favor, no, porque son varias de aceite.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 93.938,
+      "end": 97.78,
+      "text": "Okay. Está bien, está bien. Okay, listo, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 96.399,
+      "end": 97.939,
+      "text": "Sale, gracias. Hasta luego.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Cabeza / Beef Head (+$0.50)"
+        }
+      ],
+      "elviNotes": [
+        "no lechuga"
+      ]
+    },
+    {
+      "itemId": "sq-taco-TAR7L5",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(B) T Carnes / Meats Opciones",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(A) T Tortilla Options",
+          "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+        },
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        }
+      ],
+      "asked": true
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Sí, bueno."
+    },
+    {
+      "source": "caller-intro",
+      "heard": "Hola, buenas tardes. Me gustaría hacer una orden."
+    },
+    {
+      "source": "staff",
+      "heard": "Buenas tardes. Claro, a ver, dime."
+    },
+    {
+      "source": "caller",
+      "heard": "Me podría preparar tres QD REGULAR Dorada",
+      "language": "es",
+      "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Tres quesadillas aceite dorada, ¿de qué te gustarían?"
+    },
+    {
+      "source": "caller",
+      "heard": "de bistec, si mal no creo",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Las tres?"
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, las tres, las tres",
+      "language": "es",
+      "reply": "(QD) Quesadilla Dorada: ¿REGULAR Dorada o DELUXE Preparada?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Listo, tres doradas de bistec. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "(QD) Quesadilla Dorada, REGULAR Dorada",
+      "language": "es",
+      "reply": "REGULAR Dorada: ¿Qué carne quieres?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Sí, las tres, las tres",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Te,"
+    },
+    {
+      "source": "staff",
+      "heard": "me, te gustarían deluxe preparadas?"
+    },
+    {
+      "source": "caller",
+      "heard": "Ah, sí, pero sin, esas tres sin lechuga",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "No lechuga Eh, también otras dos QD REGULAR Dorada Tiene de cabeza, de cabeza",
+      "language": "en",
+      "reply": "Quesadilla Dorada REGULAR Dorada: beef head, mild asada salsa. $6.00. Anything else?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Dos más."
+    },
+    {
+      "source": "staff",
+      "heard": "Cabeza todavía, sí."
+    },
+    {
+      "source": "staff",
+      "heard": "Una de cabeza y una de bistec, ¿estas te gustarían deluxe?"
+    },
+    {
+      "source": "caller",
+      "heard": "Desglos con, ¿que chupe todo? Sí, eso es de comal. Y otro, y dos",
+      "language": "es",
+      "reply": "Muy bien. ¿Qué más?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "dos tacos de bistec con",
+      "language": "es",
+      "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Con todo va, ok."
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Taco Comal",
+      "language": "es",
+      "reply": "2 × Taco: comal, bistec, salsa asada. $8.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Con todo va, ok.",
+      "pick": "Taco Comal"
+    },
+    {
+      "source": "caller",
+      "heard": "tortilla de comal",
+      "language": "es",
+      "reply": "2 × Taco: comal, bistec y cabeza, deluxe: lechuga, pico, crema, salsa asada. $10.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Dos taquis de comal, de biste dos, ok. Quesadillas dos más de biste, doradas, ¿y esas preparadas?"
+    },
+    {
+      "source": "caller",
+      "heard": "Y otras dos, y otras dos QD REGULAR Dorada de bistec Sí vos. Sí",
+      "language": "es",
+      "reply": "Quesadilla Dorada REGULAR Dorada: bistec, salsa asada. $5.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Ok."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Algo más?"
+    },
+    {
+      "source": "caller",
+      "heard": "Ah, solamente",
+      "language": "es",
+      "reply": "Muy bien. ¿Qué más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Me darías tu nombre para tu orden?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "Ah, Gustavo."
+    },
+    {
+      "source": "staff",
+      "heard": "Gustavo."
+    },
+    {
+      "source": "caller",
+      "heard": "Sí. ¿En cuánto, en cuánto tiempo",
+      "language": "es",
+      "reply": "No tengo el tiempo exacto. El personal te lo confirma al pagar.",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, Gustavo, danos."
+    },
+    {
+      "source": "staff",
+      "heard": "Dame unos veinte, veinticinco, por favor, no, porque son varias de aceite."
+    },
+    {
+      "source": "caller-count",
+      "heard": "Okay. Está bien, está bien. Okay, listo, gracias."
+    },
+    {
+      "source": "staff",
+      "heard": "Sale, gracias. Hasta luego."
+    },
+    {
+      "source": "asked-dish",
+      "heard": "Sí, las tres, las tres",
+      "item": "sq-quesadilla-HLT6CR"
+    }
+  ],
+  "name": "Gustavo",
+  "fulfillment": "PICKUP"
+}

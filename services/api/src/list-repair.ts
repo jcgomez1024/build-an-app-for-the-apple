@@ -2046,3 +2046,54 @@ export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = f
     for (const l of cart) if (idRe.test(String(l.itemId)) && l.posSize !== "small") { l.posSize = "small"; l.elviNotes = [...new Set([...(l.elviNotes || []), "chica"])]; ch = true; } }
   return ch;
 }
+
+// gustavo-qd1 (CA7a1136): several dorada groups in one call — "tres quesadillas en aceite … de bistec … deluxe? sí, sin lechuga",
+// "otras dos en aceite, de cabeza … y la otra de bistec" (staff: "una de cabeza y una de bistec"), "otras dos en aceite de bistec
+// … con todo". Rebuild every QD line per group (qty/meat/style/notes); "en aceite" lines that landed as comal QCO go away.
+const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:quesadillas?|quesas?)\s+(?:en\s+aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b/iu;
+const QG_N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
+const qgN = (w: string) => QG_N[w.toLowerCase()] || Number(w) || 0;
+export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat: string; n: number }>; deluxe: boolean; noLechuga: boolean }> {
+  const starts: Array<{ i: number; n: number; tail: string }> = [];
+  turns.forEach((t, i) => { if (t.speaker !== "caller") return; const m = QG_START.exec(String(t.text || "")); if (m) starts.push({ i, n: qgN(m[1]), tail: String(t.text).slice((m.index || 0) + m[0].length) }); });
+  const out: any[] = [];
+  starts.forEach((s, k) => {
+    if (!s.n || s.n > 20) return;
+    const end = k + 1 < starts.length ? starts[k + 1].i : turns.length;
+    const win = turns.slice(s.i + 1, end);
+    const callerTxt = [s.tail, ...win.filter((u) => u.speaker === "caller").map((u) => String(u.text || ""))].map((x) => x.split(/\b(?:tac(?:o|it)os?|taquis?)\b/i)[0]).join(" ");
+    const meats = [...new Set(b22Meats(b22low(callerTxt)))]; if (!meats.length) return;
+    let split: Array<{ meat: string; n: number }> | null = null;
+    for (const u of win) { if (u.speaker !== "staff") continue; const pairs: Array<{ meat: string; n: number }> = [];
+      for (const m of String(u.text || "").matchAll(/\b(una?|dos|tres|cuatro|\d)\s+de\s+([\p{L}]+)/giu)) { const mt = b22Meats(b22low(m[2]))[0]; if (mt) pairs.push({ meat: mt, n: qgN(m[1]) }); }
+      if (pairs.length > 1 && pairs.reduce((a, p) => a + p.n, 0) === s.n) { split = pairs; break; } }
+    if (!split) split = meats.length === 1 || meats.length > s.n ? [{ meat: meats[0], n: s.n }] : meats.map((mt, j) => ({ meat: mt, n: j === 0 ? s.n - (meats.length - 1) : 1 }));
+    const all = [turns[s.i], ...win]; let deluxe = /\b(?:preparad[ao]s?|deluxe|con todo)\b/i.test(plain(callerTxt)) && !/\b(?:regular|sencill)/i.test(plain(callerTxt));
+    const prevStaff = turns.slice(Math.max(0, s.i - 2), s.i).filter((u) => u.speaker === "staff");
+    for (const [j, u] of [...prevStaff.map((u) => [-1, u] as const), ...all.map((u, j) => [j, u] as const)]) {
+      if (u.speaker !== "staff" || !/\b(?:preparad[ao]s?|deluxe)\b/i.test(plain(u.text)) || !/\?/.test(String(u.text))) continue;
+      const nx = (j < 0 ? all : all.slice(j + 1)).find((v) => v.speaker === "caller"); if (!nx) continue; const q = plain(nx.text);
+      if (/^(?:ah |eh )?no\b|\bregular/.test(q)) { deluxe = false; continue; }
+      if (/\b(?:si|yes|claro|aja|con todo|por favor)\b/.test(q)) deluxe = true; }
+    const noLechuga = /\b(?:sin|no|without)\s+lechuga\b|\bno lettuce\b/i.test(plain(callerTxt));
+    out.push({ n: s.n, meats: split, deluxe, noLechuga });
+  });
+  return out;
+}
+export function applyQdGroups(cart: any[], turns: Turn[]): boolean {
+  const gs = qdGroups(turns); if (!gs.length) return false;
+  const want = gs.reduce((a, g) => a + g.n, 0);
+  const qd = cart.filter((l) => QD_REG.test(String(l.itemId)) || QD_DLX.test(String(l.itemId)));
+  const have = qd.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  const sig = (dl: boolean, mt: string, nl: boolean) => `${dl}|${mt}|${nl}`;
+  const wantSig = gs.flatMap((g) => g.meats.map((m) => sig(g.deluxe, m.meat, g.noLechuga) + "|" + m.n)).sort().join(",");
+  const haveSig = qd.map((l) => sig(QD_DLX.test(l.itemId), (l.modifiers || []).find((m: any) => /Carnes/.test(String(m.step)))?.option, (l.elviNotes || []).includes("no lechuga")) + "|" + l.quantity).sort().join(",");
+  if (want === have && wantSig === haveSig) return false;
+  const saidComalQ = turns.some((t) => t.speaker === "caller" && /\bquesadillas?\s+(?:de\s+)?(?:comal|masa|mano)\b|\bcomal\s+quesadilla/i.test(String(t.text)));
+  for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i];
+    if (qd.includes(l) || (!saidComalQ && l.itemId === QUES_ID && (l.modifiers || []).some((x: any) => /\(QCO\)/.test(String(x.option))))) cart.splice(i, 1); }
+  for (const g of gs) for (const m of g.meats) cart.push({ itemId: g.deluxe ? DLX_ID : FQ_REG, quantity: m.n,
+    modifiers: [{ step: "(QD) Style", option: g.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: m.meat }],
+    ...(g.noLechuga ? { elviNotes: ["no lechuga"] } : {}), readback: `${m.n} quesadilla dorada ${g.deluxe ? "deluxe" : "regular"}` });
+  return true;
+}
