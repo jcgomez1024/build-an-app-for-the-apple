@@ -1,3 +1,4 @@
+import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
 // cristian-qd1 (CA7c22da): address capture / ETA turns are never quantities or dishes; implausible counts are capped.
 const FOOD = /\b(?:tacos?|burritos?|burros?|quesadillas?|qd|doradas?|gorditas?|tortas?|enchiladas?|tamales?|menudos?|po[sz]oles?|moles?|platillos?|plates?|birrias?|tortillas?|horchata|jamaica|jarritos?|agua|soda|nachos|elote|esquite|sopes?|huaraches?|tostadas?|chilaquiles|mariscos|c[oó]ctel|cocktail|ceviche|coca|refrescos?)\b/iu;
 const MEAT = /\b(?:bistec|asada|pastor|carnitas|chorizo|prensado|pollo|lengua|cabeza|tripa|buche|suadero|barbacoa|birria|chicharr[oó]n|steak|chicken|pork)\b/iu;
@@ -60,7 +61,12 @@ export function liveEtaAddressQty(r: any, input: any): any {
     if (acts.length !== r.actions.length) return { ...r, actions: acts, reply: input?.language === "en" ? "Got it. What would you like to order?" : "Muy bien. ¿Qué le preparamos?" };
     return r;
   }
-  const acts = r.actions.map((a: any) => ({ ...a })); if (capQty(acts, tx, prior.slice(-20))) return { ...r, actions: acts, reply: readbackFromActs(acts, input) };
+  const acts = r.actions.map((a: any) => ({ ...a })); let changed = capQty(acts, tx, prior.slice(-20));
+  // stephanie1: "six tacos, or eight tacos" → 8 (also when the add lands on the later staff-pick turn); enumerated meats each get a line
+  const saidC = [...h.filter((x: any) => x.role === "customer").slice(-6).map((x: any) => String(x.text || "")), tx];
+  changed += applyOrCount(acts, saidC);
+  changed += addEnumeratedMeats(acts, tx, input?.resolverMenu || input?.menu || [], true);
+  if (changed) return { ...r, actions: acts, reply: readbackFromActs(acts, input) };
   return r;
 }
 

@@ -1,0 +1,573 @@
+{
+ "callSid": "CA4d4c38380c1ab600504395bbc6f2e9b8",
+ "name": "Stephanie",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 4.982,
+   "end": 5.182,
+   "text": "Hello?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.762,
+   "end": 10.783,
+   "text": "Hello? Hi, can I place an order, please?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.684,
+   "end": 12.566,
+   "text": "Yeah. sure, what can I get for you?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.104,
+   "end": 19.065,
+   "text": "Can I do one burrito of El Pastor?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.889,
+   "end": 21.73,
+   "text": "You want the grande or the regular?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.206,
+   "end": 20.846,
+   "text": "Do you have that?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.106,
+   "end": 23.787,
+   "text": "The regular.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.472,
+   "end": 30.755,
+   "text": "Okay, you want refried beans, fries, sour cream, fried cheese, and onions and cilantro?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.147,
+   "end": 26.427,
+   "text": "And then,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.048,
+   "end": 29.308,
+   "text": "yeah.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.829,
+   "end": 32.549,
+   "text": "Yes, please.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.816,
+   "end": 33.856,
+   "text": "Okay, anything else?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.97,
+   "end": 37.33,
+   "text": "And then can I do six tacos,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.191,
+   "end": 41.272,
+   "text": "or eight tacos El Pastor, please?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.958,
+   "end": 44.018,
+   "text": "You want the street tacos or the homemade?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 47.493,
+   "end": 48.354,
+   "text": "what's better?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.14,
+   "end": 51.54,
+   "text": "I, I think the homemade.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.935,
+   "end": 54.415,
+   "text": "Oh, okay, then homemade, please.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 54.881,
+   "end": 56.061,
+   "text": "Okay, al pastor, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.356,
+   "end": 57.676,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 58.281,
+   "end": 59.442,
+   "text": "Okay, anything else?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 60.517,
+   "end": 61.297,
+   "text": "And then,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 62.517,
+   "end": 71.339,
+   "text": "one quesadilla of chorizo, and then another quesadilla of biste, ar- harina tortilla.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 73.425,
+   "end": 73.845,
+   "text": "Steak,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 74.885,
+   "end": 75.865,
+   "text": "flour tortilla,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 77.761,
+   "end": 79.101,
+   "text": "Yes, flour tortilla,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 79.406,
+   "end": 81.506,
+   "text": "and, for the,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 80.641,
+   "end": 81.742,
+   "text": "and chorizo tort.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 82.987,
+   "end": 86.327,
+   "text": "for the quesadilla chorizo, you want flour too?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 87.683,
+   "end": 88.443,
+   "text": "Yes, please.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 91.549,
+   "end": 92.589,
+   "text": "Okay, I got it.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 95.505,
+   "end": 97.285,
+   "text": "Okay, thank you so much.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 96.41,
+   "end": 101.712,
+   "text": "Anything else? And, okay, Stephanie, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 99.326,
+   "end": 100.026,
+   "text": "No, that's it.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 103.747,
+   "end": 105.487,
+   "text": "Yes, and how many minutes?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 111.534,
+   "end": 112.895,
+   "text": "give me like, give me like twenty minutes.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 114.111,
+   "end": 115.672,
+   "text": "And do you know what the total would be?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 116.936,
+   "end": 119.537,
+   "text": "The total should be, hold on,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 120.637,
+   "end": 124.838,
+   "text": "forty nine. Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 123.536,
+   "end": 125.617,
+   "text": "Okay. All right, thank you.",
+   "language": "en"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Burrito Size",
+      "option": "Regular '10"
+     },
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Alpastor / Roasted Pork"
+     },
+     {
+      "step": "(A) Burrito Size",
+      "option": "Regular '10"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 6,
+    "modifiers": [
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Alpastor / Roasted Pork"
+     },
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Chorizo / Mexican Sausage"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Hello?"
+   },
+   {
+    "source": "caller",
+    "heard": "? Hi, can I place an order",
+    "language": "en",
+    "reply": "Ready.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Yeah. sure, what can I get for you?"
+   },
+   {
+    "source": "caller",
+    "heard": "Can I do one burrito of El Pastor",
+    "language": "en",
+    "reply": "Burrito: large, al pastor. $11.00. Most people get it with rice, refried beans, cheese and onion. Want it that way?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "You want the grande or the regular?"
+   },
+   {
+    "source": "caller",
+    "heard": "The regular",
+    "language": "en",
+    "reply": "Burrito: al pastor, small. $8.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, you want refried beans, fries, sour cream, fried cheese, and onions and cilantro?"
+   },
+   {
+    "source": "caller",
+    "heard": "And then, yeah Yes",
+    "language": "en",
+    "reply": "Sounds like you might have more. What would you like?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, anything else?"
+   },
+   {
+    "source": "caller",
+    "heard": "And then can I do six tacos, or eight tacos El Pastor",
+    "language": "en",
+    "reply": "Taco: Taco Comal, Taco Harina or Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "You want the street tacos or the homemade?"
+   },
+   {
+    "source": "caller",
+    "heard": "what's better",
+    "language": "en",
+    "reply": "Taco: Taco Comal, Taco Harina or Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "that's fine",
+    "language": "en",
+    "reply": "Taco: Taco Comal, Taco Harina or Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "what's better",
+    "language": "en",
+    "reply": "Taco: Taco Comal, Taco Harina or Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "I, I think the homemade."
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Taco Comal",
+    "language": "en",
+    "reply": "6 × Taco: comal, al pastor, mild asada salsa. $24.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "I, I think the homemade.",
+    "pick": "Taco Comal"
+   },
+   {
+    "source": "caller",
+    "heard": "Oh, okay, then homemade",
+    "language": "en",
+    "reply": "Taco: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, al pastor, right?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, anything else?"
+   },
+   {
+    "source": "caller",
+    "heard": "And then",
+    "language": "en",
+    "reply": "Taco: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "that's fine",
+    "language": "en",
+    "reply": "Taco: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "And then",
+    "language": "en",
+    "reply": "Taco: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "one quesadilla of chorizo, and then another quesadilla of biste, ar- harina tortilla",
+    "language": "en",
+    "reply": "Quesadilla: flour, mexican sausage, mild asada salsa. $4.25. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Steak,"
+   },
+   {
+    "source": "staff",
+    "heard": "flour tortilla,"
+   },
+   {
+    "source": "caller",
+    "heard": "flour tortilla,",
+    "language": "en",
+    "reply": "Quesadilla: flour, mexican sausage, mild asada salsa. $4.25. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "and, for the,"
+   },
+   {
+    "source": "caller",
+    "heard": "and chorizo tort",
+    "language": "en",
+    "reply": "Okay. Anything else?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "for the quesadilla chorizo, you want flour too?"
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, I got it."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, thank you so much."
+   },
+   {
+    "source": "staff",
+    "heard": "Anything else? And, okay, Stephanie, right?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "No, that's it Yes, and how many minutes?"
+   },
+   {
+    "source": "staff",
+    "heard": "give me like, give me like twenty minutes."
+   },
+   {
+    "source": "caller",
+    "heard": "And do you know what the total would be",
+    "language": "en",
+    "reply": "I can't see the running total from here. Staff can give you the exact number at pickup.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "The total should be, hold on,"
+   },
+   {
+    "source": "staff",
+    "heard": "forty nine. Okay."
+   },
+   {
+    "source": "caller-thanks",
+    "heard": "Okay. All right, thank you."
+   }
+  ],
+  "fulfillment": null
+ }
+}
