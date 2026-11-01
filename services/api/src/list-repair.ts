@@ -1386,6 +1386,19 @@ export function applyCoctelNotCeviche(cart: any[], turns: Turn[]): boolean {
   for (const l of cart) { const to = coctelFor(String(l.itemId || ""), pulpo); if (to) { l.itemId = to; l.modifiers = (l.modifiers || []).filter((m: any) => !/ceviche/i.test(String(m?.step || ""))); if (l.readback) l.readback = String(l.readback).replace(/ceviche/giu, "coctel"); ch = true; } }
   return ch;
 }
+// juan-coctel1 (CA2b1d41): "quería un coctel de camarón con pulpo" (staff: "con pulpo, claro") after a plain coctel was rung
+// earlier = the Coctel Camarón con Pulpo, even when a ceviche is also ordered. Only shrimp-coctel lines change.
+export const COCTEL_PULPO_SAID = /\bc[oó]ct[ae]l(?:es)?\s+(?:de\s+)?camar[oó]n(?:es)?\s+(?:con|y|and|with)\s+(?:pulpo|calamar)|\bshrimp\s+(?:cocktail\s+)?(?:and|with)\s+(?:octopus|pulpo)\b|\bcampechana\b/iu;
+export function coctelPulpoSaid(turns: Turn[]): boolean {
+  return turns.some((t, i) => COCTEL_PULPO_SAID.test(String(t.text || "")) && !/\bsin\s+pulpo\b|\bno\s+pulpo\b/iu.test(String(t.text || ""))
+    || (t.speaker === "staff" && /^\W*con\s+pulpo\b/iu.test(String(t.text || "")) && /\bc[oó]ct[ae]l/iu.test(turns.slice(Math.max(0, i - 3), i).filter((u) => u.speaker === "caller").map((u) => u.text).join(" "))));
+}
+export function applyCoctelPulpo(cart: any[], turns: Turn[]): boolean { let ch = false;
+  if (!coctelPulpoSaid(turns)) return false;
+  for (const l of cart) if (l.itemId === COCTEL_SHRIMP) { l.itemId = COCTEL_PULPO; if (l.readback) l.readback = String(l.readback).replace(/coctel de camar[oó]n(?:es)?/iu, "coctel de camarón con pulpo"); ch = true; }
+  return ch;
+}
+export const COCTEL_IDS = { shrimp: COCTEL_SHRIMP, pulpo: COCTEL_PULPO };
 export function liveCoctelNotCeviche(r: any, input: any) {
   const hist: any[] = input?.history || [];
   const said = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), String(input?.transcript || "")].join(" ");

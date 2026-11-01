@@ -1,0 +1,456 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.64,
+      "end": 1.48,
+      "text": "Buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.561,
+      "end": 10.702,
+      "text": "Sí, buenas tardes. Disculpa, eh, el, este, mm, camarones, digo, camarones, pescado fritos no vendes, no venden.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.101,
+      "end": 4.601,
+      "text": "Sí, dígame.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 11.322,
+      "end": 11.422,
+      "text": "No.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 12.643,
+      "end": 15.903,
+      "text": "No. Y, y, camarones, sí, era coctel de camarón, sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 18.924,
+      "end": 21.425,
+      "text": "¿Y todavía tiene servicio así de, de, de delivery?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 22.085,
+      "end": 22.185,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 23.685,
+      "end": 26.866,
+      "text": "Ah, y entonces quería un coctel de camarón con pulpo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 26.906,
+      "end": 26.966,
+      "text": "Mm.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 28.166,
+      "end": 29.726,
+      "text": "Con pulpo claro, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.687,
+      "end": 33.047,
+      "text": "Y una hor, ceviche todavía tendrá.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 33.747,
+      "end": 33.867,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 34.888,
+      "end": 38.308,
+      "text": "Y una, el ceviche es que tostadas o, o una orden de ceviche.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 37.348,
+      "end": 38.208,
+      "text": "De pescado.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 39.888,
+      "end": 40.568,
+      "text": "O de camarón.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 40.129,
+      "end": 43.229,
+      "text": "Sí, sí. No, eh, ceviche de pescado.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 44.049,
+      "end": 44.969,
+      "text": "Muy bien, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 45.95,
+      "end": 46.73,
+      "text": "Eh, sería todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 47.67,
+      "end": 50.11,
+      "text": "A ver, para entrega, ¿verdad? Deme su dirección.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 51.131,
+      "end": 54.052,
+      "text": "Oh, mire, ese, este es Carlos el que anda entregando.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 55.631,
+      "end": 55.731,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 56.792,
+      "end": 61.394,
+      "text": "Oh, oye, nada más si quiere dígale que es aquí en el chat de de César. Es en, es atrás de,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 62.894,
+      "end": 105.367,
+      "text": "así nomás le dice que es en el chat de César, que es para Juan. Ah, es 4 40 7 10 80 80 70 75 85, creo que sí es así. Sí, es correcto. Sí, nada más dígale que él ya me conoce, dígale que es para Juan, aquí el que trabaja con en el chat de César, hey.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 65.554,
+      "end": 66.554,
+      "text": "Shop Cesar.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 67.875,
+      "end": 70.095,
+      "text": "Okay, deme su número de teléfono, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 83.319,
+      "end": 86.059,
+      "text": "Okay, mire, la, aquí tengo",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 86.98,
+      "end": 100.143,
+      "text": "un cóctel de camarón y un ceviche de pescado, y luego es en el Shop de Cesar, y su número es 4 40 7 1 0 7 5 8 5,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 105.985,
+      "end": 112.567,
+      "text": "Shop Cesar. Muy bien, está muy bien. Si ahorita yo le digo, ahí como en unos 20 minutos, 25, llega a su orden.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 113.21,
+      "end": 114.931,
+      "text": "Ah, perfecto, muchas gracias, amiga. Eh,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 114.647,
+      "end": 116.948,
+      "text": "Okay, gracias usted. Cuídese.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 116.731,
+      "end": 118.272,
+      "text": "¿cuánto sería? ¿Cuánto sería?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 118.188,
+      "end": 121.471,
+      "text": "Mire, serían, déjeme ver, serían,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 120.773,
+      "end": 121.614,
+      "text": "Para tenerlos listos.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 122.652,
+      "end": 123.052,
+      "text": "serían",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 124.913,
+      "end": 126.374,
+      "text": "cuarenta y cuatro cerrados.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 127.096,
+      "end": 128.777,
+      "text": "Okay, está muy bien, muchas gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 130.138,
+      "end": 131.118,
+      "text": "Gracias a ti, gracias.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-coctel-de-camarones-shrimp-cocktail-coctel-de-camaron-shrimp-VWHXC4",
+      "quantity": 1,
+      "modifiers": []
+    },
+    {
+      "itemId": "sq-ceviche-ceviche-de-pescado-fish-IRLHUM",
+      "quantity": 1,
+      "modifiers": []
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Buenas tardes."
+    },
+    {
+      "source": "caller",
+      "heard": "Disculpa, eh, el, este, mm, camarones, digo, camarones, pescado fritos no vendes, no venden",
+      "language": "en",
+      "reply": "Coctel de Camarones / Shrimp Cocktail: Coctel de Camaron / Shrimp or Coctel de Camaron / Shrimp and Pulpo / Calamari?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, dígame."
+    },
+    {
+      "source": "staff",
+      "heard": "No."
+    },
+    {
+      "source": "caller",
+      "heard": "Y, camarones, sí, era Coctel de Camarones / Shrimp Cocktail, sí Y todavía tiene servicio así de delivery",
+      "language": "es",
+      "reply": "Coctel de Camarones: extra camaron. $23.99. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Sí."
+    },
+    {
+      "source": "caller",
+      "heard": "Ah, y entonces quería un Coctel de Camarones / Shrimp Cocktail con pulpo",
+      "language": "es",
+      "reply": "Muy bien. ¿Qué más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Mm."
+    },
+    {
+      "source": "staff",
+      "heard": "Con pulpo claro, ¿algo más?"
+    },
+    {
+      "source": "caller",
+      "heard": "una hor, ceviche todavía tendrá",
+      "language": "es",
+      "reply": "Ceviche: ¿Ceviche de Pescado / Fish, Ceviche de Camaron / Shrimp, Ceviche de Pulpo / Calamari o Ceviche de Camaron Con Pulpo / Shrimp And Calamari?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sí."
+    },
+    {
+      "source": "caller",
+      "heard": "Y una, el ceviche es que tostadas o una orden de ceviche",
+      "language": "es",
+      "reply": "En mariscos tenemos: Ceviche desde $15.99 y Coctel de Camarones desde $18.99. ¿Cuál te gustaría?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "De pescado."
+    },
+    {
+      "source": "staff",
+      "heard": "O de camarón."
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, sí. No, eh, ceviche de pescado",
+      "language": "es",
+      "reply": "Ceviche Ceviche de Pescado. $15.99. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿algo más?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "sería todo"
+    },
+    {
+      "source": "staff",
+      "heard": "A ver, para entrega, ¿verdad? Deme su dirección."
+    },
+    {
+      "source": "caller",
+      "heard": "Oh, mire, ese, este es Carlos el que anda entregando",
+      "language": "es",
+      "reply": "Entendido, Carlos. ¿Algo más para el pedido?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Sí."
+    },
+    {
+      "source": "caller-address-frag",
+      "heard": "Oh, oye, nada más si quiere dígale que es aquí en el chat de César. Es en, es atrás de, así nomás le dice que es en el chat de César, que es para Juan. Ah, es 4 40 7 10 80 80 70 75 85, creo que sí es así. Sí, es correcto. Sí, nada más dígale que él ya me conoce, dígale que es para Juan, aquí el que trabaja con en el chat de César, hey."
+    },
+    {
+      "source": "staff",
+      "heard": "Shop Cesar."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, deme su número de teléfono, por favor."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, mire, la, aquí tengo"
+    },
+    {
+      "source": "staff",
+      "heard": "un cóctel de camarón y un ceviche de pescado, y luego es en el Shop de Cesar, y su número es 4 40 7 1 0 7 5 8 5,"
+    },
+    {
+      "source": "staff",
+      "heard": "Shop Cesar. Muy bien, está muy bien. Si ahorita yo le digo, ahí como en unos 20 minutos, 25, llega a su orden."
+    },
+    {
+      "source": "caller",
+      "heard": "Ah, perfecto, muchas gracias, amiga. Eh,",
+      "language": "es",
+      "reply": "Ceviche: ¿Ceviche de Pescado / Fish, Ceviche de Camaron / Shrimp, Ceviche de Pulpo / Calamari o Ceviche de Camaron Con Pulpo / Shrimp And Calamari?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, gracias usted. Cuídese."
+    },
+    {
+      "source": "caller",
+      "heard": "cuánto sería? ¿Cuánto sería",
+      "language": "es",
+      "reply": "No tengo el total a la vista. ¿Quiere que le repita el pedido?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Mire, serían, déjeme ver, serían,"
+    },
+    {
+      "source": "caller",
+      "heard": "Para tenerlos listos",
+      "language": "es",
+      "reply": "Perdón, hoy no tenemos ceviche. ¿Qué más le pongo?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "serían"
+    },
+    {
+      "source": "staff",
+      "heard": "cuarenta y cuatro cerrados."
+    },
+    {
+      "source": "caller",
+      "heard": "está muy bien, muchas",
+      "language": "es",
+      "reply": "Listo. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Gracias a ti, gracias."
+    }
+  ],
+  "name": "Carlos",
+  "fulfillment": "DELIVERY"
+}

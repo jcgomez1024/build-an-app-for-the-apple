@@ -662,7 +662,26 @@ function repeatedSelfName(turns: Array<{ speaker: "caller" | "staff"; text: stri
     if (!m) continue; const n = cleanFirstName(m[1]); if (n && !HONORIFIC.test(n)) return n; }
   return null;
 }
+// juan-coctel1 (CA2b1d41): "este es Carlos el que anda entregando" names the delivery driver, not the caller; the order is
+// "dígale que es para Juan". A third party (driver / worker / someone they mention) never becomes the name; "es para X" wins.
+const THIRD_PARTY = /\b(\p{Lu}[\p{L}'’-]{1,20})[,]?\s+(?:el|la)\s+que\s+(?:anda\s+|va\s+|est[aá]\s+|viene\s+)?(?:entregando|repartiendo|manejando|llevando|trae|lleva|reparte|entrega|maneja)\b|\b(?:repartidor|chofer|driver|delivery\s+(?:guy|driver))[,]?\s+(?:es\s+|is\s+|se\s+llama\s+)?(\p{Lu}[\p{L}'’-]{1,20})/gu;
+export function thirdPartyNames(turns: Array<{ speaker: string; text: string }>): string[] {
+  const out: string[] = []; for (const t of turns) for (const m of String(t.text || "").matchAll(THIRD_PARTY)) out.push(foldName(m[1] || m[2])); return out;
+}
+export function esParaName(turns: Array<{ speaker: string; text: string }>): string | null {
+  let n: string | null = null;
+  for (const t of turns) { if (t.speaker !== "caller") continue;
+    for (const m of String(t.text || "").matchAll(/\b(?:que\s+)?es\s+para\s+(\p{Lu}[\p{L}'’-]{1,20})\b/gu)) if (!NOT_NAME.test(m[1])) n = m[1]; }
+  return n;
+}
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const r = nameFromTranscriptInfoW(turns);
+  const tp = thirdPartyNames(turns), para = esParaName(turns);
+  const isTp = !!r && tp.includes(foldName(r.name.split(/\s+/)[0]));
+  if (para && !tp.includes(foldName(para)) && (!r || isTp || r.source === "volunteer")) return { name: para, thirdPerson: false, source: "volunteer" };
+  return isTp ? null : r;
+}
+function nameFromTranscriptInfoW(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   let r0 = nameFromTranscriptInfoN(turns);
   if (r0 && HONORIFIC.test(r0.name.split(/\s+/)[0])) r0 = null;
   // sophie1 (CA65a540): name ask untranscribed; caller answers "Sophie. Sophie, sí." near the close.

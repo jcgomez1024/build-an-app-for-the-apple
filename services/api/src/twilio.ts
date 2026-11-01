@@ -2090,6 +2090,8 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           // mau1: no-order chat (empty cart) — do not lock DELIVERY/PICKUP or save fulfillment to memory
           ...((hasOrder ? await applyCallDelivery(CallSid, caller, result.turns as any, isTrainingCaller(caller)).catch(() => null) : null) || {}),
         }, describe, result.elviOrder?.cart || [], result.elviOrder);
+        // juan-coctel1 (CA2b1d41): the staff ticket had the Delivery Fee but the logged call lines (call log / auditor view) didn't.
+        try { for (const f of (ticket?.lines || []).filter((l: any) => l.kind === "fee")) if (!lines.some((l: any) => /delivery\s*fee/i.test(l.name))) lines.push({ name: f.name, quantity: f.quantity, choices: [], totalCents: f.totalCents }); } catch { /* log only */ }
         learnCallerLanguage(CallSid, caller, result.turns, callLang.get(CallSid));
         // rec3: a swept (late, lost-callback) recording never texts staff.
         if (!body?._swept) scheduleReadbackName(CallSid, caller, result.turns, Math.round(Math.max(0, ...result.turns.map((t) => t.end))));
