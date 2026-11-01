@@ -1,5 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
-import { liveAguacateFull, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
+import { liveAguacateFull, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
 import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
@@ -2182,6 +2182,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveQuesadillaMeat(o2, input); } catch { /* keep */ } // marcela-qhr1
   try { o2 = liveAguacateFull(o2, input); } catch { /* keep */ } // brayan-aguacate1
   try { o2 = liveQuesaAfterSoup(o2, input); } catch { /* keep */ } // coco-quesa1
+  try { o2 = liveMenudoSoloCaldo(o2, input); } catch { /* keep */ } // victor-caldo1
   try { return noUnrungQuote(o2, input); } catch { return o2; }
 }
 /** nicky1: the caller named chiles rellenos → the add is that platillo (never a Burrito, never its rice-and-beans as a Sides

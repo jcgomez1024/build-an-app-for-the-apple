@@ -1,4 +1,4 @@
-import { aguacateResolve } from "./list-repair.js";
+import { aguacateResolve, soloCaldoResolve } from "./list-repair.js";
 import crypto from "node:crypto";
 import { recall as recallMemory, readPending, decide, LEARN_DIR, rewriteSlang } from "./elvi-knowledge.js";
 import { splitDishClauses } from "./elvi.js";
@@ -963,6 +963,7 @@ app.post("/api/:tenant/menu/resolve", async (req, res, next) => {
       }
     }
 
+    try { soloCaldoResolve(result as any, String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], Number((input.toolArgs as any)?.quantity) || undefined, input.language); } catch { /* keep */ } // victor-caldo1
     if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") { // brayan-aguacate1
       const ag = aguacateResolve(String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], input.language);
       if (ag) { for (const k of Object.keys(result as any)) delete (result as any)[k]; Object.assign(result as any, ag); }
@@ -1187,6 +1188,7 @@ app.post("/api/menu/resolve", async (req, res, next) => {
       }
     }
 
+    try { soloCaldoResolve(result as any, String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], Number((input.toolArgs as any)?.quantity) || undefined, input.language); } catch { /* keep */ } // victor-caldo1
     if ((result as any)?.ok === false && (result as any).reason === "unknown_menu_item") { // brayan-aguacate1
       const ag = aguacateResolve(String((input.toolArgs as any)?.itemQuery || "") + " " + String(text || ""), items as any[], input.language);
       if (ag) { for (const k of Object.keys(result as any)) delete (result as any)[k]; Object.assign(result as any, ag); }

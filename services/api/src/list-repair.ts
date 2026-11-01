@@ -1756,3 +1756,63 @@ export function liveQuesaAfterSoup(r: any, input: any) {
   const desc = groups.map((g) => `${g.qty} ${es ? "de" : ""} ${g.meats.map((m) => m.split(" / ")[es ? 0 : 1].toLowerCase()).join(es ? " con " : " and ")}`.replace(/\s+/g, " ")).join(es ? " y " : " and ");
   return { ...r, actions: [...acts.filter((a) => !soupAct(a) && !(a?.type === "add_item" && a.itemId === QUES_ID)), ...adds], reply: es ? `Quesadillas: ${desc}. ¿Algo más?` : `Quesadillas: ${desc}. Anything else?` };
 }
+
+// ---- victor-caldo1: menudo "de puro caldo" / "sin carne" → Square Menudo · SOLO Caldo Menudo ($10) ----
+export const MENUDO_SOLO_CALDO_VAR = "PYTW56MHJJGL6JKTZGSXGVWQ";
+export const SOLO_CALDO = /(?<![\p{L}])(?:(?:puro|solo|s[oó]lo|solamente|nom[aá]s|nada\s+m[aá]s)\s+(?:el\s+|de\s+)?caldo|caldo\s+(?:solo|s[oó]lo|solamente|nada\s+m[aá]s)|sin\s+(?:la\s+|el\s+)?(?:carne|panza|librillo)|broth\s+only|just\s+(?:the\s+)?broth|no\s+meat)(?![\p{L}])/iu;
+const caldoItem = (menu: any[]) => (menu || []).find((m: any) => m?.squareVariationId === MENUDO_SOLO_CALDO_VAR || /^menudo solo caldo$/i.test(String(m?.name || "")));
+const MENU_WORD = /(?<![\p{L}])menudos?(?![\p{L}])/iu;
+/** Caldo-only menudo said in a menudo context (this turn or the last few). */
+export function soloCaldoSaid(text: string, recent: string[] = []): boolean {
+  if (!SOLO_CALDO.test(String(text || ""))) return false;
+  if (/caldo\s+de\s+(res|pollo|camar)/iu.test(text)) return false;
+  if (/(?<![\p{L}])(quesadillas?|tacos?|burritos?|tortas?|gorditas?|sopes?|tostadas?|nachos?|flautas?|enchiladas?)(?![\p{L}])/iu.test(text) && !MENU_WORD.test(text)) return false;
+  return MENU_WORD.test(text) || recent.slice(-6).some((x) => MENU_WORD.test(String(x || "")) && !/caldo\s+de\s+(res|pollo|camar)/iu.test(String(x || "")));
+}
+/** After-call: regular/con-pata menudo lines become Menudo SOLO Caldo at the same quantity. */
+export function applyMenudoSoloCaldo(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const it = caldoItem(menu); const id = it?.id; if (!id) return false;
+  const texts = turns.map((t) => String(t.text || ""));
+  const hit = turns.some((t, i) => t.speaker === "caller" && soloCaldoSaid(texts[i], texts.slice(Math.max(0, i - 6), i)));
+  if (!hit) return false;
+  let ch = false;
+  for (const l of cart) if (isMenudo(l)) { l.itemId = id; l.modifiers = []; l.readback = `${l.quantity || 1} menudo solo caldo`; ch = true; }
+  return ch;
+}
+/** Live: never ring a full menudo when the caller asked for broth only. */
+export function liveMenudoSoloCaldo(r: any, input: any) {
+  const it = caldoItem(input?.resolverMenu || input?.menu || []); if (!it) return r;
+  const hist: any[] = input?.history || []; const recent = hist.slice(-6).map((h) => String(h?.text || ""));
+  if (!soloCaldoSaid(String(input?.transcript || ""), recent)) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const es = input?.language !== "en";
+  const say = (n: number) => es ? `${n > 1 ? `${n} menudos` : "Un menudo"} solo caldo, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. ¿Algo más?` : `${n > 1 ? `${n} menudos` : "One menudo"}, broth only, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. Anything else?`;
+  if (acts.some((a) => a?.type === "add_item" && isMenudo(a))) {
+    const n = acts.filter((a) => a?.type === "add_item" && isMenudo(a)).reduce((s, a) => s + (Number(a.quantity) || 1), 0);
+    return { ...r, reply: say(n), actions: acts.map((a) => a?.type === "add_item" && isMenudo(a) ? { type: "add_item", itemId: it.id, quantity: a.quantity || 1, modifiers: [] } : a) };
+  }
+  if (acts.some((a) => a?.itemId === it.id)) return r;
+  const lines = (input?.cart || []).filter(isMenudo);
+  if (lines.length) {
+    const n = lines.reduce((s: number, l: any) => s + (Number(l.quantity) || 1), 0);
+    return { ...r, reply: say(n), actions: [...acts.filter((a) => !isMenudo(a)), ...lines.map((l: any) => ({ type: "remove_item", itemId: l.itemId, quantity: l.quantity || 1 })), { type: "add_item", itemId: it.id, quantity: n, modifiers: [] }] };
+  }
+  // "dos de puro caldo" with no line yet → add it
+  const q = (b22low(input?.transcript).match(/(?<![a-z])(\d+|una?|uno|dos|tres|cuatro|cinco)\s+(?:menudos?\s+)?(?:de\s+)?(?:puro|solo|solamente)/) || [])[1];
+  if (q) return { ...r, reply: say(numOf(q)), actions: [...acts, { type: "add_item", itemId: it.id, quantity: numOf(q), modifiers: [] }] };
+  return r;
+}
+/** Resolver hook: "menudo de puro caldo" → Menudo SOLO Caldo (same qty), whatever the resolver picked or asked
+ * (it read "puro" as dorado → Tacos Dorados, or asked con/sin pata). */
+export function soloCaldoResolve(result: any, text: string, menu: any[], qty?: number, language?: string): boolean {
+  const it = caldoItem(menu); if (!it || !result || !soloCaldoSaid(text) || !MENU_WORD.test(text)) return false;
+  const acts: any[] = Array.isArray(result.actions) ? result.actions : [];
+  if (result.ok && acts.length && acts.every((a) => a?.itemId === it.id)) return false;
+  const said = (b22low(text).match(/(?<![a-z])(\d+|una?|uno|dos|tres|cuatro|cinco|seis)\s+(?:menudos?|de\s+puro|de\s+solo)/) || [])[1];
+  const n = (said && numOf(said)) || (Number(qty) > 0 ? Number(qty) : 0) || acts.filter((a) => isMenudo(a)).reduce((x, a) => x + (Number(a.quantity) || 1), 0) || 1;
+  const es = language === "es";
+  for (const k of Object.keys(result)) delete result[k];
+  Object.assign(result, { ok: true, actions: [{ type: "add_item", itemId: it.id, quantity: n, modifiers: [] }],
+    message: es ? `${n > 1 ? `${n} menudos` : "Un menudo"} solo caldo, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. ¿Algo más?` : `${n > 1 ? `${n} menudos` : "One menudo"}, broth only, $${((it.priceCents || 1000) * n / 100).toFixed(2)}. Anything else?` });
+  return true;
+}

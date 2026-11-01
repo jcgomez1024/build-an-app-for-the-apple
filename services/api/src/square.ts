@@ -756,6 +756,7 @@ function trimReviewedVariantName(reviewedName: string, variantName: string) {
 
 /** brayan-aguacate1: Square in-store variations (not on the website) that Elvi rings as their own item. */
 export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[] }>([
+  ["PYTW56MHJJGL6JKTZGSXGVWQ", { name: "Menudo SOLO Caldo", aliases: ["menudo solo caldo", "solo caldo menudo", "menudo de puro caldo", "menudo puro caldo", "menudo solamente caldo", "menudo sin carne", "puro caldo de menudo", "menudo broth only"] }], // victor-caldo1
   ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"] }],
 ]);
 function buildMenuFromSquareCatalog(

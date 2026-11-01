@@ -1,0 +1,244 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.68,
+      "end": 1.54,
+      "text": "¿Cocina Elvis?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.26,
+      "end": 4.721,
+      "text": "buenas. Sí, tiene menudo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 5.901,
+      "end": 6.381,
+      "text": "sí, claro.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 8.041,
+      "end": 10.161,
+      "text": "si nos pueden apartar dos de puro caldo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 12.282,
+      "end": 17.602,
+      "text": "dos menudos. ¿Puro caldo?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.262,
+      "end": 16.442,
+      "text": "De puro caldo, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 18.863,
+      "end": 19.623,
+      "text": "Sí, sin la carne. Como treinta",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 20.383,
+      "end": 21.443,
+      "text": "¿A qué horas pasarías?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 24.584,
+      "end": 36.785,
+      "text": "minutos o menos. En más o menos media media hora. No, como a la a la una. Como a la una.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 37.865,
+      "end": 39.365,
+      "text": "Okay, a la una, okay, sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 41.506,
+      "end": 42.366,
+      "text": "Okay, muchas gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 41.946,
+      "end": 44.426,
+      "text": "A la una pa, ¿qué, cuál es su nombre?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 45.687,
+      "end": 45.987,
+      "text": "Victor.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 47.646,
+      "end": 51.767,
+      "text": "Okay, Víctor, te tengo un, dos menudos solamente caldo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 53.248,
+      "end": 53.828,
+      "text": "Okay, sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 54.367,
+      "end": 56.288,
+      "text": "Okay, Víctor, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 56.57,
+      "end": 57.712,
+      "text": "う ん 、 う ん 、 お 願 い し ま す 。",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 58.528,
+      "end": 59.048,
+      "text": "Gracias a ti.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 60.774,
+      "end": 61.096,
+      "text": "Well",
+      "language": "en"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(A) Menudo Tortillas",
+          "option": "4 x (Corn) Comal Tortilla"
+        }
+      ],
+      "readback": "2 menudo solo"
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "¿Cocina Elvis?"
+    },
+    {
+      "source": "caller",
+      "heard": "buenas. Sí, tiene menudo",
+      "language": "es",
+      "reply": "Sí, tenemos menudo. ¿Lo va a ordenar?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "sí, claro."
+    },
+    {
+      "source": "caller",
+      "heard": "nos pueden apartar dos menudos de puro caldo",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "dos menudos. ¿Puro caldo?"
+    },
+    {
+      "source": "caller",
+      "heard": "De puro caldo Sí, sin la carne. Como treinta",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿A qué horas pasarías?"
+    },
+    {
+      "source": "caller",
+      "heard": "minutos o menudo. En más o menudo media hora. No, como a la a la una. Como a la una",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, a la una, okay, sí."
+    },
+    {
+      "source": "caller",
+      "heard": "muchas",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "A la una pa, ¿qué, cuál es su nombre?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "Victor."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, Víctor, te tengo un, dos menudos solamente caldo."
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Okay, sí."
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, Víctor, gracias."
+    },
+    {
+      "source": "caller",
+      "heard": "う ん 、 う ん 、 お 願 い し ま す 。",
+      "language": "en",
+      "reply": "Anything else?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Gracias a ti."
+    },
+    {
+      "source": "staff",
+      "heard": "Well"
+    }
+  ],
+  "name": "Víctor",
+  "fulfillment": null
+}
