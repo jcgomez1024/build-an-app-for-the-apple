@@ -2164,6 +2164,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && !otherDishTurn
       && !/\baceite\b/iu.test(history.filter((h) => h.role === "customer").slice(-8).map((h) => h.text).join(" "))
       && !/\bde\s+comal\b/iu.test(text)
+      // luis-phantoms1: "era una, una quesadilla de chorizo" repeats the plain quesadilla already asked — no dorada cue anywhere → not a QD
+      && !(/\bquesadillas?\b/iu.test(text) && !/\b(?:doradas?|regular(?:es)?)\b/iu.test(text + " " + history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" ")))
       && !acts.some((a: any) => a.type === "add_item" && /dorada|zzav3l|t5stuh/i.test(String(a.itemId)))) {
       const wantReg = /\bregular(?:es)?\b/iu.test(text) || !/\b(?:preparad|deluxe)\b/iu.test(text);
       if (wantReg) {
@@ -2618,6 +2620,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // felipe1 (CA398d11): N gorditas de costilla + M al pastor → separate lines with correct qtys (not one dual-meat $5 line)
     if (source.startsWith("caller")
       && (/\bgorditas?\b/iu.test(text) || (listedMeats(text).length > 0 && cart.some((l) => /^sq-gordita-/i.test(String(l.itemId)))))
+      // luis-phantoms1: "un taco de bistec" after gorditas — a meat said for another dish never makes a gordita
+      && (/\bgorditas?\b/iu.test(text) || !/\b(?:tacos?|quesadillas?|sopes?|huaraches?|tortas?|burritos?|flautas?|tostadas?|menudos?|pambazos?|tamales?|enchiladas?|platillos?)\b/iu.test(text))
       && (/\b(?:dos|tres|cuatro|cinco|2|3|4|5|two|three|four|five)\s+gorditas?\b/iu.test(text) || listedMeats(text).length > 0 || /\bgorditas?\b/iu.test(text) && /\b(?:costilla|pastor)\b/iu.test(text))
       && !(/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)\b/iu.test(text) && !/\b(?:dame|deme|quiero|pone|ponme|gorditas?)\b/iu.test(text))
       && !acts.some((a: any) => a.type === "add_item" && /^sq-gordita-/i.test(String(a.itemId)))) {

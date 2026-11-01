@@ -1,0 +1,663 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.72,
+   "end": 2.22,
+   "text": "Sí, buenos días, cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.101,
+   "end": 4.161,
+   "text": "¿Te puedo hacer un orden, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.581,
+   "end": 5.061,
+   "text": "Claro, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.121,
+   "end": 9.042,
+   "text": "¿me das un menudo, por favor, sin pata?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.982,
+   "end": 11.462,
+   "text": "¿Qué más, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.383,
+   "end": 15.423,
+   "text": "¿Y si tienes un menudo chiquito, que es medida chiquita o no?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.082,
+   "end": 18.403,
+   "text": "No, joven, no, nomás tengo un puro size, joven, sí, puro size.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.383,
+   "end": 20.504,
+   "text": "No me mato, la verdad. Okay, está bien. Okay, entonces, entonces dame,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.704,
+   "end": 23.045,
+   "text": "una quesadilla de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.983,
+   "end": 24.783,
+   "text": "¿El menú, el menú, perdón, el menudo sí se queda?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 24.425,
+   "end": 24.605,
+   "text": "¿Dónde?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.185,
+   "end": 28.426,
+   "text": "Sí, sí, el menudo, sí, sí, grande, por favor, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.964,
+   "end": 29.804,
+   "text": "Okay, okay. ¿Y luego qué más, mano? Ahora sí, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.847,
+   "end": 33.887,
+   "text": "era una, una quesadilla de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.565,
+   "end": 35.445,
+   "text": "¿De maíz en el comal?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.288,
+   "end": 36.848,
+   "text": "Sí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 37.205,
+   "end": 37.765,
+   "text": "¿Qué más, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 38.728,
+   "end": 41.649,
+   "text": "Y dos tacos de chorizo, también de tortilla de maíz.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.849,
+   "end": 46.11,
+   "text": "Sí, la que está hecha a mano, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.726,
+   "end": 46.566,
+   "text": "Okay, ¿qué más, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 47.51,
+   "end": 48.01,
+   "text": "Y luego",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.09,
+   "end": 51.731,
+   "text": "una gordita de prensado y una de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 54.167,
+   "end": 54.728,
+   "text": "¿Qué más, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 56.752,
+   "end": 57.132,
+   "text": "y me da",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 58.332,
+   "end": 62.854,
+   "text": "Un taco de bistec. Sí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.47,
+   "end": 61.491,
+   "text": "Tortilla hecha a mano también.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 63.252,
+   "end": 63.592,
+   "text": "¿Qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 65.315,
+   "end": 65.796,
+   "text": "eso es todo.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 66.414,
+   "end": 71.297,
+   "text": "Nombre. Para el ticket. Dame veinte minutos, Luis, por lo menos, si me haces favor, ¿sale?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 68.217,
+   "end": 68.417,
+   "text": "Luis.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 69.697,
+   "end": 69.897,
+   "text": "Luis.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 71.978,
+   "end": 72.879,
+   "text": "Sí, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 72.578,
+   "end": 73.118,
+   "text": "Gracias, joven.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "menudo"
+  },
+  {
+   "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(QD) Style",
+     "option": "(QD) REGULAR Dorada"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Chorizo / Mexican Sausage"
+    }
+   ],
+   "readback": "QD regular chorizo"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Chorizo / Mexican Sausage"
+    },
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 2,
+   "modifiers": [
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Chorizo / Mexican Sausage"
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  },
+  {
+   "itemId": "sq-gordita-M647RE",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Gordita Options",
+     "option": "(GD) Gordita"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Chorizo / Mexican Sausage"
+    }
+   ],
+   "readback": "1 gordita Chorizo"
+  },
+  {
+   "itemId": "sq-gordita-M647RE",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Gordita Options",
+     "option": "(GD) Gordita"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Prensado / Spicy Pork"
+    }
+   ],
+   "readback": "1 gordita Prensado"
+  },
+  {
+   "itemId": "sq-gordita-M647RE",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Gordita Options",
+     "option": "(GD) Gordita"
+    },
+    {
+     "step": "(B) Q Carnes / Meats",
+     "option": "Bistec / Steak"
+    }
+   ],
+   "readback": "1 gordita bistec"
+  },
+  {
+   "itemId": "sq-taco-TAR7L5",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(B) T Carnes / Meats Opciones",
+     "option": "Bistec / Steak"
+    },
+    {
+     "step": "(A) T Tortilla Options",
+     "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+    },
+    {
+     "step": "(I) Salsa Preferencia / Preference",
+     "option": "Mild Salsa Asada",
+     "isDefault": true
+    }
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, buenos días, cocina Elvis."
+  },
+  {
+   "source": "caller",
+   "heard": "Te puedo hacer un orden",
+   "language": "es",
+   "reply": "¡Claro! ¿Qué te preparo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Claro, dime."
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Qué te preparo",
+   "language": "es",
+   "reply": "Adelante, te escucho.",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Claro, dime.",
+   "pick": "Qué te preparo"
+  },
+  {
+   "source": "caller",
+   "heard": "un menudo, sin pata",
+   "language": "es",
+   "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más, mano?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "4 x (Corn) Comal Tortilla",
+   "language": "es",
+   "reply": "Menudo con Tortillas (4): comal. $15.99. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "",
+   "pick": "4 x (Corn) Comal Tortilla"
+  },
+  {
+   "source": "caller",
+   "heard": "Y si tienes un menudo chiquito, que es medida chiquita o no",
+   "language": "es",
+   "reply": "No, solo viene en 32 onzas. ¿Lo dejamos así?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "No, joven, no, nomás tengo un puro size, joven, sí, puro size."
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Lo dejamos así",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "No, joven, no, nomás tengo un puro size, joven, sí, puro size.",
+   "pick": "Lo dejamos así"
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "No me mato, la verdad. Okay, está bien. Okay, entonces dame",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "No me mato, la verdad. Okay, está bien. Okay, entonces dame",
+   "language": "es",
+   "reply": "Menudo con Tortillas.",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "una quesadilla de chorizo",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿El menú, el menú, perdón, el menudo sí se queda?"
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "Dónde Sí, sí, el menudo, sí, sí, grande, sí",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, okay. ¿Y luego qué más, mano? Ahora sí, dime."
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Okay, okay.  Ahora sí, dime.",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "era una",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "era una",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "una quesadilla de chorizo",
+   "language": "es",
+   "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿De maíz en el comal?"
+  },
+  {
+   "source": "caller-comal",
+   "heard": "Sí, por favor."
+  },
+  {
+   "source": "caller-count",
+   "heard": "Sí"
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más, joven?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Quesadilla Comal",
+   "language": "es",
+   "reply": "Quesadilla: comal, chorizo, salsa asada. $4.50. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "",
+   "pick": "Quesadilla Comal"
+  },
+  {
+   "source": "caller",
+   "heard": "dos tacos de chorizo, también de tortilla de maíz Sí, la que está hecha a mano",
+   "language": "es",
+   "reply": "2 × Taco: taquero, chorizo, salsa asada. $6.00. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, ¿qué más, joven?"
+  },
+  {
+   "source": "caller",
+   "heard": "Y luego una gordita de prensado, una de chorizo",
+   "language": "en",
+   "reply": "Gordita: mexican sausage and spicy pork, mild asada salsa. $5.50. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más, joven?"
+  },
+  {
+   "source": "caller",
+   "heard": "Un taco de bistec. Sí",
+   "language": "en",
+   "reply": "Taco: Taco Comal, Taco Harina or Taco Taquero?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Tortilla hecha a mano también."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "eso es todo."
+  },
+  {
+   "source": "staff",
+   "heard": "Nombre. Para el ticket. Dame veinte minutos, Luis, por lo menos, si me haces favor, ¿sale?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Taco Comal",
+   "language": "en",
+   "reply": "Taco: comal, steak, mild asada salsa. $4.00. Anything else?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Tortilla hecha a mano también. Nombre. Para el ticket. Dame veinte minutos, Luis, por lo menos, si me haces favor,",
+   "pick": "Taco Comal"
+  },
+  {
+   "source": "caller",
+   "heard": "Luis Sí, está bien",
+   "language": "en",
+   "reply": "Thanks, Luis. Review your order and check out when you're ready.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Gracias, joven."
+  }
+ ],
+ "name": "Luis"
+}
