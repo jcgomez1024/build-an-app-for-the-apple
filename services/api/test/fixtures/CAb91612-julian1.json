@@ -1,0 +1,239 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 2.421,
+   "end": 8.024,
+   "text": "Sí, buenos días. Ah, permítame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.302,
+   "end": 5.483,
+   "text": "Si quieres poner una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.605,
+   "end": 10.265,
+   "text": "Esta cosa se me...",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.346,
+   "end": 13.146,
+   "text": "A ver, ahora sí, dime, ¿qué te vamos a poner, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.267,
+   "end": 17.789,
+   "text": "Me vas a poner cuatro quesadillas de comal,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 18.649,
+   "end": 18.869,
+   "text": "¿De qué?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.13,
+   "end": 21.891,
+   "text": "cuatro quesadillas de comal,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.091,
+   "end": 25.272,
+   "text": "dos de bistec y dos de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.371,
+   "end": 23.632,
+   "text": "¿De qué?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.854,
+   "end": 28.374,
+   "text": "¿Qué más, hermano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.454,
+   "end": 29.975,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.935,
+   "end": 31.775,
+   "text": "¿Quién eres? Este...",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.796,
+   "end": 33.156,
+   "text": "Julián.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.937,
+   "end": 36.678,
+   "text": "Julián, oh, perdón. Dame unos 15, 20, Julián, porfa.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 37.938,
+   "end": 38.259,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.579,
+   "end": 38.959,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenos días. Ah, permítame."
+   },
+   {
+    "source": "caller",
+    "heard": "quieres poner una orden",
+    "language": "es",
+    "reply": "Adelante, dígame.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Esta cosa se me..."
+   },
+   {
+    "source": "staff",
+    "heard": "A ver, ahora sí, dime, ¿qué te vamos a poner, joven?"
+   },
+   {
+    "source": "caller",
+    "heard": "Me vas a poner cuatro quesadillas de comal,",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿De qué?"
+   },
+   {
+    "source": "caller",
+    "heard": "cuatro quesadillas de comal, dos de bistec, dos de chorizo",
+    "language": "es",
+    "reply": "4 quesadillas de comal: 2 bistec, 2 chorizo, salsa asada. $18.00. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿De qué?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Qué más, hermano?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Sería todo."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Quién eres? Este..."
+   },
+   {
+    "source": "caller",
+    "heard": "Julián",
+    "language": "es",
+    "reply": "Gracias, Julián. Revisa tu orden y cuando estés listo, pasa a pagar.",
+    "actions": [
+     "set_customer"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Julián, oh, perdón. Dame unos 15, 20, Julián, porfa."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias."
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "DELIVERY",
+  "address": "20 Julián St",
+  "addressConfirmed": true,
+  "customerName": "Julián"
+ }
+}

@@ -1141,3 +1141,42 @@ export function liveMultiItem(r: any, input: any) {
   }
   return ch ? { ...r, actions: out } : r;
 }
+
+// julian1 (CAb91612): "cuatro quesadillas de comal, dos de bistec y dos de chorizo" → lines carry the per-meat counts (2+2), never 1+1.
+const NUMWJ: Record<string, number> = { un: 1, una: 1, uno: 1, one: 1, a: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5, seis: 6, six: 6, siete: 7, seven: 7, ocho: 8, eight: 8, nueve: 9, nine: 9, diez: 10, ten: 10 };
+const nOfJ = (w: string) => (/^\d+$/.test(w) ? Number(w) : NUMWJ[w] || 0);
+/** Per-meat counts in one phrase: "dos de bistec y dos de chorizo", "2 bistec, 2 chorizo". Returns [] unless ≥2 meats each have a count. */
+export function meatSplitCounts(text: string): Array<{ qty: number; meat: string }> {
+  const p = plain(text); const out: Array<{ qty: number; meat: string }> = [];
+  for (const m of p.matchAll(/\b(\d{1,2}|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:de\s+|of\s+)?([a-z]+)(?=((?:\s+[a-z]+)?))/g)) {
+    const q = nOfJ(m[1]); const k = meatIn(m[2] + m[3]); if (!q || !k || !meatIn(m[2])) continue;
+    if (!out.some((x) => x.meat === k)) out.push({ qty: q, meat: k });
+  }
+  return out.length >= 2 ? out : [];
+}
+const totalBefore = (p: string) => { const m = p.match(/\b(\d{1,2}|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven|eight|nine|ten)\s+(?:orden(?:es)? de\s+)?(?:quesadillas?|tacos?|gorditas?|sopes?|tostadas?|flautas?|huaraches?|burritos?|tortas?)\b/); return m ? nOfJ(m[1]) : 0; };
+/** Set qty of the same-dish lines to the per-meat counts when every count lands on exactly one 1-qty line. */
+function applySplitQty(lines: any[], split: Array<{ qty: number; meat: string }>, total: number): boolean {
+  if (!split.length) return false; const sum = split.reduce((a, s) => a + s.qty, 0); if (total && total !== sum) return false;
+  const hits = split.map((s) => lines.filter((l) => meatOfLine(l) === s.meat));
+  if (hits.some((h) => h.length !== 1)) return false;
+  const ids = new Set(hits.map((h) => String(h[0].itemId))); if (ids.size !== 1) return false;
+  let ch = false; split.forEach((s, i) => { const l = hits[i][0]; if ((Number(l.quantity) || 1) !== s.qty) { l.quantity = s.qty; ch = true; } });
+  return ch;
+}
+export function applyMeatSplitQty(cart: any[], turns: Turn[]): boolean {
+  const cs = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || "")); let ch = false;
+  for (let i = 0; i < cs.length; i++) { const s = meatSplitCounts(cs[i]); if (!s.length) continue;
+    const ctx = plain([cs[i - 1] || "", cs[i]].join(" ")); if (applySplitQty(cart, s, totalBefore(ctx))) ch = true; }
+  return ch;
+}
+/** Live: quantities match what Elvi reads back / the caller said ("4 quesadillas de comal: 2 bistec, 2 chorizo"). */
+export function liveMeatSplitQty(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const adds = acts.filter((a) => a?.type === "add_item"); if (adds.length < 2) return r;
+  for (const src of [String(r?.reply || ""), String(input?.transcript || "")]) {
+    const s = meatSplitCounts(src); if (!s.length) continue;
+    const copy = adds.map((a) => ({ ...a })); if (applySplitQty(copy, s, totalBefore(plain(src)))) { let k = 0; return { ...r, actions: acts.map((a) => (a?.type === "add_item" ? copy[k++] : a)) }; }
+    if (s.every((x) => adds.some((a) => meatOfLine(a) === x.meat && a.quantity === x.qty))) return r;
+  }
+  return r;
+}

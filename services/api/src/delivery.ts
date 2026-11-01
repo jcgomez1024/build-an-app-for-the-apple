@@ -77,6 +77,10 @@ function fmt(a: Omit<Address, "full">): Address {
 /** Every street address heard in one piece of text, in order. */
 export function addressesIn(text: string): Address[] {
   // joseA1: STT "127 Morse, Morse Avenue" → "127 Morse Avenue"
+  // julian1 (CAb91612): wait-time phrases never hold an address: "Dame unos 15, 20, Julián" / "como 20 minutos" / "15 to 20 minutes".
+  text = String(text || "")
+    .replace(/\b(?:dame|deme|denme|danos|d[eé]jame|give\s+(?:me|us)|unos|unas|about|around)\s+(?:unos\s+|about\s+)?\d{1,2}(?:\s*(?:,|-|a|o|y|to|or|and)\s*\d{1,2})*\b(?:\s*(?:minutos?|mins?|minutes?))?/giu, " ")
+    .replace(/\b\d{1,2}(?:\s*(?:,|-|a|o|y|to|or|and)\s*\d{1,2})*\s*(?:minutos?|mins?|minutes?)\b/giu, " ");
   let t = String(text || "").replace(
     /\b(\d{1,6})\s+([a-záéíóúñ.'-]+)\s*,\s*\2\s+(street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd)\b/giu,
     "$1 $2 $3",
