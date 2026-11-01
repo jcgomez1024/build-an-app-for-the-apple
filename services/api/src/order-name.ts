@@ -757,7 +757,8 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
   }
   // miguel1 (CA807990d6): "pasa ahí mi esposo" + staff "Ah, es para" + "Miguel Gutiérrez" → ticket/pickup only, never caller contact.
   if (!thirdPerson) {
-    const spousePickup = turns.some((t) => t.speaker === "caller" && /\b(?:mi\s+)?(?:esposo|esposa|marido|mujer|husband|wife)\b/iu.test(t.text));
+    // diana-menudo1: "soy Diana, la esposa de Pedro" only says who she is to Pedro — not a different pickup person
+    const spousePickup = turns.some((t) => t.speaker === "caller" && /\b(?:mi\s+)?(?:esposo|esposa|marido|mujer|husband|wife)\b/iu.test(String(t.text).replace(/(?<![\p{L}])(?:la|el|su|y\s+la|y\s+el)\s+(?:esposo|esposa|marido|mujer)\s+de\s+\p{L}+|(?<![\p{L}])(?:\p{Lu}\p{L}+'s|the)\s+(?:husband|wife)(?![\p{L}])/gu, "")));
     const staffEsPara = turns.some((t, i) => t.speaker === "staff" && /\bes\s+para\b/iu.test(t.text) && (!/\bes\s+para\s+\p{Lu}/u.test(t.text) || foldName(thirdPersonName(t.text) || "") === f) && turns.slice(i).some((u) => u.speaker === "caller" && foldName(nameFromAnswer(u.text) || "") === f));
     if (spousePickup || staffEsPara) thirdPerson = true;
   }

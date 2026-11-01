@@ -1,0 +1,247 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.36,
+   "end": 1.181,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.401,
+   "end": 3.822,
+   "text": "Ah, ¿todavía tienes menudos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.242,
+   "end": 4.723,
+   "text": "Sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.703,
+   "end": 7.724,
+   "text": "¿Me puedes apartar dos y,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.884,
+   "end": 12.067,
+   "text": "A ver, perdón, discúlpeme, me traigo ocupada la muchacha. Ahora sí, dígame qué le voy a ayudar de orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.407,
+   "end": 13.547,
+   "text": "ah, dos menudos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.068,
+   "end": 14.768,
+   "text": "Comparta o sin.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.029,
+   "end": 17.49,
+   "text": "Uno con pata y uno sin pata,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.63,
+   "end": 20.591,
+   "text": "y tres quesadillas de bistec de harina,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.752,
+   "end": 23.113,
+   "text": "con el bistec no tan dorado.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.894,
+   "end": 25.354,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.074,
+   "end": 26.534,
+   "text": "Nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.795,
+   "end": 28.836,
+   "text": "¿Tu nombre para tu orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.596,
+   "end": 30.096,
+   "text": "Marcela.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.897,
+   "end": 33.278,
+   "text": "Dame unos veinte minutos si puede pasar sin ese favor, ¿sí?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.738,
+   "end": 34.619,
+   "text": "Okey, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "1 menudo con pata"
+  },
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "1 menudo sin pata"
+  },
+  {
+   "itemId": "sq-quesadilla-HLT6CR",
+   "quantity": 3,
+   "modifiers": [
+    {
+     "step": "(A) Q Tortilla Options",
+     "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+    }
+   ],
+   "readback": "quesadilla harina"
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Cocina Elvis."
+  },
+  {
+   "source": "caller",
+   "heard": "Ah, ¿todavía tienes menudos",
+   "language": "es",
+   "reply": "Sí, tenemos menudo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, claro."
+  },
+  {
+   "source": "caller",
+   "heard": "Me puedes apartar dos y,",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "A ver, perdón, discúlpeme, me traigo ocupada la muchacha. Ahora sí, dígame qué le voy a ayudar de orden."
+  },
+  {
+   "source": "caller",
+   "heard": "ah",
+   "language": "es",
+   "reply": "Dos menudos. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "dos menudos",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Comparta o sin."
+  },
+  {
+   "source": "caller",
+   "heard": "Uno con pata y uno sin pata,",
+   "language": "es",
+   "reply": "Menudo con Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "tres quesadillas de bistec de harina, con el bistec no tan dorado",
+   "language": "es",
+   "reply": "3 × Quesadilla: harina, bistec, salsa asada. $12.75. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "caller-meat-listed",
+   "heard": "3 quesadillas de harina de bistec",
+   "language": "es",
+   "reply": "3 × Quesadilla: harina, bistec, salsa asada. $12.75. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿Algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Nada más."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Tu nombre para tu orden?"
+  },
+  {
+   "source": "caller-name",
+   "heard": "Marcela."
+  },
+  {
+   "source": "staff",
+   "heard": "Dame unos veinte minutos si puede pasar sin ese favor, ¿sí?"
+  },
+  {
+   "source": "caller-count",
+   "heard": "Okey, gracias."
+  }
+ ],
+ "name": "Marcela"
+}

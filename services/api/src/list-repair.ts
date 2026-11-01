@@ -1405,9 +1405,56 @@ export function liveCoctelNotCeviche(r: any, input: any) {
 // tortilla count, never the quantity, and "sin pata" never reads back "extra pata".
 const MEN_COUNT = new RegExp(`(?:^|[^\\p{L}\\d(])(${NUMW})\\s+menudos?(?![\\p{L}])`, "giu");
 const SIN_PATA = /\bsin\s+(?:la\s+)?patas?\b|\bno\s+(?:le\s+)?(?:ponga|pongas|quiero)\s+(?:la\s+)?pata\b|\bwithout\s+(?:the\s+)?(?:pata|feet|foot|hoof)\b/iu;
-function menudoCountSaid(texts: string[]): number {
-  let n = 0; for (const t of texts) for (const m of t.matchAll(MEN_COUNT)) { const k = nOf(m[1].toLowerCase()); if (k > 0 && k < 30) n = k; }
+// diana-menudo1: "póngame cuatro" (no dish in the turn) sets the count of the dish being ordered
+const PONGAME_N = new RegExp(`(?:^|[^\\p{L}])(?:p[oó]ng(?:a|an)me|p[oó]nme|p[oó]ngale|me\\s+(?:da|das|pone|pones)|d[eé]me|dame)\\s+(?:unos?\\s+|unas?\\s+)?(${NUMW})(?![\\p{L}\\d])`, "giu");
+const OTHER_DISH = /(?<![\p{L}])(?:tacos?|quesadillas?|gorditas?|sopes?|huaraches?|tortas?|burritos?|flautas?|tostadas?|tamales?|enchiladas?|pambazos?|platillos?|aguas?|refrescos?|jarritos?|horchatas?|pozole|birria|consom[eé]|coctel|ceviche)(?![\p{L}])/iu;
+export function pongameCount(t: string): number {
+  if (OTHER_DISH.test(t) || /menudos?/iu.test(t)) return 0;
+  let n = 0; for (const m of t.matchAll(PONGAME_N)) { const k = nOf(m[1].toLowerCase()); if (k > 0 && k < 30) n = k; }
   return n;
+}
+function menudoCountSaid(texts: string[]): number {
+  let n = 0; let menCtx = false;
+  for (const t of texts) {
+    for (const m of t.matchAll(MEN_COUNT)) { const k = nOf(m[1].toLowerCase()); if (k > 0 && k < 30) n = k; }
+    if (/menudos?/iu.test(t)) menCtx = true; else if (OTHER_DISH.test(t)) menCtx = false;
+    const p = menCtx ? pongameCount(t) : 0; if (p) n = p;
+  }
+  return n;
+}
+// marcela-qhr1: a quesadilla add the caller gave a meat for ("tres quesadillas de bistec de harina") carries that meat;
+// "no tan dorado" / "poco dorado" is a cook note, never a dorada.
+const Q_MEAT: Array<[RegExp, string]> = [
+  [/bistec|asada|steak/iu, "Bistec / Steak"], [/chorizo/iu, "Chorizo / Mexican Sausage"], [/pollo|chicken/iu, "Pollo / Chicken"],
+  [/picadillo/iu, "Picadillo / Ground Beef"], [/prensado/iu, "Prensado / Spicy Pork"], [/duro/iu, "Duro / Pork Rinds"],
+  [/costilla/iu, "Costilla / Beef Rib"], [/pastor/iu, "Alpastor / Roasted Pork"], [/lengua/iu, "Lengua / Beef Tongue"],
+  [/tripas?/iu, "Tripa / Beef Tripe"], [/buche/iu, "Buche / Pork Stomach"], [/carnitas/iu, "Carnitas / Pulled Pork"],
+];
+const QUES_ID = "sq-quesadilla-HLT6CR";
+const isMeatMod = (m: any) => /Carnes|Meats/i.test(String(m?.step || "")) || Q_MEAT.some(([, o]) => o === m?.option);
+export const NO_TAN_DORADO = /(?<![\p{L}])(?:no\s+(?:tan|muy)|poco|menos|bien\s+poco)\s+dorad[oa]s?(?![\p{L}])|(?<![\p{L}])not\s+(?:too|very|so)\s+(?:crispy|fried|browned)/iu;
+function quesMeatIn(t: string): string | null {
+  const m = t.match(/quesadillas?\b(.{0,40})/iu); if (!m) return null;
+  const seg = m[1]; const hit = Q_MEAT.find(([re]) => new RegExp(`de\\s+(?:al\\s+)?(?:${re.source})`, "iu").test(seg));
+  return hit ? hit[1] : null;
+}
+export function applyQuesadillaMeatSaid(cart: any[], turns: Turn[]): boolean {
+  let ch = false; const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  const joined = caller.map((t, i) => t + " " + (caller[i + 1] || ""));
+  for (const l of cart) {
+    if (l.itemId !== QUES_ID) continue;
+    const ji = joined.findIndex((t) => quesMeatIn(t));
+    if (!(l.modifiers || []).some(isMeatMod) && ji >= 0) { l.modifiers = [...(l.modifiers || []), { step: "(B) Q Carnes / Meats", option: quesMeatIn(joined[ji])! }]; ch = true; }
+    const nt = joined.find((t) => /quesadillas?/iu.test(t) && NO_TAN_DORADO.test(t)); const nm = nt?.match(NO_TAN_DORADO)?.[0];
+    if (nm && !(l.elviNotes || []).some((n: string) => /dorad/i.test(n))) { const meat = (nt!.match(/(?:el|la)\s+(\p{L}+)\s+(?:no\s+(?:tan|muy)|poco|menos)\s+dorad/iu) || [])[1]; l.elviNotes = [...(l.elviNotes || []), `${meat ? meat + " " : ""}${nm.toLowerCase()}`]; ch = true; }
+  }
+  return ch;
+}
+export function liveQuesadillaMeat(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const said = String(input?.transcript || ""); const m = quesMeatIn(said);
+  if (!m || !acts.some((a) => a?.type === "add_item" && a.itemId === QUES_ID && !(a.modifiers || []).some(isMeatMod))) return r;
+  return { ...r, actions: acts.map((a) => a?.type === "add_item" && a.itemId === QUES_ID && !(a.modifiers || []).some(isMeatMod) ? { ...a, modifiers: [...(a.modifiers || []), { step: "(B) Q Carnes / Meats", option: m }] } : a) };
 }
 export function applyMenudoCountSinPata(cart: any[], turns: Turn[]): boolean {
   const men = cart.filter((l) => l.itemId === MEN_REG || l.itemId === MEN_CON); if (!men.length) return false;

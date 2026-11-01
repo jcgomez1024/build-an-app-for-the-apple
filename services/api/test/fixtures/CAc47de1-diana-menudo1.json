@@ -1,0 +1,426 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.34,
+   "end": 0.98,
+   "text": "Sí, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.301,
+   "end": 3.721,
+   "text": "Hola, buenos días, ¿Don Carlos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.701,
+   "end": 5.081,
+   "text": "Sí, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.062,
+   "end": 7.142,
+   "text": "soy Diana, y la esposa de Pedro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.041,
+   "end": 9.621,
+   "text": "Oh, sí, hola, ¿cómo está, señora? Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.123,
+   "end": 11.843,
+   "text": "Bien, bien, ¿y usted? Este,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.402,
+   "end": 12.882,
+   "text": "También, gracias a Dios, señor, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.044,
+   "end": 13.964,
+   "text": "¿todavía tiene menudo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.662,
+   "end": 15.942,
+   "text": "Sí, señora, con alta patita.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.645,
+   "end": 17.945,
+   "text": "Ay, no, Entonces no.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.383,
+   "end": 21.003,
+   "text": "No se crea, ¿cuánto le ponemos?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.366,
+   "end": 29.688,
+   "text": "Este, ¿puede ponerme, ay, ¿en cuántos los tiene? Dieciséis. Póngame,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.289,
+   "end": 34.43,
+   "text": "uy, póngame cuatro, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.285,
+   "end": 37.945,
+   "text": "Okay, ¿algo más, señora?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.351,
+   "end": 40.692,
+   "text": "no, sería todo, sin pata,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.446,
+   "end": 44.066,
+   "text": "Sí, sí, ¿a quién la, a qué hora lo recoge más o menos?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.012,
+   "end": 43.352,
+   "text": "Bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.673,
+   "end": 46.793,
+   "text": "Lo recojo ahorita, ¿qué será?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 46.406,
+   "end": 48.707,
+   "text": "O deme veinte minutos, si me da veinte, ¿está bien?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.974,
+   "end": 54.596,
+   "text": "bueno, sí, pero ahorita como en veinte, en veinte o antes, como a las doce más o menos, antes de las doce.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.647,
+   "end": 56.628,
+   "text": "¿O más, o más tiempo? Lo, lo voy, lo voy a poner a las doce mejor, ¿está bien?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.042,
+   "end": 60.399,
+   "text": "Okay, sí, está muy bien. Gracias, don Carlos. Bye.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 58.191,
+   "end": 59.114,
+   "text": "Andres, ¿gracias a usted?",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "Menudo options",
+     "option": "Menudo con Tortillas (4)"
+    },
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla",
+     "isDefault": true
+    }
+   ],
+   "asked": true
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, buenos días."
+  },
+  {
+   "source": "caller",
+   "heard": "Don Carlos",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, dime."
+  },
+  {
+   "source": "caller",
+   "heard": "soy Diana, y la esposa de Pedro",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Oh, sí, hola, ¿cómo está, señora? Buenos días."
+  },
+  {
+   "source": "caller",
+   "heard": "Bien, ¿y usted? Este,",
+   "language": "es",
+   "reply": "Aquí para servirle. ¿Va a ordenar algo?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "También, gracias a Dios, señor, dígame."
+  },
+  {
+   "source": "caller",
+   "heard": "todavía tiene menudo",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, señora, con alta patita."
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "en",
+   "reply": "Menudo: Menudo con Tortillas (4) or Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Sí, señora, con alta patita.",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "caller",
+   "heard": "Ay, no, Entonces no",
+   "language": "en",
+   "reply": "Menudo: Menudo con Tortillas (4) or Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "that's fine",
+   "language": "en",
+   "reply": "Menudo: Menudo con Tortillas (4) or Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "Ay, no, Entonces no",
+   "language": "en",
+   "reply": "Menudo: Menudo con Tortillas (4) or Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "No se crea, ¿cuánto le ponemos?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "No se crea,",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "caller",
+   "heard": "puede ponerme, ay, ¿en cuántos los tiene? Dieciséis. Póngame, uy, póngame cuatro",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "puede ponerme, ay, ¿en cuántos los tiene? Dieciséis. Póngame, uy, póngame cuatro",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, ¿algo más, señora?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "no, sería todo, sin pata,"
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, sí, ¿a quién la, a qué hora lo recoge más o menos?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Okay,  Sí, sí,",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "caller-fulfillment",
+   "heard": "Bueno Lo recojo ahorita, ¿qué será?"
+  },
+  {
+   "source": "staff",
+   "heard": "O deme veinte minutos, si me da veinte, ¿está bien?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "O deme veinte minutos, si me da veinte,",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "caller",
+   "heard": "sí, pero ahorita como en veinte, en veinte o antes, como a las doce más o menos, antes de las doce",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "sí, pero ahorita como en veinte, en veinte o antes, como a las doce más o menos, antes de las doce",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿O más, o más tiempo? Lo, lo voy, lo voy a poner a las doce mejor, ¿está bien?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Lo, lo voy, lo voy a poner a las doce mejor,",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "caller",
+   "heard": "sí, está muy bien. Gracias, don Carlos. Bye",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller-retry",
+   "heard": "sí, está muy bien. Gracias, don Carlos. Bye",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Andres, ¿gracias a usted?"
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "asked-dish",
+   "heard": "todavía tiene menudo",
+   "item": "sq-menudo-menudo-con-tortillas-4-ZSRUX4"
+  }
+ ],
+ "name": "Diana"
+}
