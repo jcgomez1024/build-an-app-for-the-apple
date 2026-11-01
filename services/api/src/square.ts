@@ -484,7 +484,9 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
     covered.add(product.squareId);
     siteExtras.push(buildReviewedMenuItem(product.name, matches));
   }
-  return [...reviewed, ...siteExtras, ...drinks].map((item) => withCallerWords(applySiteGroupRules(item)))
+  const inStore: MenuItem[] = fullMenu.filter((item) => item.squareVariationId && IN_STORE_VARIATIONS.has(item.squareVariationId) && !covered.has(item.squareCatalogObjectId || ""))
+    .map((item) => { const v = IN_STORE_VARIATIONS.get(item.squareVariationId!)!; return { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined }; });
+  return [...reviewed, ...siteExtras, ...inStore, ...drinks].map((item) => withCallerWords(applySiteGroupRules(item)))
     .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
 }
 
@@ -747,6 +749,10 @@ function trimReviewedVariantName(reviewedName: string, variantName: string) {
   return trimmed || variantName;
 }
 
+/** brayan-aguacate1: Square in-store variations (not on the website) that Elvi rings as their own item. */
+export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[] }>([
+  ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"] }],
+]);
 function buildMenuFromSquareCatalog(
   objects: Array<{
     id: string;
@@ -898,7 +904,9 @@ function buildMenuFromSquareCatalog(
     // Drinks: the website sells the "(ONLINE)" items from BEBIDAS / DRINKS (Aguas Frescas, Pepsi, Jarrito...).
     const isOnlineDrink = /\(\s*online\s*\)/i.test(itemName) && categoryNames.some((name) => isOnlineDrinkCategoryName(name));
     // Anything the website sells (by Square item ID) is allowed, e.g. Rice / Beans Fiesta Pan.
-    if (!hasOnlineCategory && !isOnlineDrink && !siteSellsSquareItem(object.id)) {
+    // brayan-aguacate1: in-store-only Square variations Elvi may ring (e.g. Extras · Aguacate FULL $4).
+    const inStoreOnly = !hasOnlineCategory && !isOnlineDrink && !siteSellsSquareItem(object.id);
+    if (inStoreOnly && !(object.item_data?.variations || []).some((v) => IN_STORE_VARIATIONS.has(v.id))) {
       continue;
     }
 
@@ -942,7 +950,7 @@ function buildMenuFromSquareCatalog(
       : [{ id: `${object.id}-variation`, item_variation_data: {} }];
 
     for (const variation of variations) {
-      if (!isOnlineVariation(variation.item_variation_data)) {
+      if (inStoreOnly ? !IN_STORE_VARIATIONS.has(variation.id) : !isOnlineVariation(variation.item_variation_data)) {
         continue;
       }
 

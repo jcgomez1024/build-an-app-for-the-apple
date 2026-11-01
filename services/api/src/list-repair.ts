@@ -1632,3 +1632,42 @@ export function applyTacoMeatList(cart: any[], turns: Turn[]): boolean {
   }
   return JSON.stringify(cart) !== before;
 }
+
+// ---- brayan-aguacate1: standalone "un aguacate" / "aguacate entero" → Square Extras · Aguacate FULL ($4) ----
+export const AGUACATE_FULL_VAR = "QGR5AQTWVHNW347NOPAKX44U";
+const AGW: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
+/** Count of whole avocados asked for on their own; null when "aguacate" is only a topping ("con/sin/de aguacate"). */
+export function aguacateSaid(text: string): number | null {
+  const t = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/guacamole/.test(t)) return null;
+  const m = t.match(/(?<![\p{L}])(un|una|uno|dos|tres|cuatro|cinco|\d+)\s+aguacates?(?![\p{L}])/u) || t.match(/(?<![\p{L}])()aguacates?\s+(?:enteros?|completos?|full)(?![\p{L}])/u);
+  if (!m) return null;
+  const pre = t.slice(Math.max(0, (m.index || 0) - 12), m.index || 0);
+  if (/(?<![\p{L}])(con|sin|de|extra|mas)\s*$/u.test(pre)) return null;
+  return m[1] ? (/\d/.test(m[1]) ? +m[1] : AGW[m[1]] || 1) : 1;
+}
+const aguaItem = (menu: any[]) => (menu || []).find((m: any) => m?.squareVariationId === AGUACATE_FULL_VAR || /^aguacate full$/i.test(String(m?.name || "")));
+/** After-call: caller asked for a whole avocado on its own and nothing rang it → add Aguacate FULL. */
+export function applyAguacateFull(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const it = aguaItem(menu); if (!it) return false;
+  if (cart.some((l) => l?.itemId === it.id || /guacamole|aguacate/i.test(JSON.stringify(l?.modifiers || []) + String(l?.itemId)))) return false;
+  let n: number | null = null;
+  for (const t of turns) if (t.speaker === "caller") { const c = aguacateSaid(String(t.text || "")); if (c) n = c; }
+  if (!n) return false;
+  cart.push({ itemId: it.id, quantity: n, modifiers: [], readback: `${n} aguacate entero` });
+  return true;
+}
+/** Live: same rule on the caller's turn; never answer "no tenemos aguacate". */
+export function liveAguacateFull(r: any, input: any) {
+  const menu: any[] = input?.resolverMenu || input?.menu || [];
+  const it = aguaItem(menu); if (!it) return r;
+  const n = aguacateSaid(String(input?.transcript || "")); if (!n) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  if (acts.some((a) => a?.type === "add_item" && a.itemId === it.id) || (input?.cart || []).some((l: any) => l?.itemId === it.id)) return r;
+  const en = input?.language === "en";
+  const refused = /no (tenemos|manejamos|hay)|not on (the|our) menu|don'?t have/i.test(String(r?.reply || ""));
+  const reply = refused || !String(r?.reply || "").trim()
+    ? (en ? `${n > 1 ? `${n} whole avocados` : "One whole avocado"}, $${((it.priceCents || 400) * n / 100).toFixed(2)}. Anything else?` : `${n > 1 ? `${n} aguacates enteros` : "Un aguacate entero"}, $${((it.priceCents || 400) * n / 100).toFixed(2)}. ¿Algo más?`)
+    : r.reply;
+  return { ...r, reply, actions: [...acts.filter((a) => !(refused && a?.type === "add_item" && /guacamole/i.test(JSON.stringify(a)))), { type: "add_item", itemId: it.id, quantity: n, modifiers: [] }] };
+}

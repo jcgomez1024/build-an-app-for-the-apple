@@ -1,0 +1,254 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.701,
+   "end": 7.624,
+   "text": "Sí,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.302,
+   "end": 6.683,
+   "text": "Buenos días, ¿me puedes poner dos pe, dos menudos",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.544,
+   "end": 9.424,
+   "text": "y un aguacate?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.784,
+   "end": 11.926,
+   "text": "dos men, sí, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.886,
+   "end": 13.406,
+   "text": "Nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.807,
+   "end": 18.409,
+   "text": "Okay, entonces te tengo un aguacate completo y dos menudos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 19.009,
+   "end": 19.109,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.929,
+   "end": 21.89,
+   "text": "¿Regulares o con pata? Perdón.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.031,
+   "end": 25.072,
+   "text": "Uno con pata y uno normal.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.912,
+   "end": 26.392,
+   "text": "Muy bien,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.293,
+   "end": 28.233,
+   "text": "¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.594,
+   "end": 30.074,
+   "text": "Nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.035,
+   "end": 32.715,
+   "text": "Okay, ¿a qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.296,
+   "end": 34.276,
+   "text": "Abra ya, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.836,
+   "end": 39.498,
+   "text": "Brian, okay, dame unos quince minutos, veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 40.079,
+   "end": 41.339,
+   "text": "Sí, está bien, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": [
+  {
+   "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "1 menudo con pata"
+  },
+  {
+   "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+   "quantity": 1,
+   "modifiers": [
+    {
+     "step": "Menudo options",
+     "option": "Menudo con Tortillas (4)"
+    },
+    {
+     "step": "(A) Menudo Tortillas",
+     "option": "4 x (Corn) Comal Tortilla"
+    }
+   ],
+   "readback": "1 menudo regular"
+  }
+ ],
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí,"
+  },
+  {
+   "source": "caller",
+   "heard": "me puedes poner dos pe",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "dos menudos",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "un aguacate",
+   "language": "es",
+   "reply": "Perdón, no tenemos aguacate en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "dos men, sí, ¿algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Nada más."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, entonces te tengo un aguacate completo y dos menudos."
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "entonces te tengo un aguacate completo y dos menudos.",
+   "language": "es",
+   "reply": "Listo.",
+   "actions": []
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "Sí."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Regulares o con pata? Perdón."
+  },
+  {
+   "source": "caller",
+   "heard": "Uno con pata",
+   "language": "es",
+   "reply": "Menudo con Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "uno normal",
+   "language": "es",
+   "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien,"
+  },
+  {
+   "source": "staff",
+   "heard": "¿algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Nada más."
+  },
+  {
+   "source": "staff",
+   "heard": "Okay, ¿a qué nombre sería la orden?"
+  },
+  {
+   "source": "caller-name",
+   "heard": "Abra ya, por favor."
+  },
+  {
+   "source": "staff",
+   "heard": "Brian, okay, dame unos quince minutos, veinte minutos."
+  },
+  {
+   "source": "caller-thanks",
+   "heard": "Sí, está bien, gracias."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Con Pata Menudo 32oz y Tortillas (4): ¿4 x (Corn) Comal Tortilla o 4 x (Harina) Flour Tortilla?",
+   "actions": []
+  },
+  {
+   "source": "asked-dish",
+   "heard": "Uno con pata",
+   "item": "sq-menudo-menudo-con-tortillas-4-ZSRUX4"
+  }
+ ],
+ "name": "Abra",
+ "fulfillment": "PICKUP"
+}
