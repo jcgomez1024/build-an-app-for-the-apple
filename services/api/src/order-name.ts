@@ -822,3 +822,26 @@ export function staffProposedName(turns: Array<{ speaker: "caller" | "staff"; te
     if (nx && YES.test(String(nx.text)) && String(nx.text).trim().split(/\s+/).length <= 4) return name; }
   return null;
 }
+
+// giancarlo1 (CA978a75): STT "Allá en Carlos" for Giancarlo. A heard name that sounds like the caller's known name is the known name.
+const joinFold = (s: string) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+const phon = (s: string) => joinFold(s).replace(/^h/, "").replace(/ll|y/g, "y").replace(/[jg](?=[ei])/g, "j").replace(/qu|k|c(?=[aou])/g, "k").replace(/z|c(?=[ei])/g, "s").replace(/v/g, "b").replace(/(.)\1+/g, "$1").replace(/s$/, "");
+function lev(a: string, b: string): number { const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) { let prev = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; } } return d[b.length]; }
+/** True when heard (joined letters, phonetic) is close to known: edit ratio ≤ 0.34, or a shared tail ≥ 5 letters covering most of known. */
+export function soundsLikeName(heard: string, known: string): boolean {
+  const a = phon(heard), b = phon(known); if (a.length < 3 || b.length < 3) return false; if (a === b) return true;
+  if (lev(a, b) / Math.max(a.length, b.length) <= 0.34) return true;
+  let k = 0; while (k < a.length && k < b.length && a[a.length - 1 - k] === b[b.length - 1 - k]) k++;
+  return k >= 5 && k >= b.length * 0.55 && Math.abs(a.length - b.length) <= 3;
+}
+/** Multi-word answer led by a filler/place word ("Allá en Carlos", "En Carlos", "Pues Juan Pérez") is a mishearing, not a name. */
+export const FILLER_LEAD = /^(?:all[aá]|aqu[ií]|ac[aá]|ah[ií]|en|pues|este|eh|ah|oh|um|uh|y|o|la|el|por|para\s+all[aá])\s+\S/iu;
+export function isFillerLedName(name: string): boolean { const n = String(name || "").trim(); return n.split(/\s+/).length >= 2 && FILLER_LEAD.test(n); }
+/** Heard order name vs caller memory → the known name when it sounds alike; null when it's filler-led junk; else heard. */
+export function snapToKnownName(heard: string | null | undefined, known: Array<string | null | undefined>): string | null {
+  const h = String(heard || "").trim(); if (!h) return null;
+  for (const k of known) { if (!k) continue; const kf = cleanFirstName(k) || k;
+    if (soundsLikeName(h, k)) return k; if (soundsLikeName(h, kf)) return kf; }
+  return isFillerLedName(h) ? null : h;
+}

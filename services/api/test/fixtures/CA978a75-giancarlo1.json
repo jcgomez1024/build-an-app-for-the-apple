@@ -1,0 +1,290 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.841,
+   "end": 2.461,
+   "text": "Sí, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.981,
+   "end": 4.622,
+   "text": "Ah, buenos días, ¿aquí hace una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.143,
+   "end": 10.204,
+   "text": "A ver, nomás permíteme, permíteme, quiero dar un ticket. ¿Qué quieres poner, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.505,
+   "end": 11.645,
+   "text": "Ah, sí tiene menudo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.165,
+   "end": 12.605,
+   "text": "Sí, sí, hay.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.206,
+   "end": 15.487,
+   "text": "¿Así me puede poner un un vaso de menudo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.987,
+   "end": 16.327,
+   "text": "¿Qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.067,
+   "end": 19.709,
+   "text": "Y una quesadilla de chicharrón prensado.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.689,
+   "end": 22.45,
+   "text": "Una quesadilla de prensado,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.71,
+   "end": 24.911,
+   "text": "de la tortilla de maíz, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.551,
+   "end": 25.651,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.712,
+   "end": 27.192,
+   "text": "¿Qué más, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.792,
+   "end": 30.053,
+   "text": "Y una agua de horchata grande y sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.374,
+   "end": 32.634,
+   "text": "Un agua de horchata grande.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.835,
+   "end": 34.215,
+   "text": "¿Tu nombre?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.855,
+   "end": 35.515,
+   "text": "Allá en Carlos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.076,
+   "end": 37.756,
+   "text": "Dame veinte minutos, joven, por favor, ¿sale?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 37.897,
+   "end": 38.817,
+   "text": "Okay, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.279,
+   "end": 43.899,
+   "text": "¿Quieres por una",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Prensado / Spicy Pork (+$0.50)"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "aquí hace una orden",
+    "language": "es",
+    "reply": "Adelante.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "A ver, nomás permíteme, permíteme, quiero dar un ticket. ¿Qué quieres poner, joven?"
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, sí, hay."
+   },
+   {
+    "source": "caller",
+    "heard": "Así me puede poner un vaso de menudo",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Qué más?"
+   },
+   {
+    "source": "caller",
+    "heard": "una quesadilla de prensado",
+    "language": "es",
+    "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Una quesadilla de prensado,"
+   },
+   {
+    "source": "staff",
+    "heard": "de la tortilla de maíz, ¿verdad?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Quesadilla Comal",
+    "language": "es",
+    "reply": "Quesadilla: comal, chicharrón prensado, salsa asada. $5.00. ¿La quiere con frijoles? Son $0.50 más.",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Una quesadilla de prensado, de la tortilla de maíz,",
+    "pick": "Quesadilla Comal"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Sí."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Qué más, mano?"
+   },
+   {
+    "source": "caller",
+    "heard": "una agua de horchata grande",
+    "language": "es",
+    "reply": "Agua Fresca Horchata 32oz. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Un agua de horchata grande."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tu nombre?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "Allá en Carlos."
+   },
+   {
+    "source": "staff",
+    "heard": "Dame veinte minutos, joven, por favor, ¿sale?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Quieres por una"
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Allá En Carlos"
+ }
+}

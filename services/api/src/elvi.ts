@@ -11,7 +11,7 @@ import { withConTodo, withConAddons, EXPLICIT_EXTRA_MELTED } from "./standard-to
 import { withLearnedSuggestion, offerAnswer } from "./online-learning.js";
 import { favoriteAnswer } from "./favorites.js";
 import { recall as recallMemory, rewriteSlang } from "./elvi-knowledge.js";
-import { ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion, thirdPersonName, markOrderOnlyName } from "./order-name.js";
+import { snapToKnownName, ASK_NAME, nameAckText, nameFromAnswer, nameQuestionIn, resolveNameAnswer, wrapUpNameQuestion, thirdPersonName, markOrderOnlyName } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 import { randomUUID } from "node:crypto";
 import type { MenuItem } from "./menu.js";
@@ -2103,7 +2103,9 @@ export function phoneOrderNameTurn(input: ElviRequest, lastReply: string, DONE: 
   const out = (reply: string, name?: string): ElviResponse => ({ language: lang, engine: "xai", reply, actions: name ? [{ type: "set_customer", name } as ElviAction] : [] } as ElviResponse);
   const q = nameQuestionIn(lastReply);
   if (q) {
-    const r = resolveNameAnswer(said, q, po.savedName);
+    const r0 = resolveNameAnswer(said, q, po.savedName);
+    // giancarlo1: sounds like the saved name → saved name; filler-led junk → ask again.
+    const sn = r0 ? snapToKnownName(r0.name, [po.savedName]) : null; const r = r0 && sn ? { ...r0, name: sn } : null;
     if (!r) return out(ASK_NAME[lang]);
     if (thirdPersonName(said)) markOrderOnlyName(r.name); // name3p2: para/for/recoger only; De Luis / bare name = customer
     return out(nameAckText(lang, cleanFirstName(r.name) || r.name), r.name);
