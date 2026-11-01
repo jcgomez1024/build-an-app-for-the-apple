@@ -440,6 +440,7 @@ const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toreados?|asados?)\b|\
 const ASADOS_STAFF = /\bcebollas? y chiles? asados\b|\b(?:chiles )?toreados\b/;
 const YES = /^(?:si|yes|yeah|ok(?:ay)?|aja|claro|por favor|eso)\b/;
 export const asadosSideSaid = (turns: Turn[]) => turns.some((t, i) => t.speaker === "caller" && (ASADOS_CALLER.test(plain(t.text))
+  || (/\bcebollitas?|\bcebollas?\b/.test(plain(t.text)) && /\bchil(?:es?|itos?)\b/.test(plain(t.text)) && turns.slice(i + 1, i + 3).some((x) => x.speaker === "staff" && /\bchiles? asados?\b|\basados?\b|\btoreados?\b/.test(plain(x.text)))) // david-qco1
   || (YES.test(plain(t.text)) && ASADOS_STAFF.test(plain([...turns.slice(Math.max(0, i - 2), i)].reverse().find((x) => x.speaker === "staff")?.text || "")))));
 const hasAsados = (cart: any[]) => cart.some((l) => (l.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m.option))));
 export function applyAsadosSide(cart: any[], turns: Turn[], menu: any[]): boolean {
@@ -671,12 +672,14 @@ export function dropTortillaStyleAsk(cart: any[], turns: Turn[]): boolean {
 /** "cinco quesadillas" stated, cart sums more: a line whose meat no one ever counted above 1 ("esa de costilla") goes to 1. */
 export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
   let ch = false;
+  // david-qco1: "en otro plato / aparte / otras" = separate groups — one group's count is not the dish total
+  if (turns.some((t) => t.speaker === "caller" && /\b(?:otro plat(?:o|ito)|otra orden|aparte|por separado|separate|another plate)\b/.test(plain(t.text)))) return false;
   for (const [fam, re] of [["q", /\bquesadillas\b/], ["taco", /\btacos\b/]] as const) {
     let N = 0; for (const t of turns) { if (t.speaker !== "caller") continue; const m = plain(t.text).match(new RegExp(`\\b(${NUMW})\\s+${re.source.slice(2)}`)); if (m) N = Math.max(N, numOf(m[1])); }
     const ls = cart.filter((l) => kindOfLine(l) && famOf(kindOfLine(l)!) === fam); if (!N || N < 2) continue;
     let sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum <= N) continue;
     const counted: Record<string, number> = {};
-    for (const t of turns) { const p = plain(t.text); for (const m of p.matchAll(new RegExp(`\\b(${NUMW})\\s+(?=((?:\\w+\\s*){0,4}))`, "g"))) { const seg = m[2].split(new RegExp(`\\b(?:${NUMW})\\b`))[0]; const k = meatIn(seg); if (k) counted[k] = Math.max(counted[k] || 0, numOf(m[1])); } }
+    for (const t of turns) { const p = plain(t.text); for (const m of p.matchAll(new RegExp(`\\b(${NUMW})\\s+(?=((?:\\w+\\s*){0,6}))`, "g"))) { const seg = m[2].split(new RegExp(`\\b(?:${NUMW})\\b`))[0]; const k = meatIn(seg); if (k) counted[k] = Math.max(counted[k] || 0, numOf(m[1])); } }
     for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
       const nq = Math.max(counted[k] || 1, q - (sum - N)); sum -= q - nq; l.quantity = nq; ch = true; }
   }
@@ -2173,5 +2176,30 @@ export function dropStaffGrandeBurrito(cart: any[], turns: Turn[]): boolean {
   for (let i = cart.length - 1; i >= 0; i--) { const l = cart[i]; if (!isG(l)) continue;
     if (cart.some((r) => r !== l && isBurr(r) && !isG(r) && (!meatOf(r) || !meatOf(l) || meatOf(r) === meatOf(l)))) { cart.splice(i, 1); ch = true; }
     else { l.modifiers = l.modifiers.map((m: any) => /Grande/.test(String(m.option)) ? { step: m.step, option: "Regular '10" } : m); ch = true; } }
+  return ch;
+}
+
+/** david-qco1 (CAbd7168): "otro platito … me pones dos de a pastor y una de tripa de comal" — a multi-meat quesadilla/taco turn
+ *  where one meat never reached the cart (live rewrite kept only tripa). Add the missing meat as its own line, copying the
+ *  tortilla of the sibling line from the same family. Only when that meat has no line in the family at all. After-call. */
+export function applyMultiMeatGroup(cart: any[], turns: Turn[], menu: any[] = []): boolean { let ch = false;
+  const mk = (o: string) => meatIn(plain(o).replace(/\balpastor\b/, "al pastor"));
+  const lm = (l: any) => { for (const m of l.modifiers || []) if (/carne|meat/i.test(String(m.step))) { const k = mk(String(m.option)); if (k) return k; } return null; };
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue;
+    const p = plain(t.text).replace(/\ba pastor\b/g, "al pastor");
+    const segs = p.split(/\s*,\s*|\s+y\s+/).map((x) => x.match(new RegExp(`^(?:.*\\s)?(${NUMW})\\s+de\\s+(.*)$`))).filter(Boolean).map((m) => [numOf(m![1]), meatIn(m![2])] as [number, string | null]).filter((x) => x[1]);
+    if (segs.length < 2) continue;
+    let fam: string | null = /\bquesadillas?\b/.test(p) ? "q" : /\btacos?\b/.test(p) ? "taco" : null;
+    for (let j = i - 1; !fam && j >= 0 && j >= i - 8; j--) { const x = plain(turns[j].text); if (/\bquesadillas?\b/.test(x)) fam = "q"; else if (/\btacos?\b/.test(x)) fam = "taco"; }
+    if (!fam) continue;
+    const fl = cart.filter((l) => kindOfLine(l) && famOf(kindOfLine(l)!) === fam);
+    const sib = [...fl].reverse().find((l) => segs.some((s2) => s2[1] === lm(l))); if (!sib) continue;
+    for (const [n, k] of segs) { if (fl.some((l) => lm(l) === k)) continue;
+      const ms = (sib.modifiers || []).find((m: any) => /carne|meat/i.test(String(m.step)) && mk(String(m.option)) === lm(sib)); if (!ms) continue;
+      const opt = ((menu.find((m: any) => m.id === sib.itemId)?.modifierGroups || []).find((g: any) => g.name === ms.step)?.options || []).map((o: any) => (typeof o === "string" ? o : o.name)).find((o: string) => mk(o) === k)
+        || cart.flatMap((l) => l.modifiers || []).map((m: any) => String(m.option)).find((o: string) => mk(o) === k);
+      if (!opt) continue;
+      cart.push({ ...structuredClone(sib), quantity: n || 1, modifiers: (sib.modifiers || []).map((m: any) => (m === ms ? { step: ms.step, option: opt } : { ...m })), elviNotes: [] }); ch = true; }
+  }
   return ch;
 }
