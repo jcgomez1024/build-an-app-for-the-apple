@@ -1859,3 +1859,39 @@ export function applyStaffMenudo(cart: any[], turns: Turn[]): boolean {
   const pata = /menudos?\s+con\s+pata/.test(readback) && !/sin\s+pata/.test(readback);
   cart.push(menLine(pata, numOf(m[1]) || 1)); return true;
 }
+
+// ---- jose-qb1 (CA76b31bb): staff "¿normales o quesibirrias, mojadas en consomé?" → caller "quesibirrias no, normales" ----
+const QB_WORD = /\b(?:quesi|quesa|queso\s*)[bv](?:i|u|ui)r+i?as?\b/;
+const isQB = (l: any) => /queso-birrias/i.test(String(l?.itemId || "")) || /queso birrias/i.test(String(l?.name || ""));
+/** Caller turned down quesabirrias (dipped in consomé): "que si birrias no, normales" / "no, quesabirrias no" / "normales". */
+export function declinedQuesabirria(text: string): boolean {
+  const t = b22low(String(text || "")).replace(/\bque\s*si\s*[bv]irrias?\b/g, "quesibirrias");
+  if (!QB_WORD.test(t)) return /^(?:no[, ]+)*(?:las\s+)?normal(?:es)?\b/.test(t.trim());
+  return /\b(?:no|nel|sin)\b/.test(t) || /\bnormal(?:es)?\b/.test(t);
+}
+const qbAsked = (s: string) => /quesi[bv]irria|quesa[bv]irria|queso\s*[bv]irria|que\s*si\s*[bv]irria|consom/i.test(b22low(s));
+/** Caller explicitly ordered quesabirrias (a QB word, not negated) somewhere in the call. */
+function qbOrdered(turns: Turn[]): boolean {
+  return turns.some((t) => t.speaker === "caller" && QB_WORD.test(b22low(String(t.text || "")).replace(/\bque\s*si\s*[bv]irrias?\b/g, "quesibirrias")) && !declinedQuesabirria(t.text));
+}
+/** After-call: staff offered quesabirrias, caller declined, never ordered them → no Queso Birrias line. Plain quesadillas stay. */
+export function applyQBDecline(cart: any[], turns: Turn[]): boolean {
+  const i = turns.findIndex((t, k) => t.speaker === "caller" && declinedQuesabirria(t.text) && (QB_WORD.test(b22low(t.text)) || /que\s*si\s*[bv]irria/i.test(b22low(t.text)) || turns.slice(Math.max(0, k - 3), k).some((p) => p.speaker === "staff" && qbAsked(p.text))));
+  if (i < 0 || qbOrdered(turns)) return false;
+  const n = cart.length; for (let k = cart.length - 1; k >= 0; k--) if (isQB(cart[k])) cart.splice(k, 1);
+  return cart.length !== n;
+}
+/** Live: on the decline, never add Queso Birrias and never ask its options (that loop is what Elvi did). */
+export function liveQBDecline(r: any, input: any) {
+  const said = String(input?.transcript || ""); if (!declinedQuesabirria(said)) return r;
+  const recent = (input?.history || []).slice(-6).map((h: any) => String(h?.text || ""));
+  if (!QB_WORD.test(b22low(said).replace(/\bque\s*si\s*[bv]irrias?\b/g, "quesibirrias")) && !recent.some(qbAsked)) return r;
+  const menu: any[] = input?.resolverMenu || input?.menu || [];
+  const qbIds = new Set(menu.filter(isQB).map((i) => i.id));
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const keep = acts.filter((a) => !(a?.type === "add_item" && (qbIds.has(a.itemId) || /queso-birrias/i.test(String(a.itemId || "")))));
+  const askQB = /queso birria/i.test(String(r?.reply || ""));
+  if (keep.length === acts.length && !askQB) return r;
+  const es = input?.language !== "en" || /\b(normales|no)\b/i.test(said);
+  return { ...r, actions: keep, reply: askQB || keep.length !== acts.length ? (es ? "Muy bien, normales. ¿Algo más?" : "Okay, regular ones. Anything else?") : r.reply };
+}

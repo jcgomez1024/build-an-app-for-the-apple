@@ -2,6 +2,7 @@
 // but the question never closed (staff-pick took the tortilla, "Sí" to staff's "arroz y frijol" was an ack), so the chile
 // relleno never reached the cart. Rule: once Elvi has asked a dish's side/choice questions, that dish is in the cart.
 import { dishNamedIn } from "./elvi.js";
+import { declinedQuesabirria } from "./list-repair.js";
 
 type Turn = { speaker: string; text: string };
 const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -46,6 +47,8 @@ export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu:
     seen.add(item.id);
     if (cart.some((l) => l.itemId === item.id)) return;
     if (!dishNamedIn(item, callerAll)) return; // Elvi asked about a dish nobody said
+    // jose-qb1: the question came from a decline ("quesibirrias no, normales") — not an order
+    if (/queso-birrias/i.test(String(item.id)) && steps.some((x) => /^caller/.test(String(x?.source || "")) && declinedQuesabirria(String(x?.heard || ""))) && !turns.some((t) => t.speaker === "caller" && /quesa[bv]irria|queso\s*[bv]irria/i.test(t.text) && !declinedQuesabirria(t.text))) return;
     const later = steps.slice(si).map((x) => String(x.heard || "")).join(" ");
     if (CANCEL.test(plain(later))) return;
     const q = plain(String(s.heard)).match(/\b(\d+|un|una|uno|one|a|dos|two|tres|three|cuatro|four|cinco|five)\s+(?:orden(?:es)?\s+de\s+(?:de\s+)?|order(?:s)?\s+of\s+)?\w+/);

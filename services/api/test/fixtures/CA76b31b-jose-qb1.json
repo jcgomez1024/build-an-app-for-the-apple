@@ -1,0 +1,395 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 1.501,
+      "end": 1.761,
+      "text": "¿Se bueno?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.021,
+      "end": 3.601,
+      "text": "Buenas tardes.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.141,
+      "end": 4.462,
+      "text": "Sí, dime.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 5.142,
+      "end": 5.822,
+      "text": "Sí tiene birria.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 6.562,
+      "end": 7.363,
+      "text": "¿Y si hay todavía?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 8.303,
+      "end": 15.405,
+      "text": "Eh, ¿le puedo ordenar este, mmm, tres quesadillas con birria?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 16.346,
+      "end": 24.249,
+      "text": "¿Las quieres a que se hayan birria o las quieres como les dicen que si birrias, que las quesadillas se se ponen y se mojan con consomé? No.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 21.488,
+      "end": 21.568,
+      "text": "No.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 24.909,
+      "end": 27.09,
+      "text": "No, que si birrias no, normales.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 26.889,
+      "end": 29.65,
+      "text": "Ok, permíteme. Tres quesadillas de birria. ¿Qué más, joven?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.511,
+      "end": 30.531,
+      "text": "Y",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 31.631,
+      "end": 33.552,
+      "text": "dos, dos quesitortas con birria.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 34.592,
+      "end": 38.073,
+      "text": "Dos quesitortas con birria. ¿Qué más, mano?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.134,
+      "end": 41.034,
+      "text": "Sería, y un agua mineral.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 42.155,
+      "end": 42.795,
+      "text": "¿Algo más, joven?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.655,
+      "end": 44.135,
+      "text": "Sería todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 44.716,
+      "end": 45.116,
+      "text": "¿Tu nombre?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 46.276,
+      "end": 46.516,
+      "text": "¿José?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 47.277,
+      "end": 49.777,
+      "text": "José. Dame unos veinte por lo menos, José, puedes pasar, ¿está bien?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 50.578,
+      "end": 52.979,
+      "text": "Sí, está bien. Gracias. Bye.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 51.378,
+      "end": 51.818,
+      "text": "Va, joven.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-torta-4GNTTE",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(A) Torta Options",
+          "option": "(QTO) Queso Torta (+$0.50)"
+        },
+        {
+          "step": "(B) Torta Carne Options",
+          "option": "Birria de Chivo / Goat Birria (+$0.75)"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-drink-mineral-agua-water-LEADFK",
+      "quantity": 1,
+      "modifiers": []
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 3,
+      "modifiers": [
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+          "isDefault": true
+        },
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Birria de Chivo / Goat Birria (+$0.75)"
+        }
+      ],
+      "asked": true
+    },
+    {
+      "itemId": "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7",
+      "quantity": 1,
+      "modifiers": [],
+      "elviNotes": [
+        "confirmar Queso Birrias options"
+      ],
+      "asked": true
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "¿Se bueno?"
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, dime."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Y si hay todavía?"
+    },
+    {
+      "source": "caller",
+      "heard": "le puedo ordenar este, mmm",
+      "language": "es",
+      "reply": "Adelante.",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "tres quesadillas con birria",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Las quieres a que se hayan birria o las quieres como les dicen que si birrias, que las quesadillas se se ponen y se mojan con consomé? No."
+    },
+    {
+      "source": "caller-clarify",
+      "heard": "No."
+    },
+    {
+      "source": "auto",
+      "heard": "that's fine",
+      "language": "en",
+      "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "that's fine",
+      "language": "en",
+      "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "que si birrias no, normales",
+      "language": "en",
+      "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "that's fine",
+      "language": "en",
+      "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "que si birrias no, normales",
+      "language": "en",
+      "reply": "Queso Birrias: 3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth or 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Ok, permíteme. Tres quesadillas de birria. ¿Qué más, joven?"
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "Y dos",
+      "language": "es",
+      "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Y dos",
+      "language": "es",
+      "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "dos queso tortas con birria",
+      "language": "es",
+      "reply": "2 × Torta: birria de chivo y queso derretido, queso torta, salsa asada. $12.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Dos quesitortas con birria. ¿Qué más, mano?"
+    },
+    {
+      "source": "caller-count",
+      "heard": "Sería,"
+    },
+    {
+      "source": "caller",
+      "heard": "un agua mineral",
+      "language": "es",
+      "reply": "Mineral Agua. $3.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "¿Algo más, joven?"
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Sería todo."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Tu nombre?"
+    },
+    {
+      "source": "caller-name",
+      "heard": "¿José?"
+    },
+    {
+      "source": "staff",
+      "heard": "José. Dame unos veinte por lo menos, José, puedes pasar, ¿está bien?"
+    },
+    {
+      "source": "caller",
+      "heard": "Sí, está bien. Gracias. Bye",
+      "language": "es",
+      "reply": "Muy bien. ¿Qué más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Va, joven."
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Muy bien. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "Qué más",
+      "language": "es",
+      "reply": "Nada, aquí sigo. ¿Va a ordenar algo?",
+      "actions": []
+    },
+    {
+      "source": "asked-dish",
+      "heard": "tres quesadillas con birria",
+      "item": "sq-quesadilla-HLT6CR"
+    },
+    {
+      "source": "asked-dish",
+      "heard": "que si birrias no, normales",
+      "item": "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7"
+    }
+  ],
+  "name": "José",
+  "fulfillment": "PICKUP"
+}
