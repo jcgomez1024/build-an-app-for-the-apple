@@ -1,0 +1,134 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.74,
+   "end": 1.041,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 2.962,
+   "end": 3.742,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.723,
+   "end": 7.144,
+   "text": "Sí, bueno, buenos días, este, para hacer un pedido, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.084,
+   "end": 8.405,
+   "text": "¿Perdón?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.385,
+   "end": 10.165,
+   "text": "¿Para hacer un pedido?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.226,
+   "end": 12.247,
+   "text": "Ah, sí, claro, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.347,
+   "end": 17.69,
+   "text": "Ah, serían dos menudos, sería uno con pata y el otro normal.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.01,
+   "end": 23.232,
+   "text": "Muy bien, dos menudos, uno con pata y el otro normal. ¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 22.992,
+   "end": 24.773,
+   "text": "Sí, ah, nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.714,
+   "end": 27.035,
+   "text": "¿A qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.735,
+   "end": 28.896,
+   "text": "Ah, nombre de Felipe.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.796,
+   "end": 32.537,
+   "text": "Felipe, okay, Felipe, dame unos veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.318,
+   "end": 34.298,
+   "text": "Ah, sí, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.979,
+   "end": 35.579,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   },
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "Menudo options",
+      "option": "Con Pata Menudo 32oz y Tortillas (4)"
+     },
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla",
+      "isDefault": true
+     }
+    ],
+    "asked": true
+   }
+  ]
+ },
+ "name": "Nombre De Felipe"
+}

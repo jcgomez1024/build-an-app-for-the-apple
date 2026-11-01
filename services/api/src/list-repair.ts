@@ -1271,3 +1271,71 @@ export function liveQdCorrection(r: any, input: any) {
   return { ...r, actions: [...acts, { type: "add_item", itemId: QD_DLX_ID, quantity: qty, modifiers: [QD_STYLE, mm], readback: "quesadilla dorada deluxe" }],
     reply: en ? `${qty} fried deluxe quesadillas, ${meatW}. Anything else?` : `${qty} quesadillas doradas deluxe de ${meatW}. ¿Algo más?` };
 }
+
+// juan/felipe (Nov 1): menudo con pata. CON = "Con Pata Menudo 32oz y Tortillas (4)" SKU; REG = Menudo con Tortillas.
+const MEN_CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG", MEN_REG = "sq-menudo-menudo-con-tortillas-4-ZSRUX4";
+const isMenudo = (l: any) => l && (l.itemId === MEN_CON || l.itemId === MEN_REG);
+const menTort = (l: any) => (l.modifiers || []).filter((m: any) => /menudo tortillas/i.test(String(m.step)) || /extra/i.test(String(m.step))).map((m: any) => ({ step: m.step, option: m.option }));
+const menLine = (pata: boolean, q: number, like?: any) => { const t = like && menTort(like).length ? menTort(like) : [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }];
+  return { itemId: pata ? MEN_CON : MEN_REG, quantity: q, modifiers: pata ? t : [{ step: "Menudo options", option: "Menudo con Tortillas (4)" }, ...t], readback: pata ? `${q} menudo con pata` : `${q} menudo regular` }; };
+/** "dos menudos, uno con pata y el otro normal" → [conPata, normal]. */
+export function menudoSplitText(text: string): { con: number; reg: number } | null {
+  const t = plain(text);
+  const m = t.match(new RegExp(`\\b(${NUMW})\\s+menudos?\\b[^.?!]{0,30}?\\b(${NUMW}|el\\s+otro|la\\s+otra|otro)\\s+(con|sin)\\s+pata\\b[^.?!]{0,12}?\\b(?:y|el|and)\\b[^.?!]{0,12}?\\b(?:el\\s+otro|otro|los\\s+otros|(${NUMW}))\\s+(?:es\\s+|ser[ií]a\\s+)?(normal(?:es)?|regular(?:es)?|sin\\s+pata|con\\s+pata|solo|sencillos?)\\b`));
+  if (!m) return null;
+  const tot = numOf(m[1]); if (tot < 2) return null;
+  const a = /^\d|un|dos|tres|cuatro|cinco|seis/.test(m[2]) && !/otr/.test(m[2]) ? numOf(m[2]) || 1 : 1;
+  const firstPata = m[3] === "con"; const secondPata = /^con/.test(m[5]);
+  if (firstPata === secondPata) return null;
+  const b = m[4] ? numOf(m[4]) : tot - a; if (a + b !== tot || b < 1) return null;
+  return firstPata ? { con: a, reg: b } : { con: b, reg: a };
+}
+const STAFF_PATA_Q = /\bcon\s+pata\b[^.]{0,10}\?|\?\s*con\s+pata\b|¿\s*(?:lo\s+quiere\s+|los\s+quiere\s+|lo\s+quieres\s+)?con\s+pata/iu;
+const CALLER_YES = /^\s*(?:(?:y|ah|eh|este|mm+)[,.\s]+)*(?:s[ií]|claro|aj[aá]|[oó]rale|ok(?:ay)?|yes|eso|con\s+pata)(?![\p{L}])/iu;
+/** After-call: split "uno con pata y el otro normal"; staff "¿Con pata?" + caller "sí" → Menudo con Pata. */
+export function applyMenudoPata(cart: any[], turns: Turn[]): boolean {
+  const men = cart.filter(isMenudo); if (!men.length) return false;
+  const callerTxt = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text));
+  for (const tx of callerTxt) {
+    const sp = menudoSplitText(tx); if (!sp) continue;
+    const like = men.find((l) => l.itemId === MEN_REG) || men[0];
+    const want = [...(sp.con ? [menLine(true, sp.con, like)] : []), ...(sp.reg ? [menLine(false, sp.reg, like)] : [])];
+    const cur = men.map((l) => `${l.itemId}x${l.quantity}`).sort().join(); const nw = want.map((l) => `${l.itemId}x${l.quantity}`).sort().join();
+    if (cur === nw && men.every((l) => !(l.modifiers || []).some((m: any) => /con pata/i.test(String(m.option))) || l.itemId === MEN_CON)) return false;
+    const at = cart.indexOf(men[0]); for (const l of men) cart.splice(cart.indexOf(l), 1); cart.splice(at, 0, ...want); return true;
+  }
+  // "¿Con pata?" (staff) → caller yes within the next 3 caller turns, no "sin pata/normal" → all plain menudos become con pata
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "staff" || !STAFF_PATA_Q.test(String(turns[i].text))) continue;
+    const next = turns.slice(i + 1, i + 6).filter((t) => t.speaker === "caller").slice(0, 3).map((t) => String(t.text));
+    if (next.some((x) => /\bsin\s+pata\b|\bnormal\b|\bno\b/iu.test(x))) continue;
+    if (!next.some((x) => CALLER_YES.test(x))) continue;
+    let ch = false;
+    for (const l of cart.filter((x) => x.itemId === MEN_REG)) { if ((l.modifiers || []).some((m: any) => /sin pata/i.test(String(m.option)))) continue; cart[cart.indexOf(l)] = menLine(true, l.quantity || 1, l); ch = true; }
+    return ch;
+  }
+  return false;
+}
+/** Live: the caller's split ("dos menudos, uno con pata y el otro normal") replaces whatever menudo adds this step. */
+export function liveMenudoSplit(r: any, input: any) {
+  const sp = menudoSplitText(String(input?.transcript || "")); if (!sp) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const madd = acts.filter((a) => a?.type === "add_item" && isMenudo(a)); const cartMen = (input?.cart || []).filter(isMenudo);
+  if (!madd.length && !cartMen.length) return { ...r, actions: [...acts, menLine(true, sp.con), menLine(false, sp.reg)].map((a: any) => (a.type ? a : { type: "add_item", ...a })).filter((a: any) => a.quantity > 0) };
+  const like = madd[0] || cartMen[0];
+  const out = acts.filter((a) => !madd.includes(a));
+  for (const l of cartMen) out.push({ type: "remove_item", itemId: l.itemId, quantity: l.quantity || 1 });
+  for (const [p, q] of [[true, sp.con], [false, sp.reg]] as Array<[boolean, number]>) if (q > 0) out.push({ type: "add_item", ...menLine(p, q, like) });
+  return { ...r, actions: out };
+}
+/** ulises1: "verdura aparte" / "cebolla y cilantro … aparte" → "verdura aparte" note on the food lines (after-call). */
+const VERD_APARTE = /\b(?:verduras?|cebolla(?:\s+y\s+cilantro)?|cilantro(?:\s+y\s+cebolla)?)\b[^.]{0,40}\b(?:aparte|por\s+separado|on\s+the\s+side)\b|\b(?:aparte|por\s+separado)\b[^.]{0,15}\b(?:la\s+|las\s+)?(?:verduras?|cebolla|cilantro)\b/iu;
+const VERD_FOOD = /^sq-(?:torta|taco|quesadilla|qd-|gordita|sope|burrito|tostada|huarache|combo-tortas|combo-tacos)/;
+export function applyVerduraAparte(cart: any[], turns: Turn[]): boolean {
+  const ct = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text));
+  const idx = ct.findIndex((x) => VERD_APARTE.test(x) || (/\bverduras?\b/iu.test(x) && /\baparte\b/iu.test(x))); if (idx < 0) return false;
+  const lines = cart.filter((l) => VERD_FOOD.test(String(l.itemId))); if (!lines.length) return false;
+  let ch = false;
+  for (const l of lines) if (!(l.elviNotes || []).includes("verdura aparte")) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
+  return ch;
+}

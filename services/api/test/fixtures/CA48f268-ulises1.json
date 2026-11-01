@@ -1,0 +1,168 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.381,
+   "end": 2.361,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.121,
+   "end": 6.623,
+   "text": "Hola, buenos días. ¿Me puedes poner dos tortas, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.223,
+   "end": 9.264,
+   "text": "Claro, dos tortas, ¿de qué se las pongo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.845,
+   "end": 10.525,
+   "text": "¿Tienes de al pastor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.125,
+   "end": 11.245,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.146,
+   "end": 13.106,
+   "text": "De al pastor, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.546,
+   "end": 14.087,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.707,
+   "end": 15.928,
+   "text": "Y nada más, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 16.008,
+   "end": 17.528,
+   "text": "Oh, ¿a qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.009,
+   "end": 18.989,
+   "text": "A Ulises Sánchez.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.629,
+   "end": 22.651,
+   "text": "¿Ulises? Okay, Ulises, dame unos quince minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.33,
+   "end": 21.41,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.211,
+   "end": 26.493,
+   "text": "Okay, ¿me pones verdura, por favor, eh? Aparte.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.152,
+   "end": 27.173,
+   "text": "Ah, ¿las quieres deluxe?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.093,
+   "end": 28.353,
+   "text": "¿Perdón?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.034,
+   "end": 29.534,
+   "text": "¿Deluxe?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.515,
+   "end": 31.355,
+   "text": "¿Como preparadas?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.075,
+   "end": 33.996,
+   "text": "Eh, no, no, cebolla y cilantro solamente y salsa.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.057,
+   "end": 36.617,
+   "text": "Okay. Sí, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.918,
+   "end": 38.138,
+   "text": "Gracias a ti, Ulises.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Alpastor / Roasted Pork"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   }
+  ]
+ },
+ "name": "Ulises Sánchez"
+}

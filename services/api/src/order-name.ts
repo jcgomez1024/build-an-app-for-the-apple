@@ -74,6 +74,8 @@ export function markOrderOnlyName(name: string, now = Date.now()) { orderOnly.se
 export function isOrderOnlyName(name: string, now = Date.now()): boolean { const t = orderOnly.get(foldName(name)); return t != null && now - t < 30 * 60_000; }
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
+  // felipe1 (CA2adaa5): "Ah, nombre de Felipe" → Felipe (never "Nombre De Felipe")
+  { const t = s.replace(NOMBRE_LEAD, ""); if (t !== s && /\p{L}/u.test(t)) s = t; }
   // joel1: spelled letters beat everything else in the answer ("J O E L" → Joel, not Joey)
   {
     const sp = nameFromSpelledLetters(s);
@@ -597,7 +599,19 @@ export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; tex
       break; } }
   return null;
 }
+const NOMBRE_LEAD = /^\s*(?:(?:ah|eh|este|pues|s[ií]|ok(?:ay)?|bueno|mm+)[,.\s]+)*(?:(?:a|al|el|con|bajo)\s+)?nombre\s+(?:de\s+|es\s+|ser[ií]a\s+(?:de\s+)?)?/iu;
+/** felipe1: a name that starts with the word "Nombre" ("Nombre", "Nombre De Felipe") is the ask phrase leaking in — keep what follows, else re-read the caller's "nombre de X". */
+export function dropNombrePrefix(name: string | null | undefined, turns: Array<{ speaker: "caller" | "staff"; text: string }> = []): string | null {
+  if (!name) return name ?? null; if (!/^\s*nombre\b/iu.test(name)) return name;
+  const rest = name.replace(/^\s*nombre\s*(?:de\s+|es\s+)?/iu, "").trim(); if (rest) return rest.replace(/^\p{Ll}/u, (c) => c.toUpperCase());
+  for (const t of [...turns].reverse()) { if (t.speaker !== "caller") continue; const m = String(t.text || "").match(/\bnombre\s+(?:de\s+|es\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u); if (m && !/^Nombre$/i.test(m[1])) return m[1]; }
+  return null;
+}
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const r0 = nameFromTranscriptInfoN(turns); if (!r0 || !/^\s*nombre\b/iu.test(r0.name)) return r0;
+  const n = dropNombrePrefix(r0.name, turns); return n ? { ...r0, name: n } : null;
+}
+function nameFromTranscriptInfoN(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const prop = staffProposedName(turns);
   let r = nameFromTranscriptInfo1(turns);
   if (r && isFillerName(r.name)) r = null;

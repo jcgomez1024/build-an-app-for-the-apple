@@ -1,0 +1,200 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.68,
+   "end": 1.481,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.321,
+   "end": 6.162,
+   "text": "Buenos días, ¿sí te estoy hablando a Cocina Elvis?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.003,
+   "end": 7.103,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.403,
+   "end": 11.004,
+   "text": "Sí tiene deliveries.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.964,
+   "end": 12.525,
+   "text": "Sí, diga, sí, dígame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.465,
+   "end": 16.486,
+   "text": "Este, quería un menudo,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.286,
+   "end": 18.307,
+   "text": "Un menudo, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.287,
+   "end": 23.269,
+   "text": "ajá, con, con todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.389,
+   "end": 24.869,
+   "text": "¿Con pata?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.069,
+   "end": 25.089,
+   "text": "Y,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.79,
+   "end": 26.89,
+   "text": "sí,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.091,
+   "end": 30.311,
+   "text": "y una agua de horchata.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.991,
+   "end": 32.772,
+   "text": "Y un agua de horchata, muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.632,
+   "end": 33.892,
+   "text": "Ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.792,
+   "end": 34.393,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.733,
+   "end": 37.074,
+   "text": "Este,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 38.334,
+   "end": 38.774,
+   "text": "nada más.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 39.534,
+   "end": 40.915,
+   "text": "Okey, ¿a qué número sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.276,
+   "end": 44.076,
+   "text": "Ah, ¿Juan?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.036,
+   "end": 47.477,
+   "text": "Juan, okey, Juan.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.058,
+   "end": 49.618,
+   "text": "Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.478,
+   "end": 49.718,
+   "text": "Mande.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.559,
+   "end": 51.739,
+   "text": "Dame veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 51.359,
+   "end": 51.679,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.52,
+   "end": 53.82,
+   "text": "Okay.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   },
+   {
+    "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ]
+ },
+ "name": "Juan"
+}
