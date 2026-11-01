@@ -1339,3 +1339,33 @@ export function applyVerduraAparte(cart: any[], turns: Turn[]): boolean {
   for (const l of lines) if (!(l.elviNotes || []).includes("verdura aparte")) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
   return ch;
 }
+
+// antonio1 (CAfa1c39): "y me pones un consomé" / staff "solamente consomé, ¿verdad?" → Birria · SOLO 16oz Consome ($7).
+const BIRRIA_ID = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD";
+const CONSOME_SOLO = { step: "Birria de Chivo / Goat Birria options", option: "SOLO / ONLY 16oz de Consome / Broth de Birria" };
+const CONSOME_RE = new RegExp(`(?:^|\\b(${NUMW}|solo|solamente|nada\\s+m[aá]s|puro|un\\s+solo)\\s+)(?:de\\s+)?consom[eé]s?\\b`);
+/** Caller's standalone consomé count ("un consomé", "dos consomés", "solamente consomé"); 0 when it's "con consomé"/birria/quesabirria. */
+export function consomeSoloQty(text: string): number {
+  const t = plain(text); if (!/\bconsom[eé]s?\b/.test(t)) return 0;
+  if (/\b(?:con|with|y\s+su)\s+(?:su\s+)?consom[eé]|\bbirria|\bquesabirria|\bqueso\s*birria|\blibra\b/.test(t)) return 0;
+  const m = t.match(CONSOME_RE); if (!m) return 0;
+  return m[1] && numOf(m[1]) ? numOf(m[1]) : 1;
+}
+const hasConsomeLine = (cart: any[]) => cart.some((l) => /^sq-birria-/.test(String(l.itemId)) || /consom/i.test(JSON.stringify(l.modifiers || [])) || /^sq-queso-birrias-/.test(String(l.itemId)));
+export function applyConsomeSolo(cart: any[], turns: Turn[]): boolean {
+  if (hasConsomeLine(cart)) return false;
+  let q = 0;
+  for (const t of turns) if (t.speaker === "caller") q = Math.max(q, consomeSoloQty(String(t.text)));
+  if (!q) return false;
+  cart.push({ itemId: BIRRIA_ID, quantity: q, modifiers: [CONSOME_SOLO], readback: q > 1 ? `${q} consomés` : "consomé" }); return true;
+}
+/** Live: "un consomé" → add the consomé solo 16oz now (never a QD regular/deluxe question). */
+export function liveConsomeSolo(r: any, input: any) {
+  const q = consomeSoloQty(String(input?.transcript || "")); if (!q) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  if (hasConsomeLine([...(input?.cart || []), ...acts.filter((a) => a?.type === "add_item")])) return r;
+  const keep = acts.filter((a) => !(a?.type === "add_item" && /consom/i.test(JSON.stringify(a))));
+  const en = input?.language === "en";
+  return { ...r, actions: [...keep, { type: "add_item", itemId: BIRRIA_ID, quantity: q, modifiers: [CONSOME_SOLO], readback: q > 1 ? `${q} consomés` : "consomé" }],
+    reply: en ? `${q} consomé, 16 oz. Anything else?` : `${q === 1 ? "Un" : q} consomé${q > 1 ? "s" : ""} de 16 oz. ¿Algo más?` };
+}

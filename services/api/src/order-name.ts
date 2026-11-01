@@ -1,3 +1,4 @@
+import { stripNameFillers, NAME_FILLER } from "./caller-memory.js";
 // ordername1: the name on each phone order. Elvi asks before wrapping up ("¿A nombre de quién?") or lightly confirms a
 // saved one ("¿Sigue a nombre de X?"), accepts corrections, and the name goes on the Square order + caller memory as an
 // Elvi-heard name (staff-entered names always win). Listen-only calls: pulled from the staff's "¿a nombre de quién?".
@@ -599,6 +600,20 @@ export function directNameAnswer(turns: Array<{ speaker: "caller" | "staff"; tex
       break; } }
   return null;
 }
+/** edgar1: caller answers "Edgar", staff reads back "Edgar", caller adds "Montes. Eh, sí está bien" → "Edgar Montes" (the add-on is a surname, never the whole name). */
+const NAME_ASK_STAFF = /\b(?:nombre|name)\b[^.]{0,30}\?|¿\s*(?:a\s+)?(?:qu[eé]\s+nombre|nombre)/iu;
+export function surnameAfterReadback(turns: Array<{ speaker: "caller" | "staff"; text: string }>, name: string): string | null {
+  const i = turns.findIndex((t) => t.speaker === "staff" && NAME_ASK_STAFF.test(String(t.text))); if (i < 0) return null;
+  const j = turns.findIndex((t, k) => k > i && t.speaker === "caller"); if (j < 0) return null;
+  const A = nameFromAnswer(turns[j].text); if (!A || A.split(/\s+/).length > 1) return null;
+  const k = turns.findIndex((t, x) => x > j && t.speaker === "staff"); if (k < 0 || !new RegExp(`(?<![\\p{L}])${A}(?![\\p{L}])`, "iu").test(turns[k].text)) return null;
+  const nx = turns.find((t, x) => x > k && t.speaker === "caller"); const m = nx && String(nx.text).match(/^\s*(\p{Lu}[\p{L}'-]+)\s*[.,]/u);
+  const W = m && !NAME_FILLER.test(m[1]) && !NOT_NAMES.test(m[1]) && !/^(?:S[ií]|No|Okay|Ok|Gracias|Bueno|Perfecto|Muy|Est[aá]|Claro|Vale|Mande|Thanks|Yes|Yeah|Sure|Great|Perfect)$/iu.test(m[1]) ? m[1] : null;
+  const first = foldName(String(name).split(/\s+/)[0]);
+  if (W && (first === foldName(W) || first === foldName(A))) return `${A} ${W}`;
+  if (first !== foldName(A) && (!W || first === foldName(W))) return A;
+  return null;
+}
 const NOMBRE_LEAD = /^\s*(?:(?:ah|eh|este|pues|s[ií]|ok(?:ay)?|bueno|mm+)[,.\s]+)*(?:(?:a|al|el|con|bajo)\s+)?nombre\s+(?:de\s+|es\s+|ser[ií]a\s+(?:de\s+)?)?/iu;
 /** felipe1: a name that starts with the word "Nombre" ("Nombre", "Nombre De Felipe") is the ask phrase leaking in — keep what follows, else re-read the caller's "nombre de X". */
 export function dropNombrePrefix(name: string | null | undefined, turns: Array<{ speaker: "caller" | "staff"; text: string }> = []): string | null {
@@ -608,8 +623,10 @@ export function dropNombrePrefix(name: string | null | undefined, turns: Array<{
   return null;
 }
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
-  const r0 = nameFromTranscriptInfoN(turns); if (!r0 || !/^\s*nombre\b/iu.test(r0.name)) return r0;
-  const n = dropNombrePrefix(r0.name, turns); return n ? { ...r0, name: n } : null;
+  let r0 = nameFromTranscriptInfoN(turns); if (!r0) return r0;
+  if (/^\s*nombre\b/iu.test(r0.name)) { const n = dropNombrePrefix(r0.name, turns); if (!n) return null; r0 = { ...r0, name: n }; }
+  const st = stripNameFillers(r0.name); if (!st) return null; if (st !== r0.name) r0 = { ...r0, name: st };
+  const fix = surnameAfterReadback(turns, r0.name); return fix && fix !== r0.name ? { ...r0, name: fix } : r0;
 }
 function nameFromTranscriptInfoN(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const prop = staffProposedName(turns);

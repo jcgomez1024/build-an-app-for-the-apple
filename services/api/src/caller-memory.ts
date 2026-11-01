@@ -19,10 +19,14 @@ export type SavedAddress = { address: string; street: string; firstUsedAt: strin
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi|hasta(\s+luego)?|nos\s+vemos|good\s*bye|bye(\s*bye)?|cu[ií]date|chao|chau|adi[oó]s|perm[ií]t[aeií]?me(?:lo)?|perm[ií]ta(?:me)?|esp[eé]r[ae]me|un\s+momento)\b/i;
 const JUNK_FOOD = /^(?:t[aá]quer[oa]s?|comal(?:es)?|harina|tacos?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|bistec|biste|pastor|asada|horchata|deluxe|regular(?:es)?|grandes?|doradas?|preparad[oa]s?|aguacat[ea]?s?|guacamole|amables?|favor|porfa|gracias|disculpe?|perd[oó]n|solamente|s[oó]lo|nom[aá]s|pues|bueno|mire|oye|cierto|verdad|seguro|exacto|correcto|neta|vale|sale|sim[oó]n|[oó]rale|[aá]ndale|actitud)$/i; // hector2, agustin2
+export const NAME_FILLER = /^(?:eh+|ehm|em+|este|esto|pues|ah+|aj[aá]|mm+|um+|uh+|hmm+|okay|ok|bueno|o\s*sea|s[ií]|no|y|and|like|well|so)$/iu;
+export function stripNameFillers(raw: string): string { return String(raw || "").split(/\s+/).map((w) => w.replace(/[.,!?¿¡;:]+/g, "")).filter((w) => w && !NAME_FILLER.test(w)).join(" "); }
 /** Full name as typed, trimmed and Title Cased; null for junk (digits only, Receipt/Cliente/Guest/TO GO, 1 letter, >40 chars). */
 export function cleanFullName(raw: string | null | undefined): string | null {
   // sean1 (CA249b7d): "under Ryan or Sean" / "Ana o Luis" → first name only; drop the trailing or/o and the alternate
-  const s = String(raw || "").replace(/\s+/g, " ").trim().replace(/\s+(?:or|o)(?:\s+\p{L}[\p{L}'-]*)?\s*[.,!?]*$/iu, "").trim();
+  const s0 = String(raw || "").replace(/\s+/g, " ").trim().replace(/\s+(?:or|o)(?:\s+\p{L}[\p{L}'-]*)?\s*[.,!?]*$/iu, "").trim();
+  // edgar1 (CA49ce83): filler tokens (eh, este, pues…) are never part of a name — "Montes Eh" → "Montes"
+  const s = stripNameFillers(s0);
   if (s.length < 2 || s.length > 40) return null;
   if (!/\p{L}{2,}/u.test(s) || /^[\d\s#().+-]+$/.test(s) || /#\s*\d|\d{3,}/.test(s)) return null;
   if (JUNK.test(s) || JUNK_FOOD.test(s.trim())) return null;

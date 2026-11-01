@@ -1,0 +1,104 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.301,
+   "end": 2.122,
+   "text": "Cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.663,
+   "end": 4.544,
+   "text": "Sí, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.124,
+   "end": 5.665,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.585,
+   "end": 5.665,
+   "text": "¿Me,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.606,
+   "end": 8.207,
+   "text": "me puede poner un menudo para llevar?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.908,
+   "end": 9.788,
+   "text": "Claro, ¿no más eso?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 11.049,
+   "end": 11.229,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.99,
+   "end": 13.051,
+   "text": "Okay, ¿a qué nombre sería?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.112,
+   "end": 14.452,
+   "text": "Edgar",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.193,
+   "end": 20.037,
+   "text": "Edgar. Okay, Edgar, te tengo un menudo para llevar. Dame unos veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.393,
+   "end": 15.833,
+   "text": "Montes. Eh,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.098,
+   "end": 23.62,
+   "text": "sí está bien. Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   }
+  ]
+ },
+ "name": "Montes Eh"
+}
