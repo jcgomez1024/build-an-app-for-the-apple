@@ -1,0 +1,383 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.3,
+      "end": 1.18,
+      "text": "Cocina Elvis.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.521,
+      "end": 4.302,
+      "text": "Hola, ¿puedo poner una orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 5.062,
+      "end": 6.022,
+      "text": "Ah, claro, dígame.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 7.303,
+      "end": 9.203,
+      "text": "¿Me puedes poner una burrito",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 10.483,
+      "end": 11.864,
+      "text": "Muy bien, ¿de qué te lo ponemos?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 12.624,
+      "end": 15.285,
+      "text": "de bistec con arroz y frijoles?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 16.906,
+      "end": 18.126,
+      "text": "Okay, mister,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 20.947,
+      "end": 25.108,
+      "text": "arroz y frijoles. Muy bien, crema, cilantro y cebolla, ¿está bien?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 23.768,
+      "end": 23.788,
+      "text": "Y",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 26.529,
+      "end": 32.071,
+      "text": "crema, sí, pero no quiero cilantro o cebolla, y ¿me puedes poner queso también",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 33.191,
+      "end": 33.311,
+      "text": "Ya.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 34.512,
+      "end": 36.313,
+      "text": "con medium salsa?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 38.153,
+      "end": 40.453,
+      "text": "Queso fresco y medium salsa.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 41.394,
+      "end": 42.494,
+      "text": "Muy bien, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.855,
+      "end": 47.917,
+      "text": "Y, ¿si tienen, um, pozole rojo?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 48.656,
+      "end": 49.216,
+      "text": "No, hoy no.",
+      "language": "en"
+    },
+    {
+      "speaker": "caller",
+      "start": 50.558,
+      "end": 54.819,
+      "text": "Okay. Um, ¿tienen quesadillas de masa?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 55.679,
+      "end": 55.779,
+      "text": "Ya.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 58.24,
+      "end": 61.562,
+      "text": "¿Me puedes poner una quesadilla de masa de,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 62.842,
+      "end": 62.942,
+      "text": "de,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 64.343,
+      "end": 65.763,
+      "text": "de qué carne tienen?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 74.307,
+      "end": 75.707,
+      "text": "¿Me puedes poner chorizo?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 79.429,
+      "end": 83.71,
+      "text": "Y una quesadilla dorada de chorizo también con todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 85.991,
+      "end": 86.091,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 89.092,
+      "end": 89.953,
+      "text": "No, gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 93.014,
+      "end": 97.475,
+      "text": "Sophie. Sophie, sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 103.458,
+      "end": 103.818,
+      "text": "Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 105.558,
+      "end": 108.66,
+      "text": "You're welcome. Bye.",
+      "language": "en"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-burrito-TGWBEN",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(B) Burrito Carne Options",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(B) Burrito Carne Options",
+          "option": "Frijoles Refritos / Refried Beans"
+        },
+        {
+          "step": "(C) Burrito Options",
+          "option": "Cilantro"
+        },
+        {
+          "step": "(A) Burrito Size",
+          "option": "Grande '12 (+$3.00)"
+        }
+      ]
+    },
+    {
+      "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Chorizo / Mexican Sausage"
+        },
+        {
+          "step": "(I) Salsa Preferencia / Preference",
+          "option": "Mild Salsa Asada",
+          "isDefault": true
+        }
+      ]
+    },
+    {
+      "itemId": "sq-sides-arroz-rice-26S6E6",
+      "quantity": 1,
+      "modifiers": [
+        {
+          "step": "Sides options",
+          "option": "Arroz - Rice and Frijole - Beans"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Cocina Elvis."
+    },
+    {
+      "source": "caller-intro",
+      "heard": "Hola, ¿puedo poner una orden?"
+    },
+    {
+      "source": "staff",
+      "heard": "Ah, claro, dígame."
+    },
+    {
+      "source": "caller",
+      "heard": "Me puedes poner una burrito",
+      "language": "es",
+      "reply": "Burrito: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿de qué te lo ponemos?"
+    },
+    {
+      "source": "caller-meat",
+      "heard": "Me puedes poner una burrito de bistec con arroz y frijoles",
+      "language": "es",
+      "reply": "Burrito: grande, frijoles refritos, arroz. $11.00. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller-meat-expanded",
+      "heard": "de bistec con arroz y frijoles?",
+      "asked": "Me puedes poner una burrito",
+      "expanded": [
+        "Me puedes poner una burrito de bistec con arroz y frijoles"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, mister,"
+    },
+    {
+      "source": "staff",
+      "heard": "arroz y frijoles. Muy bien, crema, cilantro y cebolla, ¿está bien?"
+    },
+    {
+      "source": "caller",
+      "heard": "Y crema, sí, pero no quiero cilantro o cebolla, y ¿me puedes poner queso también",
+      "language": "es",
+      "reply": "Muy bien. ¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Ya."
+    },
+    {
+      "source": "caller",
+      "heard": "con medium salsa",
+      "language": "es",
+      "reply": "Burrito: bistec y frijoles refritos, cilantro, deluxe: lechuga, pico, crema, extra salsa verde media 2oz, grande. $12.50. ¿Algo más?",
+      "actions": [
+        "update_item"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Queso fresco y medium salsa."
+    },
+    {
+      "source": "staff",
+      "heard": "Muy bien, ¿algo más?"
+    },
+    {
+      "source": "staff",
+      "heard": "No, hoy no."
+    },
+    {
+      "source": "staff",
+      "heard": "Ya."
+    },
+    {
+      "source": "caller",
+      "heard": "Me puedes poner una quesadilla de masa de qué carne tienen Me puedes poner chorizo",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "caller",
+      "heard": "una QD REGULAR Dorada de chorizo también Sí",
+      "language": "es",
+      "reply": "Quesadilla Dorada REGULAR Dorada: chorizo, salsa asada. $5.50. ¿Algo más?",
+      "actions": [
+        "add_item"
+      ]
+    },
+    {
+      "source": "caller-closing",
+      "heard": "No, gracias Sophie. Sophie, sí."
+    },
+    {
+      "source": "caller",
+      "heard": "You're welcome. Bye",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+      "actions": []
+    },
+    {
+      "source": "asked-dish",
+      "heard": "Me puedes poner una quesadilla de masa de qué carne tienen Me puedes poner chori",
+      "item": "sq-quesadilla-HLT6CR"
+    }
+  ],
+  "name": "Mister",
+  "fulfillment": null
+}

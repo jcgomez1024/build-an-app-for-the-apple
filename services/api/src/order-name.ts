@@ -2,7 +2,7 @@ import { stripNameFillers, NAME_FILLER } from "./caller-memory.js";
 // ordername1: the name on each phone order. Elvi asks before wrapping up ("¿A nombre de quién?") or lightly confirms a
 // saved one ("¿Sigue a nombre de X?"), accepts corrections, and the name goes on the Square order + caller memory as an
 // Elvi-heard name (staff-entered names always win). Listen-only calls: pulled from the staff's "¿a nombre de quién?".
-import { cleanFullName, cleanFirstName, planCallerName, saveCallerName, savedCallerName, onNameSaved } from "./caller-memory.js";
+import { HONORIFIC, cleanFullName, cleanFirstName, planCallerName, saveCallerName, savedCallerName, onNameSaved } from "./caller-memory.js";
 import { addressesIn } from "./delivery.js";
 
 type Lang = "es" | "en";
@@ -655,8 +655,18 @@ export function dropNombrePrefix(name: string | null | undefined, turns: Array<{
   for (const t of [...turns].reverse()) { if (t.speaker !== "caller") continue; const m = String(t.text || "").match(/\bnombre\s+(?:de\s+|es\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/u); if (m && !/^Nombre$/i.test(m[1])) return m[1]; }
   return null;
 }
+function repeatedSelfName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  const from = Math.floor(turns.length / 2);
+  for (let i = turns.length - 1; i >= from; i--) { const t = turns[i]; if (t.speaker !== "caller") continue;
+    const m = t.text.match(/^\s*(\p{Lu}[\p{L}'’-]{1,20})[.,!]?\s+\1[.,!]?(?:\s*(?:s[ií]|yes|yeah|okay|ok))?[.!]?\s*$/u);
+    if (!m) continue; const n = cleanFirstName(m[1]); if (n && !HONORIFIC.test(n)) return n; }
+  return null;
+}
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
-  let r0 = nameFromTranscriptInfoN(turns); if (!r0) return r0;
+  let r0 = nameFromTranscriptInfoN(turns);
+  if (r0 && HONORIFIC.test(r0.name.split(/\s+/)[0])) r0 = null;
+  // sophie1 (CA65a540): name ask untranscribed; caller answers "Sophie. Sophie, sí." near the close.
+  if (!r0) { const rep = repeatedSelfName(turns); return rep ? { name: rep, thirdPerson: false, source: "volunteer" } : null; }
   if (/^\s*nombre\b/iu.test(r0.name)) { const n = dropNombrePrefix(r0.name, turns); if (!n) return null; r0 = { ...r0, name: n }; }
   const st = stripNameFillers(r0.name); if (!st) return null; if (st !== r0.name) r0 = { ...r0, name: st };
   const fq = firstQueSurname(turns); if (fq) return { ...r0, name: fq };

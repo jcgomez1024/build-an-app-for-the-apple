@@ -1905,7 +1905,8 @@ const FQ_DELUXE = { step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce
 const fqN = (w: string) => numOf(w) || ({ one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 } as any)[String(w).toLowerCase()] || 0;
 /** Live/every path: "fried steak quesadillas" → "quesadillas doradas steak" so the resolver finds the QD instead of "not on our menu". */
 export function normalizeFriedQuesadilla(t: string): string {
-  return String(t || "").replace(new RegExp(`\\b(?:${FQ_FRIED})\\s+((?:[\\p{L}]+\\s+){0,2}?)quesadillas?\\b`, "giu"), (_m, meat) => `quesadilla dorada ${meat || ""}`.replace(/\s+$/, ""));
+  t = String(t || "").replace(/\bquesadillas?\s+de\s+masa\b/giu, (m) => m.replace(/masa/i, "comal")); // sophie1
+  return t.replace(new RegExp(`\\b(?:${FQ_FRIED})\\s+((?:[\\p{L}]+\\s+){0,2}?)quesadillas?\\b`, "giu"), (_m, meat) => `quesadilla dorada ${meat || ""}`.replace(/\s+$/, ""));
 }
 export function applyFriedQuesadilla(cart: any[], turns: Turn[]): boolean {
   const ct = turns.map((t, i) => ({ ...t, i }));
@@ -1969,4 +1970,56 @@ export function liveConsomeTotal(r: any, input: any) {
   const keep = acts.filter((a) => !((a?.type === "add_item" || a?.type === "update_item") && /consom/i.test(JSON.stringify(a))));
   const extra = Math.max(0, said.consome - said.birria); const en = input?.language === "en";
   return { ...r, actions: keep, reply: en ? `${said.birria} birria with its consomé${extra ? ` plus ${extra} extra consomé` : ""}. Anything else?` : `${said.birria === 1 ? "Una" : said.birria} birria con su consomé${extra ? ` y ${extra === 1 ? "un" : extra} consomé${extra > 1 ? "s" : ""} extra` : ""}. ¿Algo más?` };
+}
+
+// sophie1 (CA65a540): burrito "de bistec con arroz y frijoles" = fillings, not a rice side; "crema sí, pero no quiero cilantro o cebolla";
+// "queso … con medium salsa". Caller's own words in the burrito window decide (C) toppings + salsa preference.
+const BF_C = "(C) Burrito Options";
+const BF_TOP: Array<[RegExp, string]> = [[/\barroz\b|\brice\b/, "Arroz / Rice"], [/\bfrijol(?:es)?\b|\bbeans?\b/, "Frijoles Refritos / Refried Beans"], [/\bqueso\b|\bcheese\b/, "Queso Fresco / Cheese"], [/\bcrema\b|\bsour cream\b/, "Crema / Sour Cream"], [/\bcebolla\b|\bonions?\b/, "Cebolla / Onion"], [/\bcilantro\b/, "Cilantro"]];
+const BF_SAL: Array<[RegExp, string]> = [[/\bmedium\b|\bverde\b/, "Medium Salsa Verde"], [/\bhot\b|\broja\b|\bpicante\b/, "Hot Salsa Roja"], [/\bmild\b|\basada\b/, "Mild Salsa Asada"]];
+export function applyBurritoFillings(cart: any[], turns: Turn[]): boolean {
+  const bi = cart.findIndex((l) => /^sq-burrito-/.test(String(l.itemId))); if (bi < 0 || cart.filter((l) => /^sq-burrito-/.test(String(l.itemId))).length !== 1) return false;
+  const st = turns.findIndex((t) => t.speaker === "caller" && /\bburritos?\b/i.test(t.text)); if (st < 0) return false;
+  const win: string[] = [];
+  for (let i = st; i < turns.length && i < st + 12; i++) { const t = turns[i]; const p = plain(t.text);
+    if (i > st && t.speaker === "caller" && /\b(?:quesadillas?|tacos?|pozole|menudo|birria|tortas?|gorditas?|sopes?|tamales?|enchiladas?|flautas?|huaraches?|tostadas?)\b/.test(p)) break;
+    if (t.speaker === "caller") win.push(String(t.text || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[¿¡]/g, " ")); }
+  const w = win.join(" , ");
+  if (!/\bcon\b|\bsin\b|\bno quiero\b|\bponer\b|\bwith\b|\bwithout\b|\bsalsa\b/.test(w)) return false;
+  // negated clauses: "no quiero X o Y", "sin X ni Y", "without X"
+  const neg = new Set<string>(); const negTxt = [...w.matchAll(/\b(?:sin|no quiero|no le (?:pongas|ponga)|without|no)\s+([^,.?|]*)/g)].map((m) => m[1].split(/\b(?:pero|but|y me|y (?:si|sí)|y puedes)\b/)[0]).join(" ");
+  for (const [re, o] of BF_TOP) if (re.test(negTxt)) neg.add(o);
+  const posTxt = w.replace(/\b(?:sin|no quiero|no le (?:pongas|ponga)|without|no)\s+[^,.?|]*/g, " ");
+  const l = cart[bi]; let ch = false; const has = (o: string) => (l.modifiers || []).some((m: any) => m.option === o);
+  const before = (l.modifiers || []).length;
+  l.modifiers = (l.modifiers || []).filter((m: any) => !(neg.has(m.option) && String(m.step) === BF_C)); if (l.modifiers.length !== before) ch = true;
+  for (const [re, o] of BF_TOP) if (!neg.has(o) && re.test(posTxt) && !has(o)) { l.modifiers.push({ step: BF_C, option: o }); ch = true; }
+  const sal = /\bsalsa\b/.test(posTxt) ? BF_SAL.find(([re]) => re.test(posTxt)) : undefined;
+  if (sal && !has(sal[1])) { const SAL = "(I) Salsa Preferencia / Preference"; l.modifiers = l.modifiers.filter((m: any) => String(m.step) !== SAL); l.modifiers.push({ step: SAL, option: sal[1] }); ch = true; }
+  // the "con arroz y frijoles" rice/beans side was the filling — drop it unless a side was asked for
+  if (/\bcon\s+arroz\s+y\s+frijol/.test(w) && !turns.some((t) => t.speaker === "caller" && /\b(?:de lado|aparte|side|orden de arroz)\b/.test(plain(t.text)))) {
+    const si = cart.findIndex((x) => x.itemId === "sq-sides-arroz-rice-26S6E6"); if (si >= 0) { cart.splice(si, 1); ch = true; } }
+  return ch;
+}
+// sophie1: "una quesadilla dorada de chorizo también con todo" → DELUXE Preparada.
+export function applyQdConTodo(cart: any[], turns: Turn[]): boolean { let ch = false;
+  for (const t of turns) { if (t.speaker !== "caller") continue; const p = plain(t.text);
+    if (!/\bdorad[ao]s?\b/.test(p) || !/\bcon todo\b|\bwith everything\b|\beverything on it\b/.test(p) || /\bregular\b|\bnormal\b|\bsencill/.test(p)) continue;
+    const meats = b22Meats(b22low(t.text));
+    for (const l of cart) { if (!QD_REG.test(String(l.itemId))) continue; const mo = (l.modifiers || []).find((m: any) => /Carnes/.test(String(m.step)))?.option;
+      if (meats.length && mo && !meats.includes(mo)) continue;
+      l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)/.test(String(m.option)))]; ch = true; } }
+  return ch;
+}
+// sophie1: "quesadilla de masa" = comal (QCO); meat from the same or the next caller turns before another dish.
+export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let ch = false;
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const p = plain(t.text);
+    const m = p.match(/\b(una?|dos|tres|cuatro|\d)\s+quesadillas?\s+de\s+(?:masa|comal|mano)\b/); if (!m) continue;
+    let meats: string[] = b22Meats(b22low(t.text.split(/quesadillas?\s+de\s+(?:masa|comal|mano)/i)[1] || ""));
+    for (let j = i + 1; !meats.length && j < turns.length && j < i + 6; j++) { const u = turns[j]; if (u.speaker !== "caller") continue; const q = plain(u.text);
+      if (/\bquesadilla|\bdorad|\btacos?\b/.test(q)) break; meats = b22Meats(b22low(u.text)); }
+    if (!meats.length) continue; const n = fqN(m[1]) || 1;
+    if (cart.some((l) => l.itemId === QUES_ID && (l.modifiers || []).some((x: any) => /\(QCO\)/.test(String(x.option))) && (l.modifiers || []).some((x: any) => x.option === meats[0]))) continue;
+    cart.push({ itemId: QUES_ID, quantity: n, modifiers: [{ step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" }, { step: "(B) Q Carnes / Meats", option: meats[0] }], readback: `${n} quesadilla de comal de ${meats[0]}` }); ch = true; }
+  return ch;
 }

@@ -151,10 +151,13 @@ export function savedLanguage(phoneRaw: string): { language: "es" | "en" | null;
 }
 
 /** First name only, and only if it looks like a real name (no digits, no "cliente", "test", business words). */
+export const HONORIFIC = /^(?:mister|miss|missus|missis|sir|ma'?am|madam|madame|se[nñ]or(?:a|ita)?|seño|joven|jefe|jefa|jefecito|amig[oa]|amiguit[oa]|mami|papi|mamita|papito|mij[oa]|compa|compadre|comadre|boss|buddy|bro|dude|hermano|hermana|mano|manito|carnal|caballero|honey|sweetie|chief|pal|patr[oó]n|maestro|oiga|oye)$/iu;
 export function cleanFirstName(raw: string | null | undefined): string | null {
   const first = String(raw || "").trim().split(/[\s,]+/)[0] || "";
   if (!/^[\p{L}][\p{L}'’-]{1,19}$/u.test(first)) return null;
   if (/^(cliente|customer|guest|test|prueba|unknown|desconocido|cocina|elvis|mr|mrs|ms|sr|sra|srta|dr|n\/?a|none|na|xx+|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|qui[eé]n|qu[eé]|d[oó]nde|cu[aá]ndo|c[oó]mo|cu[aá]nto|which|who|what|where|when|how)$/i.test(first)) return null;
+  // sophie1 (CA65a540): staff "Okay, mister" — forms of address are never names
+  if (HONORIFIC.test(first)) return null;
   return first.toLocaleLowerCase("es").replace(/(^|[-'’])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es"));
 }
 
