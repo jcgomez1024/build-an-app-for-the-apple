@@ -1,0 +1,431 @@
+{
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.94,
+      "end": 2.241,
+      "text": "Sí, buenas tardes, cocina Elvis.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.721,
+      "end": 4.742,
+      "text": "Sí, buenas tardes. Oigan, ¿tiene menudo todavía?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 5.062,
+      "end": 5.502,
+      "text": "Sí, joven.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 6.303,
+      "end": 7.923,
+      "text": "¿Me, me pones menudo grande?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 9.004,
+      "end": 11.345,
+      "text": "¿Algo más? ¿Con patas o sin patas?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 10.204,
+      "end": 11.065,
+      "text": "Y cuatro ques...",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 12.445,
+      "end": 13.806,
+      "text": "No, sin papas.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 13.446,
+      "end": 14.166,
+      "text": "No, okay.",
+      "language": "en"
+    },
+    {
+      "speaker": "staff",
+      "start": 15.427,
+      "end": 16.787,
+      "text": "¿Cuatro quesadillas de cuáles, joven?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.527,
+      "end": 15.547,
+      "text": "Y,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.107,
+      "end": 17.768,
+      "text": "¿de, de comal?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.468,
+      "end": 19.128,
+      "text": "¿De qué las quieres?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 19.629,
+      "end": 20.029,
+      "text": "Me pone",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 21.93,
+      "end": 23.27,
+      "text": "dos de bistec con chorizo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 25.311,
+      "end": 25.611,
+      "text": "Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 26.271,
+      "end": 27.272,
+      "text": "¿Y tiene el buche también?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 27.812,
+      "end": 29.573,
+      "text": "Sí. ¿Sí queda buche, era?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 28.633,
+      "end": 34.875,
+      "text": "Y me pone otro dos... Y dos de, dos de, dos de buche, las otras dos de buche.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 31.574,
+      "end": 32.514,
+      "text": "¿Qué más? ¿Una de buche?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 35.275,
+      "end": 35.736,
+      "text": "¿Qué más, mano?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 36.296,
+      "end": 36.716,
+      "text": "Nada más.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 37.176,
+      "end": 37.456,
+      "text": "¿Nombre?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 38.417,
+      "end": 38.977,
+      "text": "¿Coco Pérez?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 39.877,
+      "end": 42.238,
+      "text": "Okay, dame co, veinte minutos, Coco Pérez, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 42.419,
+      "end": 44.319,
+      "text": "Órale, pues, está bien, gracias. Bye.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 43.139,
+      "end": 43.879,
+      "text": "Va, órale, mano.",
+      "language": "es"
+    }
+  ],
+  "cart": [
+    {
+      "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(A) Menudo Tortillas",
+          "option": "4 x (Corn) Comal Tortilla"
+        }
+      ],
+      "readback": "menudo"
+    },
+    {
+      "itemId": "sq-quesadilla-HLT6CR",
+      "quantity": 2,
+      "modifiers": [
+        {
+          "step": "(B) Q Carnes / Meats",
+          "option": "Bistec / Steak"
+        },
+        {
+          "step": "(A) Q Tortilla Options",
+          "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "source": "staff",
+      "heard": "Sí, buenas tardes, cocina Elvis."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí, joven."
+    },
+    {
+      "source": "caller",
+      "heard": "Me pones menudo grande",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿Algo más? ¿Con patas o sin patas?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Menudo con Tortillas (4)",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "",
+      "pick": "Menudo con Tortillas (4)"
+    },
+    {
+      "source": "caller",
+      "heard": "cuatro ques",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "cuatro ques",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Menudo con Tortillas (4)",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "",
+      "pick": "Menudo con Tortillas (4)"
+    },
+    {
+      "source": "caller",
+      "heard": "sin papas",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "sin papas",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "No, okay."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Cuatro quesadillas de cuáles, joven?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Menudo con Tortillas (4)",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "No, okay.",
+      "pick": "Menudo con Tortillas (4)"
+    },
+    {
+      "source": "caller",
+      "heard": "Y, de comal",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "auto",
+      "heard": "así está bien",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "caller-retry",
+      "heard": "Y, de comal",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "¿De qué las quieres?"
+    },
+    {
+      "source": "staff-pick",
+      "heard": "Menudo con Tortillas (4)",
+      "language": "es",
+      "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+      "actions": []
+    },
+    {
+      "source": "staff-pick",
+      "heard": "",
+      "pick": "Menudo con Tortillas (4)"
+    },
+    {
+      "source": "caller-meat",
+      "heard": "dos Me pones menudo grande de bistec con chorizo",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "caller-meat-expanded",
+      "heard": "Me pone dos de bistec con chorizo.",
+      "asked": "Me, me pones menudo grande",
+      "expanded": [
+        "dos Me, me pones menudo grande de bistec con chorizo"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "Okay."
+    },
+    {
+      "source": "staff",
+      "heard": "Sí. ¿Sí queda buche, era?"
+    },
+    {
+      "source": "caller-meat-fragment",
+      "heard": "2 menudos de buche, las otras dos de buche de comal",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "caller-meat-fragments",
+      "heard": "Y me pone otro dos... Y dos de, dos de, dos de buche, las otras dos de buche.",
+      "dishes": [
+        "Me, me pones menudo grande"
+      ]
+    },
+    {
+      "source": "staff",
+      "heard": "¿Qué más? ¿Una de buche?"
+    },
+    {
+      "source": "staff",
+      "heard": "¿Qué más, mano?"
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Nada más."
+    },
+    {
+      "source": "staff",
+      "heard": "¿Nombre?"
+    },
+    {
+      "source": "caller",
+      "heard": "Coco Pérez",
+      "language": "es",
+      "reply": "¿Algo más?",
+      "actions": []
+    },
+    {
+      "source": "staff",
+      "heard": "Okay, dame co, veinte minutos, Coco Pérez, por favor."
+    },
+    {
+      "source": "caller-closing",
+      "heard": "Órale, pues, está bien, gracias. Bye."
+    },
+    {
+      "source": "staff",
+      "heard": "Va, órale, mano."
+    }
+  ],
+  "name": "Coco",
+  "fulfillment": null
+}

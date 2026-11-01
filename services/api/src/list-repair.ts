@@ -1678,3 +1678,81 @@ export function aguacateResolve(text: string, menu: any[], language?: string): a
   return { ok: true, actions: [{ type: "add_item", itemId: it.id, quantity: n, modifiers: [] }],
     message: en ? `${n > 1 ? `${n} whole avocados` : "One whole avocado"}, ${$}. Anything else?` : `${n > 1 ? `${n} aguacates enteros` : "Un aguacate entero"}, ${$}. ¿Algo más?` };
 }
+
+// ---- coco-quesa1: "dos de <meat>" after a quesadilla ask goes to quesadillas, never the menudo ----
+const SOUP = /(?<![\p{L}])(menudos?|pozoles?|caldos?|sopas?)(?![\p{L}])/iu;
+const QUESA_CTX = /(?<![\p{L}])(quesadillas?|ques)(?![\p{L}])/iu;
+const QN = "(\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)";
+/** Pending dish is a soup but the latest ask/talk is about quesadillas → the quesadilla phrase to expand meats onto. */
+export function quesaContextDish(pending: string | null | undefined, staff: string[], caller: string[]): string | null {
+  if (!pending || !SOUP.test(pending)) return null;
+  const ctx = [...staff, ...caller].join(" . ");
+  if (!QUESA_CTX.test(ctx)) return null;
+  const n = (b22low(ctx).match(new RegExp(`${QN}\\s+(?:quesadillas?|ques)\\b`, "iu")) || [])[1] || "";
+  const tort = /\bcomal\b/iu.test(ctx) ? " de comal" : /\b(harina|flour)\b/iu.test(ctx) ? " de harina" : "";
+  return `${n ? n + " " : ""}quesadillas${tort}`.trim();
+}
+/** "dos de bistec con chorizo" → [{qty:2, meats:[Bistec, Chorizo]}]; stutters ("dos de, dos de buche, las otras dos de buche") count once. */
+export function quesaMeatGroups(text: string): Array<{ qty: number; meats: string[] }> {
+  const t = b22low(text).replace(/[.,;!?¿¡]/g, " ");
+  const out: Array<{ qty: number; meats: string[] }> = [];
+  const re = new RegExp(`(?:^|\\s)${QN}\\s+de\\s+([a-z ]+?)(?=\\s+(?:y\\s+)?(?:las?\\s+otras?\\s+)?${QN}\\s+de\\s|$)`, "giu");
+  for (const m of t.matchAll(re)) {
+    const meats = Array.from(new Set(b22Meats(m[2]))); if (!meats.length) continue;
+    const qty = numOf(m[1]); const key = meats.join("+"); const prev = out.find((g) => g.meats.join("+") === key);
+    if (prev) prev.qty = Math.max(prev.qty, qty); else out.push({ qty, meats });
+  }
+  return out;
+}
+/** After-call: quesadilla ask + "N de <meat>[ con <meat>]" → quesadilla lines with every meat; soup count back to what the caller said. */
+export function applyQuesaAfterSoup(cart: any[], turns: Turn[]): boolean {
+  const i0 = turns.findIndex((t) => QUESA_CTX.test(String(t.text || "")));
+  if (i0 < 0 || !turns.slice(0, i0).some((t) => t.speaker === "caller" && SOUP.test(String(t.text || "")))) return false;
+  const groups: Array<{ qty: number; meats: string[] }> = [];
+  for (const t of turns.slice(i0)) { if (t.speaker !== "caller") continue; const tx = String(t.text || "");
+    if (SOUP.test(tx) || /\b(taco|torta|burrito|gordita|sope|tostada)s?\b/iu.test(tx)) break;
+    for (const g of quesaMeatGroups(tx)) { const p = groups.find((x) => x.meats.join("+") === g.meats.join("+")); if (p) p.qty = Math.max(p.qty, g.qty); else groups.push(g); } }
+  if (!groups.length) return false;
+  const said = (b22low(turns.slice(i0).map((t) => t.text).join(" ")).match(new RegExp(`${QN}\\s+(?:quesadillas?|ques)\\b`, "iu")) || [])[1];
+  const total = groups.reduce((a, g) => a + g.qty, 0); if (said && total > numOf(said)) return false;
+  const have = cart.filter((l) => l.itemId === QUES_ID);
+  const same = groups.every((g) => have.some((l) => l.quantity === g.qty && g.meats.every((m) => (l.modifiers || []).some((x: any) => x.option === m)) && (l.modifiers || []).filter(isMeatMod).length === g.meats.length)) && have.length === groups.length;
+  let ch = false;
+  if (!same) {
+    const ctx = b22low(turns.slice(i0).map((t) => t.text).join(" "));
+    const tort = have.flatMap((l) => l.modifiers || []).find((m: any) => /Tortilla/i.test(String(m.step))) ||
+      (/\bcomal\b/.test(ctx) ? { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" } : { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" });
+    for (let k = cart.length - 1; k >= 0; k--) if (cart[k].itemId === QUES_ID) cart.splice(k, 1);
+    for (const g of groups) cart.push({ itemId: QUES_ID, quantity: g.qty, modifiers: [...g.meats.map((m) => ({ step: "(B) Q Carnes / Meats", option: m })), { step: tort.step, option: tort.option }], readback: `${g.qty} quesadilla ${g.meats.map((m) => m.split(" / ")[0].toLowerCase()).join(" con ")}` });
+    ch = true;
+  }
+  // soup count: caller never gave a number for it → 1
+  const callerSoup = turns.filter((t) => t.speaker === "caller" && SOUP.test(String(t.text || ""))).map((t) => b22low(t.text)).join(" ");
+  if (!new RegExp(`${QN}\\s+(?:\\w+\\s+)?menudos?`, "iu").test(callerSoup)) {
+    const men = cart.filter(isMenudo); if (men.length === 1 && men[0].quantity !== 1) { men[0].quantity = 1; ch = true; }
+  }
+  return ch;
+}
+/** Live: "dos de bistec con chorizo" right after a quesadilla ask must not land on (or bump) the menudo. */
+export function liveQuesaAfterSoup(r: any, input: any) {
+  const said = String(input?.transcript || ""); if (SOUP.test(said)) return r;
+  const groups = quesaMeatGroups(said); if (!groups.length) return r;
+  const hist: any[] = (input?.history || []).slice(-8); const ctx = hist.map((h) => String(h?.text || "")).join(" . ");
+  if (!QUESA_CTX.test(ctx + " " + said)) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  const soupAct = (a: any) => /menudo|pozole|caldo/i.test(String(a?.itemId || "")) && /add_item|update|set_quantity|modify|change/i.test(String(a?.type || ""));
+  const hasQ = acts.some((a) => a?.type === "add_item" && a.itemId === QUES_ID);
+  if (!acts.some(soupAct) && hasQ) {
+    // quesadilla added but one meat lost ("bistec con chorizo" → bistec only)
+    return { ...r, actions: acts.map((a) => { if (a?.type !== "add_item" || a.itemId !== QUES_ID) return a;
+      const g = groups.find((x) => x.meats.length > 1 && x.meats.some((m) => (a.modifiers || []).some((y: any) => y.option === m))); if (!g) return a;
+      const have = new Set((a.modifiers || []).map((y: any) => y.option));
+      return { ...a, modifiers: [...(a.modifiers || []), ...g.meats.filter((m) => !have.has(m)).map((m) => ({ step: "(B) Q Carnes / Meats", option: m }))] }; }) };
+  }
+  if (!acts.some(soupAct)) return r;
+  const tort = /\bcomal\b/iu.test(ctx + " " + said) ? { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" } : /\b(harina|flour)\b/iu.test(ctx + " " + said) ? { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" } : null;
+  const adds = groups.map((g) => ({ type: "add_item", itemId: QUES_ID, quantity: g.qty, modifiers: [...g.meats.map((m) => ({ step: "(B) Q Carnes / Meats", option: m })), ...(tort ? [tort] : [])] }));
+  const es = input?.language !== "en";
+  const desc = groups.map((g) => `${g.qty} ${es ? "de" : ""} ${g.meats.map((m) => m.split(" / ")[es ? 0 : 1].toLowerCase()).join(es ? " con " : " and ")}`.replace(/\s+/g, " ")).join(es ? " y " : " and ");
+  return { ...r, actions: [...acts.filter((a) => !soupAct(a) && !(a?.type === "add_item" && a.itemId === QUES_ID)), ...adds], reply: es ? `Quesadillas: ${desc}. ¿Algo más?` : `Quesadillas: ${desc}. Anything else?` };
+}
