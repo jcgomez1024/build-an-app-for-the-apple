@@ -398,6 +398,26 @@ export function isCancelOrderCall(turns: Array<{ speaker: string; text: string }
   const after = caller.slice(i).join(" ").slice(caller[i].search(CANCEL_RE));
   return !NEW_ORDER_AFTER.test(after);
 }
+// juanFollow1 (CAb6491f): a callback about an order already placed ("he cargado un menudo, pero no me preguntaron mi
+// dirección", "mi pedido", "ya pedí") is like status/cancel: no new cart, no auto-accept — unless a clear new order follows.
+const EXISTING_ORDER_RE = /\bno me (?:preguntaron|pidieron|tomaron)\b|\bya (?:ped[ií]|hab[ií]a (?:pedido|ordenado|encargado|llamado)|hice (?:un|el|mi) (?:pedido|orden)|orden[eé]|encargu[eé])\b|\b(?:mi|el) (?:pedido|orden)\s+(?:que|de hace|de ahorita|ya|no|est[aá]|lleg|va)\b|\b(?:ahorita|hace (?:rato|un rato|ratito)|hoy)\s+(?:he|hab[ií]a|ya)?\s*(?:cargado|pedido|ordenado|encargado)\b|\b(?:he|hab[ií]a) (?:cargado|encargado) (?:un|una|el|la|unos|unas)\b|\blo (?:ped[ií]|pegu[eé]|encargu[eé]) (?:en|a|al) nombre de\b|\b(?:i )?already (?:ordered|placed|called)\b|\bmy (?:order|food) (?:is|was|from|hasn'?t|didn'?t)\b|\b(?:they|you) didn'?t ask (?:me )?(?:for )?my address\b/i;
+const NEW_ORDER_CLEAR = /\b(?:quiero|quisiera|voy a querer) (?:ordenar|pedir|hacer (?:otro|un nuevo|una nueva) (?:pedido|orden))\b|\b(?:otro|un nuevo|una nueva|otra) (?:pedido|orden)\b(?! que)|\b(?:y )?(?:aparte|tambi[eé]n) (?:me (?:pone|pones|da|das)|quiero)\b|\bnew order\b|\b(?:also|and) (?:can i get|i(?:'d| would) like)\b/i;
+export function isExistingOrderCall(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  const i = caller.findIndex((t) => EXISTING_ORDER_RE.test(t)); if (i < 0) return false;
+  if (caller.slice(0, i).some((t) => NEW_ORDER_CLEAR.test(t) || /\b(?:me (?:pone|pones|puede poner|das|da)|quiero|quisiera|para ordenar|hacer un pedido)\b/i.test(t))) return false;
+  return !caller.slice(i).some((t) => NEW_ORDER_CLEAR.test(t) || NEW_ORDER_AFTER.test(t));
+}
+/** Live: about an existing order → no adds and never "¿Algo más?" to a complaint. */
+export function liveExistingOrder(r: any, input: any) {
+  const hist: any[] = input?.history || [];
+  const callerSaid = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), String(input?.transcript || "")];
+  if (!isExistingOrderCall(callerSaid.map((text) => ({ speaker: "caller", text })))) return r;
+  if ((input?.cart || []).length) return r;
+  const acts = (Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
+  const en = input?.language === "en"; const asks = /\b(?:ordenar|order|algo m[aá]s|anything else|le escucho|carrito|cart|qu[eé] le pongo)\b/i.test(String(r?.reply || ""));
+  return { ...r, actions: acts, ...(asks || acts.length !== (r?.actions || []).length ? { reply: en ? "Sure, let me check on your order." : "Claro, déjeme revisar su pedido." } : {}) };
+}
 /** Live: the caller's turn cancels an earlier order → no item adds, and never "¿Qué le gustaría ordenar?" afterwards. */
 export function liveCancelOrder(r: any, input: any) {
   const tx = String(input?.transcript || ""); const hist: any[] = input?.history || [];

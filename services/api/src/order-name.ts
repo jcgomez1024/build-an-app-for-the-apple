@@ -614,6 +614,20 @@ export function surnameAfterReadback(turns: Array<{ speaker: "caller" | "staff";
   if (first !== foldName(A) && (!W || first === foldName(W))) return A;
   return null;
 }
+/** juanM1 (CA000285): staff "Juan qué?" (the caller's "One" misheard) + caller "Maldonado" → "Juan Maldonado". */
+export function firstQueSurname(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = String(t.text || "").match(/^\s*(?:(?:ok(?:ay|ey)?|muy\s+bien|perd[oó]n)[,.\s]+)?¿?\s*(\p{Lu}[\p{L}'-]+)\s*,?\s*(?:qu[eé]|what)\s*[.?!]*\s*$/u);
+    if (!m || NOT_NAMES.test(m[1]) || /^(?:Y|De|Con|Para|Sin|Por|And|Okay|Ok|Bueno|Mande|Perd[oó]n|Ah|Eh|Este)$/iu.test(m[1])) continue;
+    const ans = turns.slice(i + 1).find((x) => x.speaker === "caller"); if (!ans) continue;
+    const w = String(ans.text || "").trim().replace(/[.,!?]+$/g, "");
+    if (!/^\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?$/u.test(w) || NOT_NAMES.test(w.split(/\s+/)[0]) || NAME_FILLER.test(w)) continue;
+    if (foldName(w.split(/\s+/)[0]) === foldName(m[1])) return w;
+    return `${m[1]} ${w}`;
+  }
+  return null;
+}
 const NOMBRE_LEAD = /^\s*(?:(?:ah|eh|este|pues|s[ií]|ok(?:ay)?|bueno|mm+)[,.\s]+)*(?:(?:a|al|el|con|bajo)\s+)?nombre\s+(?:de\s+|es\s+|ser[ií]a\s+(?:de\s+)?)?/iu;
 /** felipe1: a name that starts with the word "Nombre" ("Nombre", "Nombre De Felipe") is the ask phrase leaking in — keep what follows, else re-read the caller's "nombre de X". */
 export function dropNombrePrefix(name: string | null | undefined, turns: Array<{ speaker: "caller" | "staff"; text: string }> = []): string | null {
@@ -626,6 +640,7 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   let r0 = nameFromTranscriptInfoN(turns); if (!r0) return r0;
   if (/^\s*nombre\b/iu.test(r0.name)) { const n = dropNombrePrefix(r0.name, turns); if (!n) return null; r0 = { ...r0, name: n }; }
   const st = stripNameFillers(r0.name); if (!st) return null; if (st !== r0.name) r0 = { ...r0, name: st };
+  const fq = firstQueSurname(turns); if (fq) return { ...r0, name: fq };
   const fix = surnameAfterReadback(turns, r0.name); return fix && fix !== r0.name ? { ...r0, name: fix } : r0;
 }
 function nameFromTranscriptInfoN(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {

@@ -1,4 +1,4 @@
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
 import { noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
@@ -2171,6 +2171,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveEsquiteAsk(o2, input); } catch { /* keep */ } // kevin1
   try { o2 = liveMultiItem(o2, input); } catch { /* keep */ } // robert1
   try { o2 = liveCancelOrder(o2, input); } catch { /* keep */ } // daniel-cancel1
+  try { o2 = liveExistingOrder(o2, input); } catch { /* keep */ } // juanFollow1
   try { o2 = liveMeatSplitQty(o2, input); } catch { /* keep */ } // julian1
   try { o2 = liveExtraCarne(o2, input); } catch { /* keep */ } // sergio1
   try { o2 = liveQdCorrection(o2, input); } catch { /* keep */ } // yomar1

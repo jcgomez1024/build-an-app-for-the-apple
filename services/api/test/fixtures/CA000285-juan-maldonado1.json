@@ -1,0 +1,139 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.52,
+   "end": 2.321,
+   "text": "Cocina Elvis, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.262,
+   "end": 5.803,
+   "text": "Buenos días, si me podría poner una orden, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.404,
+   "end": 7.404,
+   "text": "Claro, ¿qué te pongo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.405,
+   "end": 8.985,
+   "text": "Un menudo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.785,
+   "end": 13.388,
+   "text": "Un menudo, muy bien. ¿Con patos o regular?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.368,
+   "end": 14.868,
+   "text": "Regular.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.469,
+   "end": 16.269,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.37,
+   "end": 18.09,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 18.731,
+   "end": 19.911,
+   "text": "¿A qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.792,
+   "end": 21.052,
+   "text": "One.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.952,
+   "end": 22.393,
+   "text": "Juan qué.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.933,
+   "end": 24.434,
+   "text": "Maldonado.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.274,
+   "end": 26.195,
+   "text": "Maldonado.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.896,
+   "end": 29.056,
+   "text": "Okey, dame unos,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.577,
+   "end": 31.958,
+   "text": "mm, unos quince minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.818,
+   "end": 33.519,
+   "text": "Okay, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.859,
+   "end": 34.419,
+   "text": "Gracias a ti.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   }
+  ]
+ },
+ "name": "Maldonado"
+}

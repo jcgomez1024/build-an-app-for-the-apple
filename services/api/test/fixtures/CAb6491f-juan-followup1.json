@@ -1,0 +1,174 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.64,
+   "end": 1.02,
+   "text": "Rodrigo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.502,
+   "end": 6.342,
+   "text": "Buenos días. Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.882,
+   "end": 5.082,
+   "text": "Bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.542,
+   "end": 6.882,
+   "text": "Bueno, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.003,
+   "end": 10.724,
+   "text": "Oiga, disculpe, es que ahorita he cargado un menudo,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.424,
+   "end": 11.604,
+   "text": "Hey.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.745,
+   "end": 15.505,
+   "text": "pero no me preguntaron mi dirección.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.586,
+   "end": 18.306,
+   "text": "Rodrigo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 19.627,
+   "end": 22.108,
+   "text": "No, soy soy Juan, lo pegué en nombre de Juan.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.288,
+   "end": 25.569,
+   "text": "Un menudo con pata.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.789,
+   "end": 26.889,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.389,
+   "end": 27.97,
+   "text": "Y un agua de.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.89,
+   "end": 31.991,
+   "text": "Pero ahorita ya no estamos, ahorita no estamos haciendo deliveries.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.371,
+   "end": 34.772,
+   "text": "Oh, okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.572,
+   "end": 39.374,
+   "text": "Sí, por eso te lo puse para llevar, o sea, que lo vinieras a recoger.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 41.174,
+   "end": 41.814,
+   "text": "Ah, okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.914,
+   "end": 46.056,
+   "text": "Porque como estamos muy ocupados, ahorita no podemos hacer entregas.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 47.296,
+   "end": 49.557,
+   "text": "Oh, entonces si me lo pone, ahorita paso por él.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.917,
+   "end": 50.998,
+   "text": "Sí, ya te lo tengo aquí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.358,
+   "end": 53.418,
+   "text": "Okay, ahorita paso por él.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 53.759,
+   "end": 54.339,
+   "text": "Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 55.239,
+   "end": 55.619,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "menudo"
+   }
+  ]
+ },
+ "name": null
+}
