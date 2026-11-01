@@ -1369,3 +1369,77 @@ export function liveConsomeSolo(r: any, input: any) {
   return { ...r, actions: [...keep, { type: "add_item", itemId: BIRRIA_ID, quantity: q, modifiers: [CONSOME_SOLO], readback: q > 1 ? `${q} consomés` : "consomé" }],
     reply: en ? `${q} consomé, 16 oz. Anything else?` : `${q === 1 ? "Un" : q} consomé${q > 1 ? "s" : ""} de 16 oz. ¿Algo más?` };
 }
+
+// miriam-coctel1 (CA67bc69): "¿tienes coctel de camarón?" … "con pulpo" is the Coctel (shrimp + pulpo), never a Ceviche —
+// a ceviche line only stands when someone actually said "ceviche".
+const COCTEL_SHRIMP = "sq-coctel-de-camarones-shrimp-cocktail-coctel-de-camaron-shrimp-VWHXC4";
+const COCTEL_PULPO = "sq-coctel-de-camarones-shrimp-cocktail-coctel-de-camaron-shrimp-and-pulpo-calamari-B5ITWC";
+const COCTEL_SAID = /\bc[oó]ct[ae]l(?:es)?\b|\bcocktails?\b|\bcoctel(?:ito)?s?\b/iu;
+function coctelFor(itemId: string, pulpo: boolean): string | null {
+  if (!/^sq-ceviche-/i.test(itemId) || /pescado|fish|placeholder/i.test(itemId)) return null;
+  return /pulpo|calamari/i.test(itemId) || pulpo ? COCTEL_PULPO : COCTEL_SHRIMP;
+}
+export function applyCoctelNotCeviche(cart: any[], turns: Turn[]): boolean {
+  const all = turns.map((t) => String(t.text || "")).join(" ");
+  if (!COCTEL_SAID.test(all) || /\bceviches?\b/iu.test(all)) return false;
+  const pulpo = /\bpulpo|calamar/iu.test(all); let ch = false;
+  for (const l of cart) { const to = coctelFor(String(l.itemId || ""), pulpo); if (to) { l.itemId = to; l.modifiers = (l.modifiers || []).filter((m: any) => !/ceviche/i.test(String(m?.step || ""))); if (l.readback) l.readback = String(l.readback).replace(/ceviche/giu, "coctel"); ch = true; } }
+  return ch;
+}
+export function liveCoctelNotCeviche(r: any, input: any) {
+  const hist: any[] = input?.history || [];
+  const said = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), String(input?.transcript || "")].join(" ");
+  if (!COCTEL_SAID.test(said) || /\bceviches?\b/iu.test(said)) return r;
+  const pulpo = /\bpulpo|calamar/iu.test(said); const en = input?.language === "en";
+  const acts = (Array.isArray(r?.actions) ? r.actions : []).map((a: any) => {
+    if ((a?.type !== "add_item" && a?.type !== "update_item") || !a.itemId) return a;
+    const to = coctelFor(String(a.itemId), pulpo); return to ? { ...a, itemId: to, modifiers: (a.modifiers || []).filter((m: any) => !/ceviche/i.test(String(m?.step || ""))) } : a;
+  });
+  let reply = String(r?.reply || "");
+  if (/^\s*Ceviche\s*:\s*¿/u.test(reply)) reply = en ? "Shrimp cocktail: just shrimp, or shrimp with octopus?" : "Coctel de camarón: ¿solo camarón o camarón con pulpo?";
+  else reply = reply.replace(/\bCeviche(?:\s+Ceviche)?\s+de\s+Camar[oó]n\s+Con\s+Pulpo\b/giu, "Coctel de Camarón con Pulpo").replace(/\bCeviche(?:\s+Ceviche)?\s+de\s+Camar[oó]n\b/giu, "Coctel de Camarón").replace(/\bCeviche(?:\s+Ceviche)?\s+de\s+Pulpo\b/giu, "Coctel de Camarón con Pulpo");
+  return { ...r, actions: acts, reply };
+}
+
+// ashley-menudo1 (CAe86b1c): "tres menudos … sin pata" → 3 regular menudos; the "(4)" in "Menudo con Tortillas (4)" is the
+// tortilla count, never the quantity, and "sin pata" never reads back "extra pata".
+const MEN_COUNT = new RegExp(`(?:^|[^\\p{L}\\d(])(${NUMW})\\s+menudos?(?![\\p{L}])`, "giu");
+const SIN_PATA = /\bsin\s+(?:la\s+)?patas?\b|\bno\s+(?:le\s+)?(?:ponga|pongas|quiero)\s+(?:la\s+)?pata\b|\bwithout\s+(?:the\s+)?(?:pata|feet|foot|hoof)\b/iu;
+function menudoCountSaid(texts: string[]): number {
+  let n = 0; for (const t of texts) for (const m of t.matchAll(MEN_COUNT)) { const k = nOf(m[1].toLowerCase()); if (k > 0 && k < 30) n = k; }
+  return n;
+}
+export function applyMenudoCountSinPata(cart: any[], turns: Turn[]): boolean {
+  const men = cart.filter((l) => l.itemId === MEN_REG || l.itemId === MEN_CON); if (!men.length) return false;
+  let ch = false;
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  if (caller.some((t) => SIN_PATA.test(t)) && !caller.some((t) => /\bcon\s+pata\b/iu.test(t.replace(SIN_PATA, "")))) {
+    for (const l of men) {
+      if (l.itemId === MEN_CON) { l.itemId = MEN_REG; l.modifiers = [{ step: "Menudo options", option: "Menudo con Tortillas (4)" }, ...(l.modifiers || []).filter((m: any) => /tortilla/i.test(String(m?.step || "")))]; ch = true; }
+      const mods = (l.modifiers || []).filter((m: any) => !/pata/i.test(String(m?.option || "")) || /Menudo con Tortillas/i.test(String(m?.option)));
+      if (mods.length !== (l.modifiers || []).length) { l.modifiers = mods; ch = true; }
+      if (l.readback && /pata/i.test(l.readback)) { l.readback = String(l.readback).replace(/,?\s*(?:extra|con)\s+pata/giu, ""); ch = true; }
+    }
+  }
+  const n = menudoCountSaid(turns.map((t) => String(t.text || "")));
+  if (n && men.length === 1 && men[0].quantity !== n) { men[0].quantity = n; ch = true; }
+  return ch;
+}
+export function liveMenudoCountSinPata(r: any, input: any) {
+  const hist: any[] = input?.history || [];
+  const said = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), String(input?.transcript || "")];
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : [];
+  if (!acts.some((a) => a?.type === "add_item" && (a.itemId === MEN_REG || a.itemId === MEN_CON))) return r;
+  const sin = said.some((t) => SIN_PATA.test(t)); const n = menudoCountSaid(said);
+  const four = said.some((t) => /(?:^|[^(\d])(?:cuatro|4)(?![\d)])/iu.test(t));
+  let reply = String(r?.reply || "");
+  const out = acts.map((a) => {
+    if (a?.type !== "add_item" || (a.itemId !== MEN_REG && a.itemId !== MEN_CON)) return a;
+    let b = { ...a };
+    if (sin) { b.itemId = MEN_REG; b.modifiers = (b.modifiers || []).filter((m: any) => !/pata/i.test(String(m?.option || "")) || /Menudo con Tortillas/i.test(String(m?.option))); reply = reply.replace(/,?\s*(?:extra|con)\s+pata\b/giu, ""); }
+    const q = n || (Number(b.quantity) === 4 && !four ? 1 : 0);
+    if (q && Number(b.quantity) !== q) { reply = reply.replace(new RegExp(`(^|\\s)${b.quantity}\\s*×`), `$1${q} ×`).replace(/\s*\$\d+(?:\.\d{2})?\.?/g, ""); b.quantity = q; }
+    return b;
+  });
+  return { ...r, actions: out, reply };
+}

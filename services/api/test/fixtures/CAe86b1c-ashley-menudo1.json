@@ -1,0 +1,222 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 3.261,
+   "end": 3.921,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.742,
+   "end": 6.482,
+   "text": "Hola, buenos días, ¿tú tendrás menudo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.303,
+   "end": 9.303,
+   "text": "Sí, claro, gracias. Sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.664,
+   "end": 28.25,
+   "text": "¿Qué le damos? Ah, tengo media docena, sí, tengo tres menudos y y las tortillas, ¿te las puedo me vender la docena o media docena?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.725,
+   "end": 16.166,
+   "text": "¿Tienes menudos y media kilo de tortillas, sí?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.426,
+   "end": 18.847,
+   "text": "Una libra de tortillas, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.387,
+   "end": 20.928,
+   "text": "Sin pata.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.811,
+   "end": 30.411,
+   "text": "Una docena.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.331,
+   "end": 34.092,
+   "text": "Una docena de tortillas, muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.473,
+   "end": 36.053,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.593,
+   "end": 37.894,
+   "text": "¿A qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.214,
+   "end": 39.555,
+   "text": "Ashley.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.435,
+   "end": 40.955,
+   "text": "Ashley.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.896,
+   "end": 45.817,
+   "text": "Muy bien, Ashley, dame unos",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 46.737,
+   "end": 47.617,
+   "text": "quince minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.598,
+   "end": 50.038,
+   "text": "Okay, está bien, gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+    "quantity": 4,
+    "modifiers": [
+     {
+      "step": "Menudo options",
+      "option": "Menudo con Tortillas (4)"
+     },
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-tortillas-12-x-tortilla-comal-handmade-VGID3H",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "12 tortillas comal"
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Buenos días."
+  },
+  {
+   "source": "caller",
+   "heard": "tú tendrás menudo",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, claro, gracias. Sí, claro."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Qué le damos? Ah, tengo media docena, sí, tengo tres menudos y y las tortillas, ¿te las puedo me vender la docena o media docena?"
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Menudo con Tortillas (4)",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "staff-pick",
+   "heard": "Sí, claro, gracias. Sí, claro.  Ah, tengo media docena, sí, tengo tres menudos y y las tortillas,",
+   "pick": "Menudo con Tortillas (4)"
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "Una libra de tortillas Sin pata Una 12 x Tortilla Comal",
+   "language": "es",
+   "reply": "4 × Menudo con Tortillas (4): comal, extra pata. $75.96. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Una docena de tortillas, muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Sería todo."
+  },
+  {
+   "source": "staff",
+   "heard": "¿A qué nombre sería la orden?"
+  },
+  {
+   "source": "caller-name",
+   "heard": "Ashley."
+  },
+  {
+   "source": "staff",
+   "heard": "Ashley."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, Ashley, dame unos"
+  },
+  {
+   "source": "staff",
+   "heard": "quince minutos."
+  },
+  {
+   "source": "caller-thanks",
+   "heard": "Okay, está bien, gracias."
+  }
+ ],
+ "name": "Ashley"
+}

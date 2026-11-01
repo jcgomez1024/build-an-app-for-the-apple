@@ -1,0 +1,480 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.72,
+   "end": 1.04,
+   "text": "Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 1.76,
+   "end": 2.481,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 2.961,
+   "end": 3.501,
+   "text": "Buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.001,
+   "end": 7.422,
+   "text": "Ah, oye, para preguntarle, ¿qué qué tendrá de en el menú? Dijo que.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.324,
+   "end": 10.945,
+   "text": "Oye, tenemos la birria, el menudo,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.803,
+   "end": 10.963,
+   "text": "Ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.925,
+   "end": 17.948,
+   "text": "hay tacos, quesadillas, tortas, guaraches, sopesazos, quesadilla dorada.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.605,
+   "end": 23.726,
+   "text": "Ok. Ok, entonces, mire, ¿me puede hacer unos dos sopes?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.371,
+   "end": 26.191,
+   "text": "¿De qué te gustaría?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.907,
+   "end": 28.468,
+   "text": "¿De qué de qué tiene? Perdón.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.572,
+   "end": 33.714,
+   "text": "Hay de, hay de lo que gustes, hay de bistec, cabeza, carnitas, chorizo, costilla, pollo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.308,
+   "end": 35.509,
+   "text": "Ah. Ah, mire, de de chorizo estaría bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.255,
+   "end": 42.118,
+   "text": "De chorizo. ¿Te gustaría Con todo. Mejor el sugar, ok, crema, queso.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 37.67,
+   "end": 37.77,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 38.87,
+   "end": 39.831,
+   "text": "Sí, con todo, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.179,
+   "end": 44.679,
+   "text": "¿Los dos de chorizo o solo uno?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.292,
+   "end": 43.892,
+   "text": "Sí, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.112,
+   "end": 47.033,
+   "text": "Que sean dos, porfa.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.981,
+   "end": 48.961,
+   "text": "De chorizo igual, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.533,
+   "end": 49.993,
+   "text": "Sí, igual.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.542,
+   "end": 51.483,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.294,
+   "end": 53.594,
+   "text": "Eh, de tomar tendrá",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.555,
+   "end": 58.536,
+   "text": "bueno, coca o algo así.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 59.086,
+   "end": 65.589,
+   "text": "Sí, coca o pepsi. Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 61.057,
+   "end": 63.339,
+   "text": "Ah, una coca, porfa. Ya, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 66.341,
+   "end": 77.231,
+   "text": "Eh, no, nada más. Sí, así es. Ah, sí, José Luis Rangel.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 67.81,
+   "end": 71.532,
+   "text": "Ok, entonces bueno, dos sopesazos de chorizo con todo y una coca.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 73.333,
+   "end": 74.573,
+   "text": "¿Me das tu nombre para tu orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 77.075,
+   "end": 77.315,
+   "text": "Sale.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 78.455,
+   "end": 81.597,
+   "text": "Muy bien, José Luis. Danos unos quince a veinte, ¿no? Y te lo tenemos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 80.273,
+   "end": 80.493,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 82.095,
+   "end": 82.895,
+   "text": "Sí, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 83.318,
+   "end": 83.998,
+   "text": "A ti, ¿eh? Te lo",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 84.697,
+   "end": 84.977,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-sopesaso-elvis-IP2IMW",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Elvis Carne / Meat Options",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-drink-coca-cola-JJE4KC",
+    "quantity": 1,
+    "modifiers": []
+   },
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ]
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, bueno."
+  },
+  {
+   "source": "staff",
+   "heard": "Buenos días."
+  },
+  {
+   "source": "caller",
+   "heard": "Ah, oye, para preguntarle, ¿qué qué tendrá de en el menú? Dijo que",
+   "language": "es",
+   "reply": "Lo más popular: Quesadilla, Quesadilla Dorada, Taco y Burrito. También tenemos combos, paquetes, especiales del día, bebidas, mariscos y platillos tradicionales, y más. ¿Qué se te antoja?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Oye, tenemos la birria, el menudo,"
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "Oye, tenemos la birria, el menudo,",
+   "language": "es",
+   "reply": "Sí, tenemos Birria de Chivo y Menudo. ¿Los quieres?",
+   "actions": []
+  },
+  {
+   "source": "caller-staff-readback",
+   "heard": "Ajá."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Menudo: ¿Menudo con Tortillas (4) o Con Pata Menudo 32oz y Tortillas (4)?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Listo, Menudo con Tortillas. ¿Y la birria, cómo la quieres?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Birria de Chivo / Goat Birria: ¿1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Consome/Broth, SOLO/ONLY 1 lb of Birria de Chivo/Goat o SOLO/ONLY 16oz de Consome/Broth de Birria?",
+   "actions": []
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Birria de Chivo / Goat Birria: ¿1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Consome/Broth, SOLO/ONLY 1 lb of Birria de Chivo/Goat o SOLO/ONLY 16oz de Consome/Broth de Birria?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "hay tacos, quesadillas, tortas, guaraches, sopesazos, quesadilla dorada."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Birria de Chivo / Goat Birria: ¿1 lb of Birria de Chivo/Goat con Consome/Broth y Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Tortillas de Comal, 1 lb of Birria de Chivo/Goat con SOLO/ONLY Consome/Broth, SOLO/ONLY 1 lb of Birria de Chivo/Goat o SOLO/ONLY 16oz de Consome/Broth de Birria?",
+   "actions": []
+  },
+  {
+   "source": "caller",
+   "heard": "entonces, mire, ¿me puede hacer unos dos sopesasos",
+   "language": "es",
+   "reply": "2 × Sopesaso Elvis: salsa asada. $29.98. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "¿De qué te gustaría?"
+  },
+  {
+   "source": "caller",
+   "heard": "De qué de qué tiene? Perdón",
+   "language": "es",
+   "reply": "El Sopesaso Elvis lleva carne a elegir, toppings como lechuga, crema, queso y salsas, con tortillas. ¿Lo dejamos así?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Hay de, hay de lo que gustes, hay de bistec, cabeza, carnitas, chorizo, costilla, pollo."
+  },
+  {
+   "source": "caller",
+   "heard": "Ah, mire, de chorizo estaría bien",
+   "language": "es",
+   "reply": "2 × Sopesaso Elvis: chorizo. $29.98. ¿Algo más?",
+   "actions": [
+    "update_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "De chorizo. ¿Te gustaría Con todo. Mejor el sugar, ok, crema, queso."
+  },
+  {
+   "source": "caller",
+   "heard": "Sí Sí, con todo",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "¿Los dos de chorizo o solo uno?"
+  },
+  {
+   "source": "caller",
+   "heard": "Sí Que sean dos, porfa",
+   "language": "es",
+   "reply": "Muy bien. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "De chorizo igual, ¿verdad?"
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, igual",
+   "language": "es",
+   "reply": "Entendido. ¿Algo más?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "de tomar tendrá bueno, coca cola o algo así",
+   "language": "es",
+   "reply": "Coca Cola. $3.50. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Sí, coca o pepsi. Muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller-count",
+   "heard": "Ah"
+  },
+  {
+   "source": "caller",
+   "heard": "una coca cola, porfa. Ya, está bien Eh, no, nada másí, así es. Ah, sí, José Luis Rangel",
+   "language": "es",
+   "reply": "Gracias, José. Revisa tu orden y cuando estés listo, pasa a pagar.",
+   "actions": [
+    "set_customer"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Ok, entonces bueno, dos sopesazos de chorizo con todo y una coca."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Me das tu nombre para tu orden?"
+  },
+  {
+   "source": "staff",
+   "heard": "Sale."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, José Luis. Danos unos quince a veinte, ¿no? Y te lo tenemos."
+  },
+  {
+   "source": "staff-coca-confirm",
+   "heard": "Ok, entonces bueno, dos sopesazos de chorizo con todo y una coca. ¿Me das tu nombre para tu orden? Sale. Muy bien, José "
+  },
+  {
+   "source": "caller-thanks",
+   "heard": "Okay Sí, está bien, gracias."
+  },
+  {
+   "source": "staff",
+   "heard": "A ti, ¿eh? Te lo"
+  },
+  {
+   "source": "caller-closing",
+   "heard": "Gracias."
+  },
+  {
+   "source": "asked-dish",
+   "heard": "así está bien",
+   "item": "sq-menudo-menudo-con-tortillas-4-ZSRUX4"
+  }
+ ],
+ "name": "Jos"
+}

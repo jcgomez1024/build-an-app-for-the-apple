@@ -1,0 +1,178 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.261,
+   "end": 1.601,
+   "text": "Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.842,
+   "end": 5.983,
+   "text": "Am, hola, disculpa, ¿tienes coctel de camarón?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.824,
+   "end": 8.525,
+   "text": "¿Cocktail de camarón? Claro que sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.164,
+   "end": 8.725,
+   "text": "Con pulpo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.845,
+   "end": 16.749,
+   "text": "Con pulpo, déjame verificar. Sí, sí te tenemos con pulpo también.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.51,
+   "end": 19.791,
+   "text": "Am, ¿me puede, me puede apartar uno, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.751,
+   "end": 23.573,
+   "text": "Un cocktail de camarón con pulpo, muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.333,
+   "end": 24.954,
+   "text": "Sí, solamente eso.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.834,
+   "end": 27.355,
+   "text": "Me darías su nombre para tu orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.955,
+   "end": 28.315,
+   "text": "Miriam.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.276,
+   "end": 32.878,
+   "text": "Muy bien, Miriam, danos unos quince a veinte minutos, ¿no? Ahorita te lo tenemos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.418,
+   "end": 34.759,
+   "text": "Sí, está bien, muchas gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 35.239,
+   "end": 36.16,
+   "text": "Igualmente, hasta luego.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-ceviche-ceviche-de-camaron-con-pulpo-shrimp-and-calamari-4PFDP3",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ]
+ },
+ "steps": [
+  {
+   "source": "staff",
+   "heard": "Sí, bueno."
+  },
+  {
+   "source": "staff",
+   "heard": "¿Cocktail de camarón? Claro que sí."
+  },
+  {
+   "source": "caller",
+   "heard": "Con pulpo",
+   "language": "es",
+   "reply": "Ceviche Ceviche de Camaron Con Pulpo. $22.99. ¿Algo más?",
+   "actions": [
+    "add_item"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Con pulpo, déjame verificar. Sí, sí te tenemos con pulpo también."
+  },
+  {
+   "source": "caller",
+   "heard": "Am, ¿me puede, me puede apartar uno",
+   "language": "es",
+   "reply": "Ceviche: ¿Ceviche de Pescado / Fish, Ceviche de Camaron / Shrimp, Ceviche de Pulpo / Calamari o Ceviche de Camaron Con Pulpo / Shrimp And Calamari?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Un cocktail de camarón con pulpo, muy bien, ¿algo más?"
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, solamente eso",
+   "language": "es",
+   "reply": "Listo, solo el Ceviche de Camaron Con Pulpo. ¿Recoger?",
+   "actions": []
+  },
+  {
+   "source": "staff",
+   "heard": "Me darías su nombre para tu orden."
+  },
+  {
+   "source": "caller-name",
+   "heard": "Miriam."
+  },
+  {
+   "source": "staff",
+   "heard": "Muy bien, Miriam, danos unos quince a veinte minutos, ¿no? Ahorita te lo tenemos."
+  },
+  {
+   "source": "caller",
+   "heard": "Sí, está bien, muchas",
+   "language": "es",
+   "reply": "Ceviche: ¿Ceviche de Pescado / Fish, Ceviche de Camaron / Shrimp, Ceviche de Pulpo / Calamari o Ceviche de Camaron Con Pulpo / Shrimp And Calamari?",
+   "actions": [
+    "set_fulfillment"
+   ]
+  },
+  {
+   "source": "staff",
+   "heard": "Igualmente, hasta luego."
+  },
+  {
+   "source": "auto",
+   "heard": "así está bien",
+   "language": "es",
+   "reply": "Ceviche: ¿Ceviche de Pescado / Fish, Ceviche de Camaron / Shrimp, Ceviche de Pulpo / Calamari o Ceviche de Camaron Con Pulpo / Shrimp And Calamari?",
+   "actions": []
+  }
+ ],
+ "name": "Miriam"
+}

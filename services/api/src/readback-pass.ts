@@ -144,8 +144,19 @@ export function addStaffConfirmedTacos(cart: any[], turns: T): void {
   const all = turns.map((t) => t.text).join(" ");
   if (!/\btacos?\b/iu.test(all)) return;
   let meat = "", total = 0;
+  // joseluis1 (CA244be9): "N de chorizo" is tacos only while tacos are the dish being talked about — a staff menu list
+  // ("hay tacos, quesadillas, tortas, sopesazos…") isn't, and "¿Los dos de chorizo?" after "dos sopes" is the sopes.
+  const DISH = /\b(tacos?|quesadillas?|qd|tortas?|burritos?|sopes(?:a[sz]os?)?|sopesazos?|huaraches?|guaraches?|gorditas?|tostadas?|enchiladas?|pambazos?|tamales?|flautas?)\b/giu;
+  let lastDish = "";
   for (const t of turns) {
+    const ds = [...t.text.matchAll(DISH)].map((x) => x[1].toLowerCase());
+    if (ds.length >= 3) continue; // a menu list
+    const m0 = t.speaker === "staff" ? t.text.match(new RegExp(`\\b${NW}\\s+(?:tacos?\\s+)?de\\s+(asada|bistec|pastor|chorizo|lengua)\\b`, "iu")) : null;
+    const before = m0 ? [...t.text.slice(0, m0.index! + m0[0].length).matchAll(DISH)].map((x) => x[1].toLowerCase()) : [];
+    const ctx = before.length ? before[before.length - 1] : lastDish;
+    if (ds.length) lastDish = ds[ds.length - 1];
     if (t.speaker !== "staff") continue;
+    if (m0 && ctx && !/^tacos?$/.test(ctx)) continue;
     const m = t.text.match(new RegExp(`\\b${NW}\\s+(?:tacos?\\s+)?de\\s+(asada|bistec|pastor|chorizo|lengua)\\b`, "iu"));
     if (m) { const mm = TMEAT.find(([re]) => re.test(m[2])); if (mm) { meat = mm[1]; total += nOf(m[1]); } continue; }
     const o = t.text.match(new RegExp(`\\botra\\s+orden\\s+de\\s+${NW}\\s+tacos?\\b`, "iu"));

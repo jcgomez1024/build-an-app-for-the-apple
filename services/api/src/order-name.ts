@@ -291,8 +291,8 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       // or mid-turn "Okay, muy bien, Name. Dame unos minutos."
       if (t.speaker === "staff") {
         const echo =
-          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1\b|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto|muy\s+bien)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
-          t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)\b/iu) ||
+          t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1(?![\p{L}])|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto|muy\s+bien)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
+          t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)(?![\p{L}])/iu) ||
           // gerardo1 (CAdf3a04): "Gerardo, sale Gerardo, dame unos 15…"
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*sale(?:\s+\1)?\b/u) ||
           // eva1: "Eva, muy bien, Eva."
@@ -614,6 +614,25 @@ export function surnameAfterReadback(turns: Array<{ speaker: "caller" | "staff";
   if (first !== foldName(A) && (!W || first === foldName(W))) return A;
   return null;
 }
+/** joseluis1: the caller said "Ah, sí, José Luis Rangel" — a picked first name that starts that run of capitalized words grows to it. */
+export function callerFullerName(turns: Array<{ speaker: "caller" | "staff"; text: string }>, name: string): string | null {
+  const first = String(name || "").trim().split(/\s+/); if (!first[0] || first.length > 2) return null;
+  const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(?:^|[^\\p{L}])(${first.map(esc).join("\\s+")}(?:\\s+\\p{Lu}[\\p{L}'-]+){1,2})(?![\\p{L}])`, "u");
+  let best: string | null = null;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const m = String(t.text || "").match(re); if (!m) continue;
+    const ws = m[1].split(/\s+/).slice(first.length);
+    const keep: string[] = []; for (const w of ws) { if (NOT_NAMES.test(w) || NAME_FILLER.test(w)) break; keep.push(w); }
+    // only when staff echoed more than the first name ("Muy bien, José Luis") — "Efraín" alone stays Efraín (efrain1)
+    const fold = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+    const two = fold([...first, keep[0] || ""].join(" "));
+    if (!keep.length || !turns.some((u) => u.speaker === "staff" && fold(String(u.text || "")).includes(two))) continue;
+    { const c = [...first, ...keep].join(" "); if (!best || c.length > best.length) best = c; }
+  }
+  return best;
+}
 /** juanM1 (CA000285): staff "Juan qué?" (the caller's "One" misheard) + caller "Maldonado" → "Juan Maldonado". */
 export function firstQueSurname(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -641,6 +660,8 @@ export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff
   if (/^\s*nombre\b/iu.test(r0.name)) { const n = dropNombrePrefix(r0.name, turns); if (!n) return null; r0 = { ...r0, name: n }; }
   const st = stripNameFillers(r0.name); if (!st) return null; if (st !== r0.name) r0 = { ...r0, name: st };
   const fq = firstQueSurname(turns); if (fq) return { ...r0, name: fq };
+  // joseluis1: staff "Muy bien, José Luis" / a first name only → the caller's own fuller "José Luis Rangel" earlier.
+  if (r0?.name) { const full = callerFullerName(turns, r0.name); if (full) r0 = { ...r0, name: full }; }
   const fix = surnameAfterReadback(turns, r0.name); return fix && fix !== r0.name ? { ...r0, name: fix } : r0;
 }
 function nameFromTranscriptInfoN(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
