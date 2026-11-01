@@ -1,0 +1,508 @@
+{
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.04,
+   "end": 1.441,
+   "text": "Robert?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.601,
+   "end": 2.941,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 3.801,
+   "end": 4.021,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.982,
+   "end": 6.342,
+   "text": "Can I place an order for carry out?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.484,
+   "end": 22.148,
+   "text": "Yeah. Okay, anything else?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.725,
+   "end": 15.225,
+   "text": "Okay, we'll do four,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.266,
+   "end": 19.587,
+   "text": "street tacos with carne asada.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.048,
+   "end": 25.429,
+   "text": "Yep, we'll do one burrito grande",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.85,
+   "end": 27.41,
+   "text": "What can?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.869,
+   "end": 27.269,
+   "text": "with,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.49,
+   "end": 29.73,
+   "text": "yep, with carne asada,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.591,
+   "end": 33.992,
+   "text": "Okay, with, with everything on it?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.79,
+   "end": 31.151,
+   "text": "extra,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.451,
+   "end": 33.711,
+   "text": "sorry.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.772,
+   "end": 40.054,
+   "text": "No, no, carne asada, extra carne asada, and only lechuga.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.955,
+   "end": 43.155,
+   "text": "Okay, let me, let me.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 42.654,
+   "end": 45.695,
+   "text": "No rice, no beans, no cheese, no nothing.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.437,
+   "end": 48.797,
+   "text": "Just lettuce, right?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.537,
+   "end": 51.257,
+   "text": "Yep, with extra carne asada.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 52.958,
+   "end": 59.26,
+   "text": "Okay, hold on.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.621,
+   "end": 61.721,
+   "text": "Okay, I got it. But",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 62.621,
+   "end": 63.642,
+   "text": "Perfect. And then we'll do",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 64.582,
+   "end": 68.844,
+   "text": "only, salsa verde with, both the tacos and the burrito,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 69.904,
+   "end": 70.764,
+   "text": "all salsa verde.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 72.044,
+   "end": 72.444,
+   "text": "verde?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 73.405,
+   "end": 77.867,
+   "text": "Yep. And then can we, and then can we get chips and queso?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 74.425,
+   "end": 74.765,
+   "text": "Okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 79.586,
+   "end": 82.547,
+   "text": "sure. Cheese queso dip.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 83.409,
+   "end": 84.129,
+   "text": "Yep, cheese queso.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 85.908,
+   "end": 87.069,
+   "text": "Okay, I got it.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 87.791,
+   "end": 88.751,
+   "text": "And that'll do it. That's it.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 89.189,
+   "end": 100.613,
+   "text": "Okay, so I got your first four street taco steak and then a burrito grande steak with salsa verde, only And a queso dip with chips.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 101.436,
+   "end": 106.798,
+   "text": "Yeah, and on the burrito, extra carne asada, yeah? Okay, perfect.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 104.595,
+   "end": 105.236,
+   "text": "Yeah, I got it.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 107.397,
+   "end": 107.977,
+   "text": "Thank you.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 108.898,
+   "end": 109.879,
+   "text": "Thank you, gracias.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 110.419,
+   "end": 111.119,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "cart": {
+  "cart": [
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 4,
+    "modifiers": [
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Burrito Size",
+      "option": "Grande '12 (+$3.00)"
+     }
+    ],
+    "elviNotes": [
+     "no frijoles",
+     "no arroz"
+    ]
+   },
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Chile Relleno De Queso / Cheese Chile Relleno"
+     },
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Frijoles Refritos / Refried Beans"
+     },
+     {
+      "step": "(C) Burrito Options",
+      "option": "Frijoles Refritos / Refried Beans"
+     },
+     {
+      "step": "(A) Burrito Size",
+      "option": "Grande '12 (+$3.00)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Burrito Size",
+      "option": "Grande '12 (+$3.00)"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Robert?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "Yes."
+   },
+   {
+    "source": "caller-fulfillment",
+    "heard": "Can I place an order for carry out?"
+   },
+   {
+    "source": "staff",
+    "heard": "Yeah. Okay, anything else?"
+   },
+   {
+    "source": "caller",
+    "heard": "we'll do four, street tacos with carne asada Yep, we'll do one burrito grande",
+    "language": "en",
+    "reply": "4 × Burrito: steak, large. $44.00. Most people get it with rice, refried beans, cheese and onion. Want it that way?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "What can?"
+   },
+   {
+    "source": "caller",
+    "heard": "with, yep, with carne asada,",
+    "language": "en",
+    "reply": "4 × Burrito: large, steak. $44.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, with, with everything on it?"
+   },
+   {
+    "source": "caller",
+    "heard": "extra, sorry",
+    "language": "en",
+    "reply": "Burrito: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "carne asada, extra carne asada, and only lechuga",
+    "language": "en",
+    "reply": "Burrito: steak, deluxe: lettuce, pico, sour cream, large. $11.75. Anything else?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, let me, let me."
+   },
+   {
+    "source": "caller",
+    "heard": "No rice, no beans, no cheese, no nothing",
+    "language": "en",
+    "reply": "No frijoles? or arroz. 4 × Burrito: steak, deluxe: lettuce, pico, sour cream, large. $47.00. Anything else?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Just lettuce, right?"
+   },
+   {
+    "source": "caller",
+    "heard": "Yep, with extra carne asada",
+    "language": "en",
+    "reply": "Sure, what should I add, and with what?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, hold on."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, I got it. But"
+   },
+   {
+    "source": "caller",
+    "heard": "Perfect. And then we'll do only, salsa verde with, both the tacos and the burrito, all salsa verde",
+    "language": "en",
+    "reply": "Burrito: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "verde?"
+   },
+   {
+    "source": "caller",
+    "heard": "Yep. And then can we, and then can we get chips and queso",
+    "language": "en",
+    "reply": "Burrito: refried beans, deluxe: lettuce, pico, sour cream, large, cheese chile relleno. $11.75. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "sure. Cheese queso dip."
+   },
+   {
+    "source": "caller",
+    "heard": "Yep, cheese queso",
+    "language": "en",
+    "reply": "Burrito: cheese chile relleno and refried beans, refried beans, extra medium green salsa 2oz, large. $11.75. Anything else?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, I got it."
+   },
+   {
+    "source": "caller",
+    "heard": "And that'll do it",
+    "language": "en",
+    "reply": "Got it. Anything else?",
+    "actions": [
+     "set_fulfillment"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, so I got your first four street taco steak and then a burrito grande steak with salsa verde, only And a queso dip with chips."
+   },
+   {
+    "source": "caller",
+    "heard": "Yeah, and on the burrito, extra carne asada, yeah? Okay, perfect",
+    "language": "en",
+    "reply": "Burrito: steak, large. $11.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Yeah, I got it."
+   },
+   {
+    "source": "staff",
+    "heard": "Thank you."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Thank you, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias."
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Robert"
+ }
+}

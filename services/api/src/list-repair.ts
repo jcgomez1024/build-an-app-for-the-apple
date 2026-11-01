@@ -303,7 +303,9 @@ export function noReaskAnswered(r: any, input: any) {
   const asks = reply.match(/\b(quesadillas?|tacos?|gorditas?|tortas?|burritos?)\b/i); if (!asks) return r;
   const re = new RegExp(`^sq-${asks[1].toLowerCase().replace(/s$/, "")}`);
   const lines = cart.filter((l) => re.test(String(l.itemId))); if (!lines.length) return r;
-  const done = lines.every((l) => (l.modifiers || []).some((m: any) => /tortilla|shell|options/i.test(String(m.step)) && !/salsa|deluxe/i.test(String(m.step))) && (l.modifiers || []).some((m: any) => /carne|meat/i.test(String(m.step))));
+  // robert1: a burrito has no tortilla step — its meat alone answers "Burrito: Bistec, Cabeza…?"
+  const noTort = /^burrito/i.test(asks[1]);
+  const done = lines.every((l) => (noTort || (l.modifiers || []).some((m: any) => /tortilla|shell|options/i.test(String(m.step)) && !/salsa|deluxe/i.test(String(m.step)))) && (l.modifiers || []).some((m: any) => /carne|meat/i.test(String(m.step)) && meatIn(plain(String(m.option)))));
   if (done && /\b(?:what meat|qu[eé] carne|how many|cu[aá]nt[oa]s|comal|harina|taquer|bistec,|or\b)/i.test(reply) && !/\b(?:another|otra|more|m[aá]s)\b/i.test(String(input?.transcript || ""))) return ack;
   return r;
 }
@@ -1068,4 +1070,74 @@ export function applyBurritoMeatRepeat(cart: any[], turns: Turn[], menu: any[]):
   if (/\bcon aguacate\b/.test(winA) && !(l.elviNotes || []).some((n: string) => /aguacate/i.test(n)) && !(l.modifiers || []).some((x: any) => /guacamole/i.test(x.option))) {
     l.elviNotes = [...(l.elviNotes || []), "con aguacate"]; changed = true; }
   return changed;
+}
+
+// robert1 (CAcaddf9, Oct 31 9:15 PM ET, English): "we'll do four, street tacos with carne asada. Yep, we'll do one burrito grande"
+// rang 4 × Burrito Grande; "chips and queso" rang a Burrito (cheese chile relleno + refried beans); the real burrito lost
+// "extra carne asada", "only lechuga / no rice, no beans, no cheese" and "salsa verde with both the tacos and the burrito".
+const EN_NUM: Record<string, number> = { one: 1, a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
+const nOf = (w: string) => EN_NUM[w] ?? numOf(w) ?? (Number(w) || 0);
+const ANYNUM = `(?:${NUMW}|one|a|an|two|three|four|five|six|seven|eight|nine|ten|twelve|\\d+)`;
+const DIPS_ID = "sq-dips-MAIPCN";
+const saysQuesoDip = (p: string) => /\bchips (?:and|with|y|con) queso\b|\bqueso (?:dip )?(?:and|with|y|con) chips\b|\bqueso dip\b/.test(p);
+/** Dish mentions with counts in caller speech: "four street tacos with carne asada", "one burrito grande". */
+function dishCounts(c: string) {
+  const out: Array<{ fam: "taco" | "burrito"; qty: number; style?: "taquero" | "comal" | "harina"; meat: string | null; at: number }> = [];
+  for (const m of c.matchAll(new RegExp(`\\b(${ANYNUM})[ ,|]+(?:(street|taquer[oa]s?|comal|flour|harina) )?(tacos?|burritos?)\\b(?=([^|]{0,40}))`, "g"))) {
+    const fam = /^taco/.test(m[3]) ? "taco" : "burrito"; const st = m[2] ? (/street|taquer/.test(m[2]) ? "taquero" : /comal/.test(m[2]) ? "comal" : "harina") : undefined;
+    const mm = m[4].split(new RegExp(`\\b${ANYNUM} (?:street |taquer[oa]s? )?(?:tacos?|burritos?)\\b`))[0].match(/\b(?:with|de|con) (?:carne )?([a-z]+)/); out.push({ fam, qty: nOf(m[1]), style: st as any, meat: mm ? meatIn(mm[1]) : null, at: m.index || 0 }); }
+  return out;
+}
+export function applyEnglishMultiItem(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const c = said(turns, "caller"); const ds = dishCounts(c); let changed = false;
+  const tacos = ds.filter((d) => d.fam === "taco"); const burr = ds.filter((d) => d.fam === "burrito");
+  const isB = (l: any) => /^sq-burrito-/.test(String(l.itemId));
+  // 1) "N tacos … one burrito" merged into N burritos → the N-line is the tacos
+  for (const t of tacos) {
+    if (cart.some((l) => kindOfLine(l) === "taco" && l.quantity === t.qty)) continue;
+    const bl = cart.find((l) => isB(l) && l.quantity === t.qty && t.qty > 1 && !burr.some((b) => b.qty === t.qty)); if (!bl) continue;
+    const meat = t.meat || meatOfLine(bl) || null; const hadOther = cart.some((l) => l !== bl && isB(l));
+    if (!hadOther && burr.length) cart.splice(cart.indexOf(bl) + 1, 0, { ...structuredClone(bl), quantity: 1, elviNotes: [] });
+    const notes = bl.elviNotes; bl.elviNotes = undefined; bl.quantity = t.qty; setLine(bl, { kind: "taco", meat, qty: t.qty, style: t.style || "taquero" }, menu); delete bl.elviNotes;
+    void notes; changed = true;
+  }
+  // 2) more burrito lines than the caller ordered: drop the ones whose filling the caller never said (or said "no" to)
+  const want = burr.reduce((a, b) => a + b.qty, 0);
+  if (want) { const bls = cart.filter(isB); let extra = bls.reduce((a, l) => a + (l.quantity || 1), 0) - want;
+    const unsaid = (l: any) => (l.modifiers || []).filter((m: any) => /carne|meat/i.test(m.step)).every((m: any) => { const w = plain(String(m.option)).split("/")[0].trim().split(" ")[0]; return !meatIn(plain(m.option)) && !new RegExp(`(?<!\\bno )\\b${w}`).test(c.replace(/\bno (?:rice|beans|cheese)\b/g, "")); });
+    for (const l of bls) { if (extra <= 0) break; if (!unsaid(l) || (l.quantity || 1) > extra) continue; cart.splice(cart.indexOf(l), 1); extra -= l.quantity || 1; changed = true; } }
+  // 3) one burrito left: carne asada / extra meat / only lettuce / no rice-beans-cheese
+  const bls = cart.filter(isB);
+  if (bls.length === 1 && burr.length) { const l = bls[0]; const notes = new Set<string>(l.elviNotes || []);
+    const bm = burr[0].meat || (c.match(/\bburrito[^]{0,120}?\bwith (?:carne )?(asada|steak|pastor|chicken|pollo|carnitas|chorizo)\b/) || [])[1];
+    const want2 = bm ? meatIn(bm) : null;
+    if (want2 && meatOfLine(l) !== want2) { const g = (menu.find((x) => x.id === l.itemId)?.modifierGroups || []).find((x: any) => /carne/i.test(x.name)); const o = g && (g.options || []).map(oname).find((o: string) => meatIn(plain(o)) === want2); if (o) { l.modifiers = [...(l.modifiers || []).filter((m: any) => m.step !== g.name), { step: g.name, option: o }]; changed = true; } }
+    const em = c.match(/\bextra (?:carne )?(asada|steak|meat|carne|pastor|chicken|pollo)\b/); if (em) notes.add(`extra ${em[1] === "asada" ? "carne asada" : em[1]}`);
+    if (/\b(?:only|just|solo|nomas) (?:lechuga|lettuce)\b/.test(c)) { notes.add("solo lechuga"); l.modifiers = (l.modifiers || []).filter((m: any) => !/DELUXE/i.test(m.option)); }
+    for (const [re, n, opt] of [[/\bno (?:rice|arroz)\b/, "no arroz", /arroz/i], [/\bno (?:beans|frijoles)\b/, "no frijoles", /frijol/i], [/\bno (?:cheese|queso)\b/, "no queso", /queso fresco/i]] as Array<[RegExp, string, RegExp]>)
+      if (re.test(c)) { notes.add(n); l.modifiers = (l.modifiers || []).filter((m: any) => /carne/i.test(m.step) || !opt.test(m.option)); }
+    const nn = [...notes]; if (nn.length !== (l.elviNotes || []).length) { l.elviNotes = nn; changed = true; } }
+  // 4) "salsa verde with both the tacos and the burrito" / "all salsa verde"
+  if (/\bsalsa verde\b/.test(c) && /\b(?:both|all|everything|todo|todos|all salsa verde)\b/.test(c))
+    for (const l of cart) if ((kindOfLine(l) === "taco" || isB(l)) && !(l.elviNotes || []).includes("salsa verde") && !(l.modifiers || []).some((m: any) => /verde/i.test(m.option))) { l.elviNotes = [...(l.elviNotes || []), "salsa verde"]; changed = true; }
+  // 5) chips and queso / queso dip → Dips: Queso Dip con Chips
+  if (saysQuesoDip(c) && !cart.some((l) => /^sq-dips-/.test(String(l.itemId)))) { cart.push({ itemId: DIPS_ID, quantity: 1, modifiers: [{ step: "Dips", option: "Queso Dip con Chips (+$1.00)" }], readback: "queso dip con chips" }); changed = true; }
+  return changed;
+}
+/** Live: one caller turn "four street tacos … one burrito grande" added as N × burrito → split into N tacos + 1 burrito;
+ *  a burrito added on a turn that never says burrito but says "chips and queso" → Queso Dip con Chips. */
+export function liveMultiItem(r: any, input: any) {
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; if (!acts.length) return r;
+  const tx = plain(String(input?.transcript || "")); const ds = dishCounts(tx); const menu: any[] = input?.menu || []; let ch = false;
+  const out: any[] = [];
+  for (const a of acts) {
+    const isB = a.type === "add_item" && /^sq-burrito-/.test(String(a.itemId));
+    if (isB && !/\bburrit?os?\b|\bburros?\b/.test(tx) && saysQuesoDip(tx)) { out.push({ type: "add_item", itemId: DIPS_ID, quantity: 1, modifiers: [{ step: "Dips", option: "Queso Dip con Chips (+$1.00)" }], readback: "queso dip con chips" }); ch = true; continue; }
+    const t = ds.find((d) => d.fam === "taco" && d.qty === a.quantity && a.quantity > 1); const b = ds.find((d) => d.fam === "burrito" && d.qty !== a.quantity);
+    if (isB && t && b) { const base = menu.length ? baseItem(menu, "taco") : null;
+      const tl: any = { itemId: base?.id || "sq-taco-TAR7L5", quantity: t.qty, modifiers: [] }; if (menu.length) setLine(tl, { kind: "taco", meat: t.meat || meatOfLine(a), qty: t.qty, style: t.style || "taquero" }, menu);
+      out.push({ type: "add_item", ...tl, readback: `${t.qty} street tacos` }, { ...a, quantity: b.qty }); ch = true; continue; }
+    out.push(a);
+  }
+  return ch ? { ...r, actions: out } : r;
 }
