@@ -1,0 +1,463 @@
+{
+ "callSid": "CA6dd8e72bcf9a7d0eb2281383d8c10f1d",
+ "name": "Rodolfo",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.14,
+   "end": 1.641,
+   "text": "Rodolfo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.06,
+   "end": 3.921,
+   "text": "Sí, buenas tardes.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.642,
+   "end": 5.862,
+   "text": "Buenas tardes, Rodolfo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.861,
+   "end": 10.601,
+   "text": "Ah, quería hacer una orden. Oye, disculpe, ¿si si tienes delivery ahorita?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.303,
+   "end": 9.483,
+   "text": "Oh.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.484,
+   "end": 13.244,
+   "text": "No, hoy ya no tenemos, Rodolfo.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.382,
+   "end": 16.042,
+   "text": "No, a ver, déjeme preguntar, espérame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.583,
+   "end": 19.863,
+   "text": "A ver si, a ver si.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.169,
+   "end": 28.049,
+   "text": "¿Para dónde sería?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 29.544,
+   "end": 30.124,
+   "text": "Aquí a la",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.824,
+   "end": 42.366,
+   "text": "197 Jackson. Sí. Okay. Ah, ¿me puede poner a mí dos gorditas?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.331,
+   "end": 37.673,
+   "text": "A la 190 y 100 Jackson Street. Sí, sí, todavía.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.015,
+   "end": 46.355,
+   "text": "Okay, dos gorditas.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.227,
+   "end": 50.147,
+   "text": "Y también de Viste.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 48.236,
+   "end": 49.176,
+   "text": "¿De qué se las pongo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 51.237,
+   "end": 59.88,
+   "text": "Muy bien. Espéreme, espéreme.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.708,
+   "end": 56.308,
+   "text": "Y me pone cinco quesadillas de comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.868,
+   "end": 59.169,
+   "text": "De Viste también, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 69.313,
+   "end": 69.993,
+   "text": "Sí, de Comal.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 73.775,
+   "end": 74.675,
+   "text": "Oh,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 77.657,
+   "end": 78.457,
+   "text": "de Viste también.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 81.358,
+   "end": 85.3,
+   "text": "Y también me pone cuatro tacos de tortilla taquera",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 87.641,
+   "end": 88.141,
+   "text": "de Viste.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 91.322,
+   "end": 91.342,
+   "text": "Y",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 95.784,
+   "end": 96.345,
+   "text": "me trae,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 97.305,
+   "end": 98.285,
+   "text": "¿sí tiene agua de horchata?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 100.987,
+   "end": 102.447,
+   "text": "Me pone dos, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 108.59,
+   "end": 113.492,
+   "text": "Sí, 97, 197.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 115.653,
+   "end": 116.913,
+   "text": "Pues, Jackson.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 118.474,
+   "end": 119.314,
+   "text": "Sí, Street.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 122.795,
+   "end": 125.116,
+   "text": "Oh, mire, ¿sí me puede poner otra orden más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 129.457,
+   "end": 129.757,
+   "text": "Okay. Oye,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 131.258,
+   "end": 135.299,
+   "text": "es 4 40 3 43",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 137.12,
+   "end": 140.501,
+   "text": "0 1, sí, 0 1 y 0 2.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 143.582,
+   "end": 143.662,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 154.966,
+   "end": 155.146,
+   "text": "Sí. Ah,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 161.188,
+   "end": 163.309,
+   "text": "tres tres gorditas de Vité.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 167.33,
+   "end": 169.411,
+   "text": "Sí, sería todo ahora sí. Sí, sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 173.914,
+   "end": 176.036,
+   "text": "Muy bien. Okey, ahorita aquí espero.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 176.957,
+   "end": 177.638,
+   "text": "Muchas gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 178.739,
+   "end": 179.039,
+   "text": "Adiós.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 5,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 5,
+    "modifiers": [
+     {
+      "step": "(A) Tortilla Options",
+      "option": "(TCO) Tortilla Comal / Homemade"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "readback": "taco comal bistec"
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 3,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ],
+    "person": "plato 2"
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Rodolfo."
+   },
+   {
+    "source": "staff",
+    "heard": "Buenas tardes, Rodolfo."
+   },
+   {
+    "source": "caller-fulfillment",
+    "heard": "Ah, quería hacer una orden. Oye, disculpe, ¿si si tienes delivery ahorita?"
+   },
+   {
+    "source": "staff",
+    "heard": "Oh."
+   },
+   {
+    "source": "staff",
+    "heard": "No, hoy ya no tenemos, Rodolfo."
+   },
+   {
+    "source": "caller",
+    "heard": "a ver, déjeme preguntar, espérame A ver si",
+    "language": "es",
+    "reply": "Adelante.",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "a ver si",
+    "language": "es",
+    "reply": "Adelante.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Para dónde sería?"
+   },
+   {
+    "source": "caller",
+    "heard": "Aquí a la 197 Jackson. Sí. Okay. Ah, ¿me puede poner a mí dos gorditas",
+    "language": "es",
+    "reply": "Gordita: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "A la 190 y 100 Jackson Street. Sí, sí, todavía."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, dos gorditas."
+   },
+   {
+    "source": "caller",
+    "heard": "Y también de bistec",
+    "language": "es",
+    "reply": "Perdón, no tenemos ver dejeme preguntar esperame ver si ver si aqui la jackson. si. okay. ah puede poner mi dos gorditas y tambien bistec en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿De qué se las pongo?"
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien. Espéreme, espéreme."
+   },
+   {
+    "source": "caller",
+    "heard": "Y me pone cinco quesadillas de comal de bistec también Sí, de Comal Oh, de bistec también Y también me pone cuatro tacos de tortilla taquera de bistec Y me trae, Me pone dos orden de quesadillas Sí, 97",
+    "language": "es",
+    "reply": "104 quesadillas de comal: 5 bistec, 2 bistec, 97 bistec, salsa asada; 4 × Quesadilla: taquera, bistec, salsa asada. $482.00. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item",
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller",
+    "heard": "197 Pues, Jackson Sí, Street Oh, mire, ¿sí me puede poner otra orden más",
+    "language": "es",
+    "reply": "2 × Quesadilla: taquera, bistec, salsa asada. $7.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller",
+    "heard": "es 4 40 3 43 0 1, sí, 0 1 y 0 2 Sí Sí. Ah",
+    "language": "es",
+    "reply": "No estoy seguro de qué quiere con esos números. ¿Es un número de teléfono?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "tres gorditas de bistec",
+    "language": "es",
+    "reply": "3 × Gordita: bistec, salsa asada. $15.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Sí, sería todo ahora sí. Sí, sería todo Muy bien. Okey, ahorita aquí espero Muchas gracias Adiós."
+   }
+  ],
+  "fulfillment": "DELIVERY"
+ }
+}

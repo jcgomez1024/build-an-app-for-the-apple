@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
-import { addressNumberTurn, etaOnlyTurn, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
+import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
 import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1 } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
@@ -781,7 +781,7 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
   // cecilia1b: same turn after merge — "¿tienen menudo? … dos órdenes con pata" → stamp dish onto the órdenes clause
   for (const t of merged) {
     if (t.speaker !== "caller") continue;
-    const m = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?)\b[^]*?\b((?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b(?!\s+de\s+)/iu);
+    const m = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?)\b[^]*?\b((?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b(?!\s+de\s+)(?!\s+(?:aguas?|horchatas?|jamaicas?|tamarindos?|refrescos?|sodas?|jarritos?|cocas?)\b)/iu); // rodolfo2: drink count
     if (m) t.text = t.text.replace(m[2], (x) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(x) ? `${x} de ${m[1]}` : `${x} orden de ${m[1]}`);
   }
   { let lastDish = ""; let givenName = "";
@@ -794,6 +794,14 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
       if (lastDish && !/chips|\(dip\)/iu.test(t.text) && /\b(?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?\b(?:\s*,?\s*(?:porfa|por\s+favor|please))?(?:\s*,?\s*(?:con|sin)\s+patas?)?\s*[.?!]*\s*$/iu.test(t.text))
         t.text = t.text.replace(/\b((?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b/iu,
           (m) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(m) ? `${m} de ${lastDish}` : `${m} orden de ${lastDish}`); } }
+}
+/** rodolfo2: "cinco quesadillas de comal … cuatro tacos de tortilla taquera" — the comal belongs to the quesadillas; a taco
+ *  clause (from "taco(s)" to the next dish word) must itself say comal and never taquera. */
+export function tacoSegComal(text: string): boolean {
+  const parts = String(text || "").split(/(?=\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?|flautas?|doradas?)\b)/iu);
+  const segs = parts.filter((p) => /^tacos?\b/iu.test(p));
+  if (!segs.length) return /\bcomal\b/iu.test(text) && !/\btaquer/iu.test(text);
+  return segs.some((p) => /\bcomal\b/iu.test(p) && !/\btaquer/iu.test(p));
 }
 export const DORADA_DELUXE_ID = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", DORADA_REG_ID = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
 /** mix1: "tres de bistec con chorizo" is ONE line with both meats (mixed), not 3 bistec + 2 chorizo (Paco). "y" stays separate. */
@@ -1548,7 +1556,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // carlos1: "dos tacos de bistec al comal" — model often returns []; force TCO lines (not invent from taquero ref).
-    if (source.startsWith("caller") && /\btacos?\b/iu.test(text) && /\bcomal\b/iu.test(text)
+    if (source.startsWith("caller") && /\btacos?\b/iu.test(text) && tacoSegComal(text) // rodolfo2: comal must be in the taco clause
       && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende|quesadilla)\b/iu.test(text)
       && !acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)) && /comal|TCO|homemade/i.test(String(a.itemId) + " " + (a.modifiers || []).map((m: any) => m.option).join(" ")))
       && !cart.some((l) => kindOfItem(l.itemId) === "taco" && /comal|TCO|homemade/i.test((l.modifiers || []).map((m: any) => m.option).join(" ")) && listedMeats(text).some((w) => (l.modifiers || []).some((m: any) => new RegExp(w.meat, "i").test(String(m.option)))))) {
@@ -1721,9 +1729,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // jose1: "deme dos, dos de quesad, dos de pollo" — listedMeats qty beats model qty 1 on the matching meat line
     if (source.startsWith("caller")) {
       const want = listedMeats(text);
+      // rodolfo2: "cinco quesadillas de comal de bistec … cuatro tacos … de bistec" — a count belongs to its own dish clause
+      const DSEG = /(?=\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:[oó]rdenes\s+de\s+)?(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?|flautas?|doradas?)\b)/iu;
+      const segs = text.split(DSEG); const segKind = (sg: string) => { const m = sg.match(/\b(tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?|flautas?|doradas?)\b/iu); return m ? m[1].toLowerCase().replace(/s$/, "").replace(/^dorada$/, "quesadilla") : ""; };
+      const multiDish = new Set(segs.map(segKind).filter(Boolean)).size > 1;
       for (const a of acts as any[]) {
         if (a.type !== "add_item") continue;
-        const hit = want.find((w) => w.qty && w.qty > 1 && lineHasMeat(a, w.meat));
+        const ak = String(kindOfItem(a.itemId) || "").replace(/^queso torta$/, "torta");
+        const wantA = multiDish ? segs.filter((sg) => { const k = segKind(sg); return k && (ak.includes(k) || k.includes(ak)); }).flatMap((sg) => listedMeats(sg)) : want;
+        const hit = wantA.find((w) => w.qty && w.qty > 1 && lineHasMeat(a, w.meat));
         if (hit && (Number(a.quantity) || 1) < hit.qty!) a.quantity = hit.qty!;
       }
     }
@@ -1743,6 +1757,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           if (pendingSpokenQty && kindMatch(ik, pendingSpokenQty.kind)) {
             // julio1c: "una quesadilla de comal de duro" is a 1-of-N meat split, not the deferred "dos"
             if (/\buna\s+quesadilla\b/iu.test(text) && /\bcomal\b/iu.test(text)) { pendingSpokenQty = null; }
+            // rodolfo2: "tres gorditas de bistec" says its own count — a stale "dos gorditas" from before never overrides it
+            else if (n > 1 && kinds.length === 1 && kindMatch(kinds[0], pendingSpokenQty.kind) && n !== pendingSpokenQty.n) { pendingSpokenQty = null; }
             // gio1: "una de tripa y de bistec" splits the announced "dos" across the lines — never stamps it on one
             else if (unaSplitMeats(text)) { pendingSpokenQty = null; }
             else { a.quantity = pendingSpokenQty.n; pendingSpokenQty = null; appliedPending = true; }
@@ -3496,9 +3512,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     turns = turns.filter((t, i) => {
       if (!isAvailQ(t)) return true;
       if (yesoptFollows(i)) { (t as any).availOnly = true; return true; }
+      stampAskedCount(turns, i); // rodolfo2
       return false;
     });
   }
+  turns = dropAddressNumberTurns(turns); // rodolfo2
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
@@ -3515,6 +3533,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && (/\bdoradas?\b/iu.test(t.text) || /\bquesadillas?\b/iu.test(t.text) || listedMeats(t.text).length > 0);
     if (prev && prev.speaker === "caller" && t.speaker === "caller" && !(prev as any).availOnly && !(t as any).availOnly
       && !isClosing(t.text) && !joseOrderFollow && !orderAfterStyle
+      && !/\b(?:poner(?:me)?|pone(?:r)?|ponga|dar(?:me)?|hacer(?:me)?|quiero|quisiera|agregar|add|get)\s+(?:me\s+)?(?:otr[ao]\s+(?:orden|pedido|plato)|another\s+(?:order|plate))\b/iu.test(t.text) // rodolfo2: "¿me puede poner otra orden más?" starts its own turn ("En otra orden," fragments still glue — agustin1)
       && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });

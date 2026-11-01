@@ -1856,7 +1856,11 @@ export function applyRestatedQty(cart: any[], turns: Turn[]): boolean {
   const keys = Array.from(new Set(cart.map(ld)));
   for (const k of keys) {
     const ls = cart.filter((l) => ld(l) === k); if (ls.length < 2) continue;
+    if (new Set(ls.map((l) => l.person || "")).size > 1) continue; // rodolfo2: separate plates/orders never merge
     const dish = RQ_DISH.find(([, f]) => f(ls[0].itemId)); if (!dish) continue;
+    // rodolfo2: "dos gorditas … ¿me puede poner otra orden más? … tres gorditas de bistec" — another order ADDS (2 + 3)
+    if (/\b(?:otr[ao]s?\s+(?:orden|pedido|plato)|another\s+(?:order|plate)|por\s+separado|aparte)\b/iu.test(callerAll)
+      && turns.filter((t) => t.speaker === "caller" && new RegExp(String.raw`\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:${dish[0].source})\b`, "iu").test(b22low(String(t.text || "")))).length >= 2) continue;
     const meats = (ls[0].modifiers || []).filter(isMeatMod).map((m: any) => m.option); if (meats.length !== 1) continue;
     const n = statedCount(readback, dish[0], meats[0]) || statedCount(callerAll, dish[0], meats[0]);
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);

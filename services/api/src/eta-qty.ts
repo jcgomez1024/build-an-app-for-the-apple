@@ -16,13 +16,28 @@ export function etaOnlyTurn(text: string): boolean {
 }
 // cristian-qd1: a single line with an implausible count (> 30) is never rung unless the caller said that number next to a dish.
 export const QTY_CAP = 30;
-export function capQty(acts: any[], text: string): number {
-  let n = 0;
-  for (const a of acts) { if ((a?.type !== "add_item" && a?.type !== "update_item") || !(Number(a.quantity) > QTY_CAP)) continue;
+export function capQty(acts: any[], text: string, prior: string[] = []): number {
+  let n = 0; const known = addressNumbers([...prior, String(text || "")]);
+  for (let i = acts.length - 1; i >= 0; i--) { const a = acts[i]; if ((a?.type !== "add_item" && a?.type !== "update_item") || !(Number(a.quantity) > QTY_CAP)) continue;
     const q = Number(a.quantity);
     if (new RegExp(String.raw`\b${q}\s+(?:orden(?:es)?\s+de\s+)?\p{L}`, "u").test(String(text || "")) && FOOD.test(String(text || ""))) continue;
+    // rodolfo2: "Sí, 97" (house 197) — a house number (or its tail) is never a line at all
+    if (known.some((k) => k === String(q) || k.endsWith(String(q)))) { acts.splice(i, 1); n++; continue; }
     a.quantity = 1; n++; }
   return n;
+}
+/** rodolfo2: once a count was capped/dropped, Elvi's own readback ("104 quesadillas … 97 bistec … $482.00") is stale — say what is rung. */
+export function readbackFromActs(acts: any[], input: any): string {
+  const menu: any[] = input?.resolverMenu || input?.menu || []; const en = input?.language === "en";
+  const parts: string[] = []; let cents = 0;
+  for (const a of acts) { if (a?.type !== "add_item" && a?.type !== "update_item") continue;
+    const it = menu.find((m: any) => m?.id === a.itemId); const q = Number(a.quantity) || 1;
+    const name = String(it?.name || a.itemId || "").replace(/^sq-/, "");
+    const mods = (a.modifiers || []).filter((m: any) => !m?.isDefault).map((m: any) => String(m.option || "").replace(/\s*\(\+\$[\d.]+\)/, "").split(" / ")[0]);
+    if (it?.priceCents) cents += it.priceCents * q;
+    parts.push(`${q > 1 ? `${q} × ` : ""}${name}${mods.length ? `: ${mods.join(", ")}` : ""}`); }
+  if (!parts.length) return en ? "Got it. Anything else?" : "Muy bien. ¿Algo más?";
+  return `${parts.join("; ")}.${cents ? ` $${(cents / 100).toFixed(2)}.` : ""} ${en ? "Anything else?" : "¿Algo más?"}`;
 }
 
 export function capCartQty(cart: any[], turns: Array<{ speaker: string; text: string }>): boolean { let ch = false;
@@ -39,12 +54,13 @@ export function liveEtaAddressQty(r: any, input: any): any {
   if (!r || !Array.isArray(r.actions)) return r;
   const tx = String(input?.transcript || ""); const h = input?.history || [];
   const lastA = [...h].reverse().filter((x: any) => x.role === "assistant").slice(0, 1).map((x: any) => String(x.text || ""));
-  if (etaOnlyTurn(tx) || addressNumberTurn(tx, lastA)) {
+  const prior = h.map((x: any) => String(x.text || ""));
+  if (etaOnlyTurn(tx) || addressNumberTurn(tx, lastA) || repeatsAddressNumber(tx, prior.slice(-20))) {
     const acts = r.actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
     if (acts.length !== r.actions.length) return { ...r, actions: acts, reply: input?.language === "en" ? "Got it. What would you like to order?" : "Muy bien. ¿Qué le preparamos?" };
     return r;
   }
-  const acts = r.actions.map((a: any) => ({ ...a })); if (capQty(acts, tx)) return { ...r, actions: acts };
+  const acts = r.actions.map((a: any) => ({ ...a })); if (capQty(acts, tx, prior.slice(-20))) return { ...r, actions: acts, reply: readbackFromActs(acts, input) };
   return r;
 }
 
@@ -72,4 +88,33 @@ export function liveTrailingClosing(r: any, input: any): any {
   const acts = r.actions.map((a: any) => ({ ...a })); const n = trailingQty(acts, tx);
   if (n) return { ...r, actions: acts, reply: String(r.reply || "").replace(/^(?!\d+ ×)/, `${n} × `) };
   return r;
+}
+
+// rodolfo2 (CA6dd8e7): "¿sí tiene agua de horchata?" (availability Q, dropped) → "Me pone dos, por favor." is two horchatas,
+// never "dos orden de quesadillas" from the last dish.
+const ASKED = /\b(aguas?\s+de\s+\p{L}+|horchatas?|jamaicas?|tamarindos?|jarritos?|refrescos?|cocas?|sodas?|tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|elotes?|menudos?|po[sz]oles?|nachos)\b/iu;
+const BARE_COUNT = /^\s*[¿¡]?\s*(?:y\s+)?(?:(?:me\s+(?:pone|pones|da|das|trae|traes)|dame|deme|ponme|tr[aá]eme)\s+)(un[oa]?|dos|tres|cuatro|cinco|seis|\d{1,2})\b/iu;
+export function stampAskedCount(turns: Array<{ speaker: string; text: string }>, i: number): boolean {
+  const m = String(turns[i]?.text || "").match(ASKED); if (!m) return false;
+  let noun = m[1].toLowerCase(); const ag = noun.match(/^aguas?\s+de\s+(.+)$/u); if (ag) noun = `aguas de ${ag[1]}`;
+  for (let j = i + 1, k = 0; j < turns.length && k < 2; j++) { const u = turns[j]; if (u.speaker !== "caller") continue; k++;
+    const b = String(u.text || "").match(BARE_COUNT); if (!b) continue;
+    const rest = fold(String(u.text).slice((b.index || 0) + b[0].length));
+    if (FOOD.test(rest) || listedMeats(rest).length || /\b(?:de|of)\s+\p{L}{3,}/u.test(rest.replace(/\bpor favor\b/g, ""))) return false;
+    u.text = String(u.text).slice(0, (b.index || 0) + b[0].length) + ` ${noun}` + String(u.text).slice((b.index || 0) + b[0].length); return true; }
+  return false;
+}
+// rodolfo2: "Sí, 97, 197." after the caller already gave "a la 197 Jackson" is the house number again, never a count (97 bistec).
+const ADDR_NUM = /\b(?:a\s+la|en\s+la|al|address\s+is|vivo\s+en)\s+(\d{2,5})\b|\b(\d{2,5})\s+(?:y\s+\d+\s+)?(?:[\p{L}.'-]+\s+){0,2}?(?:street|st|calle|avenue|ave|avenida|road|rd|drive|dr|lane|ln|boulevard|blvd|court|ct)\b|\b(\d{2,5})\s+\p{Lu}\p{Ll}{2,}/gu;
+export function addressNumbers(texts: string[]): string[] { const out: string[] = [];
+  for (const t of texts) for (const m of String(t || "").matchAll(ADDR_NUM)) out.push(m[1] || m[2] || m[3]); return out; }
+export function repeatsAddressNumber(text: string, prior: string[]): boolean {
+  const f = String(text || "").replace(/[¿¡?.!,]+/gu, " ").replace(/\s+/g, " ").trim();
+  const nums = f.match(/\b\d{2,5}\b/g); if (!nums || FOOD.test(f) || listedMeats(f).length) return false;
+  const rest = f.replace(/\b\d+\b/g, " ").replace(/\b(?:perd[oó]n|disculp[ae]|s[ií]|no|es|el|la|a|en|aqu[ií]|ok(?:ay)?|aj[aá]|eh|este|digo|n[uú]mero|y|sorry|it'?s|yes|yeah)(?![\p{L}])/giu, " ").trim();
+  if (rest) return false; const known = addressNumbers(prior); if (!known.length) return false;
+  return nums.every((n) => known.some((k) => k === n || k.endsWith(n)));
+}
+export function dropAddressNumberTurns<T extends { speaker: string; text: string }>(turns: T[]): T[] {
+  return turns.filter((t, i) => !(t.speaker === "caller" && repeatsAddressNumber(t.text, turns.slice(Math.max(0, i - 20), i).map((u) => u.text))));
 }
