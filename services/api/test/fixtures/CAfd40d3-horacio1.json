@@ -1,0 +1,243 @@
+{
+ "callSid": "CAfd40d398058f3b5e8b4567bf25180dab",
+ "name": "Horacio",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.58,
+   "end": 2.421,
+   "text": "Cocina, ¿es muy buenas noches?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.601,
+   "end": 7.202,
+   "text": "Buenas noches, eh, eh, ¿tú me estás vendiendo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.523,
+   "end": 20.227,
+   "text": "Claro que sí, ahorita ya nomás es puro taco y quesadilla, taco y quesadilla de comal o taquero. Mmm, déjenme ver, eh.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 16.786,
+   "end": 17.706,
+   "text": "¿No hay huaraches?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.427,
+   "end": 21.807,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.391,
+   "end": 33.051,
+   "text": "Sí, sí, ya podemos hacer un guarache.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.652,
+   "end": 37.453,
+   "text": "¿Me haces dos de pollo con bistec, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.393,
+   "end": 40.394,
+   "text": "Dos de pollo con bistec con todo, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 41.074,
+   "end": 41.814,
+   "text": "Por favor, sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 42.795,
+   "end": 43.695,
+   "text": "Ok, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.615,
+   "end": 45.515,
+   "text": "Eh, sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 46.556,
+   "end": 47.856,
+   "text": "¿A qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.697,
+   "end": 53.458,
+   "text": "Ahora, sí. Ahorita te veo ahí, Karen.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 50.577,
+   "end": 51.758,
+   "text": "Ok, Horacio, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 54.298,
+   "end": 55.319,
+   "text": "Sí, está bien, Horacio.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 56.139,
+   "end": 57.279,
+   "text": "Vale que va, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 57.96,
+   "end": 58.96,
+   "text": "Bye.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-huarache-elvis-4DZIVF",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Elvis Carne / Meat Options",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Elvis Carne / Meat Options",
+      "option": "Pollo / Chicken"
+     },
+     {
+      "step": "(D) Salsa Options",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Cocina, ¿es muy buenas noches?"
+   },
+   {
+    "source": "caller",
+    "heard": "tú me estás vendiendo",
+    "language": "es",
+    "reply": "No. ¿Qué quieres ordenar?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro que sí, ahorita ya nomás es puro taco y quesadilla, taco y quesadilla de comal o taquero. Mmm, déjenme ver, eh."
+   },
+   {
+    "source": "caller",
+    "heard": "No hay huaraches",
+    "language": "es",
+    "reply": "No, sí hay Huarache Elvis. ¿Lo quieres?",
+    "actions": []
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, sí, ya podemos hacer un guarache."
+   },
+   {
+    "source": "caller-meat-fragment",
+    "heard": "2 huaraches de pollo con bistec de taquero",
+    "language": "es",
+    "reply": "2 × Huarache Elvis: bistec y pollo, salsa asada. $29.98. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-fragments",
+    "heard": "¿Me haces dos de pollo con bistec, por favor?",
+    "dishes": [
+     "No hay huaraches"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dos de pollo con bistec con todo, ¿verdad?"
+   },
+   {
+    "source": "caller-count",
+    "heard": "sí"
+   },
+   {
+    "source": "staff",
+    "heard": "Ok, ¿algo más?"
+   },
+   {
+    "source": "caller-count",
+    "heard": "sería todo"
+   },
+   {
+    "source": "staff",
+    "heard": "¿A qué nombre sería la orden?"
+   },
+   {
+    "source": "caller",
+    "heard": "Ahora, sí. Ahorita te veo ahí, Karen",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ok, Horacio, está bien."
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, está bien, Horacio."
+   },
+   {
+    "source": "caller",
+    "heard": "Vale que va",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Bye."
+   }
+  ],
+  "fulfillment": null
+ }
+}

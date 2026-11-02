@@ -1,4 +1,5 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
+import { dropPutOnReAdd } from "./modifier-turns.js";
 import { liveEtaAddressQty, liveTrailingClosing } from "./eta-qty.js";
 import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
@@ -2168,6 +2169,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
     if (Array.isArray((out as any)?.actions) && (restaurantConfirm(tx) || sideAnswerTurn(tx, lastStaff) || salsaOnlyTurn(tx)))
       (out as any).actions = (out as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(tx) && /extras|salsa/i.test(String(a.itemId))) || ((input as any).cart || []).some((l: any) => l?.itemId === a.itemId)); } catch { /* keep */ }
   try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
+  try { if (Array.isArray((out as any)?.actions)) { const acts = (out as any).actions.slice(); if (dropPutOnReAdd(acts, (input as any).cart || [], String(input.transcript || ""))) out = { ...(out as any), actions: acts }; } } catch { /* keep */ } // pedro3
   try { out = noHollowAdd(out, input); } catch {}
   let o2 = out; try { o2 = noEchoReAdd(out, input); } catch { /* keep */ }
   try { o2 = noPhantomDish(o2, input); } catch { /* keep */ }

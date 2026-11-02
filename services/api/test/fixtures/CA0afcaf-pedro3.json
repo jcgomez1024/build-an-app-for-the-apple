@@ -1,0 +1,560 @@
+{
+ "callSid": "CA0afcaf1963896af56f76354dc31b12e2",
+ "name": "Pedro",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.521,
+   "end": 2.161,
+   "text": "Pedro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.221,
+   "end": 6.641,
+   "text": "No, um, déjame una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.603,
+   "end": 8.523,
+   "text": "¿Qué quieres, Pedro?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.342,
+   "end": 12.983,
+   "text": "¿Me puedes dar dos, dos, ah, gorditas de picadillo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.185,
+   "end": 17.126,
+   "text": "Deja ver a ver, espérame, eh, deja ver si hay más todavía.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.963,
+   "end": 17.164,
+   "text": "Ah, hombre.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.769,
+   "end": 26.309,
+   "text": "Eh, Pedro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 27.146,
+   "end": 27.286,
+   "text": "Eh.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.149,
+   "end": 28.249,
+   "text": "Ya.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.166,
+   "end": 30.466,
+   "text": "Ya qué.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.771,
+   "end": 35.512,
+   "text": "Sí tenemos two burritos pijadillo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.387,
+   "end": 37.248,
+   "text": "Okay. Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.053,
+   "end": 39.173,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.528,
+   "end": 41.429,
+   "text": "Y me le echa, me le echa picadillo,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 42.814,
+   "end": 47.316,
+   "text": "Okay. Sí, Pedro, bye.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 47.99,
+   "end": 48.85,
+   "text": "eh. No, espérate.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.531,
+   "end": 56.392,
+   "text": "¿Me puedes dar una quesadilla de aceite de, de bistec?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.452,
+   "end": 58.833,
+   "text": "Sin, sin verdura.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 61.06,
+   "end": 74.183,
+   "text": "No sé si pueda. Ok, sí está bien. Okay. ¿Algo más, Pedro?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 69.717,
+   "end": 85.022,
+   "text": "Okay. Um, I think. Mm, no. Okay. Oh, uh, si tienen papas. Si,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 78.604,
+   "end": 81.125,
+   "text": "Okay. Dame unos fifteen minutes.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 86.767,
+   "end": 89.367,
+   "text": "No, papas no, papas solamente McDonald's.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 92.765,
+   "end": 93.505,
+   "text": "si tienen huevo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 95.689,
+   "end": 97.11,
+   "text": "No, eso solamente",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 98.47,
+   "end": 99.57,
+   "text": "en los desayunos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 104.349,
+   "end": 107.63,
+   "text": "Entonces, ¿qué tienen todavía de carne o de comida?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 109.333,
+   "end": 114.073,
+   "text": "Ah, tenemos de de todo lo que tú quieras, de todo un tofu, Wally.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 116.613,
+   "end": 118.873,
+   "text": "Pero es una gordita de papas, entonces.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 120.014,
+   "end": 121.154,
+   "text": "Papas con rajas.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 122.474,
+   "end": 139.697,
+   "text": "Sí, y con huevo picoso. No,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 132.156,
+   "end": 132.916,
+   "text": "papas con",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 133.936,
+   "end": 136.477,
+   "text": "papas con opales o papas con rajas.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 141.517,
+   "end": 151.519,
+   "text": "con rata. Oh, las gorditas de picadillos, si la pueden poner en no pares también, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 142.977,
+   "end": 145.758,
+   "text": "rajas. Okay, está bien, está bien, Pedro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 152.979,
+   "end": 154.239,
+   "text": "Okay, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 155.579,
+   "end": 155.879,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 156.739,
+   "end": 157.68,
+   "text": "Okay, bye.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 158.44,
+   "end": 158.6,
+   "text": "Hi.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Picadillo / Ground Beef with Potatoes"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "elviNotes": [
+     "no verdura"
+    ]
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "readback": "1 gordita bistec",
+    "elviNotes": [
+     "no verdura"
+    ]
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Nopales con Papas / Cacti with Potatoes"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Papas Con Rajas / Poblano with Potatoes"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-gordita-M647RE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Gordita Options",
+      "option": "(GD) Gordita"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Picadillo / Ground Beef with Potatoes"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+      "isDefault": true
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Papas Con Rajas / Poblano with Potatoes"
+     }
+    ],
+    "asked": true
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Pedro."
+   },
+   {
+    "source": "caller",
+    "heard": "déjame una orden",
+    "language": "es",
+    "reply": "Adelante.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Qué quieres, Pedro?"
+   },
+   {
+    "source": "caller",
+    "heard": "dos, ah, gorditas de picadillo",
+    "language": "es",
+    "reply": "2 × Gordita: picadillo, salsa asada. $10.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Deja ver a ver, espérame, eh, deja ver si hay más todavía."
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, hombre",
+    "language": "es",
+    "reply": "Perdón, no tenemos dejame orden dos ah gorditas picadillo ah hombre en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Eh, Pedro."
+   },
+   {
+    "source": "staff",
+    "heard": "Ya."
+   },
+   {
+    "source": "caller",
+    "heard": "Ya qué",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Sí tenemos two burritos pijadillo."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay. Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay."
+   },
+   {
+    "source": "caller",
+    "heard": "Y me le echa, me le echa picadillo,",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay. Sí, Pedro, bye."
+   },
+   {
+    "source": "caller",
+    "heard": "espérate Me puedes dar una QD REGULAR Dorada de bistec Sin verdura",
+    "language": "es",
+    "reply": "Quesadilla Dorada REGULAR Dorada: bistec, salsa asada. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "No sé si pueda. Ok, sí está bien. Okay. ¿Algo más, Pedro?"
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Okay. Um, I think. Mm, no. Okay. Oh, uh, si tienen papas. Si,"
+   },
+   {
+    "source": "staff",
+    "heard": "Okay. Dame unos fifteen minutes."
+   },
+   {
+    "source": "staff",
+    "heard": "No, papas no, papas solamente McDonald's."
+   },
+   {
+    "source": "staff",
+    "heard": "No, eso solamente"
+   },
+   {
+    "source": "staff",
+    "heard": "en los desayunos."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Entonces, ¿qué tienen todavía de carne o de comida?"
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, tenemos de de todo lo que tú quieras, de todo un tofu, Wally."
+   },
+   {
+    "source": "caller",
+    "heard": "Pero es una gordita de papas, entonces",
+    "language": "es",
+    "reply": "Gordita: nopales con papas y papas con rajas, salsa asada. $5.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Papas con rajas."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Sí, y con huevo picoso. No,"
+   },
+   {
+    "source": "staff",
+    "heard": "papas con"
+   },
+   {
+    "source": "staff",
+    "heard": "papas con opales o papas con rajas."
+   },
+   {
+    "source": "caller",
+    "heard": "con rata. Oh, las gorditas de picadillos, si la pueden poner en no pares también",
+    "language": "es",
+    "reply": "Gordita: picadillo, salsa asada. $5.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "rajas. Okay, está bien, está bien, Pedro."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, está bien."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, bye."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Hi."
+   },
+   {
+    "source": "asked-dish",
+    "heard": "espérate Me puedes dar una QD REGULAR Dorada de bistec Sin verdura",
+    "item": "sq-quesadilla-HLT6CR"
+   }
+  ],
+  "fulfillment": null
+ }
+}
