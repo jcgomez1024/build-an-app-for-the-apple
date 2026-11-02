@@ -1,0 +1,359 @@
+{
+ "callSid": "CAf907ff86f6e037147f8562e99f6ea031",
+ "name": "Carlos",
+ "turns": [
+  {
+   "speaker": "caller",
+   "start": 2.881,
+   "end": 15.423,
+   "text": "Hola, me gustaría poner una orden, por favor. Me da dos tacos taqueros de chorizo, tres tacos al comal de bistec.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.746,
+   "end": 19.046,
+   "text": "Muy bien, espérame.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 22.948,
+   "end": 25.629,
+   "text": "Tres de bistec del comal, ajá, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.065,
+   "end": 29.366,
+   "text": "Sí, tres quesadillas de harina, dos de bistec y una de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.85,
+   "end": 33.571,
+   "text": "Dos de chorizo y una de bistec y harina, ¿verdad?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.907,
+   "end": 54.571,
+   "text": "No, serían dos de bistec y una de chorizo. Y tres, sí, tres quesadillas al comal de tripa. No, sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.713,
+   "end": 39.834,
+   "text": "Oh, pensé,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 44.335,
+   "end": 44.835,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 52.058,
+   "end": 52.998,
+   "text": "Muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 55.359,
+   "end": 56.639,
+   "text": "Entonces le tengo tres.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.041,
+   "end": 62.542,
+   "text": "Perdón, tres tacos de comalde biste,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 63.543,
+   "end": 76.35,
+   "text": "dos tacos taqueros de chorizo, dos quesadillas de harina de biste, y una quesadilla de harina de chorizo, y por ul, por último, perdón, las tres quesadillas de comalde tripa.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 77.276,
+   "end": 77.816,
+   "text": "Sí, cierto.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 78.091,
+   "end": 79.752,
+   "text": "¿A, a qué nombre sería la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 80.677,
+   "end": 81.257,
+   "text": "de Carlos.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 82.073,
+   "end": 85.515,
+   "text": "Carlos. Ok, si me pon, me permite unos,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 86.736,
+   "end": 88.917,
+   "text": "unos quince minutos, veinte minutos.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 89.479,
+   "end": 89.979,
+   "text": "Sí, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 90.698,
+   "end": 91.619,
+   "text": "Ok, gracias.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     },
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Chorizo / Mexican Sausage"
+     },
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+     }
+    ],
+    "readback": "taco taquero"
+   },
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TCO) Taco Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Chorizo / Mexican Sausage"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 3,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Tripa / Beef Tripe (+$0.50)"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "caller",
+    "heard": "me gustaría poner una orden. Me da dos tacos taqueros de chorizo",
+    "language": "es",
+    "reply": "2 × Taco: taquero, chorizo, salsa asada. $6.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller",
+    "heard": "tres tacos al comal de bistec",
+    "language": "es",
+    "reply": "3 × Taco: comal, bistec, salsa asada. $12.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, espérame."
+   },
+   {
+    "source": "staff",
+    "heard": "Tres de bistec del comal, ajá, ¿algo más?"
+   },
+   {
+    "source": "caller-count",
+    "heard": "Sí"
+   },
+   {
+    "source": "caller",
+    "heard": "tres quesadillas de harina, dos de bistec, una de chorizo",
+    "language": "es",
+    "reply": "3 quesadillas de harina: 2 bistec, 1 chorizo, salsa asada. $12.75. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dos de chorizo y una de bistec y harina, ¿verdad?"
+   },
+   {
+    "source": "caller",
+    "heard": "serían dos de bistec, una de chorizo. Y tres, sí",
+    "language": "es",
+    "reply": "6 quesadillas de comal: 2 bistec, 1 chorizo, 2 bistec, 1 chorizo, salsa asada. $27.00. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item",
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller",
+    "heard": "tres quesadillas al comal de tripa. No",
+    "language": "es",
+    "reply": "3 × Quesadilla: comal, tripa, salsa asada. $15.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Oh, pensé,"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Algo más?"
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, ¿algo más?"
+   },
+   {
+    "source": "staff",
+    "heard": "Entonces le tengo tres."
+   },
+   {
+    "source": "staff",
+    "heard": "Perdón, tres tacos de comalde biste,"
+   },
+   {
+    "source": "staff",
+    "heard": "dos tacos taqueros de chorizo, dos quesadillas de harina de biste, y una quesadilla de harina de chorizo, y por ul, por último, perdón, las tres quesadillas de comalde tripa."
+   },
+   {
+    "source": "caller",
+    "heard": "Sí, cierto",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿A, a qué nombre sería la orden?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "de Carlos."
+   },
+   {
+    "source": "staff",
+    "heard": "Carlos. Ok, si me pon, me permite unos,"
+   },
+   {
+    "source": "staff",
+    "heard": "unos quince minutos, veinte minutos."
+   },
+   {
+    "source": "caller-answer",
+    "heard": "Qué más",
+    "language": "es",
+    "reply": "6 quesadillas de comal: 2 bistec, 1 chorizo, 2 bistec, 1 chorizo, salsa asada. $27.00. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item",
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-answer",
+    "heard": "Sí, está bien."
+   },
+   {
+    "source": "staff",
+    "heard": "Ok, gracias."
+   }
+  ],
+  "fulfillment": null
+ }
+}
