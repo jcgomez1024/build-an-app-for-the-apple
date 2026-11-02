@@ -1,0 +1,388 @@
+{
+ "callSid": "CAb209cc300dcc7196404b61f0585ec367",
+ "name": "Juan",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.38,
+   "end": 2.26,
+   "text": "Cocinar beef.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.42,
+   "end": 9.641,
+   "text": "Hola, buenas tardes. Disculpe, este, llamaba para preguntarle si tenían, si, si tendrían mole de casualidad.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.941,
+   "end": 5.121,
+   "text": "Bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.842,
+   "end": 12.162,
+   "text": "Ah, sí, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.942,
+   "end": 13.562,
+   "text": "¿Si tiene mole?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.343,
+   "end": 14.443,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.502,
+   "end": 16.462,
+   "text": "¿A cuánto da la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.563,
+   "end": 21.404,
+   "text": "Eh, la orden de mole, nomás,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 22.384,
+   "end": 23.504,
+   "text": "a ver, permíteme,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.945,
+   "end": 30.506,
+   "text": "mm, a ver, mire, viene",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.706,
+   "end": 32.966,
+   "text": "con arroz",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.466,
+   "end": 34.486,
+   "text": "y,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.067,
+   "end": 42.328,
+   "text": "perdón, espérame, viene con arroz y tres tortillas de comal o de harina, las que usted guste.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.268,
+   "end": 45.529,
+   "text": "Vale a diecisiete el platillo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.166,
+   "end": 47.306,
+   "text": "A diecisiete el platillo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.91,
+   "end": 48.03,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.267,
+   "end": 51.227,
+   "text": "Okey, ¿me puedes poner una orden, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 52.011,
+   "end": 55.572,
+   "text": "Claro, ah, ¿qué nombre sería la, el, la orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 56.588,
+   "end": 57.148,
+   "text": "Para Juan.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 58.073,
+   "end": 60.994,
+   "text": "Juan, ok, muy bien, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 61.93,
+   "end": 65.353,
+   "text": "Uh-huh. Ah, solamente eso, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 66.096,
+   "end": 70.138,
+   "text": "No más el mole, ok, entonces, ¿me puede dar unos quince minutos?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 67.774,
+   "end": 67.854,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 71.456,
+   "end": 72.177,
+   "text": "Sí, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 72.759,
+   "end": 73.479,
+   "text": "Gracias a usted.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 74.458,
+   "end": 75.579,
+   "text": "Okay, gracias, bye.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-mole-tradicional-platillo-4THFAW",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "Mole Tradicional Platillo",
+      "option": "Arroz - Rice / Fideo - Noodles"
+     },
+     {
+      "step": "(C) Tortilla Options",
+      "option": "3 x (Corn) Corn Tortilla"
+     },
+     {
+      "step": "(D) Salsa Options",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Cocinar beef."
+   },
+   {
+    "source": "caller",
+    "heard": "Disculpe, este, llamaba para preguntarle si tenían, si tendrían mole de casualidad",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Bueno."
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, sí, claro."
+   },
+   {
+    "source": "staff",
+    "heard": "Sí."
+   },
+   {
+    "source": "caller",
+    "heard": "A cuánto da la orden",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "A cuánto da la orden",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Eh, la orden de mole, nomás,"
+   },
+   {
+    "source": "staff",
+    "heard": "a ver, permíteme,"
+   },
+   {
+    "source": "staff",
+    "heard": "mm, a ver, mire, viene"
+   },
+   {
+    "source": "staff",
+    "heard": "con arroz"
+   },
+   {
+    "source": "staff",
+    "heard": "y,"
+   },
+   {
+    "source": "staff",
+    "heard": "perdón, espérame, viene con arroz y tres tortillas de comal o de harina, las que usted guste."
+   },
+   {
+    "source": "staff",
+    "heard": "Vale a diecisiete el platillo."
+   },
+   {
+    "source": "caller",
+    "heard": "A diecisiete el platillo",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "A diecisiete el platillo",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Sí."
+   },
+   {
+    "source": "caller",
+    "heard": "Okey, ¿me puedes poner una orden",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "caller-retry",
+    "heard": "Okey, ¿me puedes poner una orden",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: ¿3 x (Corn) Corn Tortilla o 3 x (Flour) Harina Tortilla?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, ah, ¿qué nombre sería la, el, la orden?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "3 x (Corn) Corn Tortilla",
+    "language": "es",
+    "reply": "Mole Tradicional Platillo: 3 × tortilla de maíz, arroz - rice, salsa asada. $16.99. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Claro, ah,",
+    "pick": "3 x (Corn) Corn Tortilla"
+   },
+   {
+    "source": "caller-name",
+    "heard": "Para Juan."
+   },
+   {
+    "source": "staff",
+    "heard": "Juan, ok, muy bien, ¿algo más?"
+   },
+   {
+    "source": "caller",
+    "heard": "-huh. Ah, solamente eso",
+    "language": "es",
+    "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street o 12 x Tortilla Taquera / Corn Street?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "No más el mole, ok, entonces, ¿me puede dar unos quince minutos?"
+   },
+   {
+    "source": "caller-count",
+    "heard": "Sí Sí, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias a usted."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, gracias, bye."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Tortillas: ¿6 x Tortilla Taquera / Corn Street o 12 x Tortilla Taquera / Corn Street?",
+    "actions": []
+   }
+  ],
+  "fulfillment": null
+ }
+}
