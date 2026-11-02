@@ -544,11 +544,13 @@ export function timeOnlyLinkOk(t: { talkSec?: number | null; transcript?: string
 }
 /** santiago1 (CA7fc26b): base dish word of a ticket / Square line ("Quesadilla · (QCO) …" → "quesadilla"). */
 const baseItem = (n: string) => String(n || "").split(/\s+·\s+|\s+\(|\s+\//)[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/s\b/, "").trim();
-export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[] }, orders: any[], now = Date.now()): { order: any; by: string } | null {
+export function pickSquareOrder(t: { at: string; caller: string; name: string | null; talkSec?: number | null; transcript?: string; lines?: unknown[]; laterCallAt?: string | null }, orders: any[], now = Date.now()): { order: any; by: string } | null {
   const at = Date.parse(t.at), phone = d10(t.caller), first = String(t.name || "").trim().split(/\s+/)[0]?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
   const empty = (o: any) => !(o?.line_items || []).length && !Number(o?.total_money?.amount || 0); // followup1: never link $0 / no-item orders
   const online = (o: any) => /online|website|ecom/i.test(String(o?.source?.name || ""));
-  const win = orders.filter((o) => { const c = Date.parse(o.created_at); return !empty(o) && c >= at - 2 * 60000 && c <= at + 60 * 60000; });
+  // pedro2 (CA6db6bee → tF932p): a ticket rung after the same caller's NEXT call started belongs to that later call.
+  const later = t.laterCallAt ? Date.parse(t.laterCallAt) : NaN;
+  const win = orders.filter((o) => { const c = Date.parse(o.created_at); return !empty(o) && c >= at - 2 * 60000 && c <= at + 60 * 60000 && !(c >= later); });
   // santiago1: closest ticket rung AFTER the call ends wins ties (a walk-in a few seconds earlier is not this call)
   const dist = (o: any) => { const d = Date.parse(o.created_at) - at; return d >= 0 ? d : 3 * Math.abs(d); };
   const closest = (xs: any[]) => [...xs].sort((a, b) => dist(a) - dist(b))[0];
@@ -571,6 +573,12 @@ export function pickSquareOrder(t: { at: string; caller: string; name: string | 
   if (soon.length === 1 && timeOnlyLinkOk(t) && !(first && tname(soon[0]) && tname(soon[0]) !== first)) return { order: soon[0], by: "only ticket in 20 min" };
   return null;
 }
+/** pedro2: start of the same caller's next call (same phone, else same first name), if any. */
+export function laterCallFrom(t: { callSid: string; at: string; caller: string; name: string | null }, all: Array<{ callSid: string; at: string; caller: string; name: string | null }>): string | null {
+  const at = Date.parse(t.at), ph = d10(t.caller), nm = (x: any) => String(x?.name || "").trim().split(/\s+/)[0]?.toLowerCase() || "";
+  const xs = all.filter((o) => o.callSid !== t.callSid && Date.parse(o.at) > at && (ph ? d10(o.caller) === ph : !!nm(t) && nm(o) === nm(t)));
+  return xs.length ? xs.map((o) => o.at).sort()[0] : null;
+}
 export async function linkSquareTickets(force = false) {
   if (!force && Date.now() - lastSquareLink < 60000) return;
   lastSquareLink = Date.now();
@@ -583,7 +591,8 @@ export async function linkSquareTickets(force = false) {
   const used = new Set(Object.values(links).map((l) => l.orderId));
   let changed = false;
   for (const t of todo) {
-    const pick = pickSquareOrder({ ...t, talkSec: talkSecByCall.get(t.callSid) ?? null }, orders.filter((o) => !used.has(o.id)));
+    const laterCallAt = laterCallFrom(t, [...ticketsByCall.values()]);
+    const pick = pickSquareOrder({ ...t, talkSec: talkSecByCall.get(t.callSid) ?? null, laterCallAt }, orders.filter((o) => !used.has(o.id)));
     if (!pick) continue;
     const r = squareRefs(pick.order);
     const rc = r.paymentId ? await paymentReceiptReadOnly(r.paymentId) : null;

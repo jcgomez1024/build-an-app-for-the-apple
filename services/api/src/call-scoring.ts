@@ -10,8 +10,8 @@ import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns
 import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1 } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
-import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff } from "./spoken-ledger.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
+import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -851,6 +851,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // daniel-cancel1: a callback cancelling an earlier order — never a new cart (nothing from memory, recap or the old order).
   if (isCancelOrderCall(turns as any))
     return { cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true } as any;
+  // pedro2: caller gave up ("entonces no quiero nada") and nothing was ordered or wrapped up after — no order.
+  if (isAbandonedOrder(turns as any))
+    return { cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
   // juanFollow1: a callback about an order already placed (complaint / address / "mi pedido") — no new cart.
   if (isExistingOrderCall(turns as any))
     return { cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true };
@@ -956,6 +959,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
       && (restaurantConfirm(text) || sideAnswerTurn(text, recentStaff.slice(-1).join(" ")) || salsaOnlyTurn(text)))
       (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(text) && a.itemId === EXTRAS_ID) || cart.some((l: any) => l.itemId === a.itemId)); // a re-add of a dish already ordered is an update
+    // pedro2 (live): staff already said a dish is out ("no tengo pozole hoy") → no add of it, unless the caller plainly re-orders it;
+    // "entonces no quiero nada" → the order so far comes off.
+    if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)) {
+      const off = staffUnavailable(allStaff.map((x) => ({ speaker: "staff", text: x })) as any);
+      const pt = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+      const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !isAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
+      if (off.length) (r as any).actions = (r as any).actions.filter((a: any) => !(a?.type === "add_item" && off.some((d) => (String(a.itemId).toLowerCase().includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(a.itemId).toLowerCase())) && !reorder(d))));
+      if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
+    }
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
     const unaSplit = unaSplitMeats(text);
     if (unaSplit && Array.isArray((r as any)?.actions)) applyUnaSplit((r as any).actions.filter((a: any) => a?.type === "add_item"), unaSplit);
@@ -3369,7 +3381,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let lastAdded: Line | null = null;
   let sideOffer = "", sideOfferAge = 9; // larry1: staff side offer stays answerable for 2 caller turns ("On the gordita?" "No," "Yes… two of those")
   let pendingDish: string | null = null; // fix1136
-  let pendingDishes: string[] = []; let lastStaff = ""; const recentStaff: string[] = []; let staffSince: string[] = []; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
+  let pendingDishes: string[] = []; let lastStaff = ""; const allStaff: string[] = []; const recentStaff: string[] = []; let staffSince: string[] = []; let lastTortilla = ""; const yesAdds: Array<{ line: Line; what: string }> = []; // case1c: several bare dishes waiting for their meat
   const noteFulfillment = (_text: string) => {};
   const lang0 = () => turns.filter((t) => t.speaker === "caller").pop()?.language || "es";
   const asking = (r: any) => !!r && /\?\s*$/.test(String(r.reply || "")) && !/algo más|anything else/i.test(String(r.reply || ""));
@@ -3554,7 +3566,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "staff", heard: t.text }); staffAskedSplit = /\?|¿/.test(t.text) ? detectContainerSplit(t.text) : null;
       noteFulfillment(t.text);
       staffAskedComal = /\bcomal\b/iu.test(t.text) && /\?|¿/.test(t.text);
-      lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift(); staffSince.push(t.text);
+      allStaff.push(t.text); lastStaff = t.text; recentStaff.push(t.text); if (recentStaff.length > 3) recentStaff.shift(); staffSince.push(t.text);
       // adriana1: staff "¿Cerdos también?" is pork/avail chatter — not a torta order
       if (/\bcerdos?\b/iu.test(t.text)) {
         const allC = turns.filter((u) => u.speaker === "caller").map((u) => u.text).join(" ");

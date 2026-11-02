@@ -432,9 +432,29 @@ export function liveExistingOrder(r: any, input: any) {
 /** Live: the caller's turn cancels an earlier order → no item adds, and never "¿Qué le gustaría ordenar?" afterwards. */
 export function liveCancelOrder(r: any, input: any) {
   const tx = String(input?.transcript || ""); const hist: any[] = input?.history || [];
+  // pedro2: "entonces no quiero nada" — take everything back off, add nothing
+  if (isAbandonTurn(tx)) { const rm = ((input?.cart || []) as any[]).map((l: any) => ({ type: "remove_item", itemId: l.itemId, quantity: l.quantity || 1 }));
+    return { ...r, actions: [...(Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"), ...rm], reply: input?.language === "en" ? "Okay, no problem." : "Muy bien, no hay problema." }; }
   const callerSaid = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), tx];
   if (!isCancelOrderCall(callerSaid.map((text) => ({ speaker: "caller", text })))) return r;
   const acts = (Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
   const en = input?.language === "en"; const asks = /\b(?:ordenar|order|algo m[aá]s|anything else|le escucho|carrito|cart)\b/i.test(String(r?.reply || ""));
   return { ...r, actions: acts, ...(asks || acts.length !== (r?.actions || []).length ? { reply: en ? "Okay, order cancelled." : "Muy bien, pedido cancelado." } : {}) };
+}
+
+// pedro2 (CA6db6bee, Nov 1 7:52 PM ET): staff "no tengo pozole hoy" → caller "Oh, no, entonces no quiero nada" and hangs up.
+// Giving up on the order ("no quiero nada", "entonces no", "mejor no", "never mind") with no new order and no name/total after
+// it is no order: empty cart, no auto-accept.
+const ABANDON_RE = /\bno\s+(?:quiero|queremos|voy\s+a\s+(?:querer|pedir|ordenar))\s+nada\b(?!\s+m[aá]s)|\b(?:entonces|pues|mejor)\s+no\b(?!\s+(?:me|le|lo|la|les|con|sin|tan|tanto|muy|pica|pongas?|ponga))(?:\s*(?:quiero|gracias|,|\.|!|$))|\bnever\s?mind\b|\bi\s+don'?t\s+want\s+anything\b(?!\s+else)|\bforget\s+(?:about\s+)?(?:it|the\s+order)\b/iu;
+const DONE_RE = /\b(?:(?:es|ser[ií]a|seria)\s+todo|nada\s+m[aá]s|eso\s+es\s+todo|that'?s\s+(?:it|all))\b/iu;
+const ORDER_AGAIN = /\b(?:me\s+(?:da|das|pones|puede[sn]?\s+dar)|deme|d[eé]me|dame|ponme|p[oó]ngame|(?<!no\s)quiero|(?<!no\s)quisiera|give\s+me|can\s+i\s+(?:get|have)|i'?ll\s+(?:have|take)|(?<!don'?t\s)i\s+want)\b/iu;
+const WRAP_UP = /\b(?:a\s+qu[eé]\s+nombre|nombre\s+(?:para|de\s+la\s+orden)|your\s+name|name\s+for\s+the\s+order|ser[ií]an?\s+\$?\d|\d+\s+d[oó]lares|total\s+(?:es|is|ser[ií]a)|(?:quince|veinte|diez|\d+)\s+minutos|minutes)\b/iu;
+export function isAbandonTurn(text: string): boolean { const t = String(text || ""); return ABANDON_RE.test(t) && !DONE_RE.test(t); }
+export function isAbandonedOrder(turns: Array<{ speaker: string; text: string }>): boolean {
+  let at = -1; turns.forEach((t, i) => { if (t.speaker === "caller" && isAbandonTurn(t.text)) at = i; });
+  if (at < 0) return false;
+  const after = turns.slice(at + 1);
+  if (after.some((t) => t.speaker === "caller" && ORDER_AGAIN.test(String(t.text || "")))) return false;
+  if (after.some((t) => t.speaker !== "caller" && WRAP_UP.test(String(t.text || "")))) return false;
+  return true;
 }

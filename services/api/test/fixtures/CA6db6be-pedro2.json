@@ -1,0 +1,397 @@
+{
+ "callSid": "CA6db6bee26e9b265e73c1e163f1207d59",
+ "name": "Pedro",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.18,
+   "end": 2.861,
+   "text": "Ah, buenas noches.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.562,
+   "end": 4.842,
+   "text": "Bueno,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.502,
+   "end": 6.622,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.543,
+   "end": 8.524,
+   "text": "¿sabes quién es Pozole?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.364,
+   "end": 10.824,
+   "text": "Obvio.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.186,
+   "end": 16.207,
+   "text": "¿Me puedes dar una orden de Pozole, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.266,
+   "end": 17.886,
+   "text": "Claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.327,
+   "end": 20.027,
+   "text": "No más.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.249,
+   "end": 22.61,
+   "text": "Ah, ¿qué más venden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.868,
+   "end": 25.529,
+   "text": "Tenemos de todo un poco.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.751,
+   "end": 27.152,
+   "text": "¿De todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.49,
+   "end": 29.45,
+   "text": "De todo un poco.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.233,
+   "end": 31.053,
+   "text": "De todo un poco.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.071,
+   "end": 33.051,
+   "text": "De todo un poco, vale.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 33.954,
+   "end": 36.436,
+   "text": "Ah, okey, ¿me puedes dar dos tacos de orejas de pollo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.213,
+   "end": 38.813,
+   "text": "Ah, claro.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 43.115,
+   "end": 56.639,
+   "text": "Pedro, no tengo pozole hoy. Hoy no tengo pozole. No, hoy no tengo pozole.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.44,
+   "end": 46.52,
+   "text": "No,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 47.78,
+   "end": 47.9,
+   "text": "no,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.161,
+   "end": 49.921,
+   "text": "¿Tazón León?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.643,
+   "end": 54.303,
+   "text": "¿No tienes Pozole?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 57.905,
+   "end": 58.945,
+   "text": "Pero acabe de decir que sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.421,
+   "end": 63.563,
+   "text": "No, no está, no, no tengo hoy, te quedé mal.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 66.528,
+   "end": 69.149,
+   "text": "Oh, no, entonces no quiero nada.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 73.711,
+   "end": 74.692,
+   "text": "Ya se les acabó de.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 75.93,
+   "end": 81.593,
+   "text": "No, tengo todavía ta tacos, quesadillas, torta, pero pozole no tengo.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 80.654,
+   "end": 83.195,
+   "text": "No, yo. Oh, okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 86.657,
+   "end": 87.717,
+   "text": "No, no, está bien entonces.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 88.577,
+   "end": 89.538,
+   "text": "Okay, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 90.278,
+   "end": 90.519,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 90.778,
+   "end": 92.439,
+   "text": "Bye. Bye, Pedro.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TCO) Taco Comal / Homemade (+$1.00)",
+      "isDefault": true
+     },
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Pollo / Chicken"
+     }
+    ],
+    "asked": true
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Ah, buenas noches."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Bueno,"
+   },
+   {
+    "source": "staff",
+    "heard": "Sí."
+   },
+   {
+    "source": "caller",
+    "heard": "sabes quién es Pozole",
+    "language": "es",
+    "reply": "Sí, es un platillo de maíz con caldo. ¿Lo quieres ordenar?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Obvio."
+   },
+   {
+    "source": "caller",
+    "heard": "una orden de Pozole",
+    "language": "es",
+    "reply": "Pozole Rojo. $14.99. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Claro."
+   },
+   {
+    "source": "staff",
+    "heard": "No más."
+   },
+   {
+    "source": "staff",
+    "heard": "Tenemos de todo un poco."
+   },
+   {
+    "source": "caller",
+    "heard": "De todo",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "De todo un poco."
+   },
+   {
+    "source": "caller",
+    "heard": "De todo un poco",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "De todo un poco, vale."
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, okey, ¿me puedes dar dos tacos de orejas de pollo",
+    "language": "es",
+    "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, claro."
+   },
+   {
+    "source": "staff",
+    "heard": "Pedro, no tengo pozole hoy. Hoy no tengo pozole. No, hoy no tengo pozole."
+   },
+   {
+    "source": "caller-count",
+    "heard": "No,"
+   },
+   {
+    "source": "caller",
+    "heard": "Tazón León",
+    "language": "en",
+    "reply": "Okay. Anything else?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "No tienes Pozole Pero acabe de decir que sí",
+    "language": "es",
+    "reply": "Pozole Rojo. $14.99. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "No, no está, no, no tengo hoy, te quedé mal."
+   },
+   {
+    "source": "caller",
+    "heard": "Oh, no, entonces no quiero nada Ya se les acabó de",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "No, tengo todavía ta tacos, quesadillas, torta, pero pozole no tengo."
+   },
+   {
+    "source": "caller",
+    "heard": "yo. Oh, okay",
+    "language": "en",
+    "reply": "Okay. Anything else?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "está bien entonces",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, está bien."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "Bye. Bye, Pedro."
+   },
+   {
+    "source": "end-staff-unavailable",
+    "heard": "sq-pozole-rojo-red-pozole-DQ7X4J"
+   },
+   {
+    "source": "asked-dish",
+    "heard": "Ah, okey, ¿me puedes dar dos tacos de orejas de pollo",
+    "item": "sq-taco-TAR7L5"
+   }
+  ],
+  "fulfillment": null
+ }
+}
