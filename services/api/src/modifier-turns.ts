@@ -117,3 +117,41 @@ export function applyStaffCountEcho(cart: any[], turns: Turn[]): void {
     if (lines.length === 1 && (Number(lines[0].quantity) || 1) === 1) lines[0].quantity = n;
   }
 }
+
+// sergio1 (CA89117579, Nov 4): "cuatro quesadillas en aceite" → "Sí, de chicharrón prensado" → "¿Las cuatro?" "Sí" → deluxe.
+// A bare "de <meat>" after a meatless dish line fills THAT line (all N); never a new default-comal quesadilla.
+const QCO_ID = "sq-quesadilla-HLT6CR";
+const TORT_SAID = /\b(?:comal|harina|flour|taquer[oa]s?|street|homemade|hechas?\s+a\s+mano|ma[ií]z)\b/iu;
+const DISHW = /\b(?:tacos?|quesadillas?|qd|qco|gorditas?|huaraches?|tortas?|burritos?|sopes?|tostadas?|flautas?|menudos?|platillos?|nachos?|doradas?)\b/iu;
+const isMeatStep = (m: any) => /carnes?|meats?/i.test(String(m?.step || ""));
+const meatKey = (opt: string) => fold(String(opt).split("/")[0]).replace(/\(.*?\)/g, "").trim();
+/** caller turns that are just "(sí,) de <meat>" — no dish word, no tortilla choice */
+export function bareMeatTurns(callerTexts: string[]): string[] {
+  return callerTexts.filter((t) => /^[\s¡¿.,]*(?:(?:am|eh|ah|um|mm|s[ií]|ok(?:ay)?|y|pues|este)\W+)*de\s+\p{L}/iu.test(t) && !DISHW.test(t) && !TORT_SAID.test(t)).map(fold);
+}
+export function foldPhantomComalMeat(cart: any[], callerTexts: string[]): boolean {
+  if (!Array.isArray(cart) || callerTexts.some((t) => TORT_SAID.test(t))) return false;
+  const bare = bareMeatTurns(callerTexts); if (!bare.length) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const q = cart[i]; if (q?.itemId !== QCO_ID) continue;
+    const meats = (q.modifiers || []).filter(isMeatStep); if (meats.length !== 1) continue;
+    const k = meatKey(meats[0].option); if (!k || !bare.some((b) => b.includes(k))) continue;
+    const host = cart.find((l, j) => j !== i && /quesadilla|-qd-/i.test(String(l?.itemId)) && l.itemId !== QCO_ID && !(l.modifiers || []).some(isMeatStep));
+    if (!host) continue;
+    host.modifiers = [...(host.modifiers || []), { step: meats[0].step, option: meats[0].option }];
+    cart.splice(i, 1); changed = true;
+  }
+  return changed;
+}
+/** live (app path): a bare "de <meat>" turn whose add is a new default-comal quesadilla while the cart has a meatless quesadilla line → update that line */
+export function foldBareMeatAdd(actions: any[], cart: any[], text: string): boolean {
+  if (!Array.isArray(actions) || !bareMeatTurns([text]).length) return false;
+  const host = (cart || []).slice().reverse().find((l: any) => /quesadilla|-qd-/i.test(String(l?.itemId)) && l.itemId !== QCO_ID && !(l.modifiers || []).some(isMeatStep));
+  if (!host) return false;
+  const i = actions.findIndex((a: any) => a?.type === "add_item" && a.itemId === QCO_ID && (a.modifiers || []).some(isMeatStep));
+  if (i < 0) return false;
+  const meat = actions[i].modifiers.find(isMeatStep);
+  actions[i] = { type: "update_item", itemId: host.itemId, quantity: host.quantity || 1, modifiers: [...(host.modifiers || []), { step: meat.step, option: meat.option }], correction: true };
+  return true;
+}
