@@ -1,0 +1,207 @@
+{
+  "callSid": "CA45369990a988521d8fda331d76b86302",
+  "name": "Adolfo",
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.72,
+      "end": 1.041,
+      "text": "Sí, bueno.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 2.261,
+      "end": 6.523,
+      "text": "Bueno, um, voy a encargar un orden, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 6.483,
+      "end": 7.764,
+      "text": "Claro, a ver, dime.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 8.964,
+      "end": 13.086,
+      "text": "Um, dos quesadillas de bistec, comal, por favor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.028,
+      "end": 20.57,
+      "text": "Um, y el el combo de roast y frijoles.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 21.911,
+      "end": 26.913,
+      "text": "Enjombo de arroz con frijoles, las dos quesadillas de bistec, ok, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 27.854,
+      "end": 28.374,
+      "text": "Sería todo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 29.134,
+      "end": 30.655,
+      "text": "¿Me darías tu nombre para tu orden?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 31.415,
+      "end": 31.776,
+      "text": "Adolfo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 32.456,
+      "end": 36.618,
+      "text": "Adolfo, sale Adolfo, danos unos quince, no, veinte, te damos, te tenemos orden.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 37.578,
+      "end": 38.659,
+      "text": "Gracias, sí, te veo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 38.479,
+      "end": 39.779,
+      "text": "¿A ti? Hasta luego.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.96,
+      "end": 40.82,
+      "text": "Sí, bye.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-combo-quesadillas-BATSPB",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Q Tortilla Shell Option COMBO",
+            "option": "(QCO) 2 x Comal / Homemade (+$2.00)"
+          },
+          {
+            "step": "(B) Item #1 Carne/Meat Option COMBO",
+            "option": "1 x Bistec / Steak"
+          },
+          {
+            "step": "(CD) Item #2 Carne/Meat Option COMBO",
+            "option": "1 x Bistec / Steak"
+          },
+          {
+            "step": "(D) COMBO Sides",
+            "option": "SOLO Frijoles Refritos - Refried Beans"
+          }
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "source": "staff",
+        "heard": "Sí, bueno."
+      },
+      {
+        "source": "caller",
+        "heard": "voy a encargar un orden",
+        "language": "es",
+        "reply": "¡Claro! ¿Qué te preparo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Claro, a ver, dime."
+      },
+      {
+        "source": "caller",
+        "heard": "dos quesadillas de bistec, comal Um, y el combo de roast y frijoles",
+        "language": "es",
+        "reply": "¿Regular, o deluxe con lechuga, pico y crema (+$1.50)?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Enjombo de arroz con frijoles, las dos quesadillas de bistec, ok, ¿algo más?"
+      },
+      {
+        "source": "caller-closing",
+        "heard": "Sería todo."
+      },
+      {
+        "source": "staff",
+        "heard": "¿Me darías tu nombre para tu orden?"
+      },
+      {
+        "source": "caller-name",
+        "heard": "Adolfo."
+      },
+      {
+        "source": "staff",
+        "heard": "Adolfo, sale Adolfo, danos unos quince, no, veinte, te damos, te tenemos orden."
+      },
+      {
+        "source": "caller-closing",
+        "heard": "Gracias, sí, te veo."
+      },
+      {
+        "source": "staff",
+        "heard": "¿A ti? Hasta luego."
+      },
+      {
+        "source": "caller-answer",
+        "heard": "o deluxe con lechuga",
+        "language": "es",
+        "reply": "¿Salsa asada (mild) como siempre, o tomate, verde (medium) o roja (hot)?",
+        "actions": []
+      },
+      {
+        "source": "caller-answer",
+        "heard": "Sí, bye."
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Combo de quesadillas: comal, 2 bistec, solo frijoles, deluxe: lechuga, pico, crema, salsa asada. $14.49. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      }
+    ],
+    "autoAccepted": true,
+    "containers": {
+      "breaks": [],
+      "splits": [],
+      "phrases": []
+    },
+    "ambiguousRemovals": [],
+    "removalsAttributed": true,
+    "fulfillment": null,
+    "address": null,
+    "addressConfirmed": false,
+    "customerName": "Adolfo"
+  }
+}
