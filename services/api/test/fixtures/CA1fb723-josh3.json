@@ -1,0 +1,299 @@
+{
+ "callSid": "CA1fb72332cbcb762c2a0b6217e444bec0",
+ "name": "That",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 2.901,
+   "end": 3.581,
+   "text": "Sidian, bueno?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 5.142,
+   "end": 6.362,
+   "text": "Hi, can I place an order, please?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 6.762,
+   "end": 7.823,
+   "text": "Yes, what can I get for ya?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 9.343,
+   "end": 11.684,
+   "text": "can I get a large burrito, a chicken burrito?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.204,
+   "end": 14.665,
+   "text": "Large chicken burrito, would you like everything in it?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.766,
+   "end": 16.026,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 16.866,
+   "end": 19.447,
+   "text": "Give me one second, large chicken burrito.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.888,
+   "end": 22.928,
+   "text": "And then can you add chorizo to that too, please?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.669,
+   "end": 25.889,
+   "text": "Yes, chicken, chicken and chorizo.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.99,
+   "end": 27.93,
+   "text": "Yes, double meat.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.65,
+   "end": 33.652,
+   "text": "Got it, double meat. All right, anything else? Can I get your name for the order?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.231,
+   "end": 31.732,
+   "text": "No, that's all.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.713,
+   "end": 37.874,
+   "text": "Josh. Oh, you know what, can I get, can I get one of those cinnamon drinks?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.834,
+   "end": 39.835,
+   "text": "The, horchata.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 41.075,
+   "end": 41.255,
+   "text": "Yeah.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.775,
+   "end": 43.516,
+   "text": "Got it, one horchata.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 44.896,
+   "end": 47.017,
+   "text": "Very good. Anything else, Josh?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.038,
+   "end": 48.638,
+   "text": "No, that'll be all.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.058,
+   "end": 52.559,
+   "text": "Very good. Give us about ten minutes or so, we should have this for you, Josh.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.58,
+   "end": 54.14,
+   "text": "All right, thank you.",
+   "language": "en"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Burrito Size",
+      "option": "Grande '12 (+$3.00)"
+     },
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Pollo / Chicken"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-burrito-TGWBEN",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Chorizo / Mexican Sausage"
+     },
+     {
+      "step": "(B) Burrito Carne Options",
+      "option": "Pollo / Chicken"
+     },
+     {
+      "step": "(A) Burrito Size",
+      "option": "Grande '12 (+$3.00)"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sidian, bueno?"
+   },
+   {
+    "source": "caller-intro",
+    "heard": "Hi, can I place an order, please?"
+   },
+   {
+    "source": "staff",
+    "heard": "Yes, what can I get for ya?"
+   },
+   {
+    "source": "caller",
+    "heard": "a large burrito",
+    "language": "en",
+    "reply": "Burrito: Bistec, Cabeza, Carnitas or Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "a chicken burrito",
+    "language": "en",
+    "reply": "Burrito: large, chicken. $11.00. Most people get it with rice, refried beans, cheese and onion. Want it that way?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Large chicken burrito, would you like everything in it?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "Give me one second, large chicken burrito."
+   },
+   {
+    "source": "caller",
+    "heard": "And then can you add chorizo to that too",
+    "language": "en",
+    "reply": "Burrito: large, mexican sausage. $11.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Yes, chicken, chicken and chorizo."
+   },
+   {
+    "source": "caller",
+    "heard": "double meat",
+    "language": "en",
+    "reply": "Burrito: mexican sausage and chicken, large. $11.00. Anything else?",
+    "actions": [
+     "update_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Got it, double meat. All right, anything else? Can I get your name for the order?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "No, that's all Josh. Oh, you know what, can I get, can I get one of those cinnamon drinks?"
+   },
+   {
+    "source": "staff",
+    "heard": "The, horchata."
+   },
+   {
+    "source": "caller-count",
+    "heard": "Yeah."
+   },
+   {
+    "source": "staff",
+    "heard": "Got it, one horchata."
+   },
+   {
+    "source": "staff",
+    "heard": "Very good. Anything else, Josh?"
+   },
+   {
+    "source": "caller",
+    "heard": "that'll be all",
+    "language": "en",
+    "reply": "Got it. What else?",
+    "actions": [
+     "set_fulfillment"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Very good. Give us about ten minutes or so, we should have this for you, Josh."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "All right, thank you."
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "That S All"
+ }
+}

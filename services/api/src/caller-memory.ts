@@ -28,6 +28,8 @@ export function cleanFullName(raw: string | null | undefined): string | null {
   const s0 = String(raw || "").replace(/\s+/g, " ").trim().replace(/\s+(?:or|o)(?:\s+\p{L}[\p{L}'-]*)?\s*[.,!?]*$/iu, "").trim();
   // edgar1 (CA49ce83): filler tokens (eh, este, pues…) are never part of a name — "Montes Eh" → "Montes"
   const s = stripNameFillers(s0);
+  // josh3: closings ("That S All", "That's It", "That'll Be All") are never names
+  if (/^(?:that|thats|that'?ll|that’ll)\b/iu.test(s) && /\b(?:all|it|everything|be)\b/iu.test(s)) return null;
   if (s.length < 2 || s.length > 40) return null;
   if (!/\p{L}{2,}/u.test(s) || /^[\d\s#().+-]+$/.test(s) || /#\s*\d|\d{3,}/.test(s)) return null;
   if (JUNK.test(s) || JUNK_FOOD.test(s.trim())) return null;

@@ -155,3 +155,40 @@ export function foldBareMeatAdd(actions: any[], cart: any[], text: string): bool
   actions[i] = { type: "update_item", itemId: host.itemId, quantity: host.quantity || 1, modifiers: [...(host.modifiers || []), { step: meat.step, option: meat.option }], correction: true };
   return true;
 }
+
+// josh3 (CA1fb72332, Nov 4): "can you add chorizo to that too" / "double meat" change the burrito already rung — never a 2nd one.
+const ADD_TO_THAT = /\b(?:add|put|throw|include|make)\b[^.?!]*?\b(?:to|on|in(?:to)?|onto)\s+(?:that|it|this|the\s+same(?:\s+one)?|the\s+(?:burrito|one|order)s?)\b|\bdouble\s+(?:the\s+)?(?:meat|carne)\b|\b(?:agr[eé]g(?:a|ale|uele|ue)|p[oó]n(?:le|gale|ga))\b[^.?!]*?\b(?:a\s+es[ea]s?|al\s+mism[oa]|tambi[eé]n)\b|\bdoble\s+carne\b/iu;
+export function addToThatAsUpdate(actions: any[], cart: any[], text: string): boolean {
+  if (!Array.isArray(actions) || !Array.isArray(cart) || !ADD_TO_THAT.test(String(text || ""))) return false;
+  let changed = false;
+  for (let i = 0; i < actions.length; i++) {
+    const a = actions[i]; if (a?.type !== "add_item") continue;
+    const j = cart.map((l: any) => l?.itemId).lastIndexOf(a.itemId); if (j < 0) continue;
+    const base = cart[j]; const mods = [...(base.modifiers || [])];
+    for (const m of a.modifiers || []) if (!mods.some((x: any) => x.step === m.step && x.option === m.option)) {
+      // single-choice steps (size) keep the line's own pick
+      if (/size|tama[nñ]o/i.test(String(m.step)) && mods.some((x: any) => x.step === m.step)) continue;
+      mods.push({ step: m.step, option: m.option });
+    }
+    actions[i] = { type: "update_item", itemId: a.itemId, quantity: base.quantity || 1, modifiers: mods, correction: true };
+    changed = true;
+  }
+  return changed;
+}
+// josh3: staff "Got it, one horchata." after the caller asked for a drink → that drink is on the order (after-call).
+const AGUA: Array<[RegExp, string]> = [[/horchatas?/iu, "sq-drink-agua-fresca-horchata-32oz-HL6HPK"], [/jamaicas?/iu, "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG"]];
+export function applyStaffDrinkConfirm(cart: any[], turns: Turn[]): void {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = String(t.text).match(/(?:^|[.,!]\s*|\b(?:got\s+it|okay|ok|all\s+right|perfect|listo|va|perfecto)[,.]?\s+)(\d|one|two|three|una?|dos|tres)\s+(horchatas?|jamaicas?)\b/iu);
+    if (!m) continue;
+    const prev = turns.slice(Math.max(0, i - 4), i).filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
+    if (!/\b(?:drinks?|horchatas?|jamaicas?|aguas?|bebidas?|cinnamon)\b/iu.test(prev)) continue;
+    const n = numWord(m[1]) || 1; const id = AGUA.find(([re]) => re.test(m[2]))![1];
+    const have = cart.filter((l: any) => l?.itemId === id).reduce((s: number, l: any) => s + (l.quantity || 1), 0);
+    if (have >= n) continue;
+    const l = cart.find((x: any) => x?.itemId === id);
+    if (l) l.quantity = n; else cart.push({ itemId: id, quantity: n - have, modifiers: [] });
+  }
+}

@@ -73,8 +73,16 @@ const orderOnly = new Map<string, number>(); // folded first name → marked-at 
 const foldName = (n: string) => (cleanFirstName(n) || n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 export function markOrderOnlyName(name: string, now = Date.now()) { orderOnly.set(foldName(name), now); }
 export function isOrderOnlyName(name: string, now = Date.now()): boolean { const t = orderOnly.get(foldName(name)); return t != null && now - t < 30 * 60_000; }
+const CLOSING_LEAD = /^[\s,.!]*(?:(?:no|nope|nah|yes|yeah|ok(?:ay)?|um+|uh+)[\s,.!]+)*(?:that(?:'|’|\s)?s\s+(?:all|it|everything)|that(?:'|’)?ll\s+be\s+(?:all|it)|that\s+will\s+be\s+(?:all|it)|that\s+is\s+(?:all|it)|(?:eso\s+)?(?:es|ser[ií]a|ser[aá])\s+todo|nothing\s+else|nada\s+m[aá]s)(?:\s+for\s+(?:now|me|today))?(?:\s*,?\s*(?:thanks?|thank\s+you|gracias))?[\s,.!]*/iu;
+const CLOSING_WORD = /^(?:that(?:'|’)?s?|thats|that'll|all|it|everything|todo)(?:\s+(?:s|all|it|be))*\s*[.!]?$/iu;
 export function nameFromAnswer(text: string): string | null {
   let s = String(text || "").trim();
+  // josh3 (CA1fb72332): "No, that's all." / "That s all" / "that'll be all" is a closing, never a name; "that's all. Josh." → Josh
+  { const t = s.replace(CLOSING_LEAD, "").trim(); const closed = t !== s;
+    if (closed) { if (!/\p{L}/u.test(t)) return null; s = t; }
+    if (CLOSING_WORD.test(s)) return null;
+    const first = s.match(/^(\p{Lu}[\p{L}'’-]+)[.!]\s+\p{L}/u);
+    if (closed && first && !NOT_NAMES.test(first[1]) && !NOT_NAME.test(first[1]) && !CLOSING_WORD.test(first[1]) && !/^(?:oh|okay|ok|well|so|and|yes|yeah|no|sorry|hi|hello|hey|thanks?)$/i.test(first[1])) { const n = cleanFullName(first[1]); if (n) return n; } }
   // felipe1 (CA2adaa5): "Ah, nombre de Felipe" → Felipe (never "Nombre De Felipe")
   { const t = s.replace(NOMBRE_LEAD, ""); if (t !== s && /\p{L}/u.test(t)) s = t; }
   // joel1: spelled letters beat everything else in the answer ("J O E L" → Joel, not Joey)
