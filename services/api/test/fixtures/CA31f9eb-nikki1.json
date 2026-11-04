@@ -1,0 +1,516 @@
+{
+ "callSid": "CA31f9eb7fe438e003834df2cc7c0f2cb4",
+ "name": "Nikki",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.4,
+   "end": 0.58,
+   "text": "Hola.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 2.141,
+   "end": 3.681,
+   "text": "Yeah, can I get a order?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.903,
+   "end": 5.884,
+   "text": "Yes, what can I get for ya?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.523,
+   "end": 10.404,
+   "text": "I need two, regular quesadillas, steak.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.247,
+   "end": 16.87,
+   "text": "Two regular quesadillas. Steak, did you want this in the home homemade comal or the flour tortilla?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.266,
+   "end": 18.707,
+   "text": "Just the flour tortillas.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.192,
+   "end": 22.714,
+   "text": "Flour tortilla, two, you said steak, both of them?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.808,
+   "end": 28.03,
+   "text": "Yeah. And then, yeah, and then can I get,",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 25.015,
+   "end": 26.116,
+   "text": "Okay, anything else?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.471,
+   "end": 35.653,
+   "text": "you know what, can you just make it four regular quesadillas, the steak?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 34.099,
+   "end": 34.179,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 35.599,
+   "end": 38.26,
+   "text": "So, old steak flour tortilla, got it.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.514,
+   "end": 39.974,
+   "text": "And then,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 40.974,
+   "end": 43.435,
+   "text": "that, those are with the cilantro and onion on the side, correct?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.916,
+   "end": 46.836,
+   "text": "Okay. And can we get,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.217,
+   "end": 50.858,
+   "text": "a sour, couple sour creams too?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 51.444,
+   "end": 52.925,
+   "text": "Yes, how many would you like?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.038,
+   "end": 53.179,
+   "text": "Or a big, one small,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 54.119,
+   "end": 55.9,
+   "text": "two small ones or a big one, it doesn't matter.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 54.165,
+   "end": 57.626,
+   "text": "Okay, gotcha.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 58.061,
+   "end": 59.762,
+   "text": "And then I need a side of rice too.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.587,
+   "end": 61.848,
+   "text": "And a side of just rice.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 63.104,
+   "end": 63.564,
+   "text": "Yeah.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 64.109,
+   "end": 65.009,
+   "text": "Got it, okay.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 66.146,
+   "end": 67.206,
+   "text": "And that'll be it.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 68.17,
+   "end": 76.493,
+   "text": "Very good, so we got the four flour quesadilla steak, two sour creams, and a side of rice. It'll be twenty four even. Can I get your,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 75.371,
+   "end": 75.751,
+   "text": "Correct.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 77.433,
+   "end": 78.053,
+   "text": "name for the order?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 79.514,
+   "end": 79.734,
+   "text": "Nikki?",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 80.834,
+   "end": 81.054,
+   "text": "Nicky?",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 82.075,
+   "end": 82.315,
+   "text": "Yes.",
+   "language": "en"
+  },
+  {
+   "speaker": "staff",
+   "start": 82.355,
+   "end": 85.496,
+   "text": "All right, Nicky, give us about ten, fifteen minutes, we should have this for you.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 86.378,
+   "end": 88.159,
+   "text": "Okay, thank you. And bye-bye.",
+   "language": "en"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ],
+    "elviNotes": [
+     "verdura aparte"
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 4,
+    "modifiers": [
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     },
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ],
+    "elviNotes": [
+     "verdura aparte"
+    ]
+   },
+   {
+    "itemId": "sq-sides-arroz-rice-26S6E6",
+    "quantity": 1,
+    "modifiers": [],
+    "readback": "side rice"
+   },
+   {
+    "itemId": "sq-extras-mild-salsa-asada-2oz-T6PGNT",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "Extras options",
+      "option": "Crema / Sour Cream 2oz"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Hola."
+   },
+   {
+    "source": "caller",
+    "heard": "Yeah, can I get a order",
+    "language": "en",
+    "reply": "Sure. What would you like?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Yes, what can I get for ya?"
+   },
+   {
+    "source": "caller",
+    "heard": "I need two, regular quesadillas, steak",
+    "language": "en",
+    "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Two regular quesadillas. Steak, did you want this in the home homemade comal or the flour tortilla?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Quesadilla Harina",
+    "language": "en",
+    "reply": "Quesadilla: flour, steak, mild asada salsa. $4.25. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Two regular quesadillas.",
+    "pick": "Quesadilla Harina"
+   },
+   {
+    "source": "caller",
+    "heard": "Just the flour tortillas",
+    "language": "en",
+    "reply": "2 × Quesadilla: flour, steak, mild asada salsa. $8.50. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Flour tortilla, two, you said steak, both of them?"
+   },
+   {
+    "source": "caller",
+    "heard": "Yeah. And then, yeah, and then can I get,",
+    "language": "en",
+    "reply": "Okay. Anything else?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, anything else?"
+   },
+   {
+    "source": "caller",
+    "heard": "you know what, can you just make it four regular quesadillas, the steak",
+    "language": "en",
+    "reply": "Quesadilla: Quesadilla Comal, Quesadilla Harina or Quesadilla Taquera?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "So, old steak flour tortilla, got it."
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Quesadilla Harina",
+    "language": "en",
+    "reply": "Quesadilla: flour, steak, mild asada salsa. $4.25. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Yes. So, old steak flour tortilla, got it.",
+    "pick": "Quesadilla Harina"
+   },
+   {
+    "source": "caller",
+    "heard": "And then, that, those are with the cilantro and onion on the side, correct Okay. And can we get",
+    "language": "en",
+    "reply": "Yes, onion and cilantro on the side. Go ahead.",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "a sour, couple sour creams too",
+    "language": "en",
+    "reply": "Ready.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Yes, how many would you like?"
+   },
+   {
+    "source": "caller",
+    "heard": "Or a big",
+    "language": "en",
+    "reply": "Ready.",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "one small",
+    "language": "en",
+    "reply": "Sorry, small isn't on our menu. Our most popular are Quesadilla, Quesadilla Dorada, Taco or Burrito. What sounds good?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "two small ones or a big one, it doesn't matter",
+    "language": "en",
+    "reply": "We don't have small or big sizes on those. Which one do you want?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, gotcha."
+   },
+   {
+    "source": "caller",
+    "heard": "And then I need a side of rice too",
+    "language": "en",
+    "reply": "Tacos Dorados: sour cream, rice, mild asada salsa. $14.00. Anything else?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "And a side of just rice."
+   },
+   {
+    "source": "caller-count",
+    "heard": "Yeah."
+   },
+   {
+    "source": "staff",
+    "heard": "Got it, okay."
+   },
+   {
+    "source": "caller",
+    "heard": "And that'll be it",
+    "language": "en",
+    "reply": "Ready.",
+    "actions": [
+     "set_fulfillment"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Very good, so we got the four flour quesadilla steak, two sour creams, and a side of rice. It'll be twenty four even. Can I get your,"
+   },
+   {
+    "source": "caller",
+    "heard": "Correct",
+    "language": "en",
+    "reply": "Pickup or delivery today?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "name for the order?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "Nikki?"
+   },
+   {
+    "source": "staff",
+    "heard": "Nicky?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Yes."
+   },
+   {
+    "source": "staff",
+    "heard": "All right, Nicky, give us about ten, fifteen minutes, we should have this for you."
+   },
+   {
+    "source": "caller-after-goodbye",
+    "heard": "Okay, thank you. And bye-bye."
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Nikki"
+ }
+}

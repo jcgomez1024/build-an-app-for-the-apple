@@ -247,3 +247,63 @@ export function applyMenudoCountConfirm(cart: any[], turns: Turn[]): void {
     const note = "Mix pancita + con pata (caller said 'las dos') — confirm split"; if (!l.elviNotes.includes(note)) l.elviNotes.push(note);
   }
 }
+
+// nikki1 (CA31f9eb, Nov 4): "two regular quesadillas, steak … flour" then "can you just make it four regular quesadillas, the steak?"
+// → staff "four flour quesadilla steak" ($24). "make it N" / "just make it N" / "hazlas N" / "mejor que sean N" REPLACES the matching
+// line's qty (restated attrs override by step) — never a second line (Elvi rang 2 + 4 = 6).
+const MAKE_IT_N = /\b(?:make\s+(?:it|them|that)|change\s+(?:it|that)\s+to|haz(?:las|los|la|lo)|h[aá]gal[ao]s|mejor\s+(?:que\s+sean\s+)?|que\s+sean)\s+(\d{1,2}|[a-z]+)\b([^.?!]*)/iu;
+const NOUN_ID: Array<[RegExp, RegExp]> = [[/quesadillas?|quesas?/iu, /quesadilla(?!-dorada)/i], [/tacos?/iu, /^sq-tacos?-(?!dorados)/i], [/burritos?/iu, /burrito/i], [/tortas?/iu, /torta/i], [/gorditas?/iu, /gordita/i], [/sopes?/iu, /sope/i], [/menudos?/iu, /^sq-menudo/i]];
+const isFood = (l: any) => !/^sq-(?:extras|drink|sides|salsa)/i.test(String(l?.itemId));
+export function makeItN(text: string): { n: number; tail: string } | null {
+  const m = fold(String(text || "")).match(MAKE_IT_N); if (!m) return null; const n = numWord(m[1]);
+  return n && n >= 1 && n <= 30 ? { n, tail: m[2] || "" } : null;
+}
+function makeItTarget(cart: any[], tail: string): number {
+  const nid = NOUN_ID.find(([w]) => w.test(tail));
+  for (let j = cart.length - 1; j >= 0; j--) { const id = String(cart[j]?.itemId); if (nid ? nid[1].test(id) : isFood(cart[j])) return j; }
+  return -1;
+}
+/** live + say(): the "make it N" turn edits the matching cart line's qty instead of adding another one */
+export function makeItNAsUpdate(actions: any[], cart: any[], text: string): boolean {
+  const k = makeItN(text); if (!k || !Array.isArray(actions) || !Array.isArray(cart)) return false;
+  const j = makeItTarget(cart, k.tail); if (j < 0) return false;
+  const base = cart[j]; let changed = false;
+  for (let i = 0; i < actions.length; i++) { const a = actions[i];
+    if (a?.type !== "add_item" || a.itemId !== base.itemId) continue;
+    const mods = [...(base.modifiers || [])];
+    for (const m of a.modifiers || []) { if (m?.isDefault) continue; const x = mods.findIndex((y: any) => y.step === m.step); if (x >= 0) mods[x] = { step: m.step, option: m.option }; else mods.push({ step: m.step, option: m.option }); }
+    actions[i] = { type: "update_item", itemId: base.itemId, quantity: k.n, modifiers: mods, correction: true }; changed = true;
+  }
+  if (!changed && !actions.some((a: any) => a?.type === "add_item" || a?.type === "update_item" || a?.type === "remove_item") && (Number(base.quantity) || 1) !== k.n) {
+    actions.push({ type: "update_item", itemId: base.itemId, quantity: k.n, modifiers: base.modifiers || [], correction: true }); changed = true;
+  }
+  return changed;
+}
+/** after-call: after a caller "make it N", same-dish lines with the same meat collapse into ONE line of N */
+export function applyMakeItNMerge(cart: any[], turns: Turn[]): void {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return;
+  for (const t of turns) { if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
+    const j = makeItTarget(cart, k.tail); if (j < 0) continue; const id = cart[j].itemId;
+    const meat = (l: any) => (l.modifiers || []).filter(isMeatStep).map((m: any) => meatKey(m.option)).sort().join("+");
+    const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]));
+    if (same.length < 2) continue;
+    const keep = same.find((l) => (Number(l.quantity) || 1) === k.n) || same[same.length - 1];
+    keep.quantity = k.n;
+    for (const l of same) if (l !== keep) cart.splice(cart.indexOf(l), 1);
+  }
+}
+/** nikki1: "a couple sour creams" / staff "two sour creams" → the Crema extra line carries the count (never 1) */
+const EXTRA_NOUN: Array<[RegExp, RegExp]> = [[/sour\s*creams?|cremas?/iu, /crema/i], [/guacamoles?|guac/iu, /guac/i], [/limes?|limones?/iu, /lim[oó]n|lime/i]];
+export function applyExtraCounts(cart: any[], turns: Turn[]): void {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return;
+  for (const [w, opt] of EXTRA_NOUN) {
+    let n = 0;
+    for (const t of turns) { const f = fold(t.text);
+      const re = new RegExp(String.raw`\b(\d{1,2}|[a-z]+|couple(?:\s+of)?|a\s+couple(?:\s+of)?|par\s+de|un\s+par\s+de)\s+(?:(?:small|little|big|chic[oa]s?|extra)\s+)?(?:` + w.source + String.raw`)\b`, "iu");
+      const m = f.match(re); if (!m) continue; const k = /couple|par/.test(m[1]) ? 2 : numWord(m[1]); if (k && k >= 2 && k <= 10) n = k;
+    }
+    if (!n) continue;
+    const lines = cart.filter((l) => /^sq-extras/i.test(String(l?.itemId)) && (l.modifiers || []).some((m: any) => opt.test(String(m.option))));
+    if (lines.length === 1 && (Number(lines[0].quantity) || 1) < n) lines[0].quantity = n;
+  }
+}
