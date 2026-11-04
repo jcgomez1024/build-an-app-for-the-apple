@@ -1,0 +1,726 @@
+{
+  "callSid": "CA66f2c1346b4f42bbc16e24cd24e4fe4d",
+  "name": "Ronald",
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.96,
+      "end": 2.181,
+      "text": "Si buenas tardes, cocina Elvis.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 3.001,
+      "end": 5.321,
+      "text": "Buenas tardes, quiero hacer tres órdenes.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 6.223,
+      "end": 7.323,
+      "text": "A ver, dime la primera.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 9.922,
+      "end": 10.402,
+      "text": "Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 11.982,
+      "end": 13.743,
+      "text": "Unas ques- quesavirrias,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 15.006,
+      "end": 16.047,
+      "text": "Y unas quesivirrias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.184,
+      "end": 19.324,
+      "text": "quesavirrias, y tres ta-",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 18.568,
+      "end": 25.23,
+      "text": "Okay, de las de comal, ¿verdad? De tortilla, de la tortilla grande hecha de comal.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 22.765,
+      "end": 23.145,
+      "text": "¿Eso es?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 26.165,
+      "end": 26.925,
+      "text": "Sí, creo.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 26.891,
+      "end": 28.852,
+      "text": "Permíteme, joven. ¿Qué más, mano?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.106,
+      "end": 31.686,
+      "text": "Y tres tacos de bistec",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 32.673,
+      "end": 34.414,
+      "text": "De tortilla grande hecha a mano o de la taquera.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 35.787,
+      "end": 36.227,
+      "text": "taquera.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 37.555,
+      "end": 38.876,
+      "text": "Tres de biset, ¿qué más, joven?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 39.968,
+      "end": 40.528,
+      "text": "¿Eso es para qué?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 41.817,
+      "end": 42.117,
+      "text": "Kevin.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.269,
+      "end": 43.349,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 43.798,
+      "end": 44.678,
+      "text": "Vamos a ver.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 46.739,
+      "end": 47.199,
+      "text": "¿Y la otra?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 49.21,
+      "end": 52.291,
+      "text": "Una quesavirria y cuatro tacos de pastor.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 54.431,
+      "end": 56.031,
+      "text": "O quesavirria, quesavir.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 55.801,
+      "end": 58.902,
+      "text": "Que si birrias y cuatro tacos de pastor del taquero.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 59.932,
+      "end": 61.052,
+      "text": "Sí, para Pedro.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 63.983,
+      "end": 64.463,
+      "text": "¿Qué más, mano?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 65.973,
+      "end": 67.553,
+      "text": "Ah, ¿de qué tienes tacos?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 69.704,
+      "end": 77.466,
+      "text": "Esa ya es de pedro ya es solo. Okay, pues hay de bisejo, ven, de chorizo, de al pastor,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 71.834,
+      "end": 72.834,
+      "text": "Sí, esa es de Pedro.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 78.586,
+      "end": 83.927,
+      "text": "carnitas, ah, costilla, pollo, buche, lengua, tripa,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 85.668,
+      "end": 87.008,
+      "text": "guisado, de prensado duro,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 87.948,
+      "end": 89.088,
+      "text": "nopales con papa.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 92.457,
+      "end": 92.917,
+      "text": "Uh, quiero",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 95.137,
+      "end": 95.957,
+      "text": "cuatro tacos.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 97.15,
+      "end": 98.03,
+      "text": "De la tortilla taquera,",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 98.958,
+      "end": 99.078,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 99.811,
+      "end": 100.251,
+      "text": "¿de qué, mano?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 101.258,
+      "end": 101.838,
+      "text": "Al pastor.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 103.952,
+      "end": 104.332,
+      "text": "¿Qué más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 106.159,
+      "end": 108.099,
+      "text": "Eh, solamente, eso es para Ronald.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 109.093,
+      "end": 109.514,
+      "text": "Ronald.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 110.459,
+      "end": 110.559,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 111.134,
+      "end": 111.875,
+      "text": "¿Sería todo, joven?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 112.84,
+      "end": 113.58,
+      "text": "Sí, solamente.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 113.935,
+      "end": 115.176,
+      "text": "Okay, dame un veinte, una por eso.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 116.817,
+      "end": 118.057,
+      "text": "Dame un veinte, por favor, ¿sale?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 118.926,
+      "end": 119.227,
+      "text": "Okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 119.438,
+      "end": 119.518,
+      "text": "Va.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 120.33,
+      "end": 120.851,
+      "text": "Gracias.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-taco-TAR7L5",
+        "quantity": 3,
+        "modifiers": [
+          {
+            "step": "(B) T Carnes / Meats Opciones",
+            "option": "Bistec / Steak"
+          },
+          {
+            "step": "(A) T Tortilla Options",
+            "option": "(TST) Taco Taquero / Street Taco"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "Queso Birrias options",
+            "option": "(QST) 3 x Queso Birrias Taquera / Street con Consome / Broth"
+          }
+        ],
+        "asked": true
+      },
+      {
+        "itemId": "sq-taco-TAR7L5",
+        "quantity": 4,
+        "modifiers": [
+          {
+            "step": "(B) T Carnes / Meats Opciones",
+            "option": "Alpastor / Roasted Pork"
+          },
+          {
+            "step": "(A) T Tortilla Options",
+            "option": "(TST) Taco Taquero / Street Taco"
+          }
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "source": "staff",
+        "heard": "Si buenas tardes, cocina Elvis."
+      },
+      {
+        "source": "caller",
+        "heard": "hacer tres órdenes",
+        "language": "es",
+        "reply": "Perdón, no tenemos hacer tres ordenes en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "A ver, dime la primera."
+      },
+      {
+        "source": "caller",
+        "heard": "Unas ques- Queso Birrias,",
+        "language": "es",
+        "reply": "3 x Queso Birrias Taquera / Street con Consome/Broth: Elige la opción de queso birria.",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Y unas quesivirrias."
+      },
+      {
+        "source": "caller",
+        "heard": "Queso Birrias,",
+        "language": "es",
+        "reply": "3 x Queso Birrias Taquera / Street con Consome/Broth: Elige la opción de queso birria.",
+        "actions": []
+      },
+      {
+        "source": "caller",
+        "heard": "tres ta-",
+        "language": "es",
+        "reply": "Menudo Con Pata Menudo 32oz y Tortillas (4) solo está disponible dom 9:00 am–6:59 pm, sáb 10:00 am–6:59 pm. No lo agregué. ¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Okay, de las de comal, ¿verdad? De tortilla, de la tortilla grande hecha de comal."
+      },
+      {
+        "source": "caller",
+        "heard": "Eso es Sí, creo",
+        "language": "es",
+        "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Permíteme, joven. ¿Qué más, mano?"
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+        "actions": []
+      },
+      {
+        "source": "caller",
+        "heard": "tres tacos de bistec",
+        "language": "es",
+        "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "De tortilla grande hecha a mano o de la taquera."
+      },
+      {
+        "source": "staff-pick",
+        "heard": "Taco Taquero",
+        "language": "es",
+        "reply": "3 × Taco: taquero, bistec, salsa asada. $9.00. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff-pick",
+        "heard": "De tortilla grande hecha a mano o de la taquera.",
+        "pick": "Taco Taquero"
+      },
+      {
+        "source": "caller",
+        "heard": "taquera",
+        "language": "es",
+        "reply": "3 × Taco: taquero, bistec, salsa asada. $9.00. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Tres de biset, ¿qué más, joven?"
+      },
+      {
+        "source": "caller",
+        "heard": "Eso es para qué",
+        "language": "es",
+        "reply": "Son tres tacos taqueros de bistec con salsa asada. ¿Lo dejamos así?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Kevin."
+      },
+      {
+        "source": "caller-ack",
+        "heard": "Sí."
+      },
+      {
+        "source": "staff",
+        "heard": "Vamos a ver."
+      },
+      {
+        "source": "staff",
+        "heard": "¿Y la otra?"
+      },
+      {
+        "source": "caller",
+        "heard": "Una Queso Birrias",
+        "language": "es",
+        "reply": "Todavía no lo agregué. ¿Me lo repites con los detalles?",
+        "actions": []
+      },
+      {
+        "source": "caller",
+        "heard": "cuatro tacos de pastor O Queso Birrias, quesavir",
+        "language": "es",
+        "reply": "Elige la opción de queso birria.",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Que si birrias y cuatro tacos de pastor del taquero."
+      },
+      {
+        "source": "caller",
+        "heard": "Sí, para Pedro",
+        "language": "es",
+        "reply": "Listo.",
+        "actions": [
+          "set_customer"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "¿Qué más, mano?"
+      },
+      {
+        "source": "caller",
+        "heard": "Ah, ¿de qué tienes tacos",
+        "language": "es",
+        "reply": "Lo más popular: Quesadilla, Quesadilla Dorada, Taco y Burrito. También tenemos combos, paquetes, especiales del día, bebidas, mariscos y platillos tradicionales, y más. ¿Qué se te antoja?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Esa ya es de pedro ya es solo. Okay, pues hay de bisejo, ven, de chorizo, de al pastor,"
+      },
+      {
+        "source": "caller-answer",
+        "heard": "Qué se te antoja",
+        "language": "es",
+        "reply": "Nada, yo solo tomo pedidos. ¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "caller-answer",
+        "heard": "Sí, esa es de Pedro."
+      },
+      {
+        "source": "staff",
+        "heard": "carnitas, ah, costilla, pollo, buche, lengua, tripa,"
+      },
+      {
+        "source": "staff",
+        "heard": "guisado, de prensado duro,"
+      },
+      {
+        "source": "staff",
+        "heard": "nopales con papa."
+      },
+      {
+        "source": "caller",
+        "heard": "cuatro tacos",
+        "language": "es",
+        "reply": "Taco: ¿Taco Comal, Taco Harina o Taco Taquero? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "De la tortilla taquera,"
+      },
+      {
+        "source": "staff-pick",
+        "heard": "Taco Taquero",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "staff-pick",
+        "heard": "De la tortilla taquera,",
+        "pick": "Taco Taquero"
+      },
+      {
+        "source": "caller-staff-readback",
+        "heard": "De la tortilla taquera,",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "caller-staff-readback",
+        "heard": "Sí."
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "¿de qué, mano?"
+      },
+      {
+        "source": "caller-clarify",
+        "heard": "Al pastor."
+      },
+      {
+        "source": "staff",
+        "heard": "¿Qué más?"
+      },
+      {
+        "source": "caller",
+        "heard": "solamente, eso es para Ronald",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "caller-retry",
+        "heard": "solamente, eso es para Ronald",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Ronald."
+      },
+      {
+        "source": "caller-ack",
+        "heard": "Sí."
+      },
+      {
+        "source": "staff",
+        "heard": "¿Sería todo, joven?"
+      },
+      {
+        "source": "caller",
+        "heard": "Sí, solamente",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "caller-retry",
+        "heard": "Sí, solamente",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Okay, dame un veinte, una por eso."
+      },
+      {
+        "source": "staff",
+        "heard": "Dame un veinte, por favor, ¿sale?"
+      },
+      {
+        "source": "caller-closing",
+        "heard": "Okay."
+      },
+      {
+        "source": "staff",
+        "heard": "Va."
+      },
+      {
+        "source": "caller-closing",
+        "heard": "Gracias."
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Taco: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+        "actions": []
+      },
+      {
+        "source": "asked-dish",
+        "heard": "Eso es Sí, creo",
+        "item": "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7"
+      }
+    ],
+    "autoAccepted": true,
+    "containers": {
+      "breaks": [],
+      "splits": [],
+      "phrases": []
+    },
+    "ambiguousRemovals": [],
+    "removalsAttributed": true,
+    "fulfillment": null,
+    "address": null,
+    "addressConfirmed": false,
+    "customerName": "Ronald"
+  }
+}
