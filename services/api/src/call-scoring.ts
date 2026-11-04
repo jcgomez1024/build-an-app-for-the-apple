@@ -4,7 +4,7 @@
 import { applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
 import { applyConfirmedReadback } from "./readback-rebuild.js";
-import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE } from "./modifier-turns.js";
+import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit } from "./modifier-turns.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
@@ -971,6 +971,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
     }
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
+    if (Array.isArray((r as any)?.actions)) mergeConFrijolesSplit((r as any).actions, text); // lupita1
     const unaSplit = unaSplitMeats(text);
     if (unaSplit && Array.isArray((r as any)?.actions)) applyUnaSplit((r as any).actions.filter((a: any) => a?.type === "add_item"), unaSplit);
     sizeAnswer = /^\W*(?:a\s+|el\s+|un\s+|lo\s+)?(?:regular|grande|chico|mediano|small|medium|large)\W*$/iu.test(text);

@@ -1,0 +1,209 @@
+{
+ "callSid": "CA35cd40bd10903274f51907867d48107a",
+ "name": "Lupita",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 3.202,
+   "end": 3.782,
+   "text": "¿Cocina, Luis?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.883,
+   "end": 6.763,
+   "text": "Hola, ¿puedo hacer una orden, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.184,
+   "end": 10.285,
+   "text": "Sí, claro, ¿qué le vamos, qué le vamos a poner?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 11.206,
+   "end": 17.709,
+   "text": "Ah, sería una orden de dos quesadillas al comal de chicharrón prensado con frijoles, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 18.69,
+   "end": 20.811,
+   "text": "Permítame, de prensado",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 22.311,
+   "end": 24.833,
+   "text": "con frijoles, son dos, ¿qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.873,
+   "end": 27.914,
+   "text": "Y nomás una coca, y sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.315,
+   "end": 31.076,
+   "text": "Dame tu nombre para tu orden, si no es favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.896,
+   "end": 32.277,
+   "text": "Lupita.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.197,
+   "end": 35.458,
+   "text": "Okay, repita, dame unos quince minutos, ¿está bien?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.199,
+   "end": 37.079,
+   "text": "Muy bien, gracias.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Prensado / Spicy Pork (+$0.50)"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     },
+     {
+      "step": "(C) Con / With",
+      "option": "**Con Frijoles / With Beans (+$0.50)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QCO) Quesadilla Comal / Homemade (+$1.00)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Frijoles Refritos / Refried Beans"
+     },
+     {
+      "step": "(I) Salsa Preferencia / Preference",
+      "option": "Mild Salsa Asada",
+      "isDefault": true
+     }
+    ]
+   },
+   {
+    "itemId": "sq-drink-coca-cola-JJE4KC",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "¿Cocina, Luis?"
+   },
+   {
+    "source": "caller-intro",
+    "heard": "Hola, ¿puedo hacer una orden, por favor?"
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, claro, ¿qué le vamos, qué le vamos a poner?"
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, sería una orden de dos quesadillas al comal de prensado con frijoles",
+    "language": "es",
+    "reply": "Quesadilla: comal, chicharrón prensado, salsa asada, con frijoles; Quesadilla: comal, frijoles refritos, salsa asada. $10.00. ¿Algo más?",
+    "actions": [
+     "add_item",
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Permítame, de prensado"
+   },
+   {
+    "source": "staff",
+    "heard": "con frijoles, son dos, ¿qué más?"
+   },
+   {
+    "source": "caller",
+    "heard": "Y nomás una coca cola",
+    "language": "es",
+    "reply": "Coca Cola. $3.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dame tu nombre para tu orden, si no es favor."
+   },
+   {
+    "source": "caller-name",
+    "heard": "Lupita."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, repita, dame unos quince minutos, ¿está bien?"
+   },
+   {
+    "source": "caller",
+    "heard": "Muy bien",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "Qué más",
+    "language": "es",
+    "reply": "Nada, aquí sigo. ¿Va a ordenar algo?",
+    "actions": []
+   }
+  ],
+  "fulfillment": "PICKUP"
+ }
+}

@@ -64,3 +64,27 @@ export function applyGuisadoChoice(cart: any[], turns: Turn[], menu: any[]): voi
 
 /** Caller pushes back right after staff's goodbye ("No, espérate", "wait") — the order is still open. */
 export const RESUME_AFTER_BYE = /^[\s¡¿.,]*(?:(?:eh|um|ah|mm)\W+)*(?:no\W+)?(?:esp[eé]r(?:a|ate|eme|ame)|espera|wait|hold\s+on|un\s+momento|aguant(?:a|ate)|otra\s+cosa|tambi[eé]n\s+quiero)/iu;
+
+// lupita1 (CA35cd40, Nov 4): "dos quesadillas al comal de chicharrón prensado con frijoles" rang 1 prensado+Con Frijoles and 1
+// Frijoles-Refritos-only line. "con frijoles" after a meat is that line's Con Frijoles option — merge back into one line of the full count.
+const CON_FRIJOL_GROUP = /^\*{0,3}con\s+frijoles/i;
+export function mergeConFrijolesSplit(actions: any[], text: string): boolean {
+  if (!Array.isArray(actions)) return false;
+  const t = fold(text);
+  if (!/\bcon\s+frijol(?:es)?\b/.test(t) || /refrit|\b(?:otr[ao]s?|una?|1)\s+(?:de\s+)?(?:puro\s+|solo\s+)?frijol/.test(t)) return false;
+  const adds = actions.filter((a) => a?.type === "add_item");
+  const beanOnly = (a: any) => { const ms = (a.modifiers || []).filter((m: any) => MEAT_GROUP.test(String(m.step)));
+    return ms.length > 0 && ms.every((m: any) => /frijoles refritos|refried beans/i.test(String(m.option))); };
+  const meatLine = (a: any) => (a.modifiers || []).some((m: any) => MEAT_GROUP.test(String(m.step)) && !/frijoles refritos|refried beans/i.test(String(m.option)));
+  let changed = false;
+  for (const b of adds.filter(beanOnly)) {
+    const host = adds.find((a) => a !== b && a.itemId === b.itemId && meatLine(a)); if (!host) continue;
+    host.quantity = (Number(host.quantity) || 1) + (Number(b.quantity) || 1);
+    if (!(host.modifiers || []).some((m: any) => CON_FRIJOL_GROUP.test(String(m.option)))) {
+      const con = (b.modifiers || []).find((m: any) => CON_FRIJOL_GROUP.test(String(m.option)));
+      host.modifiers = [...(host.modifiers || []), con || { step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" }];
+    }
+    actions.splice(actions.indexOf(b), 1); changed = true;
+  }
+  return changed;
+}
