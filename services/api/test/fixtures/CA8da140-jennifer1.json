@@ -1,0 +1,349 @@
+{
+ "callSid": "CA8da140964e0788d7e349da47f47112de",
+ "name": "Jennifer",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.941,
+   "end": 3.101,
+   "text": "Buenas tardes, cocina Elvis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.182,
+   "end": 11.705,
+   "text": "Buenas tardes, sí, me habla Jennifer Velasque, le pregunto, este, en el día de hoy, ¿tienen menudos? Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 10.325,
+   "end": 10.705,
+   "text": "¿Menudo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.306,
+   "end": 13.306,
+   "text": "Sí, sí tenemos cinta.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.686,
+   "end": 14.846,
+   "text": "pues,",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.767,
+   "end": 17.287,
+   "text": "me gustaría hacer una orden,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.188,
+   "end": 19.608,
+   "text": "dos órdenes de menudo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.289,
+   "end": 22.63,
+   "text": "Dos de menudo, normales, ¿será con pura pancita?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.95,
+   "end": 24.03,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 24.171,
+   "end": 24.731,
+   "text": "¿O quiere pata?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.412,
+   "end": 29.353,
+   "text": "Con pata de res también, o normales, de pura pancita.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 30.573,
+   "end": 35.355,
+   "text": "¿Viene con las dos? pues sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 32.495,
+   "end": 36.957,
+   "text": "Lo puedo escoger, por eso le pregunto, ¿puedo poner pura pancita o puedo poner pancita con pata?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 37.896,
+   "end": 44.638,
+   "text": "Pues las dos. Y serían tres.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 39.298,
+   "end": 39.738,
+   "text": "Okay.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.579,
+   "end": 42.079,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.401,
+   "end": 47.001,
+   "text": "¿Tres van a ser? Permítame.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 46.959,
+   "end": 47.039,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 48.082,
+   "end": 48.542,
+   "text": "¿Algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.52,
+   "end": 51.961,
+   "text": "No sería todo, ¿cuánto sería, el total?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 51.644,
+   "end": 54.646,
+   "text": "¿Van a van a ser cuarenta? Cuarenta y ocho, ¿está bien?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 54.463,
+   "end": 56.643,
+   "text": "Okay, ¿en cuánto tiempo estaría?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 55.647,
+   "end": 63.576,
+   "text": "¿A qué nombre, a qué nombre pongo su orden central? Jennifer, necesito unos veinte minutos por lo menos, Jennifer, ¿está bien?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 59.346,
+   "end": 59.767,
+   "text": "Jennifer.",
+   "language": "en"
+  },
+  {
+   "speaker": "caller",
+   "start": 63.553,
+   "end": 65.116,
+   "text": "Okay, perfecto, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 64.777,
+   "end": 65.438,
+   "text": "Muchas gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 66.238,
+   "end": 66.418,
+   "text": "Ciao.",
+   "language": "en"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Menudo Tortillas",
+      "option": "4 x (Corn) Comal Tortilla"
+     }
+    ],
+    "readback": "2 menudo con pata"
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Buenas tardes, cocina Elvis."
+   },
+   {
+    "source": "caller",
+    "heard": "sí, me habla Jennifer Velasque, le pregunto, este, en el día de hoy, ¿tienen menudos? Sí",
+    "language": "es",
+    "reply": "Sí, tenemos menudo. ¿Le gustaría ordenar uno?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Menudo?"
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, sí tenemos cinta."
+   },
+   {
+    "source": "caller",
+    "heard": "pues, me gustaría hacer una orden",
+    "language": "en",
+    "reply": "Go ahead.",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "dos órdenes de menudo",
+    "language": "en",
+    "reply": "Menudo Menudo con Tortillas (4) is only available Sun 9:00 am–6:59 pm, Sat 10:00 am–6:59 pm. I didn't add it. Anything else?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Dos de menudo, normales, ¿será con pura pancita?"
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Sí."
+   },
+   {
+    "source": "staff",
+    "heard": "¿O quiere pata?"
+   },
+   {
+    "source": "staff",
+    "heard": "Con pata de res también, o normales, de pura pancita."
+   },
+   {
+    "source": "caller",
+    "heard": "Viene con las dos? pues sí",
+    "language": "es",
+    "reply": "Menudo Menudo con Tortillas (4) solo está disponible dom 9:00 am–6:59 pm, sáb 10:00 am–6:59 pm. No lo agregué. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Lo puedo escoger, por eso le pregunto, ¿puedo poner pura pancita o puedo poner pancita con pata?"
+   },
+   {
+    "source": "caller",
+    "heard": "Pues las dos. Y serían tres",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Algo más?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tres van a ser? Permítame."
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Sí."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Algo más?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "No sería todo, ¿cuánto sería, el total?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Van a van a ser cuarenta? Cuarenta y ocho, ¿está bien?"
+   },
+   {
+    "source": "caller",
+    "heard": "en cuánto tiempo estaría",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿A qué nombre, a qué nombre pongo su orden central? Jennifer, necesito unos veinte minutos por lo menos, Jennifer, ¿está bien?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "Jennifer."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, perfecto, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Muchas gracias."
+   },
+   {
+    "source": "caller",
+    "heard": "Ciao",
+    "language": "en",
+    "reply": "Anything else?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Ciao"
+ }
+}

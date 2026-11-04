@@ -218,8 +218,8 @@ export function nameFromAnswer(text: string): string | null {
   // lalo1 (CA72b325): caller filler "¿Va?" / "Va" at call end — never a name (same junk class as Ujú / Aquí / Vámonos)
   if (/^v[aá]$/iu.test(words[0]) || /^v[aá]\s*[.?¿¡]*$/iu.test(words.join(" "))) return null;
   // felipe1 (CA398d11): "Vámonos[, gracias]" staff goodbye vocative — never a name (same class as Hasta Luego / Pobre Pues)
-  if (/^(hasta(\s+luego)?|nos\s+vemos|see\s+you(?:\s+later)?|good\s*bye|bye(\s*bye)?|cu[ií]date|que\s+le\s+vaya(?:\s+bien)?|chao|chau|adi[oó]s|v[aá]monos(?:\s*,?\s*gracias)?)$/iu.test(words.join(" "))) return null;
-  if (/^(hasta|bye|goodbye|adi[oó]s|chao|chau|v[aá]monos)$/iu.test(words[0])) return null;
+  if (/^(hasta(\s+luego)?|nos\s+vemos|see\s+you(?:\s+later)?|good\s*bye|bye(\s*bye)?|cu[ií]date|que\s+le\s+vaya(?:\s+bien)?|chao|chau|ciao|tchau|chaito|bye|bai|adi[oó]s|v[aá]monos(?:\s*,?\s*gracias)?)$/iu.test(words.join(" "))) return null;
+  if (/^(hasta|bye|goodbye|adi[oó]s|chao|chau|ciao|tchau|chaito|bye|bai|v[aá]monos)$/iu.test(words[0])) return null;
   // ca11603f/daryl1: strip leading A/For/Para before NOT_NAMES so "A Lupita" → Lupita (A is in NOT_NAMES)
   while (words.length >= 2 && /^(?:for|para|a)$/iu.test(words[0]) && /^\p{Lu}/u.test(words[1])) words = words.slice(1);
   if (!words.length || NOT_NAMES.test(words[0])) return null;
@@ -682,7 +682,13 @@ export function esParaName(turns: Array<{ speaker: string; text: string }>): str
     for (const m of String(t.text || "").matchAll(/\b(?:que\s+)?es\s+para\s+(\p{Lu}[\p{L}'’-]{1,20})\b/gu)) if (!NOT_NAME.test(m[1])) n = m[1]; }
   return n;
 }
+// jennifer1 (CA8da140): a tail segment ending in "Ciao." made Ciao the order name — goodbyes are never names, on any path.
+export const GOODBYE_NAME = /^(?:ciao|chao|chau|tchau|chaito|chaíto|bye(?:[\s-]*bye)?|good\s*bye|adi[oó]s|adios|hasta\s+luego|nos\s+vemos|see\s+(?:you|ya)|later|cu[ií]date|bai)$/iu;
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const r = nameFromTranscriptInfoG(turns);
+  return r && GOODBYE_NAME.test(String(r.name).split(/\s+/)[0].replace(/[.,!?¡¿]+/g, "")) ? null : r;
+}
+function nameFromTranscriptInfoG(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const r = nameFromTranscriptInfoW(turns);
   const tp = thirdPartyNames(turns), para = esParaName(turns);
   const isTp = !!r && tp.includes(foldName(r.name.split(/\s+/)[0]));
@@ -864,7 +870,7 @@ const NUM_TOKEN = /^(?:\d+|cero|uno?|una|dos|tres|cuatro|cinco|seis|siete|ocho|n
 export function isNumberName(name: string): boolean {
   const w = String(name || "").trim().split(/[\s.,-]+/).filter(Boolean);
   // cmissing1: sign-offs are never a name ("Bye" from "Bye." at the end of the call)
-  if (w.length && w.every((x) => /^(?:bye|byebye|goodbye|bye-bye|thanks?|thank|you|later|see|ya|cheers|adios|adi[oó]s|gracias|okay|ok|hasta|luego|serious|seriously|yeah|yes|yep|yup|sure|really|what|right|hello|hi|hey|no|nope|uh|um|huh|si|s[ií]|bueno|claro|oye|mande|disc[uú]lp(?:e|a)(?:me|nos)?|perd[oó]n(?:e|eme|ame)?|con|permiso)$/i.test(x))) return true; // dayana1: Discúlpeme / Con permiso
+  if (w.length && w.every((x) => /^(?:bye|byebye|goodbye|bye-bye|thanks?|thank|you|later|see|ya|cheers|adios|adi[oó]s|ciao|chao|chau|gracias|okay|ok|hasta|luego|serious|seriously|yeah|yes|yep|yup|sure|really|what|right|hello|hi|hey|no|nope|uh|um|huh|si|s[ií]|bueno|claro|oye|mande|disc[uú]lp(?:e|a)(?:me|nos)?|perd[oó]n(?:e|eme|ame)?|con|permiso)$/i.test(x))) return true; // dayana1: Discúlpeme / Con permiso
   return !w.length || /\d/.test(name) || w.every((x) => NUM_TOKEN.test(x));
 }
 function readBackName(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" } | null {

@@ -219,3 +219,31 @@ export function applyStaffDoradaReadback(cart: any[], turns: Turn[], menu: any[]
     delete l.asked;
   }
 }
+
+// jennifer1 (CA8da140, Nov 4): "dos órdenes de menudo" … "¿pura pancita o pancita con pata?" "Pues las dos. Y serían tres." … "¿Tres van a ser?" "Sí"
+// → Elvi kept 2. After-call: a later caller "serían/van a ser/son N" or a staff "¿N van a ser?" the caller confirms sets the menudo total;
+// "las dos / ambas / de los dos" to a pancita-vs-pata choice is a mix → note on the line so staff confirm the split.
+const MENUDO_RE = /^sq-menudo/i;
+export function applyMenudoCountConfirm(cart: any[], turns: Turn[]): void {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return;
+  const lines = cart.filter((l) => MENUDO_RE.test(String(l?.itemId)) && !/solo|caldo/i.test(String(l?.itemId)));
+  if (!lines.length) return;
+  const first = turns.findIndex((t) => /menud/iu.test(t.text)); if (first < 0) return;
+  let n: number | null = null, mix = false;
+  for (let i = first; i < turns.length; i++) { const t = turns[i], f = fold(t.text);
+    if (t.speaker === "caller") {
+      const m = f.match(/\b(?:serian|van\s+a\s+ser|son|seran|que\s+sean|mejor)\s+(\d{1,2}|[a-z]+)\b/); const k = m && numWord(m[1]); if (k && k >= 1 && k <= 12) n = k;
+      if (/\b(?:las|los)\s+dos\b|\bambas?\b|\bambos\b|\bde\s+(?:las|los)\s+dos\b/.test(f) && i > 0 && /pancita/.test(fold(turns.slice(Math.max(first, i - 3), i).map((x) => x.text).join(" "))) && /pata/.test(fold(turns.slice(Math.max(first, i - 3), i).map((x) => x.text).join(" ")))) mix = true;
+    } else {
+      const m = f.match(/\b(\d{1,2}|[a-z]+)\s+van\s+a\s+ser\b/); const k = m && numWord(m[1]);
+      const next = turns.slice(i + 1).find((x) => x.speaker === "caller");
+      if (k && k >= 1 && k <= 12 && next && /^\W*(?:s[ií]|yes|ok(?:ay)?|correcto|eso|as[ií]\s+es)\b/iu.test(next.text)) n = k;
+    }
+  }
+  const total = lines.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  if (n && n > total) { const l = lines[lines.length - 1]; l.quantity = (Number(l.quantity) || 1) + (n - total); }
+  if (mix && lines.length === 1 && (Number(lines[0].quantity) || 1) >= 2) {
+    const l = lines[0]; l.elviNotes = Array.isArray(l.elviNotes) ? l.elviNotes : [];
+    const note = "Mix pancita + con pata (caller said 'las dos') — confirm split"; if (!l.elviNotes.includes(note)) l.elviNotes.push(note);
+  }
+}
