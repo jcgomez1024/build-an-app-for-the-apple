@@ -192,3 +192,30 @@ export function applyStaffDrinkConfirm(cart: any[], turns: Turn[]): void {
     if (l) l.quantity = n; else cart.push({ itemId: id, quantity: n - have, modifiers: [] });
   }
 }
+
+// freddy2 (CA6078cb, Nov 4): garbled "dos cajas viejas doradas" rang Tacos Dorados; staff read back "dos quesadillas doradas de bistec,
+// ¿preparadas o normales?" → "Preparada". After-call, staff's dish readback beats the garbled caller line; preparada(s) → DELUXE.
+const TD_ID = "sq-tacos-dorados-tacos-dorados-OHFWF3";
+const QD_DEL = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", QD_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+export function applyStaffDoradaReadback(cart: any[], turns: Turn[], menu: any[] = []): void {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return;
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  if (/\btacos?\b|\bdorados\b/iu.test(caller)) return;
+  const staffAll = turns.filter((t) => t.speaker === "staff").map((t) => t.text).join(" ");
+  const m = staffAll.match(/\b(\d{1,2}|una?|dos|tres|cuatro|cinco|seis)\s+quesadillas?\s+doradas?\b/iu); if (!m) return;
+  const n = numWord(m[1]) || 1;
+  const qdMeats: string[] = ((menu || []).find((i: any) => i?.id === QD_REG)?.modifierGroups || []).find((g: any) => /carnes|meats/i.test(g.name))?.options?.map((o: any) => o.name) || [];
+  for (const l of cart) {
+    if (![TD_ID, QD_DEL, QD_REG].includes(l?.itemId) || (l.quantity || 1) !== n) continue;
+    const del = /\bpreparad[ao]s?\b|\bdeluxe\b|\bcon\s+todo\b/iu.test(caller) && !/\b(?:normal(?:es)?|regular(?:es)?|sencill[ao]s?)\b/iu.test(caller);
+    const meats = (l.modifiers || []).filter((x: any) => /carne|meat/i.test(String(x.step))).map((x: any) => {
+      const k = meatKey(x.option); const opt = qdMeats.find((o) => meatKey(o) === k) || x.option;
+      return { step: "(B) Q Carnes / Meats", option: opt };
+    });
+    if (/quesadillas?\s+doradas?\s+de\s+bistec\b/iu.test(staffAll) && !meats.some((x: any) => /bistec/i.test(x.option))) meats.splice(0, meats.length, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" });
+    if (!del && l.itemId !== TD_ID) continue; // QD line already rung; only upgrade style on a preparada answer
+    l.itemId = del ? QD_DEL : QD_REG;
+    l.modifiers = [{ step: "(QD) Style", option: del ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada" }, ...meats];
+    delete l.asked;
+  }
+}

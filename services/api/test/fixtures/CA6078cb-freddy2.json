@@ -1,0 +1,226 @@
+{
+ "callSid": "CA6078cbafca424cc84d2455b957dd7eae",
+ "name": "Freddy",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 0.861,
+   "end": 1.501,
+   "text": "¿Qué buenas tardes?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.482,
+   "end": 4.423,
+   "text": "Eh, quiero hacer una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.243,
+   "end": 5.643,
+   "text": "A ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.344,
+   "end": 9.786,
+   "text": "Dos cajas viejas doradas y asadas y una agua jamaica.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 11.587,
+   "end": 12.968,
+   "text": "Dos quesadillas doradas",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.689,
+   "end": 16.93,
+   "text": "de bistec, ¿las quieres preparadas o normales?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 18.031,
+   "end": 18.511,
+   "text": "Preparada.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 20.312,
+   "end": 23.734,
+   "text": "Preparadas dos de bistec y un agua de Jamaica, joven. ¿Qué más, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.195,
+   "end": 27.216,
+   "text": "Solamente, a nombre de Freddy.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.656,
+   "end": 27.036,
+   "text": "¿Tu nombre?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 28.177,
+   "end": 29.618,
+   "text": "Okay, dame veinte minutos, Freddy.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 28.597,
+   "end": 28.937,
+   "text": "Freddy.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.059,
+   "end": 31.839,
+   "text": "Okay, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.859,
+   "end": 32.319,
+   "text": "Ándale, joven.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+    "quantity": 1,
+    "modifiers": []
+   },
+   {
+    "itemId": "sq-tacos-dorados-tacos-dorados-OHFWF3",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Nachos Carne Options",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "asked": true
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "¿Qué buenas tardes?"
+   },
+   {
+    "source": "caller-intro",
+    "heard": "Eh, quiero hacer una orden."
+   },
+   {
+    "source": "staff",
+    "heard": "A ver, dime."
+   },
+   {
+    "source": "caller",
+    "heard": "Dos cajas viejas doradas y asadas",
+    "language": "es",
+    "reply": "Tacos Dorados: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "una agua jamaica",
+    "language": "es",
+    "reply": "Agua Fresca Jamaica 32oz. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dos quesadillas doradas"
+   },
+   {
+    "source": "staff",
+    "heard": "de bistec, ¿las quieres preparadas o normales?"
+   },
+   {
+    "source": "caller",
+    "heard": "Preparada",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Preparadas dos de bistec y un agua de Jamaica, joven. ¿Qué más, mano?"
+   },
+   {
+    "source": "caller",
+    "heard": "Solamente",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "a nombre de Freddy",
+    "language": "es",
+    "reply": "Gracias, Freddy. Revisa tu orden y cuando estés listo, pasa a pagar.",
+    "actions": [
+     "set_customer"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tu nombre?"
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, dame veinte minutos, Freddy."
+   },
+   {
+    "source": "caller-count",
+    "heard": ""
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Ándale, joven."
+   },
+   {
+    "source": "asked-dish",
+    "heard": "Dos cajas viejas doradas y asadas",
+    "item": "sq-tacos-dorados-tacos-dorados-OHFWF3"
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Freddy"
+ }
+}

@@ -15,6 +15,8 @@ let cache: Alias[] = [];
 // coctel1 (Alan): built-in rules (code, so they ship with a restart — never via the live-reloaded JSON)
 export const BUILTIN_ALIASES: Alias[] = compileAliases([
   // yoni1 (CA28e2b5): ASR "tortas de bise" / "bisté" / "biste" / "bistek" = bistec. Bare "bise" only right after de/con/y (never alone).
+  // freddy2 (CA6078cb): bare feminine "doradas" (no taco/flauta word) = quesadillas doradas — Tacos Dorados are "dorados"
+  { id: "freddy2-doradas", match: String.raw`(?<!\b(?:tacos?|flautas?|quesadillas?|quesas?|tostadas?|papas?|qd|tortillas?)\s+(?:\p{L}+\s+){0,2})(?<!\p{L})doradas(?!\p{L})`, to: "quesadillas doradas", scope: ["phone", "app"] },
   // josh3 (CA1fb72332): "one of those cinnamon drinks" = horchata
   { id: "josh3-cinnamon", match: String.raw`\bcinnamon(?:\s+rice)?\s+(?:drinks?|waters?|milks?|beverages?)\b`, to: "horchata", scope: ["phone", "app"] },
   { id: "yoni1-bistec", match: String.raw`(?<!\p{L})(?:bist[eé]c?k|bist[eé]d|bist[eé])(?!\p{L})|(?<=\b(?:de|con|y)\s+)bis[eé](?!\p{L})`, to: "bistec", scope: ["phone", "app"] },
