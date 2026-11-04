@@ -1,0 +1,207 @@
+{
+ "callSid": "CA28e2b5800773ff37fde8c7b95bd02d5e",
+ "name": "Yoni",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.521,
+   "end": 2.242,
+   "text": "Sí, buenas tardes.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.242,
+   "end": 4.543,
+   "text": "Buenas tardes, ¿quieres hacer una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 4.964,
+   "end": 5.404,
+   "text": "A ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.485,
+   "end": 8.186,
+   "text": "Ah, me pone nueve tortas de bise.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.747,
+   "end": 9.987,
+   "text": "Nueve.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.868,
+   "end": 11.008,
+   "text": "Ajá.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.349,
+   "end": 12.909,
+   "text": "Algo más, joven.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 14.01,
+   "end": 15.051,
+   "text": "Ah, sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 15.511,
+   "end": 15.891,
+   "text": "¿Tu nombre?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.813,
+   "end": 22.276,
+   "text": "Nombre para la orden. Johnny. Dame por lo menos veinte minutos, Johnny, si me haces el favor, ¿sale?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.913,
+   "end": 18.593,
+   "text": "Ah, ¿yoni?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 23.157,
+   "end": 23.697,
+   "text": "¿Veinte minutos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.597,
+   "end": 25.238,
+   "text": "Gracias. Sí, por lo menos, joven, ¿sale?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 25.679,
+   "end": 26.039,
+   "text": "Sí, está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 26.239,
+   "end": 26.559,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta",
+      "isDefault": true
+     }
+    ],
+    "elviNotes": [
+     "confirmar (B) Torta Carne Options"
+    ],
+    "asked": true
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenas tardes."
+   },
+   {
+    "source": "caller",
+    "heard": "quieres hacer una orden",
+    "language": "es",
+    "reply": "Adelante, dígame.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "A ver, dime."
+   },
+   {
+    "source": "caller",
+    "heard": "Ah, me pone nueve tortas de bise",
+    "language": "es",
+    "reply": "Torta: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Nueve."
+   },
+   {
+    "source": "caller-ack",
+    "heard": "Ajá."
+   },
+   {
+    "source": "staff",
+    "heard": "Algo más, joven."
+   },
+   {
+    "source": "caller-clarify",
+    "heard": "Ah, sería todo."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tu nombre?"
+   },
+   {
+    "source": "staff",
+    "heard": "Nombre para la orden. Johnny. Dame por lo menos veinte minutos, Johnny, si me haces el favor, ¿sale?"
+   },
+   {
+    "source": "caller-eta",
+    "heard": "Ah, ¿yoni Veinte minutos?"
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias. Sí, por lo menos, joven, ¿sale?"
+   },
+   {
+    "source": "caller-clarify",
+    "heard": "Sí, está bien."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Torta: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "asked-dish",
+    "heard": "Ah, me pone nueve tortas de bise",
+    "item": "sq-torta-4GNTTE"
+   }
+  ],
+  "fulfillment": null
+ }
+}

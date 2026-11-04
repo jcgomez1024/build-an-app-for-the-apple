@@ -88,3 +88,32 @@ export function mergeConFrijolesSplit(actions: any[], text: string): boolean {
   }
   return changed;
 }
+
+// yoni1: "me pone nueve tortas de bistec" — a spelled count before the dish sets the add's quantity (model rang 1).
+const NUMW: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20,
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20 };
+export const numWord = (w: string): number | null => { const f = fold(w); if (/^\d{1,2}$/.test(f)) return Number(f); return NUMW[f] ?? null; };
+const NOUNS = "tortas?|tacos?|quesadillas?|gorditas?|huaraches?|burritos?|sopes?|tostadas?|flautas?|tamales?|pambazos?|enchiladas?|tlayudas?";
+export function spokenDishCounts(text: string): Array<{ n: number; noun: string }> {
+  const out: Array<{ n: number; noun: string }> = []; const re = new RegExp(String.raw`(?<!\p{L})(\d{1,2}|[a-z]+)\s+(?:orden(?:es)?\s+de\s+)?(${NOUNS})(?!\p{L})`, "giu");
+  for (const m of fold(text).matchAll(re)) { const n = numWord(m[1]); if (n && n >= 2) out.push({ n, noun: m[2].replace(/(?:es|s)$/, "") }); }
+  return out;
+}
+/** One spoken count for one dish noun → a lone qty-1 add of that dish takes the count. */
+export function applySpokenQty(actions: any[], text: string): boolean {
+  if (!Array.isArray(actions)) return false; const cs = spokenDishCounts(text); let ch = false;
+  for (const c of cs) { if (cs.filter((x) => x.noun === c.noun).length > 1) continue;
+    const hits = actions.filter((a) => a?.type === "add_item" && String(a.itemId).toLowerCase().startsWith(`sq-${c.noun}`) && !/combo/i.test(String(a.itemId)));
+    if (hits.length === 1 && (Number(hits[0].quantity) || 1) === 1) { hits[0].quantity = c.n; ch = true; } }
+  return ch;
+}
+/** After-call: staff echoes the count alone ("Nueve.") right after the caller's dish turn → that dish's line takes it. */
+export function applyStaffCountEcho(cart: any[], turns: Turn[]): void {
+  for (let i = 1; i < turns.length; i++) { const s = turns[i], c = turns[i - 1];
+    if (s.speaker === "caller" || c.speaker !== "caller") continue;
+    const m = fold(s.text).match(/^\W*(?:ok(?:ay)?\W+)?(\d{1,2}|[a-z]+)\W*(?:\?|$)/); if (!m) continue; const n = numWord(m[1]); if (!n || n < 2) continue;
+    const cs = spokenDishCounts(c.text).filter((x) => x.n === n); if (cs.length !== 1) continue;
+    const lines = cart.filter((l) => String(l.itemId).toLowerCase().startsWith(`sq-${cs[0].noun}`) && !/combo/i.test(String(l.itemId)));
+    if (lines.length === 1 && (Number(lines[0].quantity) || 1) === 1) lines[0].quantity = n;
+  }
+}
