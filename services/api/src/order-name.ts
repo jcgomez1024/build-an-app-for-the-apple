@@ -965,3 +965,11 @@ export function snapToKnownName(heard: string | null | undefined, known: Array<s
     if (soundsLikeName(h, k)) return k; if (soundsLikeName(h, kf)) return kf; }
   return isFillerLedName(h) ? null : h;
 }
+
+// lupita2 (CAbcdfda): caller answered staff's name ask ("¿Me das su nombre?" → "Lupita") but Elvi's cart ended empty → mau1 skipped memory.
+// A direct answer to staff's name ask means an order was placed: persist it even with an empty cart. Volunteer/vocative names keep mau1.
+export function shouldPersistOrderName(hasOrder: boolean, source: string | null | undefined, turns?: Array<{ speaker: string; text: string }>): boolean {
+  if (hasOrder) return true;
+  if (source !== "staff-ask") return false;
+  return !turns || turns.some((t) => t.speaker === "staff" && /\b(?:nombre|name)\b/iu.test(String(t.text)));
+}

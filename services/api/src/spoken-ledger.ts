@@ -214,11 +214,19 @@ export function staffUnavailable(turns: T[]): string[] {
     const ask = turns[i - 1]?.speaker === "caller" && isAvailQ(turns[i - 1].text) ? turns[i - 1] : null;
     if (ask) { const w = nf(ask.text).replace(/\b(?:today|tonight|hoy|left|still|guys|you|have|got|any|about|how|what|is|are|there|do|does|tienen?|tienes|hay|calling|see|if|i|was|to|hi|but|no|okay|ok|the|some|y|el|la|los|las|de)\b/g, " ").trim().split(/\s+/).find((w) => w.length >= 4);
       if (w) out.add(w.replace(/s$/, "")); }
-    const prev = turns.slice(Math.max(0, i - 3), i + 1).map((t) => nf(t.text)).join(" ");
+    // lupita2 (CAbcdfda): "tengo pozole rojo … Sí, hay menudo todavía … De arriba se acabó." — only the clause that says sold-out names the
+    // dish; with no dish in that clause, dishes staff affirmed in the window ("tengo/hay/tenemos X", "sí hay X") are never off.
+    const clauses = String(s.text).split(/(?<=[.!?;])\s+/).map(nf).filter((c) => en || UNAVAIL_ES.test(c));
+    const DISH_ANY = /\b(?:enchiladas?|tacos?\s+al\s+vapor|tamales?|pozole|menudo|mole|chilaquiles|birria|caldo|guisados?|tostadas?|flautas?|chiles?\s+rellenos?|sopes?|huaraches?|ceviche|cocteles?|camarones|pambazos?|tlayudas?|alambres?|molcajetes?|fajitas?|chicharron(?:es)?|elotes?|esquites?|champurrado|atole|horchata|jamaica|tamarindo|flan|churros?)\b/;
+    const win = turns.slice(Math.max(0, i - 3), i + 1).map((t) => nf(t.text)).join(" ");
+    const prev0 = clauses.some((c) => DISH_ANY.test(c)) ? clauses.join(" ") : win;
+    const affirmed = (d: string) => new RegExp(String.raw`\b(?:tengo|tenemos|si\s+hay|hay|todavia\s+hay|queda|quedan)\s+(?:\w+\s+){0,2}` + d.slice(0, 5)).test(win) && !clauses.some((c) => c.includes(d.slice(0, 5)));
+    const prev = prev0;
     for (const m of prev.matchAll(/\b(enchiladas?|tacos?\s+al\s+vapor|tamales?|pozole|menudo|mole|chilaquiles|birria|caldo|guisados?|tostadas?|flautas?)\b/g)) out.add(m[1].replace(/s$/, "").replace(/^taco al vapor$/, "tacos al vapor"));
     // relleno2 (CA8f33ce5): "Chile relleno se me acabaron" — more dishes, said in the staff turn or the ask just before it
     for (const m of prev.matchAll(/\b(chiles?\s+rellenos?|sopes?|huaraches?|ceviche|cocteles?|camarones|tamales?|pambazos?|tlayudas?|alambres?|molcajetes?|fajitas?|chicharron(?:es)?|elotes?|esquites?|champurrado|atole|horchata|jamaica|tamarindo|flan|churros?)\b/g))
       out.add(m[1].replace(/^chiles?\s+rellenos?$/, "chile relleno").replace(/es$/, (e) => (/(?:camarones|chicharrones)$/.test(m[1]) ? "es" : e)).replace(/(?<=[aeiou])s$/, ""));
+    for (const d of [...out]) if (!ask && affirmed(d)) out.delete(d);
   }
   return [...out];
 }

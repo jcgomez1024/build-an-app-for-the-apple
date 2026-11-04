@@ -1,0 +1,313 @@
+{
+ "callSid": "CAbcdfda535a0bb4cbaab55350f1b5ffbd",
+ "name": "Lupita",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.621,
+   "end": 2.321,
+   "text": "Sí, buenas tardes.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.861,
+   "end": 10.702,
+   "text": "Am, buenas tardes, este, am, quería preguntar si tenía como algún tipo de caldo para, para hoy.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 12.045,
+   "end": 12.165,
+   "text": "Ah,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 13.523,
+   "end": 13.963,
+   "text": "En el menú.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 13.526,
+   "end": 16.507,
+   "text": "tengo pozole rojo, ah, el caldo de,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 17.828,
+   "end": 21.109,
+   "text": "de, ¿cómo se llama? A ver, permíteme. Sí, hay menudo todavía.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.61,
+   "end": 32.794,
+   "text": "Sí hay carne y y menudo todo. De arriba se acabó. Sí, es el menudo, es el caldo, perdón, del pozole rojo y caldo de de pescado con camarón.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 34.867,
+   "end": 38.028,
+   "text": "Okay, ah, ¿cómo da la orden de pozole para llevar?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.798,
+   "end": 42.619,
+   "text": "Esa vale quince.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.709,
+   "end": 46.629,
+   "text": "Am, ¿me puede poner una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 47.721,
+   "end": 50.982,
+   "text": "¿Algo más? Es pozole rojo de, con carne de puerco, eh.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 49.41,
+   "end": 50.13,
+   "text": "Y me po, y,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 52.151,
+   "end": 55.691,
+   "text": "okay, y me pone, ¿y la orden de menudo qué precio tiene?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 59.106,
+   "end": 60.467,
+   "text": "Vale, dieciséis.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 62.213,
+   "end": 69.155,
+   "text": "Okey, me ponen una orden de pozole y una de menú. Ah, sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 66.129,
+   "end": 67.21,
+   "text": "Okay, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 69.671,
+   "end": 70.672,
+   "text": "¿Me das su nombre, por favor?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 72.136,
+   "end": 73.056,
+   "text": "A Lupita córtale.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 74.814,
+   "end": 80.376,
+   "text": "Okay, Lupita, nomás que sí necesito por lo menos veinte minutos, si me haces el favor, porque tengo una zona en San Tel, por favor, ¿sí?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 81.658,
+   "end": 82.398,
+   "text": "Okey, está muy bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 82.357,
+   "end": 82.858,
+   "text": "Gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 83.939,
+   "end": 84.279,
+   "text": "Gracias.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenas tardes."
+   },
+   {
+    "source": "caller",
+    "heard": "am, quería preguntar si tenía como algún tipo de caldo para hoy",
+    "language": "es",
+    "reply": "Sí, tenemos Menudo, Pozole Rojo, Birria de Chivo con consome y Coctel de Camarones. ¿Le gustaría alguno?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Ah,"
+   },
+   {
+    "source": "caller",
+    "heard": "En el menú",
+    "language": "es",
+    "reply": "Lo más popular: Quesadilla, Quesadilla Dorada, Taco y Burrito. También tenemos combos, paquetes, especiales del día, bebidas, mariscos y platillos tradicionales, y más. ¿Qué se te antoja?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "tengo pozole rojo, ah, el caldo de,"
+   },
+   {
+    "source": "staff",
+    "heard": "de, ¿cómo se llama? A ver, permíteme. Sí, hay menudo todavía."
+   },
+   {
+    "source": "staff",
+    "heard": "Sí hay carne y y menudo todo. De arriba se acabó. Sí, es el menudo, es el caldo, perdón, del pozole rojo y caldo de de pescado con camarón."
+   },
+   {
+    "source": "caller",
+    "heard": "ah, ¿cómo da la orden de pozole para llevar",
+    "language": "es",
+    "reply": "Pozole Rojo. $14.99. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Esa vale quince."
+   },
+   {
+    "source": "caller",
+    "heard": "Am, ¿me puede poner una orden",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "¿Algo más? Es pozole rojo de, con carne de puerco, eh."
+   },
+   {
+    "source": "caller",
+    "heard": "Y me po, y,",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "caller",
+    "heard": "y me pone, ¿y la orden de menudo qué precio tiene",
+    "language": "es",
+    "reply": "Menudo Menudo con Tortillas (4) solo está disponible dom 9:00 am–6:59 pm, sáb 10:00 am–6:59 pm. No lo agregué. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Vale, dieciséis."
+   },
+   {
+    "source": "caller",
+    "heard": "Okey, me ponen una orden de pozole, una de menudo. Ah",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, ¿algo más?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Me das su nombre, por favor?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "A Lupita córtale."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, Lupita, nomás que sí necesito por lo menos veinte minutos, si me haces el favor, porque tengo una zona en San Tel, por favor, ¿sí?"
+   },
+   {
+    "source": "caller",
+    "heard": "Okey, está muy bien",
+    "language": "es",
+    "reply": "Perdón, ¿qué le vamos a preparar?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Gracias."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "qué le vamos a preparar",
+    "language": "es",
+    "reply": "¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "end-staff-unavailable",
+    "heard": "sq-menudo-menudo-con-tortillas-4-ZSRUX4"
+   },
+   {
+    "source": "end-staff-unavailable",
+    "heard": "sq-pozole-rojo-red-pozole-DQ7X4J"
+   }
+  ],
+  "autoAccepted": false,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Lupita"
+ }
+}

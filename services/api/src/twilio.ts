@@ -3,7 +3,7 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { snapToKnownName, nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName } from "./order-name.js";
+import { snapToKnownName, nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName, shouldPersistOrderName } from "./order-name.js";
 import crypto from "node:crypto";
 import { blockedCaller, blockedLanguages, BLOCKED_TEXT } from "./phone-blocklist.js";
 import fs from "node:fs";
@@ -2067,7 +2067,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           const pickupOnly = !!heardInfo?.thirdPerson;
           let savedNow = false;
           const groupOrder = (heardInfo?.group?.length || 0) >= 2; // osmar1: multi-name group order → ticket labels only, no caller memory
-          if (hasOrder && !groupOrder) {
+          if (shouldPersistOrderName(hasOrder, heardInfo?.source, result.turns as any) && !groupOrder) { // lupita2
             if (pickupOnly) {
               try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
               markOrderOnlyName(heardOrderName);
