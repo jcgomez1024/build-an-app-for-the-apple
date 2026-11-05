@@ -1,0 +1,537 @@
+{
+ "callSid": "CA99377eb5406a84dccdd02c0710614450",
+ "name": "Cris",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.32,
+   "end": 2.701,
+   "text": "¿Quién puso los cigarros? ¿Bueno?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.882,
+   "end": 4.082,
+   "text": "Bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.782,
+   "end": 6.983,
+   "text": "Sí, joven, dígame, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.223,
+   "end": 6.443,
+   "text": "¿Puedes",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 7.983,
+   "end": 9.144,
+   "text": "una orden? ¿Puedes una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.983,
+   "end": 8.663,
+   "text": "Claro, ¿qué te vamos?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 9.744,
+   "end": 11.124,
+   "text": "Claro, ¿qué le vamos a poner, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 12.145,
+   "end": 14.106,
+   "text": "¿Le me da, buscas quesadillas de,",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 15.787,
+   "end": 15.867,
+   "text": "de,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 16.666,
+   "end": 18.387,
+   "text": "Maíz en el comal, de harina o doradas.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 19.248,
+   "end": 19.348,
+   "text": "de",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 20.729,
+   "end": 22.11,
+   "text": "harina de tripas?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 22.808,
+   "end": 24.909,
+   "text": "Dos de harina, de tripas, ¿qué más, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.452,
+   "end": 34.895,
+   "text": "Y dos de lengua. Sí. Y una",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.091,
+   "end": 29.691,
+   "text": "¿También de harina?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 31.812,
+   "end": 32.432,
+   "text": "¿Qué más, joven?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 36.096,
+   "end": 36.916,
+   "text": "que es torta de,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 38.314,
+   "end": 39.034,
+   "text": "¿Queso y torta?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 38.637,
+   "end": 39.157,
+   "text": "de chorizo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.435,
+   "end": 42.056,
+   "text": "¿Queso y torta? Okey, ¿qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 41.958,
+   "end": 42.058,
+   "text": "Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 43.139,
+   "end": 44.379,
+   "text": "Sí. Y una agua de horchata.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.977,
+   "end": 47.197,
+   "text": "Dame tu nombre para tu orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 48.381,
+   "end": 48.681,
+   "text": "¿Fris?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 49.478,
+   "end": 49.758,
+   "text": "¿Luis?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 50.882,
+   "end": 51.202,
+   "text": "Fris.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 52.039,
+   "end": 55.521,
+   "text": "Cris, perdón, mano. Dame veinte Tú no, Cris, si me haces favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.904,
+   "end": 54.304,
+   "text": "Está bien.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 55.404,
+   "end": 61.968,
+   "text": "Y también me pone, um, unos frijoles en, en, así al lado. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 56.862,
+   "end": 57.042,
+   "text": "Dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 60.084,
+   "end": 61.325,
+   "text": "Unos seis de frijoles, Cris.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 62.766,
+   "end": 65.208,
+   "text": "Permíteme, porque ya la ya la había",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 66.689,
+   "end": 69.931,
+   "text": "ya la había grabado, permíteme. Vamos a buscar tu ticket, buddy.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 69.152,
+   "end": 75.896,
+   "text": "Okay. Sí.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 71.312,
+   "end": 74.815,
+   "text": "Ah, puros seis de puros frijolitos. ¿Sería todo, mano?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 76.636,
+   "end": 79.458,
+   "text": "Veinte minutos por lo menos, Luis, si me haces, perdón, Cris, si me haces favor, ¿va?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 79.999,
+   "end": 80.939,
+   "text": "Okay, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 80.378,
+   "end": 80.619,
+   "text": "Órale.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Tripa / Beef Tripe (+$0.50)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-quesadilla-HLT6CR",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(A) Q Tortilla Options",
+      "option": "(QHR) Quesadilla Harina / Flour (+$0.75)"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Lengua / Beef Tongue (+$0.50)"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+    "quantity": 1,
+    "modifiers": []
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "¿Quién puso los cigarros? ¿Bueno?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Bueno."
+   },
+   {
+    "source": "staff",
+    "heard": "Sí, joven, dígame, buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "Puedes una orden? ¿Puedes una orden",
+    "language": "es",
+    "reply": "Adelante, dígame.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, ¿qué te vamos?"
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, ¿qué le vamos a poner, joven?"
+   },
+   {
+    "source": "caller",
+    "heard": "Le me da, buscas quesadillas de,",
+    "language": "es",
+    "reply": "Quesadilla: ¿Quesadilla Comal, Quesadilla Harina o Quesadilla Taquera? ¿Y Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Maíz en el comal, de harina o doradas."
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Quesadilla Harina",
+    "language": "es",
+    "reply": "Quesadilla: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Maíz en el comal, de harina o doradas.",
+    "pick": "Quesadilla Harina"
+   },
+   {
+    "source": "harina-answer-qhr",
+    "heard": "de harina de tripas?"
+   },
+   {
+    "source": "caller-meat",
+    "heard": "Le me da, buscas quesadillas de harina de tripas",
+    "language": "es",
+    "reply": "Quesadilla: harina, tripa, salsa asada. $4.75. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-expanded",
+    "heard": "de harina de tripas?",
+    "asked": "Le me da, buscas quesadillas de, de,",
+    "expanded": [
+     "Le me da, buscas quesadillas de, de de harina de tripas"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dos de harina, de tripas, ¿qué más, mano?"
+   },
+   {
+    "source": "caller",
+    "heard": "dos de lengua. Sí. Y una",
+    "language": "es",
+    "reply": "2 × Quesadilla: harina, lengua, salsa asada. $9.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿También de harina?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Qué más, joven?"
+   },
+   {
+    "source": "caller-incomplete-de",
+    "heard": "que es torta de,"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Queso y torta?"
+   },
+   {
+    "source": "caller-meat",
+    "heard": "que es torta de chorizo",
+    "language": "es",
+    "reply": "Es bolillo con chorizo, queso, crema, lechuga, pico de gallo y aguacate. ¿La quieres?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "La quieres",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "caller-meat-expanded",
+    "heard": "de chorizo.",
+    "asked": "que es torta de",
+    "expanded": [
+     "que es torta de de chorizo"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿Queso y torta? Okey, ¿qué más?"
+   },
+   {
+    "source": "caller-count",
+    "heard": "Sí Sí"
+   },
+   {
+    "source": "caller",
+    "heard": "una agua de horchata",
+    "language": "es",
+    "reply": "Agua Fresca Horchata 32oz. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dame tu nombre para tu orden."
+   },
+   {
+    "source": "caller-name",
+    "heard": "¿Fris?"
+   },
+   {
+    "source": "staff",
+    "heard": "¿Luis?"
+   },
+   {
+    "source": "caller",
+    "heard": "Fris",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Cris, perdón, mano. Dame veinte Tú no, Cris, si me haces favor."
+   },
+   {
+    "source": "caller",
+    "heard": "Está bien Y también me pone, um, unos frijoles en, así al lado. Sí",
+    "language": "es",
+    "reply": "Agua Fresca Horchata 32oz. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dime."
+   },
+   {
+    "source": "staff",
+    "heard": "Unos seis de frijoles, Cris."
+   },
+   {
+    "source": "staff",
+    "heard": "Permíteme, porque ya la ya la había"
+   },
+   {
+    "source": "staff",
+    "heard": "ya la había grabado, permíteme. Vamos a buscar tu ticket, buddy."
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay. Sí."
+   },
+   {
+    "source": "staff",
+    "heard": "Ah, puros seis de puros frijolitos. ¿Sería todo, mano?"
+   },
+   {
+    "source": "staff",
+    "heard": "Veinte minutos por lo menos, Luis, si me haces, perdón, Cris, si me haces favor, ¿va?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Okay, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Órale."
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Cris"
+ }
+}
