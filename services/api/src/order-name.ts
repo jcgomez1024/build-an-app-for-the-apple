@@ -199,6 +199,8 @@ export function nameFromAnswer(text: string): string | null {
   // ca11603f: strip leading article "A" before a capitalized name ("A Lupita")
   s = s.replace(/^\s*A\s+(?=\p{Lu})/u, "");
   let words = s.split(" ").filter(Boolean);
+  // "Jonathan, Jonathan." — the caller repeats the same name, it is not a two-word name
+  if (words.length === 2 && foldName(words[0]) === foldName(words[1])) words = [words[0]];
   if (!words.length || words.length > 3) return null;
   // callback1: "era para unos, para…" / "unos para" = relay/pickup-for-others, never caller identity
   if (/\b(?:era|es|ser[ií]a)\s+para\s+unos?\b/iu.test(s) || /^unos?\s+para\b/iu.test(s) || /^para\s+unos?\b/iu.test(s)) return null;

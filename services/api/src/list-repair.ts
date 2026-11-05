@@ -224,6 +224,76 @@ export function applyNegatedMeat(cart: any[], turns: Turn[], menu: any[]): boole
   }
   return changed;
 }
+// jonathan2 (CA11d424f): "una pregunta, ¿tiene tacos dorados de cueritos?" + staff "No" is not an order.
+// "Quería eso" after that decline points at the quesadillas already on the order, not the declined dish.
+const ASK_ORDER = /\b(?:quiero|quisiera|quer[ií]a|dame|deme|ponme|p[oó]ngame|me\s+(?:da|das|pone|pones)|me\s+puedes?\s+poner|i\s+want|give\s+me|i'?ll\s+take)\b/iu;
+/** "¿tiene/tienen/hay X?" and "una pregunta, ¿tiene X?" ask; they do not order. */
+export function isAvailabilityAsk(text: string): boolean {
+  const t = String(text || "");
+  if (ASK_ORDER.test(t) && !/\b(?:pregunta|duda|question)\b/iu.test(t)
+    && !/^\W*(?:(?:ah|oh|este|bueno|pues|s[ií])[,.\s]+){0,4}(?:me\s+)?(?:pone|pones|pongo|ponme|p[oó]ngame)\s+(?:un[oa]?)?\s*,?\s*(?:s[ií]\s+)?(?:tiene|tienen|tienes|hay)\b/iu.test(t)) return false;
+  if (/\b(?:tiene|tienen|tienes|hay|vende[ns]?|manejan|do\s+you\s+(?:guys\s+)?have|got\s+any)\b/iu.test(t) && /[?¿]/.test(t)) return true;
+  return /\b(?:pregunta|duda|question)\b/iu.test(t) && /\b(?:tiene|tienen|tienes|hay)\b/iu.test(t);
+}
+type AskDish = { text: RegExp; line: RegExp };
+/** Most specific dish in an availability question (tacos dorados ≠ plain tacos). */
+function askDish(text: string): AskDish | null {
+  const t = plain(text);
+  if (/\btacos?\s+dorados?\b|\bflautas?\b/.test(t)) return { text: /\btacos?\s+dorados?\b|\bflautas?\b/iu, line: /tacos-dorados/i };
+  if (/\bquesadillas?\s+doradas?\b|\bquesadillas?\s+(?:fritas?|de\s+aceite|en\s+aceite)\b/.test(t)) return { text: /quesadillas?\s+doradas?|quesadillas?\s+(?:fritas?|(?:de|en)\s+aceite)/iu, line: /quesadilla-dorada|qd-quesadilla-dorada/i };
+  if (/\bquesadillas?\b/.test(t)) return { text: /\bquesadillas?\b/iu, line: /^sq-(?:quesadilla|qd)-/i };
+  if (/\btacos?\b/.test(t)) return { text: /\btacos?\b/iu, line: /^sq-taco-/i };
+  if (/\bgorditas?\b/.test(t)) return { text: /\bgorditas?\b/iu, line: /gordita/i };
+  if (/\btortas?\b/.test(t) && !/tortilla/.test(t)) return { text: /\btortas?\b/iu, line: /^sq-torta-/i };
+  if (/\bburritos?\b/.test(t)) return { text: /\bburritos?\b/iu, line: /burrito/i };
+  if (/\bmenudos?\b/.test(t)) return { text: /\bmenudos?\b/iu, line: /menudo/i };
+  if (/\bhorchatas?\b/.test(t)) return { text: /\bhorchatas?\b/iu, line: /horchata/i };
+  if (/\bjamaicas?\b/.test(t)) return { text: /\bjamaicas?\b/iu, line: /jamaica/i };
+  return null;
+}
+/** "No." / "No, joven." declines the ask. "no, normales" answers a different question. */
+const BARE_NO = /^\W*(?:no|nel|nop|nope)(?:\s*,?\s*(?:joven|gracias|thanks|señor|senor|mano))?\s*[.!?]*\s*$/iu;
+function askRefused(turns: Turn[], i: number): boolean {
+  const win = turns.slice(i + 1, i + 6);
+  const staff = win.find((t) => t.speaker === "staff");
+  if (staff && BARE_NO.test(staff.text)) return true;
+  if (staff && /\bno\s+(?:tenemos|tengo|hay|queda)\b/iu.test(staff.text) && !/\bs[ií]\s*,?\s*(?:tengo|tenemos|hay)\b/iu.test(staff.text)) return true;
+  return win.some((t) => t.speaker === "caller" && BARE_NO.test(t.text));
+}
+/** Dishes named only in an availability question that staff or the caller then declined, and never ordered by name. */
+export function declinedAsks(turns: Turn[]): AskDish[] {
+  const out: AskDish[] = [];
+  if (!Array.isArray(turns)) return out;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i]; if (t.speaker !== "caller" || !isAvailabilityAsk(t.text)) continue;
+    const spec = askDish(t.text); if (!spec || !askRefused(turns, i)) continue;
+    const earlier = turns.slice(0, i).some((x) => x.speaker === "caller" && spec.text.test(x.text) && !isAvailabilityAsk(x.text));
+    if (earlier) continue;
+    const again = turns.slice(i + 1).some((x) => x.speaker === "caller" && spec.text.test(x.text) && !isAvailabilityAsk(x.text) && ASK_ORDER.test(x.text));
+    if (again) continue;
+    if (!out.some((o) => o.line.source === spec.line.source)) out.push(spec);
+  }
+  return out;
+}
+/** Drop cart lines for a declined availability ask ("¿tiene tacos dorados?" → "No"). "Quería eso" is not a reorder. */
+export function dropDeclinedAsk(cart: any[], turns: Turn[]): boolean {
+  const asks = declinedAsks(turns); if (!asks.length || !Array.isArray(cart)) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) if (asks.some((a) => a.line.test(String(cart[i]?.itemId || "")))) { cart.splice(i, 1); changed = true; }
+  return changed;
+}
+/** Live: an add on the question turn, or on a later "quería eso", never rings the declined dish. */
+export function stripDeclinedAskAdds(acts: any[], text: string, asks: AskDish[]): boolean {
+  if (!Array.isArray(acts) || !asks?.length) return false;
+  const reorder = asks.some((a) => a.text.test(text) && !isAvailabilityAsk(text) && ASK_ORDER.test(text));
+  if (reorder) return false;
+  let changed = false;
+  for (let i = acts.length - 1; i >= 0; i--) {
+    const a = acts[i];
+    if ((a?.type === "add_item" || a?.type === "update_item") && asks.some((d) => d.line.test(String(a.itemId || "")))) { acts.splice(i, 1); changed = true; }
+  }
+  return changed;
+}
 /** Tacos Dorados the caller never asked for ("dorados", "flautas", "crispy rolled") next to plain tacos of that meat are a phantom. */
 export function dropUnsaidDorados(cart: any[], turns: Turn[]): boolean {
   const caller = plain(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "));

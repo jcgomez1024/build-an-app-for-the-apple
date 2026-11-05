@@ -251,7 +251,8 @@ export function applyMenudoCountConfirm(cart: any[], turns: Turn[]): void {
 // nikki1 (CA31f9eb, Nov 4): "two regular quesadillas, steak … flour" then "can you just make it four regular quesadillas, the steak?"
 // → staff "four flour quesadilla steak" ($24). "make it N" / "just make it N" / "hazlas N" / "mejor que sean N" REPLACES the matching
 // line's qty (restated attrs override by step) — never a second line (Elvi rang 2 + 4 = 6).
-const MAKE_IT_N = /\b(?:make\s+(?:it|them|that)|change\s+(?:it|that)\s+to|haz(?:las|los|la|lo)|h[aá]gal[ao]s|mejor\s+(?:que\s+sean\s+)?|que\s+sean)\s+(\d{1,2}|[a-z]+)\b([^.?!]*)/iu;
+// jonathan2 (CA11d424f): "¿me puedes poner mejor las tres?" is the same replacement ("mejor las tres"), not a third quesadilla on top of two.
+const MAKE_IT_N = /\b(?:make\s+(?:it|them|that)|change\s+(?:it|that)\s+to|(?:mejor\s+)?(?:haz(?:las|los|la|lo)|h[aá]gal[ao]s)|mejor(?:\s+que\s+sean)?|que\s+sean)\s+(?:l[aeo]s?\s+)?(\d{1,2}|[a-z]+)\b([^.?!]*)/iu;
 const NOUN_ID: Array<[RegExp, RegExp]> = [[/quesadillas?|quesas?/iu, /quesadilla(?!-dorada)/i], [/tacos?/iu, /^sq-tacos?-(?!dorados)/i], [/burritos?/iu, /burrito/i], [/tortas?/iu, /torta/i], [/gorditas?/iu, /gordita/i], [/sopes?/iu, /sope/i], [/menudos?/iu, /^sq-menudo/i]];
 const isFood = (l: any) => !/^sq-(?:extras|drink|sides|salsa)/i.test(String(l?.itemId));
 export function makeItN(text: string): { n: number; tail: string } | null {
@@ -279,14 +280,26 @@ export function makeItNAsUpdate(actions: any[], cart: any[], text: string): bool
   }
   return changed;
 }
-/** after-call: after a caller "make it N", same-dish lines with the same meat collapse into ONE line of N */
+const DISH_NOUN = "quesadillas?|tacos?|gorditas?|tortas?|burritos?|sopes?|menudos?|huaraches?|enchiladas?";
+/** Staff "vamos a poner tres quesadillas…" right after a bare "mejor las tres" names the dish the count replaces. */
+function nearbyDish(turns: Turn[], i: number, n: number): string {
+  const w = Object.entries(NUMW).find(([, v]) => v === n)?.[0] || String(n);
+  const m = turns.slice(i, Math.min(turns.length, i + 8)).map((t) => t.text).join(" ").match(new RegExp(String.raw`\b(?:${w}|${n})\s+(${DISH_NOUN})\b`, "iu"));
+  return m ? m[1] : "";
+}
+/** after-call: after a caller "make it N" / "mejor las N", same-dish lines with the same meat become ONE line whose qty is N
+ *  (a single line of 2 becomes 3; two qty-1 lines collapse to one line of N). */
 export function applyMakeItNMerge(cart: any[], turns: Turn[]): void {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return;
-  for (const t of turns) { if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
-    const j = makeItTarget(cart, k.tail); if (j < 0) continue; const id = cart[j].itemId;
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
+    const named = new RegExp(DISH_NOUN, "iu").test(k.tail);
+    const tail = named ? k.tail : `${nearbyDish(turns, i, k.n)} ${k.tail}`;
+    const j = makeItTarget(cart, tail); if (j < 0) continue; const id = cart[j].itemId;
     const meat = (l: any) => (l.modifiers || []).filter(isMeatStep).map((m: any) => meatKey(m.option)).sort().join("+");
     const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]));
-    if (same.length < 2) continue;
+    if (!same.length) continue;
+    const total = same.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+    if (same.length < 2 && total === k.n) continue;
     const keep = same.find((l) => (Number(l.quantity) || 1) === k.n) || same[same.length - 1];
     keep.quantity = k.n;
     for (const l of same) if (l !== keep) cart.splice(cart.indexOf(l), 1);

@@ -120,7 +120,7 @@ export function addressesIn(text: string): Address[] {
   }
   // caguamas1/callback1: "a la William 544" / "544 La Williams" (no St/Ave). Require street-like token; reject "25 por"/time phrases.
   if (!out.length) {
-    const BAD = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo)$/i;
+    const BAD = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|domicilio|delivery|entrega|pickup|repartidor)$/i;
     for (const m of t.matchAll(/\b(?:a\s+(?:a\s+)?(?:la\s+)?)([a-záéíóúñ][a-záéíóúñ.'-]{2,})\s+(\d{2,6})\b/giu)) {
       const name = title(m[1]);
       if (BAD.test(name) || name.length < 4) continue;
@@ -132,7 +132,7 @@ export function addressesIn(text: string): Address[] {
       out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
     }
     // gerardo1 (CAdf3a04): "fairground número 85" / "Fairground 85" / "85 Fairground" (no St/Ave spoken)
-    const BAD2 = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente)$/i;
+    const BAD2 = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente|domicilio|delivery|entrega|pickup|repartidor|joven)$/i;
     const key3 = (st: string) => st.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
     for (const m of t.matchAll(/\b([a-záéíóúñ][a-záéíóúñ.'-]{3,})\s+(?:n[uú]mero\s+)?(\d{2,6})\b/giu)) {
       const name = title(m[1]);
@@ -154,6 +154,55 @@ export function addressesIn(text: string): Address[] {
 }
 export const addressKey = (a: string) => String(a || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 3).join(" ");
 
+// jonathan2 (CA11d424f): staff "es la West Walnut, quinientos uno" + caller "Sí" is the delivery address.
+// Hundreds-words are house numbers here ("quinientos cuarenta y cuatro" = 544); a bare "tres" stays a food count.
+const ES_CARD: Record<string, number> = {
+  un: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9,
+  diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
+  dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiuno: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+  cien: 100, ciento: 100, doscientos: 200, trescientos: 300, cuatrocientos: 400, quinientos: 500,
+  seiscientos: 600, setecientos: 700, ochocientos: 800, novecientos: 900,
+};
+const STREET_BAD = /^(?:quesadillas?|tacos?|gorditas?|tortas?|burritos?|sopes?|doradas?|dorados?|comal|harina|taquera|taquero|duro|prensado|bistec|pastor|chorizo|coca|coke|cocas|delivery|domicilio|joven|mano|calle|numero|direccion|entrega|gracias|okay|okey|total|dolares|precio|para|como|donde|este|esta|eso|esa|todo|nada|mas|nomas|botella|vidrio|quesadilla|joven)$/i;
+// \b is ASCII-only, so it never fires after "Sí" / "ajá". (?!\p{L}) is the boundary.
+const ADDR_YES = /^\W*(?:s[ií]|yes|yeah|yep|aja|ajá|correcto|exacto|as[ií]\s+es|eso(?:\s+es)?|ok(?:ay)?|claro|est[aá]\s+bien)(?!\p{L})/iu;
+/** Spanish cardinal used as a house number. Rejects small food counts ("tres") unless a hundreds word is present. */
+export function spanishHouseNumber(phrase: string): number | null {
+  const raw = String(phrase || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  if (/^\d{1,6}$/.test(raw)) { const n = Number(raw); return n >= 1 && n <= 999999 ? n : null; }
+  const parts = raw.split(" ").filter((w) => w && w !== "y");
+  if (!parts.length || parts.length > 6) return null;
+  let n = 0;
+  for (const w of parts) { const v = ES_CARD[w]; if (v == null) return null; n += v; }
+  if (!parts.some((w) => (ES_CARD[w] || 0) >= 100) && n < 20) return null;
+  return n >= 20 && n <= 99999 ? n : null;
+}
+/** Staff reads a street back ("West Walnut, quinientos uno" / "Williams, quinientos cuarenta y cuatro") and the caller says sí. */
+export function staffConfirmedStreet(turns: Turnish[]): Address | null {
+  const ts = [...turns].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
+  const re = /\b(?:es\s+)?(?:la|el|en(?:\s+la)?\s+)?((?:north|south|east|west)\s+)?([a-z][a-z.'-]{3,}(?:\s+[a-z][a-z.'-]{3,})?)\s*,\s*((?:doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|ciento|cien|\d{2,6})(?:\s+(?:y\s+)?(?:uno|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veintiuno|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|y))*)/giu;
+  let found: Address | null = null;
+  for (let i = 0; i < ts.length; i++) {
+    const t = ts[i]; if ((t.speaker || "caller") === "caller") continue;
+    const text = String(t.text || "").normalize("NFD").replace(/\p{M}/gu, "");
+    for (const m of text.matchAll(re)) {
+      const name = m[2];
+      if (name.split(/\s+/).some((w) => STREET_BAD.test(w))) continue;
+      const num = spanishHouseNumber(m[3]); if (!num || num < 20) continue;
+      const nxt = ts.slice(i + 1).find((x) => (x.speaker || "caller") === "caller");
+      if (!nxt || !ADDR_YES.test(nxt.text)) continue;
+      if (/\b(?:no|nel|otra|diferente)\b/iu.test(nxt.text) && !/^\W*s[ií]\b/iu.test(nxt.text)) continue;
+      const dir = m[1] ? `${title(m[1])} ` : "";
+      found = fmt({ street: `${num} ${dir}${title(name)}`.replace(/\s+/g, " ").trim() });
+    }
+  }
+  return found;
+}
+
 /** Delivery address for a call: the latest one said; "confirmed" when caller and staff both said it (staff read-back). */
 export function detectAddress(turns: Turnish[]): { address: Address | null; confirmed: boolean; by: "caller" | "staff" | null } {
   let best: { address: Address; by: "caller" | "staff" } | null = null;
@@ -170,6 +219,8 @@ export function detectAddress(turns: Turnish[]): { address: Address | null; conf
       best = { address: a, by: t.speaker || "caller" };
     }
   }
+  // jonathan2: staff "West Walnut, quinientos uno" + caller "Sí" beats a missing or unconfirmed fragment.
+  { const rb = staffConfirmedStreet(turns); if (rb && (!best || (seen[addressKey(best.address.street)]?.size || 0) < 2)) return { address: rb, confirmed: true, by: "staff" }; }
   // chalino1: the caller's answer to "¿el número de tu casa?" beats a loose unconfirmed "rollo. 24" (price) match.
   { const h = houseNumberAnswer(turns); if (h && (!best || (seen[addressKey(best.address.street)]?.size || 0) < 2)) return { address: h, confirmed: false, by: "caller" }; }
   if (!best) return { address: null, confirmed: false, by: null };

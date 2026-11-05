@@ -47,6 +47,8 @@ const ORDER_EN = /\b(?:can\s+i\s+(?:get|have|order)|could\s+i\s+(?:get|have)|i'?
 export function isAvailQ(x: string): boolean {
   const y = nf(x).replace(/\bi\s+was\s+calling\s+to\s+see\s+if\b/, "calling to see if");
   if (/\b(?:me\s+da|dame|deme|me\s+pone|ponme|pongame|quiero|quisiera|me\s+das|una\s+orden)\b/.test(y) || ORDER_EN.test(y)) return false;
+  // jonathan2: "una pregunta, ¿tiene tacos dorados?" — pregunta + tiene/hay asks, orders nothing
+  if (/\b(?:pregunta|duda|question)\b/.test(y) && /\b(?:tienes?|tienen|hay|venden|manejan)\b/.test(y)) return true;
   // a "how about X" after the caller already ordered is a suggestion ask, still no add: no count words allowed
   if (/\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro)\s+[a-z]/.test(y) && !AVQ.test(y)) return false;
   return AVQ.test(y) || AVQ_EN.test(y.replace(/^(?:(?:but|no|hi|hey|ok(?:ay)?)\s+)+/, "").replace(/^i\s+was\s+/, "i was "));
