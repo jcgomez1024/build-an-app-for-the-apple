@@ -1,0 +1,304 @@
+{
+ "callSid": "CAb2b6edd38e10ea4d5c751c14d4207456",
+ "name": "Xochitl",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 3.001,
+   "end": 3.742,
+   "text": "Sí, buenos días.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 4.742,
+   "end": 6.723,
+   "text": "Hola, buenos días, ¿me puede hacer una orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 7.383,
+   "end": 7.823,
+   "text": "A ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 8.984,
+   "end": 11.285,
+   "text": "¿Me puede poner una torta de chorizo?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.406,
+   "end": 16.087,
+   "text": "¿Torta normal o quesitorta?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.027,
+   "end": 17.668,
+   "text": "Que sí torta.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 19.108,
+   "end": 20.129,
+   "text": "De chorizo, ¿qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 21.049,
+   "end": 22.29,
+   "text": "Y dos sacos de buche,",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 23.39,
+   "end": 25.891,
+   "text": "¿Tortilla taquera o tortilla grande chermano o de harina?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 26.692,
+   "end": 27.552,
+   "text": "tortilla hecha a mano.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 29.253,
+   "end": 29.813,
+   "text": "Alimentame.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 30.713,
+   "end": 31.514,
+   "text": "Dos, ¿qué más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 32.334,
+   "end": 33.194,
+   "text": "Sería todo, oiga.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 33.935,
+   "end": 34.355,
+   "text": "¿Tu nombre?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 35.375,
+   "end": 35.816,
+   "text": "¿Xochitl?",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 36.796,
+   "end": 38.737,
+   "text": "Dame veinte minutos, no soy chismis, por favor.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.517,
+   "end": 40.818,
+   "text": "Sí, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 40.398,
+   "end": 40.978,
+   "text": "Gracias, eh.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Chorizo / Mexican Sausage"
+     }
+    ]
+   },
+   {
+    "itemId": "sq-torta-4GNTTE",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) Torta Options",
+      "option": "(TO) Torta"
+     },
+     {
+      "step": "(B) Torta Carne Options",
+      "option": "Buche / Pork Stomach (+$0.50)"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, buenos días."
+   },
+   {
+    "source": "caller",
+    "heard": "me puede hacer una orden",
+    "language": "es",
+    "reply": "¿Una orden de qué? Por ejemplo enchiladas, tacos dorados o tacos al vapor.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "A ver, dime."
+   },
+   {
+    "source": "caller",
+    "heard": "Me puede poner una torta de chorizo",
+    "language": "es",
+    "reply": "Torta: chorizo, salsa asada. $4.75. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿Torta normal o quesitorta?"
+   },
+   {
+    "source": "caller",
+    "heard": "Que sí torta",
+    "language": "es",
+    "reply": "Torta: ¿Bistec, Cabeza, Carnitas o Chorizo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "De chorizo, ¿qué más?"
+   },
+   {
+    "source": "staff-pick",
+    "heard": "Chorizo",
+    "language": "es",
+    "reply": "Torta: chorizo, salsa asada. $4.75. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff-pick",
+    "heard": "De chorizo,",
+    "pick": "Chorizo"
+   },
+   {
+    "source": "caller-meat-fragment",
+    "heard": "una torta de buche",
+    "language": "es",
+    "reply": "Torta: buche, salsa asada. $5.25. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-fragments",
+    "heard": "Y dos sacos de buche,",
+    "dishes": [
+     "Que sí torta"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tortilla taquera o tortilla grande chermano o de harina?"
+   },
+   {
+    "source": "caller",
+    "heard": "tortilla hecha a mano",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Alimentame."
+   },
+   {
+    "source": "staff",
+    "heard": "Dos, ¿qué más?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Sería todo, oiga."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Tu nombre?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "¿Xochitl?"
+   },
+   {
+    "source": "staff",
+    "heard": "Dame veinte minutos, no soy chismis, por favor."
+   },
+   {
+    "source": "caller-count",
+    "heard": "Sí, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "Gracias, eh."
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "Qué más",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": "PICKUP",
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Xochitl"
+ }
+}

@@ -595,6 +595,7 @@ export function rewriteCallerText(text: string): string {
   // ca7bae57: ASR "disel" → bistec ("burrito grande de disel")
   s = s.replace(/\bdisel\b/giu, "bistec");
   s = fixArrozStt(s); // adolfo2: "combo de roast y frijoles" → arroz
+  s = s.replace(/\b(\d|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+sacos\s+de\b/giu, "$1 tacos de"); // xochitl1: STT "dos sacos de buche" = tacos
   // ca35be80: "tripita" diminutive + "taquitos" — listedMeats needs tripa/tacos
   s = s.replace(/\btripitas?\b/giu, "tripa");
   s = s.replace(/\btaquitos\b/giu, "tacos");
