@@ -1,0 +1,663 @@
+{
+  "callSid": "CA855f434b78fae3f6374219368648d02c",
+  "name": "Jonathan",
+  "turns": [
+    {
+      "speaker": "staff",
+      "start": 0.68,
+      "end": 0.86,
+      "text": "Bueno.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 4.302,
+      "end": 4.602,
+      "text": "Sí, bueno.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 5.021,
+      "end": 6.562,
+      "text": "Hablo de la cocina Herbis,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 7.183,
+      "end": 7.643,
+      "text": "Correcto.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 9.283,
+      "end": 11.403,
+      "text": "eh, tiene gordita.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 12.365,
+      "end": 12.886,
+      "text": "Sí, amigo.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 15.184,
+      "end": 16.545,
+      "text": "Eh, ¿me puedes dar una de",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 17.565,
+      "end": 18.165,
+      "text": "chicharrón?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 19.008,
+      "end": 20.229,
+      "text": "Prensado o el duro.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 22.066,
+      "end": 22.366,
+      "text": "Duro.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 23.85,
+      "end": 25.591,
+      "text": "¿Te gustaría con queso o sin queso?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 26.807,
+      "end": 27.327,
+      "text": "Con queso.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 28.352,
+      "end": 29.313,
+      "text": "Muy bien, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 30.628,
+      "end": 32.189,
+      "text": "Y una de bistec sin queso.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 33.194,
+      "end": 35.795,
+      "text": "Una de bistec con queso, perdón.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 36.91,
+      "end": 37.43,
+      "text": "Sin queso.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 38.156,
+      "end": 42.578,
+      "text": "Sin queso, una de bistec. Y la de duro también es sin queso, ¿verdad?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 43.592,
+      "end": 44.312,
+      "text": "No, con queso.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 44.899,
+      "end": 46.24,
+      "text": "Esa con queso, ok, ok.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 47.2,
+      "end": 47.661,
+      "text": "¿Algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 49.614,
+      "end": 50.314,
+      "text": "Una coca.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 51.722,
+      "end": 52.443,
+      "text": "Una coca,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 53.943,
+      "end": 55.304,
+      "text": "tapa rosca de vidrio.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 54.095,
+      "end": 54.935,
+      "text": "¿Qué que tienes?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 56.435,
+      "end": 56.956,
+      "text": "¿De vidrio?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 57.665,
+      "end": 58.885,
+      "text": "Okay, ¿algo más?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 60.196,
+      "end": 61.477,
+      "text": "Se gasta a domicilio,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 62.506,
+      "end": 63.767,
+      "text": "¿Para dónde sería mi gaso?",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 65.637,
+      "end": 74.739,
+      "text": "eh, 501 W, Juan, es por esta misma calle, 501",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 72.99,
+      "end": 75.731,
+      "text": "A ver, espérame, déjame buscarlo bien para no fallarle.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 79.472,
+      "end": 80.952,
+      "text": "Me dijiste quinientos",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 85.274,
+      "end": 88.095,
+      "text": "uno. Mhm, W Walnut Avenue.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 88.882,
+      "end": 89.402,
+      "text": "Andile,",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 90.856,
+      "end": 92.936,
+      "text": "Okay, algo, uh, okay.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 93.997,
+      "end": 94.637,
+      "text": "Delivery.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 94.804,
+      "end": 95.404,
+      "text": "Jonathan.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 96.738,
+      "end": 97.218,
+      "text": "Jonathan.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 98.744,
+      "end": 98.844,
+      "text": "Sí.",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 99.239,
+      "end": 103.16,
+      "text": "Muy bien, Jonathan, danos unos quince, veinte, ¿no? Y te la llevamos, Jonathan.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 104.105,
+      "end": 106.366,
+      "text": "Okay, muchísimas gracias. ¿Cuánto sería?",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 105.741,
+      "end": 108.502,
+      "text": "Así es. A ver, déjame ver, Jonathan.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 110.747,
+      "end": 111.667,
+      "text": "En total del",
+      "language": "es"
+    },
+    {
+      "speaker": "staff",
+      "start": 112.423,
+      "end": 115.604,
+      "text": "Sí, sí, con tu total, ya con el, con el, la entrega.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 113.207,
+      "end": 113.948,
+      "text": "del servicio.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 118.511,
+      "end": 120.073,
+      "text": "Vete, muchísimas gracias.",
+      "language": "es"
+    },
+    {
+      "speaker": "caller",
+      "start": 122.876,
+      "end": 124.318,
+      "text": "No quiero, hasta luego.",
+      "language": "es"
+    }
+  ],
+  "elviOrder": {
+    "cart": [
+      {
+        "itemId": "sq-gordita-M647RE",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Duro / Pork Rinds"
+          },
+          {
+            "step": "(A) Gordita Options",
+            "option": "(QGD) Queso Gordita (+$0.50)"
+          }
+        ]
+      },
+      {
+        "itemId": "sq-gordita-M647RE",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Gordita Options",
+            "option": "(QGD) Queso Gordita (+$0.50)"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Bistec / Steak"
+          }
+        ],
+        "readback": "1 gordita Bistec"
+      },
+      {
+        "itemId": "sq-gordita-M647RE",
+        "quantity": 1,
+        "modifiers": [
+          {
+            "step": "(A) Gordita Options",
+            "option": "(QGD) Queso Gordita (+$0.50)"
+          },
+          {
+            "step": "(B) Q Carnes / Meats",
+            "option": "Duro / Pork Rinds"
+          }
+        ],
+        "readback": "1 gordita Duro"
+      },
+      {
+        "itemId": "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7",
+        "quantity": 3,
+        "modifiers": []
+      },
+      {
+        "itemId": "sq-drink-coca-cola-JJE4KC",
+        "quantity": 1,
+        "modifiers": [],
+        "readback": "1 coca cola de vidrio"
+      }
+    ],
+    "steps": [
+      {
+        "source": "staff",
+        "heard": "Bueno."
+      },
+      {
+        "source": "staff",
+        "heard": "Sí, bueno."
+      },
+      {
+        "source": "caller",
+        "heard": "Hablo de la cocina Herbis,",
+        "language": "es",
+        "reply": "No, aquí es Cocina Elvis. ¿Qué se le ofrece?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Correcto."
+      },
+      {
+        "source": "staff",
+        "heard": "Sí, amigo."
+      },
+      {
+        "source": "caller",
+        "heard": "una orden de gordita de chicharrón",
+        "language": "es",
+        "reply": "¿Chicharrón del duro en chile verde o prensado en chile rojo?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Prensado o el duro."
+      },
+      {
+        "source": "caller",
+        "heard": "Duro",
+        "language": "es",
+        "reply": "Gordita: chicharrón duro, salsa asada. $5.00. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "¿Te gustaría con queso o sin queso?"
+      },
+      {
+        "source": "caller",
+        "heard": "Con queso",
+        "language": "es",
+        "reply": "Gordita: chicharrón duro y queso derretido. $5.00. ¿Algo más?",
+        "actions": [
+          "update_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Muy bien, ¿algo más?"
+      },
+      {
+        "source": "caller",
+        "heard": "una de bistec sin queso",
+        "language": "es",
+        "reply": "Gordita: queso gordita, bistec. $5.50. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Una de bistec con queso, perdón."
+      },
+      {
+        "source": "caller",
+        "heard": "Sin queso",
+        "language": "es",
+        "reply": "Gordita: bistec y chicharrón duro, queso gordita. $5.50. ¿Algo más?",
+        "actions": [
+          "update_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Sin queso, una de bistec. Y la de duro también es sin queso, ¿verdad?"
+      },
+      {
+        "source": "caller",
+        "heard": "con queso",
+        "language": "es",
+        "reply": "Queso Birrias: ¿3 x Queso Birrias Taquera / Street con Consome/Broth, 3 x Queso Birrias Harina / Flour con Consome/Broth o 3 x Queso Birrias Comal / Homemade con Consome/Broth?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Esa con queso, ok, ok."
+      },
+      {
+        "source": "staff",
+        "heard": "¿Algo más?"
+      },
+      {
+        "source": "staff-pick",
+        "heard": "3 x Queso Birrias Comal / Homemade con Consome/Broth",
+        "language": "es",
+        "reply": "3 × Queso Birrias 3 x Queso Birrias Taquera: salsa asada. $15.00. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff-pick",
+        "heard": "Esa con queso, ok, ok.",
+        "pick": "3 x Queso Birrias Comal / Homemade con Consome/Broth"
+      },
+      {
+        "source": "caller",
+        "heard": "Una coca cola",
+        "language": "es",
+        "reply": "Coca Cola. $3.50. ¿Algo más?",
+        "actions": [
+          "add_item"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Una coca,"
+      },
+      {
+        "source": "staff",
+        "heard": "tapa rosca de vidrio."
+      },
+      {
+        "source": "staff-coca-confirm",
+        "heard": "Una coca, tapa rosca de vidrio. | ¿De vidrio?"
+      },
+      {
+        "source": "caller",
+        "heard": "De vidrio",
+        "language": "es",
+        "reply": "¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Okay, ¿algo más?"
+      },
+      {
+        "source": "caller-fulfillment",
+        "heard": "Se gasta a domicilio,"
+      },
+      {
+        "source": "staff",
+        "heard": "¿Para dónde sería mi gaso?"
+      },
+      {
+        "source": "caller",
+        "heard": "501 W, Juan, es por esta misma calle, 501",
+        "language": "es",
+        "reply": "¿Algo más?",
+        "actions": [
+          "set_address"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "A ver, espérame, déjame buscarlo bien para no fallarle."
+      },
+      {
+        "source": "staff",
+        "heard": "Me dijiste quinientos"
+      },
+      {
+        "source": "staff",
+        "heard": "uno. Mhm, W Walnut Avenue."
+      },
+      {
+        "source": "caller",
+        "heard": "Andile,",
+        "language": "es",
+        "reply": "¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Okay, algo, uh, okay."
+      },
+      {
+        "source": "staff",
+        "heard": "Delivery."
+      },
+      {
+        "source": "caller",
+        "heard": "Jonathan",
+        "language": "es",
+        "reply": "Gracias, Jonathan. Revisa tu orden y cuando estés listo, pasa a pagar.",
+        "actions": [
+          "set_customer"
+        ]
+      },
+      {
+        "source": "staff",
+        "heard": "Jonathan."
+      },
+      {
+        "source": "caller-ack",
+        "heard": "Sí."
+      },
+      {
+        "source": "staff",
+        "heard": "Muy bien, Jonathan, danos unos quince, veinte, ¿no? Y te la llevamos, Jonathan."
+      },
+      {
+        "source": "caller",
+        "heard": "muchísimas gracias. ¿Cuánto sería",
+        "language": "es",
+        "reply": "No tengo el total exacto en este momento. El personal te lo confirma al pagar.",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Así es. A ver, déjame ver, Jonathan."
+      },
+      {
+        "source": "caller",
+        "heard": "En total del",
+        "language": "es",
+        "reply": "El personal te da el total al pagar. ¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "staff",
+        "heard": "Sí, sí, con tu total, ya con el, con el, la entrega."
+      },
+      {
+        "source": "caller",
+        "heard": "del servicio Vete, muchísimas",
+        "language": "es",
+        "reply": "Entendido. ¡Cuídate!",
+        "actions": []
+      },
+      {
+        "source": "caller",
+        "heard": "No quiero, hasta luego",
+        "language": "es",
+        "reply": "Perdón, no tenemos no hasta luego en el menú. Lo más popular es Quesadilla, Quesadilla Dorada, Taco o Burrito. ¿Qué se te antoja?",
+        "actions": []
+      },
+      {
+        "source": "auto",
+        "heard": "así está bien",
+        "language": "es",
+        "reply": "Listo. ¿Algo más?",
+        "actions": []
+      },
+      {
+        "source": "auto",
+        "heard": "Qué se te antoja",
+        "language": "es",
+        "reply": "Nada, yo solo tomo pedidos. ¿Quieres ordenar algo?",
+        "actions": []
+      }
+    ],
+    "autoAccepted": true,
+    "containers": {
+      "breaks": [],
+      "splits": [],
+      "phrases": []
+    },
+    "ambiguousRemovals": [],
+    "removalsAttributed": true,
+    "fulfillment": "DELIVERY",
+    "address": "501 W Juan",
+    "addressConfirmed": true,
+    "customerName": "Jonathan"
+  }
+}
