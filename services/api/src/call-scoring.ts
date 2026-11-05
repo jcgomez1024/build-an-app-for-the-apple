@@ -1,7 +1,7 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
-import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles } from "./said-adds.js";
+import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
 import { applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
 import { applyConfirmedReadback } from "./readback-rebuild.js";
@@ -321,7 +321,7 @@ export const REMOVAL_NOTES: Array<{ re: RegExp; note: string }> = [
 export function removalNotesIn(text: string): string[] {
   const out: string[] = [];
   for (const { re, note } of REMOVAL_NOTES) {
-    const hit = new RegExp(String.raw`\b(?:no|sin|without|hold(?:\s+the)?)\s+(?:(?:el|la|los|las|the|de)\s+)?(?:${re.source})\b`, "i").test(String(text || ""));
+    const hit = new RegExp(String.raw`\b(?:no|sin|without|menos|except|hold(?:\s+the)?)\s+(?:(?:el|la|los|las|the|de)\s+)?(?:${re.source})\b`, "i").test(String(text || ""));
     if (hit && !out.includes(note)) out.push(note);
   }
   // daniel2: "nada de verduras" / "puro bistec… así solitos" (plain taco, no toppings)
@@ -732,8 +732,14 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
     for (const t of merged) {
       if (t.speaker !== "caller") continue;
       t.text = t.text.replace(/\bpomal\b/giu, "comal");
-      if (doradCtx && /\b(?:de\s+)?normal(?:es)?\b/iu.test(t.text) && /\bquesadillas?\b/iu.test(all))
-        t.text = t.text.replace(/\b(?:de\s+)?normal(?:es)?\b/giu, "de comal");
+      // cris1: "de normal" rejects doradas for quesadillas (= comal). A bare "Normales." answering a torta
+      // "¿con queso o normales?" is not that — don't rewrite it just because the call also has doradas.
+      if (doradCtx && /\bde\s+normal(?:es)?\b/iu.test(t.text) && /\bquesadillas?\b/iu.test(all)
+        && !/\btortas?\b/iu.test(t.text)) {
+        const prevStaff = [...merged.slice(0, merged.indexOf(t))].reverse().find((x) => x.speaker === "staff");
+        const tortaChoice = !!prevStaff && /\b(?:queso|deluxe)\b/iu.test(prevStaff.text) && /\bnormal/iu.test(prevStaff.text) && !/\b(?:quesadill|dorad)\b/iu.test(prevStaff.text);
+        if (!tortaChoice) t.text = t.text.replace(/\bde\s+normal(?:es)?\b/giu, "de comal");
+      }
     }
   }
   // anthony1: staff "homemade or refried?" → "the fried ones with corn, the corn tortilla ones?" = QD doradas (not TCO/comal/street)
@@ -7771,6 +7777,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       applyMenudoHominy(cart as any[], turns as any); dropQdRegularTwin(cart as any[], turns as any); applyMenudo3Alex2(cart as any[], turns as any, menu); applyLuis3(cart as any[], turns as any, menu); applyReadbackCounts(cart as any[], turns as any); dropTortillaStyleAsk(cart as any[], turns as any); applyStatedDishTotal(cart as any[], turns as any); applyStaffRecap(cart as any[], turns as any, menu); applyMarta1(cart as any[], turns as any, menu); applyAlex3(cart as any[], turns as any, menu); applySopesAsada(cart as any[], turns as any); applyBurritoSaid(cart as any[], turns as any); mergeReMentionedDrink(cart as any[], turns as any);  applyRelayOrders(cart as any[], turns as any, menu); addAskedJarrito(cart as any[], turns as any, menu); addAskedEsquite(cart as any[], turns as any, menu); applyLateTortillaChoice(cart as any[], turns as any, menu); applyQdRecap(cart as any[], turns as any, menu); applyBurritoMeatRepeat(cart as any[], turns as any, menu); applyEnglishMultiItem(cart as any[], turns as any, menu); applyMeatSplitQty(cart as any[], turns as any); applyExtraCarne(cart as any[], turns as any, menu); applyQdCorrection(cart as any[], turns as any); applyMenudoPata(cart as any[], turns as any); applyVerduraAparte(cart as any[], turns as any); applyConsomeSolo(cart as any[], turns as any); applyCoctelNotCeviche(cart as any[], turns as any); applyMenudoCountSinPata(cart as any[], turns as any); applyQuesadillaMeatSaid(cart as any[], turns as any); applyTacoMeatList(cart as any[], turns as any); applyTortillaPackDedupe(cart as any[], turns as any); applyTortaSaid(cart as any[], turns as any); applyQuesadillaCombo(cart as any[], turns as any); applyAguacateFull(cart as any[], turns as any, menu); applyQuesaAfterSoup(cart as any[], turns as any); applyMenudoSoloCaldo(cart as any[], turns as any, menu); applyRestatedQty(cart as any[], turns as any); applyStaffMenudo(cart as any[], turns as any); applyQBDecline(cart as any[], turns as any); applyFriedQuesadilla(cart as any[], turns as any); applyConsomeTotal(cart as any[], turns as any); applyBurritoFillings(cart as any[], turns as any); applyQdConTodo(cart as any[], turns as any); applyQuesadillaMasa(cart as any[], turns as any); applyStaffPreparadaYes(cart as any[], turns as any); applyAguaChica(cart as any[], turns as any); applyQdGroups(cart as any[], turns as any); applyCoctelPulpo(cart as any[], turns as any); applyMultiMeatGroup(cart as any[], turns as any, menu); applySaidDishMeat(cart as any[], turns as any, menu || []); applyQdCheeseSplit(cart as any[], turns as any); dropStaffGrandeBurrito(cart as any[], turns as any); applyBurritoGroupFillings(cart as any[], turns as any); applyNachosSaid(cart as any[], turns as any); capCartQty(cart as any[], turns as any); applyConfirmedReadback(cart as any[], turns as any, menu); /* carlos3 */ applyGuisadoChoice(cart as any[], turns as any, menu); /* pedro3 */ applyStaffCountEcho(cart as any[], turns as any); /* yoni1 */ foldPhantomComalMeat(cart as any[], (turns as any[]).filter((t: any) => t.speaker === "caller").map((t: any) => String(t.text))); /* sergio1 */ applyStaffDrinkConfirm(cart as any[], turns as any); /* josh3 */ applyStaffDoradaReadback(cart as any[], turns as any, (menu || []) as any[]); /* freddy2 */ applyMenudoCountConfirm(cart as any[], turns as any); /* jennifer1 */ applyMakeItNMerge(cart as any[], turns as any); applyExtraCounts(cart as any[], turns as any); /* nikki1 */ applyComboSidesBoth(cart as any[], turns as any); dropUnchosenToppings(cart as any[], turns as any); /* adolfo2 */ applyGroupBlockCounts(cart as any[], turns as any); /* ronald2 */ dropUnsaidQuesoBirrias(cart as any[], turns as any); applyGorditaQueso(cart as any[], turns as any); dropGorditaReaddTwin(cart as any[], turns as any); /* jonathan1 */ applyStaffMeatCountEcho(cart as any[], turns as any); addSaidTorta(cart as any[], turns as any, (menu || []) as any[]); addSideFrijoles(cart as any[], turns as any, (menu || []) as any[]); /* cris1 */ } } // hominy1, dayana2; nicky1, cafa1, braulio1, christopher1, daniela1
   // relleno2 (CA8f33ce5): staff-unavailable wins over EVERY re-add pass (asked-dishes, relleno, readback…) — run it last.
   dropStaffUnavailable(cart as any[], turns as any);
+  // CAb3ee43a: staff out of a meat ("cabeza sí no tengo todavía") + caller switches → drop that meat.
+  // "Normales" on a torta is (TO), not queso torta. Run after every re-add.
+  dropSwitchedOffMeat(cart as any[], turns as any);
+  { const menuFn = (run as any).menu; const menu2 = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    applyTortaNormales(cart as any[], turns as any, (menu2 || []) as any[]); }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field

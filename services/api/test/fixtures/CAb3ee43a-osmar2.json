@@ -1,0 +1,25 @@
+{
+  "callSid": "CAb3ee43a06318624401c9b92de07d589a",
+  "name": "Osmar",
+  "note": "Synthetic replay of CAb3ee43a (Thu Nov 5 2026 ~4:59 PM ET). Caller is Osmar Lira; Ulises Sánchez is only the second ticket.",
+  "turns": [
+    { "speaker": "staff", "start": 0.4, "end": 1.6, "text": "Cocina Elvis, buenas tardes.", "language": "es" },
+    { "speaker": "caller", "start": 1.8, "end": 4.2, "text": "Buenas tardes, soy Osmar Lira.", "language": "es" },
+    { "speaker": "staff", "start": 4.4, "end": 5.6, "text": "Osmar, dígame.", "language": "es" },
+    { "speaker": "caller", "start": 6.0, "end": 9.4, "text": "Me da cinco tacos de cabeza al comal.", "language": "es" },
+    { "speaker": "staff", "start": 9.8, "end": 12.2, "text": "Cabeza sí no tengo todavía.", "language": "es" },
+    { "speaker": "caller", "start": 12.6, "end": 16.0, "text": "Entonces ponme dos tacos de pastor al comal.", "language": "es" },
+    { "speaker": "staff", "start": 16.3, "end": 18.8, "text": "Osmar, dos tacos de pastor al comal. ¿Algo más?", "language": "es" },
+    { "speaker": "caller", "start": 19.2, "end": 24.5, "text": "Sí, dos quesadillas doradas al pastor, preparadas, con todo menos lechuga.", "language": "es" },
+    { "speaker": "staff", "start": 24.8, "end": 28.0, "text": "Dos quesadillas doradas preparadas de pastor, sin lechuga. ¿Algo más?", "language": "es" },
+    { "speaker": "caller", "start": 28.4, "end": 30.0, "text": "Y una horchata.", "language": "es" },
+    { "speaker": "staff", "start": 30.3, "end": 32.0, "text": "Una horchata. ¿Algo más?", "language": "es" },
+    { "speaker": "caller", "start": 32.4, "end": 36.8, "text": "Sí, otra orden. Dos tortas de bistec, a nombre de Ulises Sánchez.", "language": "es" },
+    { "speaker": "staff", "start": 37.1, "end": 39.2, "text": "¿Con queso o normales?", "language": "es" },
+    { "speaker": "caller", "start": 39.5, "end": 40.4, "text": "Normales.", "language": "es" },
+    { "speaker": "staff", "start": 40.7, "end": 44.2, "text": "Dos tortas de bistec normales. ¿A nombre de quién la otra orden?", "language": "es" },
+    { "speaker": "caller", "start": 44.5, "end": 46.4, "text": "A nombre de Ulises Sánchez.", "language": "es" },
+    { "speaker": "staff", "start": 46.7, "end": 49.5, "text": "Ulises Sánchez, las tortas. Osmar, ¿algo más?", "language": "es" },
+    { "speaker": "caller", "start": 49.8, "end": 51.6, "text": "No, eso es todo. Gracias.", "language": "es" }
+  ]
+}

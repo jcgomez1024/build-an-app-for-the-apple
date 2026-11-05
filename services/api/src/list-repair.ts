@@ -2078,7 +2078,7 @@ export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = f
 // gustavo-qd1 (CA7a1136): several dorada groups in one call — "tres quesadillas en aceite … de bistec … deluxe? sí, sin lechuga",
 // "otras dos en aceite, de cabeza … y la otra de bistec" (staff: "una de cabeza y una de bistec"), "otras dos en aceite de bistec
 // … con todo". Rebuild every QD line per group (qty/meat/style/notes); "en aceite" lines that landed as comal QCO go away.
-const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+(?:el\s+)?aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada" 
+const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+(?:el\s+)?aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada|deluxe\s+dorada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada"; CAb3ee43a: "dos QD DELUXE Dorada" 
 const QG_N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
 const qgN = (w: string) => QG_N[w.toLowerCase()] || Number(w) || 0;
 export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat: string; n: number }>; deluxe: boolean; noLechuga: boolean }> {
@@ -2089,10 +2089,16 @@ export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat:
     if (!s.n || s.n > 20) return;
     const end = k + 1 < starts.length ? starts[k + 1].i : turns.length;
     const win = turns.slice(s.i + 1, end);
-    const callerTxt = [s.tail, ...win.filter((u) => u.speaker === "caller").map((u) => String(u.text || ""))].map((x) => x.split(/\b(?:tac(?:o|it)os?|taquis?)\b/i)[0]).join(" ");
+    // A later torta/taco/… order is a different dish: its meat ("dos tortas de bistec") must not split this quesadilla.
+    const OTHER_DISH = /\b(?:tac(?:o|it)os?|taquis?|tortas?|gorditas?|burritos?|sopes?|huaraches?|tostadas?|flautas?)\b/i;
+    const bits = [s.tail.split(OTHER_DISH)[0]];
+    for (const u of win) { if (u.speaker !== "caller") continue; const raw = String(u.text || ""); bits.push(raw.split(OTHER_DISH)[0]); if (OTHER_DISH.test(raw)) break; }
+    const callerTxt = bits.join(" ");
     const meats = [...new Set(b22Meats(b22low(callerTxt)))]; if (!meats.length) return;
     let split: Array<{ meat: string; n: number }> | null = null;
-    for (const u of win) { if (u.speaker !== "staff") continue; const pairs: Array<{ meat: string; n: number }> = [];
+    for (const u of win) { if (u.speaker !== "staff") continue;
+      if (/\b(?:tortas?|gorditas?|burritos?|sopes?|tacos?)\b/i.test(u.text) && !/\b(?:quesadill|dorad|qd)\b/i.test(u.text)) continue;
+      const pairs: Array<{ meat: string; n: number }> = [];
       for (const m of String(u.text || "").matchAll(/\b(una?|dos|tres|cuatro|\d)\s+de\s+([\p{L}]+)/giu)) { const mt = b22Meats(b22low(m[2]))[0]; if (mt) pairs.push({ meat: mt, n: qgN(m[1]) }); }
       if (pairs.length > 1 && pairs.reduce((a, p) => a + p.n, 0) === s.n) { split = pairs; break; } }
     if (!split) split = meats.length === 1 || meats.length > s.n ? [{ meat: meats[0], n: s.n }] : meats.map((mt, j) => ({ meat: mt, n: j === 0 ? s.n - (meats.length - 1) : 1 }));
@@ -2103,7 +2109,7 @@ export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat:
       const nx = (j < 0 ? all : all.slice(j + 1)).find((v) => v.speaker === "caller"); if (!nx) continue; const q = plain(nx.text);
       if (/^(?:ah |eh )?no\b|\bregular/.test(q)) { deluxe = false; continue; }
       if (/\b(?:si|yes|claro|aja|con todo|por favor)\b/.test(q)) deluxe = true; }
-    const noLechuga = /\b(?:sin|no|without)\s+lechuga\b|\bno lettuce\b/i.test(plain(callerTxt));
+    const noLechuga = /\b(?:sin|no|without|menos|except)\s+lechuga\b|\bno lettuce\b|\bexcept lettuce\b/i.test(plain(callerTxt));
     out.push({ n: s.n, meats: split, deluxe, noLechuga });
   });
   return out;

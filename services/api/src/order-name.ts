@@ -743,6 +743,47 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   }
   return null;
 }
+const SELF_NAME = /(?<![\p{L}])(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|this\s+is|my\s+name\s+is|i'?m)\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/giu;
+/** Names the caller gave as their own ("soy Osmar Lira"), or a name they said that staff then addresses them by.
+ *  "a nombre de X" / "para X" are ticket labels, not this. */
+export function callerIdentityName(turns: Array<{ speaker: string; text: string }>): string | null {
+  let explicit: string | null = null;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    for (const m of String(t.text || "").matchAll(SELF_NAME)) {
+      const n = cleanFullName(m[1]) || m[1];
+      if (n && !NOT_NAMES.test(n.split(/\s+/)[0]) && !NOT_NAME.test(n.split(/\s+/)[0])) explicit = n;
+    }
+  }
+  if (explicit) return explicit;
+  let bare: string | null = null;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const stripped = String(t.text || "")
+      .replace(/\ba\s+nombre\s+de\s+\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?/gu, " ")
+      .replace(/\b(?:es\s+para|para)\s+(?:el\s+|la\s+)?\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?/gu, " ");
+    for (const m of stripped.matchAll(/(?:^|[.!?]\s+)(\p{Lu}[\p{L}'-]{2,}(?:\s+\p{Lu}[\p{L}'-]{2,})?)/gu)) {
+      const n = cleanFullName(m[1]) || m[1];
+      const first = n.split(/\s+/)[0];
+      if (!first || NOT_NAMES.test(first) || NOT_NAME.test(first)) continue;
+      const lead = new RegExp(String.raw`^\s*(?:¿\s*)?${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`, "u");
+      if (turns.some((u) => u.speaker === "staff" && lead.test(String(u.text || "")))) bare = n;
+    }
+  }
+  return bare;
+}
+/** "a nombre de X" ticket labels (not the caller's own "soy X"). */
+function callerTicketNames(turns: Array<{ speaker: string; text: string }>): string[] {
+  const out: string[] = [];
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    for (const m of String(t.text || "").matchAll(/\ba\s+nombre\s+de\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/gu)) {
+      const n = cleanFullName(m[1]) || m[1];
+      if (n && !NOT_NAMES.test(n.split(/\s+/)[0])) out.push(n);
+    }
+  }
+  return out;
+}
 function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; text: string }>): { name: string; thirdPerson: boolean; source: "staff-ask" | "vocative" | "volunteer" | "spelled" } | null {
   const spelled0 = spelledNameFromCall(turns);
   // gustavo1: "a nombre de Gustavo" + staff "Gustavo, muy bien" beats a spelled result that isn't that name.
@@ -787,7 +828,7 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
     if (!fromVol || n.split(/\s+/).length > fromVol.split(/\s+/).length || (n.split(/\s+/).length === fromVol.split(/\s+/).length && n.length > fromVol.length))
       fromVol = n;
   }
-  const name = fromAsk || fromVol || fromVoc;
+  let name = fromAsk || fromVol || fromVoc;
   if (!name) return null;
   const f = foldName(name);
   // Pickup-only: para/for/recoger/picking-up. Bare "Chuy." / "De Luis." after name-ask = customer (ticket + name log).
@@ -819,7 +860,7 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
       }));
     if (staffPickupWho) thirdPerson = true;
   }
-  const source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVol ? "volunteer" : "vocative";
+  let source: "staff-ask" | "vocative" | "volunteer" = fromAsk ? "staff-ask" : fromVol ? "volunteer" : "vocative";
   // agustin1b: factory group — "para Tony/Sandro/…" are pickup/ticket names only; staff-greeted caller name is not third-person even if "para <same>" appears on their own sub-order
   {
     const paraNames = new Set<string>();
@@ -855,6 +896,22 @@ function nameFromTranscriptInfoBase(turns: Array<{ speaker: "caller" | "staff"; 
           const pn = cleanFirstName(/^[a-z]/.test(raw) ? raw[0].toUpperCase() + raw.slice(1).toLowerCase() : raw);
           if (pn && foldName(pn) !== f) markOrderOnlyName(pn);
         }
+      }
+    }
+  }
+  // CAb3ee43a: caller already said who they are ("soy Osmar Lira"; staff "Osmar,"). A later
+  // "a nombre de Ulises" is the other ticket, not a new identity — even when it answers "¿a nombre de quién?".
+  {
+    const ident = callerIdentityName(turns);
+    if (ident) {
+      const identFirst = foldName(ident.split(/\s+/)[0]);
+      const nameFirst = foldName(String(name).split(/\s+/)[0]);
+      const tickets = callerTicketNames(turns).filter((n) => foldName(n.split(/\s+/)[0]) !== identFirst);
+      for (const tk of tickets) markOrderOnlyName(tk);
+      if (nameFirst !== identFirst && tickets.some((n) => foldName(n.split(/\s+/)[0]) === nameFirst)) {
+        name = ident;
+        thirdPerson = false;
+        source = /\b(?:soy|me\s+llamo|mi\s+nombre\s+es|habla|this\s+is|my\s+name\s+is|i'?m)\b/iu.test(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ")) ? "volunteer" : "vocative";
       }
     }
   }
