@@ -694,9 +694,14 @@ export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
 const RECAP = /\b(?:tengo en|por ultimo|serian|seria|entonces (?:son|serian|es)|te tengo|le tengo)\b/;
 export function staffRecapText(turns: Turn[]): string | null {
   for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.speaker !== "staff" || !RECAP.test(plain(t.text))) continue;
+    // esteban1: "Quesadilla dorada, sí, todavía te tengo" is availability, not a recap — a trailing te/le tengo with nothing after it never opens one
+    if (!RECAP.test(plain(t.text).replace(/\b(?:todavia |aun |si |ya )?(?:te|le) tengo\W*$/, ""))) continue;
     const parts: string[] = [];
     for (let j = i; j < Math.min(turns.length, i + 6); j++) { const x = turns[j]; const p = plain(fixBistecStt(x.text));
       if (x.speaker === "staff" && new RegExp(`\\b(${NUMW})\\b`).test(p) && (meatIn(p) || /\bviste\b/.test(p))) parts.push(p); }
+    // esteban1: staff echoing the same count+meat ("Dos de bistec, ¿…deluxe?" → "Okay, dos de bistec") is one item, not two
+    for (let k = parts.length - 1; k > 0; k--) { const key = (q: string) => (q.match(new RegExp(`\\b(${NUMW}) (?:de )+([a-z]+)\\b`)) || []).slice(1).join(" ");
+      if (key(parts[k]) && key(parts[k]) === key(parts[k - 1])) parts.splice(k, 1); }
     if (!parts.length) continue;
     let txt = parts.join(" y ").replace(/\bde (?:de )?viste\b/g, "de bistec").replace(/\b(?:de )+(preparad|dorad)/g, "$1")
       .replace(new RegExp(`\\b(${NUMW}) (preparad[ao]s?|dorad[ao]s?)\\b`, "g"), "$1 quesadillas $2");

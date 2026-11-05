@@ -1,0 +1,325 @@
+{
+ "callSid": "CAea851d5907d747151dc158cf5fbf5453",
+ "name": "Esteban",
+ "turns": [
+  {
+   "speaker": "staff",
+   "start": 1.36,
+   "end": 1.661,
+   "text": "Sí, bueno.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 3.221,
+   "end": 4.462,
+   "text": "Eh, buenas noches.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 5.322,
+   "end": 6.022,
+   "text": "Buenas noches.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 6.903,
+   "end": 7.883,
+   "text": "Quería hacer una orden.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 8.583,
+   "end": 9.283,
+   "text": "Claro, a ver, dime.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 10.864,
+   "end": 13.625,
+   "text": "Tiene quesadillas de de en aceite doradas.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 14.545,
+   "end": 16.466,
+   "text": "Quesadilla dorada, sí, todavía te tengo.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 17.506,
+   "end": 20.828,
+   "text": "Okay, deme dos de bistec con todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 21.528,
+   "end": 24.489,
+   "text": "Dos de bistec, ¿te gustarían preparadas deluxe con todo?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 24.869,
+   "end": 26.93,
+   "text": "Sí, de sí, de esos de bistec con todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 27.03,
+   "end": 30.231,
+   "text": "Okay, dos de bistec, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 31.712,
+   "end": 34.593,
+   "text": "Eh, me pone un taquito de bistec de taco taquero.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 35.253,
+   "end": 38.574,
+   "text": "El taco taquero, uno de bistec, okay, ¿algo más?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 39.494,
+   "end": 40.055,
+   "text": "Sería todo.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 41.135,
+   "end": 42.956,
+   "text": "¿Me darías tu nombre para tu orden?",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 44.096,
+   "end": 44.556,
+   "text": "Esteban.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 45.537,
+   "end": 49.678,
+   "text": "Muy bien, Esteban, danos unos 15 a 20 minutos, ¿no? Y te tenemos tu orden, Esteban.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 50.398,
+   "end": 51.399,
+   "text": "Okay, está bien, gracias.",
+   "language": "es"
+  },
+  {
+   "speaker": "staff",
+   "start": 51.979,
+   "end": 52.839,
+   "text": "A ti, hasta luego.",
+   "language": "es"
+  },
+  {
+   "speaker": "caller",
+   "start": 53.94,
+   "end": 54.2,
+   "text": "Hasta luego.",
+   "language": "es"
+  }
+ ],
+ "elviOrder": {
+  "cart": [
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) DELUXE Preparada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "readback": "quesadilla dorada regular"
+   },
+   {
+    "itemId": "sq-taco-TAR7L5",
+    "quantity": 1,
+    "modifiers": [
+     {
+      "step": "(A) T Tortilla Options",
+      "option": "(TST) Taco Taquero / Street Taco"
+     },
+     {
+      "step": "(B) T Carnes / Meats Opciones",
+      "option": "Bistec / Steak"
+     }
+    ],
+    "readback": "taco taquero"
+   },
+   {
+    "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "quantity": 2,
+    "modifiers": [
+     {
+      "step": "(QD) Style",
+      "option": "(QD) DELUXE Preparada"
+     },
+     {
+      "step": "(B) Q Carnes / Meats",
+      "option": "Bistec / Steak"
+     }
+    ]
+   }
+  ],
+  "steps": [
+   {
+    "source": "staff",
+    "heard": "Sí, bueno."
+   },
+   {
+    "source": "staff",
+    "heard": "Buenas noches."
+   },
+   {
+    "source": "caller",
+    "heard": "Quería hacer una orden",
+    "language": "es",
+    "reply": "Adelante.",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Claro, a ver, dime."
+   },
+   {
+    "source": "caller",
+    "heard": "Tiene quesadillas de aceite QD REGULAR Dorada",
+    "language": "es",
+    "reply": "Sí, sí tenemos. ¿Cuántos le preparo?",
+    "actions": []
+   },
+   {
+    "source": "staff",
+    "heard": "Quesadilla dorada, sí, todavía te tengo."
+   },
+   {
+    "source": "caller-meat",
+    "heard": "dos Tiene quesadillas de aceite QD REGULAR Dorada de bistec",
+    "language": "es",
+    "reply": "2 × Quesadilla Dorada REGULAR Dorada: bistec, salsa asada. $5.50. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "caller-meat-expanded",
+    "heard": "Okay, deme dos de bistec.",
+    "asked": "Tiene quesadillas de de aceite QD REGULAR Dorada",
+    "expanded": [
+     "dos Tiene quesadillas de de aceite QD REGULAR Dorada de bistec"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "Dos de bistec, ¿te gustarían preparadas deluxe con todo?"
+   },
+   {
+    "source": "caller-dorada-yes-deluxe",
+    "heard": "Sí, de sí, de esos de bistec."
+   },
+   {
+    "source": "staff",
+    "heard": "Okay, dos de bistec, ¿algo más?"
+   },
+   {
+    "source": "caller",
+    "heard": "me pone un taquito de bistec de taco taquero",
+    "language": "es",
+    "reply": "Taco: taquero, bistec, salsa asada. $3.00. ¿Algo más?",
+    "actions": [
+     "add_item"
+    ]
+   },
+   {
+    "source": "staff",
+    "heard": "El taco taquero, uno de bistec, okay, ¿algo más?"
+   },
+   {
+    "source": "caller-closing",
+    "heard": "Sería todo."
+   },
+   {
+    "source": "staff",
+    "heard": "¿Me darías tu nombre para tu orden?"
+   },
+   {
+    "source": "caller-name",
+    "heard": "Esteban."
+   },
+   {
+    "source": "staff",
+    "heard": "Muy bien, Esteban, danos unos 15 a 20 minutos, ¿no? Y te tenemos tu orden, Esteban."
+   },
+   {
+    "source": "caller-thanks",
+    "heard": "Okay, está bien, gracias."
+   },
+   {
+    "source": "staff",
+    "heard": "A ti, hasta luego."
+   },
+   {
+    "source": "caller",
+    "heard": "Hasta luego",
+    "language": "es",
+    "reply": "Muy bien. ¿Qué más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "así está bien",
+    "language": "es",
+    "reply": "Muy bien. ¿Algo más?",
+    "actions": []
+   },
+   {
+    "source": "auto",
+    "heard": "Qué más",
+    "language": "es",
+    "reply": "Nada, aquí sigo. ¿Le ayudo con algo?",
+    "actions": []
+   }
+  ],
+  "autoAccepted": true,
+  "containers": {
+   "breaks": [],
+   "splits": [],
+   "phrases": []
+  },
+  "ambiguousRemovals": [],
+  "removalsAttributed": true,
+  "fulfillment": null,
+  "address": null,
+  "addressConfirmed": false,
+  "customerName": "Esteban"
+ }
+}
