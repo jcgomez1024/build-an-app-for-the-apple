@@ -10,7 +10,11 @@ const SALSA_W = /\b(?:salsas?|sauces?|green|verdes?|red|rojas?|avocado|aguacate|
 /** "as far as the salsa… two green, one red, and the avocado salsa" — side salsas only, no dish. */
 export function salsaOnlyTurn(text: string): boolean {
   const t = String(text || "");
-  return SALSA_W.test(t) && !DISH.test(t);
+  if (!SALSA_W.test(t) || DISH.test(t)) return false;
+  // "Sin salsa, y dos de picadillo" still orders the meat. The salsa words are a note, not the whole turn.
+  if (/\b(?:\d+|dos|tres|cuatro|cinco|seis|siete|ocho|una?|one|two|three|four|five|six)\s+de\s+\p{L}/iu.test(t)) return false;
+  if (/\b(?:me\s+pones|me\s+pone|ponme|dame|deme|quiero|quisiera)\b/iu.test(t)) return false;
+  return true;
 }
 /** Answer to staff's sides/toppings question ("Rice and beans is fine?" → "yeah, not too much rice") or a "more lengua" aside — changes, never a new dish. */
 export function sideAnswerTurn(text: string, lastStaff: string): boolean {
