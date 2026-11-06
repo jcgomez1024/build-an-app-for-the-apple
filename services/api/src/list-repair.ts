@@ -2921,6 +2921,27 @@ function liveTurns(input: any): Turn[] {
   const tx = String(input?.transcript || "");
   return tx ? [...hist, { speaker: "caller", text: tx }] : hist;
 }
+const CON_TODO_SAID = /\bcon\s+todo\b|\bcon\s+de\s+todo\b|\bwith\s+everything\b/;
+const CON_TODO_AFFIRM = /^(?:eh |ah |mm+ |um |bueno |pues |ok(?:ay)? )*(?:s[ií]|yes|claro|sale|correcto|exacto)\b/;
+const CON_TODO_REFUSE = /^(?:eh |ah |mm+ |um |bueno |pues |ok(?:ay)? )*(?:no|nel|nop)\b/;
+/** Caller asked "con todo", or accepted a staff "con todo" (a bare "No" refuses that offer).
+ *  "Ahí va todo" is not this phrase. Manuel's first answer is "No, no, sí, sí…"; the later
+ *  "Sí" to "prensado con todo" is the acceptance. */
+export function callerAcceptedConTodo(turns: Turn[]): boolean {
+  let accepted = false;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    const p = plain(t.text);
+    if (t.speaker === "caller" && CON_TODO_SAID.test(p)) { accepted = true; continue; }
+    if (t.speaker !== "staff" || !CON_TODO_SAID.test(p)) continue;
+    const nxt = turns.slice(i + 1).find((u) => u.speaker === "caller");
+    const a = plain(nxt?.text || "");
+    if (!a) continue;
+    if (CON_TODO_REFUSE.test(a) && !/\bsi\b|\byes\b|\bclaro\b/.test(a)) accepted = false;
+    else if (CON_TODO_AFFIRM.test(a) || CON_TODO_SAID.test(a)) accepted = true;
+  }
+  return accepted;
+}
 /** Joined speech that decides enchilada salsa vs con todo (caller words, plus a staff "con todas" the caller accepted). */
 export function enchiladaSpoken(turns: Turn[]): string {
   const bits: string[] = [];
@@ -2935,15 +2956,15 @@ export function enchiladaSpoken(turns: Turn[]): string {
   return bits.join(". ");
 }
 /** Drop unasked salsa and, when "con todo" was accepted, add the free toppings the chosen item actually has. */
-function settleEnchiladaLine(row: any, menu: any[], said: string): boolean {
+function settleEnchiladaLine(row: any, menu: any[], said: string, turns: Turn[]): boolean {
   const hosted = withEnchiladaConTodoHost(row, menu, said);
   let changed = hosted !== row;
   if (changed) { row.itemId = hosted.itemId; row.modifiers = hosted.modifiers; }
   const item = (menu || []).find((m: any) => m.id === row.itemId) || { id: row.itemId, name: row.itemId };
   const mods = fixEnchiladaSpokenMods(row.modifiers, item, said);
   if (mods) { row.modifiers = mods; changed = true; }
-  // The website menu never includes the counter (F) group. The POS catalog does; copy those real options.
-  const fromPos = catalogEnchiladaConTodoMods(row.modifiers, said);
+  // Phone menu has no (F) group. Copy the POS catalog toppings only after a real "con todo" acceptance.
+  const fromPos = callerAcceptedConTodo(turns) ? catalogEnchiladaConTodoMods(row.modifiers, said) : null;
   if (fromPos) { row.modifiers = [...(row.modifiers || []), ...fromPos]; changed = true; }
   return changed;
 }
@@ -2954,7 +2975,7 @@ export function applyEnchiladaConTodo(cart: any[], turns: Turn[], menu: any[] = 
   let changed = false;
   for (const l of cart) {
     if (!/enchilad/i.test(String(l?.itemId || ""))) continue;
-    if (settleEnchiladaLine(l, menu, said)) changed = true;
+    if (settleEnchiladaLine(l, menu, said, turns)) changed = true;
   }
   return changed;
 }
@@ -3067,7 +3088,7 @@ export function liveEnchiladaConTodo(r: any, input: any) {
   const touched = new Set<string>();
   const touch = (row: any) => {
     const before = String(row.itemId || "");
-    if (!settleEnchiladaLine(row, menu, said)) return false;
+    if (!settleEnchiladaLine(row, menu, said, turns)) return false;
     touched.add(before);
     if (row.itemId) touched.add(String(row.itemId));
     changed = true; return true;
