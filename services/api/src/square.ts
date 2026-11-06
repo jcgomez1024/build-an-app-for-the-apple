@@ -453,10 +453,7 @@ export async function getFullMenu(config?: Partial<SquareRuntimeConfig>): Promis
     return { objects: [] };
   });
 
-  const squareMenu = buildMenuFromSquareCatalog(catalog.objects || []).map(withCallerWords)
-    .map((item) => { const v = item.squareVariationId ? IN_STORE_VARIATIONS.get(item.squareVariationId) : undefined; // brayan-aguacate1
-      return v ? { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined } : item; })
-    .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
+  const squareMenu = squareObjectsToFullMenu(catalog.objects || []);
   if (squareMenu.length > 0) {
     return squareMenu;
   }
@@ -473,6 +470,19 @@ export async function getMenu(config?: Partial<SquareRuntimeConfig>): Promise<Me
     return fullMenu;
   }
 
+  return selectPhoneMenu(fullMenu);
+}
+
+/** Square catalog objects → the same full menu getFullMenu keeps (online-channel variations, plus named in-store exceptions). */
+export function squareObjectsToFullMenu(objects: any[]): MenuItem[] {
+  return buildMenuFromSquareCatalog(objects).map(withCallerWords)
+    .map((item) => { const v = item.squareVariationId ? IN_STORE_VARIATIONS.get(item.squareVariationId) : undefined; // brayan-aguacate1
+      return v ? { ...item, name: v.name, nameEs: v.name, aliases: Array.from(new Set([v.name, normalizeName(v.name), ...v.aliases])), modifierGroups: undefined } : item; })
+    .map((item) => ({ ...item, readbackName: readbackName(item, "en"), readbackNameEs: readbackName(item, "es") }));
+}
+
+/** The website /api/menu list. In-store variations that are not in IN_STORE_VARIATIONS never appear here. */
+export function selectPhoneMenu(fullMenu: MenuItem[]): MenuItem[] {
   // Reviewed food list + the website's online drinks, one item per drink option (own Square variation).
   const reviewed = buildReviewedOnlineMenu(fullMenu.filter((item) => item.category !== "drinks"));
   const drinks = fullMenu.filter((item) => item.category === "drinks");

@@ -1,6 +1,7 @@
 // sopesaso1 (Carlos): "con todo" = the item's standard (included) toppings. Square's catalog marks no topping as
 // on-by-default for these, so the house standard lives here; otherwise any free, non-DOUBLE option preselected in a
 // toppings group counts. Included toppings are part of the dish in Elvi's cart, the score and the auditor.
+import { cachedPosCatalog, type PosCatalog } from "./pos-catalog.js";
 const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 export const HOUSE_STANDARD: Array<{ item: RegExp; toppings: string[] }> = [
   { item: /\bsopes(?:aso|azo)?s?\s+elvis\b|\bsopes(?:aso|azo)\b|\b[hg]uaraches?\b/i, // sopesize1: huarache = same (Carlos)
@@ -74,6 +75,50 @@ function freeEnchiladaTopping(item: any, rule: typeof ENCHILADA_CON_TODO[number]
 /** The item's modifier groups include every free con-todo topping (lechuga, cebolla, jitomate, crema, queso fresco). */
 export function expressesEnchiladaConTodo(item: any): boolean {
   return enchiladaItem(item) && ENCHILADA_CON_TODO.every((rule) => freeEnchiladaTopping(item, rule));
+}
+const hasFreeTopping = (mods: any[], rule: typeof ENCHILADA_CON_TODO[number]) => (mods || []).some((m) => {
+  const n = norm(String(m?.option || ""));
+  return !/\bsalsa\b/.test(n) && rule.key.test(n) && !/\bextra\b|\bdouble\b|\bdoble\b/.test(n);
+});
+/** Counter enchilada toppings from the POS catalog (the auditor cache), not from the website menu.
+ *  The phone menu only has the ONLINE orden, which has salsa and no (F) group. A salsa named "Tomato"
+ *  is never used as jitomate. Returns null when the catalog has no enchilada with all five free toppings. */
+export function posEnchiladaConTodo(cat: PosCatalog | null): Array<{ step: string; option: string }> | null {
+  if (!cat) return null;
+  const items = cat.items.filter((i) => /enchilad/i.test(i.name))
+    .sort((a, b) => Number(/\bonline\b/i.test(a.name)) - Number(/\bonline\b/i.test(b.name)));
+  for (const item of items) {
+    const groups = item.modifierListIds.map((id) => cat.modifierLists[id]).filter(Boolean);
+    const picks: Array<{ step: string; option: string }> = [];
+    let ok = true;
+    for (const rule of ENCHILADA_CON_TODO) {
+      let hit: { step: string; option: string } | null = null;
+      for (const g of groups) {
+        if (/salsa/i.test(g.name)) continue;
+        for (const m of g.modifiers) {
+          const n = norm(m.name);
+          if (m.priceCents > 0 || /\bextra\b|\bdouble\b|\bdoble\b|\bsalsa\b/.test(n) || !rule.key.test(n)) continue;
+          hit = { step: g.name, option: m.name };
+          break;
+        }
+        if (hit) break;
+      }
+      if (!hit) { ok = false; break; }
+      picks.push(hit);
+    }
+    if (ok) return picks;
+  }
+  return null;
+}
+/** Toppings still missing on a con-todo enchilada, copied from the POS catalog's real option names. */
+export function catalogEnchiladaConTodoMods(mods: any[], text: string, cat: PosCatalog | null = cachedPosCatalog()): Array<{ step: string; option: string }> | null {
+  if (!CON_TODO.test(norm(text))) return null;
+  const need = ENCHILADA_CON_TODO.filter((rule) => !hasFreeTopping(mods, rule));
+  if (!need.length) return null;
+  const picks = posEnchiladaConTodo(cat);
+  if (!picks) return null;
+  const add = picks.filter((p) => need.some((rule) => rule.key.test(norm(p.option)) && !hasFreeTopping(mods, rule)));
+  return add.length ? add : null;
 }
 const FILL_STEM: Array<[RegExp, string]> = [[/^queso\b/, "queso"], [/^papas?\b/, "papa"], [/^frijol/, "frijol"], [/^pollo\b|^chicken\b/, "pollo"], [/^prensad/, "prensado"]];
 function fillingStem(option: string): string | null {

@@ -1,4 +1,4 @@
-import { fixEnchiladaSpokenMods, withEnchiladaConTodoHost } from "./standard-toppings.js";
+import { catalogEnchiladaConTodoMods, fixEnchiladaSpokenMods, withEnchiladaConTodoHost } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -2941,9 +2941,11 @@ function settleEnchiladaLine(row: any, menu: any[], said: string): boolean {
   if (changed) { row.itemId = hosted.itemId; row.modifiers = hosted.modifiers; }
   const item = (menu || []).find((m: any) => m.id === row.itemId) || { id: row.itemId, name: row.itemId };
   const mods = fixEnchiladaSpokenMods(row.modifiers, item, said);
-  if (!mods) return changed;
-  row.modifiers = mods;
-  return true;
+  if (mods) { row.modifiers = mods; changed = true; }
+  // The website menu never includes the counter (F) group. The POS catalog does; copy those real options.
+  const fromPos = catalogEnchiladaConTodoMods(row.modifiers, said);
+  if (fromPos) { row.modifiers = [...(row.modifiers || []), ...fromPos]; changed = true; }
+  return changed;
 }
 export function applyEnchiladaConTodo(cart: any[], turns: Turn[], menu: any[] = []): boolean {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
