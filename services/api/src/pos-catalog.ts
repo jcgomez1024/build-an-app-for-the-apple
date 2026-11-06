@@ -24,10 +24,15 @@ export function compactCatalog(objects: any[]): PosCatalog {
   return { fetchedAt: new Date().toISOString(), items, modifierLists };
 }
 let mem: PosCatalog | null = null;
+/** The auditor's cached POS catalog. Scoring reads this same object; it is not the website menu. */
 export function cachedPosCatalog(): PosCatalog | null {
   if (mem) return mem;
   try { mem = JSON.parse(fs.readFileSync(cacheFile, "utf8")); } catch { mem = null; }
   return mem;
+}
+/** Pin the catalog loadPosCatalog would cache. null reads the file again. */
+export function rememberPosCatalog(cat: PosCatalog | null) {
+  mem = cat;
 }
 /** Read-only catalog fetch (6 h cache). Never throws; returns the cached copy (or null) on error. */
 export async function loadPosCatalog(cfg: { accessToken?: string; apiVersion?: string; env?: string }, maxAgeMs = 6 * 3600_000): Promise<PosCatalog | null> {
