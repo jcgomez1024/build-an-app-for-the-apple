@@ -8,14 +8,14 @@ import { applyConfirmedReadback } from "./readback-rebuild.js";
 import { dropUnsaidQuesoBirrias, applyGorditaQueso, dropGorditaReaddTwin } from "./gordita-queso.js";
 import { applyGroupBlockCounts } from "./group-blocks.js";
 import { applyComboSidesBoth, dropUnchosenToppings, fixArrozStt } from "./combo-sides.js";
-import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts } from "./modifier-turns.js";
+import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty } from "./modifier-turns.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
 import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -1727,7 +1727,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const w = String(a.itemId || "").toLowerCase().replace(/^sq-/, "").split("-").filter((x: string) => x.length > 3 && !/^(elvis|drink|regular)$/.test(x));
         if (w.length && !w.some((x: string) => tn.includes(x.slice(0, 5))) && !cart.some((l) => l.itemId === a.itemId)) acts.splice(i, 1); } }
     // tw4938: "Eh. Y" (no dish, meat or choice word) changed nothing — Elvi's update moved a bistec onto the tripa taco.
-    if (source === "caller" && !FOOD.test(text) && !MEAT_WORDS.test(text) && !/\b(con|sin|deluxe|todo|preparad\w*|extra|aparte|harina|comal|ma[ií]z|taquer\w*|grande|chico|regular|doble|double|with|without|no)\b/iu.test(text))
+    if (source === "caller" && !FOOD.test(text) && !MEAT_WORDS.test(text) && !/\b(con|sin|deluxe|todo|preparad\w*|extra|aparte|harina|comal|ma[ií]z|taquer\w*|grande|chico|regular|doble|double|with|without|no)\b/iu.test(text) && !makeItN(text))
       for (let i = acts.length - 1; i >= 0; i--) if (acts[i].type === "update_item") acts.splice(i, 1);
     // …and a turn naming no dish ("Preparada con todo") is about the dish just rung: re-sent lines of another dish are dropped.
     { const pk = [...dishesNamed(prevCaller)]; const kl = pk.length === 1 ? pk[0] : lastAdded ? kindOfItem((lastAdded as Line).itemId) : null;
@@ -4941,11 +4941,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
       { const om = callerBlob.match(/\b(\d+|dos|tres|cuatro|two|three|four)\s+(?:órdenes?|orders?)\s+de\s+po[sz]ole/iu);
         if (om) want = Math.max(want, spokenCount(om[1]) || 1); }
+      // "me puede poner cuatro" / staff "serían cuatro pozoles" + sí sets the bowl total. A bare "pozole" confirm does not.
+      const putN = statedDishPutQty(turns as any, /po[sz]oles?/i);
+      const staffN = affirmedStaffSoupQty(turns as any, "pozole");
+      if (putN) want = Math.max(want, putN);
+      if (staffN) want = Math.max(want, staffN);
+      const explicit = Math.max(putN, staffN);
       const idxs = cart.map((l, i) => (/pozole/i.test(String(l.itemId)) || /pozole/i.test(String((l as any).readback || "")) ? i : -1)).filter((i) => i >= 0);
       if (idxs.length) {
         let have = idxs.reduce((n, i) => n + (Number(cart[i].quantity) || 1), 0);
-        if (have > want) {
-          // keep first line, set qty, drop rest
+        if (have > want || (explicit > have && want === explicit)) {
+          // keep first line, set qty, drop rest — a later "poner N" replaces, it does not add N on top of 1
           (cart[idxs[0]] as any).quantity = want;
           for (let j = idxs.length - 1; j >= 1; j--) cart.splice(idxs[j], 1);
         }

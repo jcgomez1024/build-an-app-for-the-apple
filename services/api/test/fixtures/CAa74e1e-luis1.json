@@ -1,0 +1,20 @@
+{
+  "callSid": "CAa74e1e9770f427a60b11fd146a081b77",
+  "name": "Luis",
+  "turns": [
+    { "speaker": "staff", "start": 1, "end": 3, "text": "Cocina Elvis, dígame.", "language": "es" },
+    { "speaker": "caller", "start": 4, "end": 7, "text": "Ya tienen pozole.", "language": "es" },
+    { "speaker": "staff", "start": 8, "end": 10, "text": "Sí, tenemos.", "language": "es" },
+    { "speaker": "caller", "start": 11, "end": 15, "text": "Y ese de de de carne de puerco, ¿verdad?", "language": "es" },
+    { "speaker": "staff", "start": 16, "end": 18, "text": "Sí, del rojo.", "language": "es" },
+    { "speaker": "caller", "start": 19, "end": 26, "text": "Del rojo, ah, muy bien. ¿Me puede poner cuatro, por favor, señorita?", "language": "es" },
+    { "speaker": "staff", "start": 27, "end": 30, "text": "Claro. ¿Algo más?", "language": "es" },
+    { "speaker": "caller", "start": 31, "end": 37, "text": "Ok, dos cocas de vidrio y una de horchata, por favor, señorita.", "language": "es" },
+    { "speaker": "staff", "start": 38, "end": 46, "text": "Ah, serían cuatro pozoles, un agua de horchata y dos cocas de vidrio.", "language": "es" },
+    { "speaker": "caller", "start": 47, "end": 48, "text": "Sí.", "language": "es" },
+    { "speaker": "caller", "start": 49, "end": 50, "text": "Así es.", "language": "es" },
+    { "speaker": "caller", "start": 51, "end": 54, "text": "A nombre de Luis Forras.", "language": "es" },
+    { "speaker": "staff", "start": 55, "end": 56, "text": "Luis.", "language": "es" },
+    { "speaker": "caller", "start": 57, "end": 58, "text": "Sí.", "language": "es" }
+  ]
+}

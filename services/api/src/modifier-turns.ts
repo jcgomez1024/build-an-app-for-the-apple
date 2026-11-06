@@ -252,12 +252,35 @@ export function applyMenudoCountConfirm(cart: any[], turns: Turn[]): void {
 // → staff "four flour quesadilla steak" ($24). "make it N" / "just make it N" / "hazlas N" / "mejor que sean N" REPLACES the matching
 // line's qty (restated attrs override by step) — never a second line (Elvi rang 2 + 4 = 6).
 // jonathan2 (CA11d424f): "¿me puedes poner mejor las tres?" is the same replacement ("mejor las tres"), not a third quesadilla on top of two.
+// A plain "me puede poner N" / "me pones N" / "me pone N" after the dish is already identified is that dish's quantity
+// (initial or replacement), including soups. "otra orden" still adds. "me pone dos quesadillas de …" stays on the add path.
 const MAKE_IT_N = /\b(?:make\s+(?:it|them|that)|change\s+(?:it|that)\s+to|(?:mejor\s+)?(?:haz(?:las|los|la|lo)|h[aá]gal[ao]s)|mejor(?:\s+que\s+sean)?|que\s+sean)\s+(?:l[aeo]s?\s+)?(\d{1,2}|[a-z]+)\b([^.?!]*)/iu;
-const NOUN_ID: Array<[RegExp, RegExp]> = [[/quesadillas?|quesas?/iu, /quesadilla(?!-dorada)/i], [/tacos?/iu, /^sq-tacos?-(?!dorados)/i], [/burritos?/iu, /burrito/i], [/tortas?/iu, /torta/i], [/gorditas?/iu, /gordita/i], [/sopes?/iu, /sope/i], [/menudos?/iu, /^sq-menudo/i]];
+const NOUN_ID: Array<[RegExp, RegExp]> = [[/quesadillas?|quesas?/iu, /quesadilla(?!-dorada)/i], [/tacos?/iu, /^sq-tacos?-(?!dorados)/i], [/burritos?/iu, /burrito/i], [/tortas?/iu, /torta/i], [/gorditas?/iu, /gordita/i], [/sopes?/iu, /sope/i], [/menudos?/iu, /^sq-menudo/i], [/po[sz]oles?/iu, /^sq-pozole/i], [/birrias?/iu, /^sq-birria/i]];
+const DISH_NOUN = "quesadillas?|tacos?|gorditas?|tortas?|burritos?|sopes?|menudos?|po[sz]oles?|birrias?|huaraches?|enchiladas?";
+const DRINK_NOUN = "horchatas?|jamaicas?|tamarindos?|cocas?|cokes?|refrescos?|sodas?|jarritos?|aguas?|pepsis?|taparroscas?|vidrios?|botellas?";
+const PUT_VERB = /\b(?:me\s+pued(?:e|es|en)\s+poner|me\s+pones|me\s+pone|ponme)\b/;
+const PUT_FILLER = /^(?:mejor|por|favor|ah|eh|oh|um|este|pues|solo|solamente|nomas|tambien|entonces|ahora|ya|senorita|senor|joven|porfa|please|just|yo|creo)$/;
+const POZOLE_ROJO = "sq-pozole-rojo-red-pozole-DQ7X4J";
 const isFood = (l: any) => !/^sq-(?:extras|drink|sides|salsa)/i.test(String(l?.itemId));
+function putCount(folded: string): { n: number; tail: string } | null {
+  if (/\botr[ao]\s+(?:orden|pedido|plato)\b|\banother\s+(?:order|plate)\b/.test(folded)) return null;
+  const m = folded.match(PUT_VERB); if (!m || m.index == null) return null;
+  const words = folded.slice(m.index + m[0].length).trim().split(/[^a-z0-9]+/).filter(Boolean);
+  let i = 0;
+  while (i < words.length && i < 6 && PUT_FILLER.test(words[i]) && numWord(words[i]) == null) i++;
+  if (/^l[aeo]s?$/.test(words[i] || "")) i++;
+  const n = numWord(words[i] || ""); if (!n || n < 2 || n > 30) return null;
+  const tail = words.slice(i + 1).join(" ");
+  if (new RegExp(`\\b(?:${DRINK_NOUN})\\b`, "iu").test(tail)) return null;
+  if (new RegExp(`^(?:po[sz]oles?|menudos?|birrias?)\\b`, "iu").test(tail)) return { n, tail };
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail)) return null;
+  if (/\b(?:una?|otr[ao])\s+de\b/.test(tail) || /\bde\s+[a-z]{3,}\b/.test(tail)) return null;
+  return { n, tail };
+}
 export function makeItN(text: string): { n: number; tail: string } | null {
-  const m = fold(String(text || "")).match(MAKE_IT_N); if (!m) return null; const n = numWord(m[1]);
-  return n && n >= 1 && n <= 30 ? { n, tail: m[2] || "" } : null;
+  const f = fold(String(text || ""));
+  const m = f.match(MAKE_IT_N); if (m) { const n = numWord(m[1]); if (n && n >= 1 && n <= 30) return { n, tail: m[2] || "" }; }
+  return putCount(f);
 }
 function makeItTarget(cart: any[], tail: string): number {
   const nid = NOUN_ID.find(([w]) => w.test(tail));
@@ -280,29 +303,77 @@ export function makeItNAsUpdate(actions: any[], cart: any[], text: string): bool
   }
   return changed;
 }
-const DISH_NOUN = "quesadillas?|tacos?|gorditas?|tortas?|burritos?|sopes?|menudos?|huaraches?|enchiladas?";
 /** Staff "vamos a poner tres quesadillas…" right after a bare "mejor las tres" names the dish the count replaces. */
 function nearbyDish(turns: Turn[], i: number, n: number): string {
   const w = Object.entries(NUMW).find(([, v]) => v === n)?.[0] || String(n);
   const m = turns.slice(i, Math.min(turns.length, i + 8)).map((t) => t.text).join(" ").match(new RegExp(String.raw`\b(?:${w}|${n})\s+(${DISH_NOUN})\b`, "iu"));
   return m ? m[1] : "";
 }
-/** after-call: after a caller "make it N" / "mejor las N", same-dish lines with the same meat become ONE line whose qty is N
- *  (a single line of 2 becomes 3; two qty-1 lines collapse to one line of N). */
+function dishWord(text: string): string {
+  const m = fold(text).match(new RegExp(String.raw`\b(${DISH_NOUN})\b`, "iu"));
+  return m ? m[1] : "";
+}
+function drinkWord(text: string): boolean {
+  return new RegExp(String.raw`\b(?:${DRINK_NOUN})\b`, "iu").test(fold(text));
+}
+/** Noun a bare "me puede poner N" belongs to: named in the tail, staff "N <dish>" just ahead, or the dish already identified. */
+function putDish(turns: Turn[], i: number, n: number, tail: string): string {
+  const named = dishWord(tail); if (named) return named;
+  if (drinkWord(tail)) return "";
+  const ahead = nearbyDish(turns, i, n); if (ahead) return ahead;
+  let dish = "", drink = false;
+  for (const t of turns.slice(Math.max(0, i - 8), i)) {
+    const d = dishWord(t.text); if (d) { dish = d; drink = false; }
+    else if (drinkWord(t.text)) drink = true;
+  }
+  return drink ? "" : dish;
+}
+function pozoleRojoOk(turns: Turn[]): boolean {
+  const all = fold(turns.map((t) => t.text).join(" "));
+  if (!/\bpo[sz]oles?\b/.test(all)) return false;
+  if (turns.some((t) => t.speaker === "staff" && /\bno\s+(?:tengo|tenemos|hay)\b/.test(fold(t.text)) && /\bpo[sz]ole/.test(fold(t.text)))) return false;
+  if (/\bverdes?\b/.test(all) && !/\brojos?\b|\bpuerco\b/.test(all)) return false;
+  return /\brojos?\b|\bpuerco\b/.test(all) || !/\bblancos?\b/.test(all);
+}
+function setMakeItQty(cart: any[], j: number, n: number): void {
+  const id = cart[j].itemId;
+  const meat = (l: any) => (l.modifiers || []).filter(isMeatStep).map((m: any) => meatKey(m.option)).sort().join("+");
+  const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]));
+  if (!same.length) return;
+  const total = same.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+  if (same.length < 2 && total === n) return;
+  const keep = same.find((l) => (Number(l.quantity) || 1) === n) || same[same.length - 1];
+  keep.quantity = n;
+  for (const l of same) if (l !== keep) cart.splice(cart.indexOf(l), 1);
+}
+/** Caller "me puede poner N" aimed at this dish noun (not "make it / mejor / que sean"). Last one wins. */
+export function statedDishPutQty(turns: Turn[], noun: RegExp): number {
+  if (!Array.isArray(turns)) return 0;
+  let n = 0;
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "caller" || MAKE_IT_N.test(fold(turns[i].text))) continue;
+    const k = makeItN(turns[i].text); if (!k) continue;
+    const dish = putDish(turns, i, k.n, k.tail);
+    if (dish && noun.test(dish)) n = k.n;
+  }
+  return n;
+}
+/** after-call: after a caller "make it N" / "mejor las N" / bare "me puede poner N", same-dish lines with the same meat
+ *  become ONE line whose qty is N (a single line of 1 becomes 4; a 1 plus a second add of 4 collapse to one line of N). */
 export function applyMakeItNMerge(cart: any[], turns: Turn[]): void {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return;
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
+    const classic = MAKE_IT_N.test(fold(t.text));
+    const dish = classic ? "" : putDish(turns, i, k.n, k.tail);
+    if (!classic && !dish) continue;
     const named = new RegExp(DISH_NOUN, "iu").test(k.tail);
-    const tail = named ? k.tail : `${nearbyDish(turns, i, k.n)} ${k.tail}`;
-    const j = makeItTarget(cart, tail); if (j < 0) continue; const id = cart[j].itemId;
-    const meat = (l: any) => (l.modifiers || []).filter(isMeatStep).map((m: any) => meatKey(m.option)).sort().join("+");
-    const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]));
-    if (!same.length) continue;
-    const total = same.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
-    if (same.length < 2 && total === k.n) continue;
-    const keep = same.find((l) => (Number(l.quantity) || 1) === k.n) || same[same.length - 1];
-    keep.quantity = k.n;
-    for (const l of same) if (l !== keep) cart.splice(cart.indexOf(l), 1);
+    const tail = classic ? (named ? k.tail : `${nearbyDish(turns, i, k.n)} ${k.tail}`) : `${dish} ${k.tail}`;
+    const j = makeItTarget(cart, tail);
+    if (j < 0) {
+      if (!classic && /^po[sz]ole/i.test(dish) && pozoleRojoOk(turns)) cart.push({ itemId: POZOLE_ROJO, quantity: k.n, modifiers: [], readback: "pozole rojo" });
+      continue;
+    }
+    setMakeItQty(cart, j, k.n);
   }
 }
 /** nikki1: "a couple sour creams" / staff "two sour creams" → the Crema extra line carries the count (never 1) */

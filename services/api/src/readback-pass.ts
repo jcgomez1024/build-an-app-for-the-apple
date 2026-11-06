@@ -102,7 +102,23 @@ type T = Array<{ speaker: string; text: string }>;
 const N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, doce: 12, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
 const nOf = (w: string) => N[w.toLowerCase()] ?? (Number(w) || 0);
 const NW = "(\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)";
-/** Staff confirms the caller's count ("Tres, tres de birria" → "Tres órdenes de birria"): that dish's total is that count. */
+const YES_NEXT = /^\W*(?:s[ií]|yes|ok(?:ay)?|correcto|eso|as[ií]\s+es|claro)(?![\p{L}])/iu;
+/** Staff "serían cuatro pozoles" (menudo/birria the same) that the next caller affirms is that soup's total. 0 if none. */
+export function affirmedStaffSoupQty(turns: T, dish: string): number {
+  const re = new RegExp(`\\bser[ií]an?\\s+${NW}\\s+(?:[oó]rdenes?\\s+de\\s+)?${dish}s?\\b`, "iu");
+  let n = 0;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i]; if (t.speaker !== "staff") continue;
+    const m = t.text.match(re); if (!m) continue;
+    const k = nOf(m[1]); if (k < 1 || k > 30) continue;
+    const next = turns.slice(i + 1).find((u) => u.speaker === "caller");
+    if (!next || !YES_NEXT.test(next.text)) continue;
+    n = k;
+  }
+  return n;
+}
+/** Staff confirms the caller's count ("Tres, tres de birria" → "Tres órdenes de birria"): that dish's total is that count.
+ *  "serían N pozoles/menudos/birrias" plus the caller's sí is the same replacement, not another N bowls. */
 export function applyStaffOrderCount(cart: any[], turns: T): void {
   for (let i = 1; i < turns.length; i++) {
     const t = turns[i]; if (t.speaker !== "staff") continue;
@@ -112,6 +128,21 @@ export function applyStaffOrderCount(cart: any[], turns: T): void {
     if (n < 1 || !new RegExp(`\\b${m[1]}\\b`, "iu").test(prev)) continue; // the caller said that number
     const ls = cart.filter((l) => String(l.itemId).toLowerCase().startsWith(`sq-${m[2].toLowerCase()}`));
     if (!ls.length) continue;
+    ls[0].quantity = n; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+  }
+  for (const dish of ["birria", "menudo", "pozole"]) {
+    const n = affirmedStaffSoupQty(turns, dish); if (!n) continue;
+    const ls = cart.filter((l) => String(l.itemId).toLowerCase().startsWith(`sq-${dish}`));
+    if (!ls.length && dish === "pozole") {
+      const all = turns.map((t) => t.text).join(" ");
+      const off = turns.some((t) => t.speaker === "staff" && /\bno\s+(?:tengo|tenemos|hay)\b/iu.test(t.text) && /pozole/iu.test(t.text));
+      const verdeOnly = /\bverdes?\b/iu.test(all) && !/\brojos?\b|\bpuerco\b/iu.test(all);
+      if (!off && !verdeOnly && /pozole/iu.test(all)) cart.push({ itemId: "sq-pozole-rojo-red-pozole-DQ7X4J", quantity: n, modifiers: [], readback: "pozole rojo" });
+      continue;
+    }
+    if (!ls.length) continue;
+    const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+    if (sum === n && ls.length === 1) continue;
     ls[0].quantity = n; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
   }
 }
