@@ -47,20 +47,61 @@ export function menuIdForVariation(itemName: string, variationName: string, vari
 }
 
 const CANCEL = /\b(?:quita(?:r|me|le|melo|selo)?|ya\s+no|no\s+(?:quiero|lo\s+quiero|la\s+quiero|me\s+(?:pongas|ponga|pongan))|sin\s+(?:el|la|los|las)?\s*(?:po[sz]oles?|arroz|rice|tortillas?)|cancel\w*|olvid\w*|remove|take\s+(?:it|that|the|them)?\s*off|en\s+vez\s+de)\b/iu;
+const FOOD_WORD = /\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|enchiladas?|po[sz]oles?|menudos?|birrias?|arroz|rice|tortillas?|frijoles|beans)\b/u;
 function callerTurns(turns: Turn[]) { return (turns || []).filter((t) => t.speaker === "caller"); }
 function saidCancel(text: string, dish: RegExp): boolean {
   const t = fold(text);
   if (!dish.test(t) || !CANCEL.test(t)) return false;
   return t.split(/[.?!]/).some((s) => dish.test(s) && CANCEL.test(s));
 }
-/** Last caller disposition for this dish. A later plain order wins over an earlier cancel. */
+/** "quítame uno" / "quítame un pozole" takes one off. "quita el pozole" is the whole line. */
+function quitaOne(text: string, dish: RegExp): boolean {
+  const t = fold(text);
+  return t.split(/[.?!]/).some((s) => dish.test(s) && /\bquita(?:r|me|le|melo|selo)?\s+(?:uno|un|una)\b/.test(s) && !/\bquita(?:r|me|le|melo|selo)?\s+(?:el|la|los|las|todo)\b/.test(s));
+}
+function isFullCancel(text: string, dish: RegExp): boolean {
+  return saidCancel(text, dish) && !quitaOne(text, dish);
+}
+/** "mejor dos pozoles" / "nada más un plato de arroz" / "solo una tortilla suelta" sets that dish's count. The number has to sit with the dish, not with a different item in the same sentence. */
+function explicitSet(text: string, dish: RegExp): number | null {
+  const cue = new RegExp(String.raw`\b(?:mejor|nada\s+mas|nomas|solo|solamente)\s+(?:son\s+|sean\s+)?(${COUNT})\b`, "gu");
+  let n: number | null = null;
+  for (const s of fold(text).split(/[.?!]/)) {
+    if (!dish.test(s)) continue;
+    for (const m of s.matchAll(cue)) {
+      const after = s.slice(m.index ?? 0);
+      const at = after.search(dish);
+      if (at < 0 || at > 48) continue;
+      if (FOOD_WORD.test(after.slice(m[0].length, at))) continue;
+      const k = numOf(m[1]);
+      if (k >= 1 && k <= 30) n = k;
+    }
+  }
+  return n;
+}
+/** Last caller disposition for this dish. A later plain order wins over an earlier cancel. A lower count is still an order. */
 function disposition(turns: Turn[], dish: RegExp, ordered: (text: string) => boolean): "order" | "cancel" | "none" {
   let state: "order" | "cancel" | "none" = "none";
   for (const t of callerTurns(turns)) {
-    if (saidCancel(t.text, dish)) state = "cancel";
-    else if (ordered(t.text) && !isAvailQ(t.text)) state = "order";
+    if (isFullCancel(t.text, dish)) state = "cancel";
+    else if (explicitSet(t.text, dish) != null || quitaOne(t.text, dish) || (ordered(t.text) && !isAvailQ(t.text))) state = "order";
   }
   return state;
+}
+/** Keep the ordered count unless the caller later names a smaller one or takes one off. A plain repeat never lowers it. */
+function spokenQty(turns: Turn[], dish: RegExp, base: number, countOf: (text: string) => number): number {
+  if (!callerTurns(turns).some((t) => explicitSet(t.text, dish) != null || quitaOne(t.text, dish))) return base;
+  let qty = 0;
+  let live = false;
+  for (const t of callerTurns(turns)) {
+    if (isFullCancel(t.text, dish)) { qty = 0; live = false; continue; }
+    const set = explicitSet(t.text, dish);
+    if (set != null) { qty = set; live = true; continue; }
+    if (quitaOne(t.text, dish)) { qty = Math.max(0, (live ? qty : base) - 1); live = qty > 0; continue; }
+    const c = countOf(t.text);
+    if (c) { qty = Math.max(qty, c); live = true; }
+  }
+  return live ? qty : 0;
 }
 
 function pozoleOrdered(turns: Turn[]): number {
@@ -76,7 +117,10 @@ function pozoleOrdered(turns: Turn[]): number {
     const m = t.text.match(new RegExp(String.raw`\b(${COUNT})\s+po[sz]oles?\b`, "iu"));
     if (m) n = Math.max(n, numOf(m[1]));
   }
-  return n || 1;
+  return spokenQty(turns, dish, n || 1, (text) => {
+    const m = text.match(new RegExp(String.raw`\b(${COUNT})\s+po[sz]oles?\b`, "iu"));
+    return m ? numOf(m[1]) : 0;
+  });
 }
 
 const RICE_PHRASE = new RegExp(String.raw`\b(?:plato|platito|orden|lado|side|size)\s+de\s+arroz\b|\b(?:${COUNT})\s+(?:platos?\s+de\s+)?arroz\b|\bsides?\s+of\s+rice\b|\b(?:un|una)\s+arroz\b`, "iu");
@@ -93,6 +137,13 @@ function riceOrdered(turns: Turn[]): { qty: number; grande: boolean } | null {
       || t.text.match(new RegExp(String.raw`\b(${COUNT})\s+sides?\s+of\s+rice\b`, "iu"));
     if (m) qty = Math.max(qty, numOf(m[1]) || 1);
   }
+  qty = spokenQty(turns, /\barroz\b|\brice\b/iu, qty, (text) => {
+    if (!riceMention(text)) return 0;
+    const m = text.match(new RegExp(String.raw`\b(${COUNT})\s+(?:(?:platos?|sides?)\s+(?:de\s+|of\s+)?)?arroz\b`, "iu"))
+      || text.match(new RegExp(String.raw`\b(${COUNT})\s+sides?\s+of\s+rice\b`, "iu"));
+    return m ? (numOf(m[1]) || 1) : 0;
+  });
+  if (!qty) return null;
   let grande = false, small = false;
   for (let i = 0; i < turns.length; i++) {
     if (turns[i].speaker !== "caller") continue;
@@ -114,7 +165,7 @@ function looseTortillas(turns: Turn[]): { qty: number } | null {
   const dish = /tortillas?\s+(?:sueltas?|extras?|individual)/iu;
   const ordered = (t: string) => LOOSE.test(t) && !PACK.test(t) && /\b(?:sueltas?|extras?|individual)/iu.test(t) || (/\btortillas?\s+sueltas?\b/iu.test(t) && /\bcomal\b/iu.test(t));
   if (disposition(turns, /tortillas?/iu, (t) => ordered(t) && !/\btacos?\b/iu.test(t.replace(LOOSE, " "))) !== "order" && !callerTurns(turns).some((t) => ordered(t.text))) return null;
-  if (callerTurns(turns).some((t) => saidCancel(t.text, dish))) return null;
+  if (callerTurns(turns).some((t) => isFullCancel(t.text, dish))) return null;
   // A taco "de comal" is the shell, not a loose tortilla. Require suelta/extra/individual.
   if (!callerTurns(turns).some((t) => /\b(?:sueltas?|extras?|individual(?:es)?)\b/iu.test(t.text) && /\btortillas?\b/iu.test(t.text))) {
     const staffLoose = turns.some((t) => t.speaker === "staff" && /\btortillas?\s+extras?\b/iu.test(t.text));
@@ -131,6 +182,11 @@ function looseTortillas(turns: Turn[]): { qty: number } | null {
     const m = t.text.match(new RegExp(String.raw`\b(${COUNT})\s+tortillas?\s+extras?\b`, "iu"));
     if (m) qty = numOf(m[1]);
   }
+  qty = spokenQty(turns, dish, qty, (text) => {
+    const m = text.match(new RegExp(String.raw`\b(${COUNT})\s+tortillas?\s+(?:sueltas?|extras?|individual(?:es)?)`, "iu"))
+      || text.match(new RegExp(String.raw`\b(${COUNT})\s+tortillas?\s+sueltas?\s+de\s+comal`, "iu"));
+    return m ? numOf(m[1]) : 0;
+  });
   if (!qty || qty > 30) return null;
   const comal = turns.some((t) => /\bcomal\b/iu.test(t.text) && /\btortillas?\b/iu.test(t.text));
   const harina = callerTurns(turns).some((t) => /\b(?:harina|flour)\b/iu.test(t.text) && /\btortillas?\s+(?:sueltas?|extras?)/iu.test(t.text) && !/\bcomal\b/iu.test(t.text));
@@ -207,7 +263,7 @@ export function dropUncancelledRemoves(actions: any[], text: string, cart: any[]
     if (a?.type !== "remove_item" || !protectedId(String(a.itemId || ""))) return true;
     if (!cart.some((l) => l?.itemId === a.itemId)) return true;
     const dish = /pozole/i.test(a.itemId) ? /po[sz]oles?/iu : /sides/i.test(a.itemId) ? /\barroz\b|\brice\b|\bfrijoles?\b|\bbeans?\b/iu : /tortillas?/iu;
-    return saidCancel(text, dish);
+    return isFullCancel(text, dish) || explicitSet(text, dish) != null || quitaOne(text, dish);
   });
 }
 
@@ -221,7 +277,7 @@ export function retainSpokenOrder(cart: any[], turns: Turn[], menu: any[] = [], 
   if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
   let changed = false;
   const poz = pozoleOrdered(turns);
-  if (!poz && callerTurns(turns).some((t) => saidCancel(t.text, /po[sz]oles?/iu))) changed = dropCancelled(cart, (l) => /pozole/i.test(String(l.itemId))) || changed;
+  if (!poz && callerTurns(turns).some((t) => isFullCancel(t.text, /po[sz]oles?/iu) || quitaOne(t.text, /po[sz]oles?/iu))) changed = dropCancelled(cart, (l) => /pozole/i.test(String(l.itemId))) || changed;
   if (poz) {
     const lines = cart.filter((l) => /pozole/i.test(String(l.itemId)));
     if (!lines.length) { cart.push({ itemId: POZOLE_ID, quantity: poz, modifiers: [], readback: "pozole rojo" }); changed = true; }
@@ -235,7 +291,7 @@ export function retainSpokenOrder(cart: any[], turns: Turn[], menu: any[] = [], 
     }
   }
   const rice = riceOrdered(turns);
-  if (!rice && callerTurns(turns).some((t) => saidCancel(t.text, /\barroz\b|\brice\b/iu))) changed = dropCancelled(cart, (l) => isSmallRice(l) || isGrandeRice(l) || /sides-arroz|26S6E6|QPUFQG/i.test(String(l.itemId))) || changed;
+  if (!rice && callerTurns(turns).some((t) => isFullCancel(t.text, /\barroz\b|\brice\b/iu) || quitaOne(t.text, /\barroz\b|\brice\b/iu))) changed = dropCancelled(cart, (l) => isSmallRice(l) || isGrandeRice(l) || /sides-arroz|26S6E6|QPUFQG/i.test(String(l.itemId))) || changed;
   if (rice) {
     const pick = riceItem(menu, rice.grande);
     if (pick) {
@@ -251,7 +307,7 @@ export function retainSpokenOrder(cart: any[], turns: Turn[], menu: any[] = [], 
     }
   }
   const loose = looseTortillas(turns);
-  if (!loose && callerTurns(turns).some((t) => saidCancel(t.text, /tortillas?\s+(?:sueltas?|extras?|individual)/iu))) changed = dropCancelled(cart, (l) => /tortillas-extras|1-x-tortilla-comal|ADELFI/i.test(String(l.itemId))) || changed;
+  if (!loose && callerTurns(turns).some((t) => isFullCancel(t.text, /tortillas?\s+(?:sueltas?|extras?|individual)/iu) || quitaOne(t.text, /tortillas?\s+(?:sueltas?|extras?|individual)/iu))) changed = dropCancelled(cart, (l) => /tortillas-extras|1-x-tortilla-comal|ADELFI/i.test(String(l.itemId))) || changed;
   if (loose) {
     const pick = looseComalTortilla(menu, catalog);
     if (pick) {

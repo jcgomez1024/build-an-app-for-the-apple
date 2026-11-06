@@ -10,7 +10,8 @@ import { applyVerduraAparte } from "../../src/list-repair.ts";
 import { nameFromTranscriptInfo } from "../../src/order-name.ts";
 import { loadSiteCatalog } from "../../src/site-catalog.ts";
 import type { PosCatalog } from "../../src/pos-catalog.ts";
-import { looseComalTortilla, menuIdForVariation, retainSpokenOrder } from "../../src/retain-spoken.ts";
+import { cachedPosCatalog } from "../../src/pos-catalog.ts";
+import { dropUncancelledRemoves, looseComalTortilla, menuIdForVariation, retainSpokenOrder } from "../../src/retain-spoken.ts";
 
 const d = JSON.parse(readFileSync(new URL("../fixtures/CAe78e2500-juan-loose1.json", import.meta.url), "utf8"));
 const site = loadSiteCatalog()!;
@@ -66,7 +67,7 @@ const SALSA = { step: "(I) Salsa Preferencia / Preference", option: "Mild Salsa 
 const NOTE = "verdura aparte";
 
 /** Live miss: pozole is added, then the rice-size answer removes it. Rice and loose tortillas get no action. The note is copied onto every line. */
-function missStub() {
+function missStub(menu: any[] = MENU, catalog: PosCatalog | null = MAC_CATALOG) {
   const r: any = async (text: string) => {
     const t = text.toLowerCase();
     if (/pozole/.test(t)) return { actions: [{ type: "add_item", itemId: POZ.id, quantity: 1, modifiers: [{ step: "Tipo", option: "Rojo de Puerco / Red with Pork" }], readback: "pozole rojo" }], reply: "Pozole rojo." };
@@ -78,9 +79,13 @@ function missStub() {
     if (/tortillas sueltas/.test(t)) return { actions: [], reply: "¿Algo más?" };
     return { actions: [], reply: "¿Algo más?" };
   };
-  r.menu = () => MENU;
-  r.posCatalog = MAC_CATALOG;
+  r.menu = () => menu;
+  r.posCatalog = catalog;
   return r;
+}
+
+function phoneMenu() {
+  return site.products.flatMap((p) => (p.skus || []).map((sku) => phoneItem(p, sku.name)));
 }
 
 const opts = (l: any) => (l.modifiers || []).map((m: any) => String(m.option));
@@ -161,6 +166,53 @@ test("juan-loose1: a cancel removes the soup, the rice, and the tortillas; anoth
   assert.equal(none.length, 0);
 });
 
+test("juan-loose1: an uncancelled remove stays blocked, and a spoken cancel or smaller count does not", () => {
+  const soup = [{ itemId: POZ.id, quantity: 3, modifiers: [] }];
+  const rice = [{ itemId: RICE.id, quantity: 2, modifiers: [] }];
+  const tort = [{ itemId: "sq-tortillas-extras-1-x-tortilla-comal-ADELFI", quantity: 2, squareVariationId: LOOSE_VAR, modifiers: [] }];
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: POZ.id, quantity: 3 }], "Ah, chico.", soup).length, 0);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: RICE.id, quantity: 2 }], "Ah, chico.", rice).length, 0);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: tort[0].itemId, quantity: 2 }], "Ah, chico.", tort).length, 0);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: POZ.id }], "No, quítame el pozole.", soup).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: RICE.id }], "Ya no quiero el arroz.", rice).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: tort[0].itemId }], "Sin las tortillas extras.", tort).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "update_item", itemId: POZ.id, quantity: 2 }], "Mejor dos pozoles.", soup).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "remove_item", itemId: POZ.id, quantity: 1 }], "Quítame un pozole.", soup).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "update_item", itemId: RICE.id, quantity: 1 }], "Nada más un plato de arroz.", rice).length, 1);
+  assert.equal(dropUncancelledRemoves([{ type: "update_item", itemId: tort[0].itemId, quantity: 1 }], "Solo una tortilla suelta.", tort).length, 1);
+  const down: any[] = [{ itemId: POZ.id, quantity: 3, modifiers: [] }, { itemId: RICE.id, quantity: 2, modifiers: [] }, { ...tort[0] }];
+  retainSpokenOrder(down, [
+    { speaker: "caller", text: "Me puede poner tres pozoles." },
+    { speaker: "caller", text: "Mejor dos pozoles." },
+    { speaker: "caller", text: "Dos platos de arroz." },
+    { speaker: "caller", text: "Nada más un plato de arroz." },
+    { speaker: "caller", text: "Dos tortillas sueltas de comal." },
+    { speaker: "caller", text: "Solo una tortilla suelta de comal." },
+  ] as any, MENU, MAC_CATALOG);
+  assert.equal(down.find((l) => /pozole/i.test(l.itemId)).quantity, 2);
+  assert.equal(down.find((l) => l.itemId === RICE.id).quantity, 1);
+  assert.equal(down.find((l) => /ADELFI/.test(l.itemId)).quantity, 1);
+  const oneLess: any[] = [{ itemId: POZ.id, quantity: 3, modifiers: [] }];
+  retainSpokenOrder(oneLess, [
+    { speaker: "caller", text: "Tres pozoles." },
+    { speaker: "caller", text: "Quítame un pozole." },
+  ] as any, MENU, null);
+  assert.equal(oneLess.length, 1);
+  assert.equal(oneLess[0].quantity, 2);
+  const wiped: any[] = [{ itemId: POZ.id, quantity: 3, modifiers: [] }, { itemId: RICE.id, quantity: 1, modifiers: [] }, { ...tort[0] }];
+  retainSpokenOrder(wiped, [
+    { speaker: "caller", text: "Tres pozoles, un plato de arroz y dos tortillas sueltas de comal." },
+    { speaker: "caller", text: "Quítame el pozole. Ya no quiero el arroz. Sin las tortillas extras." },
+  ] as any, MENU, MAC_CATALOG);
+  assert.equal(wiped.some((l) => /pozole|arroz|26S6E6|ADELFI|tortilla/i.test(l.itemId)), false);
+  const held: any[] = [{ itemId: POZ.id, quantity: 3, modifiers: [] }];
+  retainSpokenOrder(held, [
+    { speaker: "caller", text: "Tres pozoles." },
+    { speaker: "caller", text: "Sí, el pozole." },
+  ] as any, MENU, null);
+  assert.equal(held[0].quantity, 3);
+});
+
 test("juan-loose1: grande rice is the other side, and the note does not leave the tacos", () => {
   const cart: any[] = [];
   retainSpokenOrder(cart, [
@@ -179,4 +231,51 @@ test("juan-loose1: grande rice is the other side, and the note does not leave th
   assert.equal(lines[0].elviNotes, undefined);
   assert.equal(lines[1].elviNotes, undefined);
   assert.deepEqual(lines[2].elviNotes, [NOTE]);
+});
+
+async function sevenLines(menu: any[], catalog: PosCatalog | null) {
+  const r: any = await shadowOrderFromTurns(d.turns, missStub(menu, catalog));
+  const c = r.cart;
+  const dump = JSON.stringify(c.map((l: any) => ({ id: l.itemId, q: l.quantity, m: opts(l), n: note(l) })));
+  assert.equal(c.length, 7, dump);
+  const poz = c.find((l: any) => /pozole/i.test(l.itemId));
+  assert.equal(poz?.itemId, POZ.id, dump);
+  assert.equal(poz?.quantity, 1);
+  assert.equal(opts(poz).some((o: string) => /puerco|pork/i.test(o)), false);
+  const rice = c.find((l: any) => l.itemId === RICE.id);
+  assert.equal(rice?.quantity, 1, dump);
+  assert.equal(c.some((l: any) => /QPUFQG|GRANDE/i.test(l.itemId)), false, dump);
+  const tort = c.find((l: any) => l.squareVariationId === LOOSE_VAR || l.itemId === "sq-tortillas-extras-1-x-tortilla-comal-ADELFI");
+  assert.ok(tort, dump);
+  assert.equal(tort.quantity, 2);
+  assert.equal(tort.squareVariationId, LOOSE_VAR);
+  assert.equal(c.some((l: any) => /tortillas?-6|tortillas?-12|6-x-tortilla|12-x-tortilla/i.test(l.itemId)), false, dump);
+  const tacos = c.find((l: any) => l.itemId === TACO.id);
+  const qd = c.find((l: any) => l.itemId === QD.id);
+  const qco = c.find((l: any) => l.itemId === Q.id);
+  assert.ok(note(tacos).includes(NOTE), dump);
+  assert.equal(note(qd).includes(NOTE), false, dump);
+  assert.equal(note(qco).includes(NOTE), false, dump);
+  assert.equal(c.filter((l: any) => note(l).includes(NOTE)).length, 1, dump);
+}
+
+test("juan-loose1: the full phone menu still keeps the seven lines, with the single tortilla coming from the catalog", async () => {
+  const full = phoneMenu();
+  assert.ok(full.length > MENU.length);
+  assert.equal(full.some((m) => m.squareVariationId === LOOSE_VAR), false);
+  assert.equal(looseComalTortilla(full, null), null);
+  assert.equal(looseComalTortilla(full, MAC_CATALOG)?.variationId, LOOSE_VAR);
+  await sevenLines(full, MAC_CATALOG);
+});
+
+test("juan-loose1: the on-disk POS cache is what supplies the two individual comal tortillas", async (t) => {
+  const disk = cachedPosCatalog();
+  if (!disk) return t.skip("services/api/data/logs/pos-catalog.json is not on this machine");
+  const item = disk.items.find((i) => i.id === LOOSE_ITEM);
+  const variation = item?.variations.find((v) => v.id === LOOSE_VAR);
+  assert.equal(variation?.name, "1 x Tortilla Comal");
+  const full = phoneMenu();
+  assert.equal(full.some((m) => m.squareVariationId === LOOSE_VAR), false);
+  assert.equal(looseComalTortilla(full, disk)?.itemId, "sq-tortillas-extras-1-x-tortilla-comal-ADELFI");
+  await sevenLines(full, disk);
 });

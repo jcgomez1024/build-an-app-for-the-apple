@@ -778,7 +778,10 @@ function nameFromTranscriptInfoW(turns: Array<{ speaker: "caller" | "staff"; tex
   if (r0?.name) { const full = callerFullerName(turns, r0.name); if (full) r0 = { ...r0, name: full }; }
   const fix = surnameAfterReadback(turns, r0.name); return fix && fix !== r0.name ? { ...r0, name: fix } : r0;
 }
-/** Staff "Al nombre de Luis, ¿verdad?" + caller "no, de, de, de, de Martín" is the caller's name, not the guess. */
+/** Staff "Al nombre de Luis, ¿verdad?" + caller "no, de, de, de, de Martín" is the caller's own name.
+ *  Returned as source "volunteer" (the caller said it), never as a staff vocative.
+ *  Listen-only saving uses that classification: shouldPersistOrderName + rememberHeardNameIfNone.
+ *  rememberHeardNameIfNone still refuses when this number already has a saved name. A bare staff name is not a correction. */
 export function callerNameCorrection(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
   for (let i = 0; i < turns.length; i++) {
     if (turns[i].speaker !== "staff" || !/\bnombre\s+de\s+\p{L}/iu.test(String(turns[i].text))) continue;
