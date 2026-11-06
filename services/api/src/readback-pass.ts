@@ -294,10 +294,45 @@ function vaporChunks(text: string): Array<Array<[string, number]>> | null {
   }
   return cur.length || !out.length ? null : out;
 }
+const VORDEN = /\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?(?![\p{L}])/giu;
+const VOTHER = /\b(?:birrias?|menudos?|po[sz]oles?|enchiladas?|quesadillas?|gorditas?|tortas?|burritos?|moles?|tamales?|sopes?|huaraches?|platillos?|tacos?\s+(?:de\s+)?(?:bistec|asada|pastor|chorizo|carnitas|lengua|tripas?|cabeza|pollo|suadero))\b/iu;
+const VMIX = /\b(?:surtid[oa]s?|mezclad[oa]s?|mixt[oa]s?|revuelt[oa]s?|uno\s+de\s+cada|one\s+of\s+each)\b/iu;
+/** Vapor is the open dish when the caller brought it up and has not since named a different dish. */
+function vaporOpenAt(turns: T, i: number): boolean {
+  let open = false;
+  for (let k = 0; k <= i && k < turns.length; k++) {
+    const t = turns[k];
+    if (t.speaker !== "caller") continue;
+    if (VAPOR_WORDS.test(t.text)) open = true;
+    else if (VOTHER.test(t.text)) open = false;
+  }
+  return open;
+}
 export function vaporOrderCount(turns: T): number {
   let n = 0;
-  for (const t of turns) if (t.speaker === "caller" && VAPOR_WORDS.test(t.text)) for (const m of t.text.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?\b(?:\s+de\s+(?:tacos?\s+)?(?:al\s+vapor|de\s+vapor|sudados?|de\s+canasta))?/giu)) n = Math.max(n, vn(m[1]));
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker !== "caller") continue;
+    const open = vaporOpenAt(turns, i);
+    VORDEN.lastIndex = 0;
+    for (const m of t.text.matchAll(VORDEN)) {
+      const phrase = t.text.slice(Math.max(0, (m.index || 0) - 16), (m.index || 0) + m[0].length + 48);
+      if (VOTHER.test(phrase) && !VAPOR_WORDS.test(phrase)) continue;
+      // same-turn "dos órdenes de tacos al vapor", or "dos órdenes así surtidas" once vapor is the open dish
+      if (VAPOR_WORDS.test(t.text) || VAPOR_WORDS.test(phrase) || (open && !VOTHER.test(t.text))) n = Math.max(n, vn(m[1]));
+    }
+  }
   return n;
+}
+/** "surtidas" / "mezcladas" on a vapor order is one of each filling (5 tacos), not a catalog item named surtida. */
+export function vaporMixed(turns: T): boolean {
+  if (!turns.some((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text))) return false;
+  for (let i = 0; i < turns.length; i++) {
+    if (!VMIX.test(turns[i].text)) continue;
+    const near = `${turns[i - 1]?.text || ""} ${turns[i].text}`;
+    if (/(?:^|[^\p{L}])[oó]rden(?:es)?(?![\p{L}])/iu.test(near) && (VAPOR_WORDS.test(near) || vaporOpenAt(turns, i))) return true;
+  }
+  return false;
 }
 /** Live + replay: rebuild Tacos al Vapor orders (5 per order) from the latest turn whose filling counts split into whole orders. */
 export function applyVaporOrders(cart: any[], turns: T): void {
@@ -326,6 +361,11 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     const note = "vapor: " + g.map(([o, n]) => `${n} ${VFILL.find(([, x]) => x === o)![2]}`).join(", ");
     cart.push({ itemId: VAPOR_ID, quantity: 1, modifiers: g.slice(0, 3).map(([o]) => ({ step, option: o })), elviNotes: [note] });
   }
+  else if (want && vaporMixed(turns)) {
+    // marta-vapor (CA1de52ae): "dos órdenes así surtidas" after tacos al vapor = qty N, one of each filling. No surtida SKU.
+    const fills = VFILL.map(([, o]) => o);
+    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.map((o) => ({ step, option: o })), elviNotes: ["vapor: " + VFILL.map(([, , w]) => `1 ${w}`).join(", ")] });
+  }
   else if (want) {
     // chui1: "una orden de tacos al vapor" / "de" / "pollo, por favor" — fillings named without counts after the vapor ask.
     const ci = turns.findIndex((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text));
@@ -335,6 +375,31 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     const note = fills.length === 1 ? [`vapor: 5 ${named[0][2]}`] : fills.length ? [`vapor: ${named.map(([, , w]) => w).join(", ")}`] : [];
     cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.slice(0, 3).map((o) => ({ step, option: o })), ...(note.length ? { elviNotes: note } : {}) });
   }
+}
+/** Live: once vapor is the open dish, "N órdenes" (surtidas or bare) adds those orders instead of "Listo." / "Dos de qué." */
+export function liveVaporOrder(r: any, input: any) {
+  const hist: any[] = input?.history || [];
+  const tx = String(input?.transcript || "");
+  if (!tx) return r;
+  const turns: T = [
+    ...hist.map((h) => ({ speaker: h.role === "assistant" || h.role === "staff" ? "staff" : "caller", text: String(h.text || "") })),
+    { speaker: "caller", text: tx },
+  ];
+  if (!vaporOrderCount(turns)) return r;
+  const draft: any[] = ((input?.cart || []) as any[]).map((l) => ({ ...l, modifiers: [...(l.modifiers || [])], ...(l.elviNotes ? { elviNotes: [...l.elviNotes] } : {}) }));
+  const before = draft.filter((l) => l.itemId === VAPOR_ID).reduce((n, l) => n + (Number(l.quantity) || 1), 0);
+  applyVaporOrders(draft, turns);
+  const lines = draft.filter((l) => l.itemId === VAPOR_ID);
+  const after = lines.reduce((n, l) => n + (Number(l.quantity) || 1), 0);
+  if (!after || after <= before) return r;
+  const acts = (Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" || (a.itemId !== VAPOR_ID && !/^sq-taco-/i.test(String(a.itemId))));
+  for (const l of lines) acts.push({ type: "add_item", itemId: VAPOR_ID, quantity: l.quantity, modifiers: l.modifiers || [], ...(l.elviNotes ? { elviNotes: l.elviNotes } : {}) });
+  const es = input?.language !== "en";
+  const mix = vaporMixed(turns);
+  const reply = es
+    ? `${after} ${after > 1 ? "órdenes" : "orden"} de tacos al vapor${mix ? " surtidas" : ""}. ¿Algo más?`
+    : `${after} steamed taco ${after > 1 ? "orders" : "order"}${mix ? ", mixed" : ""}. Anything else?`;
+  return { ...r, actions: acts, reply };
 }
 
 // chui1 (CA95e4264e): "quesadilla dorada de bistec" + "Supreme" — supreme/suprema = DELUXE Preparada (catalog: "(QD) DELUXE Preparada").
@@ -449,6 +514,49 @@ export function isExistingOrderCall(turns: Array<{ speaker: string; text: string
   const i = caller.findIndex((t) => EXISTING_ORDER_RE.test(t)); if (i < 0) return false;
   if (caller.slice(0, i).some((t) => NEW_ORDER_CLEAR.test(t) || /\b(?:me (?:pone|pones|puede poner|das|da)|quiero|quisiera|para ordenar|hacer un pedido)\b/i.test(t))) return false;
   return !caller.slice(i).some((t) => NEW_ORDER_CLEAR.test(t) || NEW_ORDER_AFTER.test(t));
+}
+// demi1 (CAc17d837): "this is Demi with the Dollar General" is an affiliation, not a dish, and
+// "looking to speak with the restaurant in charge" is not an order. Neither may leave food in the cart.
+const SAID_DISH = /\b(?:tacos?|quesadillas?|doradas?|gorditas?|tortas?|burritos?|sopes?|huaraches?|enchiladas?|tamales?|menudos?|po[sz]oles?|birrias?|platillos?|nachos|horchatas?|jarritos?|tostadas?|flautas?|mole|chilaquiles|ceviche|coctel|c[oó]ctel|vapor|sudad[oa]s?)\b/iu;
+const IN_CHARGE = /\b(?:(?:speak|talk|speaking|talking)\s+(?:to|with)|(?:looking|want(?:ed)?|need(?:ed)?|trying|like|hoping)\s+to\s+(?:speak|talk)\s+(?:to|with)|(?:can|could|may)\s+i\s+(?:speak|talk)\s+(?:to|with))\s+(?:the\s*,?\s*|a\s+|your\s+)?(?:manager|owner|boss|supervisor|chef|person\s+in\s+charge|someone\s+in\s+charge|whoever(?:'s|\s+is)\s+in\s+charge|restaurant\s+in\s+charge|one\s+in\s+charge)|(?:el|la|al)\s+(?:gerente|encargad[oa]|dueñ[oa])\b|\bhablar\s+con\s+(?:el|la)\s+(?:gerente|encargad[oa]|dueñ[oa]|que\s+est[aá]\s+a\s+cargo)|\bpersona\s+(?:a\s+cargo|encargad[oa])\b|\bqui[eé]n\s+(?:est[aá]|anda)\s+a\s+cargo\b/iu;
+/** "Hi, this is Demi with the Dollar General stores" — introduces an affiliation, orders nothing. */
+export function isAffiliationIntro(text: string): boolean {
+  const t = String(text || "");
+  return /\bthis\s+is\s+\p{L}[\p{L}'’-]*\s+with\s+(?:the|a|an)\b/iu.test(t) && !SAID_DISH.test(t);
+}
+export function isPersonInChargePhrase(text: string): boolean {
+  return IN_CHARGE.test(String(text || ""));
+}
+/** A turn that cannot add food: affiliation intro, or a manager request that names no dish. */
+export function nonOrderCallerTurn(text: string): boolean {
+  const t = String(text || "");
+  if (SAID_DISH.test(t)) return false;
+  return isAffiliationIntro(t) || isPersonInChargePhrase(t);
+}
+/** The caller asked for a manager / person in charge and never named a dish. Not an order. */
+export function isPersonInChargeCall(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  if (!caller.some((t) => isPersonInChargePhrase(t))) return false;
+  return !caller.some((t) => SAID_DISH.test(t));
+}
+/** Live: manager / person-in-charge request adds nothing; with no dish said, take a false cart back off. */
+export function livePersonInCharge(r: any, input: any) {
+  const tx = String(input?.transcript || "");
+  const hist: any[] = input?.history || [];
+  const caller = [...hist.filter((h) => h.role === "customer" || h.role === "user").map((h) => String(h.text || "")), tx];
+  const turn = nonOrderCallerTurn(tx) || (isPersonInChargePhrase(tx) && !SAID_DISH.test(tx));
+  if (!turn && !isPersonInChargeCall(caller.map((text) => ({ speaker: "caller", text })))) return r;
+  if (SAID_DISH.test(tx) && !isAffiliationIntro(tx)) return r;
+  let acts = (Array.isArray(r?.actions) ? r.actions : []).filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
+  const noDish = !caller.some((t) => SAID_DISH.test(t));
+  if (noDish) {
+    for (const l of (input?.cart || []) as any[]) if (!acts.some((a: any) => a?.type === "remove_item" && a.itemId === l.itemId)) acts.push({ type: "remove_item", itemId: l.itemId, quantity: l.quantity || 1 });
+    if (isPersonInChargePhrase(caller.join(" "))) {
+      const en = input?.language === "en";
+      return { ...r, actions: acts, reply: en ? "I'm just the order taker. Let me get someone for you." : "Yo solo tomo la orden. Déjeme buscar a quien está a cargo." };
+    }
+  }
+  return acts.length === (r?.actions || []).length ? r : { ...r, actions: acts };
 }
 /** Live: about an existing order → no adds and never "¿Algo más?" to a complaint. */
 export function liveExistingOrder(r: any, input: any) {

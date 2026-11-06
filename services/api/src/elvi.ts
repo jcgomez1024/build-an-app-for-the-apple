@@ -1,4 +1,4 @@
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder, liveVaporOrder, livePersonInCharge } from "./readback-pass.js";
 import { dropPutOnReAdd, mergeConFrijolesSplit, applySpokenQty, foldBareMeatAdd, addToThatAsUpdate, makeItNAsUpdate } from "./modifier-turns.js";
 import { liveEtaAddressQty, liveTrailingClosing } from "./eta-qty.js";
 import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata, liveTacoDorado, liveMexicanCoke, liveEnchiladaConTodo, liveGorditaChicharron, liveRiceBeansSide } from "./list-repair.js";
@@ -2197,6 +2197,8 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveMultiItem(o2, input); } catch { /* keep */ } // robert1
   try { o2 = liveCancelOrder(o2, input); } catch { /* keep */ } // daniel-cancel1
   try { o2 = liveExistingOrder(o2, input); } catch { /* keep */ } // juanFollow1
+  try { o2 = liveVaporOrder(o2, input); } catch { /* keep */ } // marta-vapor: N órdenes surtidas of tacos al vapor
+  try { o2 = livePersonInCharge(o2, input); } catch { /* keep */ } // demi1: manager request is not a food order
   try { o2 = liveMeatSplitQty(o2, input); } catch { /* keep */ } // julian1
   try { o2 = liveExtraCarne(o2, input); } catch { /* keep */ } // sergio1
   try { o2 = liveQdCorrection(o2, input); } catch { /* keep */ } // yomar1
@@ -2481,7 +2483,9 @@ export function noPhantomDish(r: any, input: any) {
   const acts: any[] = r?.actions || [];
   if (!acts.some((a) => a?.type === "add_item")) return r;
   const said = echoPlain(input?.transcript || "");
-  if (!said || /\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six|same|again|lo mismo|otr[ao]s?|igual|another|more|m[aá]s|s[ií]|yes|yeah|ok(?:ay)?|eso|esa|ese|that|those|this)\b/.test(said)) return r;
+  // "this is Demi…" is an introduction. Bare "this" / "this one" still keeps an offered dish.
+  const gate = said.replace(/\bthis\s+is\b/g, " ");
+  if (!said || /\b(\d+|un[oa]?|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six|same|again|lo mismo|otr[ao]s?|igual|another|more|m[aá]s|s[ií]|yes|yeah|ok(?:ay)?|eso|esa|ese|that|those|this)\b/.test(gate)) return r;
   const hist: any[] = input?.history || [];
   const lastA = echoPlain([...hist].reverse().find((h) => h?.role === "assistant")?.text || "");
   const stem = (w: string) => w.replace(/(es|s)$/, "").slice(0, 6);

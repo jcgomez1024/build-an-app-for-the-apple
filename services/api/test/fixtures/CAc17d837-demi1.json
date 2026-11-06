@@ -1,0 +1,9 @@
+{
+  "callSid": "CAc17d837052754f7b2f8b9191f98a36ea",
+  "turns": [
+    { "speaker": "staff", "text": "cocina Elvis, buenas tardes.", "language": "es" },
+    { "speaker": "caller", "text": "Hi, this is Demi with the, Dollar General stores.", "language": "en" },
+    { "speaker": "staff", "text": "Yes.", "language": "en" },
+    { "speaker": "caller", "text": "Hi, I was, looking to speak with the, restaurant in charge.", "language": "en" }
+  ]
+}

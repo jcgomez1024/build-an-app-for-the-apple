@@ -1,0 +1,14 @@
+{
+  "callSid": "CA1de52ae817f5f9abfe0711123af31e9f",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, buenas tardes.", "language": "es" },
+    { "speaker": "caller", "text": "¿Tienes tacos al vapor hoy?", "language": "es" },
+    { "speaker": "staff", "text": "Sí. Una orden son cinco tacos. Los rellenos son papas, frijol, prensado, pollo y queso.", "language": "es" },
+    { "speaker": "caller", "text": "Okay, ¿me pones dos órdenes así surtidas?", "language": "es" },
+    { "speaker": "staff", "text": "Surtidas las dos órdenes, ¿verdad?", "language": "es" },
+    { "speaker": "caller", "text": "A nombre de Marta.", "language": "es" },
+    { "speaker": "caller", "text": "Sí, dos órdenes.", "language": "es" },
+    { "speaker": "staff", "text": "¿Algo más, Marta?", "language": "es" },
+    { "speaker": "caller", "text": "No, sería todo.", "language": "es" }
+  ]
+}

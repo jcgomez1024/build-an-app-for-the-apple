@@ -1,11 +1,11 @@
 // namecheck1 (Carlos): listen-only practice — the customer name Elvi hears goes on her shadow order and is compared with the
 // matched staff Square ticket's name (read-only). Informational: never part of the item score, never a staff flag.
-import { nameFromTranscript, nameFromAnswer } from "./order-name.js";
+import { nameFromTranscript, nameFromAnswer, selfIntroName } from "./order-name.js";
 import { cleanFirstName } from "./caller-memory.js";
 
 type Turn = { speaker: "caller" | "staff"; text: string };
-const SELF = /(?<![\p{L}])(?:this\s+is|my\s+name\s+is|me\s+llamo|mi\s+nombre\s+es|habla|le\s+habla|a\s+nombre\s+de|under(?:\s+the\s+name)?)\s+(\p{L}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?)/iu;
-const NOT = /^(calling|here|from|the|a|an|for|to|un|una|el|la|de|para|order|orden|pedido|pick|pickup|delivery|cocina|elvis|elvi)$/i;
+const NOT = /^(calling|here|from|the|a|an|for|to|un|una|el|la|de|para|order|orden|pedido|pick|pickup|delivery|cocina|elvis|elvi|with)$/i;
+const TICKET_NAME = /(?<![\p{L}])(?:a\s+nombre\s+de|under(?:\s+the\s+name)?)\s+(\p{L}[\p{L}'’-]+(?:\s+\p{L}[\p{L}'’-]+)?)/iu;
 /** Display form: Title Case, accents kept ("josé luis" → "José Luis"). */
 export const displayName = (raw: string | null | undefined) => {
   const w = String(raw || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean).slice(0, 3);
@@ -18,10 +18,11 @@ export function heardName(turns: Turn[], orderName?: string | null): string | nu
   if (n) return displayName(n);
   for (const t of turns) {
     if (t.speaker !== "caller") continue;
-    const m = SELF.exec(t.text); if (!m) continue;
-    const first = m[1].split(/\s+/)[0];
-    if (NOT.test(first)) continue;
-    const d = displayName(nameFromAnswer(m[1]) || m[1]); if (d) return d;
+    const intro = selfIntroName(t.text);
+    const ticket = t.text.match(TICKET_NAME)?.[1];
+    const raw = intro || (ticket && !NOT.test(ticket.split(/\s+/)[0]) ? ticket : "");
+    if (!raw || NOT.test(raw.split(/\s+/)[0])) continue;
+    const d = displayName(nameFromAnswer(raw) || raw); if (d) return d;
   }
   return null;
 }
