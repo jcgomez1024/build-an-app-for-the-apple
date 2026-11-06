@@ -1,0 +1,22 @@
+{
+  "callSid": "CA79019111d17aa140b654d774c9d93f21",
+  "name": null,
+  "note": "doritas1: staff-answered ~7:02 PM ET Thu Nov 5 2026. Caller never self-identified. Doritas/duritas/volcanes are an unidentified dish, not a name.",
+  "turns": [
+    { "speaker": "staff", "start": 1.2, "end": 3.1, "text": "Bueno, Cocina Elvis, dígame.", "language": "es" },
+    { "speaker": "caller", "start": 4.0, "end": 6.4, "text": "Me da dos tacos de bistec.", "language": "es" },
+    { "speaker": "staff", "start": 7.0, "end": 9.8, "text": "¿De cuál tortilla, joven? ¿Comal, harina o taquera?", "language": "es" },
+    { "speaker": "caller", "start": 10.2, "end": 11.4, "text": "De la taquera.", "language": "es" },
+    { "speaker": "staff", "start": 12.0, "end": 15.2, "text": "Okay, dos tacos taqueros de bistec, ¿qué más, joven?", "language": "es" },
+    { "speaker": "caller", "start": 16.0, "end": 17.6, "text": "Y dos duritas.", "language": "es" },
+    { "speaker": "staff", "start": 18.2, "end": 19.4, "text": "¿Gorditas?", "language": "es" },
+    { "speaker": "caller", "start": 20.0, "end": 20.8, "text": "Duritas.", "language": "es" },
+    { "speaker": "caller", "start": 21.4, "end": 23.2, "text": "Ah, duritas, volcanes.", "language": "es" },
+    { "speaker": "staff", "start": 24.0, "end": 26.5, "text": "Volcanes, no, no sé qué sea eso, joven.", "language": "es" },
+    { "speaker": "caller", "start": 27.2, "end": 29.4, "text": "Y dos duritas con queso.", "language": "es" },
+    { "speaker": "staff", "start": 30.1, "end": 33.4, "text": "¿Doritas, o quesadillas doradas?", "language": "es" },
+    { "speaker": "staff", "start": 33.6, "end": 38.8, "text": "Vendemos nachos, quesadilla dorada y tacos dorados, pero Doritas no sé qué es.", "language": "es" },
+    { "speaker": "caller", "start": 40.0, "end": 43.5, "text": "Ahorita voy y ordeno ahí mejor en persona.", "language": "es" },
+    { "speaker": "staff", "start": 44.2, "end": 46.0, "text": "Sale, joven. Aquí lo esperamos.", "language": "es" }
+  ]
+}

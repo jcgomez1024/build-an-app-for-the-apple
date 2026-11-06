@@ -386,7 +386,53 @@ export function rememberHeardNameIfNone(phone: string, name: string): boolean {
 }
 
 // sopesaso1: staff calling the caller by name at the close ("dame veinte, Martín", "gracias, Ana"). Not vocatives.
-const NOT_NAMES = /^(abra|abre|ya|cu[aá]nt[oa]s?|cu[aá]les|c[oó]mo|d[oó]nde|cu[aá]ndo|qui[eé]n(?:es)?|perd[oó]n(?:e|eme|ame)?|disculp[ae]|disc[uú]lp(?:e|a)(?:me|nos)?|permiso|what|how|where|when|who|which|ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taqueros?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|and|just|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]t[aeií]?me|permitime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|mire|m[aá]ndeme|m[aá]ndame|mande|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo|est[aá]s?|esto|estoy|estamos|est[aá]n|bien|ahorita|horita)$/iu; // horacio1: "Está bien" is never a name
+const NOT_NAMES = /^(abra|abre|ya|cu[aá]nt[oa]s?|cu[aá]les|c[oó]mo|d[oó]nde|cu[aá]ndo|qui[eé]n(?:es)?|perd[oó]n(?:e|eme|ame)?|disculp[ae]|disc[uú]lp(?:e|a)(?:me|nos)?|permiso|what|how|where|when|who|which|ah|oh|eh|ey|uh|um|hmm|mmm+|mm+|hasta|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|cu[aá]nto|aja|aj[aá]|uy|ay|en|al|del|la|el|un|una|unos?|unas?|los|las|para|por|con|sin|de|a|son|s[eé]|apple|mexican[oa]?s?|mexican|american[oa]?s?|american|latin[oa]s?|hispan(?:ic|[oa]s?)|chicano|chicana|español|spanish|english|ingl[eé]s|vegetarian[oa]?|vegan[oa]?|pinto|refritos?|fried|berros|verdes?|rojos?|rojas?|rojo|roja|verde|blanco|blanca|negro|negra|grande|chico|chica|regular|normal(?:es)?|sencill[oa]s?|deluxe|dorada|doradas|doritas|duritas|volc[aá]n(?:es)?|comal|harina|ma[ií]z|arroz|rice|beans|frijoles|asada|pastor|bistec|steak|chicken|pollo|birria|menudo|tacos?|taquer[oa]s?|nachos?|flautas?|tostadas?|caguamas?|aguas?|tortillas?|quesadillas?|moles?|enchiladas?|tortas?|gorditas?|sopes?(?:asos?)?|burritos?|barbacoa|consom[eé]|platillo|caldo|pata|chorizo|carnitas|tripas?|cabeza|lengua|prensado|costillas?|buche|suadero|carnitas?|deshebrada|picadillo|alpastor|nopales|vegetal|campechana|duro|sorry|please|yes|yeah|welcome|bye|adiós|adios|hola|hello|hi|hey|esperame|espérame|sure|right|thanks|thank|mano|manito|amigo|amiga|joven|señor|señora|senor|senora|seño|jefe|jefa|compa|compadre|porfa|mija|mijo|nena|beb[eé]|mi\s*hijo|güero|guero|bro|buddy|sir|ma'?am|okey|okay|ok|gracias|muchas|de|nada|igualmente|please|porfa|bueno|perfecto|listo|pues|hermano|carnal|muchacho|muchacha|reina|rey|corazón|amor|papi|mami|boss|man|dude|friend|honey|hon|pobre|dale|vale|and|just|muy|mal|so|look|yo|v[aá]monos|va|cocina|elvis|elvi|entonces|luego|ahora|ves|vea|diga|dime|d[ií]game|perm[ií]t[aeií]?me|permitime|veinte|diez|quince|treinta|dame|deme|[oó]rale|[aá]ndale|sale|vaya|mira|mire|m[aá]ndeme|m[aá]ndame|mande|oiga|oye|este|bueno|s[ií]|sip|no|nop|ya|aj[aá]|claro|qu[eé]|ser[ií]a|algo|est[aá]s?|esto|estoy|estamos|est[aá]n|bien|ahorita|horita)$/iu; // horacio1: "Está bien" is never a name
+// doritas1 (CA7901911): dish words are never a caller/order name. Exact tokens live in NOT_NAMES
+// (doritas/duritas/volcán(es), taquera, doradas). One-edit STT of a dish ("Dorita" ← doritas) is the same,
+// unless the caller actually identified themselves or answered the name ask.
+const foldFoodTok = (s: string) => String(s || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z]/g, "");
+const DISH_TOKENS = ["taquero", "taquera", "taqueros", "taqueras", "quesadilla", "quesadillas", "gordita", "gorditas", "burrito", "burritos", "tortilla", "tortillas", "tostada", "tostadas", "enchilada", "enchiladas", "nachos", "flautas", "huarache", "huaraches", "pambazo", "pambazos", "tamales", "menudo", "pozole", "birria", "chimichanga", "chilaquiles", "barbacoa", "consome", "platillo", "chorizo", "carnitas", "cabeza", "lengua", "prensado", "costilla", "costillas", "bistec", "suadero", "picadillo", "alpastor", "nopales", "campechana", "horchata", "guacamole", "frijoles", "dorada", "doradas", "doradita", "doraditas", "doritas", "duritas", "volcan", "volcanes", "tortas", "sopesaso", "queso", "crema"];
+const foodEdit = (a: string, b: string) => { const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } }
+  return d[b.length]; };
+/** Exact unresolved / dish token (accent-folded): Doritas, duritas, volcán, volcanes. */
+export function isUnresolvedFoodName(name: string): boolean {
+  return /^(?:doritas|duritas|volcan|volcanes)$/.test(foldFoodTok(String(name || "").split(/\s+/)[0] || ""));
+}
+/** One insertion/deletion/substitution from a dish token, length ≥ 6, same first letter. Not an exact dish token. */
+export function isCloseFoodStt(name: string): boolean {
+  const f = foldFoodTok(String(name || "").split(/\s+/)[0] || "");
+  if (f.length < 6 || DISH_TOKENS.includes(f)) return false;
+  for (const food of DISH_TOKENS) {
+    if (food.length < 6 || f[0] !== food[0] || Math.abs(f.length - food.length) > 1) continue;
+    if (foodEdit(f, food) <= 1) return true;
+  }
+  return false;
+}
+const foldFoodPhrase = (s: string) => String(s || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const isDishish = (w: string) => DISH_TOKENS.includes(foldFoodTok(w)) || isUnresolvedFoodName(w);
+/** Caller said this token as their own name ("soy X", "me llamo X", "a nombre de X"). */
+export function callerSelfNamed(turns: Array<{ speaker: string; text: string }>, name: string): boolean {
+  const f = foldFoodTok(String(name || "").split(/\s+/)[0] || "");
+  if (f.length < 2) return false;
+  const re = new RegExp(String.raw`\b(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|this\s+is|my\s+name\s+is|i'?m|a\s+nombre\s+de)\s+${f}\b`, "iu");
+  return turns.some((t) => t.speaker === "caller" && re.test(foldFoodPhrase(t.text)));
+}
+/** Dish token or a close STT of one. Unresolved words (doritas/volcanes) never persist.
+ *  Other dish tokens persist only when the caller answered the name ask, spelled it, or said "soy/me llamo …". */
+export function isFoodNameBlocked(name: string, source?: string | null, turns?: Array<{ speaker: string; text: string }>): boolean {
+  const first = String(name || "").trim().split(/\s+/)[0]?.replace(/[.,!?¡¿]+/g, "") || "";
+  if (!first) return false;
+  const unresolved = isUnresolvedFoodName(first);
+  const dish = isDishish(first) || unresolved;
+  const close = !dish && isCloseFoodStt(first);
+  if (!dish && !close) return false;
+  if (unresolved) return true;
+  if (source === "staff-ask" || source === "spelled") return false;
+  if (turns && callerSelfNamed(turns, first)) return false;
+  return true;
+}
+const skipVocativeToken = (w: string) => NOT_NAMES.test(w) || isUnresolvedFoodName(w) || isDishish(w) || isCloseFoodStt(w);
 /** joel1 (CA8a240f): caller spells "J O E L" / "J.O.E.L." after staff mishears — joins to Joel. */
 export function nameFromSpelledLetters(text: string): string | null {
   let s = String(text || "").trim();
@@ -406,7 +452,7 @@ export function nameFromSpelledLetters(text: string): string | null {
 
 /** ca39e2bb (CA39e2bba846…): staff→kitchen shout ("gordo, Guillermo, una quesitorta") — never ticket/caller name. */
 const KITCHEN_NICK = String.raw`gordo|gordita|flaco|flaca|chaparro|chaparra|g[uü]ero|guero|negro|negra|carnal|compa|compadre|mano|manito|jefe|jefa|cocina|cook`;
-const KITCHEN_FOOD = String.raw`ques[oi]?tortas?|tortas?|tacos?|taqueros?|quesadillas?|gorditas?|burritos?|sopes?(?:asos?)?|nachos?|menudos?|birrias?|horchatas?|cocas?|doradas?|enchiladas?|huaraches?|pambazos?|chimichangas?|flautas?|tostadas?`;
+const KITCHEN_FOOD = String.raw`ques[oi]?tortas?|tortas?|tacos?|taquer[oa]s?|quesadillas?|gorditas?|burritos?|sopes?(?:asos?)?|nachos?|menudos?|birrias?|horchatas?|cocas?|doradas?|doritas|duritas|volcanes?|enchiladas?|huaraches?|pambazos?|chimichangas?|flautas?|tostadas?`;
 function isKitchenVocativeHit(text: string, name: string): boolean {
   const n = String(name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (!n) return false;
@@ -457,7 +503,7 @@ function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; te
         const n = cleanFirstName("Luke");
         if (n) return n;
       }
-      if (!NOT_NAMES.test(w)) {
+      if (!skipVocativeToken(w)) {
         const n = cleanFirstName(w);
         if (n) return n;
       }
@@ -468,7 +514,7 @@ function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; te
     if (turn.speaker !== "staff") continue;
     for (const m of turn.text.matchAll(/(?:Buenas\s+(?:tardes|días|noches)|ahora\s+s[ií]|a\s+ver(?:\s+ahora\s+s[ií])?)[,]?\s+(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[,.]|\s|$)/gu)) {
       const w = m[1];
-      if (NOT_NAMES.test(w)) continue;
+      if (skipVocativeToken(w)) continue;
       const n = cleanFirstName(w);
       if (n) return n;
     }
@@ -479,7 +525,7 @@ function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; te
     if (turns[i].speaker !== "staff") continue;
     for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,\s*¿?\s*verdad\s*\??/gu)) {
       const w = m[1];
-      if (NOT_NAMES.test(w)) continue;
+      if (skipVocativeToken(w)) continue;
       if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
@@ -489,7 +535,7 @@ function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; te
     if (turns[i].speaker !== "staff") continue;
     for (const m of turns[i].text.matchAll(/,\s*(\p{Lu}[\p{Ll}áéíóúñ]+)(?=\s*[.!?]|\s*$)/gu)) { // cleanup1: not before a comma
       const w = m[1];
-      if (NOT_NAMES.test(w)) continue;
+      if (skipVocativeToken(w)) continue;
       if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
@@ -497,7 +543,7 @@ function nameFromStaffVocativeRaw(turns: Array<{ speaker: "caller" | "staff"; te
     // victor1: "Víctor, okey, Víctor, te tengo…" — name leads the staff turn
     for (const m of turns[i].text.matchAll(/(?:^|[¿?\s.!])(\p{Lu}[\p{Ll}áéíóúñ]+)\s*,/gu)) {
       const w = m[1];
-      if (NOT_NAMES.test(w)) continue;
+      if (skipVocativeToken(w)) continue;
       if (isKitchenVocativeHit(turns[i].text, w)) continue; // ca39e2bb kitchen shout
       const n = cleanFirstName(w);
       if (n) return n;
@@ -686,7 +732,12 @@ export function esParaName(turns: Array<{ speaker: string; text: string }>): str
 export const GOODBYE_NAME = /^(?:ciao|chao|chau|tchau|chaito|chaíto|bye(?:[\s-]*bye)?|good\s*bye|adi[oó]s|adios|hasta\s+luego|nos\s+vemos|see\s+(?:you|ya)|later|cu[ií]date|bai)$/iu;
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const r = nameFromTranscriptInfoG(turns);
-  return r && GOODBYE_NAME.test(String(r.name).split(/\s+/)[0].replace(/[.,!?¡¿]+/g, "")) ? null : r;
+  if (!r) return null;
+  const first = String(r.name).split(/\s+/)[0].replace(/[.,!?¡¿]+/g, "");
+  if (GOODBYE_NAME.test(first)) return null;
+  // doritas1: food words and close STT of them are not the saved name when the caller never self-identified.
+  if (isFoodNameBlocked(r.name, r.source, turns)) return null;
+  return r;
 }
 function nameFromTranscriptInfoG(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const r = nameFromTranscriptInfoW(turns);
@@ -739,7 +790,7 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   const callerTurns = turns.filter((t) => t.speaker === "caller");
   for (const t of callerTurns.slice(-3)) {
     const m = String(t.text).trim().match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü]{2,}){0,2})\.?$/u);
-    if (m && !NOT_NAME.test(m[1].split(/\s+/)[0])) return { name: m[1], thirdPerson: false, source: "volunteer" };
+    if (m && !NOT_NAME.test(m[1].split(/\s+/)[0]) && !skipVocativeToken(m[1].split(/\s+/)[0]) && !isFoodNameBlocked(m[1], "volunteer", turns)) return { name: m[1], thirdPerson: false, source: "volunteer" };
   }
   return null;
 }
@@ -975,7 +1026,7 @@ export function donaVocative(turns: Array<{ speaker: "caller" | "staff"; text: s
 // acevedo1 (CA99d48f, Oct 31 1:46 PM ET): staff filler "Okay, permíteme." became the order name. Fillers are never names
 // (accent/spelling-insensitive: permíteme, permiteme, permítame, permitame, permitime, pérmitame…).
 // hector2 (CA17937e): staff "¿Táqueros?" (tortilla style ask) + "Sí" saved as the name. Menu / style words are never names.
-const FOOD_STAFF_WORD = /^(?:(?:los|las|el|la|de|del)\s+)?(?:taquer[oa]s?|comal(?:es)?|harina|maiz|tacos?|quesadillas?|gorditas?|burritos?|burros?|tortas?|sopes?|sopesa[sz]os?|tostadas?|tamales?|menudos?|pozoles?|birria|bistec|biste|asada|pastor|alpastor|carnitas|chorizo|pollo|cabeza|lengua|tripas?|buche|prensado|deshebrada|picadillo|costilla|horchata|aguacat[ea]?s?|guacamole|guac|nopales|frijoles|arroz|queso|crema|cebolla|cilantro|jamaica|tamarindo|aguas?|refrescos?|cocas?|deluxe|regulares?|grandes?|chic[oa]s?|doradas?|fritas?|preparad[oa]s?|verduras?|todo|cebolla|cilantro|salsa|picante|picoso|frijoles?|arroz|crema|queso)$/;
+const FOOD_STAFF_WORD = /^(?:(?:los|las|el|la|de|del)\s+)?(?:taquer[oa]s?|comal(?:es)?|harina|maiz|tacos?|quesadillas?|gorditas?|burritos?|burros?|tortas?|sopes?|sopesa[sz]os?|tostadas?|tamales?|menudos?|pozoles?|birria|bistec|biste|asada|pastor|alpastor|carnitas|chorizo|pollo|cabeza|lengua|tripas?|buche|prensado|deshebrada|picadillo|costilla|horchata|aguacat[ea]?s?|guacamole|guac|nopales|frijoles|arroz|queso|crema|cebolla|cilantro|jamaica|tamarindo|aguas?|refrescos?|cocas?|deluxe|regulares?|grandes?|chic[oa]s?|doradas?|doritas|duritas|volcan(?:es)?|fritas?|preparad[oa]s?|verduras?|todo|cebolla|cilantro|salsa|picante|picoso|frijoles?|arroz|crema|queso)$/;
 export function isFillerName(name: string): boolean {
   const f = String(name || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z ]/g, "").trim();
   return FOOD_STAFF_WORD.test(f) || /^(?:serian?|seria|son|seran?|es|eso|esto|entonces|total|cuanto|cuantos|listo|muy bien|perfecto|claro|gracias|okey|okay|ok|amables?|favor|porfa|porfavor|solamente|solo|nomas|nada mas|pues|bueno|este|mire|oye|cierto|ciertos?|verdad|seguro|exacto|correcto|neta|vale|sale|simon|orale|andale|actitud|disculpe?|perdon|oiga|joven|senorita|senora|senor|amigo|amiga)$/.test(f) || /^(?:perm[ei]t[aei]?me(?:lo)?|permita(?:me)?|permiso|espere(?:me)?|esperame|espera|aguanta(?:me)?|aguantame|deja(?:me)?|dejame|dejeme|un momento|momentito|ahorita|orale|sale|va|vale|mano|joven|oiga|oye|senor|senora|amigo|amiga|compa|jefe|jefa|mija|mijo|hold on|one moment|one sec)$/.test(f);
@@ -1025,7 +1076,9 @@ export function snapToKnownName(heard: string | null | undefined, known: Array<s
 
 // lupita2 (CAbcdfda): caller answered staff's name ask ("¿Me das su nombre?" → "Lupita") but Elvi's cart ended empty → mau1 skipped memory.
 // A direct answer to staff's name ask means an order was placed: persist it even with an empty cart. Volunteer/vocative names keep mau1.
-export function shouldPersistOrderName(hasOrder: boolean, source: string | null | undefined, turns?: Array<{ speaker: string; text: string }>): boolean {
+export function shouldPersistOrderName(hasOrder: boolean, source: string | null | undefined, turns?: Array<{ speaker: string; text: string }>, name?: string | null): boolean {
+  // doritas1: a dish token (or a close STT of one) is never written to caller memory.
+  if (name && isFoodNameBlocked(name, source, turns)) return false;
   if (hasOrder) return true;
   if (source !== "staff-ask") return false;
   return !turns || turns.some((t) => t.speaker === "staff" && /\b(?:nombre|name)\b/iu.test(String(t.text)));

@@ -18,7 +18,7 @@ export type SavedAddress = { address: string; street: string; firstUsedAt: strin
 // names1: lower = stronger. A manual name is never replaced automatically; call readback > ticket > Square lookup.
 const NAME_RANK: Record<NameSource, number> = { manual: 0, readback: 1, elvi: 1, ticket: 2, square: 3 }; // names3: the call beats a rushed ticket
 const JUNK = /^(receipt|recibo|cliente|customer|guest|invitado|to ?go|para llevar|llevar|pick ?up|walk ?in|online|order|orden|pedido|test|prueba|unknown|desconocido|n\/?a|none|cocina elvis|elvi|hasta(\s+luego)?|nos\s+vemos|good\s*bye|bye(\s*bye)?|cu[ií]date|chao|chau|ciao|tchau|chaito|bai|adi[oó]s|perm[ií]t[aeií]?me(?:lo)?|perm[ií]ta(?:me)?|esp[eé]r[ae]me|un\s+momento)\b/i;
-const JUNK_FOOD = /^(?:t[aá]quer[oa]s?|comal(?:es)?|harina|tacos?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|bistec|biste|pastor|asada|horchata|deluxe|regular(?:es)?|grandes?|doradas?|preparad[oa]s?|aguacat[ea]?s?|guacamole|amables?|favor|porfa|gracias|disculpe?|perd[oó]n|solamente|s[oó]lo|nom[aá]s|pues|bueno|mire|oye|cierto|verdad|seguro|exacto|correcto|neta|vale|sale|sim[oó]n|[oó]rale|[aá]ndale|actitud)$/i; // hector2, agustin2
+const JUNK_FOOD = /^(?:t[aá]quer[oa]s?|comal(?:es)?|harina|tacos?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|bistec|biste|pastor|asada|horchata|deluxe|regular(?:es)?|grandes?|doradas?|doritas|duritas|volc[aá]n(?:es)?|preparad[oa]s?|aguacat[ea]?s?|guacamole|amables?|favor|porfa|gracias|disculpe?|perd[oó]n|solamente|s[oó]lo|nom[aá]s|pues|bueno|mire|oye|cierto|verdad|seguro|exacto|correcto|neta|vale|sale|sim[oó]n|[oó]rale|[aá]ndale|actitud)$/i; // hector2, agustin2, doritas1
 // juan-uhhuh1: hyphenated / spaced backchannels ("Uh-huh", "Mm-hmm", "Ujú", "A-ha") are filler, never a surname
 export const NAME_FILLER = /^(?:eh+|ehm|em+|este|esto|pues|ah+|aj[aá]|mm+|um+|uh+|hmm+|okay|okey|ok|bueno|o\s*sea|s[ií]|no|y|and|like|well|so|uh[\s-]*h?uh+|u+h?[\s-]*h?uh+|mm*[\s-]*h?mm+|m+[\s-]*hm+|mhm+|uj[uú]+|aj[aá]+|a+[\s-]*h+a+|eh[\s-]*eh|yep|yup|yeah|yes|mande|orale|órale|aha)$/iu;
 export function stripNameFillers(raw: string): string { return String(raw || "").split(/\s+/).map((w) => w.replace(/[.,!?¿¡;:]+/g, "")).filter((w) => w && !NAME_FILLER.test(w)).join(" "); }
@@ -159,6 +159,8 @@ export function cleanFirstName(raw: string | null | undefined): string | null {
   const first = String(raw || "").trim().split(/[\s,]+/)[0] || "";
   if (!/^[\p{L}][\p{L}'’-]{1,19}$/u.test(first)) return null;
   if (/^(cliente|customer|guest|test|prueba|unknown|desconocido|cocina|elvis|mr|mrs|ms|sr|sra|srta|dr|n\/?a|none|na|xx+|aqu[ií]|uj[uú]|ah[ií]|cu[aá]l|qui[eé]n|qu[eé]|d[oó]nde|cu[aá]ndo|c[oó]mo|cu[aá]nto|which|who|what|where|when|how)$/i.test(first)) return null;
+  // doritas1: unresolved dish words are never a first name (SMS / memory), even if a vocative leaked one.
+  if (/^(?:doritas|duritas|volc[aá]n(?:es)?)$/iu.test(first)) return null;
   // sophie1 (CA65a540): staff "Okay, mister" — forms of address are never names
   if (HONORIFIC.test(first)) return null;
   return first.toLocaleLowerCase("es").replace(/(^|[-'’])(\p{L})/gu, (_m, a, b) => a + b.toLocaleUpperCase("es"));
