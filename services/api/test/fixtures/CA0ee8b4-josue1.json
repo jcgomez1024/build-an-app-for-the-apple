@@ -1,0 +1,20 @@
+{
+  "callSid": "CA0ee8b4c68e7b22b5130dfd7d0445ac82",
+  "name": "Josue",
+  "note": "Spanish desk pickup. Same-turn meat rewrite plus a staff comal recap the caller affirms. Not a one-call special case.",
+  "turns": [
+    { "speaker": "staff", "start": 1.0, "end": 2.4, "text": "Cocina, Elvis.", "language": "es" },
+    { "speaker": "caller", "start": 3.0, "end": 12.5, "text": "Quiero hacer una orden. Eh, quiero cinco tacos de bistec, no, tres de bistec y una costilla.", "language": "es" },
+    { "speaker": "staff", "start": 13.0, "end": 15.2, "text": "Ah, Taqueroso de Comal.", "language": "es" },
+    { "speaker": "staff", "start": 15.6, "end": 19.4, "text": "Okay. Tres de bistec y dos de costilla.", "language": "es" },
+    { "speaker": "caller", "start": 19.8, "end": 20.4, "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "start": 21.0, "end": 22.6, "text": "Muy bien, ¿algo más?", "language": "es" },
+    { "speaker": "caller", "start": 23.0, "end": 25.2, "text": "Sería todo. ¿Cuánto sería?", "language": "es" },
+    { "speaker": "staff", "start": 25.8, "end": 29.4, "text": "Eh, serían veinte. ¿A qué nombre sería la orden?", "language": "es" },
+    { "speaker": "caller", "start": 30.0, "end": 31.2, "text": "De José…", "language": "es" },
+    { "speaker": "staff", "start": 31.8, "end": 36.5, "text": "Josue. Muy bien, dame unos quince minutos.", "language": "es" },
+    { "speaker": "staff", "start": 48.0, "end": 49.2, "text": "¿Pasville?", "language": "es" },
+    { "speaker": "caller", "start": 49.6, "end": 50.8, "text": "Todo está bien.", "language": "es" },
+    { "speaker": "staff", "start": 51.2, "end": 52.4, "text": "Okay, gracias.", "language": "es" }
+  ]
+}
