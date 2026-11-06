@@ -2922,7 +2922,7 @@ function liveTurns(input: any): Turn[] {
   return tx ? [...hist, { speaker: "caller", text: tx }] : hist;
 }
 const CON_TODO_SAID = /\bcon\s+todo\b|\bcon\s+de\s+todo\b|\bwith\s+everything\b/;
-const CON_TODO_AFFIRM = /^(?:eh |ah |mm+ |um |bueno |pues |ok(?:ay)? )*(?:s[ií]|yes|claro|sale|correcto|exacto)\b/;
+const CON_TODO_AFFIRM = /^(?:eh |ah |mm+ |um |bueno |pues |ok(?:ay)? |por favor |por |favor )*(?:s[ií]|yes|claro|sale|correcto|exacto)\b/;
 const CON_TODO_REFUSE = /^(?:eh |ah |mm+ |um |bueno |pues |ok(?:ay)? )*(?:no|nel|nop)\b/;
 /** Caller asked "con todo", or accepted a staff "con todo" (a bare "No" refuses that offer).
  *  "Ahí va todo" is not this phrase. Manuel's first answer is "No, no, sí, sí…"; the later

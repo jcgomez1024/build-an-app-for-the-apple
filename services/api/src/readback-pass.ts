@@ -475,8 +475,9 @@ export function applyEnchiladaOrder(cart: any[], turns: T): void {
   const start = turns.indexOf(ordered); let mix: Array<[string, number]> | null = null;
   for (let i = turns.length - 1; i >= start && !mix; i--) {
     const tx = turns[i].text;
-    const all = tx.match(/\b(?:las?|los?)\s+(?:seis|6|doce|12|todas?)\s+(?:de\s+)?(\p{L}+)/iu);
-    if (all) { const f = EFILL.find(([re]) => re.test(all[1])); if (f) { mix = [[f[1], 6 * nOrd]]; break; } }
+    const all = tx.match(/\b(?:(?:las?|los?)\s+)?(?:seis|6|doce|12|todas?|todos?)\s+(?:de\s+)?(\p{L}+)/iu);
+    const otherDish = /\b(?:tacos?|quesadillas?|gorditas?|tortas?|burritos?|doradas?)\b/iu.test(tx) && !/\benchilad/iu.test(tx);
+    if (all && !otherDish) { const f = EFILL.find(([re]) => re.test(all[1])); if (f && !gone.has(all[1].toLowerCase())) { mix = [[f[1], 6 * nOrd]]; break; } }
     const pairs = [...tx.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+(?:de\s+)?(\p{L}+)/giu)];
     const got: Array<[string, number]> = []; let ok = pairs.length > 0, sum = 0;
     for (const p of pairs) { const f = EFILL.find(([re]) => re.test(p[2])); if (!f || gone.has(p[2].toLowerCase())) { ok = false; break; } got.push([f[1], vn(p[1])]); sum += vn(p[1]); }
