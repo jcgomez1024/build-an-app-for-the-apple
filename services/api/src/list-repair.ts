@@ -2236,6 +2236,130 @@ export function applyFriedQuesadilla(cart: any[], turns: Turn[]): boolean {
   return ch;
 }
 
+// yosi (CAa3f533fe): "quesadillas fritas" / staff "fritas doradas" / "preparadas deluxe" is QD deluxe,
+// one line per "N de <meat>". It is not the Tacos Dorados platter (that needs "taco(s) dorado(s)" / flautas)
+// and not a street quesadilla. "Sin salsa" notes the lines already ordered, not a meat named after it.
+const FQ_TICKET_DLX = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+const FQ_TICKET_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+const FQ_TICKET_Q = "sq-quesadilla-HLT6CR";
+const FQ_PLATTER = /\btacos?\s+dorados?\b|\bflautas?\b|\bdorados?\s+tacos?\b|\b[a-z]+\s+dorado\s+tacos?\b/iu;
+const FQ_MARK = /\b(?:fritas?|doradas?|en\s+aceite|de\s+aceite)\b/iu;
+const FQ_OTHER = /\b(?:tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|tostadas?|menudos?|enchiladas?|tamales?)\b/iu;
+const FQ_OPT: Array<[string, string]> = [
+  ["bistec", "Bistec / Steak"], ["asada", "Bistec / Steak"], ["steak", "Bistec / Steak"],
+  ["picadillo", "Picadillo / Ground Beef with Potatoes"], ["chorizo", "Chorizo / Mexican Sausage"],
+  ["pollo", "Pollo / Chicken"], ["chicken", "Pollo / Chicken"], ["carnitas", "Carnitas / Pulled Pork"],
+  ["cabeza", "Cabeza / Beef Head"], ["buche", "Buche / Pork Stomach"], ["lengua", "Lengua / Beef Tongue"],
+  ["tripa", "Tripa / Beef Tripe"], ["prensado", "Prensado / Spicy Pork"], ["duro", "Duro / Pork Rinds"],
+  ["pastor", "Alpastor / Roasted Pork"], ["alpastor", "Alpastor / Roasted Pork"], ["costilla", "Costilla / Beef Rib"],
+  ["deshebrada", "Deshebrada / Shredded Beef with Potatoes"], ["nopales", "Nopales con Papas / Cacti with Potatoes"],
+];
+const fqOpt = (key: string) => FQ_OPT.find(([k]) => k === key)?.[1] || "";
+const FQ_MEAT_RE = FQ_OPT.map(([k]) => k).join("|");
+type FqWant = { key: string; meat: string; qty: number; sinSalsa: boolean };
+function fqCounts(text: string): Array<{ key: string; qty: number }> {
+  const p = plain(text);
+  const out: Array<{ key: string; qty: number }> = [];
+  const re = new RegExp(`\\b(${NUMW})\\s+(?:orden(?:es)?\\s+de\\s+)?(?:quesadillas?\\s+(?:doradas?|fritas?)\\s+)?de\\s+(${FQ_MEAT_RE})\\b`, "g");
+  for (const m of p.matchAll(re)) {
+    const qty = numOf(m[1]); const key = meatIn(m[2]) || m[2];
+    if (qty >= 1 && qty <= 20 && fqOpt(key)) out.push({ key, qty });
+  }
+  return out;
+}
+function fqYes(text: string): boolean {
+  const q = plain(text);
+  return /^(?:si|yes|yeah|claro|ok|okay|todas|todos|ambas|ambos|las dos|los dos)\b/.test(q) && !/\b(?:no|normal|regular)\b/.test(q);
+}
+/** Fried-quesadilla meat lines from the call, or null when this isn't that order (a multi-group "N en aceite" recap stays with qdGroups). */
+export function friedQuesadillaWants(turns: Turn[]): { deluxe: boolean; lines: FqWant[] } | null {
+  if (!Array.isArray(turns) || qdGroups(turns).length) return null;
+  const by = new Map<string, FqWant>();
+  let fried = false;
+  const refused = (i: number) => {
+    const staff = turns.slice(i + 1, i + 5).find((t) => t.speaker === "staff");
+    return !!staff && /^\W*no\b/iu.test(staff.text) && !/\b(?:si|tenemos|tengo)\b/.test(plain(staff.text));
+  };
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker === "caller" && /\bquesadillas?\b/iu.test(t.text) && FQ_MARK.test(t.text) && !refused(i)) fried = true;
+    if (!fried && t.speaker === "staff" && /\bquesadillas?\b/iu.test(t.text) && FQ_MARK.test(t.text)) {
+      const nx = turns.slice(i + 1).find((x) => x.speaker === "caller");
+      if (nx && fqYes(nx.text)) fried = true;
+    }
+    if (!fried || t.speaker !== "caller") continue;
+    if (isAvailabilityAsk(t.text)) continue;
+    if (FQ_PLATTER.test(t.text) && !/\bquesadillas?\b/iu.test(t.text)) { fried = false; continue; }
+    if (FQ_OTHER.test(t.text) && !/\bquesadillas?\b|\bfritas?\b|\bdoradas?\b|\baceite\b/iu.test(t.text)) { fried = false; continue; }
+    const note = /\bsin\s+salsa\b|\bno\s+salsa\b|\bwithout\s+salsa\b|\bno\s+sauce\b/iu.test(t.text);
+    const parts = note ? t.text.split(/\bsin\s+salsa\b|\bno\s+salsa\b|\bwithout\s+salsa\b|\bno\s+sauce\b/iu) : [t.text];
+    const before = fqCounts(parts[0] || "");
+    const after = note ? fqCounts(parts.slice(1).join(" ")) : [];
+    if (note) for (const w of by.values()) w.sinSalsa = true;
+    for (const c of before) by.set(c.key, { key: c.key, meat: fqOpt(c.key), qty: c.qty, sinSalsa: note || !!by.get(c.key)?.sinSalsa });
+    for (const c of after) {
+      const prev = by.get(c.key);
+      if (prev) by.set(c.key, { ...prev, qty: c.qty });
+      else by.set(c.key, { key: c.key, meat: fqOpt(c.key), qty: c.qty, sinSalsa: false });
+    }
+  }
+  const lines = [...by.values()];
+  if (!lines.length) return null;
+  let deluxe = false;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker === "caller" && /\b(?:preparad[oa]s?|deluxe)\b/iu.test(t.text) && !/\b(?:normal|regular|sencill)/iu.test(t.text)) deluxe = true;
+    if (t.speaker === "caller" && /\b(?:normal(?:es)?|regular(?:es)?|sencill[ao]s?)\b/iu.test(t.text) && !/\b(?:preparad|deluxe)\b/iu.test(t.text)) deluxe = false;
+    if (t.speaker !== "staff" || !/\b(?:preparad[oa]s?|deluxe)\b/iu.test(t.text) || !/\?/.test(t.text)) continue;
+    const nx = turns.slice(i + 1).find((x) => x.speaker === "caller");
+    if (!nx) continue;
+    if (fqYes(nx.text)) deluxe = true;
+    if (/\b(?:normal|regular|sencill)/iu.test(nx.text) && !/\b(?:preparad|deluxe)\b/iu.test(nx.text)) deluxe = false;
+  }
+  return { deluxe, lines };
+}
+/** Rebuild a fritas / fritas-doradas / preparadas order as QD lines. Spoken "taco dorado" stays the platter. */
+export function applyFriedQuesadillaTicket(cart: any[], turns: Turn[]): boolean {
+  const want = friedQuesadillaWants(turns);
+  if (!want || !Array.isArray(cart)) return false;
+  const id = want.deluxe ? FQ_TICKET_DLX : FQ_TICKET_REG;
+  const style = want.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada";
+  const platter = turns.some((t) => t.speaker === "caller" && FQ_PLATTER.test(t.text) && !isAvailabilityAsk(t.text));
+  const askedShell = turns.some((t) => t.speaker === "caller" && /\bquesadillas?\b/iu.test(t.text) && /\b(?:comal|harina|taquer[oa]s?|street|masa)\b/iu.test(t.text) && !FQ_MARK.test(t.text));
+  let ch = false;
+  if (!platter) for (let i = cart.length - 1; i >= 0; i--) if (/^sq-tacos-dorados-/i.test(String(cart[i]?.itemId))) { cart.splice(i, 1); ch = true; }
+  if (!askedShell) for (let i = cart.length - 1; i >= 0; i--) if (cart[i]?.itemId === FQ_TICKET_Q) { cart.splice(i, 1); ch = true; }
+  const keyOf = (l: any) => meatOfLine(l);
+  const meatsOf = (l: any) => (l.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step))).map((m: any) => meatIn(plain(m.option))).filter(Boolean);
+  const wantKeys = new Set(want.lines.map((w) => w.key));
+  const keep = new Set<any>();
+  for (const w of want.lines) {
+    let line = cart.find((l) => !keep.has(l) && (l.itemId === FQ_TICKET_DLX || l.itemId === FQ_TICKET_REG) && keyOf(l) === w.key && meatsOf(l).length === 1);
+    if (!line) {
+      line = { itemId: id, quantity: w.qty, modifiers: [{ step: "(QD) Style", option: style }, { step: "(B) Q Carnes / Meats", option: w.meat }], readback: `${w.qty} quesadilla dorada ${want.deluxe ? "deluxe" : "regular"}` };
+      cart.push(line); ch = true;
+    } else {
+      if (line.itemId !== id || line.quantity !== w.qty) { line.itemId = id; line.quantity = w.qty; ch = true; }
+      const mods = [{ step: "(QD) Style", option: style }, { step: "(B) Q Carnes / Meats", option: w.meat }];
+      if (JSON.stringify(line.modifiers) !== JSON.stringify(mods)) { line.modifiers = mods; ch = true; }
+    }
+    const notes = (line.elviNotes || []).filter((n: string) => n !== "sin salsa");
+    if (w.sinSalsa) notes.push("sin salsa");
+    if (JSON.stringify(notes) !== JSON.stringify(line.elviNotes || [])) {
+      if (notes.length) line.elviNotes = notes; else delete line.elviNotes;
+      ch = true;
+    }
+    keep.add(line);
+  }
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const l = cart[i];
+    if (keep.has(l) || (l.itemId !== FQ_TICKET_DLX && l.itemId !== FQ_TICKET_REG)) continue;
+    const ms = meatsOf(l);
+    if (ms.length && ms.every((k: string) => wantKeys.has(k))) { cart.splice(i, 1); ch = true; }
+  }
+  return ch;
+}
+
 // ---- pancho-consome1 (CA35a4a93): "que sean dos consomé y una birria nomás" = 2 consomés TOTAL counting the one the birria
 // includes → birria + 1 extra SOLO 16oz consomé. The last settled count replaces earlier ones.
 const CONS_TOTAL = new RegExp(`(?<![\\p{L}\\d])(${NUMW})\\s+consom[eé]s?(?:\\s+y)?\\s+(${NUMW})\\s+birrias?\\b|(?<![\\p{L}\\d])(${NUMW})\\s+birrias?\\s+y\\s+(${NUMW})\\s+consom[eé]s?\\b`, "giu");

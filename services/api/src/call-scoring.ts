@@ -12,7 +12,7 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -315,6 +315,8 @@ export const REMOVAL_NOTES: Array<{ re: RegExp; note: string }> = [
   { re: /queso\s*fresco|fresco\s*cheese/i, note: "no queso fresco" },
   { re: /frijoles?|beans/i, note: "no frijoles" },
   { re: /arroz|rice/i, note: "no arroz" },
+  // "sin salsa" / "no salsa" is a line note (the salsa is left off), not a new salsa item
+  { re: /salsa|sauce/i, note: "sin salsa" },
   // daniel2: "nada de verduras" / "así solitos" / staff "no verdura"
   { re: /verduras?|vegetables?|veggies?/i, note: "no verdura" },
 ];
@@ -625,6 +627,8 @@ export function rewriteCallerText(text: string): string {
   s = s.replace(/\bchicharr[oó]n\s+(prensado|duro)\b/giu, "$1");
   // jorge1: reject-comal "tiene fritas en aceite" / "fritas de aceite" → doradas cue (aceite1 / pendingQuesadilla)
   s = s.replace(/\b(?:tiene\s+)?fritas?\s+(?:en|de)\s+aceite\b/giu, "doradas de aceite");
+  // quesadillas fritas = the fried quesadilla (QD), same cue as doradas — not a street quesadilla and not Tacos Dorados
+  s = s.replace(/\b(quesadillas?)\s+fritas?\b/giu, "$1 doradas");
   // ca537a80: "sí, tiene quesadillas en aceite" → doradas order cue (not victor1 avail drop)
   s = s.replace(/\b(?:s[ií][,.]?\s+)?tiene\s+quesadillas?\s+(?:en|de)\s+aceite\b/giu, "quesadillas doradas de aceite");
   // ca537a80: ASR "Para la." (cut-off preparada) after style ask — bare fragment
@@ -3533,6 +3537,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const dishOf = (text: string) => {
       // carlos-qd1: "quesadillas de aceite" avail → stamp doradas onto the following qty order
       if (/\bquesadillas?\b/iu.test(text) && /\baceite\b/iu.test(text)) return "quesadillas doradas";
+      // "¿tienes quesadillas fritas?" is the fried quesadilla, same as doradas / en aceite — not a plain quesadilla
+      if (/\bquesadillas?\b/iu.test(text) && /\bfritas?\b/iu.test(text) && !/\btacos?\s+dorados?\b/iu.test(text)) return "quesadillas doradas";
       if (/\bquesadillas?\s+doradas?\b/iu.test(text) || (/\bdoradas?\b/iu.test(text) && /\bquesadillas?\b/iu.test(text))) return "quesadillas doradas";
       if (/\btacos?\s+(?:al|de)\s+vapor\b|\btacos?\s+sudad|\btacos?\s+de\s+canasta\b|\bsteamed\s+tacos?\b/iu.test(text)) return "tacos al vapor";
       return (text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?|plates?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu) || [])[1] || "";
@@ -3597,8 +3603,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && /^\W*(?:(?:no|s[ií]|las?|los?|unas?)\s*,?\s*)?(regular(?:es)?|preparad[oa]s?|deluxe)\W*$/iu.test(prev.text);
     const orderAfterStyle = styleOnlyPrev && t.speaker === "caller"
       && (/\bdoradas?\b/iu.test(t.text) || /\bquesadillas?\b/iu.test(t.text) || listedMeats(t.text).length > 0);
+    // "Sin salsa" is a note on what is already ordered. Don't glue the next "y dos de picadillo" onto it.
+    const noteOnly = (s: string) => removalNotesIn(s).length > 0 && !listedMeats(s).length
+      && !/\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|sopes?|huaraches?|tostadas?)\b/iu.test(s);
+    const meatOrder = (s: string) => /\b(?:y\s+)?(?:\d+|dos|tres|cuatro|cinco|seis|siete|ocho|una?|one|two|three|four)\s+de\s+\p{L}/iu.test(s);
     if (prev && prev.speaker === "caller" && t.speaker === "caller" && !(prev as any).availOnly && !(t as any).availOnly
       && !isClosing(t.text) && !joseOrderFollow && !orderAfterStyle
+      && !(noteOnly(prev.text) && meatOrder(t.text))
       && !/\b(?:poner(?:me)?|pone(?:r)?|ponga|dar(?:me)?|hacer(?:me)?|quiero|quisiera|agregar|add|get)\s+(?:me\s+)?(?:otr[ao]\s+(?:orden|pedido|plato)|another\s+(?:order|plate))\b/iu.test(t.text) // rodolfo2: "¿me puede poner otra orden más?" starts its own turn ("En otra orden," fragments still glue — agustin1)
       && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
@@ -7860,6 +7871,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // chips + bare "dip" / staff "deep in chips" → guacamole dip; "N Mexican Cokes" → N Coca Cola.
     if (applyStreetCornDoradoOrder(cart as any[], origTurns as any[], (menu2 || []) as any[]))
       steps.push({ source: "end-street-corn-dorado", heard: "street corn / taco dorado / guacamole dip / mexican coke" });
+    // quesadillas fritas / fritas doradas / preparadas deluxe → QD (not the platter, not QST)
+    if (applyFriedQuesadillaTicket(cart as any[], origTurns as any))
+      steps.push({ source: "end-fried-quesadilla", heard: "quesadillas fritas / preparadas deluxe" });
     // Staff "N de A y M de B" + caller "sí" rebuilds those tacos (and staff "de comal" is the tortilla).
     // Runs after a same-turn "X, no, …" so a false meat-cancel cannot leave the cart empty.
     if (menu2 && applyAffirmedMeatRecap(cart as any[], origTurns as any, menu2 as any[]))

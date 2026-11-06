@@ -1,0 +1,22 @@
+{
+  "callSid": "CAa3f533fe0e585fab786b2d6a700488f5",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis.", "language": "es" },
+    { "speaker": "caller", "text": "¿Tienes quesadillas fritas?", "language": "es" },
+    { "speaker": "staff", "text": "Sí, tenemos.", "language": "es" },
+    { "speaker": "caller", "text": "¿Me pones dos de bistec, por favor?", "language": "es" },
+    { "speaker": "staff", "text": "Dos quesadillas, ¿me dijiste fritas doradas?", "language": "es" },
+    { "speaker": "caller", "text": "Sí, todas.", "language": "es" },
+    { "speaker": "staff", "text": "De bistec, ¿te gustarían preparadas?", "language": "es" },
+    { "speaker": "caller", "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "text": "¿Las dos?", "language": "es" },
+    { "speaker": "caller", "text": "Sí.", "language": "es" },
+    { "speaker": "caller", "text": "Sin salsa,", "language": "es" },
+    { "speaker": "caller", "text": "y dos de picadillo, por favor.", "language": "es" },
+    { "speaker": "staff", "text": "¿Y los de picadillo también preparadas deluxe?", "language": "es" },
+    { "speaker": "caller", "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "text": "¿A nombre de quién?", "language": "es" },
+    { "speaker": "caller", "text": "Yo, sí.", "language": "es" },
+    { "speaker": "staff", "text": "Yo sí.", "language": "es" }
+  ]
+}

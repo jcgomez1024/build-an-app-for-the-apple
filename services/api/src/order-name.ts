@@ -272,6 +272,8 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     let lastCaller: string | null = null;
     let spelledCaller: string | null = null;
     let staffEcho: string | null = null;
+    let yoSiCaller = false, yoSiStaff = false;
+    const yoSiPair = (s: string) => /^(?:yo si|yosi)$/.test(String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim());
     let staffEchoHits = 0;
     let aNombreDe: string | null = null;
     let fullCaller: string | null = null;
@@ -279,6 +281,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       // juan9 (CA170467, Oct 31 6:57 PM ET): "Así es." confirming staff's readback is not a name answer
       if (t.speaker === "caller" && /^\s*(?:as[ií]\s+es|eso\s+es|correcto|exacto|perfecto|est[aá]\s+bien|de\s+acuerdo)\b[\s.,!¡]*$/iu.test(t.text)) continue;
       if (t.speaker === "caller") {
+        if (yoSiPair(t.text)) yoSiCaller = true;
         const spelled = nameFromSpelledLetters(t.text);
         let n = spelled || nameFromAnswer(t.text);
         // suleika1: after ¿Tu nombre?, "¿Zuleika?" is the answer (gino1 bare ¿Guino? only blocked outside ask)
@@ -300,6 +303,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
       // "Name, okey/okay", "Name. Capital…", "Name, Name.", "Name, dame … minutos",
       // or mid-turn "Okay, muy bien, Name. Dame unos minutos."
       if (t.speaker === "staff") {
+        if (yoSiPair(t.text)) yoSiStaff = true;
         const echo =
           t.text.match(/^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)(?:\s*,\s*\1(?![\p{L}])|\s*,\s*(?:okey|okay|ok|listo|bueno|perfecto|muy\s+bien)\b|\s*[.]\s+[\p{Lu}]|\s*,\s*(?:dame|deme)\s+(?:unos?\s+)?(?:\p{L}+\s+)?minutos)/u) ||
           t.text.match(/^\s*(?:ok(?:ay)?|okay|s[ií]|yes|muy\s+bien)\s*,?\s+(?:muy\s+bien\s*,?\s+)?([\p{Lu}][\p{Ll}áéíóúñ]+)(?![\p{L}])/iu) ||
@@ -320,6 +324,9 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
         }
       }
     }
+    // yosi: ASR splits a short name as "Yo, sí" and staff reads the same pair back ("Yo sí") — join the syllables.
+    // A bare "sí" is still just yes. Without the staff echo, "yo sí" is not saved.
+    if (yoSiCaller && yoSiStaff && !lastCaller && !spelledCaller && !aNombreDe) return "Yosi";
     // joel1: spelled "J O E L" beats staff mis-repeat Joey/Jane (close-stem would otherwise win)
     if (spelledCaller) return spelledCaller;
     // carlos1: "A nombre de X" beats a later junk/gratitude turn
