@@ -1,0 +1,17 @@
+{
+  "callSid": "CA0655b2bcc084b0534a0b4abbddbd56e4",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, buenas tardes." },
+    { "speaker": "caller", "text": "Podría poner una orden para recoger, por favor." },
+    { "speaker": "caller", "text": "Señorita, sí, escucha, me puede poner tres pozoles, por favor." },
+    { "speaker": "staff", "text": "¿Tres pozoles?" },
+    { "speaker": "caller", "text": "Por favor, sí." },
+    { "speaker": "staff", "text": "Le tengo tres pozoles." },
+    { "speaker": "caller", "text": "Es todo, señorita." },
+    { "speaker": "staff", "text": "Al nombre de Luis, ¿verdad?" },
+    { "speaker": "caller", "text": "No, de, de, de, de Martín." },
+    { "speaker": "staff", "text": "Martín." },
+    { "speaker": "caller", "text": "Sí." },
+    { "speaker": "staff", "text": "Hasta luego." }
+  ]
+}

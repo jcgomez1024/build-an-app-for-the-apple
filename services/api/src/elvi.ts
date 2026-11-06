@@ -29,6 +29,7 @@ import { cachedAppQuote as cachedQuote, quoteAppAddress as quoteDeliveryAddress 
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
 import { preTurn, answerPick as chicharronAnswerPick } from "./pre-turn.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
+import { isClosingFragment, menuQueryForMatch } from "./retain-spoken.js";
 import { resolveEspecialRequest } from "./especial-resolver.js";
 import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { getComboGuide, evaluateGuideText, guideQuestion, SKIP_REST, type GuideFill, bothMeatQuestion, otherMeatQuestion, BOTH_MEAT_Q, OTHER_MEAT_Q, YES_ANSWER, NO_ANSWER } from "./guides.js";
@@ -730,6 +731,7 @@ export function dishNamedIn(item: any, text: string): boolean {
 }
 export async function guardClaimedAdds(result: ElviResponse, transcript: string, language: Language, menu: MenuItem[] = [], history?: ConversationTurn[]): Promise<ElviResponse> {
   if (result.pendingGuides?.length) return result;
+  const heardNow = transcript;
   // Answering a build question ("Carne 1: elige una" → "2 pastor y 2 asada"): read it with the dish it answers.
   const turns: any[] = history || [];
   const lastBot = [...turns].reverse().find((t) => t.role === "assistant");
@@ -745,10 +747,10 @@ export async function guardClaimedAdds(result: ElviResponse, transcript: string,
         const since: string[] = [];
         for (let k = turns.length - 1; k >= 0; k--) {
           if (turns[k].role === "assistant" && /^(added|agregado)\b/i.test(String(turns[k].text || ""))) break;
-          if (turns[k].role === "customer") since.unshift(String(turns[k].text || ""));
+          if (turns[k].role === "customer" && !isClosingFragment(String(turns[k].text || ""))) since.unshift(String(turns[k].text || ""));
           if (since.length >= 4) break;
         }
-        transcript = `${since.join(" ")} ${transcript}`;
+        if (!isClosingFragment(transcript)) transcript = `${since.join(" ")} ${transcript}`.trim();
       }
     }
   }
@@ -771,10 +773,12 @@ export async function guardClaimedAdds(result: ElviResponse, transcript: string,
   const saysMissing = /\b(not on (our|the) menu|don'?t have|not available|no (lo |la )?tenemos|no est[aá] (en el men[uú]|disponible))\b/i.test(reply);
   const emptyOrClaim = bareAdds.length > 0 || !reply || saysMissing || reply.split(/\s+/).length <= 6;
   if (!emptyOrClaim) return result;
+  if (isClosingFragment(heardNow)) return result;
   // Ask the same menu resolver the web uses whether the item exists before calling it unavailable.
   let resolved: any = null;
   try {
-    const req: any = { text: transcript, language, actionHint: "add_item", toolArgs: { itemQuery: transcript }, cart: [] };
+    const query = menuQueryForMatch(transcript);
+    const req: any = { text: query, language, actionHint: "add_item", toolArgs: { itemQuery: query }, cart: [] };
     resolved = resolvePackMealRequest(pinnedMenu(req.text, menu) as any, req) || resolveEspecialRequest(pinnedMenu(req.text, menu) as any, req) || resolveMenuRequest(pinnedMenu(req.text, menu) as any, req);
     resolved = completeWithSiteDefaults(resolved, menu, transcript);
     resolved = variationQuestion(resolved, menu, transcript, language);

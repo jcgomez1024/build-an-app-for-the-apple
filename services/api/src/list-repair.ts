@@ -1609,15 +1609,50 @@ export function liveMenudoSplit(r: any, input: any) {
   for (const [p, q] of [[true, sp.con], [false, sp.reg]] as Array<[boolean, number]>) if (q > 0) out.push({ type: "add_item", ...menLine(p, q, like) });
   return { ...r, actions: out };
 }
-/** ulises1: "verdura aparte" / "cebolla y cilantro … aparte" → "verdura aparte" note on the food lines (after-call). */
+/** ulises1: "verdura aparte" / "cebolla y cilantro … aparte" → note on the dish it was said about, not every other line. */
 const VERD_APARTE = /\b(?:verduras?|cebolla(?:\s+y\s+cilantro)?|cilantro(?:\s+y\s+cebolla)?)\b[^.]{0,40}\b(?:aparte|por\s+separado|on\s+the\s+side)\b|\b(?:aparte|por\s+separado)\b[^.]{0,15}\b(?:la\s+|las\s+)?(?:verduras?|cebolla|cilantro)\b/iu;
 const VERD_FOOD = /^sq-(?:torta|taco|quesadilla|qd-|gordita|sope|burrito|tostada|huarache|combo-tortas|combo-tacos)/;
+const VERD_FAM: Array<[RegExp, RegExp]> = [
+  [/\btortas?\b/iu, /^sq-torta/],
+  [/\bquesadillas?\b|\bdoradas?\b|\bqd\b/iu, /^sq-(?:quesadilla|qd-)/],
+  [/\btacos?\b/iu, /^sq-taco/],
+  [/\bgorditas?\b/iu, /^sq-gordita/],
+  [/\bsopes?\b/iu, /^sq-sope/],
+  [/\bburritos?\b/iu, /^sq-burrito/],
+  [/\b(?:huaraches?|guaraches?)\b/iu, /^sq-huarache/],
+  [/\btostadas?\b/iu, /^sq-tostada/],
+];
+const verdHit = (text: string) => VERD_APARTE.test(text) || (/\bverduras?\b/iu.test(text) && /\baparte\b/iu.test(text));
+const verdFams = (text: string) => VERD_FAM.filter(([w]) => w.test(plain(text))).map(([, id]) => id);
 export function applyVerduraAparte(cart: any[], turns: Turn[]): boolean {
-  const ct = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text));
-  const idx = ct.findIndex((x) => VERD_APARTE.test(x) || (/\bverduras?\b/iu.test(x) && /\baparte\b/iu.test(x))); if (idx < 0) return false;
-  const lines = cart.filter((l) => VERD_FOOD.test(String(l.itemId))); if (!lines.length) return false;
+  const callers = turns.filter((t) => t.speaker === "caller");
+  if (!callers.some((t) => verdHit(String(t.text)))) return false;
+  const targets = new Set<any>();
+  let scoped = false;
+  callers.forEach((t, k) => {
+    if (!verdHit(String(t.text))) return;
+    let fams = verdFams(plain(t.text));
+    if (!fams.length) for (let j = k - 1; j >= 0 && !fams.length; j--) fams = verdFams(plain(callers[j].text));
+    if (!fams.length) {
+      const present = VERD_FAM.map(([, id]) => id).filter((id) => cart.some((l) => id.test(String(l.itemId))));
+      if (present.length === 1) fams = present;
+    }
+    if (!fams.length) return;
+    scoped = true;
+    const meat = meatIn(plain(t.text));
+    for (const l of cart) if (VERD_FOOD.test(String(l.itemId)) && fams.some((f) => f.test(String(l.itemId)))) {
+      if (meat && meatOpt(l) && meatOpt(l) !== meat) continue;
+      targets.add(l);
+    }
+  });
+  if (!scoped) return false;
   let ch = false;
-  for (const l of lines) if (!(l.elviNotes || []).includes("verdura aparte")) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
+  for (const l of cart) {
+    if (!VERD_FOOD.test(String(l.itemId))) continue;
+    const has = (l.elviNotes || []).includes("verdura aparte");
+    if (targets.has(l) && !has) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
+    else if (!targets.has(l) && has) { l.elviNotes = (l.elviNotes || []).filter((n: string) => n !== "verdura aparte"); if (!l.elviNotes.length) delete l.elviNotes; ch = true; }
+  }
   return ch;
 }
 
