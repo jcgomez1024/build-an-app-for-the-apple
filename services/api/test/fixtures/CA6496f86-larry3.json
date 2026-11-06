@@ -1,0 +1,13 @@
+{
+  "callSid": "CA6496f86d1bfa6da8a7a66ba2c04108aa",
+  "name": "Larry",
+  "note": "English pickup. One caller-channel list: 4 grande steak burritos, 6 steak quesadillas, 2 steak street tacos, then 2 peppers. Not a one-call special case. Not the earlier larry2 call.",
+  "turns": [
+    { "speaker": "caller", "start": 2.0, "end": 6.0, "text": "Hey, pickup for Larry.", "language": "en" },
+    { "speaker": "caller", "start": 8.0, "end": 28.0, "text": "Can I get four of your grande burritos. Yep, cuatro, yep. With everything on em. Steak. Then can I get six of your steak quesadillas? Yep. Yep. And then two of your steak street tacos. Yep.", "language": "en" },
+    { "speaker": "caller", "start": 30.0, "end": 34.0, "text": "And then, two of the peppers.", "language": "en" },
+    { "speaker": "caller", "start": 35.0, "end": 37.0, "text": "Yes, ma'am. All right.", "language": "en" },
+    { "speaker": "caller", "start": 38.0, "end": 41.0, "text": "No, ma'am, that's it today.", "language": "en" },
+    { "speaker": "staff", "start": 42.0, "end": 46.0, "text": "Okay, Larry, about fifteen minutes.", "language": "en" }
+  ]
+}

@@ -91,6 +91,8 @@ export function normalizeSpokenCatalogAliases(text: string) {
     .replace(/\bquesi[bv]irrias?\b/gi, "Queso Birrias")
     .replace(/\bquesadillas?\s+de\s+birria\b/gi, "Queso Birrias")
     // larry1: grilled onions and peppers side = Extras "Cebolla y Chiles Asados".
+    // Bare "two of the peppers" after food is that same side (not a new pepper SKU, not chiles rellenos).
+    .replace(/\b(\d+|one|two|three|four|five|six|dos|tres|cuatro|cinco|seis)\s+of\s+(?:the|your|those)\s+peppers?\b/gi, "$1 cebolla y chiles asados")
     .replace(/\b(?:grilled\s+)?onions?\s+(?:and|&|y)\s+(?:green\s+)?peppers?\b|\bcebollas?\s+y\s+chiles?(?:\s+asados?)?\b/gi, "cebolla y chiles asados")
     // cheyenne1: "hecha a mano" / "de hecha mano" / "handmade" = the Comal (homemade) tortilla
     .replace(/(?:(?:de\s+)?(?:la\s+)?(?:tortilla\s+)?(?:grande\s+)?)?\bhech[oa]s?\s+(?:a\s+)?mano\b|\bhand\s*-?\s*made\b|\bmade\s+by\s+hand\b/gi, "de comal")

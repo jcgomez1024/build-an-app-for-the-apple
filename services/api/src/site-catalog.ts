@@ -785,7 +785,30 @@ export const meatOptSaid = (optName: string, said: string) => {
   return false;
 };
 const dishNoun = (m: any) => String(m?.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\(.*?\)/g, " ").trim().split(/\s+/).find((w: string) => w.length >= 4) || "";
-/** fix_uriel: the part of the sentence that belongs to this dish — clauses split on y/and/commas/periods; a clause with no
+const DISH_WORD = /\b(tacos?|tortas?|quesadillas?|gorditas?|burritos?|sopesa[sz]os?|sopes?|huaraches?|doradas?|pambazos?|enchiladas?|tostadas?|flautas?|nachos)\b/giu;
+/** One spoken clause per dish. "then" / "and" / a second dish noun each start a new clause, so
+ * "four grande burritos then six steak quesadillas and two steak street tacos" is three orders. */
+export function dishClauses(text: string): string[] {
+  const rough = String(text || "").split(/\s*(?:[,.;!?]|\by\b|\band\b|\bthen\b)\s*/).map((s) => s.trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const seg of rough) {
+    const ms = [...seg.matchAll(new RegExp(DISH_WORD.source, "giu"))];
+    if (ms.length < 2) { out.push(seg); continue; }
+    const cuts = [0];
+    for (let i = 1; i < ms.length; i++) {
+      const prevEnd = (ms[i - 1].index || 0) + ms[i - 1][0].length;
+      const lead = seg.slice(prevEnd, ms[i].index);
+      const rel = lead.search(/\b(?:then|also|plus|can\s+i\s+(?:get|have)|let\s+me\s+get|i(?:'ll|\s+will)?\s+(?:get|take|do)|(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|un[ao]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez))\b/iu);
+      cuts.push(rel >= 0 ? prevEnd + rel : (ms[i].index as number));
+    }
+    for (let i = 0; i < cuts.length; i++) {
+      const part = seg.slice(cuts[i], cuts[i + 1] ?? seg.length).trim();
+      if (part) out.push(part);
+    }
+  }
+  return out;
+}
+/** fix_uriel: the part of the sentence that belongs to this dish — clauses split on y/and/then/commas/periods; a clause with no
  * dish noun belongs to the dish named before it. No noun of this dish anywhere → the whole text. */
 export function clauseFor(said: string, item: any, menu: any[]): string {
   const mine = dishNoun(item); if (!mine) return said;
@@ -793,7 +816,7 @@ export function clauseFor(said: string, item: any, menu: any[]): string {
   const has = (seg: string, n: string) => new RegExp(`\\b${n}e?s?\\b`).test(seg);
   if (!has(said, mine)) return said;
   let cur = ""; const out: string[] = [];
-  for (const seg of said.split(/\s*(?:[,.;!?]|\by\b|\band\b)\s*/)) {
+  for (const seg of dishClauses(said)) {
     const n = nouns.filter((x) => has(seg, x)).sort((a, b) => b.length - a.length)[0];
     if (n) cur = n;
     if (cur === mine) out.push(seg);

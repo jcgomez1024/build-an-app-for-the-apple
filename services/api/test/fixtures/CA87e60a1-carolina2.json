@@ -1,0 +1,18 @@
+{
+  "callSid": "CA87e60a1ef610ef57626cf7a49b567bbb",
+  "name": "Carolina",
+  "note": "Spanish pickup. Tres tacos al vapor de papa, then staff explains each orden has five, caller says una orden nada más, staff reads back una orden de tacos al vapor. Not the earlier carolina1 call.",
+  "turns": [
+    { "speaker": "staff", "start": 1.0, "end": 6.0, "text": "Cocina Elvis. Las especiales de hoy son enchiladas y tacos al vapor.", "language": "es" },
+    { "speaker": "caller", "start": 7.0, "end": 14.0, "text": "¿Me puedes poner tres tacos al vapor de papa?", "language": "es" },
+    { "speaker": "staff", "start": 15.0, "end": 17.0, "text": "Tengo la orden.", "language": "es" },
+    { "speaker": "caller", "start": 18.0, "end": 22.0, "text": "¿Cuántos trae por orden y cuánto cuesta?", "language": "es" },
+    { "speaker": "staff", "start": 23.0, "end": 25.0, "text": "Trae cinco.", "language": "es" },
+    { "speaker": "caller", "start": 26.0, "end": 28.0, "text": "Sí, está bien.", "language": "es" },
+    { "speaker": "staff", "start": 29.0, "end": 32.0, "text": "¿Cuántos te pongo? ¿Cuántas órdenes?", "language": "es" },
+    { "speaker": "caller", "start": 33.0, "end": 36.0, "text": "Una orden, nada más.", "language": "es" },
+    { "speaker": "staff", "start": 37.0, "end": 39.0, "text": "¿De papa?", "language": "es" },
+    { "speaker": "caller", "start": 40.0, "end": 42.0, "text": "Sí. Nada más.", "language": "es" },
+    { "speaker": "staff", "start": 44.0, "end": 49.0, "text": "Carolina, entonces tengo una orden de tacos al vapor.", "language": "es" }
+  ]
+}

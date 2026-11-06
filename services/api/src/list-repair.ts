@@ -1,4 +1,5 @@
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
+import { fixBurritoFillings } from "./site-catalog.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -609,7 +610,7 @@ export function applySaidMeat(cart: any[], turns: Turn[], menu: any[]): boolean 
     if (o) { m.option = o; changed = true; } else { l.elviNotes = [...(l.elviNotes || []), want]; changed = true; } }
   return changed;
 }
-const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toreados?|asad[oa]s?)\b|\b(?:toreados?|asados?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b/; // andres-qco1: "chiles y cebolla asada"
+const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toreados?|asad[oa]s?)\b|\b(?:toreados?|asados?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b|\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro|cinco|seis)\s+of\s+(?:the|your|those)\s+peppers?\b/; // andres-qco1: "chiles y cebolla asada"; bare "two of the peppers" after food is the same side
 const ASADOS_STAFF = /\bcebollas? y chiles? asados\b|\b(?:chiles )?toreados\b/;
 const YES = /^(?:si|yes|yeah|ok(?:ay)?|aja|claro|por favor|eso)\b/;
 export const asadosSideSaid = (turns: Turn[]) => turns.some((t, i) => t.speaker === "caller" && (ASADOS_CALLER.test(plain(t.text))
@@ -621,7 +622,10 @@ export function applyAsadosSide(cart: any[], turns: Turn[], menu: any[]): boolea
   const ex = menu.find((m) => (m.modifierGroups || []).some((g: any) => /^extras options$/i.test(g.name) && (g.options || []).some((o: any) => /^cebolla y chiles asados$/i.test(oname(o)))));
   if (!ex) return false;
   // andres-qco1: "seis paquetitos de chiles y cebolla asada" → qty 6
-  let qty = 1; for (const t of turns) { if (t.speaker !== "caller") continue; const m = plain(t.text).match(new RegExp(`\\b(${NUMW})\\s+(?:(?:paquet(?:it)?[oe]s|ordenes|ordenitas?|orders?|bolsitas?)\\s+)?(?:de\\s+)?(?:chil(?:es|itos?)|cebollas?|cebollitas?)\\b`)); if (m && numOf(m[1]) > 1 && numOf(m[1]) <= 12) qty = numOf(m[1]); }
+  let qty = 1; for (const t of turns) { if (t.speaker !== "caller") continue; const p = plain(t.text);
+    const m = p.match(new RegExp(`\\b(${NUMW})\\s+(?:(?:paquet(?:it)?[oe]s|ordenes|ordenitas?|orders?|bolsitas?)\\s+)?(?:de\\s+)?(?:chil(?:es|itos?)|cebollas?|cebollitas?)\\b`))
+      || p.match(new RegExp(`\\b(${NUMW})\\s+of\\s+(?:the|your|those)\\s+peppers?\\b`));
+    if (m && numOf(m[1]) > 1 && numOf(m[1]) <= 12 && !/\brelleno|\bstuffed\b/.test(p)) qty = numOf(m[1]); }
   cart.push({ itemId: ex.id, quantity: qty, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] }); return true;
 }
 /** Live: same three repairs on the turn's add/update actions (menu = input.menu). */
@@ -1322,7 +1326,105 @@ export function liveMultiItem(r: any, input: any) {
       out.push({ type: "add_item", ...tl, readback: `${t.qty} street tacos` }, { ...a, quantity: b.qty }); ch = true; continue; }
     out.push(a);
   }
+  const collapsed = collapseEnglishQuesadillaList(out.filter((a) => a?.type === "add_item"), [{ speaker: "caller", text: String(input?.transcript || "") }], menu);
+  if (collapsed) {
+    const rest = out.filter((a) => a?.type !== "add_item");
+    const adds = collapsed.map((l) => (l?.type === "add_item" ? l : { type: "add_item", itemId: l.itemId, quantity: l.quantity, modifiers: l.modifiers }));
+    return { ...r, actions: [...rest, ...adds] };
+  }
   return ch ? { ...r, actions: out } : r;
+}
+
+// A multi-dish English list ("N grande burritos … N steak quesadillas … N steak street tacos") was rung as
+// quesadillas: the burrito count and the street-taco count became extra quesadilla lines, and "street" stuck to
+// the quesadilla shell. Put each count back on its dish. Bare "N of the peppers" is the asados side (applyAsadosSide).
+const LIST_NUM: Record<string, number> = { one: 1, a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+const listN = (w: string) => LIST_NUM[w] || (/^\d+$/.test(w) ? Number(w) : 0);
+const LIST_COUNT = "\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez";
+type ListHit = { kind: "burrito" | "quesadilla" | "taco"; qty: number; style?: "taquero" | "comal" | "harina"; size?: "grande"; meat: string | null };
+export function englishListHits(text: string): ListHit[] {
+  const p = plain(text);
+  const re = new RegExp(`\\b(${LIST_COUNT})\\s+(?:of\\s+(?:your|the|those)\\s+)?((?:(?:grande|large|big|steak|bistec|flour|harina|homemade|comal|street|taquer[oa]s?)\\s+)*)(burritos?|quesadillas?|tacos?)\\b`, "g");
+  const out: ListHit[] = [];
+  for (const m of p.matchAll(re)) {
+    const qty = listN(m[1]); if (!qty || qty > 20) continue;
+    const adj = m[2] || "";
+    const noun = m[3];
+    const kind: ListHit["kind"] = /^burrito/.test(noun) ? "burrito" : /^quesadilla/.test(noun) ? "quesadilla" : "taco";
+    const style = /\bstreet\b|\btaquer/.test(adj) ? "taquero" as const : /\bcomal\b|\bhomemade\b/.test(adj) ? "comal" as const : /\bflour\b|\bharina\b/.test(adj) ? "harina" as const : undefined;
+    if (kind === "taco" && !style && !/\bstreet\b|\btaquer/.test(p.slice(m.index || 0, (m.index || 0) + m[0].length + 12))) continue;
+    out.push({ kind, qty, style: style || (kind === "taco" && /\bstreet\b|\btaquer/.test(adj + noun) ? "taquero" : undefined), size: /\bgrande\b|\blarge\b|\bbig\b/.test(adj) ? "grande" : undefined, meat: meatIn(adj) || meatIn(p.slice((m.index || 0) + m[0].length, (m.index || 0) + m[0].length + 24)) });
+  }
+  return out;
+}
+const Q_LIST = "sq-quesadilla-HLT6CR", B_LIST = "sq-burrito-TGWBEN", T_LIST = "sq-taco-TAR7L5";
+const isQLine = (l: any) => /^sq-quesadilla-/.test(String(l?.itemId || ""));
+const isBLine = (l: any) => /^sq-burrito-/.test(String(l?.itemId || ""));
+const isTLine = (l: any) => /^sq-taco-/.test(String(l?.itemId || ""));
+const lineQty = (l: any) => Number(l?.quantity) || 1;
+const streetQ = (l: any) => (l.modifiers || []).some((m: any) => /QST|street quesadilla|taquera/i.test(String(m.option)));
+function explainedBy(qtys: number[], b: number, t: number): boolean {
+  return qtys.every((q) => {
+    for (let i = 0; i <= 3; i++) for (let j = 0; j <= 3; j++) if ((i + j) > 0 && (b * i + t * j) === q) return true;
+    return false;
+  });
+}
+/** When quesadilla units are the sum of the spoken quesadillas plus the burrito and street-taco counts, drop the extras. */
+function collapseEnglishQuesadillaList(lines: any[], turns: Turn[], menu: any[]): any[] | null {
+  const hits = turns.filter((t) => t.speaker === "caller").flatMap((t) => englishListHits(t.text));
+  const families = new Set(hits.map((h) => h.kind));
+  if (!families.has("quesadilla") || families.size < 2) return null;
+  const sum = (k: ListHit["kind"]) => hits.filter((h) => h.kind === k).reduce((a, h) => a + h.qty, 0);
+  const qSaid = sum("quesadilla"), bSaid = sum("burrito"), tSaid = sum("taco");
+  const qs = lines.filter(isQLine);
+  const qUnits = qs.reduce((a, l) => a + lineQty(l), 0);
+  if (!(qSaid > 0) || qUnits <= qSaid) return null;
+  const exact = qs.find((l) => lineQty(l) === qSaid);
+  let keep: any[] = [], drop: any[] = [];
+  if (exact && explainedBy(qs.filter((l) => l !== exact).map(lineQty), bSaid, tSaid)) { keep = [exact]; drop = qs.filter((l) => l !== exact); }
+  else {
+    const n = qs.length; let found = false;
+    for (let mask = 1; mask < (1 << n) && n <= 8; mask++) {
+      const k: any[] = [], d: any[] = [];
+      for (let i = 0; i < n; i++) ((mask & (1 << i)) ? k : d).push(qs[i]);
+      if (k.reduce((a, l) => a + lineQty(l), 0) !== qSaid) continue;
+      if (!explainedBy(d.map(lineQty), bSaid, tSaid)) continue;
+      keep = k; drop = d; found = true; break;
+    }
+    if (!found) return null;
+  }
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  const qStyle = hits.filter((h) => h.kind === "quesadilla").some((h) => h.style);
+  for (const l of keep) if (!qStyle && streetQ(l)) l.modifiers = (l.modifiers || []).filter((m: any) => !/QST|street quesadilla|taquera/i.test(String(m.option)));
+  const meatOpt = (l: any) => (l?.modifiers || []).map((m: any) => String(m.option)).find((o: string) => /bistec|steak|pastor|chorizo|pollo|carnitas|lengua|cabeza|tripa/i.test(o));
+  const meatName = hits.find((h) => h.meat)?.meat;
+  const bistec = (step: string) => ({ step, option: "Bistec / Steak" });
+  const droppedT = drop.find((l) => lineQty(l) === tSaid);
+  const out = lines.filter((l) => !drop.includes(l));
+  if (tSaid && out.filter(isTLine).reduce((a, l) => a + lineQty(l), 0) < tSaid) {
+    const opt = meatOpt(droppedT) || (meatName === "bistec" || /\bsteak\b|\bbistec\b/.test(plain(caller)) ? "Bistec / Steak" : "");
+    out.push({ itemId: T_LIST, quantity: tSaid, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, ...(opt ? [{ step: "(B) T Carnes / Meats Opciones", option: opt }] : [])] });
+  }
+  if (bSaid && out.filter(isBLine).reduce((a, l) => a + lineQty(l), 0) < bSaid) {
+    const mods: any[] = [];
+    if (hits.some((h) => h.kind === "burrito" && h.size === "grande")) mods.push({ step: "(A) Burrito Size", option: "Grande '12 (+$3.00)" });
+    if (meatName === "bistec" || /\bsteak\b|\bbistec\b/.test(plain(caller))) mods.push(bistec("(B) Burrito Carne Options"));
+    out.push({ itemId: B_LIST, quantity: bSaid, modifiers: mods });
+  }
+  const burros = out.filter(isBLine);
+  let extraB = burros.reduce((a, l) => a + lineQty(l), 0) - bSaid;
+  if (bSaid && extraB > 0) for (const l of [...burros].reverse()) { if (extraB <= 0) break; if (lineQty(l) <= extraB && burros.length > 1) { out.splice(out.indexOf(l), 1); extraB -= lineQty(l); } }
+  if (/\bwith everything\b|\beverything on\b|\bcon todo\b/.test(plain(caller)) && menu?.length) {
+    const fixed = fixBurritoFillings(out.filter(isBLine).map((l) => ({ type: "add_item", itemId: l.itemId, quantity: l.quantity, modifiers: l.modifiers })), menu, caller, "elvi");
+    fixed.forEach((a: any, i: number) => { const l = out.filter(isBLine)[i]; if (l && a?.modifiers) l.modifiers = a.modifiers; });
+  }
+  return out;
+}
+export function applyCollapsedEnglishList(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const next = collapseEnglishQuesadillaList(cart, turns, menu);
+  if (!next) return false;
+  cart.splice(0, cart.length, ...next);
+  return true;
 }
 
 // julian1 (CAb91612): "cuatro quesadillas de comal, dos de bistec y dos de chorizo" → lines carry the per-meat counts (2+2), never 1+1.

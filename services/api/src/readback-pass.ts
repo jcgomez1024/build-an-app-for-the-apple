@@ -294,9 +294,31 @@ function vaporChunks(text: string): Array<Array<[string, number]>> | null {
   }
   return cur.length || !out.length ? null : out;
 }
+const VAPOR_ORDEN = /\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?\b/giu;
+/** Sellable tacos-al-vapor orders. "N tacos al vapor" is a piece count (each orden is 5), not N orders.
+ * "en una orden me pone…" describes one order's fillings. "una orden, nada más" and staff
+ * "tengo una orden de tacos al vapor" are the order count. */
 export function vaporOrderCount(turns: T): number {
+  if (!turns.some((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text))) return 0;
   let n = 0;
-  for (const t of turns) if (t.speaker === "caller" && VAPOR_WORDS.test(t.text)) for (const m of t.text.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?\b(?:\s+de\s+(?:tacos?\s+)?(?:al\s+vapor|de\s+vapor|sudados?|de\s+canasta))?/giu)) n = Math.max(n, vn(m[1]));
+  let only: number | null = null;
+  let seen = false;
+  for (const t of turns) {
+    if (t.speaker === "caller" && VAPOR_WORDS.test(t.text)) seen = true;
+    if (t.speaker !== "caller" || !seen) continue;
+    const cleaned = t.text.replace(/\ben\s+(?:la\s+|una\s+)?[oó]rden\b/giu, " ");
+    const qs = [...cleaned.matchAll(VAPOR_ORDEN)].map((m) => vn(m[1])).filter((q) => q > 0);
+    if (!qs.length) continue;
+    if (qs.length === 1 && /\b(?:nada\s+m[aá]s|solamente|s[oó]lo|solo|nom[aá]s|only|just)\b/iu.test(t.text)) only = qs[0];
+    else for (const q of qs) n = Math.max(n, q);
+  }
+  if (only != null) n = only;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.speaker !== "staff") continue;
+    const m = t.text.match(/\b(?:entonces\s+)?(?:tengo|son|ser[ií]an?|queda(?:n)?|fueron)\s+(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?\s+de\s+(?:tacos?\s+)?(?:al\s+vapor|de\s+vapor|sudados?|de\s+canasta|steamed\s+tacos?)\b/iu);
+    if (m && vn(m[1])) return vn(m[1]);
+  }
   return n;
 }
 /** Live + replay: rebuild Tacos al Vapor orders (5 per order) from the latest turn whose filling counts split into whole orders. */
@@ -314,8 +336,9 @@ export function applyVaporOrders(cart: any[], turns: T): void {
   const fillRe = /papa|potato|frijol|bean|prensado|pork|pollo|chicken|queso|cheese/i;
   const said = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
   const tortSaid = /\b(?:comal|harina|flour|taquer[oa]s?|street|dorad[oa]s?|hech[oa]s?\s+a\s+mano)\b/iu.test(said);
+  const keptMods: any[] = [];
   for (let i = cart.length - 1; i >= 0; i--) {
-    const l = cart[i]; if (l.itemId === VAPOR_ID) { if (groups || want) cart.splice(i, 1); continue; }
+    const l = cart[i]; if (l.itemId === VAPOR_ID) { if (groups || want) { if (!keptMods.length) keptMods.push(...(l.modifiers || [])); cart.splice(i, 1); } continue; }
     if (tortSaid || !/^sq-taco-/i.test(String(l.itemId))) continue;
     const meats = (l.modifiers || []).map((m: any) => String(m.option)).filter((o: string) => !/^\s*\(T\w*\)|tortilla|salsa|cebolla|cilantro/i.test(o));
     if (meats.every((o: string) => fillRe.test(o))) cart.splice(i, 1);
@@ -330,10 +353,14 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     // chui1: "una orden de tacos al vapor" / "de" / "pollo, por favor" — fillings named without counts after the vapor ask.
     const ci = turns.findIndex((t) => t.speaker === "caller" && VAPOR_WORDS.test(t.text));
     const after = turns.slice(ci).filter((t) => t.speaker === "caller").slice(0, 4).map((t) => t.text).join(" ");
-    const named = VFILL.filter(([, , w]) => new RegExp(`\\b(?:de|con|y|,)\\s+${w === "frijol" ? "frijol(?:es)?" : w === "papa" ? "papas?" : w === "prensado" ? "prensados?" : w}\\b`, "iu").test(after.replace(/[.¿?!]+/g, " ")));
-    const fills = named.map(([, o]) => o);
-    const note = fills.length === 1 ? [`vapor: 5 ${named[0][2]}`] : fills.length ? [`vapor: ${named.map(([, , w]) => w).join(", ")}`] : [];
-    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.slice(0, 3).map((o) => ({ step, option: o })), ...(note.length ? { elviNotes: note } : {}) });
+    const blob = `${after} ${turns.map((t) => t.text).join(" ")}`.replace(/[.¿?!]+/g, " ");
+    const named = VFILL.filter(([, , w]) => new RegExp(`\\b(?:de|con|y|,)\\s+${w === "frijol" ? "frijol(?:es)?" : w === "papa" ? "papas?" : w === "prensado" ? "prensados?" : w}\\b`, "iu").test(blob));
+    let fills = named.map(([, o]) => o);
+    if (!fills.length) fills = keptMods.map((m) => String(m.option)).filter((o) => fillRe.test(o));
+    const wordOf = (o: string) => VFILL.find(([, opt]) => opt === o)?.[2] || "";
+    const words = fills.map(wordOf).filter(Boolean);
+    const note = words.length === 1 ? [`vapor: 5 ${words[0]}`] : words.length ? [`vapor: ${words.join(", ")}`] : [];
+    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.slice(0, 3).map((o: string) => ({ step, option: o })), ...(note.length ? { elviNotes: note } : {}) });
   }
 }
 
