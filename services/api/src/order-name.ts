@@ -807,17 +807,36 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   }
   return null;
 }
-const SELF_NAME = /(?<![\p{L}])(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|this\s+is|my\s+name\s+is|i'?m)\s+(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)?)/giu;
+const SELF_NAME = /(?<![\p{L}])(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|this\s+is|my\s+name\s+is|i'?m)\s+(\p{L}[\p{L}'’-]+)(?:\s+(\p{L}[\p{L}'’-]+))?/giu;
+const INTRO_NOT_NAME = /^(?:with|the|from|for|at|and|of|in|on|to|a|an|de|del|con|para|por|la|el|los|las|un|una|calling|here|just|about)$/iu;
+/** "this is Zander" / "soy Osmar Lira" is a guest name. "this is Demi with the Dollar General" is an affiliation — "with" is not a surname, and the phrase is not a pickup name. */
+export function selfIntroName(text: string): string | null {
+  let found: string | null = null;
+  SELF_NAME.lastIndex = 0;
+  for (const m of String(text || "").matchAll(SELF_NAME)) {
+    const first = m[1];
+    const second = m[2];
+    if (!first || INTRO_NOT_NAME.test(first) || NOT_NAMES.test(first) || NOT_NAME.test(first)) continue;
+    if (second && INTRO_NOT_NAME.test(second)) {
+      if (/\b(?:with|from)\s+(?:the|a|an)\b/iu.test(text)) { found = null; continue; }
+      const n = cleanFullName(first) || first;
+      if (n) found = n;
+      continue;
+    }
+    const raw = second && !INTRO_NOT_NAME.test(second) ? `${first} ${second}` : first;
+    const n = cleanFullName(raw) || raw;
+    if (n && !NOT_NAMES.test(n.split(/\s+/)[0]) && !NOT_NAME.test(n.split(/\s+/)[0])) found = n;
+  }
+  return found;
+}
 /** Names the caller gave as their own ("soy Osmar Lira"), or a name they said that staff then addresses them by.
  *  "a nombre de X" / "para X" are ticket labels, not this. */
 export function callerIdentityName(turns: Array<{ speaker: string; text: string }>): string | null {
   let explicit: string | null = null;
   for (const t of turns) {
     if (t.speaker !== "caller") continue;
-    for (const m of String(t.text || "").matchAll(SELF_NAME)) {
-      const n = cleanFullName(m[1]) || m[1];
-      if (n && !NOT_NAMES.test(n.split(/\s+/)[0]) && !NOT_NAME.test(n.split(/\s+/)[0])) explicit = n;
-    }
+    const n = selfIntroName(String(t.text || ""));
+    if (n) explicit = n;
   }
   if (explicit) return explicit;
   let bare: string | null = null;

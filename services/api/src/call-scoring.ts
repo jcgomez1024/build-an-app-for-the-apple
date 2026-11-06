@@ -15,7 +15,7 @@ import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns
 import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
-import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
+import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
@@ -806,12 +806,16 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
   for (const t of merged) {
     if (t.speaker !== "caller") continue;
     const m = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?)\b[^]*?\b((?:me\s+)?(?:puede|puedes|podr[ií]a|podr[ií]as|pone|pones|manda)\s+(?:(?:preparar|hacer|dar|poner)\s+)?(?:un[oa]?|dos|tres)(?:\s+(?:[oó]rdenes?|orders?))?)\b(?!\s+de\s+)(?!\s+(?:aguas?|horchatas?|jamaicas?|tamarindos?|refrescos?|sodas?|jarritos?|cocas?)\b)/iu); // rodolfo2: drink count
-    if (m) t.text = t.text.replace(m[2], (x) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(x) ? `${x} de ${m[1]}` : `${x} orden de ${m[1]}`);
+    if (m) {
+      // "¿tienes tacos al vapor?" + "dos órdenes" is steamed tacos, not plain tacos
+      const dish = /^tacos?$/i.test(m[1]) && /\b(?:al|de)\s+vapor\b|\bsudad|\bde\s+canasta\b/iu.test(t.text) ? "tacos al vapor" : m[1];
+      t.text = t.text.replace(m[2], (x) => /(?<![\p{L}])[oó]rdenes?(?![\p{L}])/iu.test(x) ? `${x} de ${dish}` : `${x} orden de ${dish}`);
+    }
   }
   { let lastDish = ""; let givenName = "";
     for (const t of merged) { if (t.speaker !== "caller") continue;
       const d = t.text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu);
-      if (d) { lastDish = d[1]; continue; }
+      if (d) { lastDish = /^tacos?$/i.test(d[1]) && /\b(?:al|de)\s+vapor\b|\bsudad|\bde\s+canasta\b/iu.test(t.text) ? "tacos al vapor" : d[1]; continue; }
       { const nm = t.text.match(/\ba\s+nombre\s+de\s+(\p{L}+)/iu); if (nm) givenName = nm[1].toLowerCase();
         const w = t.text.toLowerCase().replace(/[^\p{L}\s]/gu, " ").split(/\s+/).filter(Boolean);
         if (!nm && givenName && w.includes(givenName) && w.every(x => x === givenName || /^(de|aj[aá]|s[ií]|ok(ay)?|es|a|nombre)$/.test(x))) { t.text = ""; continue; } } // desk2: name echo "de julio, ajá"
@@ -879,6 +883,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // juanFollow1: a callback about an order already placed (complaint / address / "mi pedido") — no new cart.
   if (isExistingOrderCall(turns as any))
     return { cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true };
+  // demi1: asked for the person in charge and never named a dish — a false cart (pozole from the intro) is not an order.
+  if (isPersonInChargeCall(turns as any))
+    return { cart: [] as Line[], steps: [{ source: "person-in-charge", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, personInCharge: true };
   // cmissing1: only availability questions + "I'll call you back" / "le hablo luego" — no cart, no final ticket.
   if (isCallBackNoOrder(turns as any))
     return { cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
@@ -984,6 +991,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
       && (restaurantConfirm(text) || sideAnswerTurn(text, recentStaff.slice(-1).join(" ")) || salsaOnlyTurn(text)))
       (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" || (salsaOnlyTurn(text) && a.itemId === EXTRAS_ID) || cart.some((l: any) => l.itemId === a.itemId)); // a re-add of a dish already ordered is an update
+    // demi1: "this is X with the …" and a manager / person-in-charge request name no dish — drop the add.
+    if ((source === "caller" || source === "caller-retry") && nonOrderCallerTurn(text) && Array.isArray((r as any)?.actions))
+      (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item");
     // pedro2 (live): staff already said a dish is out ("no tengo pozole hoy") → no add of it, unless the caller plainly re-orders it;
     // "entonces no quiero nada" → the order so far comes off.
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)) {
@@ -3524,6 +3534,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // carlos-qd1: "quesadillas de aceite" avail → stamp doradas onto the following qty order
       if (/\bquesadillas?\b/iu.test(text) && /\baceite\b/iu.test(text)) return "quesadillas doradas";
       if (/\bquesadillas?\s+doradas?\b/iu.test(text) || (/\bdoradas?\b/iu.test(text) && /\bquesadillas?\b/iu.test(text))) return "quesadillas doradas";
+      if (/\btacos?\s+(?:al|de)\s+vapor\b|\btacos?\s+sudad|\btacos?\s+de\s+canasta\b|\bsteamed\s+tacos?\b/iu.test(text)) return "tacos al vapor";
       return (text.match(/\b(nachos|quesadillas?|tacos?|tortas?|burritos?|gorditas?|sopes?|huaraches?|tostadas?|enchiladas?|tamales|esquites?|menudos?|moles?|platillos?|plates?|c[oó]ctel(?:es)?\s+de\s+camar[oó]n(?:es)?)\b/iu) || [])[1] || "";
     };
     for (let i = 0; i < turns.length; i++) {
