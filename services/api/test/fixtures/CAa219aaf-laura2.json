@@ -1,0 +1,15 @@
+{
+  "callSid": "CAa219aaf09f0f3362c81565b8770aa2eb",
+  "turns": [
+    {"speaker": "staff", "start": 0.4, "end": 2.2, "text": "Cocina Elvis, buenas tardes.", "language": "es"},
+    {"speaker": "caller", "start": 2.8, "end": 6.4, "text": "Cinco gorditas de cuero de chicharrón.", "language": "es"},
+    {"speaker": "staff", "start": 7.0, "end": 10.2, "text": "Muy bien, cinco gorditas de duro.", "language": "es"},
+    {"speaker": "caller", "start": 10.6, "end": 11.2, "text": "Ujú.", "language": "es"},
+    {"speaker": "caller", "start": 12.0, "end": 16.5, "text": "Y tres tacos de costilla, de tortilla normal.", "language": "es"},
+    {"speaker": "staff", "start": 17.0, "end": 18.2, "text": "Del comal.", "language": "es"},
+    {"speaker": "staff", "start": 18.4, "end": 21.0, "text": "¿De tortilla normal? Okey.", "language": "es"},
+    {"speaker": "caller", "start": 21.4, "end": 23.2, "text": "De tortilla normal.", "language": "es"},
+    {"speaker": "staff", "start": 24.0, "end": 32.0, "text": "Laura, entonces le tengo cinco gorditas de duro y tres tacos taqueros de costilla.", "language": "es"},
+    {"speaker": "caller", "start": 32.4, "end": 34.0, "text": "Sí, está bien.", "language": "es"}
+  ]
+}
