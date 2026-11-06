@@ -2360,3 +2360,213 @@ export function applySaidDishMeat(cart: any[], turns: Turn[], menu: any[] = []):
     const line: any = { ...structuredClone(sib), quantity: w.n || 1, modifiers: mods }; delete line.elviNotes; cart.push(line); ch = true; }
   return ch;
 }
+
+// Street corn vs homemade, taco dorado (not a soft taco, not a quesadilla dorada), guacamole dip on a
+// split "chips and guacamole" / "dip" turn, and "N Mexican Cokes" → Coca Cola. General call shapes, not one ticket.
+const SOFT_TACO_ID = /^sq-taco-/i;
+const DORADOS_ID = "sq-tacos-dorados-tacos-dorados-OHFWF3";
+const COCA_ID = "sq-drink-coca-cola-JJE4KC";
+const GUAC_DIPS_ID = "sq-dips-MAIPCN";
+const TST_OPT = "(TST) Taco Taquero / Street Taco";
+const MEAT_LABEL: Record<string, string> = {
+  bistec: "Bistec / Steak", alpastor: "Alpastor / Roasted Pork", costilla: "Costilla / Beef Rib", tripa: "Tripa / Beef Tripe",
+  cabeza: "Cabeza / Beef Head", prensado: "Prensado / Spicy Pork", lengua: "Lengua / Beef Tongue", chorizo: "Chorizo / Mexican Sausage",
+  pollo: "Pollo / Chicken", carnitas: "Carnitas / Pulled Pork", buche: "Buche / Pork Stomach", deshebrada: "Deshebrada / Shredded Beef",
+  picadillo: "Picadillo / Ground Beef",
+};
+const COUNT_WORD: Record<string, number> = { a: 1, an: 1, one: 1, un: 1, una: 1, uno: 1, two: 2, dos: 2, three: 3, tres: 3, four: 4, cuatro: 4, five: 5, cinco: 5, six: 6, seis: 6, seven: 7, siete: 7, eight: 8, ocho: 8, nine: 9, nueve: 9, ten: 10, diez: 10 };
+const countWord = (w: string) => (/^\d+$/.test(w) ? Number(w) : COUNT_WORD[w] || 0);
+const COUNT_RE = "a|an|one|two|three|four|five|six|seven|eight|nine|ten|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\\d+";
+/** "taco dorado" / "chorizo dorado tacos" / "tacos dorados" — not quesadilla "dorada". */
+export function isTacoDoradoPhrase(text: string): boolean {
+  const p = plain(text);
+  if (/\bquesadillas?\b/.test(p) && !/\btacos?\b/.test(p)) return false;
+  return /\btacos?\s+dorados?\b/.test(p) || /\bdorados?\s+tacos?\b/.test(p) || /\b[a-z]+\s+dorado\s+tacos?\b/.test(p);
+}
+/** Caller chose the small corn street taco while staff was contrasting it with homemade. Quesadilla "corn" and a staff "got it, comal" stay comal. */
+export function choseSmallCornStreetTaco(turns: Turn[]): boolean {
+  const staff = turns.filter((t) => t.speaker === "staff").map((t) => plain(t.text)).join(" ");
+  // Homemade (the big comal) was the other choice. "got it, comal" means staff settled comal (eesha1), not the small taco.
+  if (!/\b(?:homemade|hecha a mano|handmade)\b/.test(staff) && !/\bsmall one\b|\bthe small\b/.test(staff)) return false;
+  if (/\bgot it,?\s+comal\b|\bcomal,?\s+got it\b/.test(staff)) return false;
+  let small = false, home = false;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const p = plain(t.text);
+    if (/\b(?:quesadilla|esquite|elote)\b/.test(p)) continue;
+    if (/\b(?:homemade|comal|hecha)\b/.test(p) && !/\b(?:no|not)\b/.test(p)) home = true;
+    if (/\bsmall\b/.test(p) || /\b(?:corn|maiz)\b/.test(p) || /\b(?:street|taquer)/.test(p)) small = true;
+  }
+  return small && !home;
+}
+function softTacoOrders(turns: Turn[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const re = new RegExp(`\\b(${COUNT_RE})\\s+(?:(${Object.keys(MEAT_LABEL).join("|")})\\s+)?tacos?\\b|\\b(${COUNT_RE})\\s+tacos?\\s+(?:of|with|de)\\s+(${Object.keys(MEAT_LABEL).join("|")})\\b`, "g");
+  for (const t of turns) {
+    if (t.speaker !== "caller" || isTacoDoradoPhrase(t.text)) continue;
+    const p = plain(t.text);
+    for (const m of p.matchAll(re)) {
+      const n = countWord(m[1] || m[3] || "");
+      const meat = meatIn(m[2] || m[4] || "") || meatIn(p);
+      if (!n || !meat) continue;
+      out.set(meat, Math.max(out.get(meat) || 0, n));
+    }
+  }
+  return out;
+}
+function tacoDoradoOrders(turns: Turn[]): Array<{ qty: number; meat: string | null; conTodo: boolean }> {
+  if (declinedAsks(turns).some((a) => /dorados/i.test(a.line.source))) return [];
+  const out: Array<{ qty: number; meat: string | null; conTodo: boolean }> = [];
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker !== "caller" || !isTacoDoradoPhrase(t.text) || isAvailabilityAsk(t.text)) continue;
+    const p = plain(t.text);
+    const qm = p.match(new RegExp(`\\b(${COUNT_RE})\\s+(?:[a-z]+\\s+){0,3}?tacos?\\s+dorados?\\b|\\b(${COUNT_RE})\\s+(?:[a-z]+\\s+){0,2}?dorados?\\s+tacos?\\b|\\b(${COUNT_RE})\\s+[a-z]+\\s+dorado\\s+tacos?\\b`));
+    const qty = countWord(qm?.[1] || qm?.[2] || qm?.[3] || "") || 1;
+    const meat = meatIn(p);
+    let conTodo = /\b(?:con todo|with everything|everything)\b/.test(p);
+    const staff = turns.slice(i + 1).find((x) => x.speaker === "staff");
+    if (staff && /\b(?:everything|con todo|lettuce|lechuga|pico|fried meat)\b/.test(plain(staff.text))) {
+      const ans = turns.slice(turns.indexOf(staff) + 1).find((x) => x.speaker === "caller");
+      if (ans && /^(?:yes|yeah|yep|yup|si|ok|okay|please|sure)\b/.test(plain(ans.text))) conTodo = true;
+    }
+    out.push({ qty, meat, conTodo });
+  }
+  return out;
+}
+function bareGuacDip(turns: Turn[]): boolean {
+  let guac = false;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const p = plain(t.text);
+    if (/\bguacamole\b/.test(p) && /\b(?:chips|dip)\b/.test(p)) guac = true;
+    if (/\bchips\b/.test(p) && /\bguacamole\b/.test(p)) guac = true;
+    if (/^(?:the |el )?dip$/.test(p) && (guac || turns.some((s) => s.speaker === "staff" && /\bguacamole\b/.test(plain(s.text))))) return true;
+    if (/\bguacamole\b/.test(p) && /\bdip\b/.test(p)) return true;
+  }
+  const staff = turns.filter((t) => t.speaker === "staff").map((t) => plain(t.text)).join(" ");
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)).join(" ");
+  return /\bguacamole\b/.test(caller) && /\bdip\b/.test(caller)
+    || (/\bguacamole\b/.test(caller) && /\b(?:dip|deep)\b/.test(staff) && /\bchips\b/.test(staff) && /\bguacamole\b/.test(staff) && /\bdip\b/.test(caller));
+}
+function mexicanCokeQty(turns: Turn[]): number {
+  let n = 0;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const p = plain(t.text);
+    if (/\b(?:ya |aqui )?tengo\b/.test(p) && /\b(?:coca|coke)\b/.test(p)) continue;
+    for (const m of p.matchAll(new RegExp(`\\b(${COUNT_RE})\\s+mexican\\s+cokes?\\b`, "g"))) n = Math.max(n, countWord(m[1]) || 1);
+    if (!n && /\bmexican\s+cokes?\b/.test(p)) n = 1;
+  }
+  return n;
+}
+function stampStreetTaco(l: any) {
+  const mods = [...(l.modifiers || [])];
+  let stamped = false;
+  for (let i = 0; i < mods.length; i++) {
+    const blob = `${mods[i].step || ""} ${mods[i].option || ""}`;
+    if (/\(TCO\)|\(THR\)|\(TST\)|Taco Comal|Taco Harina|Taco Taquero|Homemade|Street Taco/i.test(blob) && /tortilla|taco|shell/i.test(blob)) {
+      mods[i] = { ...mods[i], step: mods[i].step || "(A) T Tortilla Options", option: TST_OPT };
+      stamped = true;
+    }
+  }
+  if (!stamped) mods.unshift({ step: "(A) T Tortilla Options", option: TST_OPT });
+  l.modifiers = mods;
+}
+function trimSoftTacos(cart: any[], meat: string, keep: number, maxRemove: number) {
+  const lines = cart.filter((l) => SOFT_TACO_ID.test(String(l.itemId)) && meatOfLine(l) === meat);
+  let sum = lines.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+  let room = Math.min(Math.max(0, sum - keep), Math.max(0, maxRemove));
+  if (!room) return;
+  const ranked = lines.map((l, i) => ({ l, i })).sort((a, b) => (Number(a.l.quantity) || 1) - (Number(b.l.quantity) || 1) || b.i - a.i);
+  for (const { l } of ranked) {
+    if (room <= 0) break;
+    const q = Number(l.quantity) || 1;
+    if (q <= room) { cart.splice(cart.indexOf(l), 1); room -= q; }
+    else { l.quantity = q - room; room = 0; }
+  }
+}
+/** After-call repair for street-corn tacos, taco dorado, guacamole dip, and Mexican Coke. Idempotent. */
+export function applyStreetCornDoradoOrder(cart: any[], turns: Turn[], _menu: any[] = []): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  let changed = false;
+  const street = choseSmallCornStreetTaco(turns);
+  const spoken = softTacoOrders(turns);
+  const dorados = tacoDoradoOrders(turns);
+  const dip = bareGuacDip(turns) && !/\bsalsa\s+(?:de\s+)?guacamole\b/.test(turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)).join(" "));
+  const bareDip = turns.some((t) => t.speaker === "caller" && /^(?:the |el )?dip$/.test(plain(t.text)));
+  if (street) {
+    for (const [meat, n] of spoken) {
+      const haveDorado = cart.filter((l) => String(l.itemId) === DORADOS_ID && (!meat || meatOfLine(l) === meat)).reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+      const maxRemove = Math.max(0, dorados.filter((d) => !d.meat || d.meat === meat).reduce((s, d) => s + d.qty, 0) - haveDorado) + (dip && bareDip ? 1 : 0);
+      if (dorados.length || (dip && bareDip)) trimSoftTacos(cart, meat, n, maxRemove);
+      for (const l of cart) if (SOFT_TACO_ID.test(String(l.itemId)) && meatOfLine(l) === meat) { stampStreetTaco(l); changed = true; }
+    }
+  }
+  for (const d of dorados) {
+    const have = cart.filter((l) => String(l.itemId) === DORADOS_ID && (!d.meat || meatOfLine(l) === d.meat)).reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    if (have >= d.qty) {
+      if (d.conTodo) for (const l of cart) if (String(l.itemId) === DORADOS_ID) {
+        const mods = l.modifiers || (l.modifiers = []);
+        for (const opt of ["Lechuga / Lettuce", "Pico de Gallo"]) if (!mods.some((m: any) => m.option === opt)) { mods.push({ step: "(B) TD Topping Options", option: opt }); changed = true; }
+      }
+      continue;
+    }
+    const mods: any[] = [];
+    if (d.meat && MEAT_LABEL[d.meat]) mods.push({ step: "(A) Nachos Carne Options", option: MEAT_LABEL[d.meat] });
+    if (d.conTodo) mods.push({ step: "(B) TD Topping Options", option: "Lechuga / Lettuce" }, { step: "(B) TD Topping Options", option: "Pico de Gallo" });
+    cart.push({ itemId: DORADOS_ID, quantity: d.qty - have, modifiers: mods, readback: `${d.qty - have} tacos dorados${d.meat ? " " + d.meat : ""}${d.conTodo ? " con todo" : ""}` });
+    changed = true;
+  }
+  if (dip && !cart.some((l) => l.itemId === GUAC_DIPS_ID || (l.modifiers || []).some((m: any) => /guacamole/i.test(String(m.option))))) {
+    const caller = turns.filter((t) => t.speaker === "caller").map((t) => plain(t.text)).join(" ");
+    const solo = /\bsolo\b|\bsin chips\b|\bonly guacamole\b/.test(caller) && !/\bchips\b/.test(caller);
+    cart.push({ itemId: GUAC_DIPS_ID, quantity: 1, modifiers: [{ step: "Dips", option: solo ? "SOLO / ONLY Guacamole Dip" : "Guacamole Dip con Chips" }], readback: "1 guacamole dip con chips" });
+    changed = true;
+  }
+  const cokeN = mexicanCokeQty(turns);
+  if (cokeN) {
+    const lines = cart.filter((l) => /coca/i.test(String(l.itemId)));
+    const have = lines.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    const rb = `${cokeN} Coca Cola (glass bottle)`;
+    if (!lines.length) { cart.push({ itemId: COCA_ID, quantity: cokeN, modifiers: [], readback: rb }); changed = true; }
+    else {
+      if (have < cokeN) { lines[lines.length - 1].quantity = (Number(lines[lines.length - 1].quantity) || 1) + (cokeN - have); changed = true; }
+      for (const l of lines) if (!/taparrosca/i.test(String(l.readback || ""))) { l.readback = rb; changed = true; }
+    }
+  }
+  return changed;
+}
+/** Live: this turn ordered tacos dorados — a soft taco add on the turn is that platter, not Taco Comal. */
+export function liveTacoDorado(r: any, input: any) {
+  const tx = String(input?.transcript || "");
+  if (!isTacoDoradoPhrase(tx) || isAvailabilityAsk(tx)) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions.map((a: any) => ({ ...a })) : [];
+  const meat = meatIn(plain(tx));
+  const mods = [...(meat && MEAT_LABEL[meat] ? [{ step: "(A) Nachos Carne Options", option: MEAT_LABEL[meat] }] : [])];
+  let changed = false;
+  for (const a of acts) {
+    if (a?.type === "add_item" && SOFT_TACO_ID.test(String(a.itemId))) {
+      a.itemId = DORADOS_ID; a.quantity = 1; a.modifiers = mods.length ? mods : (a.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step || "")));
+      a.readback = `tacos dorados${meat ? " " + meat : ""}`; changed = true;
+    }
+  }
+  const cart: any[] = input?.cart || [];
+  if (!changed && !acts.some((a) => String(a?.itemId) === DORADOS_ID) && !cart.some((l) => String(l?.itemId) === DORADOS_ID))
+    return { ...r, actions: [...acts, { type: "add_item", itemId: DORADOS_ID, quantity: 1, modifiers: mods, readback: `tacos dorados${meat ? " " + meat : ""}` }] };
+  return changed ? { ...r, actions: acts } : r;
+}
+/** Live: "two Mexican Cokes" adds that many Coca Colas (glass). Staff ASR "Mexican cooks" is not this turn. */
+export function liveMexicanCoke(r: any, input: any) {
+  const n = mexicanCokeQty([{ speaker: "caller", text: String(input?.transcript || "") }]);
+  if (!n) return r;
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions.map((a: any) => ({ ...a })) : [];
+  const cart: any[] = input?.cart || [];
+  const have = [...cart, ...acts.filter((a) => a?.type === "add_item")].filter((l) => /coca/i.test(String(l.itemId))).reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+  if (have >= n) {
+    let changed = false;
+    for (const a of acts) if (a?.type === "add_item" && /coca/i.test(String(a.itemId))) { a.readback = input?.language === "es" ? "Coca Cola de vidrio" : "Coca Cola (glass bottle)"; changed = true; }
+    return changed ? { ...r, actions: acts } : r;
+  }
+  return { ...r, actions: [...acts, { type: "add_item", itemId: COCA_ID, quantity: n - have, modifiers: [], readback: input?.language === "es" ? "Coca Cola de vidrio" : "Coca Cola (glass bottle)" }] };
+}
