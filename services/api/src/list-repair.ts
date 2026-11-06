@@ -2944,3 +2944,147 @@ export function liveGorditaChicharron(r: any, input: any) {
   const n = gorditaQty(turns);
   return { ...r, actions: [...acts, { type: "add_item", itemId: gorditaItemId(menu), quantity: n, modifiers: gorditaMods(meat, menu), readback: `${n} gordita ${meat}` }] };
 }
+
+// cesar1: "dos tacos de bistec chorizo" / "bistec y chorizo" is qty 2 with BOTH meats on each taco.
+// A counted split ("dos de bistec y dos de chorizo", "uno de X y uno de Y") stays separate lines.
+// A meat said only on another dish (gordita prensado) is not copied onto the tacos.
+const COMP_FAM = "gorditas?|tacos?|quesadillas?|tortas?|burritos?|sopes?";
+const COMP_NUM = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
+function compFam(w: string): string | null {
+  if (/^tacos?$/.test(w)) return "taco";
+  if (/^gorditas?$/.test(w)) return "gordita";
+  if (/^quesadillas?$/.test(w)) return "quesadilla";
+  if (/^tortas?$/.test(w)) return "torta";
+  if (/^burritos?$/.test(w)) return "burrito";
+  if (/^sopes?$/.test(w)) return "sope";
+  return null;
+}
+function famOfId(id: string): string | null {
+  const s = String(id || "");
+  if (/^sq-taco-/.test(s)) return "taco";
+  if (/^sq-gordita-/.test(s) && !/queso/.test(s)) return "gordita";
+  if (/^sq-quesadilla-/.test(s)) return "quesadilla";
+  if (/^sq-torta-/.test(s)) return "torta";
+  if (/^sq-burrito-/.test(s)) return "burrito";
+  if (/^sq-sope/.test(s)) return "sope";
+  return null;
+}
+function compPlain(text: string): string {
+  return plain(text).replace(/\bchicharron\s+prensado\b/g, "prensado").replace(/\bchicharron\s+duro\b/g, "duro");
+}
+function lineMeatKeys(l: any): string[] {
+  const out: string[] = [];
+  for (const m of l?.modifiers || []) {
+    if (!/carne|meat/i.test(String(m.step)) || /extra|salsa/i.test(String(m.step))) continue;
+    const k = meatIn(plain(String(m.option)));
+    if (k && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+/** "N tacos de bistec y chorizo" / "N tacos de bistec chorizo" / "N tacos de bistec con chorizo". Not "N de A y M de B". */
+export function companionMeatOrders(text: string): Array<{ fam: string; qty: number; meats: string[] }> {
+  const p = compPlain(text);
+  if (meatSplitCounts(text).length >= 2) return [];
+  const re = new RegExp(`\\b(${COMP_NUM})\\s+(${COMP_FAM})\\b(?:\\s+(?:de\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}\\s+de\\s+([a-z]+(?:\\s+[a-z]+)?)(?:\\s+(?:y|con|and)\\s+|\\s+)([a-z]+(?:\\s+[a-z]+)?)\\b`, "g");
+  const out: Array<{ fam: string; qty: number; meats: string[] }> = [];
+  for (const m of p.matchAll(re)) {
+    const fam = compFam(m[2]); const qty = numOf(m[1]);
+    if (!fam || !qty) continue;
+    if (new RegExp(`^(?:${COMP_NUM})\\b`).test(m[4])) continue;
+    const a = meatIn(m[3]); const b = meatIn(m[4]);
+    if (!a || !b || a === b) continue;
+    out.push({ fam, qty, meats: [a, b] });
+  }
+  return out;
+}
+function meatsSaidForDish(turns: Turn[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  const add = (fam: string, meat: string) => { if (!map.has(fam)) map.set(fam, new Set()); map.get(fam)!.add(meat); };
+  const re = new RegExp(`\\b(${COMP_NUM})\\s+(${COMP_FAM})\\b(?:\\s+[a-z]+){0,5}?\\s+de\\s+([a-z]+(?:\\s+[a-z]+)?)`, "g");
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    let p = compPlain(t.text);
+    const rw = p.match(/\bno\b([\s\S]*)$/);
+    if (rw && meatIn(rw[1] || "")) p = rw[1];
+    for (const m of p.matchAll(re)) {
+      const fam = compFam(m[2]); const meat = meatIn(m[3]);
+      if (!fam || !meat) continue;
+      add(fam, meat);
+      const after = p.slice((m.index || 0) + m[0].length);
+      if (new RegExp(`^\\s+(?:y\\s+|and\\s+)?(?:${COMP_NUM})\\b`).test(after)) continue;
+      const c = after.match(/^(?:\s+(?:y|con|and)\s+|\s+)([a-z]+(?:\s+[a-z]+)?)/);
+      const m2 = c && !new RegExp(`^(?:${COMP_NUM})\\b`).test(c[1]) ? meatIn(c[1]) : null;
+      if (m2 && m2 !== meat) add(fam, m2);
+    }
+    for (const o of companionMeatOrders(t.text)) for (const meat of o.meats) add(o.fam, meat);
+  }
+  return map;
+}
+function countedSplitFor(turns: Turn[], fam: string): boolean {
+  const word = new RegExp(`\\b${fam}s?\\b`);
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "caller" || meatSplitCounts(turns[i].text).length < 2) continue;
+    const window = turns.slice(Math.max(0, i - 6), i + 1).map((t) => plain(t.text)).join(" ");
+    if (word.test(window)) return true;
+  }
+  return false;
+}
+function meatModFor(menu: any[], itemId: string, key: string): { step: string; option: string } | null {
+  const item = (menu || []).find((m: any) => m.id === itemId);
+  for (const g of item?.modifierGroups || []) {
+    if (!/carne|meat/i.test(String(g.name)) || /extra/i.test(String(g.name))) continue;
+    const opt = (g.options || []).map(oname).find((o: string) => meatIn(plain(o)) === key);
+    if (opt) return { step: g.name, option: opt };
+  }
+  const label = MEAT_LABEL[key];
+  if (!label) return null;
+  const step = famOfId(itemId) === "taco" ? "(B) T Carnes / Meats Opciones" : "(B) Q Carnes / Meats";
+  return { step, option: label };
+}
+/** Both uncounted meats land on each of the N items. A meat spoken only for another dish is taken off this one. */
+export function applyCompanionMeats(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  let changed = false;
+  const said = meatsSaidForDish(turns);
+  const comps = new Map<string, { fam: string; qty: number; meats: string[] }>();
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    for (const o of companionMeatOrders(t.text)) comps.set(o.fam, o);
+  }
+  // Only a dish the caller ordered as one pair ("N tacos de bistec y chorizo") can lose a meat
+  // that was said for a different dish. A chorizo quesadilla stays when chorizo tacos were also ordered.
+  for (const comp of comps.values()) {
+    for (let i = cart.length - 1; i >= 0; i--) {
+      if (famOfId(cart[i].itemId) !== comp.fam) continue;
+      const keys = lineMeatKeys(cart[i]);
+      if (!keys.length || keys.some((m) => comp.meats.includes(m))) continue;
+      const carried = keys.some((m) => [...said.entries()].some(([f, set]) => f !== comp.fam && set.has(m)));
+      if (!carried) continue;
+      cart.splice(i, 1); changed = true;
+    }
+  }
+  for (const comp of comps.values()) {
+    if (countedSplitFor(turns, comp.fam)) continue;
+    const lines = cart.filter((l) => famOfId(l.itemId) === comp.fam);
+    const touched = lines.filter((l) => { const ms = lineMeatKeys(l); return ms.length > 0 && ms.every((m) => comp.meats.includes(m)); });
+    if (!touched.length) continue;
+    const already = touched.filter((l) => {
+      const ms = lineMeatKeys(l);
+      return comp.meats.every((m) => ms.includes(m)) && ms.length === comp.meats.length && (Number(l.quantity) || 1) === comp.qty;
+    });
+    if (already.length === 1 && touched.length === 1) continue;
+    const keep = touched[0];
+    const meatMods = comp.meats.map((k) => meatModFor(menu, keep.itemId, k));
+    if (meatMods.some((m) => !m)) continue;
+    const nonMeat = (keep.modifiers || []).filter((m: any) => {
+      const k = meatIn(plain(String(m.option)));
+      return !(k && /carne|meat/i.test(String(m.step)) && !/extra|salsa/i.test(String(m.step)));
+    });
+    keep.quantity = comp.qty;
+    keep.modifiers = [...nonMeat, ...meatMods];
+    keep.readback = `${comp.qty} ${comp.fam} ${comp.meats.join(" y ")}`;
+    for (const l of touched.slice(1)) { const at = cart.indexOf(l); if (at >= 0) cart.splice(at, 1); }
+    changed = true;
+  }
+  return changed;
+}

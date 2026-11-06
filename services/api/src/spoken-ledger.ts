@@ -65,7 +65,7 @@ export function isEchoOfStaff(x: string, staff: string): boolean {
   const stem = (w: string) => w.replace(/(?:es|s)$/, "");
   return words.every((w) => new RegExp(`\\b${stem(w)}`).test(st)) && !/\b(?:dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\b/.test(y);
 }
-type Item = { dish: Dish; meat?: string; n: number; grp: number; notes: string[]; plate: number; person?: string };
+type Item = { dish: Dish; meat?: string; also?: string[]; n: number; grp: number; notes: string[]; plate: number; person?: string };
 type Grp = { dish: Dish; want: number; grp: number; open?: boolean; sinQueso?: boolean; style?: string; side?: string; tort?: string; cebolla?: boolean };
 type MeatN = { n: number; meat: string };
 /** Counted meats in one clause ("tres de bistec", "una costilla", "un taco de comal de lengua"). "de X no" is not a count. */
@@ -80,6 +80,49 @@ function meatCounts(s: string): MeatN[] {
   }
   return out;
 }
+/** Meats with no count of their own glued to a counted meat: "bistec y chorizo", "bistec chorizo", "bistec con chorizo".
+ *  "y dos de chorizo" / "y una costilla" is its own count, not a second meat on the same items. */
+function companionMeats(after: string): string[] {
+  const out: string[] = [];
+  let rest = after;
+  for (;;) {
+    if (new RegExp(`^\\s+(?:y\\s+|e\\s+|and\\s+)?(?:${NUM})\\b`).test(rest)) break;
+    const m = rest.match(new RegExp(`^(?:\\s+y\\s+|\\s+e\\s+|\\s+and\\s+|\\s+con\\s+|\\s+)(${MW})\\b`));
+    if (!m) break;
+    const mt = meat(m[1]);
+    if (!mt || out.includes(mt)) break;
+    out.push(mt);
+    rest = rest.slice(m[0].length);
+  }
+  return out;
+}
+type RecapPart = { n: number; meats: string[] };
+/** Staff recap clauses. A dish word sticks to the counts in that clause; a meat with no count stays on the count before it. */
+function recapParts(s: string): Array<{ dish: Dish | null; part: RecapPart }> {
+  const re = new RegExp(`\\b(${NUM})\\s+(?:(${DISHW})\\s+)?(?:(?:de\\s+)?(?:comal|harina|maiz|taquer\\w*|street|normal\\w*)\\s+)?(?:de\\s+)?(${MW})\\b`, "g");
+  const all: Array<{ dish: Dish | null; part: RecapPart }> = [];
+  let last: Dish | null = null;
+  for (const m of s.matchAll(re)) {
+    const end = (m.index || 0) + m[0].length;
+    if (/^\s+no\b/.test(s.slice(end))) continue;
+    const d = m[2] ? dishOf(m[2].replace(/^ordenes\s+de\s+/, "")) : null;
+    if (d) last = d;
+    const first = meat(m[3]); if (!first) continue;
+    const meats = [first, ...companionMeats(s.slice(end)).filter((x) => x !== first)];
+    all.push({ dish: d || last, part: { n: n(m[1]), meats } });
+  }
+  return all;
+}
+/** Parts that belong to this dish. A recap that names two dishes does not pour the other dish's meat onto this one. */
+function recapFor(s: string, dish: Dish): RecapPart[] | null {
+  const all = recapParts(s);
+  if (!all.length) return null;
+  const named = new Set(all.map((a) => a.dish).filter((d): d is Dish => !!d));
+  const mine = named.size >= 2 || (named.size === 1 && !named.has(dish)) ? all.filter((a) => a.dish === dish) : all;
+  const parts = mine.map((a) => a.part);
+  if (parts.length >= 2 || parts.some((p) => p.meats.length >= 2)) return parts;
+  return null;
+}
 /** "cinco tacos de bistec, no, tres de bistec y una costilla" — the list after "no" replaces the announcement. */
 function meatRewrite(after: string): MeatN[] | null {
   const m = after.match(/\bno\b([\s\S]*)$/); if (!m) return null;
@@ -89,11 +132,13 @@ function meatRewrite(after: string): MeatN[] | null {
 function specStyle(raw: string): "comal" | "taquero" | "harina" | null {
   const one = (sentence: string): "comal" | "taquero" | "harina" | null => {
     const sp = nf(sentence);
+    // "¿Del comal?" / "¿comal o harina?" is a guess, not the tortilla.
+    // "Taqueroso de Comal." is homemade even though the word also starts with taquer.
+    if (/\?/.test(sentence)) return null;
     const comal = /\bcomal\b/.test(sp), taq = /\b(?:taquer\w*|street)\b/.test(sp), har = /\b(?:harina|flour)\b/.test(sp);
     const nStyles = [comal, taq, har].filter(Boolean).length;
-    const question = /\?/.test(sentence);
-    if (/\b(?:de|del)\s+comal\b/.test(sp) && !(question && /\bo\b/.test(sp) && nStyles >= 2)) return "comal";
-    if (nStyles === 1 && !(question && /\b(?:o|or)\b/.test(sp))) return comal ? "comal" : taq ? "taquero" : "harina";
+    if (/\b(?:de|del)\s+comal\b/.test(sp)) return "comal";
+    if (nStyles === 1) return comal ? "comal" : taq ? "taquero" : "harina";
     return null;
   };
   for (const s of String(raw || "").split(/(?<=[.?!])\s+/)) { const hit = one(s); if (hit) return hit; }
@@ -104,7 +149,7 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
   const items: Item[] = []; const groups: Grp[] = [];
   let cur: Grp | null = null, plate = 1, salsa: { oz: 2 | 4 | null; flavor: string } | null = null, lastStaff = "", prevStaff = "";
   let pendingStyle: "comal" | "taquero" | "harina" | null = null;
-  let pendingRecap: MeatN[] | null = null;
+  let pendingRecap: RecapPart[] | null = null;
   let qb: { n: number; style?: string } | null = null, qbAsked = false, jar: { n: number; mixed: boolean } | null = null, jarAsk = false;
   const fill = (g: Grp) => items.filter((i) => i.grp === g.grp).reduce((s, i) => s + i.n, 0);
   for (const t of turns) {
@@ -115,18 +160,21 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       if (/\bcuantos\s+jarritos\b/.test(x)) jarAsk = true;
       if (/\btodo\s+va\s+sin\s+queso\b/.test(x)) groups.forEach((g) => (g.sinQueso = true));
       const st = specStyle(t.text); if (st) pendingStyle = st;
-      // "tres de bistec y dos de costilla" — held until the caller affirms it
-      if (cur && cur.dish !== "cr") { const parts = meatCounts(x); if (parts.length >= 2) pendingRecap = parts; }
+      // "tres de bistec y dos de costilla" — held until the caller affirms it.
+      // A recap that also names another dish ("dos gorditas de prensado y dos tacos … de bistec y chorizo")
+      // only rewrites this dish; the other dish's meat is not copied onto it.
+      if (cur && cur.dish !== "cr") { const parts = recapFor(x, cur.dish); if (parts) pendingRecap = parts; }
       continue;
     }
     const bareYes = /^(?:si|aja|claro|ok|okay|correcto|exacto|perfecto|eso es|asi es|yes|yeah|sale|va)$/.test(x);
-    if (/^(?:no|nel|nop)\b/.test(x) && pendingRecap && meatCounts(lastStaff).length >= 2) pendingRecap = null;
+    const recapNow = cur ? recapFor(lastStaff, cur.dish) : null;
+    if (/^(?:no|nel|nop)\b/.test(x) && pendingRecap && recapNow) pendingRecap = null;
     // affirmed staff count replaces the caller's earlier split; staff "de comal" sets the tortilla when the caller never named one
-    if (bareYes && cur && cur.dish !== "cr" && pendingRecap && meatCounts(lastStaff).length >= 2) {
+    if (bareYes && cur && cur.dish !== "cr" && pendingRecap && recapNow) {
       for (let i = items.length - 1; i >= 0; i--) if (items[i].grp === cur.grp) items.splice(i, 1);
-      for (const p of pendingRecap) items.push({ dish: cur.dish, meat: p.meat, n: p.n, grp: cur.grp, notes: [], plate });
+      for (const p of pendingRecap) items.push({ dish: cur.dish, meat: p.meats[0], also: p.meats.slice(1), n: p.n, grp: cur.grp, notes: [], plate });
       cur.want = pendingRecap.reduce((s, p) => s + p.n, 0);
-      if (!cur.style && pendingStyle) cur.style = pendingStyle;
+      if (pendingStyle) cur.style = pendingStyle;
       pendingRecap = null;
       continue;
     }
@@ -140,8 +188,10 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
     if (/\bjarritos?\b/.test(x)) { const m = x.match(new RegExp(`\\b(${NUM})\\s+jarritos?\\b`)); jar = jar || { n: 0, mixed: false }; if (m) jar.n = n(m[1]); }
     if (jarAsk && jar && !jar.n) { const m = x.match(new RegExp(`^(?:\\S+\\s+){0,2}?(${NUM})\\b`)); if (m) { jar.n = n(m[1]); jarAsk = false; continue; } }
     if (jar && /\bmezclados\b/.test(x + " " + (/^\s*(?:si|aja|ok|claro)\b/.test(x) ? lastStaff : ""))) { jar.mixed = true; if (!new RegExp(`\\b(?:${DISHW})\\b`).test(x)) continue; }
-    // a yes to staff's "¿del comal?" sets the open group's tortilla (before any question in the same turn)
-    if (cur && /\bcomal\b/.test(lastStaff) && /^\s*(?:si|aja|claro|ok|okay)\b/.test(x) && cur.dish !== "cr") cur.style = cur.style || "comal";
+    // "Sí, normales, taqueros" answers "¿Del comal?" by naming the street taco. A bare sí to a comal statement keeps comal.
+    if (cur && cur.dish === "t" && /\b(?:taquer\w*|street)\b/.test(x)) cur.style = "taquero";
+    else if (cur && cur.dish === "t" && /\bnormales?\b/.test(x) && /\b(?:tacos?|comal|taquer)\b/.test(x + " " + lastStaff)) cur.style = "taquero";
+    else if (cur && /\bcomal\b/.test(lastStaff) && /^\s*(?:si|aja|claro|ok|okay)\b/.test(x) && cur.dish !== "cr" && !/\b(?:taquer\w*|street|normales?)\b/.test(x)) cur.style = cur.style || "comal";
     // anthony1: a pure availability question ("¿tienes pollo a la crema? Ajá") orders nothing
     if (isAvailQ(x) && !new RegExp(`\\b(?:${NUM})\\s+(?:${DISHW})\\b`).test(x)) continue;
     // an unanswered staff menu list in a caller turn ("¿qué más tienes?") adds nothing
@@ -168,12 +218,13 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       } else {
       // restatement ("dos tortas." … "dos, dos tortas de" … "dos tortas al pastor"; "los cuatro tacos a nombre de…")
       const same = groups.find((g) => g.dish === dish && g.want === want && (!mt || !items.some((i) => i.grp === g.grp) || items.some((i) => i.grp === g.grp && i.meat === mt)));
-      if (same) { cur = same; if (mt && !items.some((i) => i.grp === same.grp)) items.push({ dish, meat: mt, n: want, grp: same.grp, notes: [], plate }); }
+      const also = mt ? companionMeats(x.slice((ann.index || 0) + ann[0].length)).filter((m) => m !== mt) : [];
+      if (same) { cur = same; if (mt && !items.some((i) => i.grp === same.grp)) items.push({ dish, meat: mt, also, n: want, grp: same.grp, notes: [], plate }); }
       else { cur = { dish, want, grp: groups.length + 1, open: openList }; groups.push(cur); }
       // anthony1: "ocho gorditas de asada. Cuatro y cuatro" — a split count after the meat means only the first part is that meat
       const split = ann[3] ? x.slice((ann.index || 0) + ann[0].length).match(new RegExp(`^\\s*(${NUM})\\s+y\\s+(${NUM})\\b`)) : null;
       if (!same && split && n(split[1]) + n(split[2]) === cur.want) items.push({ dish: cur.dish, meat: meat(ann[3]), n: n(split[1]), grp: cur.grp, notes: [], plate });
-      else if (same) { /* restated */ } else if (ann[3]) items.push({ dish: cur.dish, meat: meat(ann[3]), n: cur.want, grp: cur.grp, notes: [], plate });
+      else if (same) { /* restated */ } else if (ann[3]) items.push({ dish: cur.dish, meat: meat(ann[3]), also, n: cur.want, grp: cur.grp, notes: [], plate });
       else if (cur.dish === "cr") items.push({ dish: "cr", n: cur.want, grp: cur.grp, notes: [], plate });
       }
     }
@@ -232,12 +283,13 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       if (D.base) mods.push(D.base);
       if (it.dish === "q") mods.push({ step: "(A) Q Tortilla Options", option: g.style === "harina" ? "(QHR) Quesadilla Harina / Flour (+$0.75)" : g.style === "comal" ? "(QCO) Quesadilla Comal / Homemade (+$1.00)" : "(QST) Quesadilla Taquera / Street Quesadilla" });
       if (it.dish === "t") mods.push({ step: "(A) T Tortilla Options", option: g.style === "harina" ? "(THR) Taco Harina / Flour (+$0.50)" : g.style === "comal" ? "(TCO) Taco Comal / Homemade (+$1.00)" : "(TST) Taco Taquero / Street Taco" });
-      if (it.meat) mods.push({ step: D.meatStep, option: it.meat });
+      const meats = [it.meat, ...(it.also || [])].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
+      for (const mt of meats) mods.push({ step: D.meatStep, option: mt });
       if (it.notes.includes("frijoles")) mods.push({ step: "(C) Con / With", option: "**Con Frijoles / With Beans" });
       if (g.cebolla) mods.push({ step: "(F) GQT Extras", option: "**EXTRA Cebolla y Chiles Asados" });
       if (g.sinQueso) notes.push("sin queso");
       if (groups.some((x) => x.dish === it.dish) && items.some((i) => i.plate > 1)) notes.push(`plato ${it.plate}`);
-      rb = `${it.n} ${{ g: "gordita", t: "taco", to: "torta", q: "quesadilla" }[it.dish as "g"]} ${String(it.meat || "").split(" /")[0].toLowerCase()}`.trim();
+      rb = `${it.n} ${{ g: "gordita", t: "taco", to: "torta", q: "quesadilla" }[it.dish as "g"]} ${meats.map((m) => String(m).split(" /")[0].toLowerCase()).join(" y ")}`.trim();
     }
     lines.push({ itemId: D.id, quantity: it.n, modifiers: mods, readback: rb, ...(notes.length ? { elviNotes: notes } : {}), ...(it.person ? { person: it.person } : {}) });
   }
