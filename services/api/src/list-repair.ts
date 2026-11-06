@@ -2257,13 +2257,18 @@ const FQ_OPT: Array<[string, string]> = [
 const fqOpt = (key: string) => FQ_OPT.find(([k]) => k === key)?.[1] || "";
 const FQ_MEAT_RE = FQ_OPT.map(([k]) => k).join("|");
 type FqWant = { key: string; meat: string; qty: number; sinSalsa: boolean };
+/** "Alpastor" and "pastor" are the same meat. meatIn only sees "pastor" / "al pastor". */
+const fqKey = (s: string) => {
+  const k = meatIn(plain(s).replace(/\balpastor\b/g, "pastor"));
+  return k === "alpastor" ? "pastor" : k;
+};
 function fqCounts(text: string): Array<{ key: string; qty: number }> {
   const p = plain(text);
   const out: Array<{ key: string; qty: number }> = [];
   const re = new RegExp(`\\b(${NUMW})\\s+(?:orden(?:es)?\\s+de\\s+)?(?:quesadillas?\\s+(?:doradas?|fritas?)\\s+)?de\\s+(${FQ_MEAT_RE})\\b`, "g");
   for (const m of p.matchAll(re)) {
-    const qty = numOf(m[1]); const key = meatIn(m[2]) || m[2];
-    if (qty >= 1 && qty <= 20 && fqOpt(key)) out.push({ key, qty });
+    const qty = numOf(m[1]); const key = fqKey(m[2]);
+    if (qty >= 1 && qty <= 20 && key && fqOpt(key)) out.push({ key, qty });
   }
   return out;
 }
@@ -2271,6 +2276,8 @@ function fqYes(text: string): boolean {
   const q = plain(text);
   return /^(?:si|yes|yeah|claro|ok|okay|todas|todos|ambas|ambos|las dos|los dos)\b/.test(q) && !/\b(?:no|normal|regular)\b/.test(q);
 }
+/** Bare "Para la." is the cut-off of "preparada" (ca537a80). */
+const fqParaLa = (text: string) => /^\W*para\s+la\W*$/iu.test(String(text || ""));
 /** Fried-quesadilla meat lines from the call, or null when this isn't that order (a multi-group "N en aceite" recap stays with qdGroups). */
 export function friedQuesadillaWants(turns: Turn[]): { deluxe: boolean; lines: FqWant[] } | null {
   if (!Array.isArray(turns) || qdGroups(turns).length) return null;
@@ -2308,13 +2315,17 @@ export function friedQuesadillaWants(turns: Turn[]): { deluxe: boolean; lines: F
   let deluxe = false;
   for (let i = 0; i < turns.length; i++) {
     const t = turns[i];
+    if (t.speaker === "caller" && /\bcon\s+todo\b|\bwith\s+everything\b/iu.test(t.text) && !/\b(?:normal|regular|sencill)/iu.test(t.text)) deluxe = true;
+    if (t.speaker === "caller" && fqParaLa(t.text)) deluxe = true;
     if (t.speaker === "caller" && /\b(?:preparad[oa]s?|deluxe)\b/iu.test(t.text) && !/\b(?:normal|regular|sencill)/iu.test(t.text)) deluxe = true;
     if (t.speaker === "caller" && /\b(?:normal(?:es)?|regular(?:es)?|sencill[ao]s?)\b/iu.test(t.text) && !/\b(?:preparad|deluxe)\b/iu.test(t.text)) deluxe = false;
+    // A stated "las dos preparadas." is the choice. "¿preparada o regular?" is still open.
+    if (t.speaker === "staff" && !/\?/.test(t.text) && /\b(?:preparad[oa]s?|deluxe)\b/iu.test(t.text) && !/\bo\s+(?:normal|regular)\b/iu.test(t.text)) deluxe = true;
     if (t.speaker !== "staff" || !/\b(?:preparad[oa]s?|deluxe)\b/iu.test(t.text) || !/\?/.test(t.text)) continue;
     const nx = turns.slice(i + 1).find((x) => x.speaker === "caller");
     if (!nx) continue;
-    if (fqYes(nx.text)) deluxe = true;
-    if (/\b(?:normal|regular|sencill)/iu.test(nx.text) && !/\b(?:preparad|deluxe)\b/iu.test(nx.text)) deluxe = false;
+    if (fqYes(nx.text) || fqParaLa(nx.text)) deluxe = true;
+    if (/\b(?:normal|regular|sencill)/iu.test(nx.text) && !/\b(?:preparad|deluxe)\b/iu.test(nx.text) && !fqParaLa(nx.text)) deluxe = false;
   }
   return { deluxe, lines };
 }
@@ -2322,25 +2333,28 @@ export function friedQuesadillaWants(turns: Turn[]): { deluxe: boolean; lines: F
 export function applyFriedQuesadillaTicket(cart: any[], turns: Turn[]): boolean {
   const want = friedQuesadillaWants(turns);
   if (!want || !Array.isArray(cart)) return false;
-  const id = want.deluxe ? FQ_TICKET_DLX : FQ_TICKET_REG;
-  const style = want.deluxe ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada";
   const platter = turns.some((t) => t.speaker === "caller" && FQ_PLATTER.test(t.text) && !isAvailabilityAsk(t.text));
   const askedShell = turns.some((t) => t.speaker === "caller" && /\bquesadillas?\b/iu.test(t.text) && /\b(?:comal|harina|taquer[oa]s?|street|masa)\b/iu.test(t.text) && !FQ_MARK.test(t.text));
   let ch = false;
   if (!platter) for (let i = cart.length - 1; i >= 0; i--) if (/^sq-tacos-dorados-/i.test(String(cart[i]?.itemId))) { cart.splice(i, 1); ch = true; }
   if (!askedShell) for (let i = cart.length - 1; i >= 0; i--) if (cart[i]?.itemId === FQ_TICKET_Q) { cart.splice(i, 1); ch = true; }
-  const keyOf = (l: any) => meatOfLine(l);
-  const meatsOf = (l: any) => (l.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step))).map((m: any) => meatIn(plain(m.option))).filter(Boolean);
+  const meatsOf = (l: any) => (l.modifiers || []).filter((m: any) => /carne|meat/i.test(String(m.step))).map((m: any) => fqKey(String(m.option))).filter(Boolean);
+  const keyOf = (l: any) => meatsOf(l).length === 1 ? meatsOf(l)[0] : null;
+  const lineIsDlx = (l: any) => l?.itemId === FQ_TICKET_DLX || (l?.modifiers || []).some((m: any) => /DELUXE Preparada/i.test(String(m.option)));
   const wantKeys = new Set(want.lines.map((w) => w.key));
   const keep = new Set<any>();
   for (const w of want.lines) {
-    let line = cart.find((l) => !keep.has(l) && (l.itemId === FQ_TICKET_DLX || l.itemId === FQ_TICKET_REG) && keyOf(l) === w.key && meatsOf(l).length === 1);
+    let line = cart.find((l) => !keep.has(l) && (l.itemId === FQ_TICKET_DLX || l.itemId === FQ_TICKET_REG) && keyOf(l) === w.key);
+    // A line already rung deluxe stays deluxe. "Para la" / "las dos preparadas" is not a downgrade to regular.
+    const useDlx = want.deluxe || lineIsDlx(line);
+    const useId = useDlx ? FQ_TICKET_DLX : FQ_TICKET_REG;
+    const useStyle = useDlx ? "(QD) DELUXE Preparada" : "(QD) REGULAR Dorada";
     if (!line) {
-      line = { itemId: id, quantity: w.qty, modifiers: [{ step: "(QD) Style", option: style }, { step: "(B) Q Carnes / Meats", option: w.meat }], readback: `${w.qty} quesadilla dorada ${want.deluxe ? "deluxe" : "regular"}` };
+      line = { itemId: useId, quantity: w.qty, modifiers: [{ step: "(QD) Style", option: useStyle }, { step: "(B) Q Carnes / Meats", option: w.meat }], readback: `${w.qty} quesadilla dorada ${useDlx ? "deluxe" : "regular"}` };
       cart.push(line); ch = true;
     } else {
-      if (line.itemId !== id || line.quantity !== w.qty) { line.itemId = id; line.quantity = w.qty; ch = true; }
-      const mods = [{ step: "(QD) Style", option: style }, { step: "(B) Q Carnes / Meats", option: w.meat }];
+      if (line.itemId !== useId || line.quantity !== w.qty) { line.itemId = useId; line.quantity = w.qty; ch = true; }
+      const mods = [{ step: "(QD) Style", option: useStyle }, { step: "(B) Q Carnes / Meats", option: w.meat }];
       if (JSON.stringify(line.modifiers) !== JSON.stringify(mods)) { line.modifiers = mods; ch = true; }
     }
     const notes = (line.elviNotes || []).filter((n: string) => n !== "sin salsa");
