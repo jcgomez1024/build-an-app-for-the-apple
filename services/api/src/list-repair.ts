@@ -1,3 +1,4 @@
+import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -2670,4 +2671,178 @@ export function liveMexicanCoke(r: any, input: any) {
     return changed ? { ...r, actions: acts } : r;
   }
   return { ...r, actions: [...acts, { type: "add_item", itemId: COCA_ID, quantity: n - have, modifiers: [], readback: input?.language === "es" ? "Coca Cola de vidrio" : "Coca Cola (glass bottle)" }] };
+}
+
+// alvaro1: enchiladas "con todo" / "rojas" are the dish and its $0 toppings, not a paid salsa cup.
+// A gordita "chicharrón" clarifier (duro vs prensado), the caller's "sí, de prensado", staff "¿prensado?",
+// and an affirmed recap "gordita de prensado" commit the gordita. A tostada started and abandoned for
+// enchiladas does not stay on the ticket. Not a one-call special case.
+const GORDITA_ID = "sq-gordita-M647RE";
+const NOT_GORDITA = /\b(?:quesadillas?|tacos?|tortas?|burritos?|doradas?|sopes?|huaraches?|enchiladas?|tostadas?|menudos?|po[sz]oles?)\b/;
+const YES_LEAD = /^(?:ah |eh |ok(?:ey)? |bueno |pues )*(?:s[ií]|yes|claro|aja|correcto|exacto)\b/;
+function liveTurns(input: any): Turn[] {
+  const hist: Turn[] = (input?.history || []).map((h: any) => ({ speaker: h.role === "assistant" || h.speaker === "staff" ? "staff" : "caller", text: String(h.text || "") }));
+  const tx = String(input?.transcript || "");
+  return tx ? [...hist, { speaker: "caller", text: tx }] : hist;
+}
+/** Joined speech that decides enchilada salsa vs con todo (caller words, plus a staff "con todas" the caller accepted). */
+export function enchiladaSpoken(turns: Turn[]): string {
+  const bits: string[] = [];
+  for (let i = 0; i < turns.length; i++) {
+    const p = plain(turns[i].text);
+    if (/\benchiladas?\b/.test(p) || /\bcon todo\b|\bwith everything\b/.test(p)) bits.push(turns[i].text);
+    if (turns[i].speaker === "staff" && /\bcon todas\b/.test(p) && /\benchilad/.test(p)) {
+      const nxt = turns.slice(i + 1).find((t) => t.speaker === "caller");
+      if (nxt && YES_LEAD.test(plain(nxt.text))) bits.push("con todo");
+    }
+  }
+  return bits.join(". ");
+}
+/** Drop unasked salsa and, when "con todo" was accepted, add the item's free standard toppings. */
+export function applyEnchiladaConTodo(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  const said = enchiladaSpoken(turns);
+  if (!/\benchilad/.test(plain(said))) return false;
+  let changed = false;
+  for (const l of cart) {
+    if (!/enchilad/i.test(String(l?.itemId || ""))) continue;
+    const item = (menu || []).find((m: any) => m.id === l.itemId) || { id: l.itemId, name: l.itemId };
+    const mods = fixEnchiladaSpokenMods(l.modifiers, item, said);
+    if (!mods) continue;
+    l.modifiers = mods; changed = true;
+  }
+  return changed;
+}
+function callerOrderedGordita(turns: Turn[]): boolean {
+  return turns.some((t) => t.speaker === "caller" && /\bgorditas?\b/.test(plain(t.text)) && !isAvailabilityAsk(t.text));
+}
+function gorditaQty(turns: Turn[]): number {
+  let n = 1;
+  for (const t of turns) {
+    if (t.speaker !== "caller") continue;
+    const m = plain(t.text).match(new RegExp(String.raw`\b(${NUMW})\s+gorditas?\b`));
+    if (m && !/^un/.test(m[1])) n = Math.max(n, numOf(m[1]) || n);
+  }
+  return n || 1;
+}
+/** prensado or duro once a gordita chicharrón order is clarified or recapped. null while it is still open or never a gordita. */
+export function gorditaChicharronMeat(turns: Turn[]): "prensado" | "duro" | null {
+  if (!Array.isArray(turns) || !callerOrderedGordita(turns)) return null;
+  let open = false;
+  let meat: "prensado" | "duro" | null = null;
+  const style = (p: string): "prensado" | "duro" | null => {
+    if (NOT_GORDITA.test(p) && !/\bgorditas?\b/.test(p)) return null;
+    if (/\bprensad/.test(p)) return "prensado";
+    if (/\b(?:del?\s+)?duro\b|\bpork rinds?\b/.test(p) && /\b(?:chicharron|gordita|duro|prensad)\b/.test(p)) return "duro";
+    return null;
+  };
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i], p = plain(t.text);
+    if (t.speaker === "caller" && /\bgorditas?\b/.test(p) && /\bchicharron\b/.test(p)) {
+      open = true;
+      meat = style(p) || meat;
+    }
+    if (!open) continue;
+    if (t.speaker === "caller") {
+      const picked = style(p);
+      if (picked) meat = picked;
+      if (/\b(?:quita|ya no|mejor no)\b/.test(p) && /\bgordita\b/.test(p)) return null;
+    }
+    if (t.speaker !== "staff" || !/\bprensad|\bduro\b|\bchicharron\b/.test(p) || !/\bgordita|chicharron|prensad/.test(p)) continue;
+    const nxt = turns.slice(i + 1).find((u) => u.speaker === "caller");
+    const a = plain(nxt?.text || "");
+    const both = /\bduro\b/.test(p) && /\bprensad/.test(p);
+    if (both) { const picked = style(a); if (picked) meat = picked; continue; }
+    if (/\bprensad/.test(p) && (YES_LEAD.test(a) || /\bprensad/.test(a))) meat = "prensado";
+    else if (/\bduro\b/.test(p) && (YES_LEAD.test(a) || /\bduro\b/.test(a)) && !/\bprensad/.test(a)) meat = "duro";
+  }
+  return meat;
+}
+function gorditaHasMeat(rows: any[], meat: string): boolean {
+  return rows.some((l) => /gordita/i.test(String(l?.itemId || "")) && (l.modifiers || []).some((m: any) => new RegExp(meat, "i").test(plain(String(m?.option || "")))));
+}
+function gorditaMods(meat: "prensado" | "duro", menu: any[]): any[] {
+  const want = meat === "prensado" ? /prensado|spicy pork/i : /\bduro\b|pork rinds/i;
+  let shell: any = null, meatOpt: any = null, shellStep = "(A) Gordita Options", meatStep = "(B) Q Carnes / Meats";
+  for (const item of menu || []) {
+    if (!/gordita/i.test(`${item?.id || ""} ${item?.name || ""}`)) continue;
+    for (const g of item.modifierGroups || []) for (const o of g.options || []) {
+      const name = typeof o === "string" ? o : o.name;
+      if (/\(GD\)|\bGordita\b/.test(String(name)) && !/queso/i.test(String(name))) { shell = name; shellStep = g.name; }
+      if (want.test(String(name)) && !/\bextra\b/i.test(String(name))) { meatOpt = name; meatStep = g.name; }
+    }
+  }
+  return [
+    { step: shellStep, option: shell || "(GD) Gordita" },
+    { step: meatStep, option: meatOpt || (meat === "prensado" ? "Prensado / Spicy Pork" : "Duro / Pork Rinds") },
+  ];
+}
+function gorditaItemId(menu: any[]): string {
+  const hit = (menu || []).find((m: any) => /^sq-gordita-/i.test(String(m?.id || "")) && !/queso/i.test(String(m?.id || "")));
+  return hit?.id || GORDITA_ID;
+}
+/** Commit the clarified gordita when the model left actions empty. A quesadilla/taco "prensado" is not a gordita. */
+export function applyGorditaChicharron(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  const meat = gorditaChicharronMeat(turns);
+  if (!meat || gorditaHasMeat(cart, meat)) return false;
+  if ((menu || []).length && !(menu || []).some((m: any) => /gordita/i.test(`${m?.id || ""} ${m?.name || ""}`))) return false;
+  const n = gorditaQty(turns);
+  cart.push({ itemId: gorditaItemId(menu), quantity: n, modifiers: gorditaMods(meat, menu), readback: `${n} gordita ${meat}` });
+  return true;
+}
+/** "unas tostadas, agrega unas" then enchiladas — the tostada was abandoned mid-utterance. A finished tostada order stays. */
+export function dropAbandonedTostadas(cart: any[], turns: Turn[]): boolean {
+  if (!Array.isArray(cart) || !cart.some((l) => /tostad/i.test(String(l?.itemId || "")))) return false;
+  let abandoned = false, finished = false;
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "caller") continue;
+    const p = plain(turns[i].text);
+    if (!/\btostadas?\b/.test(p)) continue;
+    const filling = /\btostadas?\s+de\s+[a-z]{3,}\b/.test(p);
+    const trailing = /\b(?:agrega|y)\s+unas?\s*$/.test(p);
+    const nxt = turns.slice(i + 1).find((t) => t.speaker === "caller");
+    // Only an unfinished tostada ("…unas tostadas, agrega unas") that the next breath replaces with enchiladas.
+    if ((!filling || trailing) && nxt && /\benchiladas?\b/.test(plain(nxt.text))) abandoned = true;
+    else if (filling) finished = true;
+  }
+  const recap = turns.some((t) => t.speaker === "staff" && /\btostadas?\b/.test(plain(t.text)) && /\b(?:tengo|seria|serian|le pongo)\b/.test(plain(t.text)) && !/\?/.test(t.text));
+  if (!abandoned || finished || recap) return false;
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) if (/tostad/i.test(String(cart[i].itemId))) { cart.splice(i, 1); changed = true; }
+  return changed;
+}
+export function liveEnchiladaConTodo(r: any, input: any) {
+  const turns = liveTurns(input);
+  const said = enchiladaSpoken(turns);
+  if (!/\benchilad/.test(plain(said))) return r;
+  const menu: any[] = input?.resolverMenu || input?.menu || [];
+  const acts: any[] = Array.isArray(r?.actions) ? r.actions.map((a: any) => ({ ...a, modifiers: a.modifiers ? a.modifiers.map((m: any) => ({ ...m })) : a.modifiers })) : [];
+  let changed = false;
+  const touch = (row: any) => {
+    const item = menu.find((m: any) => m.id === row.itemId) || { id: row.itemId, name: row.itemId };
+    const mods = fixEnchiladaSpokenMods(row.modifiers, item, said);
+    if (!mods) return false;
+    row.modifiers = mods; changed = true; return true;
+  };
+  for (const a of acts) if (a?.type === "add_item" || a?.type === "update_item") touch(a);
+  for (const l of input?.cart || []) {
+    if (!/enchilad/i.test(String(l?.itemId || ""))) continue;
+    if (acts.some((a) => a.itemId === l.itemId && (a.type === "add_item" || a.type === "update_item"))) continue;
+    const upd: any = { type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: (l.modifiers || []).map((m: any) => ({ ...m })) };
+    if (touch(upd)) acts.push(upd);
+  }
+  return changed ? { ...r, actions: acts } : r;
+}
+export function liveGorditaChicharron(r: any, input: any) {
+  const turns = liveTurns(input);
+  const meat = gorditaChicharronMeat(turns);
+  if (!meat) return r;
+  const menu: any[] = input?.resolverMenu || input?.menu || [];
+  const acts: any[] = Array.isArray(r?.actions) ? [...r.actions] : [];
+  const rows = [...(input?.cart || []), ...acts.filter((a) => a?.type === "add_item" || a?.type === "update_item")];
+  if (gorditaHasMeat(rows, meat)) return r;
+  if (menu.length && !menu.some((m: any) => /gordita/i.test(`${m?.id || ""} ${m?.name || ""}`))) return r;
+  const n = gorditaQty(turns);
+  return { ...r, actions: [...acts, { type: "add_item", itemId: gorditaItemId(menu), quantity: n, modifiers: gorditaMods(meat, menu), readback: `${n} gordita ${meat}` }] };
 }

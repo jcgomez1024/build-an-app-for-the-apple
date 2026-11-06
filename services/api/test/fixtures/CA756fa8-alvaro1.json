@@ -1,0 +1,24 @@
+{
+  "callSid": "CA756fa8b75aaf06d5cec92ca700af195b",
+  "name": "Álvaro",
+  "note": "Spanish pickup. Pozole availability then one rojo; tostadas abandoned for enchiladas rojas de frijol con todo; gordita de chicharrón clarified as prensado. Not a one-call special case.",
+  "turns": [
+    { "speaker": "caller", "start": 1.0, "end": 6.0, "text": "Buenos días, ah, si tienes pozole, pozole rojo,", "language": "es" },
+    { "speaker": "staff", "start": 6.4, "end": 7.6, "text": "Ah, sí, claro.", "language": "es" },
+    { "speaker": "caller", "start": 8.0, "end": 12.0, "text": "me pones uno, ah, y unas tostadas, agrega unas,", "language": "es" },
+    { "speaker": "caller", "start": 12.4, "end": 16.2, "text": "unas enchiladas rojas de frijol con todo,", "language": "es" },
+    { "speaker": "caller", "start": 16.6, "end": 18.4, "text": "y el, y un pozole rojo.", "language": "es" },
+    { "speaker": "staff", "start": 19.0, "end": 20.4, "text": "¿La seis de frijol?", "language": "es" },
+    { "speaker": "caller", "start": 20.8, "end": 21.8, "text": "Sí, sí, sí.", "language": "es" },
+    { "speaker": "staff", "start": 22.2, "end": 24.0, "text": "Y con todas las enchiladas, ¿verdad?", "language": "es" },
+    { "speaker": "caller", "start": 24.4, "end": 25.6, "text": "Sí, con todo.", "language": "es" },
+    { "speaker": "caller", "start": 26.0, "end": 30.5, "text": "Y el, un pozole rojo, y me pones una gordita de chicharrón.", "language": "es" },
+    { "speaker": "staff", "start": 31.0, "end": 33.2, "text": "¿Chicharrón del duro en chile verde o prensado en chile rojo?", "language": "es" },
+    { "speaker": "staff", "start": 33.6, "end": 35.0, "text": "¿De chicharrón prensado?", "language": "es" },
+    { "speaker": "caller", "start": 35.4, "end": 37.6, "text": "Sí, sí, de chicharrón prensado.", "language": "es" },
+    { "speaker": "staff", "start": 38.2, "end": 43.0, "text": "Le tengo las enchiladas, le tengo el pozole, y le tengo la gordita de prensado.", "language": "es" },
+    { "speaker": "caller", "start": 43.4, "end": 44.0, "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "start": 44.6, "end": 46.2, "text": "¿A qué nombre?", "language": "es" },
+    { "speaker": "caller", "start": 46.6, "end": 48.0, "text": "Álvaro, Álvaro.", "language": "es" }
+  ]
+}

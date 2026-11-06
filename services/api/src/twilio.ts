@@ -40,6 +40,34 @@ function xmlEscape(s: string) {
 }
 const xml = (body: string) => `<?xml version="1.0" encoding="UTF-8"?><Response>${body}</Response>`;
 const d10 = (p: unknown) => String(p || "").replace(/\D/g, "").slice(-10);
+/** The 10-digit caller for a recording. In-memory From is gone after a restart; the Twilio recording
+ *  callback has no From. A journaled `_caller` or an earlier call-log line for this CallSid still has it,
+ *  so a resumed recording can save the heard name. */
+export function recordingCallerPhone(o: { callSid?: string; body?: any; memory?: string | null; logText?: string | null }): string {
+  const raw = [o.memory, o.body?.From, o.body?.Caller, o.body?._caller].find((x) => d10(x).length === 10);
+  if (raw) return String(raw);
+  const sid = String(o.callSid || o.body?.CallSid || "");
+  if (!sid) return "";
+  let text = o.logText;
+  if (text == null) {
+    text = "";
+    try {
+      for (const d of [0, 1]) {
+        const day = new Date(Date.now() - d * 86400_000).toISOString().slice(0, 10);
+        try { text += fs.readFileSync(path.join(logDir, `${day}.jsonl`), "utf8") + "\n"; } catch { /* that day has no log */ }
+      }
+    } catch { /* log dir missing */ }
+  }
+  let found = "";
+  for (const line of String(text).split("\n")) {
+    if (!line.includes(sid)) continue;
+    let j: any; try { j = JSON.parse(line); } catch { continue; }
+    if (j.callSid !== sid && j.CallSid !== sid) continue;
+    const phone = j.caller || j.from || j.From || "";
+    if (d10(phone).length === 10) found = String(phone);
+  }
+  return found;
+}
 
 function publicUrl(req: express.Request) {
   const proto = String(req.headers["x-forwarded-proto"] || req.protocol).split(",")[0];
@@ -2030,9 +2058,11 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
   const handleRecording = (body: any, leg: string) => {
     const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = body || {};
     if (!RecordingUrl || !RecordingSid || !/^RE[0-9a-zA-Z]{10,40}$/.test(String(RecordingSid))) return;
+    const caller = recordingCallerPhone({ callSid: CallSid, body, memory: callers.get(CallSid) || "" });
     const journal = path.join(pendingDir, `${RecordingSid}.json`);
-    try { fs.mkdirSync(pendingDir, { recursive: true }); fs.writeFileSync(journal, JSON.stringify({ body, leg, at: Date.now() })); } catch {}
-    const caller = callers.get(CallSid) || body?.From || "";
+    const journalBody = caller ? { ...body, _caller: caller } : body;
+    try { fs.mkdirSync(pendingDir, { recursive: true }); fs.writeFileSync(journal, JSON.stringify({ body: journalBody, leg, at: Date.now() })); } catch {}
+    if (caller && CallSid) callers.set(CallSid, caller);
     if (blockedCaller(caller)) { // blocklist1: never score/ticket/SMS a blocked number
       logCall({ event: "recording_skipped_blocked", callSid: CallSid, caller, recordingSid: RecordingSid });
       try { fs.unlinkSync(journal); } catch {} return;
