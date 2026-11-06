@@ -12,7 +12,7 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -971,7 +971,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // gustavo-qd1 (CA7a1136): Elvi's "¿REGULAR Dorada o DELUXE Preparada?" answered "Sí, las tres" looped; staff's
     // "¿te gustarían deluxe preparadas?" + "sí" = DELUXE, and a repeated ask resolves to the "en aceite" house default (DELUXE).
     if (source === "caller" || source === "caller-retry") { const t2 = qdStyleAnswer(text, history, recentStaff.slice(-2).join(" ")); if (t2) text = t2; }
-    const r = await run(text, language, history.slice(-24));
+    let r = await run(text, language, history.slice(-24));
+    // alicia1: "side of rice and beans" is the combined side — never a quesadilla shell question or rice-only.
+    if (source.startsWith("caller")) r = guardRiceBeansSide(r, text, lastStaff || recentStaff.slice(-2).join(" "), cart, language);
     // anthony1: a caller availability question ("¿tienes pollo a la crema?") or an echo of staff's menu list ("Coctel de camarón")
     // orders nothing — drop any adds the model made on that turn.
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
@@ -2373,6 +2375,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       // andres1: "una orden de arroz" / "un arroz" / "side de arroz" — keep Sides Arroz in cart
       // suleika1: "con arroz" / "con puro arroz" = mole/platillo side choice, never Sides Arroz SKU
       if (/\b(?:a\s+)?sides?\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(text)
+        && !combinedRiceBeansSide(text) // "side of rice and beans" is the combined side, not rice-only
         && !/\b(?:con\s+)?arroz\s+y\s+frijol/iu.test(text) // combo filling, not a side order
         && !/^\W*(?:s[ií][,.]?\s*)?(?:con\s+)?(?:puro\s+)?arroz\W*$/iu.test(text)
         && !(/\bcon\s+(?:puro\s+)?arroz\b/iu.test(text) && (/\bmoles?\b/iu.test(history.filter((h) => h.role === "customer").slice(-6).map((h) => h.text).join(" ") + " " + text) || cart.some((l) => /mole|platillo/i.test(String(l.itemId)))))
@@ -3912,7 +3915,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         // A guacamole "deep in chips" confirmation is not a house-default Taco Comal.
         const staffDipTalk = /\b(?:d(?:i|ee)p|deep)\b/iu.test(rawStaff) && /\b(?:chips|guacamole)\b/iu.test(rawStaff);
         const tq = !menudoOnlyCart && !staffSaidDorada && !staffTacoDorado && !staffDipTalk && (movedOn || affirm) ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
-        if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
+        // alicia1: a yes / "anything else" must not house-default Quesadilla Comal for a side of rice and beans.
+        if (tq && !riceBeansSideNotShell(history, t.text, lastStaff || rawStaff)) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
       }
       // hector1 (CA434ba9): staff "¿Una coca?" / "¿Taparrosca o vidrio?" + caller yes / "un refresco nomás" / Caparrusca
       // — even when ASR steals "Una torta. Sí". Ring Coca-Cola taparrosca; strip phantom torta from this turn.
@@ -3984,6 +3988,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           if (pref) pick = pref;
         }
       }
+      if (pick && riceBeansSideNotShell(history, t.text, lastStaff || rawStaff) && /comal|harina|taquer|quesadilla/i.test(String(pick))) pick = null;
       if (pick) { last = await say(pick, t.language, "staff-pick"); steps.push({ source: "staff-pick", heard: said.trim().slice(0, 120), pick }); } }
     // multi2: Elvi is still asking about an item (e.g. nachos meat + toppings) and the caller answers it — with a bare meat
     // ("Bistec."), or by confirming staff's read-back of the choices ("Una nachos de bistec, frijoles, lechuga" → "Eso es, sí,
@@ -4909,7 +4914,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // andres1: Spanish "una orden de arroz" must survive end-collapse (was stripped then not re-added)
     // suleika1: mole "con (puro) arroz" is plating, not a side SKU — andres1 still matches "una orden de arroz" / "un arroz"
     // cacc9783: "two/2 sides of rice" (plural) must count as Side Rice qty 2, not miss entirely
+    const riceAndBeansSide = turns.some((x) => x.speaker === "caller" && !!combinedRiceBeansSide(x.text));
     const wantRice = /\b(?:a\s+)?sides?\s+of\s+rice\b|\bsides\s+rice\b|\blado\s+de\s+arroz\b|\b(?:una?\s+)?orden\s+de\s+arroz\b|\b(?:un|una)\s+arroz\b|\bside\s+de\s+arroz\b|\b(?:un\s+)?size\s+de\s+arroz\b/iu.test(callerBlob)
+      && !riceAndBeansSide // "side of rice and beans" is one combined side, not rice-only
       && !(/\barroz\s+y\s+frijol/iu.test(callerBlob) && /\bcombo\b/iu.test(callerBlob))
       && !(/\bmoles?\b/iu.test(callerBlob) && /\bcon\s+(?:puro\s+)?arroz\b/iu.test(callerBlob) && !/\b(?:orden\s+de\s+arroz|side\s+(?:de\s+)?(?:arroz|rice)|un\s+arroz)\b/iu.test(callerBlob));
     const riceQty = /\b(?:two|2|dos)\s+sides?\s+of\s+rice\b/iu.test(callerBlob) ? 2 : 1;
@@ -7824,6 +7831,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       dropDeluxeComponentSides(cart as any[], turns as any); applySaidQuesoFresco(cart as any[], turns as any, menu); splitEnchiladaOrders(cart as any[], turns as any, menu); // angie1, miguel1
       applyNegatedMeat(cart as any[], turns as any, menu); dropUnsaidDorados(cart as any[], turns as any); // oscar2
       applyRiceBeansSide(cart as any[], turns as any, menu); applyCremaOnSide(cart as any[], turns as any, menu); // aaron1
+      applyCombinedRiceBeansSide(cart as any[], turns as any); // alicia1: combined side, not rice-only or a quesadilla shell
       applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu);
       applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu);
       applyMenudoSinPata(cart as any[], turns as any, menu); applySaidMeat(cart as any[], turns as any, menu); applyAsadosSide(cart as any[], turns as any, menu);

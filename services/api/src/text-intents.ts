@@ -119,6 +119,10 @@ export function normalizeSpokenCatalogAliases(text: string) {
     .replace(/\bdearina\b/gi, "de harina")
     // Speech-to-text spellings of "pambazo".
     .replace(/\b(pampazos?|panbazos?|pan\s+(?:v|b)azos?|pam\s+bazos?)\b/gi, "pambazo")
+    // alicia1: "a side of rice and beans" is the combined Sides plate (small unless they said large), never a quesadilla.
+    .replace(/\b(?:a\s+|an\s+)?(?:(large|grande|small|chic[ao])\s+)?(?:side|sides|orden|order)\s+(?:of|de)\s+(?:the\s+|el\s+|la\s+)?(?:rice\s+(?:and|&|n)\s+beans|beans\s+(?:and|&)\s+rice|arroz\s+y\s+frijoles|frijoles\s+y\s+arroz)\b/gi,
+      (m: string, size?: string) => (/large|grande/i.test(size || "") && !/small|chic/i.test(size || "")
+        ? "Sides GRANDE Arroz-Rice / Frijoles-Beans" : "Sides Arroz-Rice and Frijole-Beans"))
     // "a side of rice" / "orden de frijoles" is the Sides item, not a combo's side choice.
     .replace(/^[\s\S]*$/, (t) => (/\b(tacos?|quesadillas?|combo|burritos?|tortas?|gorditas?|platillo|plate|fiesta|pan|charola|bandeja|tray)\b/i.test(t)
       ? t

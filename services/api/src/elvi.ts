@@ -1,7 +1,7 @@
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn , liveCancelOrder, liveExistingOrder } from "./readback-pass.js";
 import { dropPutOnReAdd, mergeConFrijolesSplit, applySpokenQty, foldBareMeatAdd, addToThatAsUpdate, makeItNAsUpdate } from "./modifier-turns.js";
 import { liveEtaAddressQty, liveTrailingClosing } from "./eta-qty.js";
-import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata, liveTacoDorado, liveMexicanCoke, liveEnchiladaConTodo, liveGorditaChicharron } from "./list-repair.js";
+import { liveAguacateFull, liveConsomeTotal, normalizeFriedQuesadilla, liveQBDecline, liveMenudoSoloCaldo, liveQuesaAfterSoup, liveQuesadillaMeat, noNegatedMeat, noRiceBeansFilling, noReaskAnswered, liveSideSize, liveChristopher, liveHominyQd, liveMenudo3, liveLuis3, liveSopesAsada, liveStrongHorchata, liveDrinkReMention, liveJarritoAsk, liveEsquiteAsk, liveMultiItem, liveMeatSplitQty, liveExtraCarne, liveQdCorrection, liveMenudoSplit, liveConsomeSolo, liveCoctelNotCeviche, liveMenudoCountSinPata, liveTacoDorado, liveMexicanCoke, liveEnchiladaConTodo, liveGorditaChicharron, liveRiceBeansSide } from "./list-repair.js";
 import { noUnknownHours } from "./store-hours.js";
 import { unavailMatchesId } from "./spoken-ledger.js";
 import { blockedCaller, blockedLanguages, blockedReply } from "./phone-blocklist.js";
@@ -2191,6 +2191,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { o2 = liveEsquiteAsk(o2, input); } catch { /* keep */ } // kevin1
   try { o2 = liveTacoDorado(o2, input); } catch { /* keep */ } // taco dorado is the platter, not a soft taco
   try { o2 = liveMexicanCoke(o2, input); } catch { /* keep */ } // "two Mexican Cokes" → Coca Cola (glass)
+  try { o2 = liveRiceBeansSide(o2, input); } catch { /* keep */ } // "side of rice and beans" is the combined side, not a quesadilla
   try { o2 = liveEnchiladaConTodo(o2, input); } catch { /* keep */ } // enchiladas con todo = $0 toppings, not extra salsa
   try { o2 = liveGorditaChicharron(o2, input); } catch { /* keep */ } // gordita chicharrón clarifier commits prensado/duro
   try { o2 = liveMultiItem(o2, input); } catch { /* keep */ } // robert1
