@@ -67,10 +67,44 @@ export function isEchoOfStaff(x: string, staff: string): boolean {
 }
 type Item = { dish: Dish; meat?: string; n: number; grp: number; notes: string[]; plate: number; person?: string };
 type Grp = { dish: Dish; want: number; grp: number; open?: boolean; sinQueso?: boolean; style?: string; side?: string; tort?: string; cebolla?: boolean };
+type MeatN = { n: number; meat: string };
+/** Counted meats in one clause ("tres de bistec", "una costilla", "un taco de comal de lengua"). "de X no" is not a count. */
+function meatCounts(s: string): MeatN[] {
+  const out: MeatN[] = [];
+  const re = new RegExp(`\\b(${NUM})\\s+(?:(?:tacos?|gorditas?|tortas?|quesadillas?)\\s+)?(?:de\\s+)?(?:(?:comal|harina|maiz|taquer\\w*|street)\\s+de\\s+)?(${MW})\\b`, "g");
+  for (const m of s.matchAll(re)) {
+    const mt = meat(m[2]); if (!mt) continue;
+    if (/^\s+no\b/.test(s.slice((m.index || 0) + m[0].length))) continue;
+    const prev = out.find((p) => p.meat === mt);
+    if (prev) prev.n = Math.max(prev.n, n(m[1])); else out.push({ n: n(m[1]), meat: mt });
+  }
+  return out;
+}
+/** "cinco tacos de bistec, no, tres de bistec y una costilla" — the list after "no" replaces the announcement. */
+function meatRewrite(after: string): MeatN[] | null {
+  const m = after.match(/\bno\b([\s\S]*)$/); if (!m) return null;
+  const parts = meatCounts(m[1]); return parts.length ? parts : null;
+}
+/** One tortilla in a staff statement. "de comal" / "Taqueroso de Comal" is homemade; "¿comal o harina?" is not a choice. */
+function specStyle(raw: string): "comal" | "taquero" | "harina" | null {
+  const one = (sentence: string): "comal" | "taquero" | "harina" | null => {
+    const sp = nf(sentence);
+    const comal = /\bcomal\b/.test(sp), taq = /\b(?:taquer\w*|street)\b/.test(sp), har = /\b(?:harina|flour)\b/.test(sp);
+    const nStyles = [comal, taq, har].filter(Boolean).length;
+    const question = /\?/.test(sentence);
+    if (/\b(?:de|del)\s+comal\b/.test(sp) && !(question && /\bo\b/.test(sp) && nStyles >= 2)) return "comal";
+    if (nStyles === 1 && !(question && /\b(?:o|or)\b/.test(sp))) return comal ? "comal" : taq ? "taquero" : "harina";
+    return null;
+  };
+  for (const s of String(raw || "").split(/(?<=[.?!])\s+/)) { const hit = one(s); if (hit) return hit; }
+  return null;
+}
 
 export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[] } | null {
   const items: Item[] = []; const groups: Grp[] = [];
   let cur: Grp | null = null, plate = 1, salsa: { oz: 2 | 4 | null; flavor: string } | null = null, lastStaff = "", prevStaff = "";
+  let pendingStyle: "comal" | "taquero" | "harina" | null = null;
+  let pendingRecap: MeatN[] | null = null;
   let qb: { n: number; style?: string } | null = null, qbAsked = false, jar: { n: number; mixed: boolean } | null = null, jarAsk = false;
   const fill = (g: Grp) => items.filter((i) => i.grp === g.grp).reduce((s, i) => s + i.n, 0);
   for (const t of turns) {
@@ -80,6 +114,20 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       if (qb && /\bqueso\s+birrias\s+del\s+comal\b/.test(x)) qb.style = qb.style || "comal";
       if (/\bcuantos\s+jarritos\b/.test(x)) jarAsk = true;
       if (/\btodo\s+va\s+sin\s+queso\b/.test(x)) groups.forEach((g) => (g.sinQueso = true));
+      const st = specStyle(t.text); if (st) pendingStyle = st;
+      // "tres de bistec y dos de costilla" — held until the caller affirms it
+      if (cur && cur.dish !== "cr") { const parts = meatCounts(x); if (parts.length >= 2) pendingRecap = parts; }
+      continue;
+    }
+    const bareYes = /^(?:si|aja|claro|ok|okay|correcto|exacto|perfecto|eso es|asi es|yes|yeah|sale|va)$/.test(x);
+    if (/^(?:no|nel|nop)\b/.test(x) && pendingRecap && meatCounts(lastStaff).length >= 2) pendingRecap = null;
+    // affirmed staff count replaces the caller's earlier split; staff "de comal" sets the tortilla when the caller never named one
+    if (bareYes && cur && cur.dish !== "cr" && pendingRecap && meatCounts(lastStaff).length >= 2) {
+      for (let i = items.length - 1; i >= 0; i--) if (items[i].grp === cur.grp) items.splice(i, 1);
+      for (const p of pendingRecap) items.push({ dish: cur.dish, meat: p.meat, n: p.n, grp: cur.grp, notes: [], plate });
+      cur.want = pendingRecap.reduce((s, p) => s + p.n, 0);
+      if (!cur.style && pendingStyle) cur.style = pendingStyle;
+      pendingRecap = null;
       continue;
     }
     // anthony1: caller repeating the staff's menu list ("Tacos al vapor, enchilada, dice" / "Coctel de camarón") orders nothing
@@ -111,6 +159,13 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
     if (ann && dishOf(ann[2]) === "q" && !openList && !groups.some((g) => g.dish === "q")) { /* not modeled */ }
     else if (ann && !/\bcuantos\s+lleva\b/.test(x)) {
       const dish = dishOf(ann[2].replace(/^ordenes\s+de\s+/, "")), want = n(ann[1]), mt = ann[3] ? meat(ann[3]) : undefined;
+      // "cinco tacos de bistec, no, tres de bistec y una costilla" rewrites the announcement; it does not keep 5 of the first meat
+      const rw = openList ? null : meatRewrite(x.slice((ann.index || 0) + ann[0].length));
+      if (rw) {
+        cur = { dish, want: rw.reduce((s, p) => s + p.n, 0), grp: groups.length + 1 };
+        groups.push(cur);
+        for (const p of rw) items.push({ dish, meat: p.meat, n: p.n, grp: cur.grp, notes: [], plate });
+      } else {
       // restatement ("dos tortas." … "dos, dos tortas de" … "dos tortas al pastor"; "los cuatro tacos a nombre de…")
       const same = groups.find((g) => g.dish === dish && g.want === want && (!mt || !items.some((i) => i.grp === g.grp) || items.some((i) => i.grp === g.grp && i.meat === mt)));
       if (same) { cur = same; if (mt && !items.some((i) => i.grp === same.grp)) items.push({ dish, meat: mt, n: want, grp: same.grp, notes: [], plate }); }
@@ -120,6 +175,7 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
       if (!same && split && n(split[1]) + n(split[2]) === cur.want) items.push({ dish: cur.dish, meat: meat(ann[3]), n: n(split[1]), grp: cur.grp, notes: [], plate });
       else if (same) { /* restated */ } else if (ann[3]) items.push({ dish: cur.dish, meat: meat(ann[3]), n: cur.want, grp: cur.grp, notes: [], plate });
       else if (cur.dish === "cr") items.push({ dish: "cr", n: cur.want, grp: cur.grp, notes: [], plate });
+      }
     }
     if (cur) {
       const g: Grp = cur;

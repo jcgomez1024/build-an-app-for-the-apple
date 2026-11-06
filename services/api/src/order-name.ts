@@ -637,10 +637,21 @@ export function callerOwnSpelling(turns: Array<{ speaker: "caller" | "staff"; te
   // the caller said the staff form themselves (marina1 "Marina Aguilar" → later garble "Marine") → keep it
   if (turns.some((t) => t.speaker === "caller" && (String(t.text).match(/\p{L}+/gu) || []).some((w) => foldName(w) === f))) return null;
   // only a short name-answer turn ("Oh, Dayana."), never a word inside a sentence (eva1 "Está", marina1)
-  for (const t of turns) { if (t.speaker !== "caller" || String(t.text).trim().split(/\s+/).length > 3) continue;
+  let own: string | null = null, ownAt = -1;
+  for (let i = 0; i < turns.length && !own; i++) { const t = turns[i]; if (t.speaker !== "caller" || String(t.text).trim().split(/\s+/).length > 3) continue;
     for (const w of String(t.text).match(/\p{Lu}[\p{L}]+/gu) || []) { const g = foldName(w);
-      if (g !== f && g[0] === f[0] && g.length >= 4 && editDist(g, f) <= 2 && !NOT_NAMES.test(w) && !NOT_NAME.test(w)) return w; } }
-  return null;
+      if (g !== f && g[0] === f[0] && g.length >= 4 && editDist(g, f) <= 2 && !NOT_NAMES.test(w) && !NOT_NAME.test(w)) { own = w; ownAt = i; break; } } }
+  if (!own) return null;
+  // A later staff ticket confirmation ("Josue. Muy bien, dame unos minutos") settles that form.
+  // A passing vocative ("¿qué te vamos a poner, Diana?") does not — the caller's spelling still wins (dayana2).
+  const CONFIRM = /^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*[.]\s+(?:muy\s+bien|ok(?:ay)?|perfecto|listo|gracias)\b|^\s*([\p{Lu}][\p{Ll}áéíóúñ]+)\s*,\s*(?:muy\s+bien|dame|deme)\b/iu;
+  for (let i = ownAt + 1; i < turns.length; i++) {
+    if (turns[i].speaker !== "staff") continue;
+    const m = String(turns[i].text).match(CONFIRM);
+    const said = m && (m[1] || m[2]);
+    if (said && foldName(said) === f) return null;
+  }
+  return own;
 }
 // angel1 (CA898bd1, Oct 31 11:23 AM ET): "¿A nombre de quién sería?" → caller "De Ángel." then "me conoce como Ángel o hasta
 // Guamas" → staff misheard nickname "Kawama" became the name. The caller's direct "De/A/Para X" answer to the name ask wins
