@@ -108,6 +108,9 @@ function tryStart(text: string, menu: MenuItem[]): Pending | null {
   const rest = t.slice((m.index || 0) + m[0].length);
   const found = mentions(rest, meat);
   const counted = found.reduce((s, f) => s + (f.qty || 0), 0);
+  // "dos tacos de bistec chorizo" / "de bistec y chorizo" — neither meat has its own count, so both go on each taco.
+  // A real split names a count per meat ("dos de bistec y dos de chorizo", "uno de bistec y uno de chorizo").
+  if (found.length > 1 && found.every((f) => !f.qty)) return null;
   const split = found.length > 1 || (found.length === 1 && found[0].qty && found[0].qty < qty);
   if (!split || counted > qty) return null;
   const p: Pending = { itemId: item.id, itemName: item.name, qty, fills: {}, meats: [], said: [text], clarifications: 0 };

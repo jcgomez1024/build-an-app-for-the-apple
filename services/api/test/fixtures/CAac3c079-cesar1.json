@@ -1,0 +1,20 @@
+{
+  "callSid": "CAac3c079ee06f0bf4bc28b15357b9faa9",
+  "name": "César",
+  "note": "Pickup. 2 gorditas de chicharrón prensado and 2 street tacos with both bistec and chorizo. Not 1+1, and prensado does not move onto the tacos.",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, ¿pickup o entrega?", "language": "es" },
+    { "speaker": "caller", "text": "Pickup.", "language": "es" },
+    { "speaker": "caller", "text": "Dos gorditas de,", "language": "es" },
+    { "speaker": "caller", "text": "Tiene chicharrón prensado. Ah, me pone dos gorditas de chicharrón prensado.", "language": "es" },
+    { "speaker": "staff", "text": "Dos gorditas de chicharrón prensado, ¿algo más?", "language": "es" },
+    { "speaker": "caller", "text": "Y dos tacos de bistec chorizo.", "language": "es" },
+    { "speaker": "staff", "text": "¿Del comal?", "language": "es" },
+    { "speaker": "caller", "text": "Sí, normales, tacos normales, taqueros, sí.", "language": "es" },
+    { "speaker": "staff", "text": "Dos gorditas de prensado y dos tacos taqueros de bistec y chorizo.", "language": "es" },
+    { "speaker": "caller", "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "text": "¿A nombre de quién?", "language": "es" },
+    { "speaker": "caller", "text": "De César.", "language": "es" },
+    { "speaker": "staff", "text": "César. Dame unos quince minutos.", "language": "es" }
+  ]
+}
