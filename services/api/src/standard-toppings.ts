@@ -27,11 +27,80 @@ function negated(said: string, toppings: string[]) {
   return toppings.filter((t) => { const es = KEY(t), en = norm(t.split("/")[1] || "");
     return new RegExp(`\\b(?:sin|no|without|but\\s+no|menos|hold\\s+the)\\s+(?:(?:el|la|los|las|the|de)\\s+)?(?:${es}${en ? `|${en}` : ""})`).test(said); });
 }
+/** Enchiladas "con todo" = the included $0 toppings (lechuga, cebolla, jitomate, crema, queso fresco).
+ *  "Enchiladas rojas" is the dish, not a paid salsa cup. Not applied by withIncludedToppings. */
+export const ENCHILADA_CON_TODO: Array<{ key: RegExp; name: string }> = [
+  { key: /\blechuga\b|\blettuce\b/, name: "Lechuga / Lettuce" },
+  { key: /\bcebolla\b|\bonion\b/, name: "Cebolla / Onion" },
+  { key: /\bjitomate\b|\btomate\b|\btomato\b/, name: "Jitomate / Tomato" },
+  { key: /\bcrema\b|\bsour cream\b/, name: "Crema / Sour Cream" },
+  { key: /\bqueso fresco\b|\bfresco cheese\b/, name: "Queso Fresco / Fresco Cheese" },
+];
+const ENCHILADA_ITEM = /enchilad/i;
+const EXPLICIT_SALSA = /\bsalsa\s+(?:roja|verde|asada|picante|hot|mild|tomato|tomate)\b|\b(?:extra|aparte|vasito|side\s+of)\b[^.?!]{0,24}\bsalsa\b|\bsalsa\b[^.?!]{0,24}\b(?:extra|aparte|2\s*oz|4\s*oz)\b/;
+const optPrice = (o: any) => (typeof o === "object" && o ? Number(o.priceDeltaCents ?? o.priceCents) || 0 : 0);
+const optLabel = (o: any) => String(typeof o === "string" ? o : o?.name || "");
+/** A paid extra, or Hot Salsa Roja inferred from "enchiladas rojas" / "con todo", was not asked for. */
+export function unaskedEnchiladaSalsa(option: string, text: string): boolean {
+  const said = norm(text), n = norm(option);
+  if (!n || EXPLICIT_SALSA.test(said)) return false;
+  const paidSalsa = /\bextra\b/.test(n) && /\bsalsa\b/.test(n);
+  const fromRojas = /\bsalsa roja\b/.test(n) && /\benchiladas?\s+roj/.test(said);
+  return paidSalsa || fromRojas;
+}
+function enchiladaItem(item: any): boolean {
+  return ENCHILADA_ITEM.test(`${item?.name || ""} ${item?.id || ""}`);
+}
+/** Free catalog option matching one standard con-todo topping, or null. Never a paid extra. */
+function freeEnchiladaTopping(item: any, rule: typeof ENCHILADA_CON_TODO[number]): { step: string; option: string } | null {
+  for (const g of item?.modifierGroups || []) for (const o of g.options || []) {
+    const name = optLabel(o), n = norm(name);
+    if (!rule.key.test(n) || optPrice(o) > 0 || /\bextra\b|\bdouble\b|\bdoble\b|\(\+\$/.test(n)) continue;
+    return { step: g.name, option: name };
+  }
+  return null;
+}
+/** On an enchilada line: drop unasked salsa, and on "con todo" add the free standard toppings the item actually has. */
+export function fixEnchiladaSpokenMods(mods: any[], item: any, text: string): any[] | null {
+  if (!enchiladaItem(item)) return null;
+  const said = norm(text);
+  const conTodo = CON_TODO.test(said);
+  const rojas = /\benchiladas?\s+roj/.test(said);
+  if (!conTodo && !rojas) return null;
+  let next = [...(mods || [])];
+  const before = next.length;
+  next = next.filter((m) => !unaskedEnchiladaSalsa(String(m?.option || ""), text));
+  // "con todo" is the included toppings, not a paid (C) EXTRAS crema/queso the model guessed from those words.
+  if (conTodo) next = next.filter((m) => {
+    const n = norm(String(m?.option || ""));
+    if (!/\bextra\b/.test(n)) return true;
+    if (EXPLICIT_SALSA.test(said) && /\bsalsa\b/.test(n)) return true;
+    return !ENCHILADA_CON_TODO.some((r) => r.key.test(n));
+  });
+  let changed = next.length !== before;
+  if (conTodo) for (const rule of ENCHILADA_CON_TODO) {
+    if (negated(said, [rule.name]).length) continue;
+    if (next.some((m) => rule.key.test(norm(String(m?.option || ""))) && !/\bextra\b|\bdouble\b/.test(norm(String(m?.option || ""))))) continue;
+    const pick = freeEnchiladaTopping(item, rule);
+    if (!pick) continue;
+    next.push(pick); changed = true;
+  }
+  return changed ? next : null;
+}
+export function fixEnchiladaSpoken<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
+  if (!Array.isArray(actions)) return actions;
+  return actions.map((a: any) => {
+    if (a?.type !== "add_item" && a?.type !== "update_item") return a;
+    const item = (menu || []).find((m: any) => m.id === a.itemId);
+    const mods = fixEnchiladaSpokenMods(a.modifiers, item, text);
+    return mods ? { ...a, modifiers: mods } : a;
+  });
+}
 /** Elvi actions: on "con todo", add the standard toppings to the dish (minus "sin X"). */
 export function withConTodo<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
   const said = norm(text);
-  if (!CON_TODO.test(said) || !Array.isArray(actions)) return actions;
-  return actions.map((a: any) => {
+  if (!CON_TODO.test(said) || !Array.isArray(actions)) return fixEnchiladaSpoken(actions, menu, text);
+  const topped = actions.map((a: any) => {
     if (a?.type !== "add_item" && a?.type !== "update_item") return a;
     const item = (menu || []).find((m: any) => m.id === a.itemId);
     const group = (item?.modifierGroups || []).find((g: any) => TOPPING_GROUP.test(g.name));
@@ -46,6 +115,7 @@ export function withConTodo<T extends { type: string; itemId?: string; modifiers
     }
     return { ...a, modifiers: mods };
   });
+  return fixEnchiladaSpoken(topped, menu, text);
 }
 /** Score/auditor lines: a dish with standard toppings and no topping choices at all comes with them (included). */
 export function withIncludedToppings<L extends { name: string; baseName?: string; choices?: string[] }>(l: L): L {

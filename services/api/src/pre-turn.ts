@@ -107,9 +107,13 @@ export function chicharronTurn(key: string | undefined, text: string, menu: Menu
   const es = language === "es";
   const p = pending.get(k);
   if (p && Date.now() - p.at < 15 * 60 * 1000) {
-    pending.delete(k);
     const pick = answerPick(text);
-    if (pick) return { text: p.text.replace(BARE_G, pick), replayed: true };
+    // "enchiladas rojas" / "pozole rojo" is the dish color, not the chicharrón answer.
+    const otherDish = /\b(?:enchiladas?|pozole|menudo|tostadas?|quesadillas?|tacos?|burritos?|tortas?)\b/i.test(text) && !/\b(?:chicharr|prensad|duro)\b/i.test(text);
+    if (pick && !otherDish) { pending.delete(k); return { text: p.text.replace(BARE_G, pick), replayed: true }; }
+    // A short filler ("sí", "ah") must not throw away the open duro-vs-prensado question.
+    if (!otherDish && String(text || "").trim().split(/\s+/).length <= 8 && !/\b(?:gorditas?|tacos?|quesadillas?|tortas?|burritos?|enchiladas?|po[sz]ole|menudo)\b/i.test(text)) return null;
+    pending.delete(k);
   }
   const t = normalizeChicharron(text);
   if (!BARE.test(t)) return t !== text ? { text: t } : null;
