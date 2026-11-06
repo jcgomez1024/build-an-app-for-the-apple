@@ -1,4 +1,4 @@
-import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
+import { fixEnchiladaSpokenMods, withEnchiladaConTodoHost } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -2934,7 +2934,17 @@ export function enchiladaSpoken(turns: Turn[]): string {
   }
   return bits.join(". ");
 }
-/** Drop unasked salsa and, when "con todo" was accepted, add the item's free standard toppings. */
+/** Drop unasked salsa and, when "con todo" was accepted, add the free toppings the chosen item actually has. */
+function settleEnchiladaLine(row: any, menu: any[], said: string): boolean {
+  const hosted = withEnchiladaConTodoHost(row, menu, said);
+  let changed = hosted !== row;
+  if (changed) { row.itemId = hosted.itemId; row.modifiers = hosted.modifiers; }
+  const item = (menu || []).find((m: any) => m.id === row.itemId) || { id: row.itemId, name: row.itemId };
+  const mods = fixEnchiladaSpokenMods(row.modifiers, item, said);
+  if (!mods) return changed;
+  row.modifiers = mods;
+  return true;
+}
 export function applyEnchiladaConTodo(cart: any[], turns: Turn[], menu: any[] = []): boolean {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
   const said = enchiladaSpoken(turns);
@@ -2942,10 +2952,7 @@ export function applyEnchiladaConTodo(cart: any[], turns: Turn[], menu: any[] = 
   let changed = false;
   for (const l of cart) {
     if (!/enchilad/i.test(String(l?.itemId || ""))) continue;
-    const item = (menu || []).find((m: any) => m.id === l.itemId) || { id: l.itemId, name: l.itemId };
-    const mods = fixEnchiladaSpokenMods(l.modifiers, item, said);
-    if (!mods) continue;
-    l.modifiers = mods; changed = true;
+    if (settleEnchiladaLine(l, menu, said)) changed = true;
   }
   return changed;
 }
@@ -3055,16 +3062,18 @@ export function liveEnchiladaConTodo(r: any, input: any) {
   const menu: any[] = input?.resolverMenu || input?.menu || [];
   const acts: any[] = Array.isArray(r?.actions) ? r.actions.map((a: any) => ({ ...a, modifiers: a.modifiers ? a.modifiers.map((m: any) => ({ ...m })) : a.modifiers })) : [];
   let changed = false;
+  const touched = new Set<string>();
   const touch = (row: any) => {
-    const item = menu.find((m: any) => m.id === row.itemId) || { id: row.itemId, name: row.itemId };
-    const mods = fixEnchiladaSpokenMods(row.modifiers, item, said);
-    if (!mods) return false;
-    row.modifiers = mods; changed = true; return true;
+    const before = String(row.itemId || "");
+    if (!settleEnchiladaLine(row, menu, said)) return false;
+    touched.add(before);
+    if (row.itemId) touched.add(String(row.itemId));
+    changed = true; return true;
   };
   for (const a of acts) if (a?.type === "add_item" || a?.type === "update_item") touch(a);
   for (const l of input?.cart || []) {
     if (!/enchilad/i.test(String(l?.itemId || ""))) continue;
-    if (acts.some((a) => a.itemId === l.itemId && (a.type === "add_item" || a.type === "update_item"))) continue;
+    if (touched.has(String(l.itemId))) continue;
     const upd: any = { type: "update_item", itemId: l.itemId, quantity: l.quantity || 1, modifiers: (l.modifiers || []).map((m: any) => ({ ...m })) };
     if (touch(upd)) acts.push(upd);
   }

@@ -40,25 +40,108 @@ const ENCHILADA_ITEM = /enchilad/i;
 const EXPLICIT_SALSA = /\bsalsa\s+(?:roja|verde|asada|picante|hot|mild|tomato|tomate)\b|\b(?:extra|aparte|vasito|side\s+of)\b[^.?!]{0,24}\bsalsa\b|\bsalsa\b[^.?!]{0,24}\b(?:extra|aparte|2\s*oz|4\s*oz)\b/;
 const optPrice = (o: any) => (typeof o === "object" && o ? Number(o.priceDeltaCents ?? o.priceCents) || 0 : 0);
 const optLabel = (o: any) => String(typeof o === "string" ? o : o?.name || "");
-/** A paid extra, or Hot Salsa Roja inferred from "enchiladas rojas" / "con todo", was not asked for. */
+const PREFERENCE_SALSA = /^(?:mild salsa asada|mild salsa tomato|medium salsa verde|hot salsa roja)$/;
+/** A salsa the caller did not name. "Con todo" is the included toppings, never a salsa preference
+ *  and never a paid cup. The silent Mild Salsa Asada default stays on an enchilada that was not "con todo"
+ *  and did not name another salsa. A named salsa ("salsa roja aparte", "salsa verde") stays. */
 export function unaskedEnchiladaSalsa(option: string, text: string): boolean {
   const said = norm(text), n = norm(option);
   if (!n || EXPLICIT_SALSA.test(said)) return false;
   const paidSalsa = /\bextra\b/.test(n) && /\bsalsa\b/.test(n);
   const fromRojas = /\bsalsa roja\b/.test(n) && /\benchiladas?\s+roj/.test(said);
-  return paidSalsa || fromRojas;
+  const preference = PREFERENCE_SALSA.test(n);
+  if (paidSalsa || fromRojas) return true;
+  if (!preference) return false;
+  if (CON_TODO.test(said)) return true;
+  return n !== "mild salsa asada";
 }
 function enchiladaItem(item: any): boolean {
   return ENCHILADA_ITEM.test(`${item?.name || ""} ${item?.id || ""}`);
 }
-/** Free catalog option matching one standard con-todo topping, or null. Never a paid extra. */
+const SALSA_GROUP = /salsa/i;
+/** Free topping option. A salsa preference that shares a word ("Mild Salsa Tomato" vs jitomate) is not a topping. */
 function freeEnchiladaTopping(item: any, rule: typeof ENCHILADA_CON_TODO[number]): { step: string; option: string } | null {
-  for (const g of item?.modifierGroups || []) for (const o of g.options || []) {
-    const name = optLabel(o), n = norm(name);
-    if (!rule.key.test(n) || optPrice(o) > 0 || /\bextra\b|\bdouble\b|\bdoble\b|\(\+\$/.test(n)) continue;
-    return { step: g.name, option: name };
+  for (const g of item?.modifierGroups || []) {
+    if (SALSA_GROUP.test(String(g?.name || ""))) continue;
+    for (const o of g.options || []) {
+      const name = optLabel(o), n = norm(name);
+      if (/\bsalsa\b/.test(n) || !rule.key.test(n) || optPrice(o) > 0 || /\bextra\b|\bdouble\b|\bdoble\b|\(\+\$/.test(n)) continue;
+      return { step: g.name, option: name };
+    }
   }
   return null;
+}
+/** The item's modifier groups include every free con-todo topping (lechuga, cebolla, jitomate, crema, queso fresco). */
+export function expressesEnchiladaConTodo(item: any): boolean {
+  return enchiladaItem(item) && ENCHILADA_CON_TODO.every((rule) => freeEnchiladaTopping(item, rule));
+}
+const FILL_STEM: Array<[RegExp, string]> = [[/^queso\b/, "queso"], [/^papas?\b/, "papa"], [/^frijol/, "frijol"], [/^pollo\b|^chicken\b/, "pollo"], [/^prensad/, "prensado"]];
+function fillingStem(option: string): string | null {
+  const n = norm(option).split("/")[0].trim().replace(/^\d+\s*x?\s*/, "");
+  if (/queso fresco|fresco cheese/.test(n) || /\bsalsa\b/.test(n)) return null;
+  return FILL_STEM.find(([re]) => re.test(n))?.[1] || null;
+}
+function enchiladaNoteCount(notes: string[] | undefined, stem: string): number | null {
+  const note = (notes || []).map(String).find((n) => /^enchiladas:/.test(n));
+  if (!note) return null;
+  const m = note.match(new RegExp(`\\b(\\d+)\\s+${stem}\\b`));
+  return m ? Number(m[1]) : null;
+}
+/** A real catalog option for this filling. A count-list option ("3 Queso") is used only when the note asked for that count. */
+function pickFillingOption(item: any, stem: string, count: number | null): { step: string; option: string } | null {
+  const hits: Array<{ step: string; option: string; n: number | null }> = [];
+  for (const g of item?.modifierGroups || []) {
+    if (SALSA_GROUP.test(String(g?.name || "")) || /topping|extra|mas opciones|agua/i.test(String(g?.name || ""))) continue;
+    for (const o of g.options || []) {
+      const name = optLabel(o);
+      if (fillingStem(name) !== stem || optPrice(o) > 0 || /\bextra\b/i.test(name)) continue;
+      const lead = name.match(/^\s*(\d+)\s*x?\s*/i);
+      hits.push({ step: g.name, option: name, n: lead ? Number(lead[1]) : null });
+    }
+  }
+  if (!hits.length) return null;
+  if (count != null) { const exact = hits.find((h) => h.n === count); if (exact) return exact; }
+  return hits.find((h) => h.n == null) || null;
+}
+/**
+ * "Con todo" needs the free toppings. The ONLINE enchilada item has carne + salsa and no topping group, so
+ * Mild Salsa Tomato must not stand in for jitomate. When another enchilada item on this menu actually has
+ * the five free toppings, that item is the one that can say them. No switch when this item already can,
+ * when a salsa was named, or when the other item cannot carry the fillings. Never invents a modifier.
+ */
+export function withEnchiladaConTodoHost<T extends { itemId?: string; modifiers?: any[]; elviNotes?: string[] }>(row: T, menu: any[], text: string): T {
+  const said = norm(text);
+  if (!CON_TODO.test(said) || EXPLICIT_SALSA.test(said)) return row;
+  const item = (menu || []).find((m: any) => m?.id === row?.itemId);
+  if (!enchiladaItem(item) || expressesEnchiladaConTodo(item)) return row;
+  const host = (menu || []).find((m: any) => m && m.id !== item.id && expressesEnchiladaConTodo(m));
+  if (!host) return row;
+  const placed: any[] = [];
+  for (const m of row.modifiers || []) {
+    const stem = fillingStem(String(m?.option || ""));
+    if (!stem) continue;
+    const pick = pickFillingOption(host, stem, enchiladaNoteCount(row.elviNotes, stem));
+    if (!pick) return row;
+    placed.push({ ...m, step: pick.step, option: pick.option });
+  }
+  const kept = (row.modifiers || []).filter((m) => !fillingStem(String(m?.option || "")) && hostHas(host, String(m?.option || "")));
+  return { ...row, itemId: host.id, modifiers: [...placed, ...kept.map((m) => ({ ...m, step: hostStep(host, String(m.option)), option: hostName(host, String(m.option)) }))] };
+}
+function hostHas(item: any, option: string): boolean {
+  return hostName(item, option) !== "";
+}
+function hostName(item: any, option: string): string {
+  const want = norm(option);
+  for (const g of item?.modifierGroups || []) for (const o of g.options || []) {
+    const name = optLabel(o);
+    if (norm(name) === want && !(optPrice(o) > 0)) return name;
+  }
+  return "";
+}
+function hostStep(item: any, option: string): string {
+  const want = norm(option);
+  for (const g of item?.modifierGroups || []) for (const o of g.options || []) if (norm(optLabel(o)) === want) return g.name;
+  return "";
 }
 /** On an enchilada line: drop unasked salsa, and on "con todo" add the free standard toppings the item actually has. */
 export function fixEnchiladaSpokenMods(mods: any[], item: any, text: string): any[] | null {
@@ -66,7 +149,6 @@ export function fixEnchiladaSpokenMods(mods: any[], item: any, text: string): an
   const said = norm(text);
   const conTodo = CON_TODO.test(said);
   const rojas = /\benchiladas?\s+roj/.test(said);
-  if (!conTodo && !rojas) return null;
   let next = [...(mods || [])];
   const before = next.length;
   next = next.filter((m) => !unaskedEnchiladaSalsa(String(m?.option || ""), text));
@@ -78,22 +160,28 @@ export function fixEnchiladaSpokenMods(mods: any[], item: any, text: string): an
     return !ENCHILADA_CON_TODO.some((r) => r.key.test(n));
   });
   let changed = next.length !== before;
+  if (!conTodo && !rojas && !changed) return null;
   if (conTodo) for (const rule of ENCHILADA_CON_TODO) {
     if (negated(said, [rule.name]).length) continue;
-    if (next.some((m) => rule.key.test(norm(String(m?.option || ""))) && !/\bextra\b|\bdouble\b/.test(norm(String(m?.option || ""))))) continue;
+    if (next.some((m) => {
+      const n = norm(String(m?.option || ""));
+      return !/\bsalsa\b/.test(n) && rule.key.test(n) && !/\bextra\b|\bdouble\b/.test(n);
+    })) continue;
     const pick = freeEnchiladaTopping(item, rule);
     if (!pick) continue;
     next.push(pick); changed = true;
   }
   return changed ? next : null;
 }
-export function fixEnchiladaSpoken<T extends { type: string; itemId?: string; modifiers?: any[] }>(actions: T[], menu: any[], text: string): T[] {
+export function fixEnchiladaSpoken<T extends { type: string; itemId?: string; modifiers?: any[]; elviNotes?: string[] }>(actions: T[], menu: any[], text: string): T[] {
   if (!Array.isArray(actions)) return actions;
   return actions.map((a: any) => {
     if (a?.type !== "add_item" && a?.type !== "update_item") return a;
-    const item = (menu || []).find((m: any) => m.id === a.itemId);
-    const mods = fixEnchiladaSpokenMods(a.modifiers, item, text);
-    return mods ? { ...a, modifiers: mods } : a;
+    const row = withEnchiladaConTodoHost(a, menu, text);
+    const item = (menu || []).find((m: any) => m.id === row.itemId);
+    const mods = fixEnchiladaSpokenMods(row.modifiers, item, text);
+    if (row.itemId === a.itemId && !mods) return a;
+    return { ...row, modifiers: mods || row.modifiers };
   });
 }
 /** Elvi actions: on "con todo", add the standard toppings to the dish (minus "sin X"). */
