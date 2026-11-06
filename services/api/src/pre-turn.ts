@@ -135,7 +135,7 @@ const pendingPack = new Map<string, { text: string; at: number }>();
 const pendingEnchiladas = new Map<string, { rest: string; at: number }>();
 
 export type ShellUpdate = { type: "update_item"; itemId: string; quantity: number; modifiers: SplitAdd["modifiers"]; match: string[] };
-export function preTurn(key: string | undefined, text: string, menu: MenuItem[], language: string, opts: { hasComboState?: boolean } = {}): { reply?: string; text: string; replayed?: boolean; adds?: SplitAdd[]; updates?: ShellUpdate[] } {
+export function preTurn(key: string | undefined, text: string, menu: MenuItem[], language: string, opts: { hasComboState?: boolean; cart?: any[]; history?: Array<{ role?: string; speaker?: string; text?: string }> } = {}): { reply?: string; text: string; replayed?: boolean; adds?: SplitAdd[]; updates?: ShellUpdate[] } {
   const shellAns = shellConfirmAnswer(key, text, menu, language);
   if (shellAns) return { text, reply: shellAns.reply, adds: [], updates: shellAns.updates };
   // fix23: kitchen shorthand + STT — campechana = bistec+chorizo; "o mal"/"omal" = comal.
@@ -208,6 +208,22 @@ export function preTurn(key: string | undefined, text: string, menu: MenuItem[],
           ? `Las enchiladas vienen en orden de 6${price}. ¿Una orden, o cuántas órdenes?`
           : `Enchiladas come as an order of 6${price}. One order, or how many orders?` };
       }
+    }
+  }
+  // "tres tacos al vapor" is not N sellable orders. Once that line is in the cart (or the caller already
+  // ordered vapor), "una orden" / "una orden, nada más" corrects the quantity — it is not a new dish.
+  {
+    const bare = plainText(stripSomethingElse(text)).replace(/[.!?¡¿,]/g, " ").replace(/\s+/g, " ").trim();
+    const ordenFix = /^(?:(?:si|ok|okay|esta bien|yeah|yep)\s+)*(?:una|an|one|1)\s+(?:orden|order)(?:\s+(?:nada mas|solamente|solo|nomas|only|just|thats it|that s it))*$/.test(bare);
+    const hist = (opts.history || []).filter((h) => h.role === "customer" || h.role === "user" || h.speaker === "caller").map((h) => String(h.text || "")).join(" ");
+    const vaporInCart = (opts.cart || []).some((l) => /vapor|QYJLW5/i.test(String(l?.itemId || "")));
+    const vaporOrdered = vaporInCart || /\b(?:\d+|un[ao]?|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six)\s+(?:tacos?\s+(?:al|de)\s+vapor|[oó]rdenes?\s+de\s+tacos?\s+(?:al|de)\s+vapor|tacos?\s+sudados|tacos?\s+de\s+canasta)\b/i.test(hist);
+    if (ordenFix && vaporOrdered && !/\b(?:enchiladas?|dorados?|birria|menudo|pozole)\b/i.test(bare)) {
+      const es = language === "es";
+      const line = (opts.cart || []).find((l) => /vapor|QYJLW5/i.test(String(l?.itemId || "")));
+      const id = line?.itemId || "sq-tacos-al-vapor-steamed-tacos-QYJLW5";
+      const updates: ShellUpdate[] = [{ type: "update_item", itemId: id, quantity: 1, modifiers: line?.modifiers || [], match: [] }];
+      return { reply: es ? "Listo, una orden de tacos al vapor." : "Okay, one order of steamed tacos.", text, updates };
     }
   }
   // fix13: vague orders get one question; the answer completes the pending item.

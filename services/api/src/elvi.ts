@@ -19,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import type { MenuItem } from "./menu.js";
 import { getLaunchConfig } from "./launch-config.js";
 import { rbFormat } from "./readback.js";
-import { meatOptSaid, enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords } from "./site-catalog.js";
+import { meatOptSaid, enforceSiteAvailability, completeWithSiteDefaults, dropUnaskedExtras, unavailableNowReply, pinnedMenu, rescoreSingleChoices, withDefaultSalsa, fixBurritoFillings, fixNamedMeats, fixToppingNegations, followUpContext, pickVariation, variationQuestion, readbackName, followUpStep, withoutSkuWords, clauseFor, dishClauses } from "./site-catalog.js";
 import { answerMenuQuestion, unavailableItemReply, requiredChoiceQuestion } from "./menu-info.js";
 import { normalizeSpokenCatalogAliases } from "./text-intents.js";
 import { applySharedAliases } from "./aliases.js";
@@ -119,7 +119,7 @@ async function chatWithElviCore(
   }
 
   // fix11: packs and the chicharrón question first (same as web resolve).
-  const pre = preTurn(input.sessionKey, transcript, input.resolverMenu || input.menu, input.language);
+  const pre = preTurn(input.sessionKey, transcript, input.resolverMenu || input.menu, input.language, { cart: (input as any).cart, history: input.history });
   if (pre.reply) return { language: input.language, engine: "xai", reply: pre.reply, actions: [...splitActions(pre.adds), ...((pre.updates || []) as any[])] } as ElviResponse;
   if (pre.text !== transcript) {
     transcript = pre.text;
@@ -229,10 +229,15 @@ const fuFold = (s: string) => String(s || "").toLowerCase().normalize("NFD").rep
 /** "dos tortas" → 2 when the number sits right before this dish's own noun; else null. */
 export function spokenQtyFor(text: string, items: any[]): number | null {
   const t = fuFold(text);
+  const nums = Object.keys(FUQ).join("|");
+  // "four of your grande burritos" / "six of your steak quesadillas" / "two steak street tacos"
+  const gap = String.raw`(?:of\s+(?:your|the|those)\s+)?(?:(?:grande|large|big|steak|bistec|street|flour|harina|homemade|comal|taquer[oa])\s+){0,4}`;
   for (const it of items) {
     const noun = fuFold(String(it.name || "")).replace(/\(.*?\)/g, " ").trim().split(/\s+/).find((w) => w.length >= 4);
     if (!noun) continue;
-    const m = new RegExp(`\\b(\\d+|${Object.keys(FUQ).join("|")})\\s+(?:otr[ao]s?\\s+)?${noun.slice(0, -1)}`).exec(t);
+    const stem = noun.slice(0, -1);
+    const m = new RegExp(`\\b(\\d+|${nums})\\s+(?:otr[ao]s?\\s+)?${stem}`).exec(t)
+      || new RegExp(`\\b(\\d+|${nums})\\s+${gap}${stem}`).exec(t);
     if (m) { const n = /\d/.test(m[1]) ? Number(m[1]) : FUQ[m[1]]; if (n > 1 && n < 30) return n; }
   }
   return null;
@@ -270,7 +275,7 @@ export function shortAckAfterReadback(input: ElviRequest, lastReply: string): El
  * its count). A clause taken back ("…de bistec, no, perdón, y otra quesadilla de prensado") is dropped. All-or-nothing. */
 export function splitDishClauses(text: string): string[] {
   const t = fuPlain(text);
-  const segs = t.split(/\s*(?:[,.;!?]|\by\b|\band\b)\s*/).filter(Boolean);
+  const segs = dishClauses(t);
   const chunks: Array<{ noun: string; segs: string[]; retracted: boolean }> = [];
   for (const seg of segs) {
     const n = seg.match(DISH_RE)?.[1]?.replace(/e?s$/, "");
@@ -490,10 +495,12 @@ export function caseFix(result: ElviResponse, input: ElviRequest): ElviResponse 
         return { ...a, itemId: qd.id, modifiers: kept };
       }
     }
-    const words = [...recent.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquer[oa]s?|street|chiquitos?)\b/g)].map((m) => m[1]); // qty1: "del chiquito, taquero" is the street taco
+    // A tortilla word belongs to the dish it was said with. "street" in "steak street tacos" does not retarget a quesadilla in the same breath.
+    const item = menu.find((i: any) => i.id === a.itemId);
+    const scoped = item ? clauseFor(recent, item, menu) : recent;
+    const words = [...scoped.matchAll(/\b(harina|flour|maiz|comal|hecha a mano|handmade|taquer[oa]s?|street|chiquitos?)\b/g)].map((m) => m[1]); // qty1: "del chiquito, taquero" is the street taco
     const lastW = words[words.length - 1];
     const want = !lastW ? null : /harina|flour/.test(lastW) ? /harina|flour|\(QHR\)/i : /taquer|street|chiquit/.test(lastW) ? /taquer|street|\(TST\)/i : /comal|homemade|\(QCO\)/i;
-    const item = menu.find((i: any) => i.id === a.itemId);
     if (want && item) for (const g of item.modifierGroups || []) {
       const opts = (g.options || []).map((o: any) => String(o.name));
       if (!opts.some((o: string) => /harina|flour/i.test(o)) || !opts.some((o: string) => /comal|homemade/i.test(o))) continue;
@@ -1094,7 +1101,7 @@ async function chatWithElviAudioCore(
     return { ...result, reply: menuAnswer, actions: [], audioBase64: undefined, audioMimeType: undefined };
   }
   // fix11: chicharrón question / pack rewrite on what was heard; a rewrite reruns the turn as text.
-  const pre = preTurn(input.sessionKey, heard, input.resolverMenu || input.menu, input.language);
+  const pre = preTurn(input.sessionKey, heard, input.resolverMenu || input.menu, input.language, { cart: (input as any).cart, history: input.history });
   if (pre.reply) return { ...result, reply: pre.reply, actions: [...splitActions(pre.adds), ...((pre.updates || []) as any[])], audioBase64: undefined, audioMimeType: undefined, customerTranscript: heard } as any;
   // fix12: "Ocho tacos de alpastor" heard but the audio model added 1 → redo the turn as text.
   const countWord = heard.toLowerCase().match(/\b(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven|eight|nine|ten)\s+(tacos|quesadillas|gorditas|tortas|burritos|sopes|tamales)\b/);
