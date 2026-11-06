@@ -4447,7 +4447,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         pendingDishes = pendingDishes.filter((x) => x !== d);
         // case1e: keep the dish-type word the fragment cut off ("De chicharrón. ¿De chicharrón dorada o …?")
         const kind = (cleanPhrase(t.text).match(/\b(dorad[ao]s?|frit[ao]s?)\b/iu) || [])[1];
-        const head = fragQty > 1 ? `${fragQty} ${dishNoun(d)}s` : dishPhrase(d);
+        const ordenM = String(d).match(/\b(\d{1,2}|un[ao]?|dos|tres|cuatro|cinco|seis)\s+[oó]rdenes?\s+de\s+(enchiladas?)\b/iu);
+        const head = fragQty > 1 ? `${fragQty} ${dishNoun(d)}s` : ordenM ? `${ordenM[1]} órdenes de ${ordenM[2]}` : dishPhrase(d);
         // alejandro1: keep comal/harina from pending dish, lastTortilla, or staff ask
         const tort =
           /\bcomal\b/iu.test(d) ? " de comal" :

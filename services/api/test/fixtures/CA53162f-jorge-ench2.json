@@ -1,0 +1,13 @@
+{
+  "callSid": "CA53162ff874fe5ec7c2d9d6a2eb0aaefb",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, buenas tardes.", "language": "es" },
+    { "speaker": "caller", "text": "Quisiera ordenar, perdón, tres órdenes de enchilada. Sí.", "language": "es" },
+    { "speaker": "staff", "text": "Tres órdenes de enchiladas. ¿De qué se las voy a dar?", "language": "es" },
+    { "speaker": "caller", "text": "Todas de pollo, por favor.", "language": "es" },
+    { "speaker": "staff", "text": "Le tengo tres órdenes de enchiladas, todas de pollo, con todo.", "language": "es" },
+    { "speaker": "caller", "text": "Por, por favor, sí.", "language": "es" },
+    { "speaker": "staff", "text": "Serían 45. ¿A nombre de quién?", "language": "es" },
+    { "speaker": "caller", "text": "Jorge.", "language": "es" }
+  ]
+}
