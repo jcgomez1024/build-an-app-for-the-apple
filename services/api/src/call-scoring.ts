@@ -17,6 +17,8 @@ import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoO
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
+import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
+import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
 import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
@@ -3066,6 +3068,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if (source.startsWith("caller")) stripDeclinedAskAdds(acts, text, declinedAsk); // jonathan2
     if (source.startsWith("caller") || source === "auto") capQty(acts, text); // cristian-qd1
     if (source.startsWith("caller") || source === "auto") { if (closingOnlyTurn(text)) { for (let k = acts.length - 1; k >= 0; k--) if ((acts[k] as any)?.type === "add_item" || (acts[k] as any)?.type === "update_item") acts.splice(k, 1); } else trailingQty(acts, text); } // pablo-tacos1
+    // juan-loose1: a size answer must not take off a soup, side, or loose tortilla nobody cancelled.
+    if (source.startsWith("caller")) { const kept = dropUncancelledRemoves(acts, text, cart as any[]); if (kept.length !== acts.length) { acts.length = 0; acts.push(...kept); } }
     apply(acts);
     // roberto1: "Sí, huevo en orden" STT for "hacer una orden" — never invent Chilaquiles con Huevo / EXTRA Huevo
     if (source.startsWith("caller")
@@ -7897,6 +7901,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const deliv = /\b(?:delivery|deliver|domicilio|a\s+domicilio|env[ií]o|entrega|direcci[oó]n|address|doordash|uber\s*eats|grubhub|llevar\s+a\s+mi\s+casa|me\s+la\s+(?:lleva|traen?))\b/iu.test(all);
     const ready = /\b(?:dame|deme|d[eé]jame|me\s+das|en)\s+(?:unos?\s+)?(?:\d+|cinco|diez|quince|veinte|veinticinco|treinta|media\s+hora)\b(?:\s+minutos)?/iu.test(staffAll);
     if (!deliv && ready) fulfillment = "PICKUP";
+  }
+  // juan-loose1: an already-added soup/side/loose tortilla stays unless this call cancelled it.
+  // Runs after every rebuild so a later remove or a wiped cart cannot drop an explicit order.
+  {
+    const menuFn = (run as any).menu;
+    const menuEnd = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    const catalog = (run as any).posCatalog || cachedPosCatalog();
+    if (retainSpokenOrder(cart as any[], origTurns as any, (menuEnd || []) as any[], catalog))
+      steps.push({ source: "end-retain-spoken", heard: "ordered soup, side, loose tortilla" });
+    applyVerduraAparte(cart as any[], origTurns as any);
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }

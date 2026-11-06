@@ -778,7 +778,23 @@ function nameFromTranscriptInfoW(turns: Array<{ speaker: "caller" | "staff"; tex
   if (r0?.name) { const full = callerFullerName(turns, r0.name); if (full) r0 = { ...r0, name: full }; }
   const fix = surnameAfterReadback(turns, r0.name); return fix && fix !== r0.name ? { ...r0, name: fix } : r0;
 }
+/** Staff "Al nombre de Luis, ¿verdad?" + caller "no, de, de, de, de Martín" is the caller's name, not the guess. */
+export function callerNameCorrection(turns: Array<{ speaker: "caller" | "staff"; text: string }>): string | null {
+  for (let i = 0; i < turns.length; i++) {
+    if (turns[i].speaker !== "staff" || !/\bnombre\s+de\s+\p{L}/iu.test(String(turns[i].text))) continue;
+    const guess = String(turns[i].text).match(/\bnombre\s+de\s+(\p{L}[\p{L}'’-]+)/iu);
+    const nx = turns.slice(i + 1, i + 4).find((t) => t.speaker === "caller");
+    if (!nx || !/^\s*no\b/iu.test(nx.text)) continue;
+    const m = String(nx.text).match(/(?:\bde\b[\s,]*)+(\p{Lu}[\p{L}'’-]+)/u);
+    if (!m || isFillerName(m[1]) || NOT_NAMES.test(m[1]) || NOT_NAME.test(m[1])) continue;
+    if (guess && foldName(m[1]) === foldName(guess[1])) continue;
+    return m[1];
+  }
+  return null;
+}
 function nameFromTranscriptInfoN(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
+  const corrected = callerNameCorrection(turns);
+  if (corrected) return { name: corrected, thirdPerson: false, source: "volunteer" };
   const prop = staffProposedName(turns);
   let r = nameFromTranscriptInfo1(turns);
   if (r && isFillerName(r.name)) r = null;
