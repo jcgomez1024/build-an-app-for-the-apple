@@ -300,7 +300,7 @@ function vaporChunks(text: string): Array<Array<[string, number]>> | null {
 }
 const VORDEN = /\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+[oó]rden(?:es)?(?![\p{L}])/giu;
 const VOTHER = /\b(?:birrias?|menudos?|po[sz]oles?|enchiladas?|quesadillas?|gorditas?|tortas?|burritos?|moles?|tamales?|sopes?|huaraches?|platillos?|tacos?\s+(?:de\s+)?(?:bistec|asada|pastor|chorizo|carnitas|lengua|tripas?|cabeza|pollo|suadero))\b/iu;
-const VMIX = /\b(?:surtid[oa]s?|mezclad[oa]s?|mixt[oa]s?|revuelt[oa]s?|uno\s+de\s+cada|one\s+of\s+each)\b/iu;
+const VMIX = /\b(?:surtid[oa]s?|mezclad[oa]s?|mixt[oa]s?|mixead[oa]s?|revuelt[oa]s?|uno\s+de\s+cada|one\s+of\s+each)\b/iu;
 /** Vapor is the open dish when the caller brought it up and has not since named a different dish. */
 function vaporOpenAt(turns: T, i: number): boolean {
   let open = false;
@@ -360,15 +360,19 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     if (meats.every((o: string) => fillRe.test(o))) cart.splice(i, 1);
   }
   const step = "(A) Tacos al Vapor Carne Options (ONLINE)";
+  // The ONLINE carne list is one modifier per filling (papa, frijol, prensado, pollo, queso). Every filling the
+  // caller or the staff count actually named is a modifier. Piece counts stay on the note (3 prensado ≠ 3 órdenes).
+  // A hard cap of 3 dropped pollo and queso on a one-of-each order while the note still listed all five.
+  const modsOf = (opts: string[]) => opts.map((o) => ({ step, option: o }));
   if (groups) for (const g0 of groups) {
     const g = [...g0].sort((a, b) => VFILL.findIndex(([, x]) => x === a[0]) - VFILL.findIndex(([, x]) => x === b[0]));
     const note = "vapor: " + g.map(([o, n]) => `${n} ${VFILL.find(([, x]) => x === o)![2]}`).join(", ");
-    cart.push({ itemId: VAPOR_ID, quantity: 1, modifiers: g.slice(0, 3).map(([o]) => ({ step, option: o })), elviNotes: [note] });
+    cart.push({ itemId: VAPOR_ID, quantity: 1, modifiers: modsOf(g.map(([o]) => o)), elviNotes: [note] });
   }
   else if (want && vaporMixed(turns)) {
     // marta-vapor (CA1de52ae): "dos órdenes así surtidas" after tacos al vapor = qty N, one of each filling. No surtida SKU.
     const fills = VFILL.map(([, o]) => o);
-    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.map((o) => ({ step, option: o })), elviNotes: ["vapor: " + VFILL.map(([, , w]) => `1 ${w}`).join(", ")] });
+    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: modsOf(fills), elviNotes: ["vapor: " + VFILL.map(([, , w]) => `1 ${w}`).join(", ")] });
   }
   else if (want) {
     // chui1: "una orden de tacos al vapor" / "de" / "pollo, por favor" — fillings named without counts after the vapor ask.
@@ -377,7 +381,7 @@ export function applyVaporOrders(cart: any[], turns: T): void {
     const named = VFILL.filter(([, , w]) => new RegExp(`\\b(?:de|con|y|,)\\s+${w === "frijol" ? "frijol(?:es)?" : w === "papa" ? "papas?" : w === "prensado" ? "prensados?" : w}\\b`, "iu").test(after.replace(/[.¿?!]+/g, " ")));
     const fills = named.map(([, o]) => o);
     const note = fills.length === 1 ? [`vapor: 5 ${named[0][2]}`] : fills.length ? [`vapor: ${named.map(([, , w]) => w).join(", ")}`] : [];
-    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: fills.slice(0, 3).map((o) => ({ step, option: o })), ...(note.length ? { elviNotes: note } : {}) });
+    cart.push({ itemId: VAPOR_ID, quantity: want, modifiers: modsOf(fills), ...(note.length ? { elviNotes: note } : {}) });
   }
 }
 /** Live: once vapor is the open dish, "N órdenes" (surtidas or bare) adds those orders instead of "Listo." / "Dos de qué." */
@@ -476,7 +480,22 @@ export function applyEnchiladaOrder(cart: any[], turns: T): void {
     const pairs = [...tx.matchAll(/\b(\d{1,2}|un[oa]?|dos|tres|cuatro|cinco|seis)\s+(?:de\s+)?(\p{L}+)/giu)];
     const got: Array<[string, number]> = []; let ok = pairs.length > 0, sum = 0;
     for (const p of pairs) { const f = EFILL.find(([re]) => re.test(p[2])); if (!f || gone.has(p[2].toLowerCase())) { ok = false; break; } got.push([f[1], vn(p[1])]); sum += vn(p[1]); }
-    if (ok && sum === 6 * nOrd && /\benchilad|\bde\s+(?:queso|papa|frijol|pollo|prensado)/iu.test(tx)) mix = got;
+    if (ok && sum === 6 * nOrd && /\benchilad|\bde\s+(?:queso|papa|frijol|pollo|prensado)/iu.test(tx)) { mix = got; break; }
+    // "mitad y mitad queso y papa" / "tres y tres de queso y de papa" — half an order of 6 is 3 and 3.
+    // Not a vapor count ("uno de papa…") and not a piece count of the enchilada item itself.
+    if (VAPOR_WORDS.test(tx)) continue;
+    const per = 6 * nOrd;
+    const fillOf = (w: string) => EFILL.find(([re]) => re.test(w));
+    const yy = tx.match(/\b(dos|tres|cuatro|cinco|seis|\d{1,2})\s+y\s+(dos|tres|cuatro|cinco|seis|\d{1,2})\s+(?:de\s+)?(\p{L}+)\s+y\s+(?:de\s+)?(\p{L}+)/iu);
+    if (yy) {
+      const a = fillOf(yy[3]), b = fillOf(yy[4]); const n1 = vn(yy[1]), n2 = vn(yy[2]);
+      if (a && b && a[1] !== b[1] && n1 + n2 === per && !gone.has(yy[3].toLowerCase()) && !gone.has(yy[4].toLowerCase())) { mix = [[a[1], n1], [b[1], n2]]; break; }
+    }
+    const half = tx.match(/\b(?:mitad(?:es)?\s+y\s+mitad(?:es)?|half\s+and\s+half)\s+(?:de\s+)?(\p{L}+)\s+y\s+(?:de\s+)?(\p{L}+)/iu);
+    if (half && per % 2 === 0) {
+      const a = fillOf(half[1]), b = fillOf(half[2]);
+      if (a && b && a[1] !== b[1] && !gone.has(half[1].toLowerCase()) && !gone.has(half[2].toLowerCase())) { mix = [[a[1], per / 2], [b[1], per / 2]]; break; }
+    }
   }
   const ex = cart.find((l) => l.itemId === ENCH_ID);
   const step = "(A) Enchiladas Carne Options (ONLINE)";

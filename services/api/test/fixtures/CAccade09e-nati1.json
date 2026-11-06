@@ -1,0 +1,18 @@
+{
+  "callSid": "CAccade09eff242078c5b154f667126168",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, buenas tardes.", "language": "es" },
+    { "speaker": "caller", "text": "Una orden de enchiladas, mitad y mitad queso y papa.", "language": "es" },
+    { "speaker": "staff", "text": "De queso, papa, frijol, pollo y prensado. ¿Mitad y mitad?", "language": "es" },
+    { "speaker": "caller", "text": "Sí, mitad y mitad queso y papa.", "language": "es" },
+    { "speaker": "staff", "text": "Tres y tres de queso y de papa, con todo, ¿verdad?", "language": "es" },
+    { "speaker": "caller", "text": "Con todo, sí.", "language": "es" },
+    { "speaker": "caller", "text": "Y una orden de tacos al vapor, mixeados, uno de cada.", "language": "es" },
+    { "speaker": "staff", "text": "Uno de papa, uno de frijol, uno de prensado, uno de pollo y uno de queso.", "language": "es" },
+    { "speaker": "caller", "text": "Sí.", "language": "es" },
+    { "speaker": "staff", "text": "¿A nombre de quién?", "language": "es" },
+    { "speaker": "caller", "text": "A nombre de Nati.", "language": "es" },
+    { "speaker": "staff", "text": "Sale, Nati. Pasa en veinte minutos.", "language": "es" },
+    { "speaker": "caller", "text": "Gracias.", "language": "es" }
+  ]
+}
