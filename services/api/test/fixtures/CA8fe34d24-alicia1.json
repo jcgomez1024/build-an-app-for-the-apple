@@ -1,0 +1,19 @@
+{
+  "callSid": "CA8fe34d24ccc48421571851d1b1f46a44",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, pickup or delivery?", "language": "en" },
+    { "speaker": "caller", "text": "Pickup, please.", "language": "en" },
+    { "speaker": "caller", "text": "Can I get the fried quesadilla deluxe? Steak?", "language": "en" },
+    { "speaker": "staff", "text": "Steak?", "language": "en" },
+    { "speaker": "caller", "text": "Yes, steak.", "language": "en" },
+    { "speaker": "caller", "text": "And then can I get a side of rice and beans?", "language": "en" },
+    { "speaker": "staff", "text": "Rice and beans small or the large?", "language": "en" },
+    { "speaker": "caller", "text": "The small, that just comes, yeah, it comes together, right?", "language": "en" },
+    { "speaker": "staff", "text": "Yes, it comes together.", "language": "en" },
+    { "speaker": "caller", "text": "A side of sour cream and then a can of Pepsi.", "language": "en" },
+    { "speaker": "staff", "text": "Five refried quesadillas?", "language": "en" },
+    { "speaker": "caller", "text": "No, no, just one, just one.", "language": "en" },
+    { "speaker": "staff", "text": "So one steak fried quesadilla, side of rice and beans, extra sour cream, can of Pepsi. Alicia?", "language": "en" },
+    { "speaker": "caller", "text": "Yes.", "language": "en" }
+  ]
+}

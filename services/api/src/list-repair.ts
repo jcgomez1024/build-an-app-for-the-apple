@@ -456,6 +456,104 @@ export function applyCremaOnSide(cart: any[], turns: Turn[], menu: any[]): boole
   }
   return changed;
 }
+// alicia1 (CA8fe34d24, Nov 6 ~2:53 PM ET): "a side of rice and beans" / "the small, it comes together"
+// is the combined rice-and-beans side. It is not a quesadilla, so it must not open Comal/Harina/Taquera
+// or land as Quesadilla Comal + frijoles, and it is not the rice-only side.
+export const SIDE_RB = "sq-sides-arroz-rice-and-frijole-beans-I5HNHW"; // ONLINE I5HNHWWJJ2QRQST6A3WAK6FG, small
+export const SIDE_RB_GRANDE = "sq-sides-grande-arroz-rice-frijoles-beans-OTJKZV"; // ONLINE OTJKZVP2FHVBRCTBEO7MB76V
+export const SIDE_RICE_ONLY = "sq-sides-arroz-rice-26S6E6";
+const RB_SEPARATE = /\bsides?\s+of\s+rice\b[^.]{0,80}\bsides?\s+of\s+(?:the\s+)?(?:refried\s+)?beans\b|\bsides?\s+of\s+(?:the\s+)?(?:refried\s+)?beans\b[^.]{0,80}\bsides?\s+of\s+rice\b|\borden\s+de\s+arroz\b[^.]{0,50}\borden\s+de\s+frijoles\b/i;
+const RB_PHRASE = /\b(?:(?:a|an|the|un|una)\s+)?(?:side|sides|orden|order)\s+(?:of|de)\s+(?:the\s+|el\s+|la\s+)?(?:rice\s+(?:and|&|n)\s+beans|beans\s+(?:and|&)\s+rice|arroz\s+y\s+frijoles|frijoles\s+y\s+arroz)\b|\b(?:rice\s+(?:and|&|n)\s+beans|arroz\s+y\s+frijoles)\b[^.]{0,28}\b(?:on\s+the\s+side|aparte|de\s+lado)\b|\b(?:on\s+the\s+side|aparte|de\s+lado)\b[^.]{0,28}\b(?:rice\s+(?:and|&|n)\s+beans|arroz\s+y\s+frijoles)\b|\bSides\s+Arroz-Rice\s+and\s+Frijole-Beans\b|\bSides\s+GRANDE\s+Arroz-Rice\b/i;
+const SHELL_Q = /\b(?:comal|harina|flour|taquer[oa]s?|street|homemade)\b/i;
+/** A side of rice and beans (one plate). Null for two separate sides, or for rice/beans said only as a filling. */
+export function combinedRiceBeansSide(text: string, lastStaff = ""): { grande: boolean } | null {
+  const t = String(text || "");
+  if (RB_SEPARATE.test(t)) return null;
+  const phrase = RB_PHRASE.test(t);
+  const staff = String(lastStaff || "");
+  const sizeAsk = /\b(?:rice|arroz)\b/i.test(staff) && /\b(?:beans|frijol)/i.test(staff)
+    && /\b(?:small|large|chic[ao]|grande)\b/i.test(staff) && /\b(?:\bor\b|\bo\b)/i.test(staff);
+  const sizeAns = /\b(?:small|large|chic[ao]|grande|regular)\b/i.test(t) || /\bcomes?\s+together\b/i.test(t) || /\bvienen?\s+juntos\b/i.test(t);
+  if (!phrase && !(sizeAsk && sizeAns && !/\b(?:quesadillas?|tacos?|burritos?|tortas?|gorditas?)\b/i.test(t))) return null;
+  const saidSmall = /\b(?:small|chic[ao]|regular|comes?\s+together|vienen?\s+juntos)\b/i.test(t);
+  const saidLarge = /\b(?:large|grande)\b/i.test(t) && !saidSmall;
+  return { grande: saidLarge };
+}
+/** The open Comal/Harina/Taquera question was opened by a rice-and-beans side, and this turn does not name a shell. */
+export function riceBeansSideNotShell(history: Array<{ role?: string; text?: string }> | undefined, text: string, lastStaff = ""): boolean {
+  if (SHELL_Q.test(text) && /\b(?:quesadillas?|tacos?)\b/i.test(text)) return false;
+  if (/\b(?:comal|harina|flour|taquer[oa]s?|street|homemade)\b/i.test(text)) return false;
+  if (combinedRiceBeansSide(text, lastStaff)) return true;
+  const prev = [...(history || [])].reverse().find((h) => h?.role === "customer" || h?.role === "user");
+  return !!combinedRiceBeansSide(String(prev?.text || ""), "");
+}
+const beansQuesadillaOrdered = (turns: Turn[]) => turns.some((t) => t.speaker === "caller"
+  && /\bquesadillas?\b/i.test(t.text) && /\b(?:frijoles|beans|refritos)\b/i.test(t.text)
+  && !/\b(?:side|sides|orden|order)\s+(?:of|de)\s+(?:the\s+)?(?:rice|arroz)\b/i.test(t.text));
+const isRiceOnlySide = (id: string) => id === SIDE_RICE_ONLY || (/26S6E6/i.test(id) && !/frijole|I5HNHW|OTJKZV/i.test(id));
+const shellReply = (reply: string) => /\?\s*$/.test(reply) && /comal/i.test(reply) && /harina|taquer|flour|street/i.test(reply);
+/** This turn's adds: a side of rice and beans never becomes a quesadilla shell or the rice-only side. */
+export function guardRiceBeansSide(r: any, text: string, lastStaff: string, cart: any[], language?: string) {
+  const hit = combinedRiceBeansSide(text, lastStaff);
+  if (!hit || !r) return r;
+  const prevAsked = shellReply(String(lastStaff || ""));
+  const orderedShell = SHELL_Q.test(text) && /\bquesadillas?\b/i.test(text) && !/\b(?:fried|dorad)/i.test(text);
+  const acts = (Array.isArray(r.actions) ? r.actions : []).filter((a: any) => {
+    if (a?.type !== "add_item" && a?.type !== "update_item") return true;
+    const id = String(a.itemId || "");
+    if (/^sq-quesadilla-/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id) && !orderedShell) return false;
+    if (isRiceOnlySide(id)) return false;
+    return true;
+  });
+  const id = hit.grande ? SIDE_RB_GRANDE : SIDE_RB;
+  const have = (cart || []).some((l) => l?.itemId === SIDE_RB || l?.itemId === SIDE_RB_GRANDE) || acts.some((a: any) => a?.itemId === id);
+  if (!have) acts.push({ type: "add_item", itemId: id, quantity: 1, modifiers: [], readback: hit.grande ? "large rice and beans" : "rice and beans" });
+  const reply = String(r.reply || "");
+  const en = language !== "es";
+  const next = shellReply(reply) && !prevAsked
+    ? (en ? `${hit.grande ? "Large rice and beans" : "Rice and beans"}. Anything else?` : "Arroz y frijoles. ¿Algo más?")
+    : reply;
+  return acts === r.actions && next === reply ? r : { ...r, actions: acts, reply: next };
+}
+/** After the call: ring the combined side, drop the rice-only misread and a beans-only quesadilla shell. */
+export function applyCombinedRiceBeansSide(cart: any[], turns: Turn[]): boolean {
+  let any = false, grande = false, saidSmall = false;
+  turns.forEach((t, i) => {
+    if (t.speaker !== "caller") return;
+    const staff = [...turns.slice(0, i)].reverse().find((x) => x.speaker === "staff")?.text || "";
+    const hit = combinedRiceBeansSide(t.text, staff);
+    if (!hit) return;
+    any = true;
+    if (hit.grande) grande = true;
+    if (/\b(?:small|chic[ao]|regular|comes?\s+together|vienen?\s+juntos)\b/i.test(t.text)) saidSmall = true;
+  });
+  if (!any) return false;
+  if (saidSmall) grande = false;
+  const id = grande ? SIDE_RB_GRANDE : SIDE_RB;
+  let changed = false;
+  const separateBeans = turns.some((t) => t.speaker === "caller" && /\bsides?\s+of\s+(?:the\s+)?(?:refried\s+)?beans\b/i.test(t.text) && !RB_PHRASE.test(t.text));
+  const keepBeansQ = beansQuesadillaOrdered(turns);
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const l = cart[i]; const lid = String(l.itemId || "");
+    if (isRiceOnlySide(lid) || (lid === SIDE_RB || lid === SIDE_RB_GRANDE) && lid !== id) { cart.splice(i, 1); changed = true; continue; }
+    if (!separateBeans && /sides-frijoles-beans-FK2O6W|FK2O6W/i.test(lid)) { cart.splice(i, 1); changed = true; continue; }
+    if (keepBeansQ || !/^sq-quesadilla-/i.test(lid) || /dorada|zzav3l|t5stuh/i.test(lid)) continue;
+    const opts = (l.modifiers || []).map((m: any) => String(m.option)).join(" ");
+    if (/frijol|bean/i.test(opts) && !meatOfLine(l)) { cart.splice(i, 1); changed = true; }
+  }
+  if (!cart.some((l) => l.itemId === id)) {
+    cart.push({ itemId: id, quantity: 1, modifiers: [], readback: grande ? "large rice and beans" : "rice and beans" });
+    changed = true;
+  }
+  return changed;
+}
+/** Live: same guard on the model turn. */
+export function liveRiceBeansSide(r: any, input: any) {
+  const h: any[] = input?.history || [];
+  const lastStaff = String([...h].reverse().find((x) => x?.role === "assistant")?.text || "");
+  return guardRiceBeansSide(r, String(input?.transcript || ""), lastStaff, input?.cart || [], input?.language);
+}
+
 /** Live: "rice and beans" in the turn never becomes a Con Frijoles / Con Arroz filling. */
 export function noRiceBeansFilling(r: any, input: any) {
   const tx = String(input?.transcript || ""); if (!beansOnlyAsSide(tx) || !Array.isArray(r?.actions)) return r;

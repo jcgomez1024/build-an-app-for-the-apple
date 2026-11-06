@@ -70,10 +70,36 @@ export function noCheese(l: any, gs: any[]): boolean {
   return changed;
 }
 
-/** "unas dos sodas" / "dos de lata" with no drink rung → N canned sodas (flavor not said: note for staff). */
+const PEPSI_ID = "sq-drink-pepsi-DIJPIW"; // Coca Cola / Pepsi · Pepsi (ONLINE DIJPIW4BWHOSNF3YKGIRZRMB) — the can path, not Coke
+const namedPepsi = (caller: string) => /\bpepsis?\b/.test(caller) && !/\b(?:coca(?:\s+colas?)?|cokes?|diet\s+pepsi|pepsi\s+diet)\b/.test(caller);
+const sodaCount = (caller: string) => {
+  const ns = [...caller.matchAll(/\b(\d+|un[ao]?|dos|tres|cuatro|cinco|seis|one|two|three|four|a)\s+(?:pepsis?|sodas?|refrescos?|latas?|cans?(?:\s+of\s+(?:soda|pepsi))?|pops?)\b/g)].map((m) => numOf(m[1]) || 1);
+  return ns.length ? Math.max(...ns) : 1;
+};
+/** "a can of Pepsi" names the flavor. A Coke line with "sabor no dicho", or no drink at all, becomes Pepsi — not the Coke default. */
+function ringNamedPepsi(cart: any[], caller: string, menu: any[]): boolean {
+  if (!namedPepsi(caller)) return false;
+  const item = menu.find((m) => m?.id === PEPSI_ID || /pepsi/i.test(String(m?.id)) && !/diet/i.test(String(m?.id))) || { id: PEPSI_ID };
+  let changed = false;
+  for (const l of cart) {
+    if (!/coca/i.test(String(l.itemId)) || /diet/i.test(String(l.itemId))) continue;
+    l.itemId = item.id;
+    l.readback = "pepsi";
+    if (Array.isArray(l.elviNotes)) l.elviNotes = l.elviNotes.filter((n: string) => !/sabor no dicho/i.test(n));
+    if (Array.isArray(l.elviNotes) && !l.elviNotes.length) delete l.elviNotes;
+    changed = true;
+  }
+  if (changed || cart.some((l) => /pepsi/i.test(String(l.itemId)))) return changed;
+  const person = [...cart].reverse().find((l) => l.person)?.person;
+  cart.push({ itemId: item.id, quantity: sodaCount(caller), modifiers: [], readback: "pepsi", ...(person ? { person } : {}) });
+  return true;
+}
+/** "unas dos sodas" / "dos de lata" with no drink rung → N canned sodas (flavor not said: note for staff).
+ *  "a can of Pepsi" is Pepsi, not that unnamed Coke. */
 export function ringUnnamedSodas(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (cart.some((l) => isDrink(menu.find((m) => m.id === l.itemId)))) return false;
   const caller = plain(turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" "));
+  if (ringNamedPepsi(cart, caller, menu)) return true;
+  if (cart.some((l) => isDrink(menu.find((m) => m.id === l.itemId)))) return false;
   const ns = [...caller.matchAll(/\b(\d+|un[ao]?|dos|tres|cuatro|cinco|seis|one|two|three|four|a)\s+(?:sodas?|refrescos?|sodas? de lata|de lata|latas?|cans?(?: of soda)?|pops?)\b/g)].map((m) => numOf(m[1]) || 1);
   if (!ns.length) return false;
   const soda = menu.find((m) => /^sq-drink-coca-cola-/.test(m.id)) || menu.find((m) => isDrink(m) && /coca|pepsi|sprite/i.test(m.name));
