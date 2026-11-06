@@ -3,7 +3,7 @@
 // queue with hold audio in the caller's language -> staff answer in /phone.html (Twilio Voice JS SDK) -> whisper
 // "Llamada de {nombre}" to staff only -> bridged with dual-channel recording -> transcript + Elvi shadow order (no checkout).
 // Nobody online at the counter, or nobody answers in time -> voicemail (transcribed, with Elvi's suggested order).
-import { snapToKnownName, nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName, shouldPersistOrderName } from "./order-name.js";
+import { snapToKnownName, nameFromTranscriptInfo, rememberHeardNameIfNone, markOrderOnlyName, deniedVocative, isNumberName, shouldPersistOrderName, isFoodNameBlocked } from "./order-name.js";
 import crypto from "node:crypto";
 import { blockedCaller, blockedLanguages, BLOCKED_TEXT } from "./phone-blocklist.js";
 import fs from "node:fs";
@@ -2056,7 +2056,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
         // Pickup-only (lastPickupName, not contact): "para X" / "for X" / "la va a recoger" / picking-up.
         const heardInfo = nameFromTranscriptInfo(result.turns as any);
         // alexvoc1: a staff vocative the caller denied ("Alex, ¿no?" → "yo soy otro") is never the order name or memory.
-        const heardOrderName0 = heardInfo?.name && !isNumberName(heardInfo.name) && !deniedVocative(result.turns as any, heardInfo.name) ? heardInfo.name : null;
+        const heardOrderName0 = heardInfo?.name && !isNumberName(heardInfo.name) && !deniedVocative(result.turns as any, heardInfo.name) && !isFoodNameBlocked(heardInfo.name, heardInfo.source, result.turns as any) ? heardInfo.name : null;
         // giancarlo1: heard name that sounds like the caller's known name → known name; filler-led junk ("Allá en Carlos") → none.
         let heardOrderName: string | null = heardOrderName0;
         try { const mem = (JSON.parse(fs.readFileSync(path.join(logDir, "callers.json"), "utf8")) as any)[String(caller || "").replace(/\D/g, "").slice(-10)] || {}; heardOrderName = snapToKnownName(heardOrderName0, [mem.name, mem.lastPickupName], result.turns as any); } catch { /* keep heard */ }
@@ -2067,7 +2067,7 @@ export function registerTwilioRoutes(app: express.Express, shadowOrder: ShadowFn
           const pickupOnly = !!heardInfo?.thirdPerson;
           let savedNow = false;
           const groupOrder = (heardInfo?.group?.length || 0) >= 2; // osmar1: multi-name group order → ticket labels only, no caller memory
-          if (shouldPersistOrderName(hasOrder, heardInfo?.source, result.turns as any) && !groupOrder) { // lupita2
+          if (shouldPersistOrderName(hasOrder, heardInfo?.source, result.turns as any, heardOrderName) && !groupOrder) { // lupita2 / doritas1
             if (pickupOnly) {
               try { savePickupName(caller, heardOrderName); } catch { /* best effort */ }
               markOrderOnlyName(heardOrderName);

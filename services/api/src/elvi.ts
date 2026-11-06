@@ -2173,6 +2173,7 @@ export async function chatWithElvi(input: ElviRequest, runtimeConfig?: Partial<X
   try { out = noOfferUnavailable(out, input); } catch { /* keep */ }
   try { if (Array.isArray((out as any)?.actions)) { const acts = (out as any).actions.slice(); if (dropPutOnReAdd(acts, (input as any).cart || [], String(input.transcript || ""))) out = { ...(out as any), actions: acts }; } } catch { /* keep */ } // pedro3
   try { out = noHollowAdd(out, input); } catch {}
+  try { out = noUnknownFoodAck(out, input); } catch {} // doritas1
   let o2 = out; try { o2 = noEchoReAdd(out, input); } catch { /* keep */ }
   try { o2 = noPhantomDish(o2, input); } catch { /* keep */ }
   try { o2 = rellenoGuard(o2, input); } catch { /* keep */ }
@@ -2292,6 +2293,28 @@ const DENIAL = /\bno\s+(?:est[aá]|lo\s+tenemos|la\s+tenemos|tenemos|manejamos)(
 // maria3 (CA2a89f700, Oct 30 5:43 PM ET): "Ah, me lo hace," → "Agregado." with no add_item; "nopales con papas" → "Listo." with an
 // empty cart. Never claim an add that did not land: ask what to add (or which choice is missing) instead.
 const DISH_OR_FILLING = /\b(?:tacos?|quesadillas?|doradas?|gorditas?|tortas?|pambazos?|sopes?|huaraches?|burritos?|tamales?|enchiladas?|nachos|platillos?|chiles?\s+rellenos?|menudo|pozole|birria|bistec|chorizo|pastor|carnitas|cabeza|lengua|tripas?|pollo|costilla|asada|papas|nopales|prensado|picadillo|deshebrada|huevo|frijoles|arroz)\b/iu;
+// doritas1 (CA7901911): "dos duritas" / "volcanes" is not a catalog dish (staff could not identify it).
+// A bare "Muy bien" — or an add of nachos / dorada / gordita — must not treat that word as rung.
+const UNKNOWN_FOOD_ACK = /^(?:¡\s*)?(?:muy\s+bien|ok(?:ay)?|perfecto|listo|got\s+it|agregad[oa]s?)(?:[.!]|\s|$)/iu;
+const UNKNOWN_FOOD_WORD = /^(?:doritas?|duritas?|volcan(?:e|es)?|volcanos)$/;
+export function noUnknownFoodAck(r: ElviResponse, input: ElviRequest): ElviResponse {
+  const raw = String(input?.transcript || "");
+  const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const t = fold(raw);
+  const hit = (t.match(/\b[a-z]{4,}\b/g) || []).find((w) => UNKNOWN_FOOD_WORD.test(w));
+  if (!hit) return r;
+  const acts: any[] = (r as any)?.actions || [];
+  const hadAdd = acts.some((a) => a?.type === "add_item" || a?.type === "update_item");
+  const reply = String((r as any)?.reply || "").trim();
+  if (!hadAdd && !UNKNOWN_FOOD_ACK.test(reply)) return r;
+  // A turn that also names a real dish keeps that add ("dos tacos y dos duritas" is not this miss).
+  if (hadAdd && DISH_OR_FILLING.test(raw)) return r;
+  const es = (r as any).language !== "en" && input?.language !== "en";
+  const kept = hadAdd ? acts.filter((a) => a?.type !== "add_item" && a?.type !== "update_item") : acts;
+  return { ...r, audioBase64: undefined, audioMimeType: undefined, actions: kept, reply: es
+    ? "Eso no lo tengo en el menú. ¿Algo más?"
+    : "I don't have that on the menu. Anything else?" } as ElviResponse;
+}
 export function noHollowAdd(r: ElviResponse, input: ElviRequest): ElviResponse {
   const reply = String((r as any)?.reply || "").trim();
   if (((r as any)?.actions || []).some((a: any) => a?.type === "add_item")) return r;
