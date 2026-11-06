@@ -12,7 +12,7 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1 } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -540,7 +540,14 @@ export function staffPick(opts: string[], staffSaid: string): string | null {
     .replace(/\bstreet\b/g, " taquero ").replace(/\bflour\b/g, " harina ").replace(/\bhomemade\b|\bhecha a mano\b/g, " comal ")
     // sean1 (CA249b7d): ASR Kamal/Camal = comal; English "corn" for a quesadilla tortilla = comal (no option says corn)
     .replace(/\b[kc]amal\b/g, " comal ");
-  if (opts.some((o) => /comal/i.test(o)) && !opts.some((o) => /\bcorn\b/i.test(o))) said = said.replace(/\bcorn\b|\bmaiz\b/g, " comal ");
+  // Taco tortilla list (Comal / Harina / Taquero): "corn" and "the small one" are the small corn street taco (TST),
+  // not homemade comal. Staff still explaining both ("homemade or corn, the more small one") matches two options → no pick.
+  // Quesadilla lists keep sean1: corn → comal.
+  const tacoStreet = opts.some((o) => /\btaco\b/i.test(o) && /taquer|street/i.test(o))
+    && opts.some((o) => /\btaco\b/i.test(o) && /comal|homemade/i.test(o))
+    && !opts.some((o) => /quesadilla/i.test(o));
+  if (tacoStreet) said = said.replace(/\b(?:the\s+)?small(?:\s+one)?\b/g, " taquero ").replace(/\bcorn\b|\bmaiz\b/g, " taquero ");
+  else if (opts.some((o) => /comal/i.test(o)) && !opts.some((o) => /\bcorn\b/i.test(o))) said = said.replace(/\bcorn\b|\bmaiz\b/g, " comal ");
   if (!said.trim() || opts.length < 2) return null;
   const GENERIC = new Set(["taco", "tacos", "quesadilla", "qd", "dorada", "con", "de", "la", "el", "y", "x", "or", "o", "solo", "and"]);
   const keys = opts.map((o) => f(o).replace(/\([^)]*\)/g, " ").split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w)));
@@ -2501,7 +2508,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
 
     // maria1: caller answers staff "¿taqueros o de comal?" with "Sí, Taqueros" (often no "?") — remap taco TCO→TST.
-    if (source.startsWith("caller") && /\btaqueros?\b/iu.test(text)
+    // staff-pick "Taco Taquero" is the same answer (caller said "Corn" / "the small one" against homemade).
+    if ((source.startsWith("caller") || source === "staff-pick") && /\b(?:taqueros?|taco taquero|street taco)\b/iu.test(text)
       && !/\bcomal\b/iu.test(text)
       && !/\b(?:quesadillas?|dorad|aceite|gorditas?)\b/iu.test(text)) {
       const recentStaff = history.filter((h) => h.role === "assistant").slice(-4).map((h) => h.text).join(" ");
@@ -3825,6 +3833,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // Callers rarely repeat the option name, so the question stayed open and swallowed the rest of the order (5:22 PM call).
     { const rawStaff = staffSince.join(" "); const said = staffSince.flatMap((x) => x.split(/(?<=[.!])\s+|¿[^?]*\?/u)).filter((x) => x.trim() && !/\?/.test(x)).join(" ");
       staffSince = [];
+      // "chips and guacamole" then a bare "dip" / "the, dip" answers the dip, not an open taco tortilla question.
+      {
+        const callerDip = /^\W*(?:(?:the|el)\s*,?\s*)?d(?:i|ee)p\W*$/iu.test(t.text);
+        const nearGuac = /\bguacamole\b/iu.test(rawStaff + " " + history.filter((h) => h.role === "customer").slice(-4).map((h) => h.text).join(" "));
+        if (callerDip && nearGuac && !dishesNamed(t.text).size && !listedMeats(t.text).length) {
+          steps.push({ source: "caller-guacamole-dip", heard: t.text.slice(0, 80) });
+          last = { actions: [], reply: t.language === "en" ? "Anything else?" : "¿Algo más?" } as any;
+          lastStaff = "";
+          continue;
+        }
+      }
       const qs = asking(last) ? (String(last.reply || "").match(/(?:¿[^?¿]+|[^.!?¿:]+)\?/gu) || []) : [];
       // staffpick2: if the caller answers the open choice themselves this turn ("Ajá, de comal"), let their turn answer it.
       // gloria1 (CA8ce342): the alias default "quesadillas doradas" → "QD REGULAR Dorada" is not the caller choosing REGULAR
@@ -3856,8 +3875,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         const menudoOnlyCart = cart.some((l) => /menudo/i.test(String(l.itemId))) && !cart.some((l) => kindOfItem(l.itemId) === "taco")
           && !/\btacos?\b/iu.test(t.text);
         const staffSaidDorada = /\bdorad|\baceite\b/iu.test(rawStaff);
+        // "taco dorado" / "chorizo dorado tacos" is the Tacos Dorados platter, not quesadilla dorada and not Taco Comal.
+        const staffTacoDorado = /\btacos?\s+dorados?\b|\bdorados?\s+tacos?\b|\b[\p{L}]+\s+dorado\s+tacos?\b/iu.test(rawStaff + " " + t.text)
+          && !/\bquesadillas?\s+dorad/iu.test(t.text);
         const tortillaQOpen = qs.some((q) => optsOf(q).length >= 2 && optsOf(q).every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street|quesadilla)\b/i.test(x)));
-        if (staffSaidDorada && tortillaQOpen && (movedOn || affirm || /\bdorad/iu.test(t.text))) {
+        const orderingDorado = /\b(?:get|have|want|order|dame|deme|quiero|pon(?:me|ga)?)\b/iu.test(t.text)
+          && /\btacos?\s+dorados?\b|\bdorados?\s+tacos?\b|\b[\p{L}]+\s+dorado\s+tacos?\b/iu.test(t.text);
+        if (staffTacoDorado && !orderingDorado && (affirm || /\byes|yeah|yep|please|s[ií]\b/iu.test(t.text)) && !/\bquesadillas?\b/iu.test(t.text)) {
+          // "Yes" to staff's taco-dorado readback is not a soft taco and not a quesadilla dorada.
+          last = { actions: [], reply: t.language === "en" ? "Anything else?" : "¿Algo más?" } as any;
+          steps.push({ source: "staff-taco-dorado", heard: (rawStaff + " " + t.text).slice(0, 120) });
+          lastStaff = "";
+          continue;
+        }
+        if (staffSaidDorada && !staffTacoDorado && tortillaQOpen && (movedOn || affirm || /\bdorad/iu.test(t.text))) {
           // Answer with dorada so aceite1 / dorada handlers convert QCO→QD; do not pick Comal.
           last = await say("dorada", t.language, "staff-dorada-not-comal");
           steps.push({ source: "staff-dorada-not-comal", heard: (rawStaff + " " + t.text).slice(0, 120) });
@@ -3878,7 +3909,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           }
           lastStaff = ""; continue;
         }
-        const tq = !menudoOnlyCart && !staffSaidDorada && (movedOn || affirm) ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
+        // A guacamole "deep in chips" confirmation is not a house-default Taco Comal.
+        const staffDipTalk = /\b(?:d(?:i|ee)p|deep)\b/iu.test(rawStaff) && /\b(?:chips|guacamole)\b/iu.test(rawStaff);
+        const tq = !menudoOnlyCart && !staffSaidDorada && !staffTacoDorado && !staffDipTalk && (movedOn || affirm) ? qs.map((q) => optsOf(q)).find((o) => o.length >= 2 && o.every((x) => /\b(corn|comal|maiz|flour|harina|taquer[ao]|street)\b/i.test(x))) : null;
         if (tq) pick = tq.find((x) => /\b(comal|maiz|homemade)\b/i.test(x)) || tq.find((x) => /\bcorn\b/i.test(x) && !/\b(street|taquer)/i.test(x)) || null;
       }
       // hector1 (CA434ba9): staff "¿Una coca?" / "¿Taparrosca o vidrio?" + caller yes / "un refresco nomás" / Caparrusca
@@ -6846,9 +6879,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // "guacamole dip con chips" → Dips: Guacamole Dip con Chips (not salsa guacamole).
     {
       const callerGuac = /\bguacamole\b/iu.test(cBlob);
-      const dipSaid = /\bguacamole\b[^.?!]{0,30}\bd(?:i|ee)p\b|\bd(?:i|ee)p\b[^.?!]{0,30}\bguacamole\b|^\W*(?:ah,?\s+)?(?:el\s+)?d(?:i|ee)p\b/iu.test(cBlob)
+      // Split turns ("Chips and guacamole." / "dip.") and staff ASR "deep in chips, the guacamole" are the same dip.
+      const bareDip = cTurns.some((x) => /^\W*(?:(?:the|el)\s*,?\s*)?d(?:i|ee)p\W*$/iu.test(x));
+      const dipSaid = /\bguacamole\b[^.?!]{0,40}\bd(?:i|ee)p\b|\bd(?:i|ee)p\b[^.?!]{0,40}\bguacamole\b|^\W*(?:ah,?\s+)?(?:el\s+)?d(?:i|ee)p\b/iu.test(cBlob)
+        || /\bguacamole\b[^.?!]{0,24}\.\s*d(?:i|ee)p\b/iu.test(cBlob)
+        || (bareDip && /\bguacamole\b/iu.test(cBlob))
         || cTurns.some((x) => /\bguacamole\b/iu.test(x) && /\bd(?:i|ee)p\b/iu.test(x));
-      const staffDip = /\bguacamole\s+d(?:i|ee)p\b/iu.test(sBlob);
+      const staffDip = /\bguacamole\s+d(?:i|ee)p\b/iu.test(sBlob)
+        || (bareDip && /\b(?:d(?:i|ee)p|deep)\b/iu.test(sBlob) && /\bchips\b/iu.test(sBlob) && /\bguacamole\b/iu.test(sBlob));
       if (callerGuac && (dipSaid || staffDip) && !/\bsalsa\s+(?:de\s+)?guacamole\b/iu.test(cBlob)
         && !cart.some((l: any) => l.itemId === DIPS_ID || (l.modifiers || []).some((m: any) => /guacamole/i.test(String(m.option))))) {
         const chips = !/\bsolo\b|\bsin\s+chips\b|\bonly\b/iu.test(cBlob.match(/guacamole[^.?!]{0,40}/iu)?.[0] || "");
@@ -7792,7 +7830,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // "Normales" on a torta is (TO), not queso torta. Run after every re-add.
   dropSwitchedOffMeat(cart as any[], turns as any);
   { const menuFn = (run as any).menu; const menu2 = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
-    applyTortaNormales(cart as any[], turns as any, (menu2 || []) as any[]); }
+    applyTortaNormales(cart as any[], turns as any, (menu2 || []) as any[]);
+    // Street/small corn vs homemade → TST; taco dorado → Tacos Dorados (not another soft taco);
+    // chips + bare "dip" / staff "deep in chips" → guacamole dip; "N Mexican Cokes" → N Coca Cola.
+    if (applyStreetCornDoradoOrder(cart as any[], origTurns as any[], (menu2 || []) as any[]))
+      steps.push({ source: "end-street-corn-dorado", heard: "street corn / taco dorado / guacamole dip / mexican coke" });
+  }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
