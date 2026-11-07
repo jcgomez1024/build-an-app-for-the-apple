@@ -145,6 +145,17 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.1.25:4000
 5. Update `apps/mobile/.env` with production API URL.
 6. Build mobile binaries with EAS and submit.
 
+## Offline order evidence
+
+Cloud-only replay of the post-call order path. It does not call Square, Twilio, or caller memory, and it is not a deploy check. Commands and the result matrix are in `services/api/test/offline/README.md`.
+
+```bash
+npm run offline:evidence --workspace @cocina-elvis/api -- --out /tmp/evidence.json
+npm run offline:evidence:test --workspace @cocina-elvis/api
+```
+
+A passing unit test is not approval to take live calls. See `services/api/test/offline/RELEASE-BLOCKERS.md`.
+
 ## App Store Notes
 
 The app uses microphone and speech recognition permissions. Before submission, update the iOS bundle id, Android package id, privacy copy, app icons, splash screen, and Square production credentials. For fully native in-app card entry later, integrate Square's Mobile Payments SDK React Native plugin and submit the required iOS and Android application signatures in Square's Developer Console.

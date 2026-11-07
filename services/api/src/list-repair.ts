@@ -349,18 +349,26 @@ function askDish(text: string): AskDish | null {
   if (/\btortas?\b/.test(t) && !/tortilla/.test(t)) return { text: /\btortas?\b/iu, line: /^sq-torta-/i };
   if (/\bburritos?\b/.test(t)) return { text: /\bburritos?\b/iu, line: /burrito/i };
   if (/\bmenudos?\b/.test(t)) return { text: /\bmenudos?\b/iu, line: /menudo/i };
+  if (/\bpo[sz]oles?\b/.test(t)) return { text: /po[sz]oles?/iu, line: /pozole/i };
+  if (/\bbirrias?\b/.test(t) && !/queso/.test(t)) return { text: /birrias?/iu, line: /(?<!queso-)birria/i };
+  if (/\bcaldos?\b/.test(t)) return { text: /caldos?/iu, line: /caldo/i };
+  if (/\bmoles?\b/.test(t)) return { text: /moles?/iu, line: /mole/i };
   if (/\bhorchatas?\b/.test(t)) return { text: /\bhorchatas?\b/iu, line: /horchata/i };
   if (/\bjamaicas?\b/.test(t)) return { text: /\bjamaicas?\b/iu, line: /jamaica/i };
   return null;
 }
-/** "No." / "No, joven." declines the ask. "no, normales" answers a different question. */
-const BARE_NO = /^\W*(?:no|nel|nop|nope)(?:\s*,?\s*(?:joven|gracias|thanks|señor|senor|mano))?\s*[.!?]*\s*$/iu;
+/** "No." / "No, joven." / "No, okay." declines the ask. "no, normales" answers a different question. */
+const BARE_NO = /^\W*(?:no|nel|nop|nope)(?:\s*,?\s*(?:joven|gracias|thanks|señor|senor|mano|ok(?:ay)?))?\s*[.!?]*\s*$/iu;
+function callerDeclines(text: string): boolean {
+  if (BARE_NO.test(text)) return true;
+  return /^\W*(?:no(?:\s*,\s*|\s+)){2,}no\b/iu.test(text);
+}
 function askRefused(turns: Turn[], i: number): boolean {
   const win = turns.slice(i + 1, i + 6);
   const staff = win.find((t) => t.speaker === "staff");
   if (staff && BARE_NO.test(staff.text)) return true;
   if (staff && /\bno\s+(?:tenemos|tengo|hay|queda)\b/iu.test(staff.text) && !/\bs[ií]\s*,?\s*(?:tengo|tenemos|hay)\b/iu.test(staff.text)) return true;
-  return win.some((t) => t.speaker === "caller" && BARE_NO.test(t.text));
+  return win.some((t) => t.speaker === "caller" && callerDeclines(t.text));
 }
 /** Dishes named only in an availability question that staff or the caller then declined, and never ordered by name. */
 export function declinedAsks(turns: Turn[]): AskDish[] {
@@ -377,11 +385,35 @@ export function declinedAsks(turns: Turn[]): AskDish[] {
   }
   return out;
 }
+const OFFER_DISH: Array<{ re: RegExp; line: RegExp }> = [
+  { re: /po[sz]oles?/iu, line: /pozole/i },
+  { re: /menudos?/iu, line: /menudo/i },
+  { re: /birrias?/iu, line: /(?<!queso-)birria/i },
+  { re: /caldos?/iu, line: /caldo/i },
+];
+const ORDERED_THAT = (text: string, re: RegExp) => re.test(text) && /\b(?:quiero|quisiera|dame|deme|ponme|p[oó]ngame|me\s+(?:da|das|pone|pones|puede)|van\s+a\s+ser|son\s+(?:dos|tres|un))\b/iu.test(text) && !/\bd[eé]jalo\b/iu.test(text);
+/** "No, está bien, déjalo" drops a soup the caller never ordered. A later real order of that soup stays. */
+function dropDeclinedOffers(cart: any[], turns: Turn[]): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  let changed = false;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker !== "caller" || !/\bd[eé]jalo\b/iu.test(t.text) || !/\bno\b|\best[aá] bien\b/iu.test(t.text)) continue;
+    for (const d of OFFER_DISH) {
+      const named = d.re.test(t.text) || (turns[i - 1]?.speaker === "staff" && d.re.test(turns[i - 1].text));
+      if (!named || turns.some((x) => x.speaker === "caller" && ORDERED_THAT(x.text, d.re))) continue;
+      for (let j = cart.length - 1; j >= 0; j--) if (d.line.test(String(cart[j]?.itemId || ""))) { cart.splice(j, 1); changed = true; }
+    }
+  }
+  return changed;
+}
 /** Drop cart lines for a declined availability ask ("¿tiene tacos dorados?" → "No"). "Quería eso" is not a reorder. */
 export function dropDeclinedAsk(cart: any[], turns: Turn[]): boolean {
-  const asks = declinedAsks(turns); if (!asks.length || !Array.isArray(cart)) return false;
+  if (!Array.isArray(cart)) return false;
+  const asks = declinedAsks(turns);
   let changed = false;
-  for (let i = cart.length - 1; i >= 0; i--) if (asks.some((a) => a.line.test(String(cart[i]?.itemId || "")))) { cart.splice(i, 1); changed = true; }
+  if (asks.length) for (let i = cart.length - 1; i >= 0; i--) if (asks.some((a) => a.line.test(String(cart[i]?.itemId || "")))) { cart.splice(i, 1); changed = true; }
+  if (dropDeclinedOffers(cart, turns)) changed = true;
   return changed;
 }
 /** Live: an add on the question turn, or on a later "quería eso", never rings the declined dish. */

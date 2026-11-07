@@ -1,0 +1,971 @@
+{
+  "codeSha": "30575e9807daa3e30e518900c4da564e9bd6215e",
+  "pageNamedGateSatisfied": false,
+  "path": "shadowOrderFromTurns + empty model stub + site phone menu",
+  "network": false,
+  "catalog": {
+    "menuItems": 199,
+    "itemsWithRequiredGroups": 126,
+    "requiredGroups": 532,
+    "examples": [
+      "sq-gordita-M647RE: (A) Gordita Options, (B) Q Carnes / Meats",
+      "sq-quesadilla-HLT6CR: (A) Q Tortilla Options, (B) Q Carnes / Meats",
+      "sq-medium-fiesta-platter-24-x-tst-tacos-taqueros-street-tacos-HK46FR: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat",
+      "sq-medium-fiesta-platter-24-x-thr-tacos-harina-flour-KUSFLQ: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat",
+      "sq-medium-fiesta-platter-24-x-tco-tacos-de-comal-homemade-BGPEOK: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat",
+      "sq-medium-fiesta-platter-24-x-qst-quesadilla-taquera-street-quesadilllas-SUJGUB: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat",
+      "sq-medium-fiesta-platter-24-x-qhr-quesadilla-de-harina-flour-FZNNMW: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat",
+      "sq-medium-fiesta-platter-24-x-qco-quesadilla-de-comal-homemade-JUI6AK: Items #1 Carne / Meat, Items #2 Carne / Meat, Items #3 Carne / Meat, Items #4 Carne / Meat"
+    ]
+  },
+  "results": [
+    {
+      "id": "C01",
+      "title": "Explicit quesadilla and coke delivery must not become an empty existing-order call",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "coca bottle: qty 0 expected 1 [transcript]",
+        "coca bottle modifier: missing /botella|bottle/i [transcript]",
+        "fulfillment PICKUP expected DELIVERY [transcript]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 3,
+          "modifiers": [
+            "Bistec / Steak",
+            "(QCO) Quesadilla Comal / Homemade"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller",
+        "caller",
+        "staff",
+        "staff",
+        "end-nonempty"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": "PICKUP",
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 1
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "coke-size",
+          "provenance": "inferred",
+          "note": "Bottle was accepted. Ounces were not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "coke-size"
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Birria platter stays an order; size is unknown",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "birria: qty 0 expected 1 [staff-readback]",
+        "birria lines: lines 0 expected 1 [staff-readback]"
+      ],
+      "observedLines": [],
+      "steps": [
+        "staff",
+        "caller",
+        "staff"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "empty",
+        "complete": false,
+        "lineCount": 0
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "birria-size",
+          "provenance": "inferred",
+          "note": "Catalog has 1 lb variants and consomé. Do not treat a size as spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "birria-size"
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Retake must not duplicate doradas or tacos; cabeza was substituted",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "dorada deshebrada: qty 2 expected 1 [staff-readback]",
+        "dorada costilla: qty 0 expected 1 [staff-readback]",
+        "dorada costilla lines: lines 0 expected 1 [staff-readback]",
+        "tacos lengua: qty 1 expected 2 [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-sopesaso-elvis",
+          "name": "",
+          "qty": 2,
+          "modifiers": [
+            "Sope Elvis"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-taco-TAR7L5",
+          "name": "Taco",
+          "qty": 1,
+          "modifiers": [
+            "Lengua / Beef Tongue (+$0.50)",
+            "(TCO) Taco Comal / Homemade"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-taco-TAR7L5",
+          "name": "Taco",
+          "qty": 1,
+          "modifiers": [
+            "Deshebrada / Shredded Beef with Potatoes",
+            "(TCO) Taco Comal / Homemade"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 2,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Deshebrada / Shredded Beef with Potatoes"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+          "name": "(QD) Quesadilla Dorada (QD) REGULAR Dorada",
+          "qty": 2,
+          "modifiers": [
+            "(QD) REGULAR Dorada",
+            "Deshebrada / Shredded Beef with Potatoes"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller-split",
+        "staff",
+        "caller-split",
+        "staff",
+        "caller",
+        "caller",
+        "staff",
+        "caller",
+        "caller-meat-listed",
+        "caller-meat-listed",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller-split",
+        "staff",
+        "caller",
+        "staff",
+        "caller-closing"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 5
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "taco-tortilla",
+          "provenance": "inferred",
+          "note": "First answer was taquero, later comal. Latest speech says comal, still ambiguous across the retake."
+        }
+      ],
+      "inferredNotAsserted": [
+        "taco-tortilla"
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "Grouped quesadilla counts stay apart; horchata size unknown",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "dorada bistec: qty 1 expected 2 [transcript]",
+        "comal picadillo: qty 6 expected 3 [transcript]",
+        "comal picadillo lines: lines 2 expected 1 [transcript]",
+        "horchata: qty 0 expected 1 [staff-readback]",
+        "horchata lines: lines 0 expected 1 [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 3,
+          "modifiers": [
+            "Picadillo / Ground Beef",
+            "(QCO) Quesadilla Comal / Homemade"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 3,
+          "modifiers": [
+            "(QCO) Quesadilla Comal / Homemade (+$1.00)",
+            "Picadillo / Ground Beef with Potatoes"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 1,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Bistec / Steak"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 1,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Picadillo / Ground Beef with Potatoes"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 4
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "horchata-size",
+          "provenance": "inferred",
+          "note": "Count is one. Cup size was not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "horchata-size"
+      ]
+    },
+    {
+      "id": "C05",
+      "title": "Declined soup and a repeated dorada count stay three deluxe bistec",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "menudo still present [transcript]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 3,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Bistec / Steak"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-menudo-menudo-con-tortillas-4-ZSRUX4",
+          "name": "Menudo Menudo con Tortillas (4)",
+          "qty": 1,
+          "modifiers": [
+            "4 x (Corn) Comal Tortilla"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller-dorada-style",
+        "caller-closing",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "caller"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 2
+      },
+      "heardName": "Ese Menudo",
+      "unresolved": [],
+      "inferredNotAsserted": []
+    },
+    {
+      "id": "C06",
+      "title": "Declined caldo stays off; third quesadilla meat is unknown",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "torta costilla: qty 0 expected 1 [staff-readback]",
+        "torta costilla lines: lines 0 expected 1 [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 1,
+          "modifiers": [
+            "(QCO) Quesadilla de Comal / Homemade",
+            "Pollo / Chicken"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 1,
+          "modifiers": [
+            "(QCO) Quesadilla de Comal / Homemade",
+            "Tripa / Beef Tripe"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-torta-4GNTTE",
+          "name": "Torta",
+          "qty": 1,
+          "modifiers": [
+            "(TO) Torta",
+            "Tripa / Beef Tripe"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "caller",
+        "staff",
+        "caller",
+        "end-nonempty"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": "PICKUP",
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 3
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "third-quesadilla-meat",
+          "provenance": "inferred",
+          "note": "The extra quesadilla meat is not in the caller transcript. Do not assert bistec."
+        },
+        {
+          "field": "quesadilla-tortilla",
+          "provenance": "inferred",
+          "note": "Comal was not confirmed for this order."
+        }
+      ],
+      "inferredNotAsserted": [
+        "third-quesadilla-meat",
+        "quesadilla-tortilla"
+      ]
+    },
+    {
+      "id": "C07",
+      "title": "Acknowledged frijoles modifier stays on the prensado quesadilla",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "comal prensado frijoles modifier: missing /frijol/i [staff-readback]",
+        "tacos bistec: qty 0 expected 3 [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 1,
+          "modifiers": [
+            "Prensado / Spicy Pork",
+            "(QCO) Quesadilla Comal / Homemade"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 1,
+          "modifiers": [
+            "Bistec / Steak",
+            "(QCO) Quesadilla Comal / Homemade"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "caller",
+        "staff",
+        "caller-ack",
+        "staff",
+        "caller-ack"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 2
+      },
+      "heardName": null,
+      "unresolved": [],
+      "inferredNotAsserted": []
+    },
+    {
+      "id": "C08",
+      "title": "Spoken fajita chicken must not disappear when a short prompt omitted it",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "fajitas pollo: qty 0 expected 1 [staff-readback]",
+        "fajitas pollo modifier: missing /arroz/i [staff-readback]",
+        "fajitas pollo modifier: missing /frijol/i [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+          "name": "",
+          "qty": 1,
+          "modifiers": [],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 1,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Bistec / Steak"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+          "name": "(QD) Quesadilla Dorada (QD) DELUXE Preparada",
+          "qty": 1,
+          "modifiers": [
+            "(QD) DELUXE Preparada",
+            "Cabeza / Beef Head"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": "DELIVERY",
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 3
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "fajita-tortilla",
+          "provenance": "inferred",
+          "note": "Tortilla was not chosen by the caller."
+        },
+        {
+          "field": "jamaica-size",
+          "provenance": "inferred",
+          "note": "Drink size was not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "fajita-tortilla",
+        "jamaica-size"
+      ]
+    },
+    {
+      "id": "C09",
+      "title": "Staff-named Elvis dip wins; flavor and catalog size stay unresolved",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "shrimp cocktail: qty 0 expected 1 [staff-readback]",
+        "elvis dip chorizo: qty 0 expected 1 [staff-readback]",
+        "red drinks: qty 1 expected 2 [transcript]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-drink-agua-fresca-horchata-32oz-HL6HPK",
+          "name": "",
+          "qty": 1,
+          "modifiers": [],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 1
+      },
+      "heardName": "The",
+      "unresolved": [
+        {
+          "field": "drink-flavor",
+          "provenance": "inferred",
+          "note": "Relative punch next to horchata. Flavor was not named. Do not assert Jamaica."
+        },
+        {
+          "field": "drink-32oz",
+          "provenance": "catalog-default",
+          "note": "Large 32oz is a catalog default, not spoken."
+        },
+        {
+          "field": "dip-chips",
+          "provenance": "catalog-required",
+          "note": "Chips are catalog-required, not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "drink-flavor",
+        "drink-32oz",
+        "dip-chips"
+      ]
+    },
+    {
+      "id": "C10",
+      "title": "Menudo count stays two; soda brand conflicts; pickup time is not a name",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "fulfillment none expected PICKUP [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+          "name": "",
+          "qty": 1,
+          "modifiers": [],
+          "notes": []
+        },
+        {
+          "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+          "name": "Menudo Con Pata Menudo 32oz y Tortillas (4)",
+          "qty": 2,
+          "modifiers": [
+            "4 x (Corn) Comal Tortilla"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "staff",
+        "caller"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 2
+      },
+      "heardName": "Exactamente",
+      "unresolved": [
+        {
+          "field": "soda-brand",
+          "provenance": "inferred",
+          "note": "Caller asked Pepsi. Staff readback said coca and the caller agreed. Brand stays conflicting."
+        },
+        {
+          "field": "jamaica-size",
+          "provenance": "inferred",
+          "note": "Size was not spoken."
+        },
+        {
+          "field": "menudo-tortilla",
+          "provenance": "inferred",
+          "note": "Tortilla choice was not spoken."
+        },
+        {
+          "field": "pickup-note-11-10",
+          "provenance": "inferred",
+          "note": "The time was spoken and staff said they would note it. This replay does not assert a stored ticket note."
+        }
+      ],
+      "inferredNotAsserted": [
+        "soda-brand",
+        "jamaica-size",
+        "menudo-tortilla",
+        "pickup-note-11-10"
+      ]
+    },
+    {
+      "id": "C11",
+      "title": "Preparadas stay deluxe; menudo is not duplicated by a later recap",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "fail",
+      "failures": [
+        "dorada prensado: qty 0 expected 2 [staff-readback]",
+        "dorada prensado lines: lines 0 expected 1 [staff-readback]"
+      ],
+      "observedLines": [
+        {
+          "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
+          "name": "Menudo Con Pata Menudo 32oz y Tortillas (4)",
+          "qty": 3,
+          "modifiers": [
+            "4 x (Corn) Comal Tortilla"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+          "name": "(QD) Quesadilla Dorada (QD) REGULAR Dorada",
+          "qty": 2,
+          "modifiers": [
+            "(QD) REGULAR Dorada",
+            "Prensado / Spicy Pork"
+          ],
+          "notes": []
+        },
+        {
+          "itemId": "sq-quesadilla-HLT6CR",
+          "name": "Quesadilla",
+          "qty": 1,
+          "modifiers": [
+            "Tripa / Beef Tripe",
+            "(QCO) Quesadilla Comal / Homemade"
+          ],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "caller",
+        "staff",
+        "caller",
+        "staff",
+        "caller",
+        "caller-closing"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 3
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "menudo-tortilla",
+          "provenance": "inferred",
+          "note": "Tortilla was not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "menudo-tortilla"
+      ]
+    },
+    {
+      "id": "C12",
+      "title": "Three pozoles survive greeting filler; red is a house default, not ground truth",
+      "role": "control",
+      "pageNamedGateSatisfied": false,
+      "verdict": "pass",
+      "failures": [],
+      "observedLines": [
+        {
+          "itemId": "sq-pozole-rojo-red-pozole-DQ7X4J",
+          "name": "Pozole Rojo / Red Pozole",
+          "qty": 3,
+          "modifiers": [],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "caller-closing"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 1
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "pozole-color",
+          "provenance": "inferred",
+          "note": "Nobody said red or a meat. A red default is not ground truth. Coverage here is not a live or merged claim."
+        }
+      ],
+      "inferredNotAsserted": [
+        "pozole-color"
+      ]
+    },
+    {
+      "id": "S01",
+      "title": "Synthetic cancel removes the soup",
+      "role": "control",
+      "pageNamedGateSatisfied": false,
+      "verdict": "pass",
+      "failures": [],
+      "observedLines": [],
+      "steps": [
+        "caller",
+        "end-retain-spoken"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "empty",
+        "complete": false,
+        "lineCount": 0
+      },
+      "heardName": null,
+      "unresolved": [],
+      "inferredNotAsserted": []
+    },
+    {
+      "id": "S02",
+      "title": "Synthetic decrease keeps two pozoles",
+      "role": "control",
+      "pageNamedGateSatisfied": false,
+      "verdict": "pass",
+      "failures": [],
+      "observedLines": [
+        {
+          "itemId": "sq-pozole-rojo-red-pozole-DQ7X4J",
+          "name": "Pozole Rojo / Red Pozole",
+          "qty": 2,
+          "modifiers": [],
+          "notes": []
+        }
+      ],
+      "steps": [
+        "caller",
+        "caller"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "clear",
+        "complete": false,
+        "lineCount": 1
+      },
+      "heardName": null,
+      "unresolved": [
+        {
+          "field": "pozole-color",
+          "provenance": "inferred",
+          "note": "Synthetic count only. Color was not spoken."
+        }
+      ],
+      "inferredNotAsserted": [
+        "pozole-color"
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "Synthetic non-order: person in charge, no dish",
+      "role": "control",
+      "pageNamedGateSatisfied": false,
+      "verdict": "pass",
+      "failures": [],
+      "observedLines": [],
+      "steps": [
+        "person-in-charge"
+      ],
+      "ticket": {
+        "phase": "listening",
+        "autoAccepted": false,
+        "noOrder": true,
+        "existingOrderCall": false,
+        "statusCall": true,
+        "fulfillment": null,
+        "validation": "empty",
+        "complete": false,
+        "lineCount": 0
+      },
+      "heardName": null,
+      "unresolved": [],
+      "inferredNotAsserted": []
+    },
+    {
+      "id": "S04",
+      "title": "Synthetic declined availability ask must not leave a soup",
+      "role": "candidate",
+      "pageNamedGateSatisfied": false,
+      "verdict": "pass",
+      "failures": [],
+      "observedLines": [],
+      "steps": [
+        "caller-closing"
+      ],
+      "ticket": {
+        "phase": "final",
+        "autoAccepted": false,
+        "noOrder": false,
+        "existingOrderCall": false,
+        "statusCall": false,
+        "fulfillment": null,
+        "validation": "empty",
+        "complete": false,
+        "lineCount": 0
+      },
+      "heardName": null,
+      "unresolved": [],
+      "inferredNotAsserted": []
+    }
+  ]
+}

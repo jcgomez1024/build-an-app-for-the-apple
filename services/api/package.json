@@ -15,6 +15,8 @@
     "sync:site-menu": "tsx scripts/site-menu-sync.ts",
     "check:site-menu": "tsx scripts/check-site-menu.ts",
     "replay": "tsx --test test/replay/*.test.ts",
+    "offline:evidence": "tsx test/offline/run-evidence.ts",
+    "offline:evidence:test": "tsx --test test/offline/evidence.test.ts",
     "auditor:run": "tsx scripts/auditor.ts run",
     "auditor:pending": "tsx scripts/auditor.ts pending",
     "auditor:ack": "tsx scripts/auditor.ts ack"
