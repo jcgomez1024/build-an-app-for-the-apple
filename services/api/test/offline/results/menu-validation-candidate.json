@@ -1,5 +1,5 @@
 {
-  "codeSha": "03d03eea961598e687a1a715405fe978647aeab4",
+  "codeSha": "22e46e87ac975a0f97c2b6002b23b621e54c2b04",
   "kind": "menu-validation",
   "pageNamedGateSatisfied": false,
   "network": false,
@@ -131,6 +131,36 @@
       "detail": "final/validation-complete/false"
     },
     {
+      "id": "guessed-square-link-is-not-staff-accepted",
+      "layer": "unit",
+      "ok": true,
+      "detail": "validation-complete"
+    },
+    {
+      "id": "explicit-approval-is-staff-accepted",
+      "layer": "unit",
+      "ok": true,
+      "detail": "staff-accepted"
+    },
+    {
+      "id": "contradictory-approval-stays-review",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "missing-validation-on-a-line-fails-closed",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review"
+    },
+    {
+      "id": "recovery-unresolved-is-not-final",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
       "id": "shadow-missing-required-blocks-autoaccept",
       "layer": "integration",
       "ok": true,
@@ -183,10 +213,52 @@
       "layer": "integration",
       "ok": true,
       "detail": "review/transcript-final lines=1"
+    },
+    {
+      "id": "later-clear-after-review-is-validation-complete",
+      "layer": "integration",
+      "ok": true,
+      "detail": "final/validation-complete lines=1"
+    },
+    {
+      "id": "matched-link-does-not-upgrade-acceptance",
+      "layer": "integration",
+      "ok": true,
+      "detail": "validation-complete/phone"
+    },
+    {
+      "id": "later-explicit-approval-after-clear",
+      "layer": "integration",
+      "ok": true,
+      "detail": "validation-complete->staff-accepted"
+    },
+    {
+      "id": "approval-survives-later-clear-write-and-guessed-link",
+      "layer": "integration",
+      "ok": true,
+      "detail": "staff-accepted/true link=staff-accepted/items"
+    },
+    {
+      "id": "approval-fails-closed-while-unresolved-then-returns",
+      "layer": "integration",
+      "ok": true,
+      "detail": "review/transcript-final/true->final/staff-accepted"
+    },
+    {
+      "id": "recovery-without-loader-stays-review",
+      "layer": "integration",
+      "ok": true,
+      "detail": "order=unresolved/confirmar menú: missing gate=review/transcript-final n=1"
+    },
+    {
+      "id": "recovery-null-menu-attachment-fails-closed",
+      "layer": "integration",
+      "ok": true,
+      "detail": "validation=unresolved auto=false n=1"
     }
   ],
-  "unitPass": 21,
+  "unitPass": 26,
   "unitFail": 0,
-  "integrationPass": 9,
+  "integrationPass": 16,
   "integrationFail": 0
 }
