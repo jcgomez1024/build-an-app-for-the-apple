@@ -7,7 +7,7 @@ dotenv.config({ path: path.join(root, ".env") }); dotenv.config({ path: path.joi
 const sid = process.argv[2]; const callerChannel = (Number(process.argv[3]) === 2 ? 2 : 1) as 1 | 2;
 if (!/^CA[0-9a-f]{32}$/.test(sid || "")) { console.error("usage: <CallSid>"); process.exit(1); }
 const A = process.env.TWILIO_ACCOUNT_SID!, auth = "Basic " + Buffer.from(`${A}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-const { scoreRecording } = await import("../src/twilio.ts");
+const { scoreRecording, recoveryAcceptance, attachRecoveryMenu } = await import("../src/twilio.ts");
 const { chatWithElvi } = await import("../src/elvi.ts");
 const { nameFromTranscript } = await import("../src/order-name.ts");
 const { getMenu, getFullMenu } = await import("../src/square.ts");
@@ -24,11 +24,13 @@ const ev = fs.readFileSync(logFile, "utf8").split("\n").filter(Boolean).map((l) 
 const caller = ev.find((e) => e.caller)?.caller || "";
 const tenant = resolveTenant(undefined);
 const cfg: any = { env: tenant.square.env, accessToken: tenant.square.accessToken, locationId: tenant.square.locationId, apiVersion: tenant.square.apiVersion, appPublicUrl: "http://localhost:4000", businessName: tenant.branding.displayName };
-const menu = await getMenu(cfg); const resolverMenu = await getFullMenu(cfg).catch(() => menu);
-const shadow = (key: string) => (t: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: t.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: key } as any, { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model } as any);
+let menu: any = null; try { menu = await getMenu(cfg); } catch { menu = null; }
+const resolverMenu = menu ? await getFullMenu(cfg).catch(() => menu) : null;
+const shadow = (_key: string) => attachRecoveryMenu((t: string, language: "es" | "en", history: any[]) => chatWithElvi({ transcript: t.slice(0, 1000), language, menu, history, resolverMenu, sessionKey: _key } as any, { apiKey: tenant.xai.apiKey, baseUrl: tenant.xai.baseUrl, model: tenant.xai.model } as any), () => menu);
 const result: any = await scoreRecording(buf, `call-${sid.slice(-40)}`, shadow as any, { callerChannel });
 const name = nameFromTranscript(result.turns) || ev.find((e) => e.name)?.name || null;
+const recovered = recoveryAcceptance(result.elviOrder);
 fs.appendFileSync(logFile, JSON.stringify({ ts: new Date().toISOString(), event: "recording", callSid: sid, caller, name, greetingLanguage: ev.find((e) => e.event === "language")?.language, recordingSid: rec.sid, durationSec: rec.duration,
-  file: path.relative(root, file), segments: 1, callerChannel, lines: [], ticketPhase: "final", turns: result.turns, transcript: result.transcript, elviOrder: result.elviOrder, source: "ingest-recording" }) + "\n");
+  file: path.relative(root, file), segments: 1, callerChannel, lines: [], ticketPhase: recovered.phase, acceptance: recovered.acceptance, reviewReason: recovered.reviewReason, turns: result.turns, transcript: result.transcript, elviOrder: result.elviOrder, source: "ingest-recording" }) + "\n");
 console.log(`ingested ${rec.sid.slice(-6)} ${rec.duration}s, ${result.turns.length} turns, name ${name ? "found" : "none"}`);
 process.exit(0);

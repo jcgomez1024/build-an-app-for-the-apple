@@ -1,0 +1,264 @@
+{
+  "codeSha": "e5bbe49441337e395ff4c3e15fb1308755ae8df4",
+  "kind": "menu-validation",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "checks": [
+    {
+      "id": "duplicate-does-not-meet-min",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "non-member-does-not-meet-min",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "one-catalog-choice-meets-min-max",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "two-choices-exceed-max-1",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "two-distinct-choices-within-max-3",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "unknown-sku-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar catálogo: ítem no está en el menú"
+    },
+    {
+      "id": "sold-out-sku-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: unavailable"
+    },
+    {
+      "id": "quantity-zero-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar cantidad"
+    },
+    {
+      "id": "quantity-above-max-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar cantidad"
+    },
+    {
+      "id": "quantity-within-min-max-clear",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "empty-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: empty"
+    },
+    {
+      "id": "absent-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: absent"
+    },
+    {
+      "id": "malformed-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: malformed"
+    },
+    {
+      "id": "unavailable-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: unavailable"
+    },
+    {
+      "id": "staff-note-survives-failed-validation",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar (B) Carnes"
+    },
+    {
+      "id": "idempotent-second-pass",
+      "layer": "unit",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "id": "no-cross-item-leakage",
+      "layer": "unit",
+      "ok": true,
+      "detail": "[\"verdura aparte\"]"
+    },
+    {
+      "id": "nameless-required-group-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "confirmar grupo sin nombre"
+    },
+    {
+      "id": "stale-staff-flag-revalidated",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "clear-autoaccept-is-validation-complete",
+      "layer": "unit",
+      "ok": true,
+      "detail": "final/validation-complete"
+    },
+    {
+      "id": "clear-without-autoaccept-stays-final-for-review",
+      "layer": "unit",
+      "ok": true,
+      "detail": "final/validation-complete/false"
+    },
+    {
+      "id": "guessed-square-link-is-not-staff-accepted",
+      "layer": "unit",
+      "ok": false,
+      "detail": "staff-accepted"
+    },
+    {
+      "id": "explicit-approval-is-staff-accepted",
+      "layer": "unit",
+      "ok": false,
+      "detail": "validation-complete"
+    },
+    {
+      "id": "contradictory-approval-stays-review",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "missing-validation-on-a-line-fails-closed",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review"
+    },
+    {
+      "id": "recovery-unresolved-is-not-final",
+      "layer": "unit",
+      "ok": false,
+      "detail": "missing/missing"
+    },
+    {
+      "id": "shadow-missing-required-blocks-autoaccept",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved lines=sq-quesadilla-HLT6CR"
+    },
+    {
+      "id": "ticket-keeps-confirmar-after-conversion",
+      "layer": "integration",
+      "ok": true,
+      "detail": "[{\"name\":\"Quesadilla\",\"quantity\":1,\"choices\":[],\"notes\":[\"confirmar (A) Q Tortilla Options\",\"confirmar (B) Q Carnes / Meats\"],\"flag\":\"confirmar (A) Q Tortilla Options · confirmar (B) Q Carnes / Meats\",\"kind\":\"food\"}]"
+    },
+    {
+      "id": "shadow-valid-catalog-choices-stay-accepted",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=true validation=clear lines=sq-quesadilla-HLT6CR:ok:"
+    },
+    {
+      "id": "ticket-does-not-invent-confirmar-on-valid-line",
+      "layer": "integration",
+      "ok": true,
+      "detail": "[{\"name\":\"Quesadilla\",\"quantity\":1,\"choices\":[\"(QCO) Quesadilla de Comal / Homemade\",\"Bistec / Steak\"],\"notes\":[],\"flag\":null,\"kind\":\"food\"}]"
+    },
+    {
+      "id": "shadow-unknown-sku-blocks-autoaccept",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved"
+    },
+    {
+      "id": "missing-menu-loader-fails-closed-without-dropping",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved noOrder=undefined n=1 reason=confirmar menú: missing"
+    },
+    {
+      "id": "throwing-menu-loader-fails-closed",
+      "layer": "integration",
+      "ok": true,
+      "detail": "validation=unresolved reason=confirmar menú: throwing"
+    },
+    {
+      "id": "persisted-valid-ticket-is-validation-complete",
+      "layer": "integration",
+      "ok": true,
+      "detail": "final/validation-complete"
+    },
+    {
+      "id": "persisted-unresolved-does-not-stay-final",
+      "layer": "integration",
+      "ok": true,
+      "detail": "review/transcript-final lines=1"
+    },
+    {
+      "id": "later-clear-after-review-is-validation-complete",
+      "layer": "integration",
+      "ok": true,
+      "detail": "final/validation-complete lines=1"
+    },
+    {
+      "id": "matched-link-does-not-upgrade-acceptance",
+      "layer": "integration",
+      "ok": false,
+      "detail": "noteSquareMatch not exported"
+    },
+    {
+      "id": "later-explicit-approval-after-clear",
+      "layer": "integration",
+      "ok": false,
+      "detail": "validation-complete->validation-complete"
+    },
+    {
+      "id": "approval-survives-later-clear-write-and-guessed-link",
+      "layer": "integration",
+      "ok": false,
+      "detail": "validation-complete/undefined link=undefined/undefined"
+    },
+    {
+      "id": "approval-fails-closed-while-unresolved-then-returns",
+      "layer": "integration",
+      "ok": false,
+      "detail": "review/transcript-final/undefined->final/validation-complete"
+    },
+    {
+      "id": "recovery-without-loader-stays-review",
+      "layer": "integration",
+      "ok": false,
+      "detail": "order=unresolved/confirmar menú: missing gate=missing/missing n=1"
+    },
+    {
+      "id": "recovery-null-menu-attachment-fails-closed",
+      "layer": "integration",
+      "ok": false,
+      "detail": "attachRecoveryMenu missing"
+    }
+  ],
+  "unitPass": 23,
+  "unitFail": 3,
+  "integrationPass": 10,
+  "integrationFail": 6
+}

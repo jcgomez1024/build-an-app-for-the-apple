@@ -24,7 +24,8 @@ import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favor
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
-import { gateTicketAcceptance } from "./offline-evidence.js";
+import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu } from "./offline-evidence.js";
+export { recoveryAcceptance, attachRecoveryMenu };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -546,6 +547,8 @@ export type ElviTicket = {
   source: string; phoneDisplay: string;
   language: Lang; phase: "listening" | "review" | "final";
   acceptance?: "transcript-final" | "validation-complete" | "staff-accepted";
+  /** Set only by an explicit human approval. A guessed Square match never sets this. */
+  explicitlyApproved?: boolean;
   reviewReason?: string | null;
   fulfillment: string; // TO GO / LLEVAR | FOR HERE / PARA AQUI | DELIVERY / ENTREGA | PICKUP …
   readyTime?: string | null;
@@ -554,7 +557,7 @@ export type ElviTicket = {
   training: boolean; openAsk?: string | null; transcript?: string;
   squareRef?: SquareRef | null; // ticketno1: the real Square ticket once staff ring it up
 };
-export type SquareRef = { receiptNumber: string | null; ticketName: string | null; orderId: string; paymentId: string | null; dashboardUrl: string | null; receiptUrl: string | null; matchedBy: string; linkedAt: string };
+export type SquareRef = { receiptNumber: string | null; ticketName: string | null; orderId: string; paymentId: string | null; dashboardUrl: string | null; receiptUrl: string | null; matchedBy: string; linkedAt: string; explicitApproval?: boolean };
 // ---- ticketno1: link each Elvi ticket to the real Square ticket (read-only) so staff see Square's own numbers ----
 // "Receipt #" = payment receipt_number (what the printed receipt and Transactions search show); "Ticket" = POS ticket name.
 const squareLinksFile = path.join(logDir, "square-links.json");
@@ -610,6 +613,23 @@ export function laterCallFrom(t: { callSid: string; at: string; caller: string; 
   const xs = all.filter((o) => o.callSid !== t.callSid && Date.parse(o.at) > at && (ph ? d10(o.caller) === ph : !!nm(t) && nm(o) === nm(t)));
   return xs.length ? xs.map((o) => o.at).sort()[0] : null;
 }
+/** A guessed Square match is stored on the ticket and re-gated. It never becomes staff-accepted. */
+export function noteSquareMatch(ticket: ElviTicket, ref: SquareRef): ElviTicket {
+  ticket.squareRef = ref;
+  const unresolved = ticket.phase === "review" || !!ticket.reviewReason;
+  const gated = gateTicketAcceptance({
+    requestedPhase: ticket.phase === "listening" ? "listening" : "final",
+    autoAccepted: ticket.acceptance === "validation-complete" || ticket.acceptance === "staff-accepted",
+    validation: unresolved ? "unresolved" : (ticket.phase === "final" ? "clear" : "empty"),
+    reviewReason: ticket.reviewReason,
+    explicitApproval: ticket.explicitlyApproved === true,
+    squareRef: ref,
+  });
+  ticket.phase = gated.phase;
+  ticket.acceptance = gated.acceptance;
+  ticket.reviewReason = gated.reviewReason;
+  return ticket;
+}
 export async function linkSquareTickets(force = false) {
   if (!force && Date.now() - lastSquareLink < 60000) return;
   lastSquareLink = Date.now();
@@ -629,7 +649,7 @@ export async function linkSquareTickets(force = false) {
     const rc = r.paymentId ? await paymentReceiptReadOnly(r.paymentId) : null;
     const ref: SquareRef = { receiptNumber: rc?.receiptNumber || r.receiptNumber, ticketName: r.ticketName, orderId: r.orderId, paymentId: r.paymentId, dashboardUrl: r.dashboardUrl, receiptUrl: rc?.receiptUrl || null, matchedBy: pick.by, linkedAt: new Date().toISOString() };
     links[t.callSid] = ref; used.add(r.orderId); changed = true;
-    t.squareRef = ref;
+    noteSquareMatch(t, ref);
     logCall({ event: "square_ticket", callSid: t.callSid, receiptNumber: ref.receiptNumber, orderId: ref.orderId, matchedBy: ref.matchedBy });
     void sendNameFollowUp(t.callSid, cleanFirstName(String(ref.ticketName || "")) || null).catch(() => {}); // smsname1
   }
@@ -1005,6 +1025,7 @@ export async function upsertTicket(
     partial.name != null && String(partial.name).trim()
       ? partial.name
       : (prev?.name ?? partial.name ?? null);
+  const explicitApproval = (partial as { explicitApproval?: boolean }).explicitApproval === true || prev?.explicitlyApproved === true;
   const gated = gateTicketAcceptance({
     requestedPhase: partial.phase || prev?.phase || "listening",
     autoAccepted: elviOrder?.autoAccepted,
@@ -1013,6 +1034,7 @@ export async function upsertTicket(
     statusCall: !!elviOrder?.statusCall,
     cart,
     squareRef: prev?.squareRef,
+    explicitApproval,
   });
   const t: ElviTicket = {
     callSid: partial.callSid,
@@ -1025,6 +1047,7 @@ export async function upsertTicket(
     language: partial.language || prev?.language || "es",
     phase: gated.phase,
     acceptance: gated.acceptance,
+    explicitlyApproved: explicitApproval,
     reviewReason: gated.reviewReason,
     fulfillment: partial.fulfillment || prev?.fulfillment || "TO GO / LLEVAR",
     readyTime: partial.readyTime !== undefined ? partial.readyTime : prev?.readyTime,

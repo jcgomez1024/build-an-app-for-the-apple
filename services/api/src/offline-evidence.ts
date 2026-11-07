@@ -180,10 +180,17 @@ function cartUnresolved(cart: any[] | null | undefined): boolean {
   return (cart || []).some((l) => l?.validation === "unresolved" || (l?.elviNotes || []).some((n: string) => /^confirmar\b/i.test(String(n))));
 }
 
+/** A Square association (phone, name, items, or the only ticket in a window) is not a person pressing accept. */
+export function isExplicitStaffApproval(input: { explicitApproval?: boolean; squareRef?: { matchedBy?: string; explicitApproval?: boolean } | null }): boolean {
+  if (input.explicitApproval === true) return true;
+  const ref = input.squareRef;
+  return ref?.explicitApproval === true || ref?.matchedBy === "explicit";
+}
+
 /** Persistence gate. transcript-final = call is done and still needs a person.
- *  validation-complete = catalog checks passed, staff have not accepted.
- *  staff-accepted = a human Square link is already on the ticket and the catalog check still passes.
- *  Unresolved validation never stays phase "final". Items are not dropped and this is not noOrder. */
+ *  validation-complete = catalog checks passed. A guessed Square link does not change that.
+ *  staff-accepted = an explicit human approval, and the catalog check still passes.
+ *  Missing, contradictory, or unresolved completeness never stays phase "final". Items are not dropped and this is not noOrder. */
 export function gateTicketAcceptance(input: {
   requestedPhase?: string | null;
   autoAccepted?: boolean;
@@ -191,7 +198,8 @@ export function gateTicketAcceptance(input: {
   reviewReason?: string | null;
   statusCall?: boolean;
   cart?: any[] | null;
-  squareRef?: unknown;
+  squareRef?: { matchedBy?: string; explicitApproval?: boolean } | null;
+  explicitApproval?: boolean;
 }): { phase: TicketPhase; acceptance: TicketAcceptance; autoAccepted: boolean; reviewReason: string | null } {
   if (input.statusCall || input.requestedPhase === "listening") {
     return { phase: "listening", acceptance: "transcript-final", autoAccepted: false, reviewReason: null };
@@ -199,16 +207,37 @@ export function gateTicketAcceptance(input: {
   const cart = Array.isArray(input.cart) ? input.cart : [];
   const validation = input.validation ?? (cart.length ? "unresolved" : "empty");
   const reason = input.reviewReason || (cartUnresolved(cart) ? "confirmar" : null);
-  if (validation === "unresolved" || reason) {
+  if (validation === "unresolved" || reason || (validation !== "clear" && validation !== "empty")) {
     return { phase: "review", acceptance: "transcript-final", autoAccepted: false, reviewReason: reason || "confirmar" };
   }
-  if (input.squareRef && validation === "clear") {
+  if (validation === "clear" && isExplicitStaffApproval(input)) {
     return { phase: "final", acceptance: "staff-accepted", autoAccepted: !!input.autoAccepted, reviewReason: null };
   }
   if (validation === "clear") {
     return { phase: "final", acceptance: "validation-complete", autoAccepted: !!input.autoAccepted, reviewReason: null };
   }
   return { phase: "final", acceptance: "transcript-final", autoAccepted: false, reviewReason: null };
+}
+
+/** Recovery log line. Uses the same gate as upsertTicket. A missing order is review, not final. */
+export function recoveryAcceptance(order: any) {
+  if (!order) return gateTicketAcceptance({ requestedPhase: "final", validation: "unresolved", reviewReason: "confirmar menú: missing", cart: [] });
+  return gateTicketAcceptance({
+    requestedPhase: order.statusCall ? "listening" : "final",
+    autoAccepted: order.autoAccepted,
+    validation: order.validation,
+    reviewReason: order.reviewReason,
+    statusCall: !!order.statusCall,
+    cart: order.cart,
+    explicitApproval: false,
+    squareRef: order.squareRef,
+  });
+}
+
+/** Attach the catalog loader a recovery shadow must have. A null menu still fails closed inside scoring. */
+export function attachRecoveryMenu<T extends object>(run: T, menu: unknown): T {
+  (run as any).menu = typeof menu === "function" ? menu : () => menu;
+  return run;
 }
 
 /** Read-only view of a shadow result. Persistence uses gateTicketAcceptance inside upsertTicket. */

@@ -10,7 +10,7 @@ One measured batch:
 2. Verified correction examples stay separate from held-out cases. A held-out case is not used to invent the fix.
 3. The same replay command runs on a pinned parent SHA and on the candidate. Results are files in `results/`, named with the SHA.
 4. Property checks sit next to the examples: counts, a correction that does not leak onto another line, and a second pass that does not change the cart.
-5. Uncertainty stays visible. `transcript-final` means the call is done and a person still has to look. `validation-complete` means the catalog check passed. `staff-accepted` means a human Square link was already stored and the catalog check still passes. Unresolved validation cannot be stored as phase `final`.
+5. Uncertainty stays visible. `transcript-final` means the call is done and a person still has to look. `validation-complete` means the catalog check passed. `staff-accepted` means a person explicitly approved and the catalog check still passes. A guessed Square match is only an association. Unresolved validation cannot be stored as phase `final`.
 6. The batch records a rollback plan: the parent SHA and the files touched. Rollback is `git revert` of that batch, not a reset of published history.
 
 ## What this batch does not add
@@ -24,7 +24,7 @@ No new learning framework, no fine-tuning, and no automatic edit of the parser f
 | `listening` | Explicit status, cancel, or in-call state. Unchanged. |
 | `review` / `transcript-final` | Transcript is done. Catalog validation is open. Lines stay. Not a non-order. Not accepted. |
 | `final` / `validation-complete` | Catalog check passed. Ready for a person. Not staff-accepted. |
-| `staff-accepted` | A stored human Square link, and the catalog check still passes. |
+| `staff-accepted` | An explicit human approval, stored as `explicitlyApproved` on the ticket, and the catalog check still passes. A Square match by phone, name, items, or time is only an association and never sets that flag. The flag survives a later clear rewrite and a later guessed link. An unresolved rewrite still returns to review with the lines kept; the next clear rewrite returns to `staff-accepted`. |
 
 ## Rollback for the acceptance batch
 

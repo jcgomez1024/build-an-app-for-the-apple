@@ -106,6 +106,23 @@ function propertyChecks(): Check[] {
     unit("stale-staff-flag-revalidated", !!stale && stale.phase === "review" && stale.acceptance === "transcript-final" && stale.autoAccepted === false, stale ? `${stale.phase}/${stale.acceptance}` : "gateTicketAcceptance missing"),
     unit("clear-autoaccept-is-validation-complete", !!validGate && validGate.phase === "final" && validGate.acceptance === "validation-complete" && validGate.autoAccepted === true, validGate ? `${validGate.phase}/${validGate.acceptance}` : "gateTicketAcceptance missing"),
     unit("clear-without-autoaccept-stays-final-for-review", !!reviewGate && reviewGate.phase === "final" && reviewGate.acceptance === "validation-complete" && reviewGate.autoAccepted === false, reviewGate ? `${reviewGate.phase}/${reviewGate.acceptance}/${reviewGate.autoAccepted}` : "gateTicketAcceptance missing"),
+    ...approvalChecks(),
+  ];
+}
+
+function approvalChecks(): Check[] {
+  const matched = { matchedBy: "only ticket in 20 min", orderId: "guess" };
+  const guessed = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, validation: "clear", cart: [{ itemId: "sq-quesadilla-TEST01", quantity: 1 }], squareRef: matched });
+  const approved = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, validation: "clear", cart: [{ itemId: "sq-quesadilla-TEST01", quantity: 1 }], explicitApproval: true });
+  const contradicted = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, validation: "clear", reviewReason: "confirmar menú: missing", explicitApproval: true, cart: [{ itemId: "sq-quesadilla-TEST01", quantity: 1, elviNotes: ["confirmar grupo sin nombre"] }] });
+  const missingField = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, cart: [{ itemId: "sq-quesadilla-TEST01", quantity: 1 }] });
+  const recovered = (evidence as { recoveryAcceptance?: Function }).recoveryAcceptance?.({ autoAccepted: true, validation: "unresolved", reviewReason: "confirmar menú: missing", cart: [{ itemId: "sq-quesadilla-TEST01", quantity: 1 }] }) || { phase: "missing", acceptance: "missing" };
+  return [
+    unit("guessed-square-link-is-not-staff-accepted", !!guessed && guessed.acceptance === "validation-complete" && guessed.phase === "final", guessed ? guessed.acceptance : "gate missing"),
+    unit("explicit-approval-is-staff-accepted", !!approved && approved.acceptance === "staff-accepted" && approved.phase === "final", approved ? approved.acceptance : "gate missing"),
+    unit("contradictory-approval-stays-review", !!contradicted && contradicted.phase === "review" && contradicted.acceptance === "transcript-final" && contradicted.autoAccepted === false, contradicted ? `${contradicted.phase}/${contradicted.acceptance}` : "gate missing"),
+    unit("missing-validation-on-a-line-fails-closed", !!missingField && missingField.phase === "review" && missingField.autoAccepted === false, missingField ? missingField.phase : "gate missing"),
+    unit("recovery-unresolved-is-not-final", recovered.phase === "review" && recovered.acceptance === "transcript-final", `${recovered.phase}/${recovered.acceptance}`),
   ];
 }
 
@@ -129,6 +146,7 @@ export async function integrationChecks(): Promise<Check[]> {
   const twilio = await import("../../src/twilio.ts");
   const buildTicketLines = twilio.buildTicketLines;
   const upsertTicket = (twilio as { upsertTicket?: Function }).upsertTicket;
+  const noteSquareMatch = (twilio as { noteSquareMatch?: Function }).noteSquareMatch;
   const turns = [{ speaker: "caller" as const, text: "Una quesadilla." }];
   const missing = await shadowOrderFromTurns(turns as any, askingModel([{ type: "add_item", itemId: QID, quantity: 1, modifiers: [] }]));
   const valid = await shadowOrderFromTurns(turns as any, askingModel([{
@@ -151,7 +169,22 @@ export async function integrationChecks(): Promise<Check[]> {
   const kept = [{ itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }];
   const open = [{ itemId: QID, quantity: 1, modifiers: [], validation: "unresolved", elviNotes: ["confirmar (B) Q Carnes / Meats"] }];
   const accepted = upsertTicket ? await upsertTicket({ callSid: sid, at: "2026-11-07T23:00:00.000Z", caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const matched = accepted && noteSquareMatch ? noteSquareMatch({ phase: accepted.phase, acceptance: accepted.acceptance, reviewReason: accepted.reviewReason, lines: accepted.lines }, { matchedBy: "phone", orderId: "guessed-order", receiptNumber: null, ticketName: null, paymentId: null, dashboardUrl: null, receiptUrl: null, linkedAt: "2026-11-07T23:01:00.000Z" }) : null;
   const downgraded = upsertTicket && accepted ? await upsertTicket({ callSid: sid, at: accepted.at, caller: "", name: null, phase: "final" }, describe, open, { autoAccepted: true, validation: "unresolved", removalsAttributed: true, cart: open }) : null;
+  const clearedLater = upsertTicket && downgraded ? await upsertTicket({ callSid: sid, at: downgraded.at, caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const sid2 = "CAoffline0000000000000000000000ac";
+  const again = upsertTicket ? await upsertTicket({ callSid: sid2, at: "2026-11-07T23:02:00.000Z", caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const explicit = upsertTicket && again ? await upsertTicket({ callSid: sid2, at: again.at, caller: "", name: null, phase: "final", explicitApproval: true } as any, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const held = upsertTicket && explicit ? await upsertTicket({ callSid: sid2, at: explicit.at, caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const linkedAfter = held && noteSquareMatch ? noteSquareMatch(held, { matchedBy: "items", orderId: "guessed-after-approval", receiptNumber: null, ticketName: null, paymentId: null, dashboardUrl: null, receiptUrl: null, linkedAt: "2026-11-07T23:03:00.000Z" }) : null;
+  const reopened = upsertTicket && explicit ? await upsertTicket({ callSid: sid2, at: explicit.at, caller: "", name: null, phase: "final" }, describe, open, { autoAccepted: true, validation: "unresolved", reviewReason: "confirmar menú: missing", removalsAttributed: true, cart: open }) : null;
+  const restored = upsertTicket && reopened ? await upsertTicket({ callSid: sid2, at: reopened.at, caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const bare: any = async () => ({ actions: [{ type: "add_item", itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }], reply: "Listo." });
+  const recoveredOrder = await shadowOrderFromTurns(turns as any, bare);
+  const recoveredGate = (evidence as { recoveryAcceptance?: Function }).recoveryAcceptance?.(recoveredOrder) || { phase: "missing", acceptance: "missing" };
+  const attach = (evidence as { attachRecoveryMenu?: Function }).attachRecoveryMenu;
+  const attached: any = attach ? attach(async () => ({ actions: [{ type: "add_item", itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }], reply: "Listo." }), null) : null;
+  const nullMenu = attached ? await shadowOrderFromTurns(turns as any, attached) : { validation: "missing", autoAccepted: true, noOrder: true, cart: [] };
   const ticketOf = (order: any) => buildTicketLines(
     (order.cart || []).map((l: any) => ({ name: "Quesadilla", quantity: l.quantity || 1, choices: (l.modifiers || []).map((m: any) => String(m.option || "")) })),
     order.cart || [],
@@ -219,6 +252,48 @@ export async function integrationChecks(): Promise<Check[]> {
       layer: "integration",
       ok: !!downgraded && downgraded.phase === "review" && downgraded.acceptance === "transcript-final" && (downgraded.lines || []).length > 0 && downgraded.phase !== "final",
       detail: downgraded ? `${downgraded.phase}/${downgraded.acceptance} lines=${(downgraded.lines || []).length}` : "upsertTicket not exported",
+    },
+    {
+      id: "later-clear-after-review-is-validation-complete",
+      layer: "integration",
+      ok: !!clearedLater && clearedLater.phase === "final" && clearedLater.acceptance === "validation-complete" && clearedLater.acceptance !== "staff-accepted" && (clearedLater.lines || []).length > 0,
+      detail: clearedLater ? `${clearedLater.phase}/${clearedLater.acceptance} lines=${(clearedLater.lines || []).length}` : "upsertTicket not exported",
+    },
+    {
+      id: "matched-link-does-not-upgrade-acceptance",
+      layer: "integration",
+      ok: !!matched && matched.acceptance === "validation-complete" && matched.squareRef?.matchedBy === "phone",
+      detail: matched ? `${matched.acceptance}/${matched.squareRef?.matchedBy}` : "noteSquareMatch not exported",
+    },
+    {
+      id: "later-explicit-approval-after-clear",
+      layer: "integration",
+      ok: !!again && again.acceptance === "validation-complete" && !!explicit && explicit.acceptance === "staff-accepted" && explicit.phase === "final" && (explicit.lines || []).length > 0,
+      detail: explicit ? `${again?.acceptance}->${explicit.acceptance}` : "upsertTicket not exported",
+    },
+    {
+      id: "approval-survives-later-clear-write-and-guessed-link",
+      layer: "integration",
+      ok: !!held && held.acceptance === "staff-accepted" && held.explicitlyApproved === true && !!linkedAfter && linkedAfter.acceptance === "staff-accepted" && linkedAfter.squareRef?.matchedBy === "items",
+      detail: held ? `${held.acceptance}/${held.explicitlyApproved} link=${linkedAfter?.acceptance}/${linkedAfter?.squareRef?.matchedBy}` : "upsertTicket not exported",
+    },
+    {
+      id: "approval-fails-closed-while-unresolved-then-returns",
+      layer: "integration",
+      ok: !!reopened && reopened.phase === "review" && reopened.acceptance === "transcript-final" && (reopened.lines || []).length > 0 && reopened.explicitlyApproved === true && !!restored && restored.phase === "final" && restored.acceptance === "staff-accepted",
+      detail: reopened ? `${reopened.phase}/${reopened.acceptance}/${reopened.explicitlyApproved}->${restored?.phase}/${restored?.acceptance}` : "upsertTicket not exported",
+    },
+    {
+      id: "recovery-without-loader-stays-review",
+      layer: "integration",
+      ok: recoveredOrder.validation === "unresolved" && !recoveredOrder.noOrder && (recoveredOrder.cart || []).length > 0 && recoveredGate.phase === "review" && recoveredGate.acceptance === "transcript-final",
+      detail: `order=${recoveredOrder.validation}/${recoveredOrder.reviewReason} gate=${recoveredGate.phase}/${recoveredGate.acceptance} n=${(recoveredOrder.cart || []).length}`,
+    },
+    {
+      id: "recovery-null-menu-attachment-fails-closed",
+      layer: "integration",
+      ok: !!attached && typeof attached.menu === "function" && nullMenu.validation === "unresolved" && nullMenu.autoAccepted === false && !nullMenu.noOrder && (nullMenu.cart || []).length > 0,
+      detail: attached ? `validation=${nullMenu.validation} auto=${nullMenu.autoAccepted} n=${(nullMenu.cart || []).length}` : "attachRecoveryMenu missing",
     },
   ];
 }
