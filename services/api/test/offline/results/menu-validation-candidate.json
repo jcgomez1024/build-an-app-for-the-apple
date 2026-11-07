@@ -1,5 +1,5 @@
 {
-  "codeSha": "e080a7d590a289362efc32cfbfbb48166e0398c0",
+  "codeSha": "03d03eea961598e687a1a715405fe978647aeab4",
   "kind": "menu-validation",
   "pageNamedGateSatisfied": false,
   "network": false,
@@ -95,6 +95,42 @@
       "detail": "verdura aparte | confirmar (B) Carnes"
     },
     {
+      "id": "idempotent-second-pass",
+      "layer": "unit",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "id": "no-cross-item-leakage",
+      "layer": "unit",
+      "ok": true,
+      "detail": "[\"verdura aparte\"]"
+    },
+    {
+      "id": "nameless-required-group-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "confirmar grupo sin nombre"
+    },
+    {
+      "id": "stale-staff-flag-revalidated",
+      "layer": "unit",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "clear-autoaccept-is-validation-complete",
+      "layer": "unit",
+      "ok": true,
+      "detail": "final/validation-complete"
+    },
+    {
+      "id": "clear-without-autoaccept-stays-final-for-review",
+      "layer": "unit",
+      "ok": true,
+      "detail": "final/validation-complete/false"
+    },
+    {
       "id": "shadow-missing-required-blocks-autoaccept",
       "layer": "integration",
       "ok": true,
@@ -123,10 +159,34 @@
       "layer": "integration",
       "ok": true,
       "detail": "auto=false validation=unresolved"
+    },
+    {
+      "id": "missing-menu-loader-fails-closed-without-dropping",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved noOrder=undefined n=1 reason=confirmar menú: missing"
+    },
+    {
+      "id": "throwing-menu-loader-fails-closed",
+      "layer": "integration",
+      "ok": true,
+      "detail": "validation=unresolved reason=confirmar menú: throwing"
+    },
+    {
+      "id": "persisted-valid-ticket-is-validation-complete",
+      "layer": "integration",
+      "ok": true,
+      "detail": "final/validation-complete"
+    },
+    {
+      "id": "persisted-unresolved-does-not-stay-final",
+      "layer": "integration",
+      "ok": true,
+      "detail": "review/transcript-final lines=1"
     }
   ],
-  "unitPass": 15,
+  "unitPass": 21,
   "unitFail": 0,
-  "integrationPass": 5,
+  "integrationPass": 9,
   "integrationFail": 0
 }
