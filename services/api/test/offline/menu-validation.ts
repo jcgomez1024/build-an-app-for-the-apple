@@ -4,7 +4,11 @@
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { flagUnresolvedRequired, orderValidation } from "../../src/offline-evidence.ts";
+import * as evidence from "../../src/offline-evidence.ts";
+
+const flagUnresolvedRequired = evidence.flagUnresolvedRequired;
+const orderValidation = evidence.orderValidation;
+const gateTicketAcceptance = (evidence as { gateTicketAcceptance?: Function }).gateTicketAcceptance;
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { phoneMenu } from "./evaluate.ts";
 
@@ -78,6 +82,30 @@ export function unitChecks(): Check[] {
     unit("malformed-menu-unresolved", malformed.validation === "unresolved" && malformed.notes.some((n) => /menú: malformed/.test(n)), malformed.notes.join(" | ")),
     unit("unavailable-menu-unresolved", unavailable.validation === "unresolved" && unavailable.notes.some((n) => /menú: unavailable/.test(n)), unavailable.notes.join(" | ")),
     unit("staff-note-survives-failed-validation", (kept.elviNotes || []).includes("verdura aparte"), (kept.elviNotes || []).join(" | ")),
+    ...propertyChecks(),
+  ];
+}
+
+function propertyChecks(): Check[] {
+  const menu = [item({ modifierGroups: [meatGroup(1, 1)] }), { id: "sq-side-TEST02", name: "Side", modifierGroups: [] }];
+  const bad = { itemId: "sq-quesadilla-TEST01", quantity: 1, modifiers: [{ step: MEAT, option: "Bistec / Steak" }, { step: MEAT, option: "Pollo / Chicken" }], elviNotes: ["verdura aparte"] };
+  const good = { itemId: "sq-side-TEST02", quantity: 1, modifiers: [], elviNotes: ["verdura aparte"] };
+  const cart = [bad, good];
+  flagUnresolvedRequired(cart, menu);
+  const once = JSON.stringify(cart);
+  const again = flagUnresolvedRequired(cart, menu);
+  const nameless = [{ itemId: "sq-quesadilla-TEST01", quantity: 1, modifiers: [] }];
+  flagUnresolvedRequired(nameless, [item({ modifierGroups: [{ minSelections: 1, maxSelections: 1, options: ["Bistec / Steak"] }] })]);
+  const stale = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, validation: "unresolved", cart: nameless, squareRef: { orderId: "square-kept" } });
+  const validGate = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: true, validation: "clear", cart: [good] });
+  const reviewGate = gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: false, validation: "clear", cart: [good] });
+  return [
+    unit("idempotent-second-pass", again === false && JSON.stringify(cart) === once, String(again)),
+    unit("no-cross-item-leakage", good.validation == null && !(good.elviNotes || []).some((n: string) => /^confirmar\b/.test(n)) && bad.validation === "unresolved", JSON.stringify(good.elviNotes)),
+    unit("nameless-required-group-unresolved", nameless[0].validation === "unresolved" && (nameless[0].elviNotes || []).includes("confirmar grupo sin nombre"), (nameless[0].elviNotes || []).join(" | ")),
+    unit("stale-staff-flag-revalidated", !!stale && stale.phase === "review" && stale.acceptance === "transcript-final" && stale.autoAccepted === false, stale ? `${stale.phase}/${stale.acceptance}` : "gateTicketAcceptance missing"),
+    unit("clear-autoaccept-is-validation-complete", !!validGate && validGate.phase === "final" && validGate.acceptance === "validation-complete" && validGate.autoAccepted === true, validGate ? `${validGate.phase}/${validGate.acceptance}` : "gateTicketAcceptance missing"),
+    unit("clear-without-autoaccept-stays-final-for-review", !!reviewGate && reviewGate.phase === "final" && reviewGate.acceptance === "validation-complete" && reviewGate.autoAccepted === false, reviewGate ? `${reviewGate.phase}/${reviewGate.acceptance}/${reviewGate.autoAccepted}` : "gateTicketAcceptance missing"),
   ];
 }
 
@@ -98,7 +126,9 @@ function askingModel(actions: any[]) {
 }
 
 export async function integrationChecks(): Promise<Check[]> {
-  const { buildTicketLines } = await import("../../src/twilio.ts");
+  const twilio = await import("../../src/twilio.ts");
+  const buildTicketLines = twilio.buildTicketLines;
+  const upsertTicket = (twilio as { upsertTicket?: Function }).upsertTicket;
   const turns = [{ speaker: "caller" as const, text: "Una quesadilla." }];
   const missing = await shadowOrderFromTurns(turns as any, askingModel([{ type: "add_item", itemId: QID, quantity: 1, modifiers: [] }]));
   const valid = await shadowOrderFromTurns(turns as any, askingModel([{
@@ -106,6 +136,22 @@ export async function integrationChecks(): Promise<Check[]> {
     modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }],
   }]));
   const unknown = await shadowOrderFromTurns(turns as any, askingModel([{ type: "add_item", itemId: "sq-not-in-catalog", quantity: 1, modifiers: [] }]));
+  const noMenuRun: any = async () => ({ actions: [{ type: "add_item", itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }], reply: "Listo." });
+  const missingLoader = await shadowOrderFromTurns(turns as any, noMenuRun);
+  let thrown: any = { validation: "threw", autoAccepted: true, reviewReason: "" };
+  try {
+    const throwing: any = async () => ({ actions: [], reply: "Listo." });
+    throwing.menu = () => { throw new Error("catalog down"); };
+    thrown = await shadowOrderFromTurns([{ speaker: "caller", text: "Una quesadilla." }] as any, throwing);
+  } catch (err) {
+    thrown = { validation: "threw", autoAccepted: true, reviewReason: err instanceof Error ? err.message : String(err) };
+  }
+  const describe = async (cart: any[]) => cart.map((l) => ({ name: "Quesadilla", quantity: l.quantity || 1, choices: (l.modifiers || []).map((m: any) => String(m.option || "")), totalCents: 0 }));
+  const sid = "CAoffline0000000000000000000000ab";
+  const kept = [{ itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }];
+  const open = [{ itemId: QID, quantity: 1, modifiers: [], validation: "unresolved", elviNotes: ["confirmar (B) Q Carnes / Meats"] }];
+  const accepted = upsertTicket ? await upsertTicket({ callSid: sid, at: "2026-11-07T23:00:00.000Z", caller: "", name: null, phase: "final" }, describe, kept, { autoAccepted: true, validation: "clear", removalsAttributed: true, cart: kept }) : null;
+  const downgraded = upsertTicket && accepted ? await upsertTicket({ callSid: sid, at: accepted.at, caller: "", name: null, phase: "final" }, describe, open, { autoAccepted: true, validation: "unresolved", removalsAttributed: true, cart: open }) : null;
   const ticketOf = (order: any) => buildTicketLines(
     (order.cart || []).map((l: any) => ({ name: "Quesadilla", quantity: l.quantity || 1, choices: (l.modifiers || []).map((m: any) => String(m.option || "")) })),
     order.cart || [],
@@ -149,6 +195,30 @@ export async function integrationChecks(): Promise<Check[]> {
       layer: "integration",
       ok: unknown.autoAccepted === false && unknown.validation === "unresolved",
       detail: `auto=${unknown.autoAccepted} validation=${unknown.validation}`,
+    },
+    {
+      id: "missing-menu-loader-fails-closed-without-dropping",
+      layer: "integration",
+      ok: missingLoader.validation === "unresolved" && missingLoader.autoAccepted === false && !missingLoader.noOrder && (missingLoader.cart || []).some((l: any) => l.itemId === QID),
+      detail: `auto=${missingLoader.autoAccepted} validation=${missingLoader.validation} noOrder=${missingLoader.noOrder} n=${(missingLoader.cart || []).length} reason=${missingLoader.reviewReason}`,
+    },
+    {
+      id: "throwing-menu-loader-fails-closed",
+      layer: "integration",
+      ok: thrown.validation === "unresolved" && thrown.autoAccepted === false && thrown.reviewReason === "confirmar menú: throwing",
+      detail: `validation=${thrown.validation} reason=${thrown.reviewReason}`,
+    },
+    {
+      id: "persisted-valid-ticket-is-validation-complete",
+      layer: "integration",
+      ok: !!accepted && accepted.phase === "final" && accepted.acceptance === "validation-complete" && (accepted.lines || []).length > 0,
+      detail: accepted ? `${accepted.phase}/${accepted.acceptance}` : "upsertTicket not exported",
+    },
+    {
+      id: "persisted-unresolved-does-not-stay-final",
+      layer: "integration",
+      ok: !!downgraded && downgraded.phase === "review" && downgraded.acceptance === "transcript-final" && (downgraded.lines || []).length > 0 && downgraded.phase !== "final",
+      detail: downgraded ? `${downgraded.phase}/${downgraded.acceptance} lines=${(downgraded.lines || []).length}` : "upsertTicket not exported",
     },
   ];
 }

@@ -103,11 +103,13 @@ function groupUnresolved(line: any, g: Group): boolean {
   return false;
 }
 
+export type MenuLoader = "ok" | "missing" | "throwing";
+
 /** Required choices must be distinct members of that group's catalog options. A bad menu cannot look resolved. No option is invented. */
-export function flagUnresolvedRequired(cart: any[], menu: MenuItem[] | null | undefined): boolean {
+export function flagUnresolvedRequired(cart: any[], menu: MenuItem[] | null | undefined, loader: MenuLoader = "ok"): boolean {
   if (!Array.isArray(cart)) return false;
   let changed = false;
-  const problem = menuProblem(menu);
+  const problem = loader === "ok" ? menuProblem(menu) : loader;
   if (problem) {
     const marker = `confirmar menú: ${problem}`;
     for (const line of cart) {
@@ -144,8 +146,14 @@ export function flagUnresolvedRequired(cart: any[], menu: MenuItem[] | null | un
       } else {
         if (dropNote(notes, "confirmar menú: malformed")) changed = true;
         for (const g of groups) {
-          if (!g?.name) continue;
-          const marker = `confirmar ${g.name}`;
+          const name = String(g?.name || "").trim();
+          if (!name) {
+            if (groupMin(g) > 0) { bad = true; if (addNote(notes, "confirmar grupo sin nombre")) changed = true; }
+            else if (dropNote(notes, "confirmar grupo sin nombre")) changed = true;
+            continue;
+          }
+          if (dropNote(notes, "confirmar grupo sin nombre")) changed = true;
+          const marker = `confirmar ${name}`;
           if (groupUnresolved(line, g)) { bad = true; if (addNote(notes, marker)) changed = true; }
           else if (dropNote(notes, marker)) changed = true;
         }
@@ -165,32 +173,77 @@ export function orderValidation(cart: any[]): "unresolved" | "clear" | "empty" {
   return open ? "unresolved" : "clear";
 }
 
-/** Same ticket fields the listen-only path already uses, plus the validation flag. No network. */
+export type TicketAcceptance = "transcript-final" | "validation-complete" | "staff-accepted";
+export type TicketPhase = "listening" | "review" | "final";
+
+function cartUnresolved(cart: any[] | null | undefined): boolean {
+  return (cart || []).some((l) => l?.validation === "unresolved" || (l?.elviNotes || []).some((n: string) => /^confirmar\b/i.test(String(n))));
+}
+
+/** Persistence gate. transcript-final = call is done and still needs a person.
+ *  validation-complete = catalog checks passed, staff have not accepted.
+ *  staff-accepted = a human Square link is already on the ticket and the catalog check still passes.
+ *  Unresolved validation never stays phase "final". Items are not dropped and this is not noOrder. */
+export function gateTicketAcceptance(input: {
+  requestedPhase?: string | null;
+  autoAccepted?: boolean;
+  validation?: "unresolved" | "clear" | "empty" | null;
+  reviewReason?: string | null;
+  statusCall?: boolean;
+  cart?: any[] | null;
+  squareRef?: unknown;
+}): { phase: TicketPhase; acceptance: TicketAcceptance; autoAccepted: boolean; reviewReason: string | null } {
+  if (input.statusCall || input.requestedPhase === "listening") {
+    return { phase: "listening", acceptance: "transcript-final", autoAccepted: false, reviewReason: null };
+  }
+  const cart = Array.isArray(input.cart) ? input.cart : [];
+  const validation = input.validation ?? (cart.length ? "unresolved" : "empty");
+  const reason = input.reviewReason || (cartUnresolved(cart) ? "confirmar" : null);
+  if (validation === "unresolved" || reason) {
+    return { phase: "review", acceptance: "transcript-final", autoAccepted: false, reviewReason: reason || "confirmar" };
+  }
+  if (input.squareRef && validation === "clear") {
+    return { phase: "final", acceptance: "staff-accepted", autoAccepted: !!input.autoAccepted, reviewReason: null };
+  }
+  if (validation === "clear") {
+    return { phase: "final", acceptance: "validation-complete", autoAccepted: !!input.autoAccepted, reviewReason: null };
+  }
+  return { phase: "final", acceptance: "transcript-final", autoAccepted: false, reviewReason: null };
+}
+
+/** Read-only view of a shadow result. Persistence uses gateTicketAcceptance inside upsertTicket. */
 export function ticketFromShadow(order: any): {
-  phase: "listening" | "final";
+  phase: TicketPhase;
+  acceptance: TicketAcceptance;
   autoAccepted: boolean;
   noOrder: boolean;
   existingOrderCall: boolean;
   statusCall: boolean;
   fulfillment: string | null;
   validation: "unresolved" | "clear" | "empty";
+  reviewReason: string | null;
   complete: boolean;
   lineCount: number;
 } {
   const cart = Array.isArray(order?.cart) ? order.cart : [];
   const validation = order?.validation || orderValidation(cart);
   const noOrder = !!order?.noOrder || (!cart.length && !!order?.statusCall);
-  const autoAccepted = !!order?.autoAccepted && validation !== "unresolved";
-  const phase = order?.statusCall ? "listening" : "final";
+  const gated = gateTicketAcceptance({
+    requestedPhase: order?.statusCall ? "listening" : "final",
+    autoAccepted: order?.autoAccepted,
+    validation, reviewReason: order?.reviewReason, statusCall: !!order?.statusCall, cart, squareRef: order?.squareRef,
+  });
   return {
-    phase,
-    autoAccepted,
+    phase: gated.phase,
+    acceptance: gated.acceptance,
+    autoAccepted: gated.autoAccepted,
     noOrder,
     existingOrderCall: !!order?.existingOrderCall,
     statusCall: !!order?.statusCall,
     fulfillment: order?.fulfillment || null,
     validation,
-    complete: phase === "final" && autoAccepted && validation !== "unresolved" && !noOrder && cart.length > 0,
+    reviewReason: gated.reviewReason,
+    complete: gated.acceptance === "validation-complete" || gated.acceptance === "staff-accepted",
     lineCount: cart.length,
   };
 }

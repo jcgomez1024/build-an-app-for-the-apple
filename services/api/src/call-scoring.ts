@@ -7848,7 +7848,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const groups = [...new Set(cart.map((l: any) => l.person).filter(Boolean))];
   applyEnchiladaOrder(cart as any[], turns as any); applyQdSupreme(cart as any[], turns as any); // manuel1, chui1 (last: after every readback rebuild)
   { // maria2: a dish Elvi asked side questions about is always in the cart
-    const menuFn = (run as any).menu; const menu = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    const menuFn = (run as any).menu; let menu: any = null; if (typeof menuFn === "function") { try { menu = await menuFn(); } catch { menu = null; } }
     if (menu) applyAskedDishes(cart as any[], steps, turns as any, menu);
     if (menu && applyAddOnCallback(cart as any[], turns as any, menu)) (steps as any).addOn = true;
     if (menu) { applySplitCorrection(cart as any[], turns as any, menu); applySidesAndToppings(cart as any[], turns as any, menu);
@@ -7870,7 +7870,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // CAb3ee43a: staff out of a meat ("cabeza sí no tengo todavía") + caller switches → drop that meat.
   // "Normales" on a torta is (TO), not queso torta. Run after every re-add.
   dropSwitchedOffMeat(cart as any[], turns as any);
-  { const menuFn = (run as any).menu; const menu2 = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+  { const menuFn = (run as any).menu; let menu2: any = null; if (typeof menuFn === "function") { try { menu2 = await menuFn(); } catch { menu2 = null; } }
     applyTortaNormales(cart as any[], turns as any, (menu2 || []) as any[]);
     // Street/small corn vs homemade → TST; taco dorado → Tacos Dorados (not another soft taco);
     // chips + bare "dip" / staff "deep in chips" → guacamole dip; "N Mexican Cokes" → N Coca Cola.
@@ -7907,22 +7907,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // Runs after every rebuild so a later remove or a wiped cart cannot drop an explicit order.
   {
     const menuFn = (run as any).menu;
-    const menuProvided = typeof menuFn === "function";
-    const menuEnd = menuProvided ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    let menuEnd: any = null;
+    let loader: "ok" | "missing" | "throwing" = "ok";
+    if (typeof menuFn !== "function") loader = "missing";
+    else { try { menuEnd = await menuFn(); } catch { loader = "throwing"; menuEnd = null; } }
     const catalog = (run as any).posCatalog || cachedPosCatalog();
-    if (retainSpokenOrder(cart as any[], origTurns as any, (menuEnd || []) as any[], catalog))
+    if (retainSpokenOrder(cart as any[], origTurns as any, (Array.isArray(menuEnd) ? menuEnd : []) as any[], catalog))
       steps.push({ source: "end-retain-spoken", heard: "ordered soup, side, loose tortilla" });
     applyVerduraAparte(cart as any[], origTurns as any);
-    // A replay with no menu attached is not a catalog check. Production shadowTurn always attaches one.
-    if (menuProvided && flagUnresolvedRequired(cart as any[], menuEnd as any))
+    let reviewReason: string | null = null;
+    if (loader !== "ok") reviewReason = `confirmar menú: ${loader}`;
+    else if (flagUnresolvedRequired(cart as any[], menuEnd as any, "ok"))
       steps.push({ source: "end-unresolved-required", heard: "required catalog option still open" });
+    (steps as any).reviewReason = reviewReason;
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
-  const validation = orderValidation(cart as any[]);
+  const reviewReason = (steps as any).reviewReason || null;
+  const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
+  return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

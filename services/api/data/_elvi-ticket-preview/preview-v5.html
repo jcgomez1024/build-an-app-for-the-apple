@@ -121,6 +121,10 @@ function renderTicketPaper(t) {
   const foot = `<hr class="rule"><div class="foot">Receipt: #${esc(t.receiptCode || "XXXX")}</div>`;
   const phase = t.phase === "listening"
     ? '<div class="phase listening">Elvi escuchando… (live aún no activo)</div>'
+    : t.phase === "review"
+    ? '<div class="phase">Revisar · validación abierta</div>'
+    : t.acceptance === "staff-accepted"
+    ? '<div class="phase">Aceptado por staff</div>'
     : '<div class="phase">Final · desde grabación</div>';
   return `<div class="ticket-paper"><div class="top-name">${title}</div><div class="source">${esc(source)}</div><hr class="rule"><div class="dt"><span>${esc(date)}</span><span>${esc(time)}</span></div><hr class="rule"><div class="fulfill">${fulfill}</div>${ready}<hr class="rule">${deliver}${items}${foot}${phase}</div>`;
 }

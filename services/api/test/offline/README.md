@@ -63,7 +63,9 @@ Captured with the tightened deluxe check (a regular dorada is not deluxe):
 
 `results/menu-validation-baseline-96ffd20.json` is this suite against the validator at `96ffd20`. `results/menu-validation-candidate.json` is the same suite after the repair. Unit rows call `flagUnresolvedRequired`. Integration rows call `shadowOrderFromTurns` and then `buildTicketLines`. They are not the C01–C12 capture replay.
 
-At `96ffd20` the suite was 4/15 unit pass and 3/5 integration pass. A line with no selection was already blocked inside `shadowOrderFromTurns`. Duplicate options, choices that are not in the group, unknown SKUs, sold-out items, bad quantities, and an absent, empty, malformed, or unavailable menu stayed clear. The ticket builder also dropped `confirmar` notes. The candidate is expected to pass all 20 checks. A passing check is not a live-readiness claim.
+At `96ffd20` the suite was 4/15 unit pass and 3/5 integration pass. A line with no selection was already blocked inside `shadowOrderFromTurns`. Duplicate options, choices that are not in the group, unknown SKUs, sold-out items, bad quantities, and an absent, empty, malformed, or unavailable menu stayed clear. The ticket builder also dropped `confirmar` notes.
+
+The acceptance batch runs the same command against parent `49f85ae` (`results/menu-validation-baseline-49f85ae.json`): 17/21 unit pass and 5/9 integration pass. Failures there are the nameless required group, the missing acceptance gate, a missing `run.menu` left `validation: clear`, a throwing loader aborted the replay, and `upsertTicket` was not on the persistence path. The candidate passes 21/21 unit and 9/9 integration. See `IMPROVEMENT.md` for the three acceptance words and the rollback plan. A passing check is not a live-readiness claim.
 
 - `pass` / `fail` uses confirmed fields only.
 - `unresolved` lists fields that must stay unasserted.

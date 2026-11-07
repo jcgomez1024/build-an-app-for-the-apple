@@ -24,6 +24,7 @@ import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favor
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
+import { gateTicketAcceptance } from "./offline-evidence.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -543,7 +544,9 @@ export function withDeliveryFee(lines: ElviTicketLine[], fulfillment: string, fe
 export type ElviTicket = {
   callSid: string; at: string; caller: string; name: string | null; receiptCode: string;
   source: string; phoneDisplay: string;
-  language: Lang; phase: "listening" | "final";
+  language: Lang; phase: "listening" | "review" | "final";
+  acceptance?: "transcript-final" | "validation-complete" | "staff-accepted";
+  reviewReason?: string | null;
   fulfillment: string; // TO GO / LLEVAR | FOR HERE / PARA AQUI | DELIVERY / ENTREGA | PICKUP …
   readyTime?: string | null;
   deliverTo?: { name?: string; address?: string; phone?: string; notes?: string } | null;
@@ -978,7 +981,7 @@ export function buildTicketLines(
   return applyContainerPlan(lines, containers);
 }
 
-async function upsertTicket(
+export async function upsertTicket(
   partial: Partial<ElviTicket> & { callSid: string },
   describe: Describe,
   cart?: any[],
@@ -1002,6 +1005,15 @@ async function upsertTicket(
     partial.name != null && String(partial.name).trim()
       ? partial.name
       : (prev?.name ?? partial.name ?? null);
+  const gated = gateTicketAcceptance({
+    requestedPhase: partial.phase || prev?.phase || "listening",
+    autoAccepted: elviOrder?.autoAccepted,
+    validation: elviOrder?.validation,
+    reviewReason: elviOrder?.reviewReason,
+    statusCall: !!elviOrder?.statusCall,
+    cart,
+    squareRef: prev?.squareRef,
+  });
   const t: ElviTicket = {
     callSid: partial.callSid,
     at: startIso,
@@ -1011,14 +1023,17 @@ async function upsertTicket(
     source: partial.source || prev?.source || elviPhoneSource(called),
     phoneDisplay: partial.phoneDisplay || prev?.phoneDisplay || formatTicketPhone(caller),
     language: partial.language || prev?.language || "es",
-    phase: partial.phase || prev?.phase || "listening",
+    phase: gated.phase,
+    acceptance: gated.acceptance,
+    reviewReason: gated.reviewReason,
     fulfillment: partial.fulfillment || prev?.fulfillment || "TO GO / LLEVAR",
     readyTime: partial.readyTime !== undefined ? partial.readyTime : prev?.readyTime,
     deliverTo: partial.deliverTo !== undefined ? partial.deliverTo : prev?.deliverTo,
     lines,
     training: partial.training ?? prev?.training ?? false,
     openAsk: partial.openAsk !== undefined ? partial.openAsk : prev?.openAsk,
-    transcript: partial.transcript !== undefined ? partial.transcript : prev?.transcript
+    transcript: partial.transcript !== undefined ? partial.transcript : prev?.transcript,
+    ...(prev?.squareRef ? { squareRef: prev.squareRef } : {}),
   };
   // juan-qd1 (CA36cd1a): staff-confirmed delivery with no address yet still rings the Delivery Fee ($5 near zone until quoted)
   try { const dq = callDelivery.get(t.callSid); t.lines = withDeliveryFee(t.lines, t.fulfillment, provisionalDeliveryFeeCents(dq?.quote || null, true)); } catch { /* ticket lines only */ }

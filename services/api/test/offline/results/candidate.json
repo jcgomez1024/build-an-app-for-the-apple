@@ -1,5 +1,5 @@
 {
-  "codeSha": "e080a7d590a289362efc32cfbfbb48166e0398c0",
+  "codeSha": "49f85aec23d2582dca07e233f6ef136bee982f32",
   "pageNamedGateSatisfied": false,
   "path": "shadowOrderFromTurns + empty model stub + site phone menu",
   "network": false,
@@ -53,13 +53,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": "PICKUP",
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 1
       },
       "heardName": null,
@@ -92,12 +94,14 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "empty",
+        "reviewReason": null,
         "complete": false,
         "lineCount": 0
       },
@@ -205,13 +209,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 5
       },
@@ -297,13 +303,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 4
       },
@@ -351,13 +359,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 1
       },
       "heardName": "Ese Menudo",
@@ -424,13 +434,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": "PICKUP",
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 3
       },
@@ -494,13 +506,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 2
       },
       "heardName": null,
@@ -561,13 +575,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": "DELIVERY",
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 3
       },
@@ -626,13 +642,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 1
       },
@@ -705,13 +723,15 @@
         "end-unresolved-required"
       ],
       "ticket": {
-        "phase": "final",
+        "phase": "review",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "unresolved",
+        "reviewReason": "confirmar",
         "complete": false,
         "lineCount": 2
       },
@@ -797,13 +817,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 3
       },
       "heardName": null,
@@ -840,13 +862,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 1
       },
       "heardName": null,
@@ -875,12 +899,14 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "empty",
+        "reviewReason": null,
         "complete": false,
         "lineCount": 0
       },
@@ -910,13 +936,15 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "validation-complete",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "clear",
-        "complete": false,
+        "reviewReason": null,
+        "complete": true,
         "lineCount": 1
       },
       "heardName": null,
@@ -944,12 +972,14 @@
       ],
       "ticket": {
         "phase": "listening",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": true,
         "existingOrderCall": false,
         "statusCall": true,
         "fulfillment": null,
         "validation": "empty",
+        "reviewReason": null,
         "complete": false,
         "lineCount": 0
       },
@@ -970,12 +1000,14 @@
       ],
       "ticket": {
         "phase": "final",
+        "acceptance": "transcript-final",
         "autoAccepted": false,
         "noOrder": false,
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
         "validation": "empty",
+        "reviewReason": null,
         "complete": false,
         "lineCount": 0
       },
