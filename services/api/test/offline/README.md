@@ -23,9 +23,9 @@ Remote-accessible code only.
 | `origin/main` | `8b9fe526b7c828adf5683a83d5ecc26d4cbeb048` | GitHub main. Not the Mac disk. |
 | PR 15 merge-base | `6cffbb91640547d08f866ac47cc1b8092e935b7a` | Last shared commit with GitHub main. |
 | PR 15 tip before this milestone | `30575e9807daa3e30e518900c4da564e9bd6215e` | Replay baseline for the matrix in `results/baseline-before-order-state.json`. |
-| Mac disk `946ac2d43a7040c7ab6453c719ba56b18af20937` | not in this clone | Reported as six commits above GitHub main. Not incorporated. The loaded process SHA was not proven. |
+| Mac disk `946ac2d43a7040c7ab6453c719ba56b18af20937` | not in this clone | Not incorporated. The loaded process SHA was not proven. An earlier operator note said this disk was six commits above GitHub main; that disk count cannot be rechecked from this clone. |
 
-GitHub main is six commits ahead of the PR 15 merge-base (Laura gordita readback, then the Nati merges through `8b9fe526`). Those commits are not in this branch. PR 13's merge on GitHub main is `1a3a3c8` (branch head `3340bca`). Later Nati tip `74c357c` is on `origin/cursor/nati-vapor-enchilada-f6d4` and is not in GitHub main. This run does not cherry-pick it and does not push anything from the Mac.
+`git rev-list --count 6cffbb91640547d08f866ac47cc1b8092e935b7a..origin/main` is **8**. An earlier note on this branch said six. That count was wrong. The eight commits are `44f0e47`, `64dba35`, `130b36b`, `9609200`, `3340bca`, `1a3a3c8`, `6438ae0`, and `8b9fe52` (Nati vapor/toppings merges, then the Laura gordita repair). They are not in this branch, and this run does not merge or rebase them in. PR 13's merge on GitHub main is `1a3a3c8` (branch head `3340bca`). Later Nati tip `74c357c` is on `origin/cursor/nati-vapor-enchilada-f6d4` and is not in GitHub main.
 
 ## Commands
 
@@ -37,6 +37,10 @@ npm run offline:evidence --workspace @cocina-elvis/api -- --out services/api/tes
 
 # Controls plus the "inferred is not asserted" check.
 npm run offline:evidence:test --workspace @cocina-elvis/api
+
+# Menu-validator unit + integration (shadow auto-accept and ticket lines). Exit 1 on any failed check.
+npm run offline:menu-validation --workspace @cocina-elvis/api -- --out services/api/test/offline/results/menu-validation-candidate.json
+npm run offline:menu-validation:test --workspace @cocina-elvis/api
 
 # Existing replay suite. gustavo-qd1 and juan-qd1 need the gitignored POS cache and fail closed without it.
 npm run replay --workspace @cocina-elvis/api
@@ -54,6 +58,12 @@ Captured with the tightened deluxe check (a regular dorada is not deluxe):
 | Candidate | 4/4 pass | 2/12 pass (`C05`, `S04`), 10 fail |
 
 `C05` is the case this change moves. The declined menudo is gone and the three deluxe bistec quesadillas remain. `S04` passes on both runs because the empty model never added the soup. The planted-line test in `evidence.test.ts` is what shows a soup already on the cart is removed after "¿Tienes pozole?" / "No, okay."
+
+## Menu validation
+
+`results/menu-validation-baseline-96ffd20.json` is this suite against the validator at `96ffd20`. `results/menu-validation-candidate.json` is the same suite after the repair. Unit rows call `flagUnresolvedRequired`. Integration rows call `shadowOrderFromTurns` and then `buildTicketLines`. They are not the C01–C12 capture replay.
+
+At `96ffd20` the suite was 4/15 unit pass and 3/5 integration pass. A line with no selection was already blocked inside `shadowOrderFromTurns`. Duplicate options, choices that are not in the group, unknown SKUs, sold-out items, bad quantities, and an absent, empty, malformed, or unavailable menu stayed clear. The ticket builder also dropped `confirmar` notes. The candidate is expected to pass all 20 checks. A passing check is not a live-readiness claim.
 
 - `pass` / `fail` uses confirmed fields only.
 - `unresolved` lists fields that must stay unasserted.

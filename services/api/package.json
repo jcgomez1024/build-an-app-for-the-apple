@@ -17,6 +17,8 @@
     "replay": "tsx --test test/replay/*.test.ts",
     "offline:evidence": "tsx test/offline/run-evidence.ts",
     "offline:evidence:test": "tsx --test test/offline/evidence.test.ts",
+    "offline:menu-validation": "tsx test/offline/run-menu-validation.ts",
+    "offline:menu-validation:test": "tsx --test test/offline/menu-validation.test.ts test/offline/evidence.test.ts",
     "auditor:run": "tsx scripts/auditor.ts run",
     "auditor:pending": "tsx scripts/auditor.ts pending",
     "auditor:ack": "tsx scripts/auditor.ts ack"

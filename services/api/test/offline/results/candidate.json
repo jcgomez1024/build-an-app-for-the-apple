@@ -1,5 +1,5 @@
 {
-  "codeSha": "9c54db9f33201f0c17cd747a4f27607a74240e40",
+  "codeSha": "96ffd209eb1248cc61a205cd7ef4d85e801fb5cf",
   "pageNamedGateSatisfied": false,
   "path": "shadowOrderFromTurns + empty model stub + site phone menu",
   "network": false,
@@ -133,7 +133,10 @@
           "modifiers": [
             "Sope Elvis"
           ],
-          "notes": []
+          "notes": [
+            "confirmar catálogo: ítem no está en el menú"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-taco-TAR7L5",
@@ -198,7 +201,8 @@
         "staff",
         "caller",
         "staff",
-        "caller-closing"
+        "caller-closing",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -207,7 +211,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 5
       },
@@ -245,7 +249,10 @@
             "Picadillo / Ground Beef",
             "(QCO) Quesadilla Comal / Homemade"
           ],
-          "notes": []
+          "notes": [
+            "confirmar (B) Q Carnes / Meats"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-quesadilla-HLT6CR",
@@ -286,7 +293,8 @@
         "caller",
         "staff",
         "caller",
-        "staff"
+        "staff",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -295,7 +303,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 4
       },
@@ -375,7 +383,10 @@
             "(QCO) Quesadilla de Comal / Homemade",
             "Pollo / Chicken"
           ],
-          "notes": []
+          "notes": [
+            "confirmar (A) Q Tortilla Options"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-quesadilla-HLT6CR",
@@ -385,7 +396,10 @@
             "(QCO) Quesadilla de Comal / Homemade",
             "Tripa / Beef Tripe"
           ],
-          "notes": []
+          "notes": [
+            "confirmar (A) Q Tortilla Options"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-torta-4GNTTE",
@@ -406,7 +420,8 @@
         "caller",
         "staff",
         "caller",
-        "end-nonempty"
+        "end-nonempty",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -415,7 +430,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": "PICKUP",
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 3
       },
@@ -509,7 +524,10 @@
           "name": "",
           "qty": 1,
           "modifiers": [],
-          "notes": []
+          "notes": [
+            "confirmar catálogo: ítem no está en el menú"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
@@ -539,7 +557,8 @@
         "staff",
         "caller",
         "staff",
-        "caller"
+        "caller",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -548,7 +567,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": "DELIVERY",
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 3
       },
@@ -587,7 +606,10 @@
           "name": "",
           "qty": 1,
           "modifiers": [],
-          "notes": []
+          "notes": [
+            "confirmar catálogo: ítem no está en el menú"
+          ],
+          "validation": "unresolved"
         }
       ],
       "steps": [
@@ -600,7 +622,8 @@
         "staff",
         "caller",
         "staff",
-        "caller"
+        "caller",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -609,7 +632,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 1
       },
@@ -652,7 +675,10 @@
           "name": "",
           "qty": 1,
           "modifiers": [],
-          "notes": []
+          "notes": [
+            "confirmar catálogo: ítem no está en el menú"
+          ],
+          "validation": "unresolved"
         },
         {
           "itemId": "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG",
@@ -675,7 +701,8 @@
         "caller",
         "staff",
         "staff",
-        "caller"
+        "caller",
+        "end-unresolved-required"
       ],
       "ticket": {
         "phase": "final",
@@ -684,7 +711,7 @@
         "existingOrderCall": false,
         "statusCall": false,
         "fulfillment": null,
-        "validation": "clear",
+        "validation": "unresolved",
         "complete": false,
         "lineCount": 2
       },

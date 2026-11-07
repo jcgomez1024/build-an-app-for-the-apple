@@ -20,34 +20,141 @@ export function isConfirmedProvenance(p: Provenance): p is ConfirmedProvenance {
   return CONFIRMED.has(p);
 }
 
-type Group = { name?: string; minSelections?: number; min?: number; options?: any[]; defaultOptions?: string[] };
-type MenuItem = { id?: string; modifierGroups?: Group[] };
+type Group = { name?: string; minSelections?: number; maxSelections?: number; min?: number; max?: number; options?: any[]; allowQuantities?: boolean };
+type MenuItem = { id?: string; modifierGroups?: Group[] | unknown; available?: boolean; unavailable?: boolean; soldOut?: boolean; minQuantity?: number; maxQuantity?: number; quantityMin?: number; quantityMax?: number };
 
+const foldOpt = (s: string) => String(s || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s*\(\+\s*\$[\d.]+\)\s*$/g, "").replace(/\s+/g, " ").trim();
+function optionName(o: any): string {
+  return typeof o === "string" ? o : String(o?.name || o?.option || "");
+}
 function groupMin(g: Group): number {
   const n = Number(g?.minSelections ?? g?.min ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
-function optionName(o: any): string {
-  return typeof o === "string" ? o : String(o?.name || "");
+/** Site `max: 0` means no cap. A positive max is the most distinct valid choices. */
+function groupMax(g: Group): number | null {
+  const raw = g?.maxSelections ?? g?.max;
+  if (raw == null || raw === ("" as any)) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function finiteInt(n: unknown): number | null {
+  const v = Number(n);
+  return Number.isInteger(v) ? v : null;
+}
+function usableItem(m: any): m is MenuItem & { id: string } {
+  return !!m && typeof m === "object" && typeof m.id === "string" && m.id.length > 0;
+}
+function itemUnavailable(item: MenuItem): boolean {
+  return item.available === false || item.unavailable === true || item.soldOut === true;
+}
+type MenuProblem = "absent" | "empty" | "malformed" | "unavailable" | null;
+function menuProblem(menu: unknown): MenuProblem {
+  if (menu == null) return "absent";
+  if (!Array.isArray(menu)) return "malformed";
+  if (!menu.length) return "empty";
+  if (menu.some((m) => !usableItem(m))) return "malformed";
+  if (menu.every((m) => itemUnavailable(m))) return "unavailable";
+  return null;
+}
+function notesOf(line: any): string[] {
+  if (!Array.isArray(line.elviNotes)) line.elviNotes = [];
+  return line.elviNotes;
+}
+function addNote(notes: string[], marker: string): boolean {
+  if (notes.includes(marker)) return false;
+  notes.push(marker);
+  return true;
+}
+function dropNote(notes: string[], marker: string): boolean {
+  const i = notes.indexOf(marker);
+  if (i < 0) return false;
+  notes.splice(i, 1);
+  return true;
+}
+/** Distinct catalog options this line actually selected for the group. Duplicates and non-members do not count. */
+function validChoiceCount(line: any, g: Group): { count: number; invalid: boolean; unusable: boolean } {
+  const listed = Array.isArray(g.options) ? g.options.map(optionName).map((n) => n.trim()).filter(Boolean) : null;
+  if (!listed) return { count: 0, invalid: false, unusable: true };
+  const catalog = new Map(listed.map((n) => [foldOpt(n), n]));
+  const distinct = new Map<string, number>();
+  let invalid = false;
+  for (const raw of (line?.modifiers || []).filter((m: any) => m?.step === g.name)) {
+    const hit = catalog.get(foldOpt(optionName(raw?.option ?? raw?.name)));
+    if (!hit) { invalid = true; continue; }
+    const qty = raw?.quantity == null ? 1 : finiteInt(raw.quantity);
+    if (qty == null || qty < 1) { invalid = true; continue; }
+    const key = foldOpt(hit);
+    distinct.set(key, (distinct.get(key) || 0) + (g.allowQuantities ? qty : 0));
+    if (!g.allowQuantities) distinct.set(key, 1);
+  }
+  const count = g.allowQuantities ? [...distinct.values()].reduce((s, n) => s + n, 0) : distinct.size;
+  return { count, invalid, unusable: false };
+}
+function groupUnresolved(line: any, g: Group): boolean {
+  if (!g?.name) return groupMin(g) > 0;
+  const min = groupMin(g);
+  const max = groupMax(g);
+  const { count, invalid, unusable } = validChoiceCount(line, g);
+  if (unusable) return min > 0 || (line?.modifiers || []).some((m: any) => m?.step === g.name);
+  if (invalid) return true;
+  if (count < min) return true;
+  if (max != null && count > max) return true;
+  return false;
 }
 
-/** A required catalog group with no selection is a visible staff note. No option is invented. */
+/** Required choices must be distinct members of that group's catalog options. A bad menu cannot look resolved. No option is invented. */
 export function flagUnresolvedRequired(cart: any[], menu: MenuItem[] | null | undefined): boolean {
-  if (!Array.isArray(cart) || !Array.isArray(menu) || !menu.length) return false;
+  if (!Array.isArray(cart)) return false;
   let changed = false;
-  for (const line of cart) {
-    const item = menu.find((m) => m?.id === line?.itemId);
-    if (!item) continue;
-    const notes: string[] = Array.isArray(line.elviNotes) ? line.elviNotes : [];
-    for (const g of item.modifierGroups || []) {
-      if (groupMin(g) < 1 || !g?.name) continue;
-      const chosen = (line.modifiers || []).filter((m: any) => m?.step === g.name);
-      if (chosen.length >= groupMin(g)) continue;
-      const marker = `confirmar ${g.name}`;
-      if (!notes.some((n) => n === marker)) { notes.push(marker); changed = true; }
-      line.validation = "unresolved";
+  const problem = menuProblem(menu);
+  if (problem) {
+    const marker = `confirmar menú: ${problem}`;
+    for (const line of cart) {
+      const notes = notesOf(line);
+      if (addNote(notes, marker)) changed = true;
+      if (line.validation !== "unresolved") { line.validation = "unresolved"; changed = true; }
+      if (!notes.length) delete line.elviNotes;
     }
-    if (notes.length) line.elviNotes = notes;
+    return changed;
+  }
+  const items = menu as MenuItem[];
+  for (const line of cart) {
+    const notes = notesOf(line);
+    let bad = false;
+    const item = items.find((m) => m?.id === line?.itemId);
+    if (!item) {
+      bad = true;
+      if (addNote(notes, "confirmar catálogo: ítem no está en el menú")) changed = true;
+    } else if (itemUnavailable(item)) {
+      bad = true;
+      if (addNote(notes, "confirmar catálogo: ítem no disponible")) changed = true;
+    } else {
+      if (dropNote(notes, "confirmar catálogo: ítem no está en el menú")) changed = true;
+      if (dropNote(notes, "confirmar catálogo: ítem no disponible")) changed = true;
+      const qty = finiteInt(line?.quantity);
+      const minQ = finiteInt(item.minQuantity ?? item.quantityMin);
+      const maxQ = finiteInt(item.maxQuantity ?? item.quantityMax);
+      const qtyBad = qty == null || qty < 1 || (minQ != null && minQ > 0 && qty < minQ) || (maxQ != null && maxQ > 0 && qty > maxQ);
+      if (qtyBad) { bad = true; if (addNote(notes, "confirmar cantidad")) changed = true; }
+      else if (dropNote(notes, "confirmar cantidad")) changed = true;
+      const groups = Array.isArray(item.modifierGroups) ? item.modifierGroups : null;
+      if (!groups) {
+        if (item.modifierGroups != null) { bad = true; if (addNote(notes, "confirmar menú: malformed")) changed = true; }
+      } else {
+        if (dropNote(notes, "confirmar menú: malformed")) changed = true;
+        for (const g of groups) {
+          if (!g?.name) continue;
+          const marker = `confirmar ${g.name}`;
+          if (groupUnresolved(line, g)) { bad = true; if (addNote(notes, marker)) changed = true; }
+          else if (dropNote(notes, marker)) changed = true;
+        }
+      }
+    }
+    const still = notes.some((n) => /^confirmar\b/i.test(n));
+    if (bad || still) { if (line.validation !== "unresolved") { line.validation = "unresolved"; changed = true; } }
+    else if (line.validation === "unresolved") { delete line.validation; changed = true; }
+    if (!notes.length) delete line.elviNotes;
   }
   return changed;
 }

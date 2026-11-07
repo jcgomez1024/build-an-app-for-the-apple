@@ -955,18 +955,20 @@ export function buildTicketLines(
     const ask = (row?.modifiers || []).find((m: any) => m.step === "meat_needs_ask" || m.groupName === "meat_needs_ask");
     let choices = labelled[i];
     const lineHasDeluxe = hasDeluxe(choices);
-    let lineRemovals: string[] = removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals);
+    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n))).map((n) => String(n));
+    let lineRemovals: string[] = (removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals)).filter((n) => !/^confirmar\b/i.test(String(n)));
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);
     choices = applied.choices;
     // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
     // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
     const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:|enchiladas:)|\baparte\b/iu.test(String(n))); // vapor1: per-order filling mix
-    const notes = [...new Set([...(applied.notes || []), ...additiveNotes])];
+    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...confirmNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
+      ...confirmNotes,
     ].filter(Boolean);
     return {
       name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,

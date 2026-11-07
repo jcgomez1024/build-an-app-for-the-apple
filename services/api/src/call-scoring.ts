@@ -7907,12 +7907,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // Runs after every rebuild so a later remove or a wiped cart cannot drop an explicit order.
   {
     const menuFn = (run as any).menu;
-    const menuEnd = typeof menuFn === "function" ? await Promise.resolve(menuFn()).catch(() => null) : null;
+    const menuProvided = typeof menuFn === "function";
+    const menuEnd = menuProvided ? await Promise.resolve(menuFn()).catch(() => null) : null;
     const catalog = (run as any).posCatalog || cachedPosCatalog();
     if (retainSpokenOrder(cart as any[], origTurns as any, (menuEnd || []) as any[], catalog))
       steps.push({ source: "end-retain-spoken", heard: "ordered soup, side, loose tortilla" });
     applyVerduraAparte(cart as any[], origTurns as any);
-    if (flagUnresolvedRequired(cart as any[], (menuEnd || []) as any[]))
+    // A replay with no menu attached is not a catalog check. Production shadowTurn always attaches one.
+    if (menuProvided && flagUnresolvedRequired(cart as any[], menuEnd as any))
       steps.push({ source: "end-unresolved-required", heard: "required catalog option still open" });
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket

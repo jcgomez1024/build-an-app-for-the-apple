@@ -152,6 +152,7 @@ Cloud-only replay of the post-call order path. It does not call Square, Twilio, 
 ```bash
 npm run offline:evidence --workspace @cocina-elvis/api -- --out /tmp/evidence.json
 npm run offline:evidence:test --workspace @cocina-elvis/api
+npm run offline:menu-validation --workspace @cocina-elvis/api -- --out /tmp/menu-validation.json
 ```
 
 A passing unit test is not approval to take live calls. See `services/api/test/offline/RELEASE-BLOCKERS.md`.

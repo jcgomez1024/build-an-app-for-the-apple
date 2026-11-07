@@ -39,8 +39,12 @@ test("a declined soup ask is removed, and a missing required option stays visibl
   ] as any), true);
   assert.equal(cart.length, 0);
   const menu = phoneMenu();
-  const item = menu.find((m) => (m.modifierGroups || []).some((g: any) => Number(g.minSelections) > 0));
-  assert.ok(item, "site menu has a required group");
+  const namesOf = (g: any) => [...new Set((g.options || []).map((o: any) => (typeof o === "string" ? o : o?.name)).filter(Boolean))];
+  const item = menu.find((m) => {
+    const req = (m.modifierGroups || []).filter((g: any) => Number(g.minSelections) > 0);
+    return req.length > 0 && req.every((g: any) => namesOf(g).length >= Number(g.minSelections) && (g.maxSelections == null || Number(g.maxSelections) <= 0 || Number(g.minSelections) <= Number(g.maxSelections)));
+  });
+  assert.ok(item, "site menu has a required group that distinct options can fill");
   const line: any = { itemId: item.id, quantity: 1, modifiers: [] };
   assert.equal(flagUnresolvedRequired([line], menu), true);
   assert.match(line.elviNotes.join(" "), /confirmar /);
@@ -48,9 +52,9 @@ test("a declined soup ask is removed, and a missing required option stays visibl
   const mods: any[] = [];
   for (const g of item.modifierGroups || []) {
     if (Number(g.minSelections) < 1) continue;
-    const option = g.options?.[0]?.name || g.options?.[0];
-    if (!option) continue;
-    for (let i = 0; i < Number(g.minSelections); i++) mods.push({ step: g.name, option });
+    const names = [...new Set((g.options || []).map((o: any) => (typeof o === "string" ? o : o?.name)).filter(Boolean))];
+    if (names.length < Number(g.minSelections)) continue;
+    for (let i = 0; i < Number(g.minSelections); i++) mods.push({ step: g.name, option: names[i] });
   }
   const filled: any = { itemId: item.id, quantity: 1, modifiers: mods };
   flagUnresolvedRequired([filled], menu);

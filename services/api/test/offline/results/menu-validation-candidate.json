@@ -1,0 +1,132 @@
+{
+  "codeSha": "96ffd209eb1248cc61a205cd7ef4d85e801fb5cf",
+  "kind": "menu-validation",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "checks": [
+    {
+      "id": "duplicate-does-not-meet-min",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "non-member-does-not-meet-min",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "one-catalog-choice-meets-min-max",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "two-choices-exceed-max-1",
+      "layer": "unit",
+      "ok": true,
+      "detail": "unresolved"
+    },
+    {
+      "id": "two-distinct-choices-within-max-3",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "unknown-sku-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar catálogo: ítem no está en el menú"
+    },
+    {
+      "id": "sold-out-sku-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: unavailable"
+    },
+    {
+      "id": "quantity-zero-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar cantidad"
+    },
+    {
+      "id": "quantity-above-max-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar cantidad"
+    },
+    {
+      "id": "quantity-within-min-max-clear",
+      "layer": "unit",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "id": "empty-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: empty"
+    },
+    {
+      "id": "absent-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: absent"
+    },
+    {
+      "id": "malformed-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: malformed"
+    },
+    {
+      "id": "unavailable-menu-unresolved",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar menú: unavailable"
+    },
+    {
+      "id": "staff-note-survives-failed-validation",
+      "layer": "unit",
+      "ok": true,
+      "detail": "verdura aparte | confirmar (B) Carnes"
+    },
+    {
+      "id": "shadow-missing-required-blocks-autoaccept",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved lines=sq-quesadilla-HLT6CR"
+    },
+    {
+      "id": "ticket-keeps-confirmar-after-conversion",
+      "layer": "integration",
+      "ok": true,
+      "detail": "[{\"name\":\"Quesadilla\",\"quantity\":1,\"choices\":[],\"notes\":[\"confirmar (A) Q Tortilla Options\",\"confirmar (B) Q Carnes / Meats\"],\"flag\":\"confirmar (A) Q Tortilla Options · confirmar (B) Q Carnes / Meats\",\"kind\":\"food\"}]"
+    },
+    {
+      "id": "shadow-valid-catalog-choices-stay-accepted",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=true validation=clear lines=sq-quesadilla-HLT6CR:ok:"
+    },
+    {
+      "id": "ticket-does-not-invent-confirmar-on-valid-line",
+      "layer": "integration",
+      "ok": true,
+      "detail": "[{\"name\":\"Quesadilla\",\"quantity\":1,\"choices\":[\"(QCO) Quesadilla de Comal / Homemade\",\"Bistec / Steak\"],\"notes\":[],\"flag\":null,\"kind\":\"food\"}]"
+    },
+    {
+      "id": "shadow-unknown-sku-blocks-autoaccept",
+      "layer": "integration",
+      "ok": true,
+      "detail": "auto=false validation=unresolved"
+    }
+  ],
+  "unitPass": 15,
+  "unitFail": 0,
+  "integrationPass": 5,
+  "integrationFail": 0
+}
