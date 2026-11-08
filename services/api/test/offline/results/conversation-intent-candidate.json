@@ -1,0 +1,186 @@
+{
+  "codeSha": "834de05f813b813a91705e05fb5600b876083b66",
+  "kind": "conversation-intent",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "modelEvaluation": "unverified",
+  "modelNote": "No realtime model call. A stub or a missing API key does not verify that the model follows the examples.",
+  "checks": [
+    {
+      "id": "holdout-phrases-are-not-memorized-examples",
+      "layer": "deterministic",
+      "ok": true,
+      "detail": "absent from the illustrations"
+    },
+    {
+      "id": "instructions-load-the-versioned-examples",
+      "layer": "plumbing",
+      "ok": true,
+      "detail": "marker present"
+    },
+    {
+      "id": "en-availability-then-two",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "en-availability-then-two-shadow",
+      "layer": "shadow",
+      "ok": true,
+      "detail": "stubCalls=0"
+    },
+    {
+      "id": "es-availability-then-dame-dos",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "en-holdout-ill-take-two",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "en-holdout-ill-take-two-shadow",
+      "layer": "shadow",
+      "ok": true,
+      "detail": "stubCalls=0"
+    },
+    {
+      "id": "es-holdout-ponme-dos",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "en-replace-not-add",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "es-mejor-dame-replaces",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "es-holdout-mejor-quiero",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "en-and-two-adds",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "es-y-dos-adds",
+      "layer": "example-illustration",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "en-holdout-and-also",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "replace-two-targets-asks",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=4"
+    },
+    {
+      "id": "two-discussed-dishes-ask",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "two-taco-kinds-ask",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "unclear-quantity-asks",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "unclear-quantity-asks-shadow",
+      "layer": "shadow",
+      "ok": true,
+      "detail": "stubCalls=1"
+    },
+    {
+      "id": "named-option-kept-unknown-option-not-invented",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "sold-out-not-added",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=2"
+    },
+    {
+      "id": "sold-out-not-added-shadow",
+      "layer": "shadow",
+      "ok": true,
+      "detail": "stubCalls=1"
+    },
+    {
+      "id": "staff-decline-blocks-accept",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "staff-decline-blocks-accept-shadow",
+      "layer": "shadow",
+      "ok": true,
+      "detail": "stubCalls=1"
+    },
+    {
+      "id": "unknown-item-does-not-replace",
+      "layer": "holdout",
+      "ok": true,
+      "detail": "turns=3"
+    },
+    {
+      "id": "unresolved-choice-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "app-path-resolves-without-calling-the-model",
+      "layer": "plumbing",
+      "ok": true,
+      "detail": "sq-horchata x2"
+    },
+    {
+      "id": "recovery-missing-order-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "model-example-evaluation",
+      "layer": "model",
+      "ok": true,
+      "detail": "unverified: no model call. Needs XAI_API_KEY and a paid realtime turn that returns tool-call cart lines. Stub passes do not verify the model."
+    }
+  ],
+  "pass": 28,
+  "fail": 0
+}

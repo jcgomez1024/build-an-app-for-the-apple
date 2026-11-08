@@ -71,7 +71,7 @@ The approval revision runs the expanded suite against parent `e5bbe494` (`result
 
 ## Conversation intent
 
-`data/conversation-intent.json` is loaded into the ordering instructions and into the deterministic turn that returns before the model. From `services/api`:
+`data/conversation-intent.json` is loaded into the ordering instructions and into the deterministic turn that returns before the model. Parent `9bef511` fails 21 of these checks. Candidate `834de05` passes 28, and the model row stays unverified. From `services/api`:
 
 ```bash
 ../../node_modules/.bin/tsx test/offline/run-conversation-intent.ts --out test/offline/results/conversation-intent-candidate.json
