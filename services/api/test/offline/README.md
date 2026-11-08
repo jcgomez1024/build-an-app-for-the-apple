@@ -71,7 +71,7 @@ The approval revision runs the expanded suite against parent `e5bbe494` (`result
 
 ## Conversation intent
 
-`data/conversation-intent.json` is loaded into the ordering instructions and into the phone turn before the legacy repairs. A missing number does not become 1. The identical 24-case harness writes `conversation-intent-suite-baseline-9bef511.json` and `conversation-intent-suite-candidate.json`. Plumbing counts are separate. The model row stays unverified. From `services/api`:
+`data/conversation-intent.json` is loaded into the ordering instructions and into the phone turn before the legacy repairs. A missing number does not become 1. The identical 24-case harness writes `conversation-intent-suite-baseline-9bef511.json` (0/24) and `conversation-intent-suite-candidate.json` at `760292e` (24/24). Plumbing counts are separate. The model row stays unverified. From `services/api`:
 
 ```bash
 ../../node_modules/.bin/tsx test/offline/run-conversation-intent.ts --out test/offline/results/conversation-intent-candidate.json

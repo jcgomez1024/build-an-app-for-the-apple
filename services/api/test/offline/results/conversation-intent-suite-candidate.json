@@ -1,0 +1,1343 @@
+{
+  "codeSha": "760292e0d8c81aa0f35887f5b58922b1c3475518",
+  "kind": "conversation-intent-suite",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "modelEvaluation": "unverified",
+  "modelNote": "No realtime model call. A stub or a missing API key does not verify that the model follows the examples.",
+  "caseIds": [
+    "en-availability-then-two",
+    "es-availability-then-dame-dos",
+    "en-holdout-ill-take-two",
+    "es-holdout-ponme-dos",
+    "en-replace-not-add",
+    "es-mejor-dame-replaces",
+    "en-replace-explicit-two",
+    "es-replace-explicit-dos",
+    "en-replace-singular-one",
+    "es-replace-singular-un",
+    "en-same-number-keeps-old-qty",
+    "es-mismos-keeps-old-qty",
+    "es-holdout-mejor-quiero",
+    "en-and-two-adds",
+    "es-y-dos-adds",
+    "en-holdout-and-also",
+    "replace-two-targets-asks",
+    "two-discussed-dishes-ask",
+    "two-taco-kinds-ask",
+    "unclear-quantity-asks",
+    "named-option-kept-unknown-option-not-invented",
+    "sold-out-not-added",
+    "staff-decline-blocks-accept",
+    "unknown-item-does-not-replace"
+  ],
+  "casePass": 24,
+  "caseFail": 0,
+  "plumbingPass": 5,
+  "plumbingFail": 0,
+  "cases": [
+    {
+      "id": "en-availability-then-two",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "es-availability-then-dame-dos",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "en-holdout-ill-take-two",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "es-holdout-ponme-dos",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "en-replace-not-add",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "es-mejor-dame-replaces",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "en-replace-explicit-two",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "es-replace-explicit-dos",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "en-replace-singular-one",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "es-replace-singular-un",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "en-same-number-keeps-old-qty",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "es-mismos-keeps-old-qty",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "es-holdout-mejor-quiero",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "en-and-two-adds",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "es-y-dos-adds",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "example-illustration"
+    },
+    {
+      "id": "en-holdout-and-also",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "replace-two-targets-asks",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "two-discussed-dishes-ask",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [
+        [],
+        []
+      ],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "two-taco-kinds-ask",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "unclear-quantity-asks",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [
+        [],
+        []
+      ],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "named-option-kept-unknown-option-not-invented",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": [
+              "Bistec / Steak"
+            ]
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": [
+              "Bistec / Steak"
+            ]
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": [
+              "Bistec / Steak"
+            ]
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": [
+              "Bistec / Steak"
+            ]
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "sold-out-not-added",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [
+        [],
+        []
+      ],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "staff-decline-blocks-accept",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [],
+        []
+      ],
+      "reducer": [
+        [],
+        [],
+        []
+      ],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "holdout"
+    },
+    {
+      "id": "unknown-item-does-not-replace",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": true,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "holdout"
+    }
+  ],
+  "plumbing": [
+    {
+      "id": "holdout-phrases-are-not-memorized-examples",
+      "layer": "plumbing",
+      "ok": true,
+      "detail": "absent from the illustrations"
+    },
+    {
+      "id": "instructions-load-the-versioned-examples",
+      "layer": "plumbing",
+      "ok": true,
+      "detail": "marker present"
+    },
+    {
+      "id": "unresolved-choice-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "app-path-resolves-without-calling-the-model",
+      "layer": "plumbing",
+      "ok": true,
+      "detail": "sq-horchata x2"
+    },
+    {
+      "id": "recovery-missing-order-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    }
+  ]
+}
