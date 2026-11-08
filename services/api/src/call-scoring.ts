@@ -18,7 +18,7 @@ import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
-import { resolveConversationIntent } from "./conversation-intent.js";
+import { applyIntentCart, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
@@ -940,8 +940,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       else if (a.type === "update_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) { cart[i] = { ...cart[i], quantity: Number(a.quantity) > 0 ? a.quantity : cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
-      } else if (a.type === "remove_item") {
-        const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
+      }       else if (a.type === "remove_item") {
+        const indexed = a.lineIndex != null && cart[a.lineIndex]?.itemId === a.itemId ? a.lineIndex : -1;
+        const i = indexed >= 0 ? indexed : cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) cart.splice(i, 1);
       } else if (a.type === "set_address" && a.address) {
         // joseA1: set_address means the address was captured — mark confirmed for shadow/scoring
@@ -3624,13 +3625,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const intentMenuNow = await loadIntentMenu();
   const intentHandled = new Set<CallTurn>();
   if (intentMenuNow.length) {
+    let scanCart: Array<{ itemId: string; quantity: number; modifiers?: any[] }> = [];
+    let scanPending: any = null;
     for (const turn of turns) {
       if (turn.speaker !== "caller") continue;
       const decision = resolveConversationIntent({
-        transcript: turn.text, language: turn.language, menu: intentMenuNow, history: [], cart: [], discussedTexts,
+        transcript: turn.text, language: turn.language, menu: intentMenuNow, history: [], cart: scanCart, discussedTexts,
+        pending: scanPending,
         staffTexts: turns.filter((item) => item.speaker === "staff").map((item) => item.text),
       });
-      if (decision) intentHandled.add(turn);
+      if (decision) {
+        intentHandled.add(turn);
+        if (decision.actions?.length) scanCart = applyIntentCart(scanCart, decision.actions);
+        scanPending = decision.pending || null;
+      }
     }
   }
   const merged: CallTurn[] = [];
@@ -3665,6 +3673,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   turns = merged;
   const merged0 = turns;
   let wrapUp = false; // rich1: staff goodbye / pickup ETA — later caller chatter never re-prompts
+  let intentPending: any = null;
   for (let t of turns) {
     // pedro3: "No, espérate" right after staff's bye reopens the order; staff answering food questions after an ETA does too.
     if (t.speaker === "caller" && wrapUp && RESUME_AFTER_BYE.test(t.text)) wrapUp = false;
@@ -4424,7 +4433,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
-    if (cart.length && isCountOnly(t.text)) { steps.push({ source: "caller-count", heard: t.text }); continue; }
+    if (cart.length && isCountOnly(t.text) && !intentPending) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
     if (fulfillmentIn(t.text) && !FOOD.test(t.text) && !DRINK.test(applySharedAliases(t.text, "phone"))) {
       // pickup1: "can I order some for pickup — that'd be, yes, please. flour." — the pickup cue is noted, the answer after it still counts
@@ -4684,9 +4693,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const menu = await loadIntentMenu();
       const decision = menu.length ? resolveConversationIntent({
         transcript: t.text, language: t.language, menu, history, cart, discussedTexts,
+        pending: intentPending,
         staffTexts: turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text),
       }) : null;
       if (decision) {
+        intentPending = decision.pending || null;
         history.push({ role: "customer", text: t.text }, { role: "assistant", text: decision.reply });
         apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
         steps.push({ source: "conversation-intent", heard: t.text, language: t.language, reply: decision.reply, actions: decision.actions.map((action) => action.type), intent: decision.kind });
@@ -5445,7 +5456,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
   }
-
   // agustin1: factory multi-person ("para la fábrica" / ≥3 para-names) — rebuild cart from para-X segments (staff Square: one ticket/person)
   {
     const callerTurns = turns.filter((t) => t.speaker === "caller");

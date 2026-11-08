@@ -2379,6 +2379,7 @@ async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<Xai
     menu: ((input as any).resolverMenu || input.menu || []) as any[],
     history: input.history || [],
     cart: (input as any).cart || [],
+    sessionKey: (input as any).sessionKey,
     staffTexts: (input.history || []).filter((turn) => turn.role === "assistant").map((turn) => turn.text),
   });
   if (spokenIntent) return { language: input.language, engine: "xai", reply: spokenIntent.reply, actions: spokenIntent.actions as any };

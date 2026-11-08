@@ -13,7 +13,7 @@
       "language": "en",
       "lines": [
         "Customer: Do you have horchata?",
-        "Elvi: Yes. I did not add it.",
+        "Elvi: I can't confirm availability. I did not add it.",
         "Customer: Give me two.",
         "Elvi: Two horchatas. No size was spoken, so I did not pick one."
       ]
@@ -22,7 +22,7 @@
       "language": "es",
       "lines": [
         "Cliente: ¿Tienen quesadilla?",
-        "Elvi: Sí. No la agregué.",
+        "Elvi: No puedo confirmar disponibilidad. No la agregué.",
         "Cliente: Dame dos.",
         "Elvi: Dos quesadillas. La carne sigue abierta."
       ]
