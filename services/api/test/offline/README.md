@@ -69,6 +69,16 @@ The acceptance batch runs the same command against parent `49f85ae` (`results/me
 
 The approval revision runs the expanded suite against parent `e5bbe494` (`results/menu-validation-baseline-e5bbe494.json`): 23/26 unit pass and 10/16 integration pass. The nine failures are a guessed Square link counted as `staff-accepted`, an explicit approval ignored, and recovery still hardcoding phase `final` with no loader attachment. Controls that already failed closed (unresolved stays review, a later clear write stays `validation-complete`, contradictory approval stays review) stay green on that parent. The candidate at `22e46e8` passes 26/26 unit and 16/16 integration. See `IMPROVEMENT.md`. A passing check is not a live-readiness claim.
 
+## Conversation intent
+
+`data/conversation-intent.json` is loaded into the ordering instructions and into the deterministic turn that returns before the model. From `services/api`:
+
+```bash
+../../node_modules/.bin/tsx test/offline/run-conversation-intent.ts --out test/offline/results/conversation-intent-candidate.json
+```
+
+The model row is unverified. A stub pass does not show that the model follows the examples. The acceptance baselines, including `menu-validation-baseline-e5bbe494.json`, stay as captured.
+
 - `pass` / `fail` uses confirmed fields only.
 - `unresolved` lists fields that must stay unasserted.
 - `ticket.complete` is true only for a final, auto-accepted cart with no `confirmar` note and no `noOrder` flag.

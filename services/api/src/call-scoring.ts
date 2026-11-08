@@ -18,6 +18,7 @@ import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
+import { resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
@@ -908,6 +909,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const origTurns = turns.map((t) => ({ speaker: t.speaker, text: String(t.text || "") })); // gloria1: as heard, before in-loop merges/rewrites
   const declinedAsk = declinedAsks(origTurns as any); // jonathan2: declined "¿tiene X?" never rings, even on a later "quería eso"
   const cart: Line[] = [];
+  const discussedTexts: string[] = [];
+  let intentMenu: any[] | null = null;
+  let intentMenuTried = false;
+  const loadIntentMenu = async () => {
+    if (intentMenuTried) return intentMenu || [];
+    intentMenuTried = true;
+    const menuFn = (run as any).menu;
+    if (typeof menuFn !== "function") { intentMenu = []; return []; }
+    try { intentMenu = (await menuFn()) || []; } catch { intentMenu = []; }
+    return intentMenu || [];
+  };
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
   const steps: any[] = [];
   let lastTouched: Line | null = null;
@@ -924,7 +936,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
       if (a.type === "add_item" && sizeAnswer && cart.length && cart[cart.length - 1].itemId === a.itemId) { const p0 = cart.pop()!; a = { ...a, quantity: p0.quantity || a.quantity }; }
-      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
+      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
       else if (a.type === "update_item") {
         const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
         if (i >= 0) { cart[i] = { ...cart[i], quantity: Number(a.quantity) > 0 ? a.quantity : cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
@@ -985,6 +997,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // gustavo-qd1 (CA7a1136): Elvi's "¿REGULAR Dorada o DELUXE Preparada?" answered "Sí, las tres" looped; staff's
     // "¿te gustarían deluxe preparadas?" + "sí" = DELUXE, and a repeated ask resolves to the "en aceite" house default (DELUXE).
     if (source === "caller" || source === "caller-retry") { const t2 = qdStyleAnswer(text, history, recentStaff.slice(-2).join(" ")); if (t2) text = t2; }
+    if (source === "caller" || source === "caller-retry") {
+      const menu = await loadIntentMenu();
+      const decision = menu.length ? resolveConversationIntent({
+        transcript: text, language, menu, history, cart, discussedTexts,
+        staffTexts: turns.filter((t) => t.speaker === "staff").map((t) => t.text),
+      }) : null;
+      if (decision && decision.kind === "accept" && !FOOD.test(text) && !dishesNamed(text).size) {
+        const intentReply = { reply: decision.reply, actions: decision.actions, language };
+        history.push({ role: "customer", text }, { role: "assistant", text: decision.reply });
+        apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
+        steps.push({ source: "conversation-intent", heard: text, language, reply: decision.reply, actions: decision.actions.map((a) => a.type), intent: decision.kind });
+        return intentReply;
+      }
+    }
     let r = await run(text, language, history.slice(-24));
     // alicia1: "side of rice and beans" is the combined side — never a quesadilla shell question or rice-only.
     if (source.startsWith("caller")) r = guardRiceBeansSide(r, text, lastStaff || recentStaff.slice(-2).join(" "), cart, language);
@@ -3588,6 +3614,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     };
     turns = turns.filter((t, i) => {
       if (!isAvailQ(t)) return true;
+      discussedTexts.push(t.text);
       if (yesoptFollows(i)) { (t as any).availOnly = true; return true; }
       stampAskedCount(turns, i); // rodolfo2
       return false;

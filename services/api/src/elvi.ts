@@ -30,6 +30,7 @@ import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
 import { preTurn, answerPick as chicharronAnswerPick } from "./pre-turn.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
 import { isClosingFragment, menuQueryForMatch } from "./retain-spoken.js";
+import { conversationIntentPrompt, resolveConversationIntent } from "./conversation-intent.js";
 import { resolveEspecialRequest } from "./especial-resolver.js";
 import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { getComboGuide, evaluateGuideText, guideQuestion, SKIP_REST, type GuideFill, bothMeatQuestion, otherMeatQuestion, BOTH_MEAT_Q, OTHER_MEAT_Q, YES_ANSWER, NO_ANSWER } from "./guides.js";
@@ -1543,8 +1544,14 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
       ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas: 'Agregado.', 'Listo.', '¿Algo más?', '¿Recoger?'. Never use English except menu names."
       : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Done.', 'Anything else?', 'Pickup?'. Never use Spanish except menu names.",
     `ONLINE menu knowledge:\n${menuSummary}`,
-    historySummary ? `Recent conversation:\n${historySummary}` : ""
+    historySummary ? `Recent conversation:\n${historySummary}` : "",
+    conversationIntentPrompt(),
   ].filter(Boolean).join("\n\n");
+}
+
+/** The instruction string the ordering model is given, including the versioned intent examples. */
+export function orderingInstructions(language: Language, menu: MenuItem[], history: ConversationTurn[] = []) {
+  return buildRealtimeInstructions(language, menu, history);
 }
 
 function buildRealtimeMenuKnowledge(menu: MenuItem[]) {
@@ -2366,6 +2373,15 @@ async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<Xai
   if (intent) return intent;
   const avail = availabilityQuestion(input);
   if (avail) return avail;
+  const spokenIntent = resolveConversationIntent({
+    transcript: String(input.transcript || ""),
+    language: input.language === "en" ? "en" : "es",
+    menu: ((input as any).resolverMenu || input.menu || []) as any[],
+    history: input.history || [],
+    cart: (input as any).cart || [],
+    staffTexts: (input.history || []).filter((turn) => turn.role === "assistant").map((turn) => turn.text),
+  });
+  if (spokenIntent) return { language: input.language, engine: "xai", reply: spokenIntent.reply, actions: spokenIntent.actions as any };
   // alex1: "…nada más a uno agrégamele, agrégamele" trails off before saying what — wait, change nothing
   if (/\b(agr[eé]g(a|ue)(me)?(le|se)|p[oó]n(ga)?(me)?le|ech(e|a)(me)?le|add|put)\W*$/i.test(String(input.transcript || "").trim()))
     return { language: input.language, reply: input.language === "en" ? "Sure, what should I add?" : "¿Sí? ¿Qué le agrego?", actions: [] } as any;
