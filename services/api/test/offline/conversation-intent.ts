@@ -76,8 +76,7 @@ export const CASES: IntentCase[] = [
       { speaker: "caller", text: "Give me two.", language: "en" },
       { speaker: "caller", text: "Better give me tacos.", language: "en" },
     ],
-    afterEach: [[], [line("sq-horchata", 2)], [line("sq-taco", 1)]],
-    validation: "unresolved",
+    afterEach: [[], [line("sq-horchata", 2)], [line("sq-horchata", 2)]],
   },
   {
     id: "es-mejor-dame-replaces",
@@ -87,7 +86,73 @@ export const CASES: IntentCase[] = [
       { speaker: "caller", text: "Dame dos.", language: "es" },
       { speaker: "caller", text: "Mejor dame tacos.", language: "es" },
     ],
+    afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-quesadilla", 2)]],
+    validation: "unresolved",
+  },
+  {
+    id: "en-replace-explicit-two",
+    provenance: "holdout",
+    turns: [
+      { speaker: "caller", text: "Do you have horchata?", language: "en" },
+      { speaker: "caller", text: "Give me two.", language: "en" },
+      { speaker: "caller", text: "Better give me two tacos.", language: "en" },
+    ],
+    afterEach: [[], [line("sq-horchata", 2)], [line("sq-taco", 2)]],
+    validation: "unresolved",
+  },
+  {
+    id: "es-replace-explicit-dos",
+    provenance: "example-illustration",
+    turns: [
+      { speaker: "caller", text: "¿Tienen quesadilla?", language: "es" },
+      { speaker: "caller", text: "Dame dos.", language: "es" },
+      { speaker: "caller", text: "Mejor dame dos tacos.", language: "es" },
+    ],
+    afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-taco", 2)]],
+    validation: "unresolved",
+  },
+  {
+    id: "en-replace-singular-one",
+    provenance: "holdout",
+    turns: [
+      { speaker: "caller", text: "Do you have horchata?", language: "en" },
+      { speaker: "caller", text: "Give me two.", language: "en" },
+      { speaker: "caller", text: "Better give me one taco.", language: "en" },
+    ],
+    afterEach: [[], [line("sq-horchata", 2)], [line("sq-taco", 1)]],
+    validation: "unresolved",
+  },
+  {
+    id: "es-replace-singular-un",
+    provenance: "holdout",
+    turns: [
+      { speaker: "caller", text: "¿Tienen quesadilla?", language: "es" },
+      { speaker: "caller", text: "Dame dos.", language: "es" },
+      { speaker: "caller", text: "Mejor dame un taco.", language: "es" },
+    ],
     afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-taco", 1)]],
+    validation: "unresolved",
+  },
+  {
+    id: "en-same-number-keeps-old-qty",
+    provenance: "holdout",
+    turns: [
+      { speaker: "caller", text: "Do you have horchata?", language: "en" },
+      { speaker: "caller", text: "Give me two.", language: "en" },
+      { speaker: "caller", text: "Better give me the same number of tacos.", language: "en" },
+    ],
+    afterEach: [[], [line("sq-horchata", 2)], [line("sq-taco", 2)]],
+    validation: "unresolved",
+  },
+  {
+    id: "es-mismos-keeps-old-qty",
+    provenance: "holdout",
+    turns: [
+      { speaker: "caller", text: "¿Tienen quesadilla?", language: "es" },
+      { speaker: "caller", text: "Dame dos.", language: "es" },
+      { speaker: "caller", text: "Mejor dame los mismos tacos.", language: "es" },
+    ],
+    afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-taco", 2)]],
     validation: "unresolved",
   },
   {
@@ -98,7 +163,7 @@ export const CASES: IntentCase[] = [
       { speaker: "caller", text: "Dame dos.", language: "es" },
       { speaker: "caller", text: "Mejor quiero tacos.", language: "es" },
     ],
-    afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-taco", 1)]],
+    afterEach: [[], [line("sq-quesadilla", 2)], [line("sq-quesadilla", 2)]],
   },
   {
     id: "en-and-two-adds",
@@ -216,6 +281,10 @@ export const CASES: IntentCase[] = [
   },
 ];
 
+function view(cart: any[]): Expect[] {
+  return (cart || []).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1, options: (line.modifiers || []).map((modifier: any) => modifier.option) }));
+}
+
 function same(actual: any[], expected: Expect[]): boolean {
   if (actual.length !== expected.length) return false;
   return expected.every((line, i) => {
@@ -242,10 +311,10 @@ export async function intentChecks(): Promise<Array<{ id: string; layer: string;
     const file = JSON.parse(readFileSync(new URL("../../data/conversation-intent.json", import.meta.url), "utf8"));
     examples = (file.examples || []).flatMap((example: { lines: string[] }) => example.lines).join("\n");
   } catch { examples = ""; }
-  const holdouts = ["I'll take two", "Ponme dos", "Mejor quiero", "And also two", "Give me a couple", "pizza"];
+  const holdouts = ["I'll take two", "Ponme dos", "Mejor quiero", "And also two", "Give me a couple", "pizza", "one taco", "un taco", "same number", "los mismos"];
   out.push({
     id: "holdout-phrases-are-not-memorized-examples",
-    layer: "deterministic",
+    layer: "plumbing",
     ok: !!examples && holdouts.every((phrase) => !examples.includes(phrase)),
     detail: examples ? (holdouts.filter((phrase) => examples.includes(phrase)).join(",") || "absent from the illustrations") : "conversation-intent.json missing",
   });
@@ -259,47 +328,58 @@ export async function intentChecks(): Promise<Array<{ id: string; layer: string;
     detail: instructions.includes("CONVERSATION_INTENT_V1") ? "marker present" : "marker missing",
   });
   const intentMod = await import("../../src/conversation-intent.ts").catch(() => null) as any;
-  const boundary = new Set(["en-availability-then-two", "en-holdout-ill-take-two", "sold-out-not-added", "unclear-quantity-asks", "staff-decline-blocks-accept"]);
   for (const item of CASES) {
     const useMenu = item.menu || menu;
-    let failed = "";
-    if (!intentMod?.resolveConversationIntent) failed = "resolveConversationIntent missing";
+    const expected = item.afterEach.map(view);
+    let reducer: any[][] = [];
+    let reducerFailed = "";
+    if (!intentMod?.resolveConversationIntent) reducerFailed = "resolveConversationIntent missing";
     else {
       let cart: any[] = [];
       const history: Array<{ role: string; text: string }> = [];
       const staffTexts: string[] = [];
       for (let i = 0; i < item.turns.length; i++) {
         const turn = item.turns[i];
-        if (turn.speaker === "staff") { staffTexts.push(turn.text); if (!same(cart, item.afterEach[i])) { failed = `turn ${i + 1} staff cart changed`; break; } continue; }
+        if (turn.speaker === "staff") {
+          staffTexts.push(turn.text);
+          reducer.push(view(cart));
+          if (!same(cart, item.afterEach[i])) reducerFailed = `turn ${i + 1} staff cart ${JSON.stringify(view(cart))}`;
+          continue;
+        }
         const decision = intentMod.resolveConversationIntent({
           transcript: turn.text, language: turn.language || "es", menu: useMenu, history, cart, staffTexts,
         });
         if (decision?.actions) cart = intentMod.applyIntentCart(cart, decision.actions);
         history.push({ role: "customer", text: turn.text });
         if (decision?.reply) history.push({ role: "assistant", text: decision.reply });
-        if (!same(cart, item.afterEach[i])) {
-          failed = `turn ${i + 1} cart ${JSON.stringify(cart)}`;
-          break;
-        }
+        reducer.push(view(cart));
+        if (!reducerFailed && !same(cart, item.afterEach[i])) reducerFailed = `turn ${i + 1} cart ${JSON.stringify(view(cart))}`;
       }
-      if (!failed && item.validation) {
-        const copy = cart.map((line) => ({ ...line }));
+      if (!reducerFailed && item.validation) {
+        const copy = cart.map((line) => ({ ...line, modifiers: [...(line.modifiers || [])] }));
         flagUnresolvedRequired(copy, useMenu as any, "ok");
         const open = copy.some((line) => line.validation === "unresolved");
-        if (item.validation === "unresolved" && !open) failed = "required choice was treated as clear";
+        if (item.validation === "unresolved" && !open) reducerFailed = "required choice was treated as clear";
       }
     }
-    out.push({ id: item.id, layer: item.provenance, ok: !failed, detail: failed || `turns=${item.turns.length}` });
-    if (!failed && boundary.has(item.id)) {
-      const shadow = await shadowPrefix(item.turns, useMenu);
-      const shadowOk = same(shadow.cart, item.afterEach[item.afterEach.length - 1]);
-      out.push({
-        id: `${item.id}-shadow`,
-        layer: "shadow",
-        ok: shadowOk,
-        detail: shadowOk ? `stubCalls=${shadow.calls}` : JSON.stringify(shadow.cart.map((line) => ({ itemId: line.itemId, quantity: line.quantity }))),
-      });
+    const shadowCarts: any[][] = [];
+    let shadowFailed = "";
+    for (let i = 0; i < item.turns.length; i++) {
+      const shadow = await shadowPrefix(item.turns.slice(0, i + 1), useMenu);
+      shadowCarts.push(view(shadow.cart));
+      if (!shadowFailed && !same(shadow.cart, item.afterEach[i])) shadowFailed = `turn ${i + 1} cart ${JSON.stringify(view(shadow.cart))}`;
     }
+    const ok = !reducerFailed && !shadowFailed;
+    out.push({
+      id: item.id,
+      layer: "case",
+      provenance: item.provenance,
+      ok,
+      expected,
+      reducer,
+      shadow: shadowCarts,
+      detail: ok ? item.provenance : `reducer: ${reducerFailed || "ok"}; shadow: ${shadowFailed || "ok"}`,
+    });
   }
   const openCart = [{ itemId: "sq-taco", quantity: 2, modifiers: [] }];
   flagUnresolvedRequired(openCart, menu as any, "ok");

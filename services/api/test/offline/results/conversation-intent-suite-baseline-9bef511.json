@@ -1,0 +1,779 @@
+{
+  "codeSha": "9bef511b988f1b5f78d3832829376482d0f6ce7e",
+  "kind": "conversation-intent-suite",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "modelEvaluation": "unverified",
+  "modelNote": "No realtime model call. A stub or a missing API key does not verify that the model follows the examples.",
+  "caseIds": [
+    "en-availability-then-two",
+    "es-availability-then-dame-dos",
+    "en-holdout-ill-take-two",
+    "es-holdout-ponme-dos",
+    "en-replace-not-add",
+    "es-mejor-dame-replaces",
+    "en-replace-explicit-two",
+    "es-replace-explicit-dos",
+    "en-replace-singular-one",
+    "es-replace-singular-un",
+    "en-same-number-keeps-old-qty",
+    "es-mismos-keeps-old-qty",
+    "es-holdout-mejor-quiero",
+    "en-and-two-adds",
+    "es-y-dos-adds",
+    "en-holdout-and-also",
+    "replace-two-targets-asks",
+    "two-discussed-dishes-ask",
+    "two-taco-kinds-ask",
+    "unclear-quantity-asks",
+    "named-option-kept-unknown-option-not-invented",
+    "sold-out-not-added",
+    "staff-decline-blocks-accept",
+    "unknown-item-does-not-replace"
+  ],
+  "casePass": 0,
+  "caseFail": 24,
+  "plumbingPass": 2,
+  "plumbingFail": 3,
+  "cases": [
+    {
+      "id": "en-availability-then-two",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-availability-then-dame-dos",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "en-holdout-ill-take-two",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-holdout-ponme-dos",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart [{\"itemId\":\"sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG\",\"quantity\":2,\"options\":[]}]"
+    },
+    {
+      "id": "en-replace-not-add",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-mejor-dame-replaces",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "en-replace-explicit-two",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-replace-explicit-dos",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "en-replace-singular-one",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-replace-singular-un",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 1,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "en-same-number-keeps-old-qty",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-mismos-keeps-old-qty",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-holdout-mejor-quiero",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-quesadilla",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "en-and-two-adds",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "es-y-dos-adds",
+      "layer": "case",
+      "provenance": "example-illustration",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-jamaica",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [
+          {
+            "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart [{\"itemId\":\"sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG\",\"quantity\":2,\"options\":[]}]"
+    },
+    {
+      "id": "en-holdout-and-also",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "replace-two-targets-asks",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "two-discussed-dishes-ask",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: ok"
+    },
+    {
+      "id": "two-taco-kinds-ask",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    },
+    {
+      "id": "unclear-quantity-asks",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: ok"
+    },
+    {
+      "id": "named-option-kept-unknown-option-not-invented",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          },
+          {
+            "itemId": "sq-taco",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [
+          {
+            "itemId": "sq-taco-TAR7L5",
+            "quantity": 2,
+            "options": [
+              "(TST) Taco Taquero / Street Taco",
+              "Bistec / Steak"
+            ]
+          }
+        ],
+        [
+          {
+            "itemId": "sq-taco-TAR7L5",
+            "quantity": 2,
+            "options": [
+              "(TST) Taco Taquero / Street Taco",
+              "Bistec / Steak"
+            ]
+          }
+        ]
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 1 cart [{\"itemId\":\"sq-taco-TAR7L5\",\"quantity\":2,\"options\":[\"(TST) Taco Taquero / Street Taco\",\"Bistec / Steak\"]}]"
+    },
+    {
+      "id": "sold-out-not-added",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        []
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: ok"
+    },
+    {
+      "id": "staff-decline-blocks-accept",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [],
+        []
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: ok"
+    },
+    {
+      "id": "unknown-item-does-not-replace",
+      "layer": "case",
+      "provenance": "holdout",
+      "ok": false,
+      "expected": [
+        [],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ],
+        [
+          {
+            "itemId": "sq-horchata",
+            "quantity": 2,
+            "options": []
+          }
+        ]
+      ],
+      "reducer": [],
+      "shadow": [
+        [],
+        [],
+        []
+      ],
+      "detail": "reducer: resolveConversationIntent missing; shadow: turn 2 cart []"
+    }
+  ],
+  "plumbing": [
+    {
+      "id": "holdout-phrases-are-not-memorized-examples",
+      "layer": "plumbing",
+      "ok": false,
+      "detail": "conversation-intent.json missing"
+    },
+    {
+      "id": "instructions-load-the-versioned-examples",
+      "layer": "plumbing",
+      "ok": false,
+      "detail": "marker missing"
+    },
+    {
+      "id": "unresolved-choice-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "app-path-resolves-without-calling-the-model",
+      "layer": "plumbing",
+      "ok": false,
+      "detail": "XAI_API_KEY is not configured"
+    },
+    {
+      "id": "recovery-missing-order-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    }
+  ],
+  "source": "services checked out from 9bef511; same case ids and expectations as the candidate harness"
+}

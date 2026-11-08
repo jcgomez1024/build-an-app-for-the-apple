@@ -3621,6 +3621,18 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     });
   }
   turns = dropAddressNumberTurns(turns); // rodolfo2
+  const intentMenuNow = await loadIntentMenu();
+  const intentHandled = new Set<CallTurn>();
+  if (intentMenuNow.length) {
+    for (const turn of turns) {
+      if (turn.speaker !== "caller") continue;
+      const decision = resolveConversationIntent({
+        transcript: turn.text, language: turn.language, menu: intentMenuNow, history: [], cart: [], discussedTexts,
+        staffTexts: turns.filter((item) => item.speaker === "staff").map((item) => item.text),
+      });
+      if (decision) intentHandled.add(turn);
+    }
+  }
   const merged: CallTurn[] = [];
   for (const t of turns) {
     const prev = merged[merged.length - 1];
@@ -3643,6 +3655,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && !isClosing(t.text) && !joseOrderFollow && !orderAfterStyle
       && !(noteOnly(prev.text) && meatOrder(t.text))
       && !/\b(?:poner(?:me)?|pone(?:r)?|ponga|dar(?:me)?|hacer(?:me)?|quiero|quisiera|agregar|add|get)\s+(?:me\s+)?(?:otr[ao]\s+(?:orden|pedido|plato)|another\s+(?:order|plate))\b/iu.test(t.text) // rodolfo2: "¿me puede poner otra orden más?" starts its own turn ("En otra orden," fragments still glue — agustin1)
+      && !intentHandled.has(t)
       && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });
@@ -4665,6 +4678,20 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (moved || cart.some((l) => /birria/i.test(String(l.itemId)))) {
         await acceptOpen(t.language); // keep default consomé+comal SKU already on cart
         if (asking(last) && /birria/i.test(String(last.reply || ""))) last = { actions: [], reply: "" } as any;
+      }
+    }
+    {
+      const menu = await loadIntentMenu();
+      const decision = menu.length ? resolveConversationIntent({
+        transcript: t.text, language: t.language, menu, history, cart, discussedTexts,
+        staffTexts: turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text),
+      }) : null;
+      if (decision) {
+        history.push({ role: "customer", text: t.text }, { role: "assistant", text: decision.reply });
+        apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
+        steps.push({ source: "conversation-intent", heard: t.text, language: t.language, reply: decision.reply, actions: decision.actions.map((action) => action.type), intent: decision.kind });
+        last = { reply: decision.reply, actions: decision.actions, language: t.language };
+        continue;
       }
     }
     for (const raw of splitItems(cleanPhrase(t.text))) {

@@ -17,21 +17,26 @@ if (isMain) {
   const out = outFlag >= 0 ? process.argv[outFlag + 1] : "";
   const sha = codeSha();
   const checks = await intentChecks();
-  const scored = checks.filter((check) => check.layer !== "model");
+  const cases = checks.filter((check) => check.layer === "case");
+  const plumbing = checks.filter((check) => check.layer !== "case" && check.layer !== "model");
   const body = {
     codeSha: sha,
-    kind: "conversation-intent",
+    kind: "conversation-intent-suite",
     pageNamedGateSatisfied: false,
     network: false,
     modelEvaluation: "unverified",
     modelNote: "No realtime model call. A stub or a missing API key does not verify that the model follows the examples.",
-    checks,
-    pass: scored.filter((check) => check.ok).length,
-    fail: scored.filter((check) => !check.ok).length,
+    caseIds: cases.map((check) => check.id),
+    casePass: cases.filter((check) => check.ok).length,
+    caseFail: cases.filter((check) => !check.ok).length,
+    plumbingPass: plumbing.filter((check) => check.ok).length,
+    plumbingFail: plumbing.filter((check) => !check.ok).length,
+    cases,
+    plumbing,
   };
-  const lines = [`conversation-intent ${sha}`, `deterministic+plumbing ${body.pass} pass / ${body.fail} fail`, "model unverified", ""];
-  for (const check of checks) lines.push(`${check.ok ? "pass" : "FAIL"}  ${check.layer.padEnd(22)} ${check.id}${check.ok ? "" : " — " + check.detail}`);
+  const lines = [`conversation-intent ${sha}`, `cases ${body.casePass} pass / ${body.caseFail} fail`, `plumbing ${body.plumbingPass} pass / ${body.plumbingFail} fail`, "model unverified", ""];
+  for (const check of [...cases, ...plumbing]) lines.push(`${check.ok ? "pass" : "FAIL"}  ${String(check.provenance || check.layer).padEnd(22)} ${check.id}${check.ok ? "" : " — " + check.detail}`);
   console.log(lines.join("\n"));
   if (out) { mkdirSync(path.dirname(path.resolve(out)), { recursive: true }); writeFileSync(out, JSON.stringify(body, null, 2)); console.log(`\nwrote ${out}`); }
-  if (scored.some((check) => !check.ok)) process.exit(1);
+  if ([...cases, ...plumbing].some((check) => !check.ok)) process.exit(1);
 }

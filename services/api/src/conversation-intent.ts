@@ -52,7 +52,8 @@ export type IntentInput = {
   staffTexts?: string[];
 };
 
-const STOP = new Set(["with", "para", "from", "that", "this", "have", "your", "just", "some", "also", "them", "please", "favor"]);
+const STOP = new Set(["with", "para", "from", "that", "this", "have", "your", "just", "some", "also", "them", "please", "favor", "de", "del", "of", "con", "the", "los", "las", "una", "uno", "por"]);
+const SAME_COUNT = /\b(?:same(?:\s+number)?|mismos|mismas|igual(?:es)?)\b/;
 
 let cached: IntentFile | null = null;
 export function loadConversationIntent(): IntentFile | null {
@@ -156,6 +157,7 @@ function takeQuantity(phrase: string, file: IntentFile): { quantity: number | nu
   const cleaned = phrase.replace(/^(?:please|por favor)\s+/, "");
   const unclear = file.unclearQuantities.find((q) => cleaned === fold(q) || cleaned.startsWith(fold(q) + " "));
   if (unclear) return { quantity: null, rest: cleaned.slice(fold(unclear).length).trim(), unclear: true };
+  if (/^(?:a|an)\s+\S/.test(cleaned)) return { quantity: 1, rest: cleaned.replace(/^(?:a|an)\s+/, ""), unclear: false };
   const first = cleaned.split(" ")[0];
   const quantity = file.quantities[first];
   if (quantity) return { quantity, rest: cleaned.split(" ").slice(1).join(" "), unclear: false };
@@ -256,31 +258,48 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
 
   const cue = replacementCue || additiveCue || "";
   const body = takeQuantity(folded.slice(cue.length).trim(), file);
-  if (body.unclear) return clarify(language, "Necesito un número. No inventé la cantidad.", "I need a number. I did not invent the quantity.");
   const phrase = body.rest;
   if (!phrase) return null;
   const matched = matchItems(input.menu, phrase);
   if (matched.ambiguous || matched.items.length !== 1) return null;
   const item = matched.items[0];
+  const optionWords = (item.modifierGroups || []).flatMap((group) => (group.options || []).map(optionName).flatMap((name) => significant(name)));
+  if (hasLeftover(folded, [cue, ...significant(item.name || ""), ...significant(item.nameEs || ""), ...optionWords], file)) return null;
   const options = spokenOptions(item, phrase);
-  if (options === "ambiguous") {
-    return clarify(language, "Esa opción no es una sola. No la inventé.", "That choice is not one option. I did not invent it.");
+  if (options === "ambiguous") return null;
+  const sameCount = SAME_COUNT.test(folded);
+  const quantity = body.unclear ? null : body.quantity ?? (sameCount && distinct.length === 1 ? Number(distinct[0].quantity) || null : null);
+  if (!quantity) {
+    return clarify(language, "¿Cuántos? No cambié la orden.", "How many? I did not change the order.");
   }
-  const quantity = body.quantity || 1;
   const add: IntentAction = { type: "add_item", itemId: item.id, quantity, modifiers: options };
   const block = blocked(language, item, [add]);
   if (block) return block;
   if (additiveCue) {
     return { kind: "add", reply: replyFor(language, "add", item.name || item.id, quantity, ""), actions: [add] };
   }
-  if (distinct.length > 1) {
-    const names = distinct.map((line) => input.menu.find((item) => item.id === line.itemId)?.name || line.itemId).join(", ");
-    return clarify(language, `Necesito saber cuál cambio: ${names}.`, `I need to know which one to replace: ${names}.`);
+  if (distinct.length !== 1) {
+    const names = distinct.map((line) => input.menu.find((entry) => entry.id === line.itemId)?.name || line.itemId).join(", ");
+    return clarify(language, names ? `Necesito saber cuál cambio: ${names}.` : "No hay una línea clara que cambiar.", names ? `I need to know which one to replace: ${names}.` : "There is no clear line to replace.");
   }
-  const actions: IntentAction[] = [];
-  if (distinct.length === 1) actions.push({ type: "remove_item", itemId: distinct[0].itemId, quantity: Number(distinct[0].quantity) || 1 });
-  actions.push(add);
-  return { kind: "replace", reply: replyFor(language, "replace", item.name || item.id, quantity, ""), actions };
+  return {
+    kind: "replace",
+    reply: replyFor(language, "replace", item.name || item.id, quantity, ""),
+    actions: [
+      { type: "remove_item", itemId: distinct[0].itemId, quantity: Number(distinct[0].quantity) || 1 },
+      add,
+    ],
+  };
+}
+
+function hasLeftover(folded: string, consumed: string[], file: IntentFile): boolean {
+  const gone = new Set(consumed.flatMap((piece) => fold(piece).split(" ")).map(stem).filter(Boolean));
+  for (const word of Object.keys(file.quantities)) gone.add(stem(word));
+  gone.add("same"); gone.add("number"); gone.add("mismo"); gone.add("misma"); gone.add("igual");
+  return folded.split(" ").some((word) => {
+    const token = stem(word);
+    return token.length >= 4 && !STOP.has(token) && !gone.has(token);
+  });
 }
 
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {
