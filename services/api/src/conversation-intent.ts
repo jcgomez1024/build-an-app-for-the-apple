@@ -1154,7 +1154,8 @@ function lineMatches(request: { content: string[]; size: string | null }, text: 
   const family = familyTokens(request.content);
   if (!family.length || !family.some((token) => heard(text, token))) return false;
   const meats = request.content.filter((token) => MEAT.has(token));
-  if (meats.some((token) => !heard(text, token))) return false;
+  const lineMeats = [...MEAT].filter((token) => heard(text, token));
+  if (meats.length && lineMeats.length && meats.some((token) => !heard(text, token))) return false;
   const styles = request.content.filter((token) => DISH_STYLE.has(token) || token === "aceite");
   if (styles.some((token) => !styleHeard(token, text))) return false;
   if (request.size && sizeOf(text) !== request.size) return false;
