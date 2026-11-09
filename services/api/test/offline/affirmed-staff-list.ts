@@ -73,14 +73,43 @@ check("latest-list-wins", latest.fired && latestCart.length === 1 && /bistec/i.t
 
 const run: any = async () => ({ actions: [], reply: "" });
 run.menu = () => menu;
+function flow(turns: Array<{ speaker: string; text: string }>) {
+  return shadowOrderFromTurns(turns.map((turn) => ({ ...turn, language: "es" })) as any, run);
+}
+const ronaldMenu = JSON.parse(readFileSync(new URL("../fixtures/CA4bdd506-menu.json", import.meta.url), "utf8"));
+const ronaldFixture = JSON.parse(readFileSync(new URL("../fixtures/CA66f2c1-ronald2.json", import.meta.url), "utf8"));
+const ronaldRun: any = async (text: string) => {
+  const taco = (n: number, meat: string) => ({ type: "add_item", itemId: "sq-taco-TAR7L5", quantity: n, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: meat }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] });
+  if (/tres tacos de bistec/i.test(text)) return { actions: [taco(3, "Bistec / Steak")], reply: "" };
+  if (/cuatro tacos de pastor/i.test(text)) return { actions: [taco(4, "Alpastor / Roasted Pork")], reply: "" };
+  return { actions: [], reply: "" };
+};
+ronaldRun.menu = () => ronaldMenu;
 Promise.all([
-  shadowOrderFromTurns([
-    { speaker: "caller", text: "Tráeme una Pepsi de bote grande.", language: "es" },
-    { speaker: "staff", text: "La coca.", language: "es" },
-    { speaker: "caller", text: "Sí.", language: "es" },
-  ] as any, run),
+  flow([
+    { speaker: "caller", text: "Tráeme una Pepsi de bote grande." },
+    { speaker: "staff", text: "La coca." },
+    { speaker: "caller", text: "Sí." },
+  ]),
+  flow([
+    { speaker: "caller", text: "¿Me puede preparar un platillo?" },
+    { speaker: "staff", text: "Claro, un platillo de birria, muy bien, ¿algo más?" },
+  ]),
+  flow([
+    { speaker: "caller", text: "Quiero un platillo de birria." },
+    { speaker: "staff", text: "No tenemos birria." },
+    { speaker: "caller", text: "Sí, está bien." },
+  ]),
+  flow([
+    { speaker: "caller", text: "Quiero un platillo de birria." },
+    { speaker: "staff", text: "Un platillo de birria." },
+    { speaker: "caller", text: "Sí." },
+  ]),
+  shadowOrderFromTurns(ronaldFixture.turns, ronaldRun),
   evaluateCase(CASES.find((row) => row.id === "C07")!),
-]).then(([order, c07]: any[]) => {
+  evaluateCase(CASES.find((row) => row.id === "C10")!),
+  flow(CASES.find((row) => row.id === "C10")!.turns),
+]).then(([order, closing, denied, sized, ronald, c07, c10, c10order]: any[]) => {
   const cart = order.cart || [];
   const kept = cart.some((line: any) => line.itemId === pepsi.id) && !cart.some((line: any) => line.itemId === coke.id);
   check("wrong-readback-review-reason", kept && order.reviewReason === STAFF_LIST_REVIEW, JSON.stringify({ reviewReason: order.reviewReason, cart }));
@@ -88,5 +117,17 @@ Promise.all([
   try { diag = readFileSync(process.env.ELVI_COUNTED_DIAG || "", "utf8"); } catch { diag = ""; }
   check("wrong-readback-scratch-diagnostic", diag.includes("staff-list-brand") && diag.includes(pepsi.id) && !/\btráeme\b/i.test(diag));
   check("c07-still-passes", c07.verdict === "pass", c07.failures?.join("; "));
+  const closingCart = closing.cart || [];
+  check("closing-staff-adds-nothing", !closingCart.some((line: any) => /birria/i.test(`${line.itemId} ${JSON.stringify(line.modifiers || [])}`)), JSON.stringify(closingCart));
+  const deniedCart = denied.cart || [];
+  check("denial-then-yes-adds-nothing", !deniedCart.some((line: any) => /birria/i.test(String(line.itemId))), JSON.stringify(deniedCart));
+  const sizedCart = sized.cart || [];
+  const sizedLine = sizedCart.find((line: any) => /birria/i.test(String(line.itemId)));
+  check("unspoken-size-holds", !!sizedLine && (sizedLine.elviNotes || []).includes("confirmar") && (sized.validation === "unresolved" || !!sized.reviewReason), JSON.stringify({ validation: sized.validation, reviewReason: sized.reviewReason, sizedCart }));
+  const ronaldCart = ronald.cart || [];
+  const platter = ronaldCart.some((line: any) => /birria-de-chivo/i.test(String(line.itemId)));
+  const queso = ronaldCart.some((line: any) => /queso-birria/i.test(String(line.itemId)));
+  check("garbled-duplicate-not-added", queso && !platter, JSON.stringify(ronaldCart.map((line: any) => line.itemId)));
+  check("c10-pickup", c10.ticket?.fulfillment === "PICKUP" && c10order.readyTime === "11:10" && !c10.failures.some((line: string) => /fulfillment/.test(line)), `${c10.failures?.join("; ")} time=${c10order.readyTime} fulfillment=${c10order.fulfillment}`);
   if (failures.length) process.exit(1);
 });

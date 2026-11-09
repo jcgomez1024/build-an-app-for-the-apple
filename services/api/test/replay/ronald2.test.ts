@@ -27,6 +27,7 @@ test("ronald2: replay → 2 QB, 3 bistec, 8 pastor", async () => {
   const r: any = await shadowOrderFromTurns(d.turns, stub());
   assert.equal(sum(r.cart, (l) => QB.test(l.itemId)), 2, JSON.stringify(r.cart));
   assert.equal(sum(r.cart, meat(/Bistec/)), 3); assert.equal(sum(r.cart, meat(/Alpastor/)), 8);
+  assert.equal(r.cart.some((l: any) => /birria-de-chivo/i.test(String(l.itemId))), false, JSON.stringify(r.cart));
 });
 test("ronald2: one person restating does not add; never lowers", () => {
   const c: any[] = [{ ...taco(4, "Alpastor / Roasted Pork") }];
