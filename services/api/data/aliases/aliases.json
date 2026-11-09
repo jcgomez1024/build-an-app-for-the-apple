@@ -252,7 +252,7 @@
     },
     {
       "id": "ful-domicilio",
-      "match": "\\b(?:para\\s+)?(?:entrega(?:r)?\\s+)?a\\s+domicilio\\b|\\bpara\\s+entrega\\b|\\bentrega\\s+a\\s+(?:la\\s+)?casa\\b",
+      "match": "\\b(?:para\\s+)?(?:entrega(?:r)?\\s+)?(?:a|hasta)\\s+domicilio\\b|\\bpara\\s+entrega\\b|\\bentrega\\s+a\\s+(?:la\\s+)?casa\\b",
       "to": "__DELIVERY__",
       "example": "es para entrega a domicilio",
       "scope": [

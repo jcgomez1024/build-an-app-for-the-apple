@@ -1197,6 +1197,26 @@ export function mergeReMentionedDrink(cart: any[], turns: Turn[]): boolean {
     if ((first.quantity || 1) === 1 && (l.quantity || 1) === 1) { cart.splice(i--, 1); ch = true; } }
   return ch;
 }
+/** A counted "una coca" the model did not ring. Bottle is a spoken note, not an ounce and not a catalog option. */
+export function addSpokenCountedCoca(cart: any[], turns: Array<{ speaker?: string; text: string }>): boolean {
+  if (cart.some((line) => /coca/i.test(String(line.itemId)) && !/diet/i.test(String(line.itemId)))) return false;
+  const caller = turns.filter((turn) => turn.speaker === "caller").map((turn) => String(turn.text || "")).join(" \n ");
+  if (/(?:aqu[ií]|ya)\s+tengo\b/iu.test(caller) && /\bcocas?\b/iu.test(caller)) return false;
+  if (/\bcocas?\b/iu.test(caller) && /\bpepsi\b/iu.test(caller) && /\b(?:no s[eé]|de los dos|o tienes)\b/iu.test(caller)) return false;
+  const orders = [...caller.matchAll(/\b(un|una|uno|dos|tres|cuatro|[1-4])\s+cocas?(?:\s+colas?)?\b/giu)];
+  if (orders.length !== 1) return false;
+  const word = orders[0][1].toLowerCase();
+  const qty = ({ un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4 } as Record<string, number>)[word] || Number(word) || 1;
+  const bottle = /\bbotellas?\b|\bbottles?\b/iu.test(caller) && !/\b(?:taparrosca|vidrio|glass)\b/iu.test(caller);
+  cart.push({
+    itemId: "sq-drink-coca-cola-JJE4KC",
+    quantity: qty,
+    modifiers: [],
+    readback: bottle ? `${qty} coca cola de botella` : `${qty} coca cola`,
+    ...(bottle ? { elviNotes: ["botella"] } : {}),
+  });
+  return true;
+}
 export function liveDrinkReMention(r: any, input: any) {
   const acts: any[] = Array.isArray(r?.actions) ? r.actions : []; const cart: any[] = input?.cart || [];
   const tx = plain(String(input?.transcript || "")); if (MORE_DRINK.test(tx) || drinkSaidMax(tx) > 1) return r;
