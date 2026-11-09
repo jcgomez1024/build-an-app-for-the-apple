@@ -522,7 +522,183 @@ function acceptedParts(turns: Turn[]): { parts: AcceptedPart[]; leaked: Set<stri
   return { parts, leaked };
 }
 
-/** A meat that appears only inside a refused availability question does not stay on the cart. Nothing else is deleted or rewritten here. */
+function scopedFamily(line: any): string | null {
+  const id = String(line?.itemId || "");
+  if (/^sq-qd-/.test(id)) return "qd";
+  if (/^sq-quesadilla-/.test(id)) return "quesadilla";
+  if (/^sq-taco-/.test(id)) return "taco";
+  if (/^sq-torta-/.test(id)) return "torta";
+  if (/horchata/i.test(id)) return "horchata";
+  if (/birria/i.test(id) && !/queso-birria|queso birria/i.test(id)) return "birria";
+  return null;
+}
+
+function nounFamily(noun: string): string | null {
+  if (/dorad/.test(noun)) return "qd";
+  if (/quesadilla/.test(noun)) return "quesadilla";
+  if (/taco/.test(noun)) return "taco";
+  if (/torta/.test(noun)) return "torta";
+  if (/gordita/.test(noun)) return "gordita";
+  return null;
+}
+
+function putMeat(line: any, meat: string, menu: any[]): boolean {
+  const item = menu.find((row) => row.id === line.itemId);
+  const group = (item?.modifierGroups || []).find((entry: any) => /carne|meat/i.test(String(entry.name || "")) && !/extra|combo/i.test(String(entry.name || "")));
+  const option = (group?.options || []).map(oname).find((name: string) => meatIn(plain(name)) === meat);
+  if (!group || !option) return false;
+  line.modifiers = [...(line.modifiers || []).filter((mod: any) => mod.step !== group.name), { step: group.name, option }];
+  return true;
+}
+
+/** A spoken meat, drink, or count stays on the dish it was said with. A second copy is not a new order. */
+export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (!Array.isArray(cart) || !menu?.length) return false;
+  type Part = { family: string; meat: string | null; qty: number; deluxe?: boolean; bound?: boolean };
+  const parts: Part[] = [];
+  let active: string | null = null;
+  let offered: string | null = null;
+  let preparada = false;
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    const text = plain(turn.text);
+    if (turn.speaker === "staff") {
+      if (/\bhorchata\b/.test(text)) offered = "horchata";
+      if (/\bplatillo\b/.test(text) && /\bbirria\b/.test(text)) offered = "birria";
+      if (/\bpreparad/.test(text) && /\?/.test(turn.text)) {
+        const next = turns.slice(i + 1).find((row) => row.speaker === "caller");
+        if (next && acceptsReadback(next.text)) preparada = true;
+      }
+      continue;
+    }
+    if (isAvailabilityAsk(turn.text)) {
+      if (/\bhorchata\b/.test(text)) offered = "horchata";
+      if (/\bbirria\b/.test(text)) offered = "birria";
+      continue;
+    }
+    if (/\bquesadillas?\s+doradas?\b|\bdoradas?\b/.test(text)) active = "qd";
+    else if (/\bquesadillas?\b/.test(text)) active = "quesadilla";
+    else if (/\btacos?\b/.test(text)) active = "taco";
+    else if (/\btortas?\b/.test(text)) active = "torta";
+    else if (/\bhorchata\b/.test(text)) active = "horchata";
+    else if (/\bplatillo\b/.test(text) && offered === "birria") active = "birria";
+    const pair = text.match(/\b(quesadilla|torta|taco|gordita)s?\s+de\s+([a-z]+)\s+y\s+(?:la\s+|el\s+)?(quesadilla|torta|taco|gordita)s?\s+de\s+([a-z]+)/);
+    if (pair) {
+      const first = meatIn(pair[2]);
+      const second = meatIn(pair[4]);
+      const left = nounFamily(pair[1]);
+      const right = nounFamily(pair[3]);
+      if (left && first) parts.push({ family: left, meat: first, qty: 1, bound: true });
+      if (right && second) parts.push({ family: right, meat: second, qty: 1, bound: true });
+    }
+    const split = text.match(/\buna\s+de\s+([a-z]+(?:\s+de\s+[a-z]+)?)\s+y\s+otra\s+de\s+([a-z]+)/);
+    if (split && (active === "qd" || active === "quesadilla")) {
+      const first = meatIn(split[1]);
+      const second = meatIn(split[2]);
+      if (first && second) {
+        parts.push({ family: active, meat: first, qty: 1, deluxe: preparada || /\bpreparad/.test(text), bound: true });
+        parts.push({ family: active, meat: second, qty: 1, deluxe: preparada || /\bpreparad/.test(text), bound: true });
+      }
+    }
+    const counted = !/\bcon\s+[a-z]+/.test(text) && !/\botra\s+de\b/.test(text)
+      ? text.match(/\b(dos|tres|cuatro|cinco|seis|\d+)\s+(?:quesadillas?\s+)?doradas?\s+de\s+([a-z]+)/)
+      : null;
+    if (counted) {
+      const meat = meatIn(counted[2]);
+      if (meat) parts.push({ family: "qd", meat, qty: numOf(counted[1]), deluxe: preparada || /\bpreparad/.test(text) });
+    }
+    const comalCount = text.match(/\b(dos|tres|cuatro|cinco|seis|unas|una|\d+)\s+quesadillas?\s+de\s+comal\s+de\s+([a-z]+)/);
+    if (comalCount) {
+      const meat = meatIn(comalCount[2]);
+      const qty = comalCount[1] === "unas" || comalCount[1] === "una" ? 1 : numOf(comalCount[1]);
+      if (meat && qty) parts.push({ family: "quesadilla", meat, qty });
+    }
+    if (/\bhorchata\b/.test(text) && /\b(?:una|un|one|dos|tres|\d+)\b/.test(text)) {
+      const qty = numOf((text.match(/\b(dos|tres|\d+)\s+horchatas?\b/) || [])[1] || "") || 1;
+      parts.push({ family: "horchata", meat: null, qty });
+    } else if ((offered === "horchata" || active === "horchata") && /\b(?:una|un|one)\b/.test(text) && !/\b(?:quesadilla|taco|torta|menudo|gordita|birria)\b/.test(text)) {
+      parts.push({ family: "horchata", meat: null, qty: 1 });
+    }
+    if (offered === "birria" && /\bplatillo\b/.test(text)) parts.push({ family: "birria", meat: null, qty: 1 });
+    if (active === "taco" && /\bdos\s+de\s+([a-z]+)/.test(text)) {
+      const meat = meatIn(text.match(/\bdos\s+de\s+([a-z]+)/)?.[1] || "");
+      if (meat) parts.push({ family: "taco", meat, qty: 2 });
+    }
+  }
+  if (preparada) for (const part of parts) if (part.family === "qd") part.deluxe = true;
+  let changed = false;
+  const seen = new Set<string>();
+  for (const part of parts) {
+    const key = `${part.family}:${part.meat || ""}:${part.qty}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (part.family === "horchata") {
+      if (cart.some((line) => scopedFamily(line) === "horchata")) continue;
+      const item = menu.find((row) => /horchata/i.test(String(row.id || row.name || "")));
+      if (!item) continue;
+      cart.push({ itemId: item.id, quantity: part.qty, modifiers: [] });
+      changed = true;
+      continue;
+    }
+    if (part.family === "birria") {
+      if (cart.some((line) => scopedFamily(line) === "birria")) continue;
+      const item = menu.find((row) => /1-lb-of-birria/.test(String(row.id || "")) && /consome/.test(String(row.id || "")) && /tortilla/.test(String(row.id || "")));
+      if (!item) continue;
+      cart.push({ itemId: item.id, quantity: 1, modifiers: [] });
+      changed = true;
+      continue;
+    }
+    const lines = cart.filter((line) => scopedFamily(line) === part.family);
+    if (part.meat && lines.some((line) => meatOfLine(line) === part.meat)) {
+      const same = lines.filter((line) => meatOfLine(line) === part.meat);
+      const host = same[0];
+      if (host && part.qty > 1 && (Number(host.quantity) || 1) === 1 && same.length === 1) {
+        host.quantity = part.qty;
+        changed = true;
+      }
+      if (same.length > 1 && part.qty > 0 && same.every((line) => (Number(line.quantity) || 1) === part.qty)) {
+        for (const extra of same.slice(1)) {
+          const at = cart.indexOf(extra);
+          if (at >= 0) cart.splice(at, 1);
+        }
+        changed = true;
+      }
+      const other = parts.find((row) => row.family === part.family && row.meat && row.meat !== part.meat);
+      if (host && other?.meat && part.deluxe && (Number(host.quantity) || 1) > 1 && !lines.some((line) => meatOfLine(line) === other.meat)) {
+        host.quantity = 1;
+        const clone = structuredClone(host);
+        clone.quantity = 1;
+        if (putMeat(clone, other.meat, menu)) { cart.push(clone); changed = true; }
+      }
+      continue;
+    }
+    const misplaced = part.meat && lines.find((line) => {
+      const meat = meatOfLine(line);
+      return !!meat && meat !== part.meat && parts.some((other) => other.family !== part.family && other.meat === meat);
+    });
+    if (misplaced && part.meat && putMeat(misplaced, part.meat, menu)) { changed = true; continue; }
+    if (!part.meat || !part.deluxe) continue;
+    const host = lines.find((line) => meatOfLine(line) === part.meat && (Number(line.quantity) || 1) > 1);
+    const other = parts.find((row) => row.family === part.family && row.meat && row.meat !== part.meat);
+    if (host && other?.meat && !lines.some((line) => meatOfLine(line) === other.meat)) {
+      host.quantity = 1;
+      const clone = structuredClone(host);
+      clone.quantity = 1;
+      if (putMeat(clone, other.meat, menu)) { cart.push(clone); changed = true; }
+    }
+  }
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const family = scopedFamily(cart[i]);
+    const meat = meatOfLine(cart[i]);
+    if (!family || !meat) continue;
+    const wanted = parts.some((part) => part.family === family && part.meat === meat);
+    const boundElsewhere = parts.some((part) => part.bound && part.family !== family && part.meat === meat);
+    if (boundElsewhere && !wanted) { cart.splice(i, 1); changed = true; }
+  }
+  return changed;
+}
+
+/** A meat that appears only inside a refused availability question does not stay on the cart. Nothing else is deleted by phrase. */
 export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], _menu: any[]): boolean {
   if (!Array.isArray(cart)) return false;
   const { leaked } = acceptedParts(turns);
@@ -1438,6 +1614,26 @@ function turnCoversLine(text: string, lineQty: number, siblingQtys: number[]): b
   return said.includes(lineQty);
 }
 
+/** A style said with no number covers the dish count already on the table, not a later separate order. */
+function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[]): number[] {
+  const here = quantitiesIn(turns[index].text);
+  if (here.length) return here;
+  for (let j = index - 1; j >= 0; j--) {
+    const named = mentionedIn(turns[j].text);
+    if (named.length && !named.some((key) => keys.includes(key))) break;
+    const qty = quantitiesIn(turns[j].text);
+    if (qty.length) return qty;
+  }
+  return [];
+}
+
+function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[]): boolean {
+  const said = quantitiesIn(text);
+  const use = said.length ? said : episode;
+  if (!use.length || !siblingQtys.some((qty) => use.includes(qty))) return true;
+  return use.includes(lineQty);
+}
+
 function wholeOrderComal(text: string): boolean {
   return /\b(?:todas|all)\b.{0,40}\b(?:comal|homemade)\b|\b(?:comal|homemade)\b.{0,40}\b(?:todas|all)\b/.test(plain(text));
 }
@@ -1469,7 +1665,8 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: bo
     const named = mentionedIn(turn.text);
     if (turn.speaker === "caller" && named.length) active = named;
     const scope = named.length ? named : active;
-    if (!scope.some((key) => keys.includes(key)) || !turnCoversLine(turn.text, lineQty, siblingQtys)) continue;
+    const episode = episodeQty(spokenTurns, i, keys, mentionedIn);
+    if (!scope.some((key) => keys.includes(key)) || !coversLine(turn.text, episode, lineQty, siblingQtys)) continue;
     if (turn.speaker === "caller") {
       if (declinesChoice(turn.text)) continue;
       if (textHitsTokens(turn.text, tokens)) return true;
@@ -1526,9 +1723,11 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
       if (houseDefaultAllows(String(item.name || ""), String(item.id || ""), String(group.name || "")) && defaults.length && selected.every(isCornDefault)) {
         if (!selected.length && !cornAlready) line.modifiers = [...(line.modifiers || []), { step: group.name, option: defaults[0] }];
         const marker = `confirmar ${group.name}`;
+        const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+        const onlyThis = before.length === 1 && before[0] === marker;
         if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
         if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
-        if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note))) delete line.validation;
+        if (onlyThis) delete line.validation;
         continue;
       }
       const names = selected.length ? selected : (group.defaultOptions || []).slice(0, 1);
@@ -1538,13 +1737,59 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
       if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
       line.validation = "unresolved";
     }
-    const drink = `${item.name || ""} ${item.id || ""}`;
-    const oz = ozOf(drink);
-    if (oz && /horchata|agua fresca|jarrito/i.test(drink) && !choiceSpoken(turns, keys, [oz, "grande", "chica", "small", "large"], combo, lineQty, siblings)) {
-      if (!(line.elviNotes || []).includes("confirmar tamaño")) line.elviNotes = [...(line.elviNotes || []), "confirmar tamaño"];
-      line.validation = "unresolved";
-    }
+    noteDrinkSize(line, item, turns, keys, menu);
   }
+}
+
+function drinkKey(item: any): string {
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  if (/horchata/.test(name)) return "horchata";
+  if (/jamaica/.test(name)) return "jamaica";
+  return name.replace(/\d+\s*oz/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function familySizes(menu: any[], item: any): string[] {
+  const key = drinkKey(item);
+  const sizes = new Set<string>();
+  for (const row of menu) {
+    if (drinkKey(row) !== key) continue;
+    const size = ozOf(`${row.name || ""} ${row.id || ""}`);
+    if (size) sizes.add(size);
+  }
+  return [...sizes];
+}
+
+function askedCup(text: string): "32oz" | "other" | null {
+  const spoken = spokenChoiceWords(text);
+  if (spoken.has("32oz") || spoken.has("grande") || spoken.has("big") || spoken.has("large")) return "32oz";
+  if (/\b(?:chica|chico|small|little|16oz|20oz)\b/.test(plain(text))) return "other";
+  return null;
+}
+
+/** One catalog size is not an unspoken choice. A size the catalog does not sell stays a mismatch. */
+function noteDrinkSize(line: any, item: any, turns: Turn[], keys: string[], menu: any[]): void {
+  const sizes = familySizes(menu, item);
+  if (sizes.length < 2) {
+    const only = sizes[0] || "";
+    let active = false;
+    for (const turn of turns) {
+      const spoken = normalizeSpoken(turn.text);
+      const named = keys.some((key) => new RegExp(`\\b${key}s?\\b`).test(spoken));
+      if (turn.speaker === "caller" && named) active = true;
+      if (turn.speaker === "caller" && dishKeysIn(spoken).length && !named) active = false;
+      if (turn.speaker !== "caller" || (!named && !active)) continue;
+      const asked = askedCup(turn.text);
+      if (asked === "other" && only === "32oz") {
+        if (!(line.elviNotes || []).includes("confirmar tamaño distinto")) line.elviNotes = [...(line.elviNotes || []), "confirmar tamaño distinto"];
+        line.validation = "unresolved";
+      }
+    }
+    return;
+  }
+  const spoken = sizes.some((size) => choiceSpoken(turns, keys, [size, "grande", "big", "large"], false));
+  if (spoken) return;
+  if (!(line.elviNotes || []).includes("confirmar tamaño")) line.elviNotes = [...(line.elviNotes || []), "confirmar tamaño"];
+  line.validation = "unresolved";
 }
 
 /** Drop a catalog add that repeats a line already on the final cart, and keep only adds that remain. */

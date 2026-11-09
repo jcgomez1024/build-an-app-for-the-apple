@@ -18,6 +18,10 @@ function normalizeName(value: string) {
 export function normalizeSpoken(value: string): string {
   let text = normalizeName(applySharedAliases(String(value || ""), "phone"));
   text = text.replace(/\benjombo\b/g, "combo");
+  text = text.replace(/\bhechas a mano\b/g, "comal").replace(/\bhecha a mano\b/g, "comal");
+  text = text.replace(/\bcarnita\b/g, "carnitas");
+  text = text.replace(/\bnuditos\b/g, "gorditas").replace(/\bgorditos\b/g, "gorditas");
+  text = text.replace(/\bcebrada\b/g, "deshebrada");
   text = text.replace(/\bcharrones\b/g, "chicharrones").replace(/\bcharron\b/g, "chicharron");
   text = text.replace(/\b(?:roast|rost|ros|rose)\b(?=\s+(?:y|con|and|e)\s+frijol)/g, "arroz");
   text = text.replace(/(\bcombo\s+(?:de|con)\s+)(?:roast|rost|ros|rose)\b/g, "$1arroz");
@@ -42,7 +46,7 @@ export function spokenChoiceWords(value: string): Set<string> {
   if (/\bmaiz\b/.test(spoken) || /\bcorn\b/.test(spoken)) add("corn", "comal", "maiz");
   if (/\bharina\b/.test(spoken) || /\bflour\b/.test(spoken)) add("harina", "flour");
   if (/\bstreet\b/.test(spoken) || /\btaquer/.test(spoken)) add("street", "taquera");
-  if (/\bgrande\b/.test(spoken) || /\blarge\b/.test(spoken)) add("grande");
+  if (/\bgrande\b/.test(spoken) || /\blarge\b/.test(spoken) || /\bbig\b/.test(spoken)) add("grande", "big", "large");
   return hits;
 }
 

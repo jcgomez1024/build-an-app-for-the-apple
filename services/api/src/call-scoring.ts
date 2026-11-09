@@ -14,7 +14,7 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applySettledQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, reconcileAcceptedDishParts, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyAffirmedStaffList, settleAffirmedAdds, noteUnspokenSize, noteUnspokenRequiredChoice, STAFF_LIST_REVIEW, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applySettledQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, reconcileAcceptedDishParts, applyDishScopedParts, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyAffirmedStaffList, settleAffirmedAdds, noteUnspokenSize, noteUnspokenRequiredChoice, STAFF_LIST_REVIEW, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -1848,10 +1848,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || pendingSmallSope;
       const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
       const meatOnly = !!(mm && !FOOD.test(text) && !dishesNamed(text).size);
+      const recentTalk = history.slice(-6).map((row) => row.text).join(" ");
+      const discussingSope = /\bsopes?(?:asos?|azos?)?\b/iu.test(`${text} ${recentTalk}`);
+      const discussingOther = !discussingSope && /\b(?:tacos?|quesadillas?|doradas?|tortas?|gorditas?|burritos?|taquer)/iu.test(`${recentTalk} ${lastStaff}`);
       if (source.startsWith("caller") && saidSope && SMALL_SOPE.test(applySharedAliases(text, "phone"))
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende|grandes?\s+o\s+chic)/iu.test(text) && !mm) {
         pendingSmallSope = true;
-      } else if (source.startsWith("caller") && saidSmall && (saidSope || meatOnly)
+      } else if (source.startsWith("caller") && saidSmall && (saidSope || (meatOnly && !discussingOther))
+        && !(cart.some((line) => kindOfItem(line.itemId) === "taco") && !saidSope)
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)/iu.test(text)
         && !acts.some((a: any) => a.type === "add_item" && /sopes[ae]so/i.test(String(a.itemId)))
         && !cart.some((l) => /sopes[ae]so/i.test(String(l.itemId)))) {
@@ -8177,7 +8181,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
   applySettledQdConTodo(cart as any[], origTurns as any);
-  if (Array.isArray(menuEnd)) reconcileAcceptedDishParts(cart as any[], origTurns as any, menuEnd as any[]);
+  if (Array.isArray(menuEnd)) {
+    reconcileAcceptedDishParts(cart as any[], origTurns as any, menuEnd as any[]);
+    applyDishScopedParts(cart as any[], origTurns as any, menuEnd as any[]);
+  }
   if (Array.isArray(menuEnd)) noteUnspokenRequiredChoice(cart as any[], origTurns as any, menuEnd as any[]);
   const clock = callerReadyTime(origTurns as any);
   if (clock) {
@@ -8200,6 +8207,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
+  else if (validation === "clear" && cart.length && !reviewReason) autoAccepted = true;
   return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",

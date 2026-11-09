@@ -207,7 +207,45 @@ function drinkSize(text: string) {
   return line.elviNotes || [];
 }
 check("spoken-ounce-size-is-not-a-hold", !drinkSize("Two 32-ounce horchatas.").some((note) => /tamaño/.test(note)) && !drinkSize("Dos horchatas de treinta y dos onzas.").some((note) => /tamaño/.test(note)));
-check("unspoken-drink-size-stays-held", drinkSize("Una horchata.").some((note) => /tamaño/.test(note)));
+check("single-size-drink-does-not-hold", !drinkSize("Una horchata.").some((note) => /tamaño/.test(note)) && !drinkSize("Un agua de jamaica.").some((note) => /tamaño/.test(note)));
+check("unavailable-drink-size-stays-a-mismatch", drinkSize("Una horchata chica.").some((note) => /tamaño distinto/.test(note)));
+check("flour-menudo-stays-held", tortillaNote(menudoLine), JSON.stringify(menudoLine.elviNotes));
+const extraReason = { itemId: menudo.id, quantity: 1, modifiers: [] as any[], elviNotes: ["confirmar (A) Menudo Tortillas", "confirmar otra cosa"], validation: "unresolved" as const };
+noteUnspokenRequiredChoice([extraReason], [{ speaker: "caller", text: "Un menudo." }], menu);
+check("menudo-validation-stays-when-another-reason-remains", extraReason.validation === "unresolved" && (extraReason.elviNotes || []).includes("confirmar otra cosa") && !tortillaNote(extraReason), JSON.stringify(extraReason));
+const handmade = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([handmade], [
+  { speaker: "caller", text: "Una quesadilla de bistec." },
+  { speaker: "staff", text: "¿De qué tortilla?" },
+  { speaker: "caller", text: "Hecha a mano." },
+], menu);
+check("hecha-a-mano-is-comal", !tortillaNote(handmade), JSON.stringify(handmade.elviNotes));
+const carnita = { itemId: taco.id, quantity: 1, modifiers: [groupOption(taco, /carne|meat/i, /carnitas/i) || tacoBistec], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([carnita], [
+  { speaker: "caller", text: "Tiene tacos, pero tortilla hecha a mano." },
+  { speaker: "caller", text: "Uno de carnita." },
+], menu);
+check("carnita-and-hecha-a-mano-clear-the-taco", !meatNote(carnita) && !tortillaNote(carnita), JSON.stringify(carnita.elviNotes));
+const nudito = { itemId: gordita.id, quantity: 1, modifiers: [gorditaBistec], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([nudito], [
+  { speaker: "caller", text: "Seis nuditos, por favor." },
+  { speaker: "caller", text: "Uno de bistec." },
+], menu);
+check("dish-alias-binds-the-meat", !meatNote(nudito), JSON.stringify(nudito.elviNotes));
+const flourA = { itemId: quesadilla.id, quantity: 1, modifiers: [groupOption(quesadilla, /tortilla/i, /harina|flour/i) || comalMod, bistecMod], elviNotes: [] as string[] };
+const flourB = { itemId: quesadilla.id, quantity: 1, modifiers: [groupOption(quesadilla, /tortilla/i, /harina|flour/i) || comalMod, pastorMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([flourA, flourB], [{ speaker: "caller", text: "Two flour quesadillas: one steak, one pastor." }], menu);
+check("split-list-covers-every-line", !tortillaNote(flourA) && !tortillaNote(flourB) && !meatNote(flourA) && !meatNote(flourB), JSON.stringify({ a: flourA.elviNotes, b: flourB.elviNotes }));
+const six = { itemId: quesadilla.id, quantity: 6, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+const laterTwo = { itemId: quesadilla.id, quantity: 2, modifiers: [comalMod, pastorMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([six, laterTwo], [
+  { speaker: "caller", text: "Seis quesadillas de bistec." },
+  { speaker: "caller", text: "De maíz." },
+  { speaker: "staff", text: "En el comal." },
+  { speaker: "caller", text: "Sí." },
+  { speaker: "caller", text: "Deme dos de pastor." },
+], menu);
+check("later-order-keeps-its-own-tortilla-hold", !tortillaNote(six) && tortillaNote(laterTwo), JSON.stringify({ six: six.elviNotes, two: laterTwo.elviNotes }));
 const garnishMenu = menu.map((item) => item.id === menudo.id ? { ...item, modifierGroups: [...(item.modifierGroups || []), { name: "(C) Menudo Garnish", minSelections: 1, maxSelections: 1, options: ["Cebolla", "Cilantro"], defaultOptions: ["Cebolla"] }] } : item);
 const garnishLine = { itemId: menudo.id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }, { step: "(C) Menudo Garnish", option: "Cebolla" }], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([garnishLine], [{ speaker: "caller", text: "Un menudo." }], garnishMenu);

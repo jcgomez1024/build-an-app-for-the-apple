@@ -154,6 +154,11 @@ export async function integrationChecks(): Promise<Check[]> {
     type: "add_item", itemId: QID, quantity: 1,
     modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }],
   }]));
+  const HOR = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+  const english = await shadowOrderFromTurns([{ speaker: "caller", text: "One steak quesadilla on a homemade tortilla, and one horchata." }] as any, askingModel([
+    { type: "add_item", itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] },
+    { type: "add_item", itemId: HOR, quantity: 1, modifiers: [] },
+  ]));
   const unknown = await shadowOrderFromTurns(turns as any, askingModel([{ type: "add_item", itemId: "sq-not-in-catalog", quantity: 1, modifiers: [] }]));
   const noMenuRun: any = async () => ({ actions: [{ type: "add_item", itemId: QID, quantity: 1, modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }] }], reply: "Listo." });
   const missingLoader = await shadowOrderFromTurns(turns as any, noMenuRun);
@@ -215,8 +220,14 @@ export async function integrationChecks(): Promise<Check[]> {
     {
       id: "shadow-valid-catalog-choices-stay-accepted",
       layer: "integration",
-      ok: valid.validation === "clear" && onMenu(valid) && !valid.reviewReason && !(valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))) && gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, cart: valid.cart }).phase === "final",
+      ok: valid.autoAccepted === true && valid.validation === "clear" && onMenu(valid) && !valid.reviewReason && !(valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))) && gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, cart: valid.cart }).phase === "final",
       detail: `auto=${valid.autoAccepted} validation=${valid.validation} reason=${valid.reviewReason || ""} lines=${(valid.cart || []).map((l: any) => `${l.itemId}:${l.validation || "ok"}:${(l.elviNotes || []).join("/")}`).join(" ; ")}`,
+    },
+    {
+      id: "shadow-english-two-line-order-finalizes-clean",
+      layer: "integration",
+      ok: english.autoAccepted === true && english.validation === "clear" && (english.cart || []).length >= 2 && !(english.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))),
+      detail: `auto=${english.autoAccepted} validation=${english.validation} lines=${(english.cart || []).map((l: any) => l.itemId).join(",")}`,
     },
     {
       id: "ticket-does-not-invent-confirmar-on-valid-line",
