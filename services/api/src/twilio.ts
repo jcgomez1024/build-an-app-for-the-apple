@@ -27,6 +27,28 @@ import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, 
 import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu } from "./offline-evidence.js";
 export { recoveryAcceptance, attachRecoveryMenu };
 
+/** Ticket loaded from this process's scratch store, then the same recovery gate upsertTicket uses. */
+export function recoverStoredTicket(callSid: string) {
+  const ticket = ticketsByCall.get(callSid) || null;
+  const recovery = recoveryAcceptance(ticket ? {
+    requestedPhase: ticket.phase,
+    reviewReason: ticket.reviewReason,
+    validation: ticket.reviewReason ? "unresolved" as const : (ticket.phase === "listening" ? "empty" as const : "clear" as const),
+    cart: ticket.lines || [],
+    autoAccepted: false,
+    statusCall: ticket.phase === "listening",
+    squareRef: ticket.squareRef,
+    explicitApproval: ticket.explicitlyApproved === true,
+  } : null);
+  return {
+    found: !!ticket,
+    phase: ticket?.phase ?? null,
+    acceptance: ticket?.acceptance ?? null,
+    reviewReason: ticket?.reviewReason ?? null,
+    recovery,
+  };
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
 dotenv.config({ path: path.join(apiRoot, ".env.twilio") });

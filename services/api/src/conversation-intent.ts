@@ -49,6 +49,8 @@ export type IntentMenuItem = {
   name?: string;
   nameEs?: string;
   aliases?: string[];
+  /** Catalog variation label. Matching uses this, not the id text. */
+  variationName?: string;
   soldOut?: boolean;
   available?: boolean;
   unavailable?: boolean;
@@ -151,11 +153,27 @@ function unavailable(item: IntentMenuItem): boolean {
   return item.soldOut === true || item.available === false || item.unavailable === true;
 }
 
+const STAFF_UNAVAILABLE = /\bno (?:tenemos|hay|esta)\b|\bnot available\b|\bsold out\b|\bwe don t have\b|\bno esta disponible\b/;
+const VARIATION_QUALIFIER = new Set(["diet", "zero", "cero", "regular", "grande", "chica", "chico", "large", "small"]);
+
 function declineOf(staff: string[], item: IntentMenuItem): boolean {
   const folded = staff.map(fold);
   return folded.some((text) => {
-    if (!/\bno (?:tenemos|hay|esta)\b|\bnot available\b|\bsold out\b|\bwe don t have\b|\bno esta disponible\b/.test(text)) return false;
+    if (!STAFF_UNAVAILABLE.test(text)) return false;
     return namesOf(item).some((name) => significant(name).some((token) => hasWord(text, token)));
+  });
+}
+
+/** Staff said this variation is out. A qualifier in the staff sentence has to be this variation's qualifier. */
+function staffDeclinedVariation(staff: string[], item: IntentMenuItem): boolean {
+  if (unavailable(item)) return true;
+  const label = item.variationName || item.name || "";
+  const quals = significant(label).filter((token) => VARIATION_QUALIFIER.has(token));
+  return staff.map(fold).some((text) => {
+    if (!STAFF_UNAVAILABLE.test(text)) return false;
+    const said = [...VARIATION_QUALIFIER].filter((token) => heard(text, token));
+    if (said.length && !said.every((token) => quals.includes(token))) return false;
+    return significant(label).some((token) => heard(text, token));
   });
 }
 
@@ -913,6 +931,159 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
   // A turn with no add leaves no witness, including when the caller keeps this same cart.
   if (!decision?.actions?.some((action) => action.type === "add_item")) recordAppliedRequest(input.cart, []);
   return decision;
+}
+
+export type CountedLine = {
+  itemId: string;
+  quantity: number;
+  modifiers: Array<{ step: string; option: string }>;
+  readback: string;
+  recovered: true;
+  elviNotes: string[];
+};
+
+export type CountedReconciliation = {
+  lines: CountedLine[];
+  reviewReason: string | null;
+  reply: string;
+};
+
+function catalogLabels(item: IntentMenuItem): string[] {
+  return [item.variationName, item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
+}
+
+function heard(phrase: string, token: string): boolean {
+  if (hasWord(phrase, token)) return true;
+  return token === "diet" && hasWord(phrase, "dieta");
+}
+
+function contentTokens(rest: string): string[] {
+  return significant(rest).map((token) => (token === "dieta" ? "diet" : token));
+}
+
+function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es" {
+  if (turn.language === "en" || turn.language === "es") return turn.language;
+  const text = fold(turn.text);
+  const english = (text.match(/\b(?:the|please|with|and|without|coke|one|two)\b/g) || []).length;
+  const spanish = (text.match(/\b(?:una|uno|con|para|por|favor|gracias|quesadilla)\b/g) || []).length;
+  return english > spanish ? "en" : "es";
+}
+
+function countedSentences(text: string): string[] {
+  return String(text || "").split(/[.?!¡¿]+/).map((part) => fold(part).trim()).filter(Boolean);
+}
+
+function exactLabel(label: string, content: string[]): boolean {
+  if (!content.every((token) => heard(label, token))) return false;
+  const quals = significant(label).filter((token) => VARIATION_QUALIFIER.has(token));
+  return quals.every((token) => content.includes(token));
+}
+
+function exactItems(menu: IntentMenuItem[], content: string[]): IntentMenuItem[] {
+  const byVariation = menu.filter((item) => item.variationName && !/^regular$/i.test(item.variationName) && exactLabel(item.variationName, content));
+  if (byVariation.length) return byVariation;
+  return menu.filter((item) => [item.name, item.nameEs].some((label) => !!label && exactLabel(label, content)));
+}
+
+function sharesContent(item: IntentMenuItem, content: string[]): boolean {
+  return catalogLabels(item).some((label) => content.some((token) => heard(label, token)));
+}
+
+function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: string[]): boolean {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  if (!item) return false;
+  const needed = content.filter((token) => !VARIATION_QUALIFIER.has(token));
+  const quals = content.filter((token) => VARIATION_QUALIFIER.has(token));
+  if (!needed.length) return false;
+  return catalogLabels(item).some((label) => heard(label, needed[0]) && quals.every((token) => heard(label, token)));
+}
+
+function unspokenSize(item: IntentMenuItem, phrase: string): boolean {
+  const label = fold(item.variationName || "");
+  if (!label) return false;
+  if (/\d/.test(label) && !/\d/.test(phrase)) return true;
+  return significant(label).some((token) => SIZE_WORD.has(token) && !heard(phrase, token));
+}
+
+function requiredOpen(item: IntentMenuItem, phrase: string): boolean {
+  const options = spokenOptions(item, phrase);
+  if (options === "ambiguous") return true;
+  return (item.modifierGroups || []).some((group) => (group.minSelections || 0) >= 1 && !options.some((option) => option.step === group.name));
+}
+
+/**
+ * A counted request the cart does not already contain.
+ * Names and variation labels only. One exact catalog row can be recovered for confirmation.
+ * Anything else stays a review reason in the call's language. No invented SKU or option.
+ */
+export function reconcileCountedRequests(
+  cart: Array<{ itemId: string; quantity?: number; elviNotes?: string[] }>,
+  turns: Array<{ speaker?: string; text: string; language?: string }>,
+  menu: IntentMenuItem[],
+): CountedReconciliation {
+  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "" };
+  const file = loadConversationIntent();
+  if (!file || !menu?.length) return empty;
+  const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
+  const caller = turns.filter((turn) => turn.speaker === "caller");
+  const lines: CountedLine[] = [];
+  const reviews: string[] = [];
+  let reply = "";
+  const working = cart.map((line) => ({ itemId: line.itemId }));
+  for (const turn of caller) {
+    const language = sentenceLanguage(turn);
+    for (const sentence of countedSentences(turn.text)) {
+      if (isAvailability(sentence, file)) continue;
+      let body = sentence.replace(/^(?:y|and|also|tambien)\s+/, "");
+      const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
+      if (verb) body = body.slice(verb.length).trim();
+      if (file.replacementCues.some((cue) => sentence.startsWith(fold(cue))) || /^(?:instead of|en vez de|replace|cambia|cambio)\b/.test(sentence)) continue;
+      const taken = takeQuantity(body, file);
+      if (!taken.quantity || taken.unclear) continue;
+      const content = contentTokens(taken.rest);
+      if (!content.length) continue;
+      if (working.some((line) => lineCovers(line, menu, content))) continue;
+      const exact = exactItems(menu, content);
+      const named = exact.length === 1 ? exact[0] : null;
+      if (named && significant(named.variationName || named.name || "").some((token) => tokenNegated(sentence, token))) continue;
+      if (named && staffDeclinedVariation(staff, named)) {
+        const phrase = taken.rest;
+        const reason = language === "es"
+          ? `Pedido contado sin resolver: ${phrase}. No está disponible y no lo agregué.`
+          : `Unresolved counted request: ${phrase}. It is not available, so I did not add it.`;
+        reviews.push(reason);
+        reply = reason;
+        continue;
+      }
+      if (!named || requiredOpen(named, taken.rest) || unspokenSize(named, taken.rest)) {
+        if (!menu.some((item) => sharesContent(item, content))) continue;
+        const phrase = taken.rest;
+        const reason = language === "es"
+          ? `Pedido contado sin resolver: ${phrase}. No lo agregué.`
+          : `Unresolved counted request: ${phrase}. I did not add it.`;
+        reviews.push(reason);
+        reply = reason;
+        continue;
+      }
+      const note = language === "es" ? `Recuperado, hay que confirmar: ${taken.quantity} ${named.variationName || named.name || named.nameEs}.` : `Recovered, needs confirmation: ${taken.quantity} ${named.variationName || named.name || named.nameEs}.`;
+      lines.push({
+        itemId: named.id,
+        quantity: taken.quantity,
+        modifiers: [],
+        readback: note,
+        recovered: true,
+        elviNotes: ["confirmar"],
+      });
+      working.push({ itemId: named.id });
+      reviews.push(note);
+      reply = note;
+    }
+  }
+  if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part) && !takeQuantity(part, file).quantity))) {
+    lines[0].elviNotes.push("botella");
+  }
+  if (!lines.length && !reviews.length) return empty;
+  return { lines, reviewReason: reviews[0] || null, reply };
 }
 
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {
