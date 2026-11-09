@@ -45,6 +45,15 @@ const cases = [
   run("hold-lengua", [{ speaker: "caller", text: "Dos tacos de lengua.", language: "es" }], phone, [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ option: "Pastor / Pork" }] }]),
   run("hold-comal", [{ speaker: "caller", text: "Una quesadilla de comal.", language: "es" }], phone, [{ itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ option: "(QHR) Quesadilla Harina / Flour" }] }]),
   run("exact-lengua", [{ speaker: "caller", text: "Dos tacos de lengua.", language: "es" }], phone, [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ option: "Lengua / Beef Tongue" }] }]),
+  run("split-lengua", [{ speaker: "caller", text: "Cuatro tacos de lengua.", language: "es" }], phone, [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ option: "Lengua / Beef Tongue" }] },
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ option: "Lengua / Beef Tongue" }] },
+  ]),
+  run("aceite-dorada", [{ speaker: "caller", text: "Dos quesadillas en aceite.", language: "es" }], phone, [{ itemId: phone.find((item) => /quesadilla/i.test(item.name) && /dorada/i.test(item.name))?.id, quantity: 2 }]),
+  run("h03-es", [
+    { speaker: "caller", text: "Dos tacos taqueros de bistec.", language: "es" },
+    { speaker: "caller", text: "Cambia la primera línea. De pollo, no de bistec.", language: "es" },
+  ], phone, [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ option: "Pollo / Chicken" }] }]),
   run("diet", [{ speaker: "caller", text: "Una coca diet.", language: "es" }], phone),
   run("zero", [{ speaker: "caller", text: "Una coca zero.", language: "es" }], phone),
   run("beside-diet", [{ speaker: "caller", text: "Una coca.", language: "es" }], phone, [{ itemId: coke("diet").id, quantity: 1 }]),
@@ -97,6 +106,9 @@ const checks: Record<string, boolean> = {
   "hold-lengua": cases.find((row) => row.id === "hold-lengua")!.lines.length === 0 && cases.find((row) => row.id === "hold-lengua")!.reviewReason === "revisar pedido contado",
   "hold-comal": cases.find((row) => row.id === "hold-comal")!.lines.length === 0 && cases.find((row) => row.id === "hold-comal")!.reviewReason === "revisar pedido contado",
   "exact-lengua": cases.find((row) => row.id === "exact-lengua")!.lines.length === 0 && !cases.find((row) => row.id === "exact-lengua")!.reviewReason,
+  "split-lengua": cases.find((row) => row.id === "split-lengua")!.lines.length === 0 && !cases.find((row) => row.id === "split-lengua")!.reviewReason,
+  "aceite-dorada": cases.find((row) => row.id === "aceite-dorada")!.lines.length === 0 && !cases.find((row) => row.id === "aceite-dorada")!.reviewReason,
+  "h03-es": cases.find((row) => row.id === "h03-es")!.lines.length === 0 && !cases.find((row) => row.id === "h03-es")!.reviewReason,
   "printed-restriction": printedOnion.some((line) => line.notes.filter((note) => note === "sin cebolla").length === 1 && !line.notes.includes("confirmar")),
   "printed-deluxe-once": printedDeluxe.some((line) => line.notes.filter((note) => /crema/i.test(note)).length === 1),
   "phone-only-prices": phone.find((item) => item.squareVariationId === "PYTW56MHJJGL6JKTZGSXGVWQ")?.priceCents === 1000 && phone.find((item) => item.squareVariationId === "QGR5AQTWVHNW347NOPAKX44U")?.priceCents === 400,
@@ -125,6 +137,12 @@ const productionGate = {
   frozen_menu_not_attached: prod.reviewReason === "confirmar menú: missing" && prod.lines === 0 && !existsSync(prodTrace),
 };
 checks["production-cannot-trace-or-attach-menu"] = productionGate.frozen_menu_not_attached;
+const accept = execFileSync("npx", ["tsx", "test/offline/accept-shortcut.ts"], {
+  cwd: "/agent/repos/build-an-app-for-the-apple/services/api",
+  encoding: "utf8",
+  env: { ...process.env, NODE_ENV: "test", ELVI_CALL_LOG_DIR: "/tmp/elvi-accept-shortcut", ELVI_CALLERS_FILE: "/tmp/elvi-accept-shortcut/callers.json" },
+});
+checks["accept-shortcut"] = /PASS accept-shortcut/.test(accept);
 const body = {
   sha: execSync("git rev-parse HEAD", { cwd: "/agent/repos/build-an-app-for-the-apple" }).toString().trim(),
   variation_name_source: "frozenPhoneMenu copies sku.name onto variationName while building the committed site-catalog menu. Reconciliation reads that field. It does not look up a Square id again.",
