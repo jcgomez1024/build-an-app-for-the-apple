@@ -1,7 +1,7 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { frozenPhoneMenu, frozenPhoneMenuAllowed } from "./phone-menu.js";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
 import { applySharedAliases } from "./aliases.js";
@@ -881,10 +881,59 @@ export function mixMeats(acts: any[], text: string) {
 
 function noteTrace(order: any, extra: Record<string, unknown>) {
   if (process.env.NODE_ENV !== "test") return order;
+  noteReplayRow(order, extra);
   const file = process.env.ELVI_RECONCILE_TRACE || "";
   if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return order;
   try { appendFileSync(file, JSON.stringify({ test: process.argv[1] || "", ...extra }) + "\n"); } catch { /* test log only */ }
   return order;
+}
+
+const replaySeq = new Map<string, number>();
+let replayFixture: { test: string; id: string } | null = null;
+
+function replayTranscriptId(testPath: string): string {
+  if (replayFixture?.test === testPath) return replayFixture.id;
+  let id = (testPath.split("/").pop() || "replay").replace(/\.test\.ts$/, "");
+  try {
+    const source = readFileSync(testPath, "utf8");
+    const fixture = source.match(/fixtures\/([A-Za-z0-9_-]+)/);
+    const call = source.match(/\bCA[0-9a-f]{8,}\b/);
+    id = fixture?.[1]?.replace(/-turns$/, "") || call?.[0] || id;
+  } catch { /* the test path is the id */ }
+  replayFixture = { test: testPath, id };
+  return id;
+}
+
+/** One row per shadow call. Fixture or call id, phase, reason kinds, item names and notes. No caller text and no phone numbers. */
+function noteReplayRow(order: any, extra: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "test") return;
+  const file = process.env.ELVI_REPLAY_ROWS || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return;
+  const testPath = process.argv[1] || "";
+  const id = replayTranscriptId(testPath);
+  const n = (replaySeq.get(id) || 0) + 1;
+  replaySeq.set(id, n);
+  const cart = Array.isArray(order?.cart) ? order.cart : [];
+  const confirmOnLine = cart.some((line: any) => (line?.elviNotes || []).some((note: string) => /^confirmar\b/i.test(String(note))));
+  const reviewReasons: string[] = [];
+  const reason = String(order?.reviewReason || "");
+  if (reason === "revisar pedido contado") reviewReasons.push("revisar pedido contado");
+  if (confirmOnLine || /^confirmar\b/i.test(reason)) reviewReasons.push(/^confirmar\b/i.test(reason) ? reason : "confirmar");
+  if (order?.pending?.accommodation || /^unresolved accommodation\b/.test(reason)) reviewReasons.push("accommodation");
+  const phase = order?.statusCall || order?.noOrder ? "listening" : (reviewReasons.length || order?.validation === "unresolved" ? "review" : (cart.length ? "final" : "listening"));
+  const lines = (Array.isArray(extra.replayLines) ? extra.replayLines : cart.map((line: any) => ({
+    name: null,
+    quantity: Number(line?.quantity) || 1,
+    notes: [...(line?.elviNotes || [])].map(String),
+  }))).map((line: any) => ({
+    name: line.name ?? null,
+    quantity: Number(line.quantity) || 1,
+    notes: [...(line.notes || [])].map(String).filter((note: string) => !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(note)),
+  }));
+  const diagnostic = Array.isArray(extra.diagnostic) ? extra.diagnostic.map(String) : [];
+  try {
+    appendFileSync(file, JSON.stringify({ id, seq: n, phase, reviewReasons, lines, diagnostic }) + "\n");
+  } catch { /* test log only */ }
 }
 
 /** Staff diagnostic. Item ids and a kind only. Never a caller sentence, and never outside a test scratch path. */
@@ -1028,7 +1077,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         transcript: text, language, menu, history, cart, discussedTexts,
         staffTexts: turns.filter((t) => t.speaker === "staff").map((t) => t.text),
       }) : null;
-      if (decision && decision.kind === "accept" && !FOOD.test(text) && !dishesNamed(text).size) {
+      const recentDish = [...dishesNamed(history.filter((h) => h.role === "customer").slice(-4).map((h) => h.text).join(" "))].some((kind) => !cart.some((line) => kindOfItem(line.itemId) === kind));
+      if (decision && decision.kind === "accept" && !FOOD.test(text) && !dishesNamed(text).size && !recentDish) {
         const intentReply = { reply: decision.reply, actions: decision.actions, language };
         history.push({ role: "customer", text }, { role: "assistant", text: decision.reply });
         apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
@@ -8042,6 +8092,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
     reviewReason,
     countedReview: counted.reviewReason,
+    diagnostic: counted.diagnostics.map((row) => row.kind),
+    replayLines: (cart as any[]).map((line) => ({
+      name: (Array.isArray(menuEnd) ? menuEnd : []).find((item: any) => item.id === line.itemId)?.name || null,
+      quantity: Number(line.quantity) || 1,
+      notes: [...(line.elviNotes || [])].map(String),
+    })),
   });
 }
 
