@@ -1205,7 +1205,7 @@ function cocaKind(phrase: string): "regular" | "diet" | "zero" | "other" {
   return "regular";
 }
 function skuSlug(item: any): string {
-  return foldDrink(String(item?.id || "")).replace(/^sq-/, "").replace(/-[a-z0-9]{6}$/, "");
+  return foldDrink(String(item?.id || item?.itemId || "")).replace(/^sq-/, "").replace(/-[a-z0-9]{6}$/, "");
 }
 function skuMatches(item: any, kind: "regular" | "diet" | "zero"): boolean {
   const slug = skuSlug(item);
