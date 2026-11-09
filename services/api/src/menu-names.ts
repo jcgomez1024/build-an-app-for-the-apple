@@ -1,3 +1,5 @@
+import { applySharedAliases } from "./aliases.js";
+
 // One spoken name for a catalog row. Runtime Square menus and the frozen phone menu both use it.
 // Phone-only rows are the in-store variations already listed in this file. No network and no POS fetch.
 
@@ -10,6 +12,15 @@ export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: stri
 
 function normalizeName(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/** ASR and alias fold used before a required choice is compared with what was said. */
+export function normalizeSpoken(value: string): string {
+  let text = normalizeName(applySharedAliases(String(value || ""), "phone"));
+  text = text.replace(/\benjombo\b/g, "combo");
+  text = text.replace(/\b(?:roast|rost|ros|rose)\b(?=\s+(?:y|con|and|e)\s+frijol)/g, "arroz");
+  text = text.replace(/(\bcombo\s+(?:de|con)\s+)(?:roast|rost|ros|rose)\b/g, "$1arroz");
+  return text.replace(/\s+/g, " ").trim();
 }
 
 export function isDrinkProduct(productName: string): boolean {

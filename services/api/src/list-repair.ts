@@ -1,4 +1,5 @@
-import { catalogMentions, matchSpokenCatalog, nameRelation, spokenSizeWords } from "./menu-names.js";
+import { houseDefaultAllows } from "./house-defaults.js";
+import { catalogMentions, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenSizeWords } from "./menu-names.js";
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -424,6 +425,201 @@ function dropDeclinedOffers(cart: any[], turns: Turn[]): boolean {
   }
   return changed;
 }
+function meatsInText(text: string): string[] {
+  const spoken = plain(text);
+  return MEATS.filter(([re]) => re.test(spoken)).map(([, key]) => key);
+}
+
+function lineFamily(line: any): string | null {
+  const id = String(line?.itemId || "");
+  if (/^sq-qd-/.test(id)) return "qd";
+  if (/^sq-quesadilla-/.test(id)) return "quesadilla";
+  if (/^sq-taco-/.test(id)) return "taco";
+  if (/^sq-torta-/.test(id)) return "torta";
+  if (/horchata/i.test(id)) return "horchata";
+  return null;
+}
+
+function familyInClause(text: string): string | null {
+  const spoken = plain(text);
+  if (/\bquesadillas?\b/.test(spoken) && /\b(?:dorad|aceite|frit)/.test(spoken)) return "qd";
+  if (/\bdoradas?\b/.test(spoken) && !/\btacos?\b/.test(spoken)) return "qd";
+  if (/\bquesadillas?\b|\bquesas?\b/.test(spoken)) return "quesadilla";
+  if (/\btacos?\b/.test(spoken)) return "taco";
+  if (/\btortas?\b/.test(spoken) && !/\btortillas?\b/.test(spoken)) return "torta";
+  if (/\bhorchatas?\b/.test(spoken)) return "horchata";
+  return null;
+}
+
+function qtyBeforeDish(text: string, family: string): number | null {
+  const spoken = plain(text);
+  const noun = family === "qd" ? "quesadillas?|doradas?" : family === "quesadilla" ? "quesadillas?|quesas?" : family === "taco" ? "tacos?" : family === "torta" ? "tortas?" : "horchatas?";
+  const wrapped = spoken.match(new RegExp(`\\b(?:una|un)\\s+de\\s+(${NUMW})\\s+(?:${noun})\\b`));
+  if (wrapped) return numOf(wrapped[1]) || null;
+  const direct = spoken.match(new RegExp(`\\b(${NUMW})\\s+(?:${noun})\\b`));
+  return direct ? numOf(direct[1]) || null : null;
+}
+
+type AcceptedPart = { family: string; qty: number; meat: string | null };
+
+function acceptedParts(turns: Turn[]): { parts: AcceptedPart[]; leaked: Set<string> } {
+  const leaked = new Set<string>();
+  const ordered = new Set<string>();
+  const parts: AcceptedPart[] = [];
+  let replacing = false;
+  let carryFamily: string | null = null;
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    if (turn.speaker === "staff" && /\botra vez\b|\brepite|\bde nuevo\b/.test(plain(turn.text))) { replacing = true; continue; }
+    if (turn.speaker !== "caller" || callerDeclines(turn.text)) continue;
+    if (isAvailabilityAsk(turn.text)) {
+      if (askRefused(turns, i)) for (const meat of meatsInText(turn.text)) leaked.add(meat);
+      continue;
+    }
+    const clauses = plain(turn.text).split(/,|\by\b/);
+    let lastFamily: string | null = carryFamily;
+    const fresh: AcceptedPart[] = [];
+    for (const clause of clauses) {
+      const family = familyInClause(clause) || lastFamily;
+      if (familyInClause(clause)) { lastFamily = family; carryFamily = family; }
+      const meats = meatsInText(clause);
+      for (const meat of meats) ordered.add(meat);
+      if (!family) continue;
+      const qty = qtyBeforeDish(clause, family) || (/\botra\b|\buna\b|\buno\b/.test(clause) && meats.length ? 1 : null);
+      if (meats.length > 1) {
+        const each = (qty || meats.length) === meats.length ? 1 : (qty || 1);
+        for (const meat of meats) fresh.push({ family, qty: each, meat });
+      } else fresh.push({ family, qty: qty || 1, meat: meats[0] || null });
+    }
+    const both = plain(turn.text).match(/\b(?:los|las)\s+dos\s+de\s+([a-z]+)/);
+    if (both && lastFamily) {
+      const meat = meatIn(both[1]);
+      if (meat) {
+        for (let at = parts.length - 1; at >= 0; at--) if (parts[at].family === lastFamily) parts.splice(at, 1);
+        parts.push({ family: lastFamily, qty: 2, meat });
+        ordered.add(meat);
+        carryFamily = lastFamily;
+        continue;
+      }
+    }
+    const split = plain(turn.text).match(/\buna\s+de\s+([a-z]+)\s+y\s+otra\s+de\s+([a-z]+)/);
+    if (split && lastFamily) {
+      const first = meatIn(split[1]);
+      const second = meatIn(split[2]);
+      if (first && second) {
+        fresh.length = 0;
+        fresh.push({ family: lastFamily, qty: 1, meat: first }, { family: lastFamily, qty: 1, meat: second });
+        ordered.add(first); ordered.add(second);
+      }
+    }
+    if (!fresh.length) continue;
+    if (replacing) {
+      for (const part of fresh) {
+        const at = parts.findIndex((row) => row.family === part.family && row.meat === part.meat);
+        if (at >= 0) parts[at] = part;
+        else if (!parts.some((row) => row.family === part.family)) parts.push(part);
+      }
+      replacing = false;
+      continue;
+    }
+    for (const part of fresh) {
+      const same = parts.find((row) => row.family === part.family && row.meat === part.meat);
+      if (same) same.qty = Math.max(same.qty, part.qty);
+      else parts.push(part);
+    }
+  }
+  for (const meat of ordered) leaked.delete(meat);
+  return { parts, leaked };
+}
+
+function setLineMeat(line: any, meat: string, menu: any[]): boolean {
+  const item = menu.find((row) => row.id === line.itemId);
+  const group = (item?.modifierGroups || []).find((entry: any) => /carne|meat/i.test(entry.name) && !/extra|combo/i.test(entry.name));
+  const option = (group?.options || []).map(oname).find((name: string) => meatIn(plain(name)) === meat);
+  if (!group || !option) return false;
+  line.modifiers = [...(line.modifiers || []).filter((mod: any) => mod.step !== group.name), { step: group.name, option }];
+  return true;
+}
+
+/** A mention fills a dish only when that dish was newly accepted. A retake does not add a second copy. */
+export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (!Array.isArray(cart) || !cart.length && !menu?.length) return false;
+  const { parts, leaked } = acceptedParts(turns);
+  let changed = false;
+  const preparada = turns.some((turn, index) => {
+    if (!/\bpreparad|\bdeluxe\b|\bcon todo\b/.test(plain(turn.text))) return false;
+    if (turn.speaker === "caller" && /\b(?:dorad|quesadilla)/.test(plain(turn.text))) return true;
+    if (turn.speaker !== "staff") return false;
+    const next = turns.slice(index + 1).find((row) => row.speaker === "caller");
+    return !!next && acceptsReadback(next.text);
+  });
+  const makeDeluxe = (line: any) => {
+    if (!/^sq-qd-/.test(String(line.itemId))) return;
+    line.itemId = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+    line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+  };
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const line = cart[i];
+    const meat = meatOfLine(line);
+    if (!meat || !leaked.has(meat)) continue;
+    const family = lineFamily(line);
+    if (parts.some((part) => part.family === family && part.meat === meat)) continue;
+    cart.splice(i, 1);
+    changed = true;
+  }
+  const families = [...new Set(parts.map((part) => part.family))];
+  for (const family of families) {
+    const wanted = parts.filter((part) => part.family === family && part.meat);
+    const lines = cart.filter((line) => lineFamily(line) === family);
+    if (!wanted.length || !lines.length) continue;
+    if (wanted.length === 1) {
+      const meat = wanted[0].meat;
+      const keep = lines.find((row) => meatOfLine(row) === meat) || lines[0];
+      if ((Number(keep.quantity) || 1) !== wanted[0].qty) { keep.quantity = wanted[0].qty; changed = true; }
+      const current = meatOfLine(keep);
+      const belongsElsewhere = !!current && parts.some((part) => part.meat === current && part.family !== family);
+      if (meat && current !== meat && (!current || belongsElsewhere || leaked.has(current)) && setLineMeat(keep, meat, menu)) changed = true;
+      for (const extra of lines) {
+        if (extra === keep) continue;
+        const extraMeat = meatOfLine(extra);
+        const ownedElsewhere = !!extraMeat && parts.some((part) => part.meat === extraMeat && part.family !== family);
+        if (extraMeat === meat || ownedElsewhere || !extraMeat) {
+          const at = cart.indexOf(extra);
+          if (at >= 0) { cart.splice(at, 1); changed = true; }
+        }
+      }
+    }
+    if (wanted.length > 1) {
+      const spare = [...lines];
+      for (const part of wanted) {
+        let line = spare.find((row) => meatOfLine(row) === part.meat) || spare[0];
+        if (!line) {
+          line = structuredClone(lines[0]);
+          cart.push(line);
+          changed = true;
+        } else spare.splice(spare.indexOf(line), 1);
+        if (meatOfLine(line) !== part.meat && setLineMeat(line, part.meat!, menu)) changed = true;
+        if ((Number(line.quantity) || 1) !== part.qty) { line.quantity = part.qty; changed = true; }
+        if (family === "qd" && preparada) makeDeluxe(line);
+      }
+      for (const extra of spare) {
+        const at = cart.indexOf(extra);
+        if (at >= 0) { cart.splice(at, 1); changed = true; }
+      }
+    }
+    const bound = parts.filter((part) => part.family === family && part.meat);
+    if (bound.length === 1 && lines.length === 1 && meatOfLine(lines[0]) && meatOfLine(lines[0]) !== bound[0].meat && leaked.has(meatOfLine(lines[0])!)) {
+      if (setLineMeat(lines[0], bound[0].meat!, menu)) changed = true;
+    }
+  }
+  const drink = turns.find((turn, index) => turn.speaker === "staff" && /\bhorchata\b/i.test(turn.text) && turns.slice(0, index).some((row) => row.speaker === "caller" && isAvailabilityAsk(row.text) && /horchata/i.test(row.text) && !askRefused(turns, turns.indexOf(row))));
+  if (drink && menu?.length && !cart.some((line) => lineFamily(line) === "horchata")) {
+    const item = menu.find((row) => /horchata/i.test(String(row.id || row.name || "")));
+    if (item) { cart.push({ itemId: item.id, quantity: 1, modifiers: [] }); changed = true; }
+  }
+  return changed;
+}
+
 /** Drop cart lines for a declined availability ask ("¿tiene tacos dorados?" → "No"). "Quería eso" is not a reorder. */
 export function dropDeclinedAsk(cart: any[], turns: Turn[]): boolean {
   if (!Array.isArray(cart)) return false;
@@ -1273,62 +1469,86 @@ function tokensHit(text: string, tokens: string[]): boolean {
   return tokens.some((token) => hits.has(token));
 }
 
-/** A required default is spoken when this dish's turn, or a staff choice the caller accepts, names it. */
-function choiceSpoken(turns: Turn[], keys: string[], tokens: string[]): boolean {
-  if (!keys.length) return tokensHit(turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "), tokens);
-  for (let i = 0; i < turns.length; i++) {
-    const turn = turns[i];
-    const parts = plain(turn.text).split(/,|\by\b/);
+function lineChoiceKeys(item: any): string[] {
+  const keys = dishKeysIn(`${item?.name || ""} ${item?.id || ""}`);
+  for (const word of normalizeSpoken(String(item?.name || "")).split(" ")) {
+    if (word.length >= 5 && !CHOICE_STOP.has(word)) keys.push(word.replace(/s$/, ""));
+  }
+  if (/combo/i.test(`${item?.name || ""} ${item?.id || ""}`)) keys.push("combo");
+  return [...new Set(keys)];
+}
+
+function acceptsReadback(text: string): boolean {
+  const spoken = normalizeSpoken(text);
+  if (/\b(?:pero|cambia|falta|wrong)\b/.test(spoken)) return false;
+  if (/^(?:si|yes|yeah|ok|okay|claro|andale|exactamente|correcto|va|perfecto)\b/.test(spoken)) return true;
+  return /\b(?:seria todo|eso es todo|es todo|that s all|that s it|nada mas)\b/.test(spoken);
+}
+
+function optionChoiceTokens(name: string, options: string[]): string[] {
+  const mine = choiceTokens(normalizeSpoken(name));
+  const shared = mine.filter((token) => options.every((option) => choiceTokens(normalizeSpoken(option)).includes(token)));
+  const distinctive = mine.filter((token) => !shared.includes(token));
+  return distinctive.length ? distinctive : mine;
+}
+
+function textHitsTokens(text: string, tokens: string[]): boolean {
+  const spoken = normalizeSpoken(text);
+  if (tokensHit(spoken, tokens)) return true;
+  const words = new Set(spoken.split(" ").filter(Boolean));
+  return tokens.some((token) => words.has(token) || words.has(`${token}s`) || (token.endsWith("s") && words.has(token.slice(0, -1))) || (token.endsWith("es") && words.has(token.slice(0, -2))));
+}
+
+/** Caller speech, or a staff readback the next caller accepts, including a closing. */
+function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: boolean): boolean {
+  if (!tokens.length) return true;
+  const spokenTurns = turns.map((turn) => ({ ...turn, text: normalizeSpoken(turn.text) }));
+  if (!keys.length) return spokenTurns.some((turn) => turn.speaker === "caller" && textHitsTokens(turn.text, tokens));
+  const mentionedIn = (text: string) => {
+    const found = [...dishKeysIn(text), ...(combo && /\bcombo\b/.test(text) ? ["combo"] : [])];
+    for (const key of keys) if (new RegExp(`\\b${key}s?\\b`).test(text)) found.push(key);
+    return [...new Set(found)];
+  };
+  let carry: string[] = [];
+  for (let i = 0; i < spokenTurns.length; i++) {
+    const turn = spokenTurns[i];
+    const parts = turn.text.split(/,|\by\b/);
     if (turn.speaker === "caller") {
-      let carry: string[] = [];
       for (const part of parts) {
-        const mentioned = dishKeysIn(part);
+        const mentioned = mentionedIn(part);
         if (mentioned.length) carry = mentioned;
         const scope = mentioned.length ? mentioned : carry;
-        if (scope.some((key) => keys.includes(key)) && tokensHit(part, tokens)) return true;
+        if (scope.some((key) => keys.includes(key)) && textHitsTokens(part, tokens)) return true;
       }
       continue;
     }
-    if (!tokensHit(turn.text, tokens)) continue;
-    const next = turns.slice(i + 1).find((row) => row.speaker === "caller");
-    if (!next || !cleanYes(next.text)) continue;
-    const staffKeys = dishKeysIn(turn.text);
-    const prev = [...turns.slice(0, i)].reverse().find((row) => row.speaker === "caller");
-    const scope = staffKeys.length ? staffKeys : (prev ? dishKeysIn(prev.text) : []);
-    if (scope.some((key) => keys.includes(key))) return true;
+    const mentioned = mentionedIn(turn.text);
+    if (mentioned.length) carry = mentioned;
+    const scope = mentioned.length ? mentioned : carry;
+    if (!scope.some((key) => keys.includes(key)) || !textHitsTokens(turn.text, tokens)) continue;
+    const next = spokenTurns.slice(i + 1).find((row) => row.speaker === "caller");
+    if (next && acceptsReadback(next.text)) return true;
   }
   return false;
 }
 
-function isDefaultOption(chosen: string[], defaults: string[]): boolean {
-  return chosen.length > 0 && chosen.every((name) => defaults.some((def) => {
-    const left = plain(name);
-    const right = plain(def);
-    return left === right || left.startsWith(right) || right.startsWith(left);
-  }));
-}
-
-/** A line whose required choices are all catalog defaults is held when nobody named that default. A chosen meat or side keeps the line. An empty required group is already held. */
+/** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */
 export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
-    const keys = dishKeysIn(item?.name || "");
-    const groups = (item?.modifierGroups || []).filter((group: any) => (group.minSelections ?? 0) >= 1);
-    const filled = groups.map((group: any) => {
+    if (!item) continue;
+    const keys = lineChoiceKeys(item);
+    const combo = keys.includes("combo");
+    for (const group of item.modifierGroups || []) {
+      if ((group.minSelections ?? 0) < 1) continue;
       const options = (group.options || []).map((option: any) => typeof option === "string" ? option : option?.name || "").filter(Boolean);
+      if (options.length < 2) continue;
+      if (houseDefaultAllows(String(item.name || ""), String(item.id || ""), String(group.name || ""))) continue;
       const selected = (line.modifiers || []).filter((mod: any) => plain(mod.step || "") === plain(group.name || "")).map((mod: any) => String(mod.option || ""));
-      return { group, options, selected, defaults: group.defaultOptions || [] };
-    }).filter((row: any) => row.selected.length);
-    if (!filled.length || filled.some((row: any) => !isDefaultOption(row.selected, row.defaults))) continue;
-    for (const row of filled) {
-      if (row.options.length < 2 || !row.defaults.length || !isDefaultOption(row.selected, row.defaults)) continue;
-      const tokens = [...new Set(row.selected.flatMap((name: string) => {
-        const mine = choiceTokens(name);
-        const shared = mine.filter((token) => row.options.every((option: string) => choiceTokens(option).includes(token)));
-        return mine.filter((token) => !shared.includes(token));
-      }))];
-      if (!tokens.length || choiceSpoken(turns, keys, tokens)) continue;
-      const marker = `confirmar ${row.group.name}`;
+      const names = selected.length ? selected : (group.defaultOptions || []).slice(0, 1);
+      const tokens = [...new Set(names.flatMap((name: string) => optionChoiceTokens(name, options)))];
+      if (choiceSpoken(turns, keys, tokens, combo)) continue;
+      const marker = `confirmar ${group.name}`;
       if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
       line.validation = "unresolved";
     }
@@ -2954,8 +3174,13 @@ function asDeluxeDorada(line: any): void {
   line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
 }
 function laterChoseRegular(turns: Turn[], index: number): boolean {
-  const later = plain(turns.slice(index + 1).filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "));
-  return /\bno\b.{0,40}\bregulares?\b/.test(later) || /\bregulares?\b.{0,20}\bno\b/.test(later);
+  return turns.slice(index + 1).some((turn) => {
+    if (turn.speaker !== "caller") return false;
+    const spoken = plain(turn.text);
+    if (/\b(?:coca|dieta|pepsi|horchata|jamaica|soda)\b/.test(spoken) && !/\b(?:dorad|quesadilla)\b/.test(spoken)) return false;
+    const aboutThis = /\b(?:dorad|quesadilla)\b/.test(spoken) || /^(?:no[, ]+)?regulares?\b/.test(spoken);
+    return aboutThis && /\bno\b/.test(spoken) && /\bregulares?\b/.test(spoken);
+  });
 }
 /** Post-settle con todo. Only the lines that turn named. No readable meat upgrades one in-scope regular dorada, otherwise it holds. A later "no, regular" stays regular. */
 export function applySettledQdConTodo(cart: any[], turns: Turn[]): boolean {
