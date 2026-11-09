@@ -668,6 +668,7 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
     const markers = dishNamed.map((row) => ({ family: row.family, at: text.indexOf(row.family === "qd" ? "dorad" : row.family) })).filter((row) => row.at >= 0).sort((a, b) => a.at - b.at);
     const conMeat = meats.some((meat) => new RegExp(`\\bcon\\s+${meat.meat}\\b`).test(text));
     const asking = /[?¿]/.test(turn.text);
+    const droppedLater = (family: string) => turns.slice(i + 1).some((row) => row.speaker === "caller" && plain(row.text).includes(family) && namedDishes(row.text).some((hit) => hit.family !== family));
     if (markers.length && meats.length && !conMeat && !asking) {
       const grouped = new Map<string, string[]>();
       for (const meat of meats) {
@@ -691,10 +692,10 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
       parts.push({ family: specific.family, meat: meats[0].meat, qty, deluxe: specific.family === "qd" && deluxe, turn: i });
     } else if (meats.length === 1 && active && qty > 1 && !conMeat && !asking && parts.some((part) => part.family === active && part.meat === meats[0].meat)) {
       parts.push({ family: active, meat: meats[0].meat, qty, deluxe: active === "qd" && deluxe, turn: i });
-    } else if (!meats.length && counts.length === 1 && counts[0] <= 10 && text.split(" ").length <= 8 && offered && (offered.family === "birria" || isDrinkProduct(String(menu.find((row) => row.id === offered.itemId)?.name || ""))) && !/^no\b/.test(text) && !named.some((row) => row.family !== offered.family)) {
+    } else if (!meats.length && counts.length === 1 && counts[0] <= 10 && text.split(" ").length <= 8 && offered && (offered.family === "birria" || (isDrinkProduct(String(menu.find((row) => row.id === offered.itemId)?.name || "")) && !droppedLater(offered.family))) && !/^no\b/.test(text) && !named.some((row) => row.family !== offered.family)) {
       parts.push({ family: offered.family, meat: null, qty: counts[0] || 1, itemId: offered.itemId, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
       offered = null;
-    } else if (!meats.length && named.length === 1 && named[0].drink && counts.length && text.includes(named[0].family)) {
+    } else if (!meats.length && named.length === 1 && named[0].drink && counts.length && text.includes(named[0].family) && !droppedLater(named[0].family)) {
       parts.push({ family: named[0].family, meat: null, qty: counts[counts.length - 1] || 1, itemId: named[0].id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
     }
     offered = null;
