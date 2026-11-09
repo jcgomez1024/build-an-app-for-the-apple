@@ -946,7 +946,7 @@ export type CountedLine = {
 export type CountedClosure = { target: string; kind: "withdrawal" | "negation" | "replacement" };
 
 export type CountedDiagnostic = {
-  kind: "recovered" | "ambiguous" | "no-stock" | "unresolved";
+  kind: "recovered" | "ambiguous" | "no-stock" | "unresolved" | "off-menu";
   itemIds: string[];
   quantity: number;
 };
@@ -1145,34 +1145,67 @@ function lineText(line: { itemId: string; modifiers?: Array<{ option?: string }>
   return `${catalogLabels(item).join(" ")} ${mods}`;
 }
 
+function styleHeard(token: string, text: string): boolean {
+  if (heard(text, token)) return true;
+  return token === "aceite" && heard(text, "dorada");
+}
+
 function lineMatches(request: { content: string[]; size: string | null }, text: string): boolean {
   const family = familyTokens(request.content);
   if (!family.length || !family.some((token) => heard(text, token))) return false;
   const meats = request.content.filter((token) => MEAT.has(token));
   if (meats.some((token) => !heard(text, token))) return false;
-  const styles = request.content.filter((token) => DISH_STYLE.has(token));
-  if (styles.some((token) => !heard(text, token))) return false;
+  const styles = request.content.filter((token) => DISH_STYLE.has(token) || token === "aceite");
+  if (styles.some((token) => !styleHeard(token, text))) return false;
   if (request.size && sizeOf(text) !== request.size) return false;
   return true;
 }
 
-/** A request is covered only by lines not already claimed, and only when spoken meat, style, and size match. */
+/** Matching catalog lines cover a request when their quantity is at least the request. Claimed units are not reused. */
 function coveredByFamily(
   requests: Array<{ quantity: number; content: string[]; size: string | null }>,
   cart: Array<{ itemId: string; quantity?: number; modifiers?: Array<{ option?: string }> }>,
   menu: IntentMenuItem[],
 ): Set<number> {
-  const pools = cart.map((line) => ({ text: lineText(line, menu), left: Number(line.quantity) || 1, claimed: false })).filter((pool) => pool.text);
+  const pools = cart.map((line) => ({ text: lineText(line, menu), left: Number(line.quantity) || 1 })).filter((pool) => pool.text);
   const covered = new Set<number>();
   requests.forEach((request, index) => {
-    const matches = pools.filter((pool) => !pool.claimed && pool.left > 0 && lineMatches(request, pool.text as string));
-    const exact = matches.find((pool) => pool.left === request.quantity);
-    if (exact) { exact.claimed = true; exact.left = 0; covered.add(index); return; }
-    if (!matches.length || matches.reduce((sum, pool) => sum + pool.left, 0) !== request.quantity) return;
-    for (const pool of matches) { pool.claimed = true; pool.left = 0; }
+    const matches = pools.filter((pool) => pool.left > 0 && lineMatches(request, pool.text as string));
+    if (matches.reduce((sum, pool) => sum + pool.left, 0) < request.quantity) return;
+    let need = request.quantity;
+    for (const pool of matches) {
+      const take = Math.min(pool.left, need);
+      pool.left -= take;
+      need -= take;
+      if (!need) break;
+    }
     covered.add(index);
   });
   return covered;
+}
+
+function offMenuIds(
+  request: { content: string[] },
+  cart: Array<{ itemId: string }>,
+  menu: IntentMenuItem[],
+): string[] {
+  const family = familyTokens(request.content);
+  if (!family.length) return [];
+  const ids: string[] = [];
+  for (const line of cart) {
+    if (menu.some((item) => item.id === line.itemId)) continue;
+    const segments = String(line.itemId || "").toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 4);
+    if (family.some((token) => segments.some((segment) => sameStem(segment, token)))) ids.push(String(line.itemId));
+  }
+  return ids;
+}
+
+function correctionCloses(sentence: { text: string; question: boolean }, content: string[]): boolean {
+  if (sentence.question) return false;
+  const text = sentence.text;
+  if (!/\b(?:cambia(?:r|me)?|mejor|en vez de|instead of)\b/.test(text) && !/\bno de\b/.test(text)) return false;
+  const marked = content.filter((token) => MEAT.has(token) || DISH_STYLE.has(token));
+  return marked.some((token) => tokenNegated(text, token));
 }
 
 function cleanPhrase(phrase: string): string {
@@ -1220,7 +1253,7 @@ export function reconcileCountedRequests(
   });
   const closures: CountedClosure[] = [];
   const open = requests.filter((request) => {
-    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content, sentence.question)).find((closure) => closure);
+    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content, sentence.question) || (correctionCloses(sentence, request.content) ? { target: request.content.join(" "), kind: "replacement" as const } : null)).find((closure) => closure);
     if (!later) return true;
     closures.push(later);
     return false;
@@ -1232,6 +1265,15 @@ export function reconcileCountedRequests(
   const working = cart.map((line) => ({ itemId: line.itemId }));
   open.forEach((request, index) => {
     if (already.has(index)) return;
+    const offMenu = offMenuIds(request, cart, menu);
+    const onMenuFamily = cart.some((line) => {
+      const text = lineText(line, menu);
+      return !!text && familyTokens(request.content).some((token) => heard(text, token));
+    });
+    if (offMenu.length && !onMenuFamily) {
+      diagnostics.push({ kind: "off-menu", itemIds: offMenu.slice(0, 8), quantity: request.quantity });
+      return;
+    }
     const exact = exactItems(menu, request.content, request.size);
     const named = exact.length === 1 ? exact[0] : null;
     if (named && staffDeclinedVariation(staff, named)) {
