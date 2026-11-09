@@ -541,76 +541,124 @@ function setLineMeat(line: any, meat: string, menu: any[]): boolean {
   return true;
 }
 
+function makeDeluxe(line: any): void {
+  if (!/^sq-qd-/.test(String(line.itemId))) return;
+  line.itemId = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+  line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+}
+
 /** A mention fills a dish only when that dish was newly accepted. A retake does not add a second copy. */
 export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (!Array.isArray(cart) || !cart.length && !menu?.length) return false;
-  const { parts, leaked } = acceptedParts(turns);
+  if (!Array.isArray(cart)) return false;
+  const { leaked } = acceptedParts(turns);
   let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const meat = meatOfLine(cart[i]);
+    if (meat && leaked.has(meat)) { cart.splice(i, 1); changed = true; }
+  }
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const spoken = plain(turn.text);
+    const pair = spoken.match(/\b(?:la|el)\s+(quesadilla|torta|taco)s?\s+de\s+([a-z]+)\s+y\s+(?:la|el)\s+(quesadilla|torta|taco)s?\s+de\s+([a-z]+)/);
+    if (!pair) continue;
+    const slots = [[pair[1], meatIn(pair[2])], [pair[3], meatIn(pair[4])]] as Array<[string, string | null]>;
+    for (const [noun, meat] of slots) {
+      if (!meat) continue;
+      const family = noun.startsWith("torta") ? "torta" : noun.startsWith("taco") ? "taco" : "quesadilla";
+      const line = cart.find((row) => lineFamily(row) === family);
+      const other = slots.find((slot) => slot[0] !== noun)?.[1];
+      if (line && other && meatOfLine(line) === other && setLineMeat(line, meat, menu)) changed = true;
+    }
+  }
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const spoken = plain(turn.text);
+    const wrapped = spoken.match(/\b(?:una|un)\s+de\s+(dos|tres|cuatro|cinco|\d+)\s+(quesadillas?|doradas?|tacos?|tortas?)\b/);
+    if (!wrapped) continue;
+    const qty = numOf(wrapped[1]);
+    const family = /dorad|quesadilla/.test(wrapped[2]) && /dorad/.test(spoken) ? "qd" : /torta/.test(wrapped[2]) ? "torta" : /taco/.test(wrapped[2]) ? "taco" : "quesadilla";
+    const line = cart.find((row) => lineFamily(row) === family);
+    if (line && qty > 1 && (Number(line.quantity) || 1) === 1) { line.quantity = qty; changed = true; }
+  }
   const preparada = turns.some((turn, index) => {
-    if (!/\bpreparad|\bdeluxe\b|\bcon todo\b/.test(plain(turn.text))) return false;
+    if (!/\bpreparad|\bdeluxe\b/.test(plain(turn.text))) return false;
     if (turn.speaker === "caller" && /\b(?:dorad|quesadilla)/.test(plain(turn.text))) return true;
     if (turn.speaker !== "staff") return false;
     const next = turns.slice(index + 1).find((row) => row.speaker === "caller");
     return !!next && acceptsReadback(next.text);
   });
-  const makeDeluxe = (line: any) => {
-    if (!/^sq-qd-/.test(String(line.itemId))) return;
-    line.itemId = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
-    line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+  const repeated = turns.some((turn) => turn.speaker === "staff" && /\botra vez\b|\brepite|\bde nuevo\b/.test(plain(turn.text)));
+  if (repeated) {
+    for (let i = cart.length - 1; i >= 0; i--) {
+      const line = cart[i];
+      if (!/^sq-qd-.*regular/i.test(String(line.itemId))) continue;
+      const meat = meatOfLine(line);
+      if (cart.some((row) => row !== line && /^sq-qd-.*deluxe|preparada/i.test(String(row.itemId)) && meatOfLine(row) === meat)) {
+        cart.splice(i, 1); changed = true;
+      }
+    }
+  }
+  if (turns.some((turn) => turn.speaker === "caller" && /\buna\s+de\s+[a-z]+\s+y\s+otra\s+de\s+[a-z]+/.test(plain(turn.text)))) {
+    const split = plain(turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" ")).match(/\buna\s+de\s+([a-z]+)\s+y\s+otra\s+de\s+([a-z]+)/);
+    const first = split && meatIn(split[1]);
+    const second = split && meatIn(split[2]);
+    const lines = cart.filter((line) => lineFamily(line) === "qd" && meatOfLine(line) === first);
+    if (first && second && lines.length && !cart.some((line) => lineFamily(line) === "qd" && meatOfLine(line) === second)) {
+      const host = lines[0];
+      if ((Number(host.quantity) || 1) > 1) host.quantity = 1;
+      const clone = structuredClone(host);
+      if (setLineMeat(clone, second, menu)) {
+        clone.quantity = 1;
+        if (preparada) { makeDeluxe(host); makeDeluxe(clone); }
+        cart.push(clone);
+        changed = true;
+      }
+    }
+  }
+  const mentions = new Map<string, { family: string; qty: number; n: number }>();
+  for (const turn of turns) {
+    if (turn.speaker !== "caller" || isAvailabilityAsk(turn.text) || callerDeclines(turn.text)) continue;
+    for (const clause of plain(turn.text).split(/,|\by\b/)) {
+      const family = familyInClause(clause);
+      const meat = meatsInText(clause)[0];
+      if (!family || !meat) continue;
+      const key = `${family}:${meat}`;
+      const qty = qtyBeforeDish(clause, family) || 1;
+      const have = mentions.get(key);
+      if (have) have.n += 1;
+      else mentions.set(key, { family, qty, n: 1 });
+    }
+  }
+  const styleFor = (meat: string) => {
+    let comal = false;
+    let dorada = false;
+    for (const turn of turns) {
+      if (turn.speaker !== "caller") continue;
+      const spoken = plain(turn.text);
+      if (!meatsInText(spoken).includes(meat)) continue;
+      if (/\b(?:dorad|aceite|frit|preparad|con todo)/.test(spoken)) dorada = true;
+      else if (/\bcomal\b|\bmasa\b/.test(spoken)) comal = true;
+    }
+    return { comal, dorada };
   };
   for (let i = cart.length - 1; i >= 0; i--) {
     const line = cart[i];
     const meat = meatOfLine(line);
-    if (!meat || !leaked.has(meat)) continue;
-    const family = lineFamily(line);
-    if (parts.some((part) => part.family === family && part.meat === meat)) continue;
-    cart.splice(i, 1);
-    changed = true;
+    if (!meat || lineFamily(line) !== "qd") continue;
+    const style = styleFor(meat);
+    if (style.comal && !style.dorada) { cart.splice(i, 1); changed = true; }
   }
-  const families = [...new Set(parts.map((part) => part.family))];
-  for (const family of families) {
-    const wanted = parts.filter((part) => part.family === family && part.meat);
-    const lines = cart.filter((line) => lineFamily(line) === family);
-    if (!wanted.length || !lines.length) continue;
-    if (wanted.length === 1) {
-      const meat = wanted[0].meat;
-      const keep = lines.find((row) => meatOfLine(row) === meat) || lines[0];
-      if ((Number(keep.quantity) || 1) !== wanted[0].qty) { keep.quantity = wanted[0].qty; changed = true; }
-      const current = meatOfLine(keep);
-      const belongsElsewhere = !!current && parts.some((part) => part.meat === current && part.family !== family);
-      if (meat && current !== meat && (!current || belongsElsewhere || leaked.has(current)) && setLineMeat(keep, meat, menu)) changed = true;
-      for (const extra of lines) {
-        if (extra === keep) continue;
-        const extraMeat = meatOfLine(extra);
-        const ownedElsewhere = !!extraMeat && parts.some((part) => part.meat === extraMeat && part.family !== family);
-        if (extraMeat === meat || ownedElsewhere || !extraMeat) {
-          const at = cart.indexOf(extra);
-          if (at >= 0) { cart.splice(at, 1); changed = true; }
-        }
-      }
+  for (const [key, mention] of mentions) {
+    if (mention.n !== 1) continue;
+    const meat = key.slice(key.indexOf(":") + 1);
+    const same = cart.filter((line) => lineFamily(line) === mention.family && meatOfLine(line) === meat);
+    if (same.length < 2) continue;
+    same[0].quantity = mention.qty;
+    for (const extra of same.slice(1)) {
+      const at = cart.indexOf(extra);
+      if (at >= 0) cart.splice(at, 1);
     }
-    if (wanted.length > 1) {
-      const spare = [...lines];
-      for (const part of wanted) {
-        let line = spare.find((row) => meatOfLine(row) === part.meat) || spare[0];
-        if (!line) {
-          line = structuredClone(lines[0]);
-          cart.push(line);
-          changed = true;
-        } else spare.splice(spare.indexOf(line), 1);
-        if (meatOfLine(line) !== part.meat && setLineMeat(line, part.meat!, menu)) changed = true;
-        if ((Number(line.quantity) || 1) !== part.qty) { line.quantity = part.qty; changed = true; }
-        if (family === "qd" && preparada) makeDeluxe(line);
-      }
-      for (const extra of spare) {
-        const at = cart.indexOf(extra);
-        if (at >= 0) { cart.splice(at, 1); changed = true; }
-      }
-    }
-    const bound = parts.filter((part) => part.family === family && part.meat);
-    if (bound.length === 1 && lines.length === 1 && meatOfLine(lines[0]) && meatOfLine(lines[0]) !== bound[0].meat && leaked.has(meatOfLine(lines[0])!)) {
-      if (setLineMeat(lines[0], bound[0].meat!, menu)) changed = true;
-    }
+    changed = true;
   }
   const drink = turns.find((turn, index) => turn.speaker === "staff" && /\bhorchata\b/i.test(turn.text) && turns.slice(0, index).some((row) => row.speaker === "caller" && isAvailabilityAsk(row.text) && /horchata/i.test(row.text) && !askRefused(turns, turns.indexOf(row))));
   if (drink && menu?.length && !cart.some((line) => lineFamily(line) === "horchata")) {
