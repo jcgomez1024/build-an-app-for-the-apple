@@ -149,7 +149,8 @@ export async function integrationChecks(): Promise<Check[]> {
   const noteSquareMatch = (twilio as { noteSquareMatch?: Function }).noteSquareMatch;
   const turns = [{ speaker: "caller" as const, text: "Una quesadilla." }];
   const missing = await shadowOrderFromTurns(turns as any, askingModel([{ type: "add_item", itemId: QID, quantity: 1, modifiers: [] }]));
-  const valid = await shadowOrderFromTurns(turns as any, askingModel([{
+  const spoken = [{ speaker: "caller" as const, text: "Una quesadilla de bistec de comal." }];
+  const valid = await shadowOrderFromTurns(spoken as any, askingModel([{
     type: "add_item", itemId: QID, quantity: 1,
     modifiers: [{ step: TORT, option: QCO }, { step: CARN, option: BISTEC }],
   }]));
@@ -212,15 +213,15 @@ export async function integrationChecks(): Promise<Check[]> {
       detail: missingBlob.slice(0, 400),
     },
     {
-      id: "shadow-unspoken-required-choice-holds",
+      id: "shadow-valid-catalog-choices-stay-accepted",
       layer: "integration",
-      ok: valid.autoAccepted === false && valid.validation === "unresolved" && onMenu(valid) && (valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /confirmar /.test(note))),
-      detail: `auto=${valid.autoAccepted} validation=${valid.validation} lines=${(valid.cart || []).map((l: any) => `${l.itemId}:${l.validation || "ok"}:${(l.elviNotes || []).join("/")}`).join(" ; ")}`,
+      ok: valid.validation === "clear" && onMenu(valid) && !valid.reviewReason && !(valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))) && gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, cart: valid.cart }).phase === "final",
+      detail: `auto=${valid.autoAccepted} validation=${valid.validation} reason=${valid.reviewReason || ""} lines=${(valid.cart || []).map((l: any) => `${l.itemId}:${l.validation || "ok"}:${(l.elviNotes || []).join("/")}`).join(" ; ")}`,
     },
     {
-      id: "ticket-marks-unspoken-required-choice",
+      id: "ticket-does-not-invent-confirmar-on-valid-line",
       layer: "integration",
-      ok: /confirmar /.test(validBlob) && /Quesadilla/.test(validBlob),
+      ok: !/confirmar /.test(validBlob) && /Quesadilla/.test(validBlob),
       detail: validBlob.slice(0, 400),
     },
     {

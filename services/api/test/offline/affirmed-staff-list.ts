@@ -1,8 +1,9 @@
 // Affirmed staff lists may add a missing line. They never overwrite or delete a caller line.
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
+import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
-import { applyAffirmedStaffList, applySettledQdConTodo, noteUnspokenRequiredChoice, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
@@ -118,6 +119,122 @@ noteUnspokenRequiredChoice([fajitaLine], [
   { speaker: "caller", text: "Si." },
 ], menu);
 check("fajita-unspoken-tortilla-holds", (fajitaLine.elviNotes || []).some((note) => /tortilla/i.test(note)) && !(fajitaLine.elviNotes || []).some((note) => /lado|side/i.test(note)), JSON.stringify(fajitaLine.elviNotes));
+
+function groupOption(item: any, groupRe: RegExp, optionRe: RegExp) {
+  const group = (item?.modifierGroups || []).find((entry: any) => groupRe.test(String(entry.name || "")));
+  const option = (group?.options || []).map((entry: any) => typeof entry === "string" ? entry : entry?.name).find((name: string) => optionRe.test(String(name || "")));
+  return group && option ? { step: group.name, option } : null;
+}
+function meatNote(line: any) {
+  return (line.elviNotes || []).some((note: string) => /carne|meat/i.test(note));
+}
+function tortillaNote(line: any) {
+  return (line.elviNotes || []).some((note: string) => /tortilla/i.test(note));
+}
+const burrito = menu.find((item) => item.id === "sq-burrito-TGWBEN");
+const gordita = menu.find((item) => item.id === "sq-gordita-M647RE");
+const menudo = menu.find((item) => /menudo/i.test(item.name) && /tortilla/i.test(JSON.stringify(item.modifierGroups || [])));
+const pastorMod = groupOption(quesadilla, /carne|meat/i, /alpastor|pastor/i);
+const duroMod = groupOption(menu.find((item) => item.id === regularDorada), /carne|meat/i, /duro/i);
+const comalMod = groupOption(quesadilla, /tortilla/i, /comal|homemade/i);
+const tacoComal = groupOption(taco, /tortilla/i, /comal|homemade/i);
+const burritoPastor = groupOption(burrito, /carne|meat/i, /alpastor|pastor/i);
+const gorditaPastor = groupOption(gordita, /carne|meat/i, /alpastor|pastor/i);
+const gorditaBistec = groupOption(gordita, /carne|meat/i, /bistec|steak/i);
+const tacoBistec = groupOption(taco, /carne|meat/i, /bistec|steak/i);
+if (!pastorMod || !duroMod || !comalMod || !tacoComal || !burritoPastor || !gorditaPastor || !gorditaBistec || !tacoBistec || !menudo) {
+  throw new Error("phone menu is missing a choice used by the spoken-option checks");
+}
+const duroLine = { itemId: regularDorada, quantity: 1, modifiers: [regularStyle, duroMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([duroLine], [
+  { speaker: "caller", text: "Quiero una dorada." },
+  { speaker: "caller", text: "De duro." },
+], menu);
+check("duro-without-a-dish-word-binds-to-the-dorada", !meatNote(duroLine), JSON.stringify(duroLine.elviNotes));
+const covered = [1, 2].map(() => ({ itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] }));
+noteUnspokenRequiredChoice(covered, [
+  { speaker: "caller", text: "Dos quesadillas de bistec." },
+  { speaker: "caller", text: "Todas de comal." },
+], menu);
+check("comal-once-covers-every-quesadilla", covered.every((line) => !tortillaNote(line)), JSON.stringify(covered.map((line) => line.elviNotes)));
+const coveredTacos = [1, 2].map(() => ({ itemId: taco.id, quantity: 2, modifiers: [tacoComal, tacoBistec], elviNotes: [] as string[] }));
+noteUnspokenRequiredChoice(coveredTacos, [
+  { speaker: "caller", text: "Cuatro tacos de asada." },
+  { speaker: "staff", text: "¿De comal o de harina?" },
+  { speaker: "caller", text: "De comal." },
+], menu);
+check("one-comal-answer-covers-every-taco", coveredTacos.every((line) => !tortillaNote(line) && !meatNote(line)), JSON.stringify(coveredTacos.map((line) => line.elviNotes)));
+const homemadeLine = { itemId: quesadilla.id, quantity: 2, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([homemadeLine], [
+  { speaker: "caller", text: "Two quesadillas." },
+  { speaker: "staff", text: "Street or homemade?" },
+  { speaker: "caller", text: "Homemade." },
+], menu);
+check("homemade-after-a-tortilla-question-is-comal", !tortillaNote(homemadeLine), JSON.stringify(homemadeLine.elviNotes));
+const pastorForms = [
+  ["alpastor-maps-to-pastor", quesadilla.id, pastorMod, "Una quesadilla de Alpastor."],
+  ["al-pastor-maps-to-pastor", gordita.id, gorditaPastor, "Una gordita de al pastor."],
+  ["el-pastor-maps-to-pastor", burrito.id, burritoPastor, "A burrito of El Pastor."],
+] as const;
+for (const [name, itemId, mod, text] of pastorForms) {
+  const line = { itemId, quantity: 1, modifiers: [mod], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [{ speaker: "caller", text }], menu);
+  check(name, !meatNote(line), JSON.stringify(line.elviNotes));
+}
+const asadaLine = { itemId: taco.id, quantity: 4, modifiers: [tacoBistec], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([asadaLine], [{ speaker: "caller", text: "Cuatro tacos de asada." }], menu);
+check("asada-maps-to-bistec", !meatNote(asadaLine), JSON.stringify(asadaLine.elviNotes));
+const menudoFlour = groupOption(menudo, /tortilla/i, /harina|flour/i);
+const menudoLine = { itemId: menudo.id, quantity: 1, modifiers: menudoFlour ? [menudoFlour] : [], elviNotes: [] as string[] };
+const askedQuesadilla = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([menudoLine, askedQuesadilla], [
+  { speaker: "caller", text: "Un menudo." },
+  { speaker: "caller", text: "Y una quesadilla de bistec." },
+  { speaker: "staff", text: "¿De maíz en el comal?" },
+  { speaker: "caller", text: "Sí, por favor." },
+], menu);
+check("staff-question-does-not-clear-another-dish", tortillaNote(menudoLine) && !tortillaNote(askedQuesadilla), JSON.stringify({ menudo: menudoLine.elviNotes, quesadilla: askedQuesadilla.elviNotes }));
+const cornMenudo = { itemId: menudo.id, quantity: 1, modifiers: [] as any[], elviNotes: ["confirmar (A) Menudo Tortillas"], validation: "unresolved" };
+flagUnresolvedRequired([cornMenudo], menu, "ok");
+noteUnspokenRequiredChoice([cornMenudo], [{ speaker: "caller", text: "Un menudo." }], menu);
+const cornGate = gateTicketAcceptance({ requestedPhase: "final", autoAccepted: false, validation: orderValidation([cornMenudo]), cart: [cornMenudo] });
+check("menudo-corn-default-finalizes-clean", cornGate.phase === "final" && orderValidation([cornMenudo]) === "clear" && (cornMenudo.modifiers || []).some((mod: any) => /corn/i.test(mod.option) && /comal/i.test(mod.option)) && !tortillaNote(cornMenudo), JSON.stringify({ phase: cornGate.phase, validation: orderValidation([cornMenudo]), mods: cornMenudo.modifiers, notes: cornMenudo.elviNotes }));
+const garnishMenu = menu.map((item) => item.id === menudo.id ? { ...item, modifierGroups: [...(item.modifierGroups || []), { name: "(C) Menudo Garnish", minSelections: 1, maxSelections: 1, options: ["Cebolla", "Cilantro"], defaultOptions: ["Cebolla"] }] } : item);
+const garnishLine = { itemId: menudo.id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }, { step: "(C) Menudo Garnish", option: "Cebolla" }], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([garnishLine], [{ speaker: "caller", text: "Un menudo." }], garnishMenu);
+check("other-menudo-groups-still-hold", !tortillaNote(garnishLine) && (garnishLine.elviNotes || []).some((note) => /Garnish/i.test(note)), JSON.stringify(garnishLine.elviNotes));
+const staffSize = { itemId: burrito.id, quantity: 2, modifiers: [groupOption(burrito, /size/i, /grande/i) || burritoPastor, groupOption(burrito, /carne|meat/i, /lengua/i) || burritoPastor].filter(Boolean), elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([staffSize], [
+  { speaker: "caller", text: "Two burritos with lengua." },
+  { speaker: "staff", text: "I put grande," },
+  { speaker: "caller", text: "And two green sauces, please." },
+], menu);
+check("staff-only-size-stays-held", (staffSize.elviNotes || []).some((note) => /size/i.test(note)), JSON.stringify(staffSize.elviNotes));
+const readback = { itemId: burrito.id, quantity: 2, modifiers: [groupOption(burrito, /carne|meat/i, /bistec|steak/i) || burritoPastor], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([readback], [
+  { speaker: "caller", text: "Two burritos." },
+  { speaker: "staff", text: "Steak." },
+  { speaker: "caller", text: "Yep." },
+], menu);
+check("yep-accepts-a-steak-readback", !meatNote(readback), JSON.stringify(readback.elviNotes));
+const unnamed = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+const namedEight = { itemId: quesadilla.id, quantity: 8, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([unnamed, namedEight], [
+  { speaker: "caller", text: "I need two of the quesadilla." },
+  { speaker: "staff", text: "So two orders." },
+  { speaker: "caller", text: "Yep." },
+  { speaker: "caller", text: "I need eight of your steak quesadillas." },
+], menu);
+check("quesadillas-without-a-named-meat-stay-held", meatNote(unnamed) && !meatNote(namedEight), JSON.stringify({ unnamed: unnamed.elviNotes, eight: namedEight.elviNotes }));
+const keptPair = [
+  { itemId: regularDorada, quantity: 1, modifiers: [regularStyle, bistecMod] },
+  { itemId: deluxeDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, bistecMod] },
+];
+reconcileAcceptedDishParts(keptPair, [
+  { speaker: "caller", text: "Una dorada regular de bistec y una dorada preparada de bistec." },
+  { speaker: "staff", text: "Repite la orden." },
+], menu);
+check("retake-keeps-regular-and-deluxe-of-the-same-meat", keptPair.length === 2 && keptPair[0].itemId === regularDorada && keptPair[1].itemId === deluxeDorada);
 check("staff-clock-is-not-ready-time", callerReadyTime([{ speaker: "staff", text: "cerramos a las nueve" }, { speaker: "staff", text: "¿A las dos quesos?" }]) === null && callerReadyTime([{ speaker: "caller", text: "si puedo pasar por ellas a las nueve, digo a las once y media" }])?.time === "11:30");
 check("person-pickup-is-not-togo", detectFulfillment([{ speaker: "caller", text: "Él lo recoge." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Voy a recoger a mi hijo." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Para recogerla." }]).fulfillment === "PICKUP");
 check("no-tenemos-birria-is-unavailable", staffUnavailable([{ speaker: "caller", text: "Quiero un platillo de birria." }, { speaker: "staff", text: "No tenemos birria." }]).some((dish) => dish.includes("birria")));
@@ -198,7 +315,7 @@ Promise.all([
   check("libra-does-not-hold", !!libraLine && !(libraLine.elviNotes || []).includes("confirmar"), JSON.stringify(libra.cart));
   const c11Menudo = (c11.observedLines || []).find((line: any) => /menudo/i.test(line.name || ""));
   const c11Dorada = (c11.observedLines || []).find((line: any) => /deluxe/i.test(`${line.name} ${(line.modifiers || []).join(" ")}`) && /prensado/i.test((line.modifiers || []).join(" ")));
-  check("c11-unspoken-tortilla-holds", c11.verdict === "pass" && c11.ticket?.phase === "review" && !!c11Dorada && (c11Menudo?.notes || []).some((note: string) => /confirmar/.test(note) && /tortilla/i.test(note)), JSON.stringify({ phase: c11.ticket?.phase, failures: c11.failures, menudo: c11Menudo }));
+  check("c11-menudo-uses-corn-default", c11.verdict === "pass" && !!c11Dorada && (c11Menudo?.modifiers || []).some((mod: string) => /corn/i.test(mod) && /comal/i.test(mod)) && !(c11Menudo?.notes || []).some((note: string) => /tortilla/i.test(note)), JSON.stringify({ phase: c11.ticket?.phase, failures: c11.failures, menudo: c11Menudo }));
   check("addon-delivery-is-not-pickup", deliveryAdd.fulfillment !== "PICKUP" && plainAdd.fulfillment !== "PICKUP", JSON.stringify({ delivery: deliveryAdd.fulfillment, plain: plainAdd.fulfillment }));
   if (failures.length) process.exit(1);
 });

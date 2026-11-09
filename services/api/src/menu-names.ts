@@ -18,9 +18,27 @@ function normalizeName(value: string) {
 export function normalizeSpoken(value: string): string {
   let text = normalizeName(applySharedAliases(String(value || ""), "phone"));
   text = text.replace(/\benjombo\b/g, "combo");
+  text = text.replace(/\bcharrones\b/g, "chicharrones").replace(/\bcharron\b/g, "chicharron");
   text = text.replace(/\b(?:roast|rost|ros|rose)\b(?=\s+(?:y|con|and|e)\s+frijol)/g, "arroz");
   text = text.replace(/(\bcombo\s+(?:de|con)\s+)(?:roast|rost|ros|rose)\b/g, "$1arroz");
   return text.replace(/\s+/g, " ").trim();
+}
+
+/** One fold for a required choice. The cart meat list and the hold both use it. */
+export function spokenChoiceWords(value: string): Set<string> {
+  const spoken = normalizeSpoken(value);
+  const hits = new Set(spoken.split(" ").filter(Boolean));
+  const add = (...words: string[]) => words.forEach((word) => hits.add(word));
+  if (/\b(?:alpastor|al pastor|el pastor|pastor)\b/.test(spoken)) add("pastor", "alpastor");
+  if (/\basada\b/.test(spoken)) add("asada", "bistec", "steak");
+  if (/\bduros?\b/.test(spoken) || /\bchicharron/.test(spoken)) add("duro", "chicharron");
+  if (/\bdorad/.test(spoken)) add("dorada");
+  if (/\bhomemade\b/.test(spoken) || /\bcomal\b/.test(spoken)) add("comal", "homemade");
+  if (/\bmaiz\b/.test(spoken) || /\bcorn\b/.test(spoken)) add("corn", "comal", "maiz");
+  if (/\bharina\b/.test(spoken) || /\bflour\b/.test(spoken)) add("harina", "flour");
+  if (/\bstreet\b/.test(spoken) || /\btaquer/.test(spoken)) add("street", "taquera");
+  if (/\bgrande\b/.test(spoken) || /\blarge\b/.test(spoken)) add("grande");
+  return hits;
 }
 
 export function isDrinkProduct(productName: string): boolean {

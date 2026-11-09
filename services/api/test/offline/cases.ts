@@ -108,7 +108,11 @@ export const CASES: OfflineCase[] = [
       { label: "dorada costilla", match: [/deluxe/i, /costilla/i], qty: { value: 1, provenance: S }, lineCount: { value: 1, provenance: S } },
       { label: "tacos lengua", match: [/taco/i, /lengua/i], qty: { value: 2, provenance: S }, lineCount: { value: 1, provenance: S } },
     ],
-    absent: [{ label: "cabeza", match: /cabeza/i, provenance: S }],
+    absent: [
+      { label: "cabeza", match: /cabeza/i, provenance: S },
+      { label: "sope elvis", match: /sope/i, provenance: T },
+      { label: "deshebrada taco", match: /taco/i, also: /deshebrada/i, provenance: T },
+    ],
     unresolved: [{ field: "taco-tortilla", provenance: "inferred", note: "First answer was taquero, later comal. Latest speech says comal, still ambiguous across the retake." }],
   },
   {

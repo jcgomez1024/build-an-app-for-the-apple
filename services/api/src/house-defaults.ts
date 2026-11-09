@@ -1,8 +1,11 @@
 /** Required groups whose catalog default may apply without a confirmar hold.
- *  Empty until Carlos names the groups. An empty list holds every unspoken required choice. */
+ *  Carlos, Nov 9: menudo uses the catalog corn tortilla when nobody names one.
+ *  Every other group stays unapproved. */
 export type HouseDefault = { item: string; group: string };
 
-export const HOUSE_DEFAULTS: HouseDefault[] = [];
+export const HOUSE_DEFAULTS: HouseDefault[] = [
+  { item: "Menudo", group: "(A) Menudo Tortillas" },
+];
 
 export function houseDefaultAllows(itemName: string, itemId: string, groupName: string): boolean {
   const item = `${itemName} ${itemId}`.toLowerCase();
