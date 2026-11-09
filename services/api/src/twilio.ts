@@ -1076,7 +1076,7 @@ export async function upsertTicket(
     explicitlyApproved: explicitApproval,
     reviewReason: gated.reviewReason,
     fulfillment: partial.fulfillment || prev?.fulfillment || "TO GO / LLEVAR",
-    readyTime: partial.readyTime !== undefined ? partial.readyTime : prev?.readyTime,
+    readyTime: null,
     deliverTo: partial.deliverTo !== undefined ? partial.deliverTo : prev?.deliverTo,
     lines,
     training: partial.training ?? prev?.training ?? false,

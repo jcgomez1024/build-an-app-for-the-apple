@@ -24,8 +24,8 @@ import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolv
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
-import { nameFromAnswer } from "./order-name.js";
-import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn, spokenClock } from "./delivery.js";
+import { nameFromAnswer, nameFromTranscriptInfo } from "./order-name.js";
+import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn, callerReadyTime, staffWaitMinutes, fulfillmentCue } from "./delivery.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -1003,6 +1003,9 @@ function noteReplayRow(order: any, extra: Record<string, unknown>) {
       fulfillment: order?.fulfillment || null,
       addressPresent: !!order?.address,
       readyTime: order?.readyTime || null,
+      waitMinutes: order?.waitMinutes ?? null,
+      readyCue: order?.readyCue || null,
+      fulfillmentCue: order?.fulfillmentCue || null,
     }) + "\n");
   } catch { /* test log only */ }
 }
@@ -8171,12 +8174,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"), closures: counted.closures }); }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
-  const clock = [...origTurns].reverse().map((turn) => spokenClock(String(turn.text || ""))).find((value) => value);
-  if (fulfillment === "PICKUP" && clock) readyTime = clock;
+  applyQdConTodo(cart as any[], origTurns as any);
+  applyStaffPreparadaYes(cart as any[], origTurns as any);
+  const clock = callerReadyTime(origTurns as any);
+  if (clock) {
+    readyTime = clock.time;
+    (steps as any).readyCue = { turn: clock.turn, speaker: clock.speaker, cue: clock.cue };
+  }
+  const wait = staffWaitMinutes(origTurns as any);
+  const deliverySaid = origTurns.some((turn) => fulfillmentIn(String(turn.text || "")) === "DELIVERY");
+  const nameTaken = !!nameFromTranscriptInfo(origTurns as any);
+  if (!fulfillment && !address && !deliverySaid && nameTaken && wait && cart.length) {
+    fulfillment = "PICKUP";
+    (steps as any).fulfillmentCue = { turn: wait.turn, speaker: wait.speaker, cue: "name+wait" };
+  } else {
+    const marked = [...origTurns].map((turn, index) => ({ index, speaker: turn.speaker, cue: fulfillmentCue(String(turn.text || "")) })).filter((row) => row.cue).pop();
+    if (marked && fulfillment) (steps as any).fulfillmentCue = { turn: marked.index, speaker: marked.speaker, cue: marked.cue };
+  }
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",
     menuSource,

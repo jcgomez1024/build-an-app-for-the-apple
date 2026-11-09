@@ -2866,7 +2866,7 @@ export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let c
 // juan-qd1 (CA36cd1a): staff "¿te gustarían preparadas?" → caller "Sí, …" = the regular doradas become DELUXE Preparada.
 export function applyStaffPreparadaYes(cart: any[], turns: Turn[]): boolean { let ch = false;
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "staff") continue; const p = plain(t.text);
-    if (!/\bpreparad[ao]s?\b|\bdeluxe\b/.test(p) || !/\?/.test(t.text) || /\bo\s+(?:normal|regular)|\bor\s+regular\b/.test(p)) continue;
+    if (!/\bpreparad[ao]s?\b|\bdeluxe\b/.test(p) || /\bo\s+(?:normal|regular)|\bor\s+regular\b/.test(p) || /\bno\s+preparad/.test(p)) continue;
     const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); if (!nx) continue; const q = plain(nx.text);
     if (!/^(?:ah |eh |okay |ok )?(?:si|yes|yeah|claro|por favor|aja|las dos|ambas|both)\b/.test(q) || /\b(?:normal|regular)(?:es)?\b/.test(q)) continue;
     for (const l of cart) { if (!QD_REG.test(String(l.itemId))) continue;
