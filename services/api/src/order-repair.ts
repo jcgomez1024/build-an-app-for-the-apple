@@ -15,6 +15,7 @@ export function dropUnsaidDishes(cart: any[], turns: Turn[], menu: any[]): boole
   const said = new Set(plain(turns.map((t) => t.text).join(" ")).split(" ").map(stem));
   let changed = false;
   for (let i = cart.length - 1; i >= 0; i--) {
+    if (cart[i].intentKept) continue;
     const item = menu.find((m) => m.id === cart[i].itemId);
     if (!item || isDrink(item) || /^sq-extras-/.test(item.id)) continue;
     const texts = [item.name, item.nameEs, ...(item.aliases || []), ...(cart[i].modifiers || []).map((m: any) => m.option)];

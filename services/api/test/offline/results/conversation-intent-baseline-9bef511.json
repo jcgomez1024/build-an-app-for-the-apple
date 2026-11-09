@@ -1,0 +1,156 @@
+{
+  "codeSha": "9bef511b988f1b5f78d3832829376482d0f6ce7e",
+  "kind": "conversation-intent",
+  "pageNamedGateSatisfied": false,
+  "network": false,
+  "modelEvaluation": "unverified",
+  "modelNote": "No realtime model call. A stub or a missing API key does not verify that the model follows the examples.",
+  "checks": [
+    {
+      "id": "holdout-phrases-are-not-memorized-examples",
+      "layer": "deterministic",
+      "ok": false,
+      "detail": "conversation-intent.json missing"
+    },
+    {
+      "id": "instructions-load-the-versioned-examples",
+      "layer": "plumbing",
+      "ok": false,
+      "detail": "marker missing"
+    },
+    {
+      "id": "en-availability-then-two",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "es-availability-then-dame-dos",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "en-holdout-ill-take-two",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "es-holdout-ponme-dos",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "en-replace-not-add",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "es-mejor-dame-replaces",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "es-holdout-mejor-quiero",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "en-and-two-adds",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "es-y-dos-adds",
+      "layer": "example-illustration",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "en-holdout-and-also",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "replace-two-targets-asks",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "two-discussed-dishes-ask",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "two-taco-kinds-ask",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "unclear-quantity-asks",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "named-option-kept-unknown-option-not-invented",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "sold-out-not-added",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "staff-decline-blocks-accept",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "unknown-item-does-not-replace",
+      "layer": "holdout",
+      "ok": false,
+      "detail": "resolveConversationIntent missing"
+    },
+    {
+      "id": "unresolved-choice-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "app-path-resolves-without-calling-the-model",
+      "layer": "plumbing",
+      "ok": false,
+      "detail": "XAI_API_KEY is not configured"
+    },
+    {
+      "id": "recovery-missing-order-stays-review",
+      "layer": "acceptance",
+      "ok": true,
+      "detail": "review/transcript-final"
+    },
+    {
+      "id": "model-example-evaluation",
+      "layer": "model",
+      "ok": true,
+      "detail": "unverified: no model call. Needs XAI_API_KEY and a paid realtime turn that returns tool-call cart lines. Stub passes do not verify the model."
+    }
+  ],
+  "pass": 2,
+  "fail": 21
+}

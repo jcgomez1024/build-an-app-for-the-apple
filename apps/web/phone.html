@@ -307,6 +307,10 @@ function renderTicketPaper(t) {
   const foot = `<hr class="rule"><div class="foot">${t.squareRef ? `Square: ${sqRefHtml(t.squareRef)}<br><small>Elvi #${esc(t.receiptCode || "XXXX")}</small>` : `Elvi #${esc(t.receiptCode || "XXXX")} <small>(aún sin ticket de Square)</small>`}</div>`;
   const phase = t.phase === "listening"
     ? '<div class="phase listening">Elvi escuchando… (live aún no activo)</div>'
+    : t.phase === "review"
+    ? `<div class="phase">Revisar · validación abierta${t.reviewReason ? ` · ${esc(t.reviewReason)}` : ""}</div>`
+    : t.acceptance === "staff-accepted"
+    ? '<div class="phase">Aceptado por staff</div>'
     : '<div class="phase">Final · desde grabación</div>';
   return `<div class="ticket-paper"><div class="top-name">${title}</div><div class="source">${esc(source)}</div><hr class="rule"><div class="dt"><span>${esc(date)}</span><span>${esc(time)}</span></div><hr class="rule"><div class="fulfill">${fulfill}</div>${ready}<hr class="rule">${deliver}${items}${foot}${phase}</div>`;
 }
@@ -322,7 +326,7 @@ function pickTicket() {
 function renderTickets() {
   const t = pickTicket();
   const phaseEl = $("ticketPhaseLabel");
-  if (phaseEl) phaseEl.textContent = t ? (t.phase === "final" ? "Final" : "En llamada") : "";
+  if (phaseEl) phaseEl.textContent = t ? (t.phase === "review" ? "Revisar" : t.acceptance === "staff-accepted" ? "Aceptado" : t.phase === "final" ? "Final" : "En llamada") : "";
   setHtml("ticketView", renderTicketPaper(t));
   const list = state?.tickets || [];
   setHtml("lastTickets", list.length ? list.map((x) => {

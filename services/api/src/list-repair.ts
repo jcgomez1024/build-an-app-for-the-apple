@@ -201,6 +201,12 @@ export function negatedMeats(text: string): string[] {
   // andres-qco1: "chiles y cebolla asada, no, porfa" is the asados side, never a negated asada/bistec
   const p = plain(raw).replace(/\b(?:chil(?:es|itos?|e)|cebollas?|cebollitas?)(?:\s+y\s+(?:chil(?:es|itos?|e)|cebollas?|cebollitas?))?\s+asad[oa]s?\b/g, "asados side"); const out = new Set<string>();
   for (const m of p.matchAll(new RegExp(`\\b(?:de\\s+)?(${MEAT_WORDS})\\s+no\\b`, "g"))) {
+    // "de pollo, no de bistec" negates bistec. "pastor no, de bistec" negates pastor.
+    const rawFold = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const meatWord = m[1].split(" ").pop() || "";
+    const atMeat = rawFold.indexOf(meatWord);
+    const afterRaw = atMeat >= 0 ? rawFold.slice(atMeat + meatWord.length) : "";
+    if (/^\s*,?\s+no\s+de\s+/.test(afterRaw) && !/^\s*,?\s+no\s*,/.test(afterRaw)) continue;
     // "de costilla, ¿no?" is a confirmation, not a negation
     const word = m[1].split(" ").pop()!; const at = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").indexOf(word);
     if (at >= 0 && /^\s*,?\s*¿?\s*no\s*\?/u.test(raw.slice(at + word.length).normalize("NFD").replace(/\p{M}/gu, ""))) continue;
@@ -211,7 +217,17 @@ export function negatedMeats(text: string): string[] {
   for (const m of p.matchAll(new RegExp(`\\b(?:no\\s+(?:de|of|quiero|want)|not|no)\\s+(${MEAT_WORDS})\\b(?!\\s+(?:si|yes))`, "g"))) {
     const k = meatIn(m[1]); const prev = p.slice(0, m.index).trim().split(" ").pop() || "";
     if (k && meatRestatedAfter(p.slice((m.index || 0) + m[0].length), k)) continue;
-    if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0]) && !meatIn(prev)) out.add(k);
+    const rawFold = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const atOption = rawFold.indexOf(String(m[1]).split(" ").pop() || "");
+    const beforeOption = atOption >= 0 ? rawFold.slice(0, atOption) : "";
+    // "no, de bistec" names the replacement. "no de bistec" negates it.
+    if (/no\s*,\s*(?:de\s+|del\s+)?$/.test(beforeOption)) continue;
+    if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0])) out.add(k);
+  }
+  // "sin tacos de pollo" / "without the chicken" names the meat to drop. Dish words between sin and the meat stay in the phrase.
+  for (const m of p.matchAll(new RegExp(`\\b(?:sin|without)\\s+(?:(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|de|del|the|any|ningun|ninguna)\\s+){0,3}(${MEAT_WORDS})\\b`, "g"))) {
+    const k = meatIn(m[1]);
+    if (k && !meatRestatedAfter(p.slice((m.index || 0) + m[0].length), k)) out.add(k);
   }
   return [...out];
 }
@@ -349,18 +365,26 @@ function askDish(text: string): AskDish | null {
   if (/\btortas?\b/.test(t) && !/tortilla/.test(t)) return { text: /\btortas?\b/iu, line: /^sq-torta-/i };
   if (/\bburritos?\b/.test(t)) return { text: /\bburritos?\b/iu, line: /burrito/i };
   if (/\bmenudos?\b/.test(t)) return { text: /\bmenudos?\b/iu, line: /menudo/i };
+  if (/\bpo[sz]oles?\b/.test(t)) return { text: /po[sz]oles?/iu, line: /pozole/i };
+  if (/\bbirrias?\b/.test(t) && !/queso/.test(t)) return { text: /birrias?/iu, line: /(?<!queso-)birria/i };
+  if (/\bcaldos?\b/.test(t)) return { text: /caldos?/iu, line: /caldo/i };
+  if (/\bmoles?\b/.test(t)) return { text: /moles?/iu, line: /mole/i };
   if (/\bhorchatas?\b/.test(t)) return { text: /\bhorchatas?\b/iu, line: /horchata/i };
   if (/\bjamaicas?\b/.test(t)) return { text: /\bjamaicas?\b/iu, line: /jamaica/i };
   return null;
 }
-/** "No." / "No, joven." declines the ask. "no, normales" answers a different question. */
-const BARE_NO = /^\W*(?:no|nel|nop|nope)(?:\s*,?\s*(?:joven|gracias|thanks|señor|senor|mano))?\s*[.!?]*\s*$/iu;
+/** "No." / "No, joven." / "No, okay." declines the ask. "no, normales" answers a different question. */
+const BARE_NO = /^\W*(?:no|nel|nop|nope)(?:\s*,?\s*(?:joven|gracias|thanks|señor|senor|mano|ok(?:ay)?))?\s*[.!?]*\s*$/iu;
+function callerDeclines(text: string): boolean {
+  if (BARE_NO.test(text)) return true;
+  return /^\W*(?:no(?:\s*,\s*|\s+)){2,}no\b/iu.test(text);
+}
 function askRefused(turns: Turn[], i: number): boolean {
   const win = turns.slice(i + 1, i + 6);
   const staff = win.find((t) => t.speaker === "staff");
   if (staff && BARE_NO.test(staff.text)) return true;
   if (staff && /\bno\s+(?:tenemos|tengo|hay|queda)\b/iu.test(staff.text) && !/\bs[ií]\s*,?\s*(?:tengo|tenemos|hay)\b/iu.test(staff.text)) return true;
-  return win.some((t) => t.speaker === "caller" && BARE_NO.test(t.text));
+  return win.some((t) => t.speaker === "caller" && callerDeclines(t.text));
 }
 /** Dishes named only in an availability question that staff or the caller then declined, and never ordered by name. */
 export function declinedAsks(turns: Turn[]): AskDish[] {
@@ -377,11 +401,35 @@ export function declinedAsks(turns: Turn[]): AskDish[] {
   }
   return out;
 }
+const OFFER_DISH: Array<{ re: RegExp; line: RegExp }> = [
+  { re: /po[sz]oles?/iu, line: /pozole/i },
+  { re: /menudos?/iu, line: /menudo/i },
+  { re: /birrias?/iu, line: /(?<!queso-)birria/i },
+  { re: /caldos?/iu, line: /caldo/i },
+];
+const ORDERED_THAT = (text: string, re: RegExp) => re.test(text) && /\b(?:quiero|quisiera|dame|deme|ponme|p[oó]ngame|me\s+(?:da|das|pone|pones|puede)|van\s+a\s+ser|son\s+(?:dos|tres|un))\b/iu.test(text) && !/\bd[eé]jalo\b/iu.test(text);
+/** "No, está bien, déjalo" drops a soup the caller never ordered. A later real order of that soup stays. */
+function dropDeclinedOffers(cart: any[], turns: Turn[]): boolean {
+  if (!Array.isArray(cart) || !Array.isArray(turns)) return false;
+  let changed = false;
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    if (t.speaker !== "caller" || !/\bd[eé]jalo\b/iu.test(t.text) || !/\bno\b|\best[aá] bien\b/iu.test(t.text)) continue;
+    for (const d of OFFER_DISH) {
+      const named = d.re.test(t.text) || (turns[i - 1]?.speaker === "staff" && d.re.test(turns[i - 1].text));
+      if (!named || turns.some((x) => x.speaker === "caller" && ORDERED_THAT(x.text, d.re))) continue;
+      for (let j = cart.length - 1; j >= 0; j--) if (d.line.test(String(cart[j]?.itemId || ""))) { cart.splice(j, 1); changed = true; }
+    }
+  }
+  return changed;
+}
 /** Drop cart lines for a declined availability ask ("¿tiene tacos dorados?" → "No"). "Quería eso" is not a reorder. */
 export function dropDeclinedAsk(cart: any[], turns: Turn[]): boolean {
-  const asks = declinedAsks(turns); if (!asks.length || !Array.isArray(cart)) return false;
+  if (!Array.isArray(cart)) return false;
+  const asks = declinedAsks(turns);
   let changed = false;
-  for (let i = cart.length - 1; i >= 0; i--) if (asks.some((a) => a.line.test(String(cart[i]?.itemId || "")))) { cart.splice(i, 1); changed = true; }
+  if (asks.length) for (let i = cart.length - 1; i >= 0; i--) if (asks.some((a) => a.line.test(String(cart[i]?.itemId || "")))) { cart.splice(i, 1); changed = true; }
+  if (dropDeclinedOffers(cart, turns)) changed = true;
   return changed;
 }
 /** Live: an add on the question turn, or on a later "quería eso", never rings the declined dish. */
@@ -953,7 +1001,7 @@ export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
     let sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum <= N) continue;
     const counted: Record<string, number> = {};
     for (const t of turns) { const p = plain(t.text); for (const m of p.matchAll(new RegExp(`\\b(${NUMW})\\s+(?=((?:\\w+\\s*){0,6}))`, "g"))) { const seg = m[2].split(new RegExp(`\\b(?:${NUMW})\\b`))[0]; const k = meatIn(seg); if (k) counted[k] = Math.max(counted[k] || 0, numOf(m[1])); } }
-    for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
+    for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (l.intentKept || sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
       const nq = Math.max(counted[k] || 1, q - (sum - N)); sum -= q - nq; l.quantity = nq; ch = true; }
   }
   return ch;
@@ -1052,6 +1100,10 @@ export function addStaffConfirmedDrink(cart: any[], turns: Turn[], menu: any[]):
   turns.forEach((t, i) => { if (t.speaker !== "caller") return; const c = plain(t.text);
     for (const [asr, name, id] of DRINK_ASR) { if (!asr.test(c)) continue;
       const st = turns.slice(i + 1, i + 3).find((x) => x.speaker === "staff"); if (!st || !name.test(plain(st.text))) continue;
+      const staffSaid = plain(st.text);
+      const availabilityOnly = /\b(?:is|are|it s)\s+available\b|\bdisponible\b|\bsi hay\b|\bwe have\b/.test(staffSaid)
+        && !/\b(?:un|una|one|dos|tres|two|three|\d+)\s+(?:aguas?\s+de\s+)?(?:horchatas?|jamaicas?)\b|\b(?:got it|te tengo|anotad[oa]|listo)\b/.test(staffSaid);
+      if (availabilityOnly) continue;
       if (cart.some((l) => String(l.itemId).includes(id.split("-").slice(0, 5).join("-")))) continue;
       if (menu?.length && !menu.some((m: any) => m.id === id)) continue;
       const q = plain(st.text).match(/\b(dos|tres|cuatro|2|3|4)\s+aguas?\b/); const qty = q ? ({ dos: 2, tres: 3, cuatro: 4 } as any)[q[1]] || Number(q[1]) : 1;
@@ -1294,15 +1346,17 @@ const lastFam = (p: string): TFam | "other" | null => { let best: [number, TFam 
   for (const [re, f] of TFAM_WORD) for (const m of p.matchAll(new RegExp(re.source, "g"))) if (!best || (m.index || 0) >= best[0]) best = [m.index || 0, f]; return best?.[1] || null; };
 export function applyLateTortillaChoice(cart: any[], turns: Turn[], menu: any[]): boolean {
   const choice: Partial<Record<TFam, "comal" | "taquero" | "harina">> = {}; let fam: TFam | "other" | null = null;
+  const callerStyles: Partial<Record<TFam, Set<string>>> = {};
   turns.forEach((t, i) => { const p = plain(t.text); const st = tStyle(p);
-    const f0 = lastFam(p.replace(/\b(?:comal(?:es)?|taquer[oa]s?|harina)\b/g, ""));
-    if (st && t.speaker === "caller") { const target = f0 && f0 !== "other" ? f0 : fam; if (target && target !== "other") choice[target] = st; }
+    const f0 = lastFam(p.replace(/\b(?:comal(?:es)?|taquer[oa]s?|harina|flour|street)\b/g, ""));
+    if (st && t.speaker === "caller") { const target = f0 && f0 !== "other" ? f0 : fam; if (target && target !== "other") { choice[target] = st; (callerStyles[target] ||= new Set()).add(st); } }
     if (st && t.speaker === "staff" && [/\bcomal/, /\btaquer/, /\bharina/].filter((r) => r.test(p)).length === 1) { const target = f0 && f0 !== "other" ? f0 : fam; const nx = turns[i + 1];
       if (target && target !== "other" && nx?.speaker === "caller" && /^(?:si|claro|ok|okay|esta bien|ajam?|correcto|por favor|yes|sale|va)\b/.test(plain(nx.text))) choice[target] = st; }
     if (f0) fam = f0; });
   let changed = false;
   for (const l of cart) { const id = String(l.itemId);
     const f: TFam | null = /^sq-queso-birrias-/.test(id) ? "qb" : /^sq-taco-/.test(id) ? "taco" : /^sq-quesadilla-/.test(id) ? "quesadilla" : null; if (!f || !choice[f]) continue;
+    if ((callerStyles[f]?.size || 0) > 1) continue;
     const base = menu.find((m) => m.id === id); const g = (base?.modifierGroups || []).find((x: any) => /tortilla options|queso birrias options/i.test(x.name)); if (!g) continue;
     const want = choice[f]!; const code = f === "taco" ? { comal: "TCO", taquero: "TST", harina: "THR" }[want] : { comal: "QCO", taquero: "QST", harina: "QHR" }[want];
     const opt = (g.options || []).map(oname).find((o: string) => o.startsWith(`(${code})`)); if (!opt) continue;
@@ -1609,15 +1663,50 @@ export function liveMenudoSplit(r: any, input: any) {
   for (const [p, q] of [[true, sp.con], [false, sp.reg]] as Array<[boolean, number]>) if (q > 0) out.push({ type: "add_item", ...menLine(p, q, like) });
   return { ...r, actions: out };
 }
-/** ulises1: "verdura aparte" / "cebolla y cilantro … aparte" → "verdura aparte" note on the food lines (after-call). */
+/** ulises1: "verdura aparte" / "cebolla y cilantro … aparte" → note on the dish it was said about, not every other line. */
 const VERD_APARTE = /\b(?:verduras?|cebolla(?:\s+y\s+cilantro)?|cilantro(?:\s+y\s+cebolla)?)\b[^.]{0,40}\b(?:aparte|por\s+separado|on\s+the\s+side)\b|\b(?:aparte|por\s+separado)\b[^.]{0,15}\b(?:la\s+|las\s+)?(?:verduras?|cebolla|cilantro)\b/iu;
 const VERD_FOOD = /^sq-(?:torta|taco|quesadilla|qd-|gordita|sope|burrito|tostada|huarache|combo-tortas|combo-tacos)/;
+const VERD_FAM: Array<[RegExp, RegExp]> = [
+  [/\btortas?\b/iu, /^sq-torta/],
+  [/\bquesadillas?\b|\bdoradas?\b|\bqd\b/iu, /^sq-(?:quesadilla|qd-)/],
+  [/\btacos?\b/iu, /^sq-taco/],
+  [/\bgorditas?\b/iu, /^sq-gordita/],
+  [/\bsopes?\b/iu, /^sq-sope/],
+  [/\bburritos?\b/iu, /^sq-burrito/],
+  [/\b(?:huaraches?|guaraches?)\b/iu, /^sq-huarache/],
+  [/\btostadas?\b/iu, /^sq-tostada/],
+];
+const verdHit = (text: string) => VERD_APARTE.test(text) || (/\bverduras?\b/iu.test(text) && /\baparte\b/iu.test(text));
+const verdFams = (text: string) => VERD_FAM.filter(([w]) => w.test(plain(text))).map(([, id]) => id);
 export function applyVerduraAparte(cart: any[], turns: Turn[]): boolean {
-  const ct = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text));
-  const idx = ct.findIndex((x) => VERD_APARTE.test(x) || (/\bverduras?\b/iu.test(x) && /\baparte\b/iu.test(x))); if (idx < 0) return false;
-  const lines = cart.filter((l) => VERD_FOOD.test(String(l.itemId))); if (!lines.length) return false;
+  const callers = turns.filter((t) => t.speaker === "caller");
+  if (!callers.some((t) => verdHit(String(t.text)))) return false;
+  const targets = new Set<any>();
+  let scoped = false;
+  callers.forEach((t, k) => {
+    if (!verdHit(String(t.text))) return;
+    let fams = verdFams(plain(t.text));
+    if (!fams.length) for (let j = k - 1; j >= 0 && !fams.length; j--) fams = verdFams(plain(callers[j].text));
+    if (!fams.length) {
+      const present = VERD_FAM.map(([, id]) => id).filter((id) => cart.some((l) => id.test(String(l.itemId))));
+      if (present.length === 1) fams = present;
+    }
+    if (!fams.length) return;
+    scoped = true;
+    const meat = meatIn(plain(t.text));
+    for (const l of cart) if (VERD_FOOD.test(String(l.itemId)) && fams.some((f) => f.test(String(l.itemId)))) {
+      if (meat && meatOpt(l) && meatOpt(l) !== meat) continue;
+      targets.add(l);
+    }
+  });
+  if (!scoped) return false;
   let ch = false;
-  for (const l of lines) if (!(l.elviNotes || []).includes("verdura aparte")) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
+  for (const l of cart) {
+    if (!VERD_FOOD.test(String(l.itemId))) continue;
+    const has = (l.elviNotes || []).includes("verdura aparte");
+    if (targets.has(l) && !has) { l.elviNotes = [...(l.elviNotes || []), "verdura aparte"]; ch = true; }
+    else if (!targets.has(l) && has) { l.elviNotes = (l.elviNotes || []).filter((n: string) => n !== "verdura aparte"); if (!l.elviNotes.length) delete l.elviNotes; ch = true; }
+  }
   return ch;
 }
 
@@ -2137,6 +2226,8 @@ export function applyRestatedQty(cart: any[], turns: Turn[]): boolean {
     if (/\b(?:otr[ao]s?\s+(?:orden|pedido|plato)|another\s+(?:order|plate)|por\s+separado|aparte)\b/iu.test(callerAll)
       && turns.filter((t) => t.speaker === "caller" && new RegExp(String.raw`\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:${dish[0].source})\b`, "iu").test(b22low(String(t.text || "")))).length >= 2) continue;
     const meats = (ls[0].modifiers || []).filter(isMeatMod).map((m: any) => m.option); if (meats.length !== 1) continue;
+    const optionKey = (l: any) => (l.modifiers || []).map((m: any) => String(m.option)).sort().join("|");
+    if (ls.some((l: any) => l.intentKept) && new Set(ls.map(optionKey)).size > 1) continue;
     const n = statedCount(readback, dish[0], meats[0]) || statedCount(callerAll, dish[0], meats[0]);
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
     if (!n || n >= sum) continue;
@@ -2668,6 +2759,7 @@ export function applySaidDishMeat(cart: any[], turns: Turn[], menu: any[] = []):
   const want = new Map<string, { fam: string; meats: string[]; n: number; tst: boolean }>();
   const DISH = `(tacos?|quesadillas?)`; const re = new RegExp(`\\b(${NUMW})\\s+${DISH}\\b((?:\\s+[a-z]+){0,6}?)\\s+de\\s+(${MEAT_WORDS})(?:\\s+con\\s+(${MEAT_WORDS}))?\\b`, "g");
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const p = plain(t.text).replace(/\ba pastor\b/g, "al pastor");
+    if (/\b(?:cambia|cambio|en vez|instead|replace|reemplaz)\b/.test(p)) continue;
     for (const m of p.matchAll(re)) { const fam = /^taco/.test(m[2]) ? "taco" : "q"; if (/\b(?:dorad|aceite|frit)/.test(m[3])) continue;
       const meats = [meatIn(m[4]), m[5] ? meatIn(m[5]) : null].filter(Boolean) as string[]; if (!meats.length || meats.some((k) => negated.has(k))) continue;
       let n = numOf(m[1]);
@@ -2676,6 +2768,17 @@ export function applySaidDishMeat(cart: any[], turns: Turn[], menu: any[] = []):
         const sm = plain(turns[j].text).match(new RegExp(`\\b(${NUMW})\\s+${DISH}\\b(?:\\s+[a-z]+){0,4}?\\s+de\\s+(${MEAT_WORDS})\\b`));
         if (sm && meatIn(sm[3]) === meats[0] && turns.slice(j + 1, j + 7).some((x) => x.speaker === "caller" && /^(?:si|yes|aja|eso|ok)\b/.test(plain(x.text)))) { n = numOf(sm[1]); break; } }
       const tst = /\btaquer/.test(p) || turns.slice(i + 1, i + 3).some((x) => x.speaker === "caller" && /\btaquer/.test(plain(x.text)));
+      const replacedLater = turns.slice(i + 1).some((x) => {
+        if (x.speaker !== "caller") return false;
+        const later = plain(x.text);
+        if (!/\b(?:en vez|cambia|cambio|instead of|replace|reemplaz)\b/.test(later)) return false;
+        const target = later.split(/\b(?:dame|deme|quiero|por|with|give me)\b/)[0];
+        const dish = fam === "taco" ? /\btacos?\b/ : /\bquesadillas?\b/;
+        return dish.test(target) && meats.every((k) => target.includes(k));
+      });
+      if (replacedLater) continue;
+      const negatedLater = turns.slice(i + 1).some((x) => x.speaker === "caller" && negatedMeats(x.text).includes(meats[0]));
+      if (negatedLater) continue;
       want.set(fam + ":" + meats.join("+"), { fam, meats, n, tst }); } }
   // "tres combinadas … quesadillas" + "bistec con chorizo" (caller, within 6 turns)
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const p = plain(t.text);

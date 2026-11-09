@@ -29,6 +29,8 @@ import { cachedAppQuote as cachedQuote, quoteAppAddress as quoteDeliveryAddress 
 import { orderContextTurn, logTurn, pendingSummary } from "./order-context.js";
 import { preTurn, answerPick as chicharronAnswerPick } from "./pre-turn.js";
 import { resolveMenuRequest } from "./menu-intelligence.js";
+import { isClosingFragment, menuQueryForMatch } from "./retain-spoken.js";
+import { conversationIntentPrompt, resolveConversationIntent } from "./conversation-intent.js";
 import { resolveEspecialRequest } from "./especial-resolver.js";
 import { resolvePackMealRequest } from "./pack-meal-resolver.js";
 import { getComboGuide, evaluateGuideText, guideQuestion, SKIP_REST, type GuideFill, bothMeatQuestion, otherMeatQuestion, BOTH_MEAT_Q, OTHER_MEAT_Q, YES_ANSWER, NO_ANSWER } from "./guides.js";
@@ -730,6 +732,7 @@ export function dishNamedIn(item: any, text: string): boolean {
 }
 export async function guardClaimedAdds(result: ElviResponse, transcript: string, language: Language, menu: MenuItem[] = [], history?: ConversationTurn[]): Promise<ElviResponse> {
   if (result.pendingGuides?.length) return result;
+  const heardNow = transcript;
   // Answering a build question ("Carne 1: elige una" → "2 pastor y 2 asada"): read it with the dish it answers.
   const turns: any[] = history || [];
   const lastBot = [...turns].reverse().find((t) => t.role === "assistant");
@@ -745,10 +748,10 @@ export async function guardClaimedAdds(result: ElviResponse, transcript: string,
         const since: string[] = [];
         for (let k = turns.length - 1; k >= 0; k--) {
           if (turns[k].role === "assistant" && /^(added|agregado)\b/i.test(String(turns[k].text || ""))) break;
-          if (turns[k].role === "customer") since.unshift(String(turns[k].text || ""));
+          if (turns[k].role === "customer" && !isClosingFragment(String(turns[k].text || ""))) since.unshift(String(turns[k].text || ""));
           if (since.length >= 4) break;
         }
-        transcript = `${since.join(" ")} ${transcript}`;
+        if (!isClosingFragment(transcript)) transcript = `${since.join(" ")} ${transcript}`.trim();
       }
     }
   }
@@ -771,10 +774,12 @@ export async function guardClaimedAdds(result: ElviResponse, transcript: string,
   const saysMissing = /\b(not on (our|the) menu|don'?t have|not available|no (lo |la )?tenemos|no est[aá] (en el men[uú]|disponible))\b/i.test(reply);
   const emptyOrClaim = bareAdds.length > 0 || !reply || saysMissing || reply.split(/\s+/).length <= 6;
   if (!emptyOrClaim) return result;
+  if (isClosingFragment(heardNow)) return result;
   // Ask the same menu resolver the web uses whether the item exists before calling it unavailable.
   let resolved: any = null;
   try {
-    const req: any = { text: transcript, language, actionHint: "add_item", toolArgs: { itemQuery: transcript }, cart: [] };
+    const query = menuQueryForMatch(transcript);
+    const req: any = { text: query, language, actionHint: "add_item", toolArgs: { itemQuery: query }, cart: [] };
     resolved = resolvePackMealRequest(pinnedMenu(req.text, menu) as any, req) || resolveEspecialRequest(pinnedMenu(req.text, menu) as any, req) || resolveMenuRequest(pinnedMenu(req.text, menu) as any, req);
     resolved = completeWithSiteDefaults(resolved, menu, transcript);
     resolved = variationQuestion(resolved, menu, transcript, language);
@@ -1539,8 +1544,14 @@ function buildRealtimeInstructions(language: Language, menu: MenuItem[], history
       ? "OUTPUT_LANGUAGE_LOCK=Spanish. Responde solo en español. Frases cortas: 'Agregado.', 'Listo.', '¿Algo más?', '¿Recoger?'. Never use English except menu names."
       : "OUTPUT_LANGUAGE_LOCK=English. Reply only in English. Short phrases: 'Added.', 'Done.', 'Anything else?', 'Pickup?'. Never use Spanish except menu names.",
     `ONLINE menu knowledge:\n${menuSummary}`,
-    historySummary ? `Recent conversation:\n${historySummary}` : ""
+    historySummary ? `Recent conversation:\n${historySummary}` : "",
+    conversationIntentPrompt(),
   ].filter(Boolean).join("\n\n");
+}
+
+/** The instruction string the ordering model is given, including the versioned intent examples. */
+export function orderingInstructions(language: Language, menu: MenuItem[], history: ConversationTurn[] = []) {
+  return buildRealtimeInstructions(language, menu, history);
 }
 
 function buildRealtimeMenuKnowledge(menu: MenuItem[]) {
@@ -2362,6 +2373,16 @@ async function chatWithElviPaths(input: ElviRequest, runtimeConfig?: Partial<Xai
   if (intent) return intent;
   const avail = availabilityQuestion(input);
   if (avail) return avail;
+  const spokenIntent = resolveConversationIntent({
+    transcript: String(input.transcript || ""),
+    language: input.language === "en" ? "en" : "es",
+    menu: ((input as any).resolverMenu || input.menu || []) as any[],
+    history: input.history || [],
+    cart: (input as any).cart || [],
+    sessionKey: (input as any).sessionKey,
+    staffTexts: (input.history || []).filter((turn) => turn.role === "assistant").map((turn) => turn.text),
+  });
+  if (spokenIntent) return { language: input.language, engine: "xai", reply: spokenIntent.reply, actions: spokenIntent.actions as any };
   // alex1: "…nada más a uno agrégamele, agrégamele" trails off before saying what — wait, change nothing
   if (/\b(agr[eé]g(a|ue)(me)?(le|se)|p[oó]n(ga)?(me)?le|ech(e|a)(me)?le|add|put)\W*$/i.test(String(input.transcript || "").trim()))
     return { language: input.language, reply: input.language === "en" ? "Sure, what should I add?" : "¿Sí? ¿Qué le agrego?", actions: [] } as any;

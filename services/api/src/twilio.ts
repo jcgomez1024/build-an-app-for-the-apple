@@ -24,6 +24,8 @@ import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favor
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
+import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu } from "./offline-evidence.js";
+export { recoveryAcceptance, attachRecoveryMenu };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -543,7 +545,11 @@ export function withDeliveryFee(lines: ElviTicketLine[], fulfillment: string, fe
 export type ElviTicket = {
   callSid: string; at: string; caller: string; name: string | null; receiptCode: string;
   source: string; phoneDisplay: string;
-  language: Lang; phase: "listening" | "final";
+  language: Lang; phase: "listening" | "review" | "final";
+  acceptance?: "transcript-final" | "validation-complete" | "staff-accepted";
+  /** Set only by an explicit human approval. A guessed Square match never sets this. */
+  explicitlyApproved?: boolean;
+  reviewReason?: string | null;
   fulfillment: string; // TO GO / LLEVAR | FOR HERE / PARA AQUI | DELIVERY / ENTREGA | PICKUP …
   readyTime?: string | null;
   deliverTo?: { name?: string; address?: string; phone?: string; notes?: string } | null;
@@ -551,7 +557,7 @@ export type ElviTicket = {
   training: boolean; openAsk?: string | null; transcript?: string;
   squareRef?: SquareRef | null; // ticketno1: the real Square ticket once staff ring it up
 };
-export type SquareRef = { receiptNumber: string | null; ticketName: string | null; orderId: string; paymentId: string | null; dashboardUrl: string | null; receiptUrl: string | null; matchedBy: string; linkedAt: string };
+export type SquareRef = { receiptNumber: string | null; ticketName: string | null; orderId: string; paymentId: string | null; dashboardUrl: string | null; receiptUrl: string | null; matchedBy: string; linkedAt: string; explicitApproval?: boolean };
 // ---- ticketno1: link each Elvi ticket to the real Square ticket (read-only) so staff see Square's own numbers ----
 // "Receipt #" = payment receipt_number (what the printed receipt and Transactions search show); "Ticket" = POS ticket name.
 const squareLinksFile = path.join(logDir, "square-links.json");
@@ -607,6 +613,23 @@ export function laterCallFrom(t: { callSid: string; at: string; caller: string; 
   const xs = all.filter((o) => o.callSid !== t.callSid && Date.parse(o.at) > at && (ph ? d10(o.caller) === ph : !!nm(t) && nm(o) === nm(t)));
   return xs.length ? xs.map((o) => o.at).sort()[0] : null;
 }
+/** A guessed Square match is stored on the ticket and re-gated. It never becomes staff-accepted. */
+export function noteSquareMatch(ticket: ElviTicket, ref: SquareRef): ElviTicket {
+  ticket.squareRef = ref;
+  const unresolved = ticket.phase === "review" || !!ticket.reviewReason;
+  const gated = gateTicketAcceptance({
+    requestedPhase: ticket.phase === "listening" ? "listening" : "final",
+    autoAccepted: ticket.acceptance === "validation-complete" || ticket.acceptance === "staff-accepted",
+    validation: unresolved ? "unresolved" : (ticket.phase === "final" ? "clear" : "empty"),
+    reviewReason: ticket.reviewReason,
+    explicitApproval: ticket.explicitlyApproved === true,
+    squareRef: ref,
+  });
+  ticket.phase = gated.phase;
+  ticket.acceptance = gated.acceptance;
+  ticket.reviewReason = gated.reviewReason;
+  return ticket;
+}
 export async function linkSquareTickets(force = false) {
   if (!force && Date.now() - lastSquareLink < 60000) return;
   lastSquareLink = Date.now();
@@ -626,7 +649,7 @@ export async function linkSquareTickets(force = false) {
     const rc = r.paymentId ? await paymentReceiptReadOnly(r.paymentId) : null;
     const ref: SquareRef = { receiptNumber: rc?.receiptNumber || r.receiptNumber, ticketName: r.ticketName, orderId: r.orderId, paymentId: r.paymentId, dashboardUrl: r.dashboardUrl, receiptUrl: rc?.receiptUrl || null, matchedBy: pick.by, linkedAt: new Date().toISOString() };
     links[t.callSid] = ref; used.add(r.orderId); changed = true;
-    t.squareRef = ref;
+    noteSquareMatch(t, ref);
     logCall({ event: "square_ticket", callSid: t.callSid, receiptNumber: ref.receiptNumber, orderId: ref.orderId, matchedBy: ref.matchedBy });
     void sendNameFollowUp(t.callSid, cleanFirstName(String(ref.ticketName || "")) || null).catch(() => {}); // smsname1
   }
@@ -955,18 +978,20 @@ export function buildTicketLines(
     const ask = (row?.modifiers || []).find((m: any) => m.step === "meat_needs_ask" || m.groupName === "meat_needs_ask");
     let choices = labelled[i];
     const lineHasDeluxe = hasDeluxe(choices);
-    let lineRemovals: string[] = removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals);
+    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n))).map((n) => String(n));
+    let lineRemovals: string[] = (removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals)).filter((n) => !/^confirmar\b/i.test(String(n)));
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);
     choices = applied.choices;
     // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
     // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
     const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:|enchiladas:)|\baparte\b/iu.test(String(n))); // vapor1: per-order filling mix
-    const notes = [...new Set([...(applied.notes || []), ...additiveNotes])];
+    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...confirmNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
+      ...confirmNotes,
     ].filter(Boolean);
     return {
       name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,
@@ -976,7 +1001,7 @@ export function buildTicketLines(
   return applyContainerPlan(lines, containers);
 }
 
-async function upsertTicket(
+export async function upsertTicket(
   partial: Partial<ElviTicket> & { callSid: string },
   describe: Describe,
   cart?: any[],
@@ -1000,6 +1025,17 @@ async function upsertTicket(
     partial.name != null && String(partial.name).trim()
       ? partial.name
       : (prev?.name ?? partial.name ?? null);
+  const explicitApproval = (partial as { explicitApproval?: boolean }).explicitApproval === true || prev?.explicitlyApproved === true;
+  const gated = gateTicketAcceptance({
+    requestedPhase: partial.phase || prev?.phase || "listening",
+    autoAccepted: elviOrder?.autoAccepted,
+    validation: elviOrder?.validation,
+    reviewReason: elviOrder?.reviewReason,
+    statusCall: !!elviOrder?.statusCall,
+    cart,
+    squareRef: prev?.squareRef,
+    explicitApproval,
+  });
   const t: ElviTicket = {
     callSid: partial.callSid,
     at: startIso,
@@ -1009,14 +1045,18 @@ async function upsertTicket(
     source: partial.source || prev?.source || elviPhoneSource(called),
     phoneDisplay: partial.phoneDisplay || prev?.phoneDisplay || formatTicketPhone(caller),
     language: partial.language || prev?.language || "es",
-    phase: partial.phase || prev?.phase || "listening",
+    phase: gated.phase,
+    acceptance: gated.acceptance,
+    explicitlyApproved: explicitApproval,
+    reviewReason: gated.reviewReason,
     fulfillment: partial.fulfillment || prev?.fulfillment || "TO GO / LLEVAR",
     readyTime: partial.readyTime !== undefined ? partial.readyTime : prev?.readyTime,
     deliverTo: partial.deliverTo !== undefined ? partial.deliverTo : prev?.deliverTo,
     lines,
     training: partial.training ?? prev?.training ?? false,
     openAsk: partial.openAsk !== undefined ? partial.openAsk : prev?.openAsk,
-    transcript: partial.transcript !== undefined ? partial.transcript : prev?.transcript
+    transcript: partial.transcript !== undefined ? partial.transcript : prev?.transcript,
+    ...(prev?.squareRef ? { squareRef: prev.squareRef } : {}),
   };
   // juan-qd1 (CA36cd1a): staff-confirmed delivery with no address yet still rings the Delivery Fee ($5 near zone until quoted)
   try { const dq = callDelivery.get(t.callSid); t.lines = withDeliveryFee(t.lines, t.fulfillment, provisionalDeliveryFeeCents(dq?.quote || null, true)); } catch { /* ticket lines only */ }

@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "marker": "CONVERSATION_INTENT_V1",
+  "rules": [
+    "An availability question adds nothing. Remember the dish it names. Examples: do you have, got any, is there, ¿tienen, ¿hay.",
+    "A bare quantity after exactly one discussed dish orders that dish at the spoken number. Give me two, I'll take two, dame dos, and ponme dos are the same kind of turn. Two discussed dishes, or no discussed dish: ask. Do not guess.",
+    "Replacement swaps the one current choice and does not also keep it. mejor dame, mejor quiero, en vez de eso, instead, rather, and better give me are replacements. Two current choices: ask which one. A missing number is not one, and it is not the old line's quantity. Ask and leave the cart unchanged. Use the old quantity only when the caller says it stays the same (same, mismos, igual). Un, una, one, and a before the dish are an explicit one.",
+    "Additive and, y, también, and also adds the named dish and removes nothing. It also needs a spoken number. Without one, ask and add nothing.",
+    "Do not invent a required choice, a size, or a substitute for a sold-out or unknown item. Ask, or leave the choice open. These rules do not override catalog availability or required options."
+  ],
+  "examples": [
+    {
+      "language": "en",
+      "lines": [
+        "Customer: Do you have horchata?",
+        "Elvi: I can't confirm availability. I did not add it.",
+        "Customer: Give me two.",
+        "Elvi: Two horchatas. No size was spoken, so I did not pick one."
+      ]
+    },
+    {
+      "language": "es",
+      "lines": [
+        "Cliente: ¿Tienen quesadilla?",
+        "Elvi: No puedo confirmar disponibilidad. No la agregué.",
+        "Cliente: Dame dos.",
+        "Elvi: Dos quesadillas. La carne sigue abierta."
+      ]
+    },
+    {
+      "language": "en",
+      "lines": [
+        "Customer: Two quesadillas.",
+        "Customer: Better give me two tacos.",
+        "Elvi: Replaced the quesadillas with two tacos. I did not keep both.",
+        "Customer: Better give me tacos.",
+        "Elvi: How many tacos? I did not change the order."
+      ]
+    },
+    {
+      "language": "es",
+      "lines": [
+        "Cliente: Dos quesadillas.",
+        "Cliente: Mejor dame dos tacos.",
+        "Elvi: Cambié las quesadillas por dos tacos. No dejé las dos.",
+        "Cliente: Mejor dame tacos.",
+        "Elvi: ¿Cuántos tacos? No cambié la orden."
+      ]
+    },
+    {
+      "language": "en",
+      "lines": [
+        "Customer: And two tacos.",
+        "Elvi: Added two tacos. The earlier item stays."
+      ]
+    },
+    {
+      "language": "es",
+      "lines": [
+        "Cliente: Y dos tacos.",
+        "Elvi: Agregué dos tacos. Lo anterior se queda."
+      ]
+    }
+  ],
+  "availabilityCues": ["do you have", "have you got", "got any", "is there", "you got", "tienen", "tienes", "tiene", "hay"],
+  "orderVerbs": ["give me", "get me", "i'll take", "i will take", "dame", "deme", "ponme", "me pone", "me pones", "me da", "me das"],
+  "replacementCues": ["mejor dame", "mejor quiero", "en vez de eso dame", "en vez dame", "instead give me", "instead i want", "rather give me", "better give me"],
+  "additiveCues": ["and also ", "and ", "tambien ", "también ", "also ", "y "],
+  "quantities": {
+    "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6,
+    "one": 1, "un": 1, "una": 1, "uno": 1,
+    "two": 2, "dos": 2,
+    "three": 3, "tres": 3,
+    "four": 4, "cuatro": 4,
+    "five": 5, "cinco": 5,
+    "six": 6, "seis": 6
+  },
+  "unclearQuantities": ["a couple", "a few", "some", "unos", "unas", "unos cuantos", "algunos", "algunas"]
+}

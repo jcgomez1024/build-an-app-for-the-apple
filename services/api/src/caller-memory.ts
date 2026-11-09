@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/logs/calls");
-const file = process.env.ELVI_CALLERS_FILE || path.join(logDir, "callers.json"); // delivery1: override for tests
+// delivery1: tests point this at a temp file. Read it per call so a later import still sees the override.
+function callersFile() { return process.env.ELVI_CALLERS_FILE || path.join(logDir, "callers.json"); }
 export const phoneKey = (p: unknown) => String(p || "").replace(/\D/g, "").slice(-10);
 
 export type NameSource = "manual" | "ticket" | "readback" | "elvi" | "square"; // ordername1: elvi = heard by Elvi on the order
@@ -93,8 +94,8 @@ export function savedCallerName(phoneRaw: string): { name: string; source: NameS
   const src = (c?.nameSource || c?.nameFrom) as NameSource | undefined;
   return c?.name && src ? { name: c.name, source: src } : null;
 }
-function readAll(): Record<string, Caller> { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return {}; } }
-function writeAll(all: Record<string, Caller>) { fs.mkdirSync(logDir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(all, null, 2)); }
+function readAll(): Record<string, Caller> { try { return JSON.parse(fs.readFileSync(callersFile(), "utf8")); } catch { return {}; } }
+function writeAll(all: Record<string, Caller>) { const f = callersFile(); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(all, null, 2)); }
 
 /** Earlier calls from this number in the call log (excluding the current call). */
 function earlierCalls(phone: string, exceptCallSid?: string): { count: number; language?: "es" | "en" } {

@@ -1,0 +1,28 @@
+{
+  "callSid": "CAe78e2500f1b0299d354015c97da0dbdb",
+  "turns": [
+    { "speaker": "staff", "text": "Cocina Elvis, buenas tardes." },
+    { "speaker": "caller", "text": "¿Me puede poner un pozole rojo?" },
+    { "speaker": "staff", "text": "Un pozole rojo, claro. ¿Algo más?" },
+    { "speaker": "caller", "text": "Y una orden de seis enchiladas." },
+    { "speaker": "staff", "text": "¿De qué las quiere?" },
+    { "speaker": "caller", "text": "Sí, todos de queso fresco." },
+    { "speaker": "staff", "text": "Con todo, ¿verdad?" },
+    { "speaker": "caller", "text": "Sí, por favor." },
+    { "speaker": "caller", "text": "¿Y me pone un plato de arroz?" },
+    { "speaker": "staff", "text": "¿Chico o grande?" },
+    { "speaker": "caller", "text": "Ah, chico." },
+    { "speaker": "caller", "text": "Una quesadilla dorada preparada de bistec." },
+    { "speaker": "staff", "text": "Una deluxe de bistec." },
+    { "speaker": "caller", "text": "Y dos quesadillas de comal de bistec." },
+    { "speaker": "caller", "text": "Dos tacos de bistec de comal, con la verdura aparte." },
+    { "speaker": "caller", "text": "Dos tortillas sueltas de comal." },
+    { "speaker": "staff", "text": "Un pozole rojo." },
+    { "speaker": "staff", "text": "Un size de arroz chico." },
+    { "speaker": "staff", "text": "Dos tortillas extras del comal." },
+    { "speaker": "staff", "text": "Te tengo un pozole rojo, una orden de enchiladas de queso fresco con todo, un size de arroz chico, una quesadilla deluxe de bistec, dos quesadillas de comal de bistec, dos tacos de comal de bistec con la verdura aparte, y dos tortillas extras del comal. ¿Está bien?" },
+    { "speaker": "caller", "text": "Sí." },
+    { "speaker": "staff", "text": "¿A nombre de quién?" },
+    { "speaker": "caller", "text": "Juan." }
+  ]
+}

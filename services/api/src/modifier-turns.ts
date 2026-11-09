@@ -284,8 +284,16 @@ export function makeItN(text: string): { n: number; tail: string } | null {
 }
 function makeItTarget(cart: any[], tail: string): number {
   const nid = NOUN_ID.find(([w]) => w.test(tail));
-  for (let j = cart.length - 1; j >= 0; j--) { const id = String(cart[j]?.itemId); if (nid ? nid[1].test(id) : isFood(cart[j])) return j; }
-  return -1;
+  const candidates: number[] = [];
+  for (let j = cart.length - 1; j >= 0; j--) { const id = String(cart[j]?.itemId); if (nid ? nid[1].test(id) : isFood(cart[j])) candidates.push(j); }
+  const folded = fold(tail);
+  const styles = ["harina", "flour", "comal", "homemade", "taquero", "taquera", "street"].filter((word) => folded.includes(word));
+  const distinguished = styles.length ? candidates.filter((j) => {
+    const opts = fold((cart[j].modifiers || []).map((m: any) => m.option).join(" "));
+    return styles.every((word) => opts.includes(word) || (word === "homemade" && opts.includes("comal")) || (word === "street" && opts.includes("taquer")) || (word === "flour" && opts.includes("harina")) || (word === "harina" && opts.includes("flour")) || (word === "taquera" && opts.includes("taquer")));
+  }) : candidates;
+  const pool = distinguished.length ? distinguished : candidates;
+  return pool.length ? pool[0] : -1;
 }
 /** live + say(): the "make it N" turn edits the matching cart line's qty instead of adding another one */
 export function makeItNAsUpdate(actions: any[], cart: any[], text: string): boolean {
@@ -338,7 +346,8 @@ function pozoleRojoOk(turns: Turn[]): boolean {
 function setMakeItQty(cart: any[], j: number, n: number): void {
   const id = cart[j].itemId;
   const meat = (l: any) => (l.modifiers || []).filter(isMeatStep).map((m: any) => meatKey(m.option)).sort().join("+");
-  const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]));
+  const other = (l: any) => (l.modifiers || []).filter((m: any) => !isMeatStep(m)).map((m: any) => String(m.option)).sort().join("+");
+  const same = cart.filter((l) => l.itemId === id && meat(l) === meat(cart[j]) && other(l) === other(cart[j]));
   if (!same.length) return;
   const total = same.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
   if (same.length < 2 && total === n) return;
