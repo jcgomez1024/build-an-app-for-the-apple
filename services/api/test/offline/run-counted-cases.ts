@@ -143,6 +143,20 @@ const accept = execFileSync("npx", ["tsx", "test/offline/accept-shortcut.ts"], {
   env: { ...process.env, NODE_ENV: "test", ELVI_CALL_LOG_DIR: "/tmp/elvi-accept-shortcut", ELVI_CALLERS_FILE: "/tmp/elvi-accept-shortcut/callers.json" },
 });
 checks["accept-shortcut"] = /PASS accept-shortcut/.test(accept);
+const staffList = execFileSync("npx", ["tsx", "test/offline/affirmed-staff-list.ts"], {
+  cwd: "/agent/repos/build-an-app-for-the-apple/services/api",
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    NODE_ENV: "test",
+    ELVI_CALL_LOG_DIR: "/tmp/elvi-affirmed-staff-list",
+    ELVI_CALLERS_FILE: "/tmp/elvi-affirmed-staff-list/callers.json",
+    ELVI_COUNTED_DIAG: "/tmp/elvi-affirmed-staff-diag.jsonl",
+  },
+});
+for (const name of ["upsell-adds-nothing", "tambien-tenemos-adds-nothing", "wrong-readback-keeps-pepsi", "wrong-readback-review-reason", "wrong-readback-scratch-diagnostic", "pero-is-not-a-clean-yes", "later-correction-wins", "latest-list-wins", "c07-still-passes"]) {
+  checks[name] = new RegExp(`PASS ${name}`).test(staffList);
+}
 const body = {
   sha: execSync("git rev-parse HEAD", { cwd: "/agent/repos/build-an-app-for-the-apple" }).toString().trim(),
   variation_name_source: "frozenPhoneMenu copies sku.name onto variationName while building the committed site-catalog menu. Reconciliation reads that field. It does not look up a Square id again.",
