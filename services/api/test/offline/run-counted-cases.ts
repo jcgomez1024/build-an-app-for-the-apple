@@ -74,7 +74,7 @@ const checks: Record<string, boolean> = {
   ]).lines[0]?.itemId === "runtime-coke",
   "no-quiero-cebolla": cases.find((row) => row.id === "no-quiero-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "no-quiero-cebolla")!.closures.length === 0,
   diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.variationName || "")),
-  zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && !!cases.find((row) => row.id === "zero")!.reviewReason,
+  zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && !cases.find((row) => row.id === "zero")!.reviewReason,
   "beside-diet": cases.find((row) => row.id === "beside-diet")!.lines.length === 0,
   "cross-turn-quita": cases.find((row) => row.id === "cross-turn-quita")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-quita")!.reviewReason,
   "cross-turn-negation": cases.find((row) => row.id === "cross-turn-negation")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-negation")!.reviewReason,
