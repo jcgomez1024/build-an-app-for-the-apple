@@ -1132,33 +1132,44 @@ function accommodationNote(text: string, words: Set<string>): string | null {
   return `sin ${spoken}`;
 }
 
+const DISH_STYLE = new Set(["comal", "harina", "dorada", "deluxe"]);
+
 function familyTokens(content: string[]): string[] {
-  return content.filter((token) => !MEAT.has(token) && !TOPPING.has(token) && !VARIATION_QUALIFIER.has(token) && !NOT_A_DISH.has(token) && token.length >= 4);
+  return content.filter((token) => !MEAT.has(token) && !TOPPING.has(token) && !VARIATION_QUALIFIER.has(token) && !DISH_STYLE.has(token) && !NOT_A_DISH.has(token) && token.length >= 4);
 }
 
-function lineFamilyTokens(line: { itemId: string }, menu: IntentMenuItem[]): string[] {
+function lineText(line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): string | null {
   const item = menu.find((entry) => entry.id === line.itemId);
-  if (item) return familyTokens(dishTokens(catalogLabels(item).join(" ")));
-  return String(line.itemId || "").toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 4);
+  if (!item) return null;
+  const mods = (line.modifiers || []).map((mod) => String(mod.option || "")).join(" ");
+  return `${catalogLabels(item).join(" ")} ${mods}`;
 }
 
-/** A request is already on the cart when one line, or the lines together, have this family and this quantity. */
+function lineMatches(request: { content: string[]; size: string | null }, text: string): boolean {
+  const family = familyTokens(request.content);
+  if (!family.length || !family.some((token) => heard(text, token))) return false;
+  const meats = request.content.filter((token) => MEAT.has(token));
+  if (meats.some((token) => !heard(text, token))) return false;
+  const styles = request.content.filter((token) => DISH_STYLE.has(token));
+  if (styles.some((token) => !heard(text, token))) return false;
+  if (request.size && sizeOf(text) !== request.size) return false;
+  return true;
+}
+
+/** A request is covered only by lines not already claimed, and only when spoken meat, style, and size match. */
 function coveredByFamily(
-  requests: Array<{ quantity: number; content: string[] }>,
-  cart: Array<{ itemId: string; quantity?: number }>,
+  requests: Array<{ quantity: number; content: string[]; size: string | null }>,
+  cart: Array<{ itemId: string; quantity?: number; modifiers?: Array<{ option?: string }> }>,
   menu: IntentMenuItem[],
 ): Set<number> {
-  const pools = cart.map((line) => ({ tokens: lineFamilyTokens(line, menu), left: Number(line.quantity) || 1 }));
+  const pools = cart.map((line) => ({ text: lineText(line, menu), left: Number(line.quantity) || 1, claimed: false })).filter((pool) => pool.text);
   const covered = new Set<number>();
   requests.forEach((request, index) => {
-    const wanted = familyTokens(request.content);
-    if (!wanted.length) return;
-    const shares = (tokens: string[]) => wanted.some((token) => tokens.some((have) => sameStem(have, token)));
-    const exact = pools.find((pool) => pool.left === request.quantity && shares(pool.tokens));
-    if (exact) { exact.left = 0; covered.add(index); return; }
-    const group = pools.filter((pool) => pool.left > 0 && shares(pool.tokens));
-    if (group.reduce((sum, pool) => sum + pool.left, 0) !== request.quantity) return;
-    for (const pool of group) pool.left = 0;
+    const matches = pools.filter((pool) => !pool.claimed && pool.left > 0 && lineMatches(request, pool.text as string));
+    const exact = matches.find((pool) => pool.left === request.quantity);
+    if (exact) { exact.claimed = true; exact.left = 0; covered.add(index); return; }
+    if (!matches.length || matches.reduce((sum, pool) => sum + pool.left, 0) !== request.quantity) return;
+    for (const pool of matches) { pool.claimed = true; pool.left = 0; }
     covered.add(index);
   });
   return covered;
@@ -1221,7 +1232,6 @@ export function reconcileCountedRequests(
   const working = cart.map((line) => ({ itemId: line.itemId }));
   open.forEach((request, index) => {
     if (already.has(index)) return;
-    if (working.some((line) => lineCovers(line, menu, request.content, request.size))) return;
     const exact = exactItems(menu, request.content, request.size);
     const named = exact.length === 1 ? exact[0] : null;
     if (named && staffDeclinedVariation(staff, named)) {
