@@ -976,8 +976,9 @@ function sizeOf(text: string): string | null {
   return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
 }
 
-const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "dame", "deme", "pone", "ponen", "street", "bank", "north", "south", "saint", "louis", "avenue", "road", "drive", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
+const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "pued", "puedo", "puedes", "dame", "deme", "pone", "ponen", "street", "bank", "north", "south", "saint", "louis", "avenue", "road", "drive", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
 const MEAT = new Set(["bistec", "pastor", "asada", "pollo", "chorizo", "lengua", "tripa", "carnitas", "cabeza", "costilla", "picadillo", "deshebrada", "birria"]);
+const TOPPING = new Set(["queso", "cebolla", "crema", "cilantro", "onion", "cheese", "salsa", "frijol", "frijoles"]);
 
 function dishTokens(text: string): string[] {
   const cleaned = canonSize(text).replace(/\b\d+oz\b/g, " ");
@@ -1144,6 +1145,7 @@ export function reconcileCountedRequests(
     const taken = takeQuantity(cleanPhrase(body), file);
     if (!taken.quantity || taken.unclear) return;
     const content = dishTokens(cleanPhrase(taken.rest));
+    if (!content.some((token) => !MEAT.has(token) && !TOPPING.has(token) && !NOT_A_DISH.has(token))) return;
     if (!content.length || !menu.some((item) => sharesContent(item, content))) return;
     if (meatOnRungDish(content, cart, menu)) return;
     if (closureFor(sentence.text, content, sentence.question)) return;
