@@ -8010,9 +8010,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const counted = reconcileCountedRequests(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : []);
     for (const line of counted.lines) cart.push(line as any);
     if (counted.lines.length) steps.push({ source: "end-counted-request", heard: counted.lines.map((line) => line.readback).join(" "), reply: counted.reply });
-    if (counted.reviewReason && !(steps as any).reviewReason) {
-      (steps as any).reviewReason = counted.reviewReason;
-      steps.push({ source: "end-unresolved-count", heard: counted.reviewReason, reply: counted.reply });
+    if (counted.reviewReason || counted.lines.length || counted.closures.length) {
+      steps.push({ source: "counted-low-confidence", heard: counted.reviewReason || counted.reply || "", reply: counted.reply, closures: counted.closures });
     }
   // A spoken accommodation that was not applied stays a review hold. It is not a line note and not a fulfilled exclusion.
   if (intentPending?.accommodation && !(steps as any).reviewReason) {
@@ -8033,6 +8032,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     closures: counted.closures,
     lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
     reviewReason,
+    countedReview: counted.reviewReason,
   });
 }
 

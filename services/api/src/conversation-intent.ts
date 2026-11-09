@@ -2,6 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
+import { spokenLabels } from "./menu-names.js";
 import { enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
@@ -975,7 +976,8 @@ function sizeOf(text: string): string | null {
   return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
 }
 
-const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato"]);
+const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "dame", "deme", "pone", "ponen", "street", "bank", "north", "south", "saint", "louis", "avenue", "road", "drive", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
+const MEAT = new Set(["bistec", "pastor", "asada", "pollo", "chorizo", "lengua", "tripa", "carnitas", "cabeza", "costilla", "picadillo", "deshebrada", "birria"]);
 
 function dishTokens(text: string): string[] {
   const cleaned = canonSize(text).replace(/\b\d+oz\b/g, " ");
@@ -987,13 +989,16 @@ function variationLabel(item: IntentMenuItem): string {
 }
 
 function catalogLabels(item: IntentMenuItem): string[] {
-  return [variationLabel(item), item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
+  return spokenLabels(item).filter((label) => {
+    const folded = fold(label);
+    return !(/\bcoca\b/.test(folded) && /\bpepsi\b/.test(folded));
+  });
 }
 
 function itemLabel(item: IntentMenuItem, language: "en" | "es"): string {
-  const variation = variationLabel(item);
-  if (language === "es" && item.nameEs && !/online/i.test(item.nameEs) && !variation) return item.nameEs;
-  return variation || item.name || item.nameEs || "";
+  const spoken = catalogLabels(item)[0] || "";
+  if (language === "es" && item.nameEs && !/online/i.test(item.nameEs) && spoken === item.nameEs) return item.nameEs;
+  return spoken || item.name || item.nameEs || "";
 }
 
 function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es" {
@@ -1004,8 +1009,11 @@ function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es
   return english > spanish ? "en" : "es";
 }
 
-function countedSentences(text: string): string[] {
-  return String(text || "").split(/[.?!¡¿]+/).map((part) => fold(part).trim()).filter(Boolean);
+function countedSentences(text: string): Array<{ text: string; question: boolean }> {
+  return String(text || "").split(/(?<=[?¿.！!])/).map((part) => ({
+    text: fold(part).replace(/[¿?¡]/g, " ").replace(/\s+/g, " ").trim(),
+    question: /[?¿]/.test(part),
+  })).filter((part) => part.text);
 }
 
 function exactLabel(label: string, content: string[], size: string | null): boolean {
@@ -1063,8 +1071,9 @@ function requestHead(sentence: string): string {
   return sentence.split(/\b(?:en los|en las|en el|en la|con|with|on the|para)\b/)[0];
 }
 
-function closureFor(sentence: string, content: string[]): CountedClosure | null {
-  const dish = content.filter((token) => !VARIATION_QUALIFIER.has(token));
+function closureFor(sentence: string, content: string[], question = false): CountedClosure | null {
+  if (question || /[?¿]/.test(sentence)) return null;
+  const dish = content.filter((token) => !VARIATION_QUALIFIER.has(token) && !MEAT.has(token));
   const head = requestHead(sentence);
   if (!dish.length || !dish.some((token) => heard(head, token))) return null;
   const target = dish.join(" ");
@@ -1072,6 +1081,31 @@ function closureFor(sentence: string, content: string[]): CountedClosure | null 
   if (/\b(?:quita(?:r|me|le)?|ya no|remove|take (?:it|that|them) off)\b/.test(head)) return { target, kind: "withdrawal" };
   if (/\bno quiero\b/.test(head) || dish.some((token) => tokenNegated(head, token))) return { target, kind: "negation" };
   return null;
+}
+
+function isQuestionSentence(sentence: string, file: IntentFile): boolean {
+  return /[?¿]/.test(sentence) || isAvailability(sentence, file) || /\b(?:quiere|quieren|tienes|tienen)\b/.test(sentence);
+}
+
+function isAddressOrNumber(sentence: string): boolean {
+  if (/\b(?:street|avenue|ave|road|drive|bank|saint|north|south)\b/.test(sentence)) return true;
+  const numbers = sentence.match(/\b(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|treinta|cuarenta|cincuenta|one|two|three|four|five|six|seven|eight|nine|zero|forty)\b/g) || [];
+  return numbers.length >= 2 && !/\b(?:taco|quesadilla|horchata|coca|pepsi|menudo|birria|burrito|torta|gordita|sope)\b/.test(sentence);
+}
+
+function meatOnRungDish(content: string[], cart: Array<{ itemId: string }>, menu: IntentMenuItem[]): boolean {
+  const foods = content.filter((token) => !MEAT.has(token) && !VARIATION_QUALIFIER.has(token));
+  if (foods.length || !content.some((token) => MEAT.has(token))) return false;
+  return cart.some((line) => {
+    const item = menu.find((entry) => entry.id === line.itemId);
+    const blob = item ? catalogLabels(item).join(" ") : String(line.itemId || "");
+    return blob.length > 0;
+  });
+}
+
+function accommodationNote(text: string): string | null {
+  const match = text.match(/\b(?:sin|without|no)\s+(cebolla|onion|crema|cilantro|queso|cheese)\b/);
+  return match ? `sin ${match[1] === "onion" ? "cebolla" : match[1] === "cheese" ? "queso" : match[1]}` : null;
 }
 
 function cleanPhrase(phrase: string): string {
@@ -1094,14 +1128,14 @@ export function reconcileCountedRequests(
   if (!file || !menu?.length) return empty;
   const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
   const caller = turns.filter((turn) => turn.speaker === "caller");
-  const sentences: Array<{ text: string; language: "en" | "es" }> = [];
+  const sentences: Array<{ text: string; language: "en" | "es"; question: boolean }> = [];
   for (const turn of caller) {
     const language = sentenceLanguage(turn);
-    for (const text of countedSentences(turn.text)) sentences.push({ text, language });
+    for (const part of countedSentences(turn.text)) sentences.push({ text: part.text, question: part.question, language });
   }
-  const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number }> = [];
+  const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number; note: string | null }> = [];
   sentences.forEach((sentence, index) => {
-    if (isAvailability(sentence.text, file)) return;
+    if (sentence.question || isQuestionSentence(sentence.text, file) || isAddressOrNumber(sentence.text)) return;
     let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
     const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
     if (verb) body = body.slice(verb.length).trim();
@@ -1110,13 +1144,14 @@ export function reconcileCountedRequests(
     const taken = takeQuantity(cleanPhrase(body), file);
     if (!taken.quantity || taken.unclear) return;
     const content = dishTokens(cleanPhrase(taken.rest));
-    if (!content.length) return;
-    if (closureFor(sentence.text, content)) return;
-    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index });
+    if (!content.length || !menu.some((item) => sharesContent(item, content))) return;
+    if (meatOnRungDish(content, cart, menu)) return;
+    if (closureFor(sentence.text, content, sentence.question)) return;
+    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index, note: accommodationNote(sentence.text) });
   });
   const closures: CountedClosure[] = [];
   const open = requests.filter((request) => {
-    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content)).find((closure) => closure);
+    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content, sentence.question)).find((closure) => closure);
     if (!later) return true;
     closures.push(later);
     return false;
@@ -1151,19 +1186,20 @@ export function reconcileCountedRequests(
     const note = request.language === "es"
       ? `Recuperado, hay que confirmar: ${namedLabel}.`
       : `Recovered, needs confirmation: ${namedLabel}.`;
+    const restriction = sentences.map((sentence, index) => sentence.question ? null : accommodationNote(sentence.text) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text) : null).find((value) => value) || null;
     lines.push({
       itemId: named.id,
       quantity: request.quantity,
       modifiers: [],
       readback: `${namedLabel}. ${note}`,
       recovered: true,
-      elviNotes: ["confirmar"],
+      elviNotes: restriction ? ["confirmar", restriction] : ["confirmar"],
     });
     working.push({ itemId: named.id });
     reviews.push(note);
     reply = note;
   }
-  if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part) && !takeQuantity(part, file).quantity))) {
+  if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part.text) && !part.question && !takeQuantity(part.text, file).quantity))) {
     lines[0].elviNotes.push("botella");
   }
   if (!lines.length && !reviews.length && !closures.length) return empty;

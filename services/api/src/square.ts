@@ -1,3 +1,4 @@
+import { IN_STORE_VARIATIONS, spokenDrinkAliases, spokenItemName } from "./menu-names.js";
 import { addressesIn } from "./delivery.js";
 import { cleanFullName } from "./caller-memory.js";
 import { quoteDeliveryAddress, quoteAppAddress, quoteAppCoords, quoteDeliveryCoords, loadAppDelivery, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
@@ -754,11 +755,7 @@ function trimReviewedVariantName(reviewedName: string, variantName: string) {
   return trimmed || variantName;
 }
 
-/** brayan-aguacate1: Square in-store variations (not on the website) that Elvi rings as their own item. */
-export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[] }>([
-  ["PYTW56MHJJGL6JKTZGSXGVWQ", { name: "Menudo SOLO Caldo", aliases: ["menudo solo caldo", "solo caldo menudo", "menudo de puro caldo", "menudo puro caldo", "menudo solamente caldo", "menudo sin carne", "puro caldo de menudo", "menudo broth only"] }], // victor-caldo1
-  ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"] }],
-]);
+export { IN_STORE_VARIATIONS };
 function buildMenuFromSquareCatalog(
   objects: Array<{
     id: string;
@@ -1064,10 +1061,7 @@ function escapeRegExp(value: string) {
 
 /** "Coca Cola / Pepsi Pepsi" -> "Pepsi"; "Aguas Frescas Orchata 32oz" -> "Agua Fresca Horchata 32oz". */
 function drinkDisplayName(fullName: string, variationName: string) {
-  const v = sanitizeDisplayName(variationName);
-  if (/aguas?\s+frescas?/i.test(fullName)) return `Agua Fresca ${v.replace(/\bOrchata\b/i, "Horchata")}`;
-  if (/^jarrito/i.test(fullName)) return `Jarrito ${v}`;
-  return v || fullName;
+  return spokenItemName(fullName, sanitizeDisplayName(variationName));
 }
 
 function isOnlineDrinkCategoryName(value: string) {
@@ -1077,27 +1071,7 @@ function isOnlineDrinkCategoryName(value: string) {
 
 /** What callers say for each drink variation ("una horchata", "a pepsi", "jarrito de mango"). */
 function drinkAliases(fullName: string, variationName: string) {
-  const v = normalizeName(variationName);
-  const n = normalizeName(fullName);
-  const out = new Set<string>();
-  const add = (...xs: string[]) => xs.forEach((x) => out.add(normalizeName(x)));
-  if (/\baguas? frescas?\b/.test(n)) {
-    const flavor = v.replace(/\b\d+\s*oz\b/g, "").trim();
-    const spoken = flavor.replace(/\borchata\b/g, "horchata");
-    for (const f of new Set([flavor, spoken])) {
-      add(f, `${f}s`, `agua de ${f}`, `agua fresca ${f}`, `agua fresca de ${f}`, `${f} grande`, `${f} large`, `large ${f}`);
-    }
-  } else if (/\bjarrito\b/.test(n)) {
-    for (const f of variationName.split("/").map((x) => x.trim()).filter(Boolean)) add(`jarrito ${f}`, `jarrito de ${f}`, `jarritos ${f}`, `${f} jarrito`);
-  } else if (/\bmineral\b/.test(v)) {
-    add("mineral water", "agua mineral", "sparkling water", "topo chico", "mineral");
-  } else if (/\bagua\b|\bwater\b/.test(v)) {
-    add("water", "a water", "waters", "water bottle", "bottle of water", "bottled water", "agua", "botella de agua", "water bottle");
-  } else {
-    add(v, `${v}s`);
-    if (/\bcoca cola\b/.test(v)) add(v.replace("coca cola", "coke"), v.replace("coca cola", "coca"));
-  }
-  return Array.from(out).filter((x) => x.length > 2);
+  return spokenDrinkAliases(fullName, variationName);
 }
 
 function isOnlineCategoryName(value: string) {
