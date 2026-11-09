@@ -2,6 +2,9 @@
 import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { reconcileCountedRequests } from "../../src/conversation-intent.ts";
+import { loadSiteCatalog } from "../../src/site-catalog.ts";
+import { buildMenuFromSquareCatalog } from "../../src/square.ts";
+import { buildTicketLines } from "../../src/twilio.ts";
 import { phoneMenu } from "./evaluate.ts";
 
 const outPath = process.argv[2];
@@ -58,23 +61,60 @@ const cases = [
   run("horchata-es-already-there", [{ speaker: "caller", text: "Dos horchatas de treinta y dos onzas.", language: "es" }], freeze, [{ itemId: horchata.id, quantity: 2 }]),
 ];
 
+function runtimeMenuFromFrozenExport() {
+  const site = loadSiteCatalog();
+  const objects: any[] = [];
+  const categories = new Map<string, string>();
+  for (const product of site?.products || []) {
+    for (const name of product.categories || []) {
+      if (categories.has(name)) continue;
+      const id = `cat-${categories.size}`;
+      categories.set(name, id);
+      objects.push({ type: "CATEGORY", id, category_data: { name } });
+    }
+  }
+  for (const product of site?.products || []) {
+    objects.push({
+      type: "ITEM",
+      id: product.squareId,
+      item_data: {
+        name: product.siteName || product.name,
+        categories: (product.categories || []).map((name: string) => ({ id: categories.get(name) })),
+        variations: (product.skus || []).map((sku: any) => ({
+          id: sku.squareId,
+          item_variation_data: { name: sku.name, channels: ["ONLINE"], price_money: { amount: sku.priceCents || 0 } },
+        })),
+      },
+    });
+  }
+  return buildMenuFromSquareCatalog(objects);
+}
+
+const runtimeMenu = runtimeMenuFromFrozenExport();
+const runtimeCoca = reconcileCountedRequests([], [{ speaker: "caller", text: "Una coca.", language: "es" }], runtimeMenu);
+const runtimeRow = runtimeMenu.find((item) => item.id === runtimeCoca.lines[0]?.itemId);
+const onion = cases.find((row) => row.id === "no-quiero-cebolla")!;
+const printedOnion = buildTicketLines(
+  [{ name: "Taco", quantity: onion.lines[0]?.quantity || 2, choices: [], totalCents: 0 }],
+  [{ itemId: "taco-1", quantity: onion.lines[0]?.quantity || 2, modifiers: [], elviNotes: onion.lines[0]?.elviNotes || [] }],
+  [],
+);
 const plainId = cases.find((row) => row.id === "plain")!.lines[0]?.itemId || "";
 const checks: Record<string, boolean> = {
-  plain: cases.find((row) => row.id === "plain")!.lines.length === 1 && cases.find((row) => row.id === "plain")!.reviewReason === "Recuperado, hay que confirmar: Coca Cola.",
+  plain: cases.find((row) => row.id === "plain")!.lines.length === 1 && cases.find((row) => row.id === "plain")!.lines[0].elviNotes.includes("confirmar") && !cases.find((row) => row.id === "plain")!.reviewReason && cases.find((row) => row.id === "plain")!.lines[0].readback === "Coca Cola",
   "negated-no": cases.find((row) => row.id === "negated-no")!.lines.length === 0,
   declined: cases.find((row) => row.id === "declined")!.lines.length === 0 && !cases.find((row) => row.id === "declined")!.reviewReason,
   removed: cases.find((row) => row.id === "removed")!.lines.length === 0 && !cases.find((row) => row.id === "removed")!.reviewReason,
-  "staff-out": cases.find((row) => row.id === "staff-out")!.lines.length === 0,
+  "staff-out": cases.find((row) => row.id === "staff-out")!.lines.length === 0 && cases.find((row) => row.id === "staff-out")!.reviewReason === "revisar pedido contado",
   replaced: !cases.find((row) => row.id === "replaced")!.lines.some((line) => line.itemId === plainId) && cases.find((row) => row.id === "replaced")!.closures.some((closure) => closure.target === "coca" && closure.kind === "replacement"),
   "mejor-a-las-seis": cases.find((row) => row.id === "mejor-a-las-seis")!.lines[0]?.itemId === plainId && cases.find((row) => row.id === "mejor-a-las-seis")!.closures.length === 0,
-  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla")) && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
-  "runtime-coca": reconcileCountedRequests([], [{ speaker: "caller", text: "Una coca.", language: "es" }], [
-    { id: "runtime-coke", name: "Coca Cola", nameEs: "Coca Cola", aliases: ["coca", "coke", "coca cola"] },
-    { id: "runtime-pepsi", name: "Pepsi", nameEs: "Pepsi", aliases: ["pepsi"] },
-  ]).lines[0]?.itemId === "runtime-coke",
-  "no-quiero-cebolla": cases.find((row) => row.id === "no-quiero-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "no-quiero-cebolla")!.closures.length === 0,
+  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla") && line.readback === "Taco") && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
+  "runtime-coca": runtimeCoca.lines.length === 1 && runtimeRow?.name === "Coca Cola" && runtimeRow?.variationName == null && !runtimeMenu.some((item) => item.id === runtimeCoca.lines[0]?.itemId && /pepsi/i.test(item.name)),
+  "no-quiero-cebolla": onion.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla") && line.readback === "Taco") && onion.closures.length === 0,
+  "printed-restriction": printedOnion.some((line) => line.notes.includes("sin cebolla") && String(line.flag || "").includes("sin cebolla")),
+  "phone-only-prices": phone.find((item) => item.squareVariationId === "PYTW56MHJJGL6JKTZGSXGVWQ")?.priceCents === 1000 && phone.find((item) => item.squareVariationId === "QGR5AQTWVHNW347NOPAKX44U")?.priceCents === 400,
   diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.variationName || "")),
-  zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && !cases.find((row) => row.id === "zero")!.reviewReason,
+  zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && cases.find((row) => row.id === "zero")!.reviewReason === "revisar pedido contado",
   "beside-diet": cases.find((row) => row.id === "beside-diet")!.lines.length === 0,
   "cross-turn-quita": cases.find((row) => row.id === "cross-turn-quita")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-quita")!.reviewReason,
   "cross-turn-negation": cases.find((row) => row.id === "cross-turn-negation")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-negation")!.reviewReason,
@@ -104,6 +144,13 @@ const body = {
   checks,
   production_gate: productionGate,
   cases,
+  printed_ticket: printedOnion.map((line) => ({ name: line.name, quantity: line.quantity, notes: line.notes, flag: line.flag })),
+  phone_only_prices: {
+    menudo_solo_caldo: phone.find((item) => item.squareVariationId === "PYTW56MHJJGL6JKTZGSXGVWQ")?.priceCents,
+    aguacate_full: phone.find((item) => item.squareVariationId === "QGR5AQTWVHNW347NOPAKX44U")?.priceCents,
+    source: "The two rows are not in site-catalog.json. Their prices are the amounts the phone repairs already speak when a catalog price is missing: Menudo SOLO Caldo 1000 cents, Aguacate FULL 400 cents. They are not zero.",
+  },
+  runtime_coca: { itemId: runtimeCoca.lines[0]?.itemId || null, name: runtimeRow?.name || null, variationName: runtimeRow?.variationName ?? null },
 };
 writeFileSync(outPath, JSON.stringify(body, null, 2));
 for (const [id, ok] of Object.entries(checks)) console.log(ok ? "PASS" : "FAIL", id);
