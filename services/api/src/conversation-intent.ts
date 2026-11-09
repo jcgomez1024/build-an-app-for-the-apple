@@ -20,6 +20,8 @@ export type IntentPending = {
   modifiers: Array<{ step: string; option: string }>;
   targetIndex: number | null;
   unresolved: string[];
+  /** Spoken accommodation that is not a confirmed catalog selection. It is not a kitchen approval and is not applied to the cart. */
+  accommodation?: string;
 };
 
 export type IntentDecision = {
@@ -316,6 +318,7 @@ function askGroup(language: "en" | "es", groupName: string, pending: IntentPendi
 }
 
 function settle(language: "en" | "es", pending: IntentPending, cart: NonNullable<IntentInput["cart"]>, menu: IntentMenuItem[]): IntentDecision {
+  if (pending.accommodation) return holdRestriction(language, pending);
   const item = menu.find((entry) => entry.id === pending.itemId);
   const missing = item ? requiredMissing(item, pending.modifiers) : [];
   const unresolved = [
@@ -345,7 +348,24 @@ function settle(language: "en" | "es", pending: IntentPending, cart: NonNullable
   };
 }
 
+function holdRestriction(language: "en" | "es", pending: IntentPending): IntentDecision {
+  const text = pending.accommodation || pending.unresolved.join(" ");
+  const reply = language === "es"
+    ? `Esa restricción sigue sin resolver: ${text}. No cambié la orden confirmada y no la apliqué. Queda en revisión.`
+    : `That restriction is still unresolved: ${text}. I did not change the confirmed order, and I did not apply it. It remains for review.`;
+  return { kind: "clarify", reply, actions: [], pending: { ...pending, accommodation: text, unresolved: [text] } };
+}
+
+function answersHeldRestriction(input: IntentInput, file: IntentFile, language: "en" | "es", pending: IntentPending, folded: string): boolean {
+  const text = fold(pending.accommodation || "");
+  if (text && folded.includes(text)) return true;
+  if (!/^(?:yes|yeah|yep|yup|si|ok|okay|correct|right)\b/.test(folded)) return false;
+  const parsed = addActionFromUtterance(input, file, language, folded);
+  return !parsed || parsed.itemId === pending.itemId;
+}
+
 function continuePending(input: IntentInput, file: IntentFile, language: "en" | "es", pending: IntentPending, folded: string): IntentDecision | null {
+  if (pending.accommodation) return null;
   const cart = input.cart || [];
   const only = takeQuantity(folded, file);
   if (only.quantity && !only.rest && !only.unclear) return settle(language, { ...pending, quantity: only.quantity }, cart, input.menu);
@@ -602,6 +622,7 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
     }
     return decision;
   };
+  if (pending?.accommodation && answersHeldRestriction(input, file, language, pending, folded)) return remember(holdRestriction(language, pending));
   if (isCartEdit(folded) && cart.length) {
     if (asksWhichLine(folded) && cart.length > 1) {
       const asked = askTarget(language, cart, input.menu, { operation: "replace", itemId: cart[0].itemId, quantity: null, modifiers: [], targetIndex: null, unresolved: ["target"] });
@@ -760,7 +781,16 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
         const reply = language === "es"
           ? `No apliqué el pedido anterior, así que no lo tomé como ya cumplido.${unresolved ? ` Sin resolver: ${unresolved}.` : ""} No lo agregué.`
           : `I did not apply the previous request, so I did not treat it as fulfilled.${unresolved ? ` Unresolved: ${unresolved}.` : ""} I did not add it.`;
-        return remember({ kind: "clarify", reply, actions: [], pending: null });
+        const held: IntentPending | null = unresolved ? {
+          operation: "add",
+          itemId: addAction.itemId,
+          quantity: addAction.quantity,
+          modifiers: (addAction.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
+          targetIndex: null,
+          unresolved: [unresolved],
+          accommodation: unresolved,
+        } : null;
+        return remember({ kind: "clarify", reply, actions: [], pending: held });
       }
       if (anaphoric && onCart && !witnessed) {
         const matches = cart.filter((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));

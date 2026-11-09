@@ -20,16 +20,20 @@ async function shadow(turns: string[]) {
 
 function reducer(turns: string[]) {
   let cart: any[] = [];
+  let pending: any = null;
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
   let reply = "";
+  let lastPending: any = null;
   for (const text of turns) {
-    const decision = resolveConversationIntent({ transcript: text, language: "en", menu, history, cart, staffTexts: [], pending: null });
+    const decision = resolveConversationIntent({ transcript: text, language: "en", menu, history, cart, staffTexts: [], pending });
     if (decision?.actions?.length) cart = applyIntentCart(cart, decision.actions);
+    if (decision && Object.prototype.hasOwnProperty.call(decision, "pending")) pending = decision.pending;
     history.push({ role: "customer", text });
     if (decision?.reply) history.push({ role: "assistant", text: decision.reply });
     reply = decision?.reply || "";
+    lastPending = decision ? decision.pending ?? null : pending;
   }
-  return { cart: cartSig(cart), reply, lines: cart };
+  return { cart: cartSig(cart), reply, lines: cart, pending: lastPending, history };
 }
 
 function countSteak(lines: any[]) {
@@ -154,6 +158,36 @@ async function main() {
   const legitQty = (legitReducer.lines || []).filter((line: any) => /Pollo/.test((line.modifiers || []).map((m: any) => m.option).join(" ")))
     .reduce((sum: number, line: any) => sum + (Number(line.quantity) || 1), 0);
   checks.push({ id: "legitimate-identical-add-reducer", ok: legitQty === 4 && legitReducer.lines.length >= 2, detail: `${legitReducer.cart} qty ${legitQty}` });
+
+  const answeredTurns = [
+    "Please add two comal steak tacos.",
+    "Add two comal steak tacos without onions.",
+    "Only add those two comal steak tacos.",
+    "Yes, two comal steak tacos without onions.",
+  ];
+  const answeredPhone = await shadow(answeredTurns);
+  const answeredReducer = reducer(answeredTurns);
+  const heldReply = (reply: string) => /without onions/i.test(reply)
+    && /still unresolved/i.test(reply)
+    && /did not change the confirmed order/i.test(reply)
+    && /did not apply it/i.test(reply)
+    && /remains for review/i.test(reply)
+    && !/already on the order/i.test(reply);
+  const lineHeld = (lines: any[]) => countSteak(lines) === 2 && lines.length === 1
+    && !(lines[0].elviNotes || []).length && !(lines[0].notes || []).length
+    && !(lines[0].modifiers || []).some((modifier: any) => /onion|cebolla/i.test(String(modifier.option)));
+  checks.push({
+    id: "restriction-answer-stays-unresolved-phone",
+    ok: lineHeld(answeredPhone.lines) && heldReply(answeredPhone.reply),
+    detail: `${answeredPhone.cart} :: ${answeredPhone.reply}`,
+  });
+  checks.push({
+    id: "restriction-answer-stays-unresolved-reducer",
+    ok: lineHeld(answeredReducer.lines) && heldReply(answeredReducer.reply)
+      && answeredReducer.pending?.accommodation === "without onions"
+      && answeredReducer.pending?.unresolved?.join(" ") === "without onions",
+    detail: `${answeredReducer.cart} :: ${answeredReducer.reply} :: ${JSON.stringify(answeredReducer.pending)}`,
+  });
 
   for (const check of checks) console.log(check.ok ? "PASS" : "FAIL", check.id, check.detail);
   if (checks.some((check) => !check.ok)) process.exit(1);
