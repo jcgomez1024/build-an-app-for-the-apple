@@ -63,3 +63,32 @@ export function spokenLabels(item: { name?: string; nameEs?: string; aliases?: s
   if (item.variationName) labels.unshift(spokenItemName(item.name || "", item.variationName));
   return [...new Set(labels.filter((label): label is string => !!label && label.trim().length > 0 && !/^regular$/i.test(label)))];
 }
+
+const CATALOG_STOP = new Set(["with", "para", "from", "online", "regular", "homemade", "street", "combo", "meal", "pack", "full", "half", "solo", "only", "tortilla", "tortillas", "corn", "flour", "order", "orden", "grande", "large", "small", "chica", "bottle", "botella", "bote", "platter", "fiesta"]);
+
+export type CatalogMention = { id: string; label: string };
+
+/** Catalog rows named in the text. A shorter row wins over a longer one that only adds unspoken words (diet vs regular). */
+export function catalogMentions(text: string, items: Array<{ id: string; name?: string; nameEs?: string; aliases?: string[]; variationName?: string }>): CatalogMention[] {
+  const words = new Set(normalizeName(text).split(" ").filter(Boolean));
+  const hits: Array<CatalogMention & { extra: number; shared: string[] }> = [];
+  for (const item of items) {
+    const labels = spokenLabels(item);
+    let matched = false;
+    for (const raw of labels) {
+      const tokens = normalizeName(raw).split(" ").filter((token) => token.length >= 4 && !CATALOG_STOP.has(token));
+      if (tokens.length && tokens.every((token) => words.has(token))) matched = true;
+    }
+    if (!matched) continue;
+    const nameTokens = normalizeName(item.name || "").split(" ").filter((token) => token.length >= 4 && !CATALOG_STOP.has(token));
+    hits.push({
+      id: item.id,
+      label: item.name || item.id,
+      extra: nameTokens.filter((token) => !words.has(token)).length,
+      shared: nameTokens.filter((token) => words.has(token)),
+    });
+  }
+  return hits
+    .filter((hit) => !hits.some((other) => other.id !== hit.id && other.extra < hit.extra && other.shared.some((token) => hit.shared.includes(token))))
+    .map(({ id, label }) => ({ id, label }));
+}

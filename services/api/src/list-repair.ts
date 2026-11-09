@@ -1,3 +1,4 @@
+import { catalogMentions } from "./menu-names.js";
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -1028,46 +1029,131 @@ export function staffRecapText(turns: Turn[]): string | null {
   return null;
 }
 const AFFIRM = /^(?:si|yes|yeah|yep|ok(?:ay)?|claro|andale|exactamente|sounds good|perfect|right|correcto|va)\b/;
+export const STAFF_LIST_REVIEW = "revisar lectura del personal";
 
-function attachNearbyOption(line: any, menu: any[], staffText: string) {
+export type AffirmedStaffResult = { fired: boolean; added: string[]; flagged: string[] };
+
+function cleanYes(text: string): boolean {
+  const p = plain(text);
+  if (!AFFIRM.test(p)) return false;
+  const rest = p.replace(AFFIRM, "").replace(/^(?:por favor|gracias|thanks|please)\b/, "").trim();
+  return !rest || !/\b(?:pero|cambia|falta|no|sin)\b/.test(rest);
+}
+
+function isQuestionOrUpsell(text: string): boolean {
+  const p = plain(text);
+  if (/\b(?:quiere|quieren|le pongo|te pongo|les pongo|tambien tenemos|also have)\b/.test(p)) return true;
+  const body = String(text || "").replace(/¿\s*algo mas\s*\??/gi, " ").replace(/,?\s*right\s*\??/gi, " ").replace(/¿\s*verdad\s*\??/gi, " ");
+  return /[?¿]/.test(body);
+}
+
+function clausesOf(text: string): string[] {
+  return plain(text).split(/\s*,\s*|\s+y\s+/).map((part) => part.trim()).filter(Boolean);
+}
+
+function attachClauseOption(line: any, menu: any[], clause: string) {
   const meat = meatOfLine(line);
-  const p = plain(staffText);
-  if (!meat) return;
-  const at = p.indexOf(meat);
-  if (at < 0) return;
-  const window = p.slice(Math.max(0, at - 40), at + 50);
   const groupsHere = groups(menu, line.itemId).filter((g) => /con \/|with|extra/i.test(g.name));
   for (const g of groupsHere) for (const option of g.options || []) {
     const name = oname(option);
     const words = plain(name).split(" ").filter((word) => word.length >= 5 && word !== meat && !MEATS.some(([re]) => re.test(word)));
-    if (!words.some((word) => window.includes(word))) continue;
+    if (!words.some((word) => clause.includes(word))) continue;
     if ((line.modifiers || []).some((mod: any) => mod.option === name)) return;
     line.modifiers = [...(line.modifiers || []), { step: g.name, option: name }];
     return;
   }
 }
 
-/** A staff list of dishes, then a bare yes, is the order. Questions that are not a list are left alone. */
-export function applyAffirmedStaffList(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (staffReadback(turns)) return false;
-  for (let i = 0; i < turns.length - 1; i++) {
+function sameFamily(item: any, line: Exp): boolean {
+  const kind = kindOfLine(item);
+  return !!kind && famOf(kind) === famOf(line.kind);
+}
+
+function styleOfLine(line: any): Exp["style"] | undefined {
+  const text = plain((line.modifiers || []).map((mod: any) => mod.option).join(" "));
+  if (/\bcomal\b/.test(text)) return "comal";
+  if (/\btaquer|\bstreet\b/.test(text)) return "taquero";
+  if (/\bharina\b|\bflour\b/.test(text)) return "harina";
+  return undefined;
+}
+
+function drinkFamily(label: string): string {
+  const name = plain(label);
+  if (/\b(?:coca|pepsi|sprite|fanta|soda|cola)\b/.test(name)) return "soda";
+  if (/\b(?:horchata|jamaica|tamarindo|agua)\b/.test(name)) return "agua";
+  return "drink";
+}
+
+function isDrinkHit(menu: any[], hit: { id: string; label: string }): boolean {
+  return /drink|coca|pepsi|horchata|jamaica|jarrito|sprite|fanta|soda/i.test(`${hit.id} ${hit.label} ${menu.find((item) => item.id === hit.id)?.name || ""}`);
+}
+
+/** Add listed lines that are missing. A conflict keeps the caller's line and records a reason. Never overwrite or delete. */
+export function applyAffirmedStaffList(cart: any[], turns: Turn[], menu: any[]): AffirmedStaffResult {
+  const result: AffirmedStaffResult = { fired: false, added: [], flagged: [] };
+  if (staffReadback(turns)) return result;
+  let chosen = -1;
+  for (let i = turns.length - 2; i >= 0; i--) {
     const staff = turns[i];
     const next = turns[i + 1];
     if (staff.speaker !== "staff" || next.speaker !== "caller") continue;
-    if (!AFFIRM.test(plain(next.text)) || /^(?:no\b|cambia|falta)/.test(plain(next.text))) continue;
-    const lines = parseList(staff.text);
-    if (!lines.length || lines.some((line) => !line.meat)) continue;
-    const missing = lines.some((line) => !cart.some((item) => {
-      const kind = kindOfLine(item);
-      return kind && famOf(kind) === famOf(line.kind) && meatOfLine(item) === line.meat && (Number(item.quantity) || 1) >= line.qty;
-    }));
-    if (!missing) continue;
-    const before = cart.length;
-    applyStaffReadback(cart, [{ speaker: "staff", text: `te tengo ${staff.text}` }], menu);
-    for (const item of cart) attachNearbyOption(item, menu, staff.text);
-    return cart.length !== before || lines.length > 0;
+    if (!cleanYes(next.text) || isQuestionOrUpsell(staff.text)) continue;
+    const listed = parseList(staff.text).some((line) => line.meat);
+    const drink = catalogMentions(staff.text, menu).some((hit) => isDrinkHit(menu, hit));
+    if (!listed && !drink) continue;
+    chosen = i;
+    break;
   }
-  return false;
+  if (chosen < 0) return result;
+  result.fired = true;
+  const staff = turns[chosen];
+  const lines = parseList(staff.text).filter((line) => line.meat);
+  const callerSaid = turns.slice(0, chosen).filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).flatMap((turn) => parseList(turn.text));
+  const laterCaller = plain(turns.slice(chosen + 2).filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "));
+  const laterMeat = /\b(?:mejor|cambia|quita|en vez)\b/.test(laterCaller) ? meatIn(laterCaller) : null;
+  for (const line of lines) {
+    const callerSame = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat === line.meat);
+    const callerOther = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat && said.meat !== line.meat);
+    const existingSame = cart.filter((item) => sameFamily(item, line) && meatOfLine(item) === line.meat);
+    const retracted = laterMeat ? laterMeat !== line.meat : (/\b(?:quita|no quiero)\b/.test(laterCaller) && laterCaller.includes(line.kind));
+    if (retracted || (callerOther.length && !callerSame.length)) {
+      const kept = existingSame[0] || cart.find((item) => sameFamily(item, line) && meatOfLine(item) === (laterMeat || callerOther[0]?.meat)) || cart.find((item) => sameFamily(item, line));
+      result.flagged.push(`${retracted ? "deleted" : "meat"}:${kept?.itemId || line.kind}`);
+      continue;
+    }
+    if (existingSame.length) {
+      const item = existingSame[0];
+      const callerQty = callerSame.length ? callerSame[callerSame.length - 1].qty : undefined;
+      const callerStyle = [...callerSame].reverse().find((said) => said.style)?.style;
+      const have = styleOfLine(item);
+      if ((callerQty != null && line.qty !== callerQty) || (callerQty == null && (Number(item.quantity) || 1) !== line.qty)) result.flagged.push(`quantity:${item.itemId}`);
+      if ((callerStyle && line.style && callerStyle !== line.style) || (!callerStyle && have && line.style && have !== line.style)) result.flagged.push(`style:${item.itemId}`);
+      continue;
+    }
+    const created: any = { itemId: "", quantity: line.qty, modifiers: [] };
+    setLine(created, line, menu);
+    if (!created.itemId) continue;
+    cart.push(created);
+    result.added.push(String(created.itemId));
+  }
+  const callerOrder = turns.slice(0, chosen).filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).map((turn) => turn.text).join(" ");
+  const callerDrinks = catalogMentions(callerOrder, menu).filter((hit) => isDrinkHit(menu, hit));
+  for (const hit of catalogMentions(staff.text, menu).filter((item) => isDrinkHit(menu, item))) {
+    if (callerDrinks.some((drink) => drink.id === hit.id)) continue;
+    const family = drinkFamily(hit.label);
+    const other = callerDrinks.find((drink) => drink.id !== hit.id && drinkFamily(drink.label) === family);
+    if (!other) continue;
+    const kept = cart.find((item) => item.itemId === other.id);
+    const flag = `brand:${kept?.itemId || other.id}`;
+    if (!result.flagged.includes(flag)) result.flagged.push(flag);
+  }
+  for (const clause of clausesOf(staff.text)) {
+    const parsed = parseList(clause).find((line) => line.meat);
+    if (!parsed) continue;
+    const item = cart.find((entry) => sameFamily(entry, parsed) && meatOfLine(entry) === parsed.meat);
+    if (item) attachClauseOption(item, menu, clause);
+  }
+  return result;
 }
 
 export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
