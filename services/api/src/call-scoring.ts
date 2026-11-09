@@ -1,6 +1,7 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
+import { appendFileSync } from "node:fs";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
 import { applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
@@ -8010,6 +8011,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
+  if (process.env.ELVI_RECONCILE_TRACE) {
+    appendFileSync(process.env.ELVI_RECONCILE_TRACE, JSON.stringify({
+      test: process.argv[1] || "",
+      lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
+      reviewReason,
+    }) + "\n");
+  }
   return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
 }
 

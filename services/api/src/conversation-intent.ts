@@ -2,7 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
-import { enforceSiteAvailability } from "./site-catalog.js";
+import { catalogSkuName, enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
   type: "add_item" | "remove_item" | "update_item";
@@ -948,17 +948,37 @@ export type CountedReconciliation = {
   reply: string;
 };
 
-function catalogLabels(item: IntentMenuItem): string[] {
-  return [item.variationName, item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
+function sameStem(a: string, b: string): boolean {
+  if (a === b) return true;
+  const left = stem(stem(a));
+  const right = stem(stem(b));
+  return left === right || left === b || right === a;
 }
 
 function heard(phrase: string, token: string): boolean {
-  if (hasWord(phrase, token)) return true;
-  return token === "diet" && hasWord(phrase, "dieta");
+  const wanted = token === "dieta" ? "diet" : token;
+  if (words(phrase).some((word) => sameStem(word === "dieta" ? "diet" : word, wanted))) return true;
+  return wanted === "diet" && words(phrase).some((word) => sameStem(word, "dieta"));
 }
 
-function contentTokens(rest: string): string[] {
-  return significant(rest).map((token) => (token === "dieta" ? "diet" : token));
+function canonSize(text: string): string {
+  return fold(text)
+    .replace(/-/g, " ")
+    .replace(/\btreinta y dos\b/g, "32")
+    .replace(/\b(\d+)\s*(?:oz|ounce|ounces|onza|onzas)\b/g, "$1oz");
+}
+
+function sizeOf(text: string): string | null {
+  return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
+}
+
+function dishTokens(text: string): string[] {
+  const cleaned = canonSize(text).replace(/\b\d+oz\b/g, " ");
+  return significant(cleaned).map((token) => (token === "dieta" ? "diet" : token)).filter((token) => !SIZE_WORD.has(token));
+}
+
+function catalogLabels(item: IntentMenuItem): string[] {
+  return [catalogSkuName(item), item.variationName, item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
 }
 
 function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es" {
@@ -973,36 +993,42 @@ function countedSentences(text: string): string[] {
   return String(text || "").split(/[.?!¡¿]+/).map((part) => fold(part).trim()).filter(Boolean);
 }
 
-function exactLabel(label: string, content: string[]): boolean {
-  if (!content.every((token) => heard(label, token))) return false;
-  const quals = significant(label).filter((token) => VARIATION_QUALIFIER.has(token));
+function exactLabel(label: string, content: string[], size: string | null): boolean {
+  if (size && sizeOf(label) !== size) return false;
+  if (!content.every((token) => heard(canonSize(label), token))) return false;
+  const quals = dishTokens(label).filter((token) => VARIATION_QUALIFIER.has(token));
   return quals.every((token) => content.includes(token));
 }
 
-function exactItems(menu: IntentMenuItem[], content: string[]): IntentMenuItem[] {
-  const byVariation = menu.filter((item) => item.variationName && !/^regular$/i.test(item.variationName) && exactLabel(item.variationName, content));
+function exactItems(menu: IntentMenuItem[], content: string[], size: string | null): IntentMenuItem[] {
+  const byVariation = menu.filter((item) => {
+    const sku = catalogSkuName(item);
+    return !!sku && exactLabel(sku, content, size);
+  });
   if (byVariation.length) return byVariation;
-  return menu.filter((item) => [item.name, item.nameEs].some((label) => !!label && exactLabel(label, content)));
+  return menu.filter((item) => [item.name, item.nameEs].some((label) => !!label && exactLabel(label, content, size)));
 }
 
 function sharesContent(item: IntentMenuItem, content: string[]): boolean {
-  return catalogLabels(item).some((label) => content.some((token) => heard(label, token)));
+  return catalogLabels(item).some((label) => content.some((token) => heard(canonSize(label), token)));
 }
 
-function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: string[]): boolean {
+function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: string[], size: string | null): boolean {
   const item = menu.find((entry) => entry.id === line.itemId);
   if (!item) return false;
   const needed = content.filter((token) => !VARIATION_QUALIFIER.has(token));
   const quals = content.filter((token) => VARIATION_QUALIFIER.has(token));
   if (!needed.length) return false;
-  return catalogLabels(item).some((label) => heard(label, needed[0]) && quals.every((token) => heard(label, token)));
+  return catalogLabels(item).some((label) => {
+    if (size && sizeOf(label) !== size) return false;
+    return needed.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
+  });
 }
 
 function unspokenSize(item: IntentMenuItem, phrase: string): boolean {
-  const label = fold(item.variationName || "");
+  const label = catalogSkuName(item) || item.variationName || "";
   if (!label) return false;
-  if (/\d/.test(label) && !/\d/.test(phrase)) return true;
-  return significant(label).some((token) => SIZE_WORD.has(token) && !heard(phrase, token));
+  return !!sizeOf(label) && !sizeOf(phrase);
 }
 
 function requiredOpen(item: IntentMenuItem, phrase: string): boolean {
@@ -1016,6 +1042,15 @@ function requiredOpen(item: IntentMenuItem, phrase: string): boolean {
  * Names and variation labels only. One exact catalog row can be recovered for confirmation.
  * Anything else stays a review reason in the call's language. No invented SKU or option.
  */
+const CLOSES_REQUEST = /\b(?:quita(?:r|me|le)?|ya no|no quiero|no la quiero|no lo quiero|remove|take (?:it|that|them) off|instead of|en vez de|rather than)\b/;
+
+function closesRequest(sentence: string, content: string[]): boolean {
+  const dish = content.filter((token) => !VARIATION_QUALIFIER.has(token));
+  if (!dish.some((token) => heard(sentence, token))) return false;
+  if (CLOSES_REQUEST.test(sentence)) return true;
+  return dish.some((token) => tokenNegated(sentence, token));
+}
+
 export function reconcileCountedRequests(
   cart: Array<{ itemId: string; quantity?: number; elviNotes?: string[] }>,
   turns: Array<{ speaker?: string; text: string; language?: string }>,
@@ -1026,58 +1061,66 @@ export function reconcileCountedRequests(
   if (!file || !menu?.length) return empty;
   const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
   const caller = turns.filter((turn) => turn.speaker === "caller");
+  const sentences: Array<{ text: string; language: "en" | "es" }> = [];
+  for (const turn of caller) {
+    const language = sentenceLanguage(turn);
+    for (const text of countedSentences(turn.text)) sentences.push({ text, language });
+  }
+  const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number }> = [];
+  sentences.forEach((sentence, index) => {
+    if (isAvailability(sentence.text, file)) return;
+    let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
+    const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
+    if (verb) body = body.slice(verb.length).trim();
+    if (CLOSES_REQUEST.test(sentence.text) || file.replacementCues.some((cue) => sentence.text.startsWith(fold(cue)))) return;
+    const taken = takeQuantity(body, file);
+    if (!taken.quantity || taken.unclear) return;
+    const content = dishTokens(taken.rest);
+    if (!content.length) return;
+    if (closesRequest(sentence.text, content)) return;
+    requests.push({ phrase: taken.rest, quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index });
+  });
+  const open = requests.filter((request) => !sentences.slice(request.index + 1).some((sentence) => closesRequest(sentence.text, request.content) || /\b(?:instead of|en vez de|rather than|mejor|instead)\b/.test(sentence.text)));
   const lines: CountedLine[] = [];
   const reviews: string[] = [];
   let reply = "";
   const working = cart.map((line) => ({ itemId: line.itemId }));
-  for (const turn of caller) {
-    const language = sentenceLanguage(turn);
-    for (const sentence of countedSentences(turn.text)) {
-      if (isAvailability(sentence, file)) continue;
-      let body = sentence.replace(/^(?:y|and|also|tambien)\s+/, "");
-      const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
-      if (verb) body = body.slice(verb.length).trim();
-      if (file.replacementCues.some((cue) => sentence.startsWith(fold(cue))) || /^(?:instead of|en vez de|replace|cambia|cambio)\b/.test(sentence)) continue;
-      const taken = takeQuantity(body, file);
-      if (!taken.quantity || taken.unclear) continue;
-      const content = contentTokens(taken.rest);
-      if (!content.length) continue;
-      if (working.some((line) => lineCovers(line, menu, content))) continue;
-      const exact = exactItems(menu, content);
-      const named = exact.length === 1 ? exact[0] : null;
-      if (named && significant(named.variationName || named.name || "").some((token) => tokenNegated(sentence, token))) continue;
-      if (named && staffDeclinedVariation(staff, named)) {
-        const phrase = taken.rest;
-        const reason = language === "es"
-          ? `Pedido contado sin resolver: ${phrase}. No está disponible y no lo agregué.`
-          : `Unresolved counted request: ${phrase}. It is not available, so I did not add it.`;
-        reviews.push(reason);
-        reply = reason;
-        continue;
-      }
-      if (!named || requiredOpen(named, taken.rest) || unspokenSize(named, taken.rest)) {
-        if (!menu.some((item) => sharesContent(item, content))) continue;
-        const phrase = taken.rest;
-        const reason = language === "es"
-          ? `Pedido contado sin resolver: ${phrase}. No lo agregué.`
-          : `Unresolved counted request: ${phrase}. I did not add it.`;
-        reviews.push(reason);
-        reply = reason;
-        continue;
-      }
-      const note = language === "es" ? `Recuperado, hay que confirmar: ${taken.quantity} ${named.variationName || named.name || named.nameEs}.` : `Recovered, needs confirmation: ${taken.quantity} ${named.variationName || named.name || named.nameEs}.`;
-      lines.push({
-        itemId: named.id,
-        quantity: taken.quantity,
-        modifiers: [],
-        readback: note,
-        recovered: true,
-        elviNotes: ["confirmar"],
-      });
-      working.push({ itemId: named.id });
-      reviews.push(note);
-      reply = note;
+  for (const request of open) {
+    if (working.some((line) => lineCovers(line, menu, request.content, request.size))) continue;
+    const exact = exactItems(menu, request.content, request.size);
+    const named = exact.length === 1 ? exact[0] : null;
+    if (named && staffDeclinedVariation(staff, named)) {
+      const reason = request.language === "es"
+        ? `Pedido contado sin resolver: ${request.phrase}. No está disponible y no lo agregué.`
+        : `Unresolved counted request: ${request.phrase}. It is not available, so I did not add it.`;
+      reviews.push(reason);
+      reply = reason;
+      continue;
     }
+    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
+      if (!menu.some((item) => sharesContent(item, request.content))) continue;
+      const reason = request.language === "es"
+        ? `Pedido contado sin resolver: ${request.phrase}. No lo agregué.`
+        : `Unresolved counted request: ${request.phrase}. I did not add it.`;
+      reviews.push(reason);
+      reply = reason;
+      continue;
+    }
+    const label = catalogSkuName(named) || named.name || named.nameEs;
+    const note = request.language === "es"
+      ? `Recuperado, hay que confirmar: ${request.phrase}.`
+      : `Recovered, needs confirmation: ${request.phrase}.`;
+    lines.push({
+      itemId: named.id,
+      quantity: request.quantity,
+      modifiers: [],
+      readback: `${label}. ${note}`,
+      recovered: true,
+      elviNotes: ["confirmar"],
+    });
+    working.push({ itemId: named.id });
+    reviews.push(note);
+    reply = note;
   }
   if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part) && !takeQuantity(part, file).quantity))) {
     lines[0].elviNotes.push("botella");
