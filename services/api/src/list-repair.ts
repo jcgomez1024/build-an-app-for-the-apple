@@ -1088,7 +1088,13 @@ function isDrinkHit(menu: any[], hit: { id: string; label: string }): boolean {
   return /drink|coca|pepsi|horchata|jamaica|jarrito|sprite|fanta|soda/i.test(`${hit.id} ${hit.label} ${menu.find((item) => item.id === hit.id)?.name || ""}`);
 }
 
-const ORDER_VERB = /\b(?:quiero|quisiera|pone|ponme|pongame|dame|deme|prepar\w*|traeme|traer|order|want|give me|one of|i d like)\b/;
+const ORDER_VERB = /\b(?:quiero|quisiera|pone|ponme|pongame|dame|deme|prepar\w*|traeme|traer|want|give me|one of|i d like)\b/;
+
+function staffAvailability(text: string): boolean {
+  const p = plain(text);
+  if (/\b(?:te tengo|le tengo|so i have|i have|i got)\b/.test(p)) return false;
+  return /\b(?:tenemos|we have|available|unavailable|in stock|out of stock|no hay|no tenemos|se acabo|sold out)\b/.test(p);
+}
 
 function productId(menu: any[], id: string): string {
   return menu.find((item) => item.id === id)?.squareCatalogObjectId || id;
@@ -1110,7 +1116,7 @@ function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: Af
   const callerDrinks = catalogMentions(callerOrder, menu).filter((hit) => isDrinkHit(menu, hit));
   const windows: Array<{ dish: string; option: string }> = [];
   turns.forEach((turn, index) => {
-    if (turn.speaker !== "staff" || isQuestionOrUpsell(turn.text)) return;
+    if (turn.speaker !== "staff" || isQuestionOrUpsell(turn.text) || staffAvailability(turn.text)) return;
     const next = turns[index + 1];
     if (next?.speaker === "caller" && cleanYes(next.text)) windows.push({ dish: turn.text, option: turn.text });
     const laterCaller = turns.slice(index + 1).some((item) => item.speaker === "caller");
