@@ -67,7 +67,11 @@ const checks: Record<string, boolean> = {
   "staff-out": cases.find((row) => row.id === "staff-out")!.lines.length === 0,
   replaced: !cases.find((row) => row.id === "replaced")!.lines.some((line) => line.itemId === plainId) && cases.find((row) => row.id === "replaced")!.closures.some((closure) => closure.target === "coca" && closure.kind === "replacement"),
   "mejor-a-las-seis": cases.find((row) => row.id === "mejor-a-las-seis")!.lines[0]?.itemId === plainId && cases.find((row) => row.id === "mejor-a-las-seis")!.closures.length === 0,
-  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
+  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla")) && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
+  "runtime-coca": reconcileCountedRequests([], [{ speaker: "caller", text: "Una coca.", language: "es" }], [
+    { id: "runtime-coke", name: "Coca Cola", nameEs: "Coca Cola", aliases: ["coca", "coke", "coca cola"] },
+    { id: "runtime-pepsi", name: "Pepsi", nameEs: "Pepsi", aliases: ["pepsi"] },
+  ]).lines[0]?.itemId === "runtime-coke",
   "no-quiero-cebolla": cases.find((row) => row.id === "no-quiero-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "no-quiero-cebolla")!.closures.length === 0,
   diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.variationName || "")),
   zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && !!cases.find((row) => row.id === "zero")!.reviewReason,
