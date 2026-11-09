@@ -660,7 +660,13 @@ export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], menu: any
     }
     changed = true;
   }
-  const drink = turns.find((turn, index) => turn.speaker === "staff" && /\bhorchata\b/i.test(turn.text) && turns.slice(0, index).some((row) => row.speaker === "caller" && isAvailabilityAsk(row.text) && /horchata/i.test(row.text) && !askRefused(turns, turns.indexOf(row))));
+  const drink = turns.some((turn, index) => {
+    if (turn.speaker !== "caller" || !isAvailabilityAsk(turn.text) || !/horchata/i.test(turn.text) || askRefused(turns, index)) return false;
+    const later = turns.slice(index + 1, index + 6);
+    const ordered = later.some((row) => row.speaker === "caller" && /\b(?:una|un|one)\b/.test(plain(row.text)) && !/\b(?:quesadilla|taco|torta|menudo|gordita)\b/.test(plain(row.text)));
+    const named = later.some((row) => row.speaker === "staff" && /\bhorchata\b/i.test(row.text) && !/[?¿]/.test(row.text));
+    return ordered && named;
+  });
   if (drink && menu?.length && !cart.some((line) => lineFamily(line) === "horchata")) {
     const item = menu.find((row) => /horchata/i.test(String(row.id || row.name || "")));
     if (item) { cart.push({ itemId: item.id, quantity: 1, modifiers: [] }); changed = true; }
