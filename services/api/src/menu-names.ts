@@ -50,9 +50,16 @@ export function spokenDrinkAliases(productName: string, variationName: string): 
   return [...out];
 }
 
+/** "en aceite" is how callers name a dorada. It is an alias of that catalog row, not a separate phrase rule. */
+export function spokenFoodAliases(name: string): string[] {
+  const folded = normalizeName(name);
+  if (/\bdorada\b|\bfrita\b/.test(folded)) return ["en aceite", "aceite"];
+  return [];
+}
+
 /** Labels used to match a caller word. A runtime row has name and aliases. A frozen row also has variationName. */
 export function spokenLabels(item: { name?: string; nameEs?: string; aliases?: string[]; variationName?: string }): string[] {
-  const labels = [item.name, item.nameEs, ...(item.aliases || [])];
+  const labels = [item.name, item.nameEs, ...(item.aliases || []), ...spokenFoodAliases(`${item.name || ""} ${item.variationName || ""}`)];
   if (item.variationName) labels.unshift(spokenItemName(item.name || "", item.variationName));
   return [...new Set(labels.filter((label): label is string => !!label && label.trim().length > 0 && !/^regular$/i.test(label)))];
 }
