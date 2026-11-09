@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
-import { applyAffirmedStaffList, applySettledQdConTodo, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applySettledQdConTodo, noteUnspokenRequiredChoice, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
@@ -93,6 +93,31 @@ applySettledQdConTodo(rejectedRegular, [
   { speaker: "caller", text: "No, regulares." },
 ]);
 check("no-regular-after-con-todo-stays-regular", rejectedRegular[0].itemId === regularDorada && /REGULAR Dorada/.test(JSON.stringify(rejectedRegular[0].modifiers)));
+const cokeRegular = [{ itemId: deluxeDorada, quantity: 2, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, prensadoMod] }];
+applySettledQdConTodo(cokeRegular, [
+  { speaker: "caller", text: "Dos quesadillas doradas de prensado con todo." },
+  { speaker: "caller", text: "Una coca regular, no de dieta." },
+]);
+check("coke-regular-does-not-revert-dorada", cokeRegular[0].itemId === deluxeDorada);
+const quesadilla = menu.find((item) => item.id === "sq-quesadilla-HLT6CR");
+const fajita = menu.find((item) => /fajitas-elvis/i.test(item.id));
+const qdLine = { itemId: quesadilla.id, quantity: 1, modifiers: [
+  { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade" },
+  { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" },
+], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([qdLine], [{ speaker: "caller", text: "Una quesadilla de bistec." }], menu);
+check("quesadilla-without-tortilla-holds", (qdLine.elviNotes || []).some((note) => /tortilla/i.test(note)) && !(qdLine.elviNotes || []).some((note) => /carne|meat/i.test(note)), JSON.stringify(qdLine.elviNotes));
+const fajitaLine = { itemId: fajita.id, quantity: 1, modifiers: [
+  { step: "(A) Fajitas Carne / Meat Options", option: "Pollo / Chicken" },
+  { step: "(B) Lado / Side", option: "Arroz-Rice and Frijoles-Beans" },
+  { step: "(C) Tortilla Options", option: "3 x (Corn) Corn Tortilla" },
+], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([fajitaLine], [
+  { speaker: "caller", text: "Quiero unas fajitas de pollo." },
+  { speaker: "staff", text: "Arroz y frijoles esta bien?" },
+  { speaker: "caller", text: "Si." },
+], menu);
+check("fajita-unspoken-tortilla-holds", (fajitaLine.elviNotes || []).some((note) => /tortilla/i.test(note)) && !(fajitaLine.elviNotes || []).some((note) => /lado|side/i.test(note)), JSON.stringify(fajitaLine.elviNotes));
 check("staff-clock-is-not-ready-time", callerReadyTime([{ speaker: "staff", text: "cerramos a las nueve" }, { speaker: "staff", text: "¿A las dos quesos?" }]) === null && callerReadyTime([{ speaker: "caller", text: "si puedo pasar por ellas a las nueve, digo a las once y media" }])?.time === "11:30");
 check("person-pickup-is-not-togo", detectFulfillment([{ speaker: "caller", text: "Él lo recoge." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Voy a recoger a mi hijo." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Para recogerla." }]).fulfillment === "PICKUP");
 check("no-tenemos-birria-is-unavailable", staffUnavailable([{ speaker: "caller", text: "Quiero un platillo de birria." }, { speaker: "staff", text: "No tenemos birria." }]).some((dish) => dish.includes("birria")));

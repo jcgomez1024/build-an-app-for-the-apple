@@ -212,15 +212,15 @@ export async function integrationChecks(): Promise<Check[]> {
       detail: missingBlob.slice(0, 400),
     },
     {
-      id: "shadow-valid-catalog-choices-stay-accepted",
+      id: "shadow-unspoken-required-choice-holds",
       layer: "integration",
-      ok: valid.autoAccepted === true && valid.validation === "clear" && onMenu(valid),
+      ok: valid.autoAccepted === false && valid.validation === "unresolved" && onMenu(valid) && (valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /confirmar /.test(note))),
       detail: `auto=${valid.autoAccepted} validation=${valid.validation} lines=${(valid.cart || []).map((l: any) => `${l.itemId}:${l.validation || "ok"}:${(l.elviNotes || []).join("/")}`).join(" ; ")}`,
     },
     {
-      id: "ticket-does-not-invent-confirmar-on-valid-line",
+      id: "ticket-marks-unspoken-required-choice",
       layer: "integration",
-      ok: !/confirmar /.test(validBlob),
+      ok: /confirmar /.test(validBlob) && /Quesadilla/.test(validBlob),
       detail: validBlob.slice(0, 400),
     },
     {
