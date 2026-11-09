@@ -1204,41 +1204,69 @@ function cocaKind(phrase: string): "regular" | "diet" | "zero" | "other" {
   if (/\bdiet\b/.test(phrase)) return "diet";
   return "regular";
 }
-function menuCoca(menu: any[], kind: "regular" | "diet" | "zero") {
-  return (menu || []).find((item) => {
-    const blob = foldDrink(`${item.id} ${item.name} ${item.nameEs || ""}`);
-    if (!/\bcoca\b/.test(blob)) return false;
-    if (kind === "diet") return /\bdiet\b/.test(blob);
-    if (kind === "zero") return /\b(?:zero|cero)\b/.test(blob);
-    return !/\bdiet\b|\b(?:zero|cero)\b/.test(blob);
-  });
+function skuSlug(item: any): string {
+  return foldDrink(String(item?.id || "")).replace(/^sq-/, "").replace(/-[a-z0-9]{6}$/, "");
+}
+function skuMatches(item: any, kind: "regular" | "diet" | "zero"): boolean {
+  const slug = skuSlug(item);
+  const pepsiSku = /pepsi$/.test(slug);
+  const diet = /(?:^|-)diet(?:-|$)/.test(slug);
+  const zero = /(?:^|-)(?:zero|cero)(?:-|$)/.test(slug);
+  const cocaSku = /coca-cola$/.test(slug) || /(?:^|-)coca$/.test(slug);
+  if (kind === "diet") return diet && /coca/.test(slug) && !pepsiSku;
+  if (kind === "zero") return zero && /coca/.test(slug) && !pepsiSku;
+  return cocaSku && !diet && !zero && !pepsiSku;
+}
+export type CountedCocaDecision =
+  | { action: "add"; item: any; quantity: number; note?: string }
+  | { action: "review"; reason: string; reply: string }
+  | { action: "none" };
+/** One counted Coca request. The SKU is the item id's own ending, not the first name that contains the letters coca. */
+export function reconcileCountedCoca(cart: any[], turns: Array<{ speaker?: string; text: string }>, menu: any[] = []): CountedCocaDecision {
+  const callerTurns = turns.filter((turn) => turn.speaker === "caller");
+  const caller = foldDrink(callerTurns.map((turn) => turn.text).join(" \n "));
+  const staff = foldDrink(turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text).join(" \n "));
+  const questionOnly = callerTurns.length > 0 && callerTurns.every((turn) => /[?]/.test(turn.text) || /\b(?:tienes|tienen|hay|queda|venden)\b/.test(foldDrink(turn.text)));
+  if (questionOnly && !/\b(?:dame|deme|quiero|ponme|traeme)\b/.test(caller)) return { action: "none" };
+  if (/(?:aqui|ya)\s+tengo\b/.test(caller) && /\bcocas?\b/.test(caller)) return { action: "none" };
+  if (/\b(?:no|sin|without|quita(?:r|me|le)?|ya no|no quiero)\b[^.\n]{0,40}\bcocas?\b/.test(caller)) return { action: "none" };
+  if (/\b(?:mejor|en vez de|instead of|instead)\b/.test(caller) && /\b(?:pepsi|sprite|jarrito)\b/.test(caller)) return { action: "none" };
+  if (/\bcocas?\b/.test(caller) && /\bpepsi\b/.test(caller) && /\b(?:no se|de los dos|o tienes)\b/.test(caller)) return { action: "none" };
+  const orders = [...caller.matchAll(new RegExp(`\\b(${COCA_COUNT})\\s+((?:diet|zero|cero)\\s+)?cocas?(?:\\s+colas?)?((?:\\s+(?:diet|zero|cero))?)\\b`, "giu"))];
+  if (orders.length !== 1) return { action: "none" };
+  const phrase = foldDrink(orders[0][0]);
+  const kind = cocaKind(phrase);
+  const word = orders[0][1].toLowerCase();
+  const quantity = ({ un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4 } as Record<string, number>)[word] || Number(word) || 1;
+  const unavailable = /\b(?:no hay|se acabo|agotad|out of|no tengo|no tenemos)\b/.test(staff) && /\bcocas?\b/.test(staff);
+  if (unavailable) {
+    return { action: "review", reason: "unresolved counted request: coca unavailable", reply: "I did not add the Coca-Cola. Staff said it is not available, so it remains for review." };
+  }
+  const matches = (menu || []).filter((item) => skuMatches(item, kind));
+  if (matches.length !== 1) {
+    const why = matches.length === 0 ? "no menu item" : "more than one menu item";
+    return {
+      action: "review",
+      reason: `unresolved counted request: ${phrase} (${why})`,
+      reply: `I did not add ${phrase}. That counted request is unresolved and remains for review.`,
+    };
+  }
+  const item = matches[0];
+  if (kind === "regular" && cart.some((line) => skuMatches(line, "diet") || skuMatches(line, "zero"))) return { action: "none" };
+  if (cart.some((line) => line.itemId === item.id)) return { action: "none" };
+  const bottle = kind === "regular" && /\bbotellas?\b|\bbottles?\b/.test(caller) && !/\b(?:taparrosca|vidrio|glass)\b/.test(caller);
+  return { action: "add", item, quantity, ...(bottle ? { note: "botella" } : {}) };
 }
 /** A single counted Coca-Cola the model did not ring. Negated, declined, removed, replaced, or out-of-stock requests are not added. Diet and Zero never become a regular Coke. */
 export function addSpokenCountedCoca(cart: any[], turns: Array<{ speaker?: string; text: string }>, menu: any[] = []): boolean {
-  const caller = foldDrink(turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" \n "));
-  const staff = foldDrink(turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text).join(" \n "));
-  if (/(?:aqui|ya)\s+tengo\b/.test(caller) && /\bcocas?\b/.test(caller)) return false;
-  if (/\b(?:no hay|se acabo|agotad|out of|no tengo|no tenemos)\b/.test(staff) && /\bcocas?\b/.test(staff)) return false;
-  if (/\b(?:no|sin|without|quita(?:r|me|le)?|ya no|no quiero)\b[^.\n]{0,40}\bcocas?\b/.test(caller)) return false;
-  if (/\b(?:mejor|en vez de|instead of|instead)\b/.test(caller) && /\b(?:pepsi|sprite|jarrito)\b/.test(caller)) return false;
-  if (/\bcocas?\b/.test(caller) && /\bpepsi\b/.test(caller) && /\b(?:no se|de los dos|o tienes)\b/.test(caller)) return false;
-  const orders = [...caller.matchAll(new RegExp(`\\b(${COCA_COUNT})\\s+((?:diet|zero|cero)\\s+)?cocas?(?:\\s+colas?)?((?:\\s+(?:diet|zero|cero))?)\\b`, "giu"))];
-  if (orders.length !== 1) return false;
-  const kind = cocaKind(foldDrink(orders[0][0]));
-  if (kind === "other") return false;
-  const item = menuCoca(menu, kind);
-  if (!item) return false;
-  if (kind === "regular" && cart.some((line) => /\bcoca\b/.test(foldDrink(String(line.itemId))) && /\b(?:diet|zero|cero)\b/.test(foldDrink(String(line.itemId))))) return false;
-  if (cart.some((line) => line.itemId === item.id)) return false;
-  const word = orders[0][1].toLowerCase();
-  const qty = ({ un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4 } as Record<string, number>)[word] || Number(word) || 1;
-  const bottle = kind === "regular" && /\bbotellas?\b|\bbottles?\b/.test(caller) && !/\b(?:taparrosca|vidrio|glass)\b/.test(caller);
+  const decision = reconcileCountedCoca(cart, turns, menu);
+  if (decision.action !== "add") return false;
   cart.push({
-    itemId: item.id,
-    quantity: qty,
+    itemId: decision.item.id,
+    quantity: decision.quantity,
     modifiers: [],
-    readback: `${qty} ${item.name || "coca cola"}`,
-    ...(bottle ? { elviNotes: ["botella"] } : {}),
+    readback: `${decision.quantity} ${decision.item.name || "coca cola"}`,
+    ...(decision.note ? { elviNotes: [decision.note] } : {}),
   });
   return true;
 }
