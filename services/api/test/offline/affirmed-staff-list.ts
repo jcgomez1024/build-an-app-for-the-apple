@@ -246,6 +246,23 @@ noteUnspokenRequiredChoice([six, laterTwo], [
   { speaker: "caller", text: "Deme dos de pastor." },
 ], menu);
 check("later-order-keeps-its-own-tortilla-hold", !tortillaNote(six) && tortillaNote(laterTwo), JSON.stringify({ six: six.elviNotes, two: laterTwo.elviNotes }));
+const earlier = { itemId: taco.id, quantity: 2, modifiers: [tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec], elviNotes: [] as string[] };
+const addedOne = { itemId: taco.id, quantity: 1, modifiers: [groupOption(taco, /tortilla/i, /harina|flour/i) || tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([earlier, addedOne], [
+  { speaker: "caller", text: "Two street steak tacos." },
+  { speaker: "caller", text: "Plus one flour chicken taco." },
+  { speaker: "caller", text: "Swap the earlier line for the same number of homemade comal tacos, steak or chicken." },
+  { speaker: "caller", text: "Chicken, not steak." },
+], menu);
+const earlierEs = { itemId: taco.id, quantity: 2, modifiers: [tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec], elviNotes: [] as string[] };
+const addedEs = { itemId: taco.id, quantity: 1, modifiers: [groupOption(taco, /tortilla/i, /harina|flour/i) || tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([earlierEs, addedEs], [
+  { speaker: "caller", text: "Dos tacos taqueros de bistec." },
+  { speaker: "caller", text: "Más un taco de harina de pollo." },
+  { speaker: "caller", text: "Cambia la primera línea por la misma cantidad de tacos de comal, de bistec o de pollo." },
+  { speaker: "caller", text: "De pollo, no de bistec." },
+], menu);
+check("same-number-covers-the-earlier-line", !tortillaNote(earlier) && !meatNote(earlier) && !tortillaNote(addedOne) && !meatNote(addedOne) && !tortillaNote(earlierEs) && !meatNote(earlierEs) && !tortillaNote(addedEs) && !meatNote(addedEs), JSON.stringify({ earlier: earlier.elviNotes, added: addedOne.elviNotes, earlierEs: earlierEs.elviNotes, addedEs: addedEs.elviNotes }));
 const garnishMenu = menu.map((item) => item.id === menudo.id ? { ...item, modifierGroups: [...(item.modifierGroups || []), { name: "(C) Menudo Garnish", minSelections: 1, maxSelections: 1, options: ["Cebolla", "Cilantro"], defaultOptions: ["Cebolla"] }] } : item);
 const garnishLine = { itemId: menudo.id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }, { step: "(C) Menudo Garnish", option: "Cebolla" }], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([garnishLine], [{ speaker: "caller", text: "Un menudo." }], garnishMenu);

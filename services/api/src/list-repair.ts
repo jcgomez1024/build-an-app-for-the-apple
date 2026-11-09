@@ -1634,14 +1634,20 @@ function turnCoversLine(text: string, lineQty: number, siblingQtys: number[]): b
   return said.includes(lineQty);
 }
 
+function refersToEarlierLine(text: string): boolean {
+  return /\b(?:earlier line|same number|primera linea|misma cantidad)\b/.test(plain(text));
+}
+
 /** A style said with no number covers the dish count already on the table, not a later separate order. */
 function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[]): number[] {
   const here = quantitiesIn(turns[index].text);
   if (here.length) return here;
+  const skipLaterAddition = refersToEarlierLine(turns[index].text);
   for (let j = index - 1; j >= 0; j--) {
     const named = mentionedIn(turns[j].text);
     if (named.length && !named.some((key) => keys.includes(key))) break;
     const qty = quantitiesIn(turns[j].text);
+    if (skipLaterAddition && qty.length && /\b(?:plus|mas|tambien|another|otra|otro)\b/.test(plain(turns[j].text))) continue;
     if (qty.length) return qty;
   }
   return [];
