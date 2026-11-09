@@ -1027,6 +1027,49 @@ export function staffRecapText(turns: Turn[]): string | null {
   }
   return null;
 }
+const AFFIRM = /^(?:si|yes|yeah|yep|ok(?:ay)?|claro|andale|exactamente|sounds good|perfect|right|correcto|va)\b/;
+
+function attachNearbyOption(line: any, menu: any[], staffText: string) {
+  const meat = meatOfLine(line);
+  const p = plain(staffText);
+  if (!meat) return;
+  const at = p.indexOf(meat);
+  if (at < 0) return;
+  const window = p.slice(Math.max(0, at - 40), at + 50);
+  const groupsHere = groups(menu, line.itemId).filter((g) => /con \/|with|extra/i.test(g.name));
+  for (const g of groupsHere) for (const option of g.options || []) {
+    const name = oname(option);
+    const words = plain(name).split(" ").filter((word) => word.length >= 5 && word !== meat && !MEATS.some(([re]) => re.test(word)));
+    if (!words.some((word) => window.includes(word))) continue;
+    if ((line.modifiers || []).some((mod: any) => mod.option === name)) return;
+    line.modifiers = [...(line.modifiers || []), { step: g.name, option: name }];
+    return;
+  }
+}
+
+/** A staff list of dishes, then a bare yes, is the order. Questions that are not a list are left alone. */
+export function applyAffirmedStaffList(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (staffReadback(turns)) return false;
+  for (let i = 0; i < turns.length - 1; i++) {
+    const staff = turns[i];
+    const next = turns[i + 1];
+    if (staff.speaker !== "staff" || next.speaker !== "caller") continue;
+    if (!AFFIRM.test(plain(next.text)) || /^(?:no\b|cambia|falta)/.test(plain(next.text))) continue;
+    const lines = parseList(staff.text);
+    if (!lines.length || lines.some((line) => !line.meat)) continue;
+    const missing = lines.some((line) => !cart.some((item) => {
+      const kind = kindOfLine(item);
+      return kind && famOf(kind) === famOf(line.kind) && meatOfLine(item) === line.meat && (Number(item.quantity) || 1) >= line.qty;
+    }));
+    if (!missing) continue;
+    const before = cart.length;
+    applyStaffReadback(cart, [{ speaker: "staff", text: `te tengo ${staff.text}` }], menu);
+    for (const item of cart) attachNearbyOption(item, menu, staff.text);
+    return cart.length !== before || lines.length > 0;
+  }
+  return false;
+}
+
 export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
   const txt = staffRecapText(turns); if (!txt) return false;
   const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
