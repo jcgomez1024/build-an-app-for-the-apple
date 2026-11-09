@@ -127,7 +127,7 @@ function optionName(option: string | { name: string }): string {
 }
 
 function tokenNegated(phrase: string, token: string): boolean {
-  return new RegExp(`\\b(?:no|sin|without)\\s+(?:\\w+\\s+){0,2}${token}\\b`).test(phrase);
+  return new RegExp(`\\b(?:no|not|sin|without)\\s+(?:\\w+\\s+){0,2}${token}\\b`).test(phrase);
 }
 
 function spokenOptions(item: IntentMenuItem, phrase: string): Array<{ step: string; option: string }> | "ambiguous" {
@@ -279,6 +279,8 @@ function splitTargeted(folded: string): { target: string; next: string } | null 
     /^instead of (.+?) (?:give me|i want) (.+)$/,
     /^en vez de (.+?) (?:dame|deme|quiero) (.+)$/,
     /^replace (.+?) with (.+)$/,
+    /^swap (.+?) for (.+)$/,
+    /^change (.+?) for (.+)$/,
     /^cambia (.+?) por (.+)$/,
     /^cambio (.+?) por (.+)$/,
   ];
@@ -368,21 +370,65 @@ function continuePending(input: IntentInput, file: IntentFile, language: "en" | 
   return settle(language, { ...pending, modifiers }, cart, input.menu);
 }
 
+function optionResolution(item: IntentMenuItem, phrase: string): { modifiers: Array<{ step: string; option: string }>; openGroup: string | null } {
+  const generic = new Set([...significant(item.name || ""), ...significant(item.nameEs || "")]);
+  const modifiers: Array<{ step: string; option: string }> = [];
+  let openGroup: string | null = null;
+  for (const group of item.modifierGroups || []) {
+    const hits = (group.options || []).map(optionName).filter((name) => {
+      const tokens = significant(name).filter((token) => !generic.has(token) && !tokenNegated(phrase, token));
+      return tokens.some((token) => hasWord(phrase, token));
+    });
+    const unique = [...new Set(hits)];
+    // Two spoken options in one group are a question, not a guess and not a label fallback.
+    if (unique.length > 1) { if (!openGroup) openGroup = group.name; continue; }
+    if (unique.length === 1) modifiers.push({ step: group.name, option: unique[0] });
+  }
+  return { modifiers, openGroup };
+}
+
+function parsePartial(phrase: string, menu: IntentMenuItem[], file: IntentFile): { item: IntentMenuItem; quantity: number | "same" | null; modifiers: Array<{ step: string; option: string }> } | null {
+  let working = phrase.trim();
+  let quantity: number | "same" | null = null;
+  if (/^(?:the\s+)?same number of\b|^(?:la\s+)?misma cantidad de\b/.test(working)) {
+    quantity = "same";
+    working = working.replace(/^(?:the\s+)?same number of\s+|^(?:la\s+)?misma cantidad de\s+/, "");
+  }
+  const taken = takeQuantity(working.replace(/^(?:those|these|esos|esas)\s+/, ""), file);
+  if (taken.unclear) return null;
+  if (taken.quantity) quantity = taken.quantity;
+  const matched = matchItems(menu, taken.rest || working);
+  if (matched.ambiguous || matched.items.length !== 1) return null;
+  const resolved = optionResolution(matched.items[0], phrase);
+  return { item: matched.items[0], quantity, modifiers: resolved.modifiers };
+}
+
+function lineRef(cart: NonNullable<IntentInput["cart"]>, menu: IntentMenuItem[], phrase: string): number[] | "ambiguous" {
+  const folded = fold(phrase);
+  if (/\b(?:earlier|first|primera|primero|anterior)\b/.test(folded) && !/\b(?:second|segunda|ultimo|ultima|last)\b/.test(folded)) {
+    return cart.length ? [0] : [];
+  }
+  return lineIndexes(cart, menu, phrase);
+}
+
 function targetedReplacement(input: IntentInput, file: IntentFile, language: "en" | "es", target: string, next: string): IntentDecision | null {
-  const parsed = parseSide(next, input.menu, file);
-  if (!parsed || parsed === "ambiguous") return null;
-  const targets = lineIndexes(input.cart, input.menu, target);
+  const cart = input.cart || [];
+  const parsed = parsePartial(next, input.menu, file);
+  if (!parsed) return null;
+  const targets = lineRef(cart, input.menu, target);
   if (targets === "ambiguous") return null;
-  const block = blocked(language, parsed.item, [{ type: "add_item", itemId: parsed.item.id, quantity: parsed.quantity || 1, modifiers: parsed.modifiers }]);
+  const targetIndex = targets.length === 1 ? targets[0] : null;
+  const quantity = parsed.quantity === "same" ? (targetIndex != null ? Number(cart[targetIndex].quantity) || null : null) : parsed.quantity;
+  const block = blocked(language, parsed.item, [{ type: "add_item", itemId: parsed.item.id, quantity: quantity || 1, modifiers: parsed.modifiers }]);
   if (block) return { ...block, pending: null };
   return settle(language, {
     operation: "replace",
     itemId: parsed.item.id,
-    quantity: parsed.quantity,
+    quantity,
     modifiers: parsed.modifiers,
-    targetIndex: targets.length === 1 ? targets[0] : null,
+    targetIndex,
     unresolved: [],
-  }, input.cart || [], input.menu);
+  }, cart, input.menu);
 }
 
 function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es", folded: string): IntentDecision | null {
@@ -425,7 +471,62 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     return decision;
   };
   const replacementCues = [...file.replacementCues, "instead of ", "en vez de ", "replace ", "cambia ", "cambio "];
-  const additiveCues = [...file.additiveCues, "also add ", "agrega ", "add "];
+  const additiveCues = [...file.additiveCues, "also add ", "agrega ", "add ", "plus ", "mas "];
+  const preserve = (): IntentDecision => remember({ ...clarify(language, "No cambié la orden.", "I did not change the order."), pending: null });
+  const nounLines = (noun: string) => {
+    const token = stem(noun);
+    return cart.map((line, index) => {
+      const item = input.menu.find((entry) => entry.id === line.itemId);
+      const names = [item?.name, item?.nameEs, ...(item?.aliases || [])].filter((name): name is string => !!name);
+      return names.some((name) => words(name).some((word) => stem(word) === token)) ? index : -1;
+    }).filter((index) => index >= 0);
+  };
+  const excluded = folded.match(/\b(?:sin|without|no)\s+(?:any\s+|ningun\s+|ningunos\s+)?(tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|horchatas?)\b/);
+  const refusal = /\b(?:do not put|do not add|don t put|don t add|no me ponga|no me pongas)\b/.test(folded);
+  if (excluded || refusal) {
+    const named = excluded?.[1] || folded.match(/\b(tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|horchatas?)\b/)?.[1] || "";
+    const removes = (named ? nounLines(named) : []).sort((a, b) => b - a).map((index) => ({
+      type: "remove_item" as const, itemId: cart[index].itemId, quantity: Number(cart[index].quantity) || 1, lineIndex: index,
+    }));
+    const rest = folded
+      .replace(/\b(?:sin|without|no)\s+(?:any\s+|ningun\s+|ningunos\s+)?(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|horchatas?)\b/g, " ")
+      .replace(/\b(?:bueno|okay|ok|alright|just|solo|solamente|only|entonces|then|do|not|put|add|any|my|order|me|ponga|pongas)\b/g, " ")
+      .replace(/\s+/g, " ").trim();
+    const added = refusal ? null : directOrder(input, file, language, rest);
+    if (refusal || added?.actions.length || removes.length) {
+      return remember({
+        kind: added?.actions.length ? (removes.length || cart.length ? "add" : "accept") : "accept",
+        reply: added?.actions.length ? added.reply : (language === "es" ? "No lo agregué." : "I did not add it."),
+        actions: [...removes, ...(added?.actions || [])],
+        pending: null,
+      });
+    }
+  }
+  if (/\b(?:keeping its choices|keeping the choices|con las mismas opciones|las mismas opciones)\b/.test(folded)) {
+    const qtyWord = folded.match(/\b(one|two|three|four|five|six|un|una|uno|dos|tres|cuatro|cinco|seis|[1-6])\b/);
+    const quantity = qtyWord ? (file.quantities[qtyWord[1]] || Number(qtyWord[1])) : 0;
+    const found = lineIndexes(cart, input.menu, folded);
+    if (quantity && found !== "ambiguous" && found.length === 1) {
+      const line = cart[found[0]];
+      const item = input.menu.find((entry) => entry.id === line.itemId);
+      return remember({
+        kind: "accept",
+        reply: replyFor(language, "accept", item?.name || line.itemId, quantity, ""),
+        actions: [{ type: "update_item", itemId: line.itemId, quantity, lineIndex: found[0] }],
+        pending: null,
+      });
+    }
+  }
+  const onlyAdd = folded.match(/\b(?:only add|solo agrega|solamente agrega)\s+(.+)$/);
+  if (onlyAdd) {
+    const added = directOrder(input, file, language, onlyAdd[1].replace(/^(?:those|these|esos|esas)\s+/, ""));
+    if (added?.actions.length) return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+  }
+  if (/\b(?:and|y)\s+(?:change|cambia|cambie|cambiar|swap|replace)\b/.test(folded)
+    && /\b(?:earlier|anterior|first|primera)\b/.test(folded)
+    && !/\b(?:change|cambia|cambie|swap|replace)\b.+\b(?:for|por|to)\b/.test(folded)) {
+    return preserve();
+  }
 
   if (isAvailability(folded, file)) {
     return remember({ kind: "availability", reply: replyFor(language, "availability", "", 0, ""), actions: [], pending: null });
@@ -490,6 +591,7 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
   if (options === "ambiguous") return null;
   const sameCount = SAME_COUNT.test(folded);
   const quantity = body.unclear ? null : body.quantity ?? (sameCount && cart.length === 1 ? Number(cart[0].quantity) || null : null);
+  if ((fold(additiveCue || "") === "plus" || fold(additiveCue || "") === "mas") && !quantity) return null;
   if (!quantity) {
     return remember({ ...clarify(language, "¿Cuántos? No cambié la orden.", "How many? I did not change the order."), pending: null });
   }
@@ -532,8 +634,9 @@ export function applyIntentCart<T extends { itemId: string; quantity: number; mo
       const indexed = action.lineIndex != null && next[action.lineIndex]?.itemId === action.itemId ? action.lineIndex : -1;
       const index = indexed >= 0 ? indexed : next.map((line) => line.itemId).lastIndexOf(action.itemId);
       if (index >= 0) next.splice(index, 1);
-    } else if (action.type === "update_item") {
-      const index = next.map((line) => line.itemId).lastIndexOf(action.itemId);
+    }     else if (action.type === "update_item") {
+      const indexed = action.lineIndex != null && next[action.lineIndex]?.itemId === action.itemId ? action.lineIndex : -1;
+      const index = indexed >= 0 ? indexed : next.map((line) => line.itemId).lastIndexOf(action.itemId);
       if (index >= 0) next[index] = { ...next[index], quantity: action.quantity };
     }
   }

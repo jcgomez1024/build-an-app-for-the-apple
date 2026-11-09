@@ -731,7 +731,8 @@ export function prepMergedCallerTurns(merged: { speaker: string; text: string }[
         const pata = merged.some((x) => x.speaker === "caller" && /\bcon\s+patas?\b/iu.test(x.text));
         t.text = t.text.replace(/\b(?:un|el)\s+plato\s+grande\b/iu, pata ? "un Con Pata Menudo 32oz y Tortillas (4)" : "un Menudo con Tortillas (4)"); menudoAt = i; } } }
   // fixmeat1 (Jesús): "de chorizo, que diga, perdón, del pastor" — the self-correction replaces the meat
-  const FIXW = String.raw`(?:que\s+diga|perd[oó]n|digo|mejor|no+)`;
+  // "de pollo, no de bistec" negates bistec. "de chorizo, no, de pastor" corrects to pastor.
+  const FIXW = String.raw`(?:que\s+diga|perd[oó]n|digo|mejor|no+\s*,)`;
   for (const t of merged) if (t.speaker === "caller")
     t.text = t.text.replace(new RegExp(String.raw`\bde\s+(?:${MEAT_LIST}|pastor)\s*,?\s*${FIXW}(?:\s*,?\s*${FIXW})*\s*,?\s*(?:de\s+|del\s+)?(al\s+pastor|pastor|${MEAT_LIST})\b`, "iu"), (_m, y) => `de ${/^pastor$/i.test(y) ? "al pastor" : y}`);
   // ca0d0e12: "las de comal van a ser de chicharrón duro(s)" / "de duros" — meat swap on comal lines
@@ -938,8 +939,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (a.type === "add_item" && sizeAnswer && cart.length && cart[cart.length - 1].itemId === a.itemId) { const p0 = cart.pop()!; a = { ...a, quantity: p0.quantity || a.quantity }; }
       if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
       else if (a.type === "update_item") {
-        const i = cart.map((l) => l.itemId).lastIndexOf(a.itemId);
-        if (i >= 0) { cart[i] = { ...cart[i], quantity: Number(a.quantity) > 0 ? a.quantity : cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
+        const indexed = a.lineIndex != null && cart[a.lineIndex]?.itemId === a.itemId ? a.lineIndex : -1;
+        const i = indexed >= 0 ? indexed : cart.map((l) => l.itemId).lastIndexOf(a.itemId);
+        if (i >= 0) { cart[i] = { ...cart[i], quantity: Number(a.quantity) > 0 ? a.quantity : cart[i].quantity, ...(a.modifiers ? { modifiers: a.modifiers } : {}), ...(a.intentKept ? { intentKept: true } : {}) }; lastTouched = cart[i]; touchedNow.push(cart[i]); }
       }       else if (a.type === "remove_item") {
         const indexed = a.lineIndex != null && cart[a.lineIndex]?.itemId === a.itemId ? a.lineIndex : -1;
         const i = indexed >= 0 ? indexed : cart.map((l) => l.itemId).lastIndexOf(a.itemId);
@@ -3627,15 +3629,17 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (intentMenuNow.length) {
     let scanCart: Array<{ itemId: string; quantity: number; modifiers?: any[] }> = [];
     let scanPending: any = null;
-    for (const turn of turns) {
+    for (let turnIndex = 0; turnIndex < turns.length; turnIndex++) {
+      const turn = turns[turnIndex];
       if (turn.speaker !== "caller") continue;
       const decision = resolveConversationIntent({
         transcript: turn.text, language: turn.language, menu: intentMenuNow, history: [], cart: scanCart, discussedTexts,
         pending: scanPending,
-        staffTexts: turns.filter((item) => item.speaker === "staff").map((item) => item.text),
+        staffTexts: turns.slice(0, turnIndex).filter((item) => item.speaker === "staff").map((item) => item.text),
       });
       if (decision) {
         intentHandled.add(turn);
+        (turn as any).intentLocked = true;
         if (decision.actions?.length) scanCart = applyIntentCart(scanCart, decision.actions);
         scanPending = decision.pending || null;
       }
@@ -3664,6 +3668,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       && !(noteOnly(prev.text) && meatOrder(t.text))
       && !/\b(?:poner(?:me)?|pone(?:r)?|ponga|dar(?:me)?|hacer(?:me)?|quiero|quisiera|agregar|add|get)\s+(?:me\s+)?(?:otr[ao]\s+(?:orden|pedido|plato)|another\s+(?:order|plate))\b/iu.test(t.text) // rodolfo2: "¿me puede poner otra orden más?" starts its own turn ("En otra orden," fragments still glue — agustin1)
       && !intentHandled.has(t)
+      && !(prev as any).intentLocked
       && !/^[¿¡\s]*(no\b|mejor\b|actually\b|instead\b|perd[oó]n\b|wait\b|espera\b)/iu.test(t.text)) {
       prev.text = `${prev.text.replace(/[.?!¿¡]+$/u, "")} ${t.text.replace(/^[¿¡]/u, "")}`; prev.end = t.end;
     } else merged.push({ ...t });
@@ -4694,13 +4699,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const decision = menu.length ? resolveConversationIntent({
         transcript: t.text, language: t.language, menu, history, cart, discussedTexts,
         pending: intentPending,
-        staffTexts: turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text),
+        staffTexts: allStaff.slice(),
       }) : null;
       if (decision) {
         intentPending = decision.pending || null;
         history.push({ role: "customer", text: t.text }, { role: "assistant", text: decision.reply });
         apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
-        steps.push({ source: "conversation-intent", heard: t.text, language: t.language, reply: decision.reply, actions: decision.actions.map((action) => action.type), intent: decision.kind });
+        steps.push({ source: "conversation-intent", heard: t.text, language: t.language, reply: decision.reply, actions: decision.actions.map((action) => action.type), intent: decision.kind, staffTexts: allStaff.slice() });
         last = { reply: decision.reply, actions: decision.actions, language: t.language };
         continue;
       }

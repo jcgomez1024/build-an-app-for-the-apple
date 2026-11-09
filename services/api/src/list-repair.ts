@@ -201,6 +201,12 @@ export function negatedMeats(text: string): string[] {
   // andres-qco1: "chiles y cebolla asada, no, porfa" is the asados side, never a negated asada/bistec
   const p = plain(raw).replace(/\b(?:chil(?:es|itos?|e)|cebollas?|cebollitas?)(?:\s+y\s+(?:chil(?:es|itos?|e)|cebollas?|cebollitas?))?\s+asad[oa]s?\b/g, "asados side"); const out = new Set<string>();
   for (const m of p.matchAll(new RegExp(`\\b(?:de\\s+)?(${MEAT_WORDS})\\s+no\\b`, "g"))) {
+    // "de pollo, no de bistec" negates bistec. "pastor no, de bistec" negates pastor.
+    const rawFold = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const meatWord = m[1].split(" ").pop() || "";
+    const atMeat = rawFold.indexOf(meatWord);
+    const afterRaw = atMeat >= 0 ? rawFold.slice(atMeat + meatWord.length) : "";
+    if (/^\s*,?\s+no\s+de\s+/.test(afterRaw) && !/^\s*,?\s+no\s*,/.test(afterRaw)) continue;
     // "de costilla, ¿no?" is a confirmation, not a negation
     const word = m[1].split(" ").pop()!; const at = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").indexOf(word);
     if (at >= 0 && /^\s*,?\s*¿?\s*no\s*\?/u.test(raw.slice(at + word.length).normalize("NFD").replace(/\p{M}/gu, ""))) continue;
@@ -211,7 +217,12 @@ export function negatedMeats(text: string): string[] {
   for (const m of p.matchAll(new RegExp(`\\b(?:no\\s+(?:de|of|quiero|want)|not|no)\\s+(${MEAT_WORDS})\\b(?!\\s+(?:si|yes))`, "g"))) {
     const k = meatIn(m[1]); const prev = p.slice(0, m.index).trim().split(" ").pop() || "";
     if (k && meatRestatedAfter(p.slice((m.index || 0) + m[0].length), k)) continue;
-    if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0]) && !meatIn(prev)) out.add(k);
+    const rawFold = raw.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const atOption = rawFold.indexOf(String(m[1]).split(" ").pop() || "");
+    const beforeOption = atOption >= 0 ? rawFold.slice(0, atOption) : "";
+    // "no, de bistec" names the replacement. "no de bistec" negates it.
+    if (/no\s*,\s*(?:de\s+|del\s+)?$/.test(beforeOption)) continue;
+    if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0])) out.add(k);
   }
   return [...out];
 }
@@ -985,7 +996,7 @@ export function applyStatedDishTotal(cart: any[], turns: Turn[]): boolean {
     let sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum <= N) continue;
     const counted: Record<string, number> = {};
     for (const t of turns) { const p = plain(t.text); for (const m of p.matchAll(new RegExp(`\\b(${NUMW})\\s+(?=((?:\\w+\\s*){0,6}))`, "g"))) { const seg = m[2].split(new RegExp(`\\b(?:${NUMW})\\b`))[0]; const k = meatIn(seg); if (k) counted[k] = Math.max(counted[k] || 0, numOf(m[1])); } }
-    for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
+    for (const l of ls) { const k = meatOfLine(l); const q = Number(l.quantity) || 1; if (l.intentKept || sum <= N || q < 2 || !k || (counted[k] || 0) >= q) continue;
       const nq = Math.max(counted[k] || 1, q - (sum - N)); sum -= q - nq; l.quantity = nq; ch = true; }
   }
   return ch;
@@ -2210,6 +2221,8 @@ export function applyRestatedQty(cart: any[], turns: Turn[]): boolean {
     if (/\b(?:otr[ao]s?\s+(?:orden|pedido|plato)|another\s+(?:order|plate)|por\s+separado|aparte)\b/iu.test(callerAll)
       && turns.filter((t) => t.speaker === "caller" && new RegExp(String.raw`\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:${dish[0].source})\b`, "iu").test(b22low(String(t.text || "")))).length >= 2) continue;
     const meats = (ls[0].modifiers || []).filter(isMeatMod).map((m: any) => m.option); if (meats.length !== 1) continue;
+    const optionKey = (l: any) => (l.modifiers || []).map((m: any) => String(m.option)).sort().join("|");
+    if (ls.some((l: any) => l.intentKept) && new Set(ls.map(optionKey)).size > 1) continue;
     const n = statedCount(readback, dish[0], meats[0]) || statedCount(callerAll, dish[0], meats[0]);
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
     if (!n || n >= sum) continue;
@@ -2759,6 +2772,8 @@ export function applySaidDishMeat(cart: any[], turns: Turn[], menu: any[] = []):
         return dish.test(target) && meats.every((k) => target.includes(k));
       });
       if (replacedLater) continue;
+      const negatedLater = turns.slice(i + 1).some((x) => x.speaker === "caller" && negatedMeats(x.text).includes(meats[0]));
+      if (negatedLater) continue;
       want.set(fam + ":" + meats.join("+"), { fam, meats, n, tst }); } }
   // "tres combinadas … quesadillas" + "bistec con chorizo" (caller, within 6 turns)
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const p = plain(t.text);
