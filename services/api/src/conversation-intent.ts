@@ -1044,7 +1044,7 @@ function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: s
   if (!needed.length) return false;
   return labels.some((label) => {
     if (item && size && sizeOf(label) !== size) return false;
-    const usable = item ? needed : needed.filter((token) => token.length >= 6);
+    const usable = item ? needed : needed.filter((token) => token.length >= 6 || (token.length >= 4 && !["coca", "cola", "pepsi"].includes(token)));
     if (!usable.length) return false;
     return usable.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
   });
@@ -1173,16 +1173,7 @@ export function reconcileCountedRequests(
       reply = reason;
       continue;
     }
-    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
-      const choices = exact.length > 1 ? exact.slice(0, 4).map((item) => itemLabel(item, request.language)).join(", ") : cleanPhrase(request.phrase);
-      if (!choices || !menu.some((item) => sharesContent(item, request.content))) continue;
-      const reason = request.language === "es"
-        ? `Pedido contado sin resolver: ${choices}. No lo agregué.`
-        : `Unresolved counted request: ${choices}. I did not add it.`;
-      reviews.push(reason);
-      reply = reason;
-      continue;
-    }
+    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) continue;
     const note = request.language === "es"
       ? `Recuperado, hay que confirmar: ${namedLabel}.`
       : `Recovered, needs confirmation: ${namedLabel}.`;
