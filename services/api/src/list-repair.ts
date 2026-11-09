@@ -1639,25 +1639,36 @@ function refersToEarlierLine(text: string): boolean {
 }
 
 /** A style said with no number covers the dish count already on the table, not a later separate order. */
-function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[]): number[] {
+function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[], siblingQtys: number[]): number[] {
   const here = quantitiesIn(turns[index].text);
   if (here.length) return here;
   const skipLaterAddition = refersToEarlierLine(turns[index].text);
+  let nearest: number[] = [];
   for (let j = index - 1; j >= 0; j--) {
     const named = mentionedIn(turns[j].text);
     if (named.length && !named.some((key) => keys.includes(key))) break;
     const qty = quantitiesIn(turns[j].text);
-    if (skipLaterAddition && qty.length && /\b(?:plus|mas|tambien|another|otra|otro)\b/.test(plain(turns[j].text))) continue;
-    if (qty.length) return qty;
+    if (!qty.length) continue;
+    if (skipLaterAddition && /\b(?:plus|mas|tambien|another|otra|otro)\b/.test(plain(turns[j].text))) continue;
+    if (!nearest.length) nearest = qty;
+    if (siblingQtys.some((lineQty) => qty.includes(lineQty))) return qty;
   }
-  return [];
+  return nearest;
 }
 
-function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[]): boolean {
+function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[], turns: Array<{ text: string }>, index: number): boolean {
   const said = quantitiesIn(text);
   const use = said.length ? said : episode;
-  if (!use.length || !siblingQtys.some((qty) => use.includes(qty))) return true;
-  return use.includes(lineQty);
+  if (!use.length || use.includes(lineQty)) return true;
+  if (siblingQtys.some((qty) => use.includes(qty))) return false;
+  // A count that matches no line covers the dish already named, not a count that shows up later.
+  let first = -1;
+  for (let j = 0; j < turns.length; j++) {
+    if (!quantitiesIn(turns[j].text).includes(lineQty)) continue;
+    first = j;
+    break;
+  }
+  return first < 0 || first <= index;
 }
 
 function wholeOrderComal(text: string): boolean {
@@ -1692,8 +1703,8 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: bo
     const named = mentionedIn(turn.text);
     if (turn.speaker === "caller" && named.length) active = named;
     const scope = named.length ? named : active;
-    const episode = episodeQty(spokenTurns, i, keys, mentionedIn);
-    const covered = coversLine(turn.text, episode, lineQty, siblingQtys) || (keepChoices && textHitsTokens(turn.text, tokens));
+    const episode = episodeQty(spokenTurns, i, keys, mentionedIn, siblingQtys);
+    const covered = coversLine(turn.text, episode, lineQty, siblingQtys, spokenTurns, i) || (keepChoices && textHitsTokens(turn.text, tokens));
     if (!scope.some((key) => keys.includes(key)) || !covered) continue;
     if (turn.speaker === "caller") {
       if (declinesChoice(turn.text)) continue;
@@ -1744,7 +1755,16 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
       if ((group.minSelections ?? 0) < 1) continue;
       const options = (group.options || []).map((option: any) => typeof option === "string" ? option : option?.name || "").filter(Boolean);
       if (options.length < 2) continue;
-      const selected = (line.modifiers || []).filter((mod: any) => plain(mod.step || "") === plain(group.name || "")).map((mod: any) => String(mod.option || ""));
+      const groupName = plain(group.name || "");
+      const belongs = (option: string) => {
+        const spoken = plain(option);
+        return options.some((name) => { const catalog = plain(name); return !!spoken && (catalog === spoken || catalog.startsWith(spoken) || spoken.startsWith(catalog)); });
+      };
+      const selected = (line.modifiers || []).filter((mod: any) => {
+        const step = plain(mod.step || "");
+        if (step === groupName) return true;
+        return belongs(String(mod.option || "")) && step !== groupName;
+      }).map((mod: any) => String(mod.option || ""));
       const defaults = (group.defaultOptions || []).map((name: string) => String(name));
       const isCornDefault = (option: string) => defaults.includes(option) || (/corn/i.test(option) && /tortilla/i.test(option) && !/flour|harina/i.test(option));
       const cornAlready = (line.modifiers || []).some((mod: any) => isCornDefault(String(mod.option || "")));
@@ -1760,7 +1780,15 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
       }
       const names = selected.length ? selected : (group.defaultOptions || []).slice(0, 1);
       const tokens = tokensFor(names, options);
-      if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings)) continue;
+      if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings)) {
+        const marker = `confirmar ${group.name}`;
+        const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+        const onlyThis = before.length === 1 && before[0] === marker;
+        if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+        if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+        if (onlyThis) delete line.validation;
+        continue;
+      }
       const marker = `confirmar ${group.name}`;
       if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
       line.validation = "unresolved";
