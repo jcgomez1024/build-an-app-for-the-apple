@@ -50,7 +50,6 @@ const CLOCK_MIN: Record<string, number> = { cinco: 5, diez: 10, quince: 15, vein
 const CLOCK_HOUR_WORD = "\\d{1,2}|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve";
 const CLOCK_MIN_WORD = "media|cuarto|cinco|diez|quince|veinte|treinta|cuarenta|\\d{1,2}|half|quarter|five|ten|fifteen|twenty|thirty|forty";
 const FOLLOWS_TIME = /^(?:un|una|uno|dos|tres|de\s+(?:esas|bistec|birria)|sour|creams?|quesos?|tortillas?|casas?|both|ambas)\b/;
-const BARE_COUNT_HOUR = new Set(["una", "uno", "dos", "tres", "one", "two", "three"]);
 
 function foldClock(text: string): string {
   return String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -82,7 +81,8 @@ export function spokenClock(text: string): { time: string; cue: string } | null 
       if (FOLLOWS_TIME.test(after) || DISH_AFTER_HOUR.test(after)) continue;
       const minuteRaw = match[2] && /am|pm|tarde|manana|noche/.test(match[2]) ? undefined : (match[2] || match[3]);
       const hourWord = String(match[1] || "");
-      if (!minuteRaw && BARE_COUNT_HOUR.has(hourWord) && pattern.cue !== "ampm" && pattern.cue !== "daypart") continue;
+      // "para las dos" with no minute is "both". "a las una/dos/tres" is still a clock.
+      if (!minuteRaw && pattern.cue === "para las" && (hourWord === "dos" || hourWord === "two")) continue;
       const time = clockParts(hourWord, minuteRaw);
       if (time) found = { time, cue: pattern.cue };
     }

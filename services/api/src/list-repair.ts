@@ -1244,6 +1244,94 @@ export function noteUnspokenSize(cart: any[], turns: Turn[], menu: any[]): void 
   }
 }
 
+const DISH_WORD = "menudo|fajita|quesadilla|quesa|taco|torta|gordita|burrito|sope|huarache|pozole|birria|mole|enchilada|tamal|tostada|flauta|chimichanga|platillo";
+const CHOICE_STOP = new Set(["with", "and", "the", "para", "option", "options", "extra", "only", "solo", "quesadilla", "taco", "torta", "gordita", "burrito", "homemade", "tortilla"]);
+
+function dishKeysIn(text: string): string[] {
+  return [...new Set([...plain(text).matchAll(new RegExp(`\\b(${DISH_WORD})s?\\b`, "g"))].map((match) => match[1]))];
+}
+
+function choiceTokens(name: string): string[] {
+  return plain(name).split(" ").filter((word) => word.length >= 4 && !CHOICE_STOP.has(word) && !/^\d+$/.test(word));
+}
+
+function aliasHits(text: string): Set<string> {
+  const words = plain(text).split(" ").filter(Boolean);
+  const hits = new Set(words);
+  for (const word of words) {
+    if (word === "maiz" || word === "corn") { hits.add("corn"); hits.add("comal"); }
+    if (word === "comal" || word === "mano") { hits.add("comal"); hits.add("homemade"); }
+    if (word === "harina" || word === "flour") { hits.add("harina"); hits.add("flour"); }
+    if (word.startsWith("taquer") || word === "street") { hits.add("taquera"); hits.add("street"); }
+    if (word === "grande" || word === "large") hits.add("grande");
+  }
+  return hits;
+}
+
+function tokensHit(text: string, tokens: string[]): boolean {
+  const hits = aliasHits(text);
+  return tokens.some((token) => hits.has(token));
+}
+
+/** A required default is spoken when this dish's turn, or a staff choice the caller accepts, names it. */
+function choiceSpoken(turns: Turn[], keys: string[], tokens: string[]): boolean {
+  if (!keys.length) return tokensHit(turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "), tokens);
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    const parts = plain(turn.text).split(/,|\by\b/);
+    if (turn.speaker === "caller") {
+      let carry: string[] = [];
+      for (const part of parts) {
+        const mentioned = dishKeysIn(part);
+        if (mentioned.length) carry = mentioned;
+        const scope = mentioned.length ? mentioned : carry;
+        if (scope.some((key) => keys.includes(key)) && tokensHit(part, tokens)) return true;
+      }
+      continue;
+    }
+    if (!tokensHit(turn.text, tokens)) continue;
+    const next = turns.slice(i + 1).find((row) => row.speaker === "caller");
+    if (!next || !cleanYes(next.text)) continue;
+    const staffKeys = dishKeysIn(turn.text);
+    const prev = [...turns.slice(0, i)].reverse().find((row) => row.speaker === "caller");
+    const scope = staffKeys.length ? staffKeys : (prev ? dishKeysIn(prev.text) : []);
+    if (scope.some((key) => keys.includes(key))) return true;
+  }
+  return false;
+}
+
+/** A required catalog default nobody chose for that dish is confirmed and held. An empty required group is already held. */
+export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
+  for (const line of cart) {
+    const item = menu.find((row) => row.id === line.itemId);
+    const keys = dishKeysIn(item?.name || "");
+    for (const group of item?.modifierGroups || []) {
+      if ((group.minSelections ?? 0) < 1) continue;
+      const options = (group.options || []).map((option: any) => typeof option === "string" ? option : option?.name || "").filter(Boolean);
+      const defaults: string[] = group.defaultOptions || [];
+      if (options.length < 2 || !defaults.length) continue;
+      const selected = (line.modifiers || []).filter((mod: any) => plain(mod.step || "") === plain(group.name || ""));
+      if (!selected.length) continue;
+      const chosen = selected.map((mod: any) => String(mod.option || ""));
+      const isDefault = chosen.every((name) => defaults.some((def) => {
+        const left = plain(name);
+        const right = plain(def);
+        return left === right || left.startsWith(right) || right.startsWith(left);
+      }));
+      if (!isDefault) continue;
+      const tokens = [...new Set(chosen.flatMap((name) => {
+        const mine = choiceTokens(name);
+        const shared = mine.filter((token) => options.every((option) => choiceTokens(option).includes(token)));
+        return mine.filter((token) => !shared.includes(token));
+      }))];
+      if (!tokens.length || choiceSpoken(turns, keys, tokens)) continue;
+      const marker = `confirmar ${group.name}`;
+      if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
+      line.validation = "unresolved";
+    }
+  }
+}
+
 /** Drop a catalog add that repeats a line already on the final cart, and keep only adds that remain. */
 export function settleAffirmedAdds(cart: any[], menu: any[], result: AffirmedStaffResult): AffirmedStaffResult {
   const prior = new Set(result.priorIds || []);
@@ -2849,6 +2937,61 @@ export function applyQdConTodo(cart: any[], turns: Turn[]): boolean { let ch = f
       if (meats.length && mo && !meats.includes(mo)) continue;
       l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)/.test(String(m.option)))]; ch = true; } }
   return ch;
+}
+const SETTLED_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+function settledQdMeat(line: any): string | null {
+  return (line.modifiers || []).find((mod: any) => /Carnes/.test(String(mod.step)))?.option || null;
+}
+function asRegularDorada(line: any): void {
+  line.itemId = SETTLED_REG;
+  line.modifiers = [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+}
+function asDeluxeDorada(line: any): void {
+  line.itemId = DLX_ID;
+  line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+}
+function laterChoseRegular(turns: Turn[], index: number): boolean {
+  const later = plain(turns.slice(index + 1).filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "));
+  return /\bno\b.{0,40}\bregulares?\b/.test(later) || /\bregulares?\b.{0,20}\bno\b/.test(later);
+}
+/** Post-settle con todo. Only the lines that turn named. No readable meat upgrades one in-scope regular dorada, otherwise it holds. A later "no, regular" stays regular. */
+export function applySettledQdConTodo(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  turns.forEach((turn, index) => {
+    if (turn.speaker !== "caller") return;
+    const said = plain(turn.text);
+    if (!/\bdorad[ao]s?\b/.test(said) || !/\bcon todo\b|\bwith everything\b|\beverything on it\b/.test(said)) return;
+    const doradas = cart.filter((line) => QD_REG.test(String(line.itemId)) || QD_DLX.test(String(line.itemId)));
+    const meats = b22Meats(b22low(turn.text));
+    const reject = laterChoseRegular(turns, index);
+    if (meats.length) {
+      const scope = doradas.filter((line) => meats.includes(String(settledQdMeat(line))));
+      for (const line of scope) {
+        if (reject) { if (QD_DLX.test(String(line.itemId))) { asRegularDorada(line); changed = true; } continue; }
+        if (QD_REG.test(String(line.itemId))) { asDeluxeDorada(line); changed = true; }
+      }
+      return;
+    }
+    const accounted = new Set(turns.flatMap((other, at) => {
+      if (other.speaker !== "caller" || at === index) return [];
+      const text = plain(other.text);
+      if (!/\bdorad|\bquesadilla/.test(text) || (/\bdorad/.test(text) && /\bcon todo\b|\bwith everything\b/.test(text))) return [];
+      return b22Meats(b22low(other.text));
+    }));
+    const scope = doradas.filter((line) => !accounted.has(String(settledQdMeat(line))));
+    if (reject) {
+      for (const line of scope) if (QD_DLX.test(String(line.itemId))) { asRegularDorada(line); changed = true; }
+      return;
+    }
+    if (scope.length === 1 && QD_REG.test(String(scope[0].itemId))) { asDeluxeDorada(scope[0]); changed = true; return; }
+    if (scope.length > 1) for (const line of scope) {
+      if ((line.elviNotes || []).includes("confirmar")) continue;
+      line.elviNotes = [...(line.elviNotes || []), "confirmar"];
+      line.validation = "unresolved";
+      changed = true;
+    }
+  });
+  return changed;
 }
 // sophie1: "quesadilla de masa" = comal (QCO); meat from the same or the next caller turns before another dish.
 export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let ch = false;
