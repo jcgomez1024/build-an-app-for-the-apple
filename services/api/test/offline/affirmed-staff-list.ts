@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
-import { applyAffirmedStaffList, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applySettledQdConTodo, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
@@ -75,6 +75,24 @@ check("latest-list-wins", latest.fired && latestCart.length === 1 && /bistec/i.t
 
 const falseTimes = ["me pone a una un", "como una tortilla", "a una de esas", "a two sour creams", "para las dos", "a dos de bistec", "¿A las dos quesos?", "como a una, como a cuatro casas", "4:40", "4:78", "440"];
 check("false-ready-times", falseTimes.every((text) => spokenClock(text) === null) && spokenClock("a las once y media")?.time === "11:30" && spokenClock("como a las once diez")?.time === "11:10");
+check("las-plus-hour", spokenClock("a las una")?.time === "1:00" && spokenClock("a las dos")?.time === "2:00" && spokenClock("a las tres")?.time === "3:00" && spokenClock("para las una")?.time === "1:00" && spokenClock("para las dos") === null && spokenClock("a dos de") === null && spokenClock("a dos de bistec") === null && spokenClock("dos quesadillas") === null && spokenClock("a las dos quesadillas") === null && spokenClock("para las dos y media")?.time === "2:30");
+const regularDorada = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+const deluxeDorada = "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L";
+const bistecMod = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+const prensadoMod = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
+const regularStyle = { step: "(QD) Style", option: "(QD) REGULAR Dorada" };
+const separateRegular = [{ itemId: regularDorada, quantity: 1, modifiers: [regularStyle, bistecMod] }];
+applySettledQdConTodo(separateRegular, [
+  { speaker: "caller", text: "Una quesadilla dorada de bistec." },
+  { speaker: "caller", text: "Y una dorada con todo de qwxzpl." },
+]);
+check("unreadable-con-todo-leaves-other-regular", separateRegular[0].itemId === regularDorada && /REGULAR Dorada/.test(JSON.stringify(separateRegular[0].modifiers)));
+const rejectedRegular = [{ itemId: deluxeDorada, quantity: 2, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, prensadoMod] }];
+applySettledQdConTodo(rejectedRegular, [
+  { speaker: "caller", text: "Dos quesadillas doradas de prensado con todo." },
+  { speaker: "caller", text: "No, regulares." },
+]);
+check("no-regular-after-con-todo-stays-regular", rejectedRegular[0].itemId === regularDorada && /REGULAR Dorada/.test(JSON.stringify(rejectedRegular[0].modifiers)));
 check("staff-clock-is-not-ready-time", callerReadyTime([{ speaker: "staff", text: "cerramos a las nueve" }, { speaker: "staff", text: "¿A las dos quesos?" }]) === null && callerReadyTime([{ speaker: "caller", text: "si puedo pasar por ellas a las nueve, digo a las once y media" }])?.time === "11:30");
 check("person-pickup-is-not-togo", detectFulfillment([{ speaker: "caller", text: "Él lo recoge." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Voy a recoger a mi hijo." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Para recogerla." }]).fulfillment === "PICKUP");
 check("no-tenemos-birria-is-unavailable", staffUnavailable([{ speaker: "caller", text: "Quiero un platillo de birria." }, { speaker: "staff", text: "No tenemos birria." }]).some((dish) => dish.includes("birria")));
@@ -118,7 +136,20 @@ Promise.all([
   evaluateCase(CASES.find((row) => row.id === "C10")!),
   flow(CASES.find((row) => row.id === "C10")!.turns),
   flow([{ speaker: "caller", text: "Quiero una libra de birria." }]),
-]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra]: any[]) => {
+  evaluateCase(CASES.find((row) => row.id === "C11")!),
+  flow([
+    { speaker: "caller", text: "Acabo de hacer una orden para entrega. Me pueden adherir una quesadilla de tripa." },
+    { speaker: "staff", text: "A que nombre?" },
+    { speaker: "caller", text: "A nombre de Ana." },
+    { speaker: "staff", text: "Dame quince minutos." },
+  ]),
+  flow([
+    { speaker: "caller", text: "Acabo de hacer una orden. Me pueden adherir una quesadilla de tripa." },
+    { speaker: "staff", text: "A que nombre?" },
+    { speaker: "caller", text: "A nombre de Ana." },
+    { speaker: "staff", text: "Dame quince minutos." },
+  ]),
+]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra, c11, deliveryAdd, plainAdd]: any[]) => {
   const cart = order.cart || [];
   const kept = cart.some((line: any) => line.itemId === pepsi.id) && !cart.some((line: any) => line.itemId === coke.id);
   check("wrong-readback-review-reason", kept && order.reviewReason === STAFF_LIST_REVIEW, JSON.stringify({ reviewReason: order.reviewReason, cart }));
@@ -140,5 +171,9 @@ Promise.all([
   check("c10-pickup", c10.ticket?.fulfillment === "PICKUP" && c10order.readyTime === "11:10" && c10order.addressPresent !== true && !c10.failures.some((line: string) => /fulfillment/.test(line)), `${c10.failures?.join("; ")} time=${c10order.readyTime} fulfillment=${c10order.fulfillment}`);
   const libraLine = (libra.cart || []).find((line: any) => /1-lb-of-birria/i.test(String(line.itemId)));
   check("libra-does-not-hold", !!libraLine && !(libraLine.elviNotes || []).includes("confirmar"), JSON.stringify(libra.cart));
+  const c11Menudo = (c11.observedLines || []).find((line: any) => /menudo/i.test(line.name || ""));
+  const c11Dorada = (c11.observedLines || []).find((line: any) => /deluxe/i.test(`${line.name} ${(line.modifiers || []).join(" ")}`) && /prensado/i.test((line.modifiers || []).join(" ")));
+  check("c11-unspoken-tortilla-holds", c11.verdict === "pass" && c11.ticket?.phase === "review" && !!c11Dorada && (c11Menudo?.notes || []).some((note: string) => /confirmar/.test(note) && /tortilla/i.test(note)), JSON.stringify({ phase: c11.ticket?.phase, failures: c11.failures, menudo: c11Menudo }));
+  check("addon-delivery-is-not-pickup", deliveryAdd.fulfillment !== "PICKUP" && plainAdd.fulfillment !== "PICKUP", JSON.stringify({ delivery: deliveryAdd.fulfillment, plain: plainAdd.fulfillment }));
   if (failures.length) process.exit(1);
 });

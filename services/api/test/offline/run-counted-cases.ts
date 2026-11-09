@@ -154,7 +154,7 @@ const staffList = execFileSync("npx", ["tsx", "test/offline/affirmed-staff-list.
     ELVI_COUNTED_DIAG: "/tmp/elvi-affirmed-staff-diag.jsonl",
   },
 });
-for (const name of ["upsell-adds-nothing", "tambien-tenemos-adds-nothing", "wrong-readback-keeps-pepsi", "wrong-readback-review-reason", "wrong-readback-scratch-diagnostic", "pero-is-not-a-clean-yes", "later-correction-wins", "latest-list-wins", "c07-still-passes", "closing-staff-adds-nothing", "denial-then-yes-adds-nothing", "unspoken-size-holds", "garbled-duplicate-not-added", "c10-pickup", "false-ready-times", "staff-clock-is-not-ready-time", "person-pickup-is-not-togo", "no-tenemos-birria-is-unavailable", "libra-does-not-hold"]) {
+for (const name of ["upsell-adds-nothing", "tambien-tenemos-adds-nothing", "wrong-readback-keeps-pepsi", "wrong-readback-review-reason", "wrong-readback-scratch-diagnostic", "pero-is-not-a-clean-yes", "later-correction-wins", "latest-list-wins", "c07-still-passes", "closing-staff-adds-nothing", "denial-then-yes-adds-nothing", "unspoken-size-holds", "garbled-duplicate-not-added", "c10-pickup", "false-ready-times", "las-plus-hour", "unreadable-con-todo-leaves-other-regular", "no-regular-after-con-todo-stays-regular", "staff-clock-is-not-ready-time", "person-pickup-is-not-togo", "no-tenemos-birria-is-unavailable", "libra-does-not-hold", "c11-unspoken-tortilla-holds", "addon-delivery-is-not-pickup"]) {
   checks[name] = new RegExp(`PASS ${name}`).test(staffList);
 }
 const body = {
