@@ -1120,6 +1120,11 @@ function closingStaff(text: string): boolean {
 
 const VARIATION_SIZE = /^(?:lb|solo|only|consome|consom|broth|full|half)$/;
 
+function retractedDish(text: string, label: string): boolean {
+  if (!/\b(?:instead|en vez|quita|ya no|no quiero|cambia)\b/.test(plain(text))) return false;
+  return nearDishName(label, text);
+}
+
 function unspokenSize(label: string, spoken: string): boolean {
   const said = new Set(plain(spoken).split(" ").filter(Boolean));
   return plain(label).split(" ").some((token) => token.length >= 2 && VARIATION_SIZE.test(token) && !said.has(token) && !said.has(`${token}s`));
@@ -1160,7 +1165,7 @@ function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: Af
   }
   for (const window of windows) {
     for (const match of matchSpokenCatalog(window.dish, window.option, menu)) {
-      if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id)) continue;
+      if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id) || retractedDish(`${window.dish} ${window.option}`, match.label)) continue;
       if (cart.some((line) => line.itemId === match.id || productId(menu, line.itemId) === match.product)) continue;
       const present = cart.map((line) => String(menu.find((item) => item.id === line.itemId)?.name || "")).join(" ");
       if (nearDishName(match.label, present)) {
