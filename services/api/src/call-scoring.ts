@@ -8175,7 +8175,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
   applyQdConTodo(cart as any[], origTurns as any);
-  applyStaffPreparadaYes(cart as any[], origTurns as any);
   const clock = callerReadyTime(origTurns as any);
   if (clock) {
     readyTime = clock.time;
