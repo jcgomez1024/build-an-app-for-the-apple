@@ -35,7 +35,6 @@ export function phoneMenu(): any[] {
     id: menuIdForVariation(p.name, sku.name, sku.squareId),
     name: /^regular$/i.test(sku.name) ? p.name : `${p.name} ${sku.name}`,
     nameEs: p.siteName || p.name,
-    variationName: sku.name,
     squareCatalogObjectId: p.squareId,
     squareVariationId: sku.squareId,
     priceCents: sku.priceCents || 0,
