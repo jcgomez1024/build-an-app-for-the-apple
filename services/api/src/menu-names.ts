@@ -1,9 +1,11 @@
 // One spoken name for a catalog row. Runtime Square menus and the frozen phone menu both use it.
 // Phone-only rows are the in-store variations already listed in this file. No network and no POS fetch.
 
-export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[] }>([
-  ["PYTW56MHJJGL6JKTZGSXGVWQ", { name: "Menudo SOLO Caldo", aliases: ["menudo solo caldo", "solo caldo menudo", "menudo de puro caldo", "menudo puro caldo", "menudo solamente caldo", "menudo sin carne", "puro caldo de menudo", "menudo broth only"] }],
-  ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"] }],
+// priceCents is the amount the phone repairs already speak when the catalog row has no price
+// (Menudo SOLO Caldo $10, Aguacate FULL $4). These rows are not in site-catalog.json, so they are not $0.
+export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[]; priceCents: number }>([
+  ["PYTW56MHJJGL6JKTZGSXGVWQ", { name: "Menudo SOLO Caldo", aliases: ["menudo solo caldo", "solo caldo menudo", "menudo de puro caldo", "menudo puro caldo", "menudo solamente caldo", "menudo sin carne", "puro caldo de menudo", "menudo broth only"], priceCents: 1000 }],
+  ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"], priceCents: 400 }],
 ]);
 
 function normalizeName(value: string) {
@@ -17,10 +19,9 @@ export function isDrinkProduct(productName: string): boolean {
 /** The name a caller hears. Drinks use the variation. Food keeps the product plus the variation. */
 export function spokenItemName(productName: string, variationName: string): string {
   const variation = String(variationName || "").trim();
-  if (!isDrinkProduct(productName)) {
-    if (!variation || /^regular$/i.test(variation)) return productName;
-    return `${productName} ${variation}`.trim();
-  }
+  const product = String(productName || "").trim();
+  if (!variation || /^regular$/i.test(variation) || normalizeName(variation) === normalizeName(product)) return product;
+  if (!isDrinkProduct(product)) return `${product} ${variation}`.trim();
   const spoken = variation.replace(/\bOrchata\b/i, "Horchata");
   if (/aguas?\s+frescas?/i.test(productName)) return `Agua Fresca ${spoken}`.trim();
   if (/^jarrito/i.test(productName)) return `Jarrito ${spoken}`.trim();

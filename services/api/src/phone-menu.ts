@@ -36,7 +36,7 @@ export function frozenPhoneMenu(): any[] {
       aliases: row.aliases,
       squareCatalogObjectId: "",
       squareVariationId: variationId,
-      priceCents: 0,
+      priceCents: row.priceCents,
       modifierGroups: [],
     });
   }

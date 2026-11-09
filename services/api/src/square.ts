@@ -756,7 +756,7 @@ function trimReviewedVariantName(reviewedName: string, variantName: string) {
 }
 
 export { IN_STORE_VARIATIONS };
-function buildMenuFromSquareCatalog(
+export function buildMenuFromSquareCatalog(
   objects: Array<{
     id: string;
     type: string;
