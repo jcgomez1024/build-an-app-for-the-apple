@@ -1008,14 +1008,16 @@ export function buildTicketLines(
     // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too.
     // A spoken restriction on the line itself (sin cebolla, no quiero cebolla) prints on any line.
     const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:|enchiladas:)|\baparte\b/iu.test(String(n))); // vapor1: per-order filling mix
-    const restrictionNotes = [...(row?.elviNotes || [])].filter((n) => /^(?:sin|no|without)\b/i.test(String(n)));
+    const restrictionKey = (note: string) => String(note).toLowerCase().replace(/^(?:sin|no|without)\s+/, "").trim();
+    const alreadyPrinted = new Set((applied.notes || []).map(restrictionKey));
+    const restrictionNotes = [...(row?.elviNotes || [])].filter((n) => /^(?:sin|no|without)\b/i.test(String(n)) && !alreadyPrinted.has(restrictionKey(String(n))));
     const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...restrictionNotes, ...confirmNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
       ...confirmNotes,
-      ...restrictionNotes,
+      ...(lineHasDeluxe ? [] : restrictionNotes),
     ].filter(Boolean);
     return {
       name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,

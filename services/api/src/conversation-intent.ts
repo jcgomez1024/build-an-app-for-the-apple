@@ -1110,12 +1110,58 @@ function meatOnRungDish(content: string[], cart: Array<{ itemId: string }>, menu
   });
 }
 
-function accommodationNote(text: string): string | null {
+function modifierWords(menu: IntentMenuItem[]): Set<string> {
+  const words = new Set<string>();
+  const add = (value: string) => { for (const token of dishTokens(value)) if (token.length >= 4) words.add(token); };
+  for (const item of menu) {
+    for (const group of item.modifierGroups || []) {
+      add(group.name || "");
+      for (const option of group.options || []) add(String(option.name || ""));
+    }
+  }
+  return words;
+}
+
+function accommodationNote(text: string, words: Set<string>): string | null {
   const match = text.match(/\b(?:sin|without)\s+([a-z]+)/) || text.match(/\bno quiero\s+(?:el|la|los|las|un|una)?\s*([a-z]+)/);
   if (!match) return null;
   const word = match[1];
   if (!word || word.length < 4 || NOT_A_DISH.has(word)) return null;
-  return `sin ${word === "onion" ? "cebolla" : word === "cheese" ? "queso" : word}`;
+  const spoken = word === "onion" ? "cebolla" : word === "cheese" ? "queso" : word;
+  if (!words.has(spoken) && !words.has(stem(spoken))) return null;
+  return `sin ${spoken}`;
+}
+
+function familyTokens(content: string[]): string[] {
+  return content.filter((token) => !MEAT.has(token) && !TOPPING.has(token) && !VARIATION_QUALIFIER.has(token) && !NOT_A_DISH.has(token) && token.length >= 4);
+}
+
+function lineFamilyTokens(line: { itemId: string }, menu: IntentMenuItem[]): string[] {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  if (item) return familyTokens(dishTokens(catalogLabels(item).join(" ")));
+  return String(line.itemId || "").toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 4);
+}
+
+/** A request is already on the cart when one line, or the lines together, have this family and this quantity. */
+function coveredByFamily(
+  requests: Array<{ quantity: number; content: string[] }>,
+  cart: Array<{ itemId: string; quantity?: number }>,
+  menu: IntentMenuItem[],
+): Set<number> {
+  const pools = cart.map((line) => ({ tokens: lineFamilyTokens(line, menu), left: Number(line.quantity) || 1 }));
+  const covered = new Set<number>();
+  requests.forEach((request, index) => {
+    const wanted = familyTokens(request.content);
+    if (!wanted.length) return;
+    const shares = (tokens: string[]) => wanted.some((token) => tokens.some((have) => sameStem(have, token)));
+    const exact = pools.find((pool) => pool.left === request.quantity && shares(pool.tokens));
+    if (exact) { exact.left = 0; covered.add(index); return; }
+    const group = pools.filter((pool) => pool.left > 0 && shares(pool.tokens));
+    if (group.reduce((sum, pool) => sum + pool.left, 0) !== request.quantity) return;
+    for (const pool of group) pool.left = 0;
+    covered.add(index);
+  });
+  return covered;
 }
 
 function cleanPhrase(phrase: string): string {
@@ -1137,6 +1183,7 @@ export function reconcileCountedRequests(
   const file = loadConversationIntent();
   if (!file || !menu?.length) return empty;
   const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
+  const ingredients = modifierWords(menu);
   const caller = turns.filter((turn) => turn.speaker === "caller");
   const sentences: Array<{ text: string; language: "en" | "es"; question: boolean }> = [];
   for (const turn of caller) {
@@ -1158,7 +1205,7 @@ export function reconcileCountedRequests(
     if (!content.length || !menu.some((item) => sharesContent(item, content))) return;
     if (meatOnRungDish(content, cart, menu)) return;
     if (closureFor(sentence.text, content, sentence.question)) return;
-    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index, note: accommodationNote(sentence.text) });
+    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index, note: accommodationNote(sentence.text, ingredients) });
   });
   const closures: CountedClosure[] = [];
   const open = requests.filter((request) => {
@@ -1170,23 +1217,25 @@ export function reconcileCountedRequests(
   const lines: CountedLine[] = [];
   const diagnostics: CountedDiagnostic[] = [];
   let hold = false;
+  const already = coveredByFamily(open, cart, menu);
   const working = cart.map((line) => ({ itemId: line.itemId }));
-  for (const request of open) {
-    if (working.some((line) => lineCovers(line, menu, request.content, request.size))) continue;
+  open.forEach((request, index) => {
+    if (already.has(index)) return;
+    if (working.some((line) => lineCovers(line, menu, request.content, request.size))) return;
     const exact = exactItems(menu, request.content, request.size);
     const named = exact.length === 1 ? exact[0] : null;
     if (named && staffDeclinedVariation(staff, named)) {
       diagnostics.push({ kind: "no-stock", itemIds: [named.id], quantity: request.quantity });
       hold = true;
-      continue;
+      return;
     }
     if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
       diagnostics.push({ kind: exact.length > 1 ? "ambiguous" : "unresolved", itemIds: exact.slice(0, 8).map((item) => item.id), quantity: request.quantity });
       hold = true;
-      continue;
+      return;
     }
     const namedLabel = itemLabel(named, request.language);
-    const restriction = sentences.map((sentence) => sentence.question ? null : accommodationNote(sentence.text) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text) : null).find((value) => value) || null;
+    const restriction = sentences.map((sentence) => sentence.question ? null : accommodationNote(sentence.text, ingredients) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text, ingredients) : null).find((value) => value) || null;
     lines.push({
       itemId: named.id,
       quantity: request.quantity,
@@ -1197,7 +1246,7 @@ export function reconcileCountedRequests(
     });
     diagnostics.push({ kind: "recovered", itemIds: [named.id], quantity: request.quantity });
     working.push({ itemId: named.id });
-  }
+  });
   if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part.text) && !part.question && !takeQuantity(part.text, file).quantity))) {
     lines[0].elviNotes.push("botella");
   }
