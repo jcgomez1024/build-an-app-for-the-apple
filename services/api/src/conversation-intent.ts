@@ -130,12 +130,12 @@ function tokenNegated(phrase: string, token: string): boolean {
   return new RegExp(`\\b(?:no|not|sin|without)\\s+(?:\\w+\\s+){0,2}${token}\\b`).test(phrase);
 }
 
-function spokenOptions(item: IntentMenuItem, phrase: string): Array<{ step: string; option: string }> | "ambiguous" {
+function spokenOptions(item: IntentMenuItem, phrase: string, includeNegated = false): Array<{ step: string; option: string }> | "ambiguous" {
   const generic = new Set([...significant(item.name || ""), ...significant(item.nameEs || "")]);
   const attached: Array<{ step: string; option: string }> = [];
   for (const group of item.modifierGroups || []) {
     const hits = (group.options || []).map(optionName).filter((name) => {
-      const tokens = significant(name).filter((token) => !generic.has(token) && !tokenNegated(phrase, token));
+      const tokens = significant(name).filter((token) => !generic.has(token) && (includeNegated || !tokenNegated(phrase, token)));
       return tokens.some((token) => hasWord(phrase, token));
     });
     const unique = [...new Set(hits)];
@@ -431,6 +431,38 @@ function targetedReplacement(input: IntentInput, file: IntentFile, language: "en
   }, cart, input.menu);
 }
 
+const DISCOURSE_LEADS = [
+  "for a separate line ", "and separately ", "por separado agrega ", "por separado ",
+  "para empezar ", "alongside those ", "alongside ", "i would like ", "i d like ",
+  "id like ", "start with ", "en otra linea ", "filled with ", "separately ",
+  "please ", "anota ", "anote ", "tambien ", "aparte ", "ponme ", "agrega ", "add ", "put ", "and ", "y ",
+].sort((a, b) => b.length - a.length);
+
+function stripDiscourse(folded: string): string {
+  let text = folded.replace(/\bfilled with\b/g, " ").replace(/\ben otra linea\b/g, " ").replace(/\s+/g, " ").trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const lead of DISCOURSE_LEADS) {
+      if (text.startsWith(lead)) { text = text.slice(lead.length).trim(); changed = true; }
+    }
+  }
+  return text;
+}
+
+function isCartEdit(folded: string): boolean {
+  return /\b(?:remove|quita|quiten|cancel|sin|without|reduce|reducir|dejala|dejalo|deja|cambia la cantidad|cambiar la cantidad|preguntame|pregunta cual|ask me which|which line|not the|keep the|keep both|conserva|se quedan|stay at|stays at)\b/.test(folded);
+}
+
+function beforeKeep(folded: string): string {
+  const cut = folded.split(/\b(?:not the|keep both|keep the|conserva)\b/)[0];
+  return cut.replace(/\b(?:los|las|el|la|the)\s+\S+(?:\s+\S+){0,6}\s+(?=se quedan|stay at|stays at)\b/, " ").split(/\b(?:se quedan|stay at|stays at)\b/)[0];
+}
+
+function asksWhichLine(folded: string): boolean {
+  return /\b(?:ask me which|which line|which one|preguntame cual|pregunta cual|cual antes)\b/.test(folded);
+}
+
 function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es", folded: string): IntentDecision | null {
   const taken = takeQuantity(folded, file);
   if (!taken.quantity || taken.unclear || !taken.rest) return null;
@@ -470,6 +502,73 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     }
     return decision;
   };
+  if (isCartEdit(folded) && cart.length) {
+    if (asksWhichLine(folded) && cart.length > 1) {
+      const asked = askTarget(language, cart, input.menu, { operation: "replace", itemId: cart[0].itemId, quantity: null, modifiers: [], targetIndex: null, unresolved: ["target"] });
+      return remember({ kind: "clarify", reply: asked.reply, actions: [], pending: null });
+    }
+    const clause = beforeKeep(folded);
+    const qtyWord = clause.match(/\b(?:to|en|hasta|a)\s+(one|two|three|four|five|six|un|una|uno|dos|tres|cuatro|cinco|seis|[1-6])\b/);
+    const quantity = qtyWord ? (file.quantities[qtyWord[1]] || Number(qtyWord[1]) || 0) : 0;
+    if (/\b(?:reduce|reducir|cambia la cantidad|cambiar la cantidad|dejala|dejalo|deja)\b/.test(clause) && quantity) {
+      const named = lineIndexes(cart, input.menu, clause);
+      let found: number[] | "ambiguous" = named;
+      if (named === "ambiguous" || !named.length) {
+        const hits: number[] = [];
+        for (let index = 0; index < cart.length; index++) {
+          const item = input.menu.find((entry) => entry.id === cart[index].itemId);
+          const options = item ? spokenOptions(item, clause) : [];
+          if (options === "ambiguous") { found = "ambiguous"; break; }
+          if (options.length && options.every((option) => (cart[index].modifiers || []).some((modifier) => modifier.option === option.option))) hits.push(index);
+        }
+        if (found !== "ambiguous") found = hits.length > 1 ? "ambiguous" : hits;
+      }
+      if (found !== "ambiguous" && found.length === 1) {
+        const line = cart[found[0]];
+        const item = input.menu.find((entry) => entry.id === line.itemId);
+        return remember({
+          kind: "accept",
+          reply: replyFor(language, "accept", item?.name || line.itemId, quantity, ""),
+          actions: [{ type: "update_item", itemId: line.itemId, quantity, lineIndex: found[0] }],
+          pending: null,
+        });
+      }
+    }
+    const adding = takeQuantity(stripDiscourse(clause), file).quantity;
+    if (/\b(?:remove|quita|quiten|cancel|sin|without)\b/.test(clause) && !adding) {
+      const itemIds = [...new Set(cart.map((line) => line.itemId))];
+      const groups: number[][] = [];
+      let removalAmbiguous = false;
+      for (const itemId of itemIds) {
+        const item = input.menu.find((entry) => entry.id === itemId);
+        if (!item) continue;
+        const nameHit = [item.name, item.nameEs].some((name) => significant(name || "").some((token) => hasWord(clause, token)));
+        const options = spokenOptions(item, clause, true);
+        if (options === "ambiguous") { removalAmbiguous = true; break; }
+        if (!nameHit && !options.length) continue;
+        const indexes = cart.map((_, index) => index).filter((index) => cart[index].itemId === itemId && (!options.length ? nameHit : options.every((option) => (cart[index].modifiers || []).some((modifier) => modifier.option === option.option))));
+        if (indexes.length) groups.push(indexes);
+      }
+      if (!removalAmbiguous && groups.length === 1) {
+        const indexes = groups[0];
+        if (indexes.length && indexes.length < cart.length) {
+            return remember({
+              kind: "accept",
+              reply: language === "es" ? "Quité solo esa línea. Lo demás se queda." : "I removed only that line. The other line stays.",
+              actions: [...indexes].sort((a, b) => b - a).map((index) => ({ type: "remove_item" as const, itemId: cart[index].itemId, quantity: Number(cart[index].quantity) || 1, lineIndex: index })),
+              pending: null,
+            });
+        }
+      }
+    }
+  }
+  if (!isCartEdit(folded)) {
+    const stripped = stripDiscourse(folded);
+    if (stripped && stripped !== folded) {
+      const added = directOrder(input, file, language, stripped);
+      if (added?.actions.length) return remember({ ...added, pending: null });
+    }
+  }
   const replacementCues = [...file.replacementCues, "instead of ", "en vez de ", "replace ", "cambia ", "cambio "];
   const additiveCues = [...file.additiveCues, "also add ", "agrega ", "add ", "plus ", "mas "];
   const preserve = (): IntentDecision => remember({ ...clarify(language, "No cambié la orden.", "I did not change the order."), pending: null });

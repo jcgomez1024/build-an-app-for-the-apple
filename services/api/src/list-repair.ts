@@ -224,6 +224,11 @@ export function negatedMeats(text: string): string[] {
     if (/no\s*,\s*(?:de\s+|del\s+)?$/.test(beforeOption)) continue;
     if (k && !/\bno\s+(?:mas|hay)\b/.test(m[0])) out.add(k);
   }
+  // "sin tacos de pollo" / "without the chicken" names the meat to drop. Dish words between sin and the meat stay in the phrase.
+  for (const m of p.matchAll(new RegExp(`\\b(?:sin|without)\\s+(?:(?:tacos?|quesadillas?|tortas?|burritos?|gorditas?|sopes?|de|del|the|any|ningun|ninguna)\\s+){0,3}(${MEAT_WORDS})\\b`, "g"))) {
+    const k = meatIn(m[1]);
+    if (k && !meatRestatedAfter(p.slice((m.index || 0) + m[0].length), k)) out.add(k);
+  }
   return [...out];
 }
 const isNeg = (t: Turn, meat: string) => t.speaker === "caller" && negatedMeats(t.text).includes(meat);
