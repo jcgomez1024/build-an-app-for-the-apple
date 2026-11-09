@@ -945,12 +945,21 @@ export type CountedLine = {
 
 export type CountedClosure = { target: string; kind: "withdrawal" | "negation" | "replacement" };
 
+export type CountedDiagnostic = {
+  kind: "recovered" | "ambiguous" | "no-stock" | "unresolved";
+  itemIds: string[];
+  quantity: number;
+};
+
 export type CountedReconciliation = {
   lines: CountedLine[];
   reviewReason: string | null;
   reply: string;
   closures: CountedClosure[];
+  diagnostics: CountedDiagnostic[];
 };
+
+const COUNTED_HOLD = "revisar pedido contado";
 
 function sameStem(a: string, b: string): boolean {
   if (a === b) return true;
@@ -976,7 +985,7 @@ function sizeOf(text: string): string | null {
   return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
 }
 
-const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "pued", "puedo", "puedes", "dame", "deme", "pone", "ponen", "street", "bank", "north", "south", "saint", "louis", "avenue", "road", "drive", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
+const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "pued", "puedo", "puedes", "dame", "deme", "pone", "ponen", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
 const MEAT = new Set(["bistec", "pastor", "asada", "pollo", "chorizo", "lengua", "tripa", "carnitas", "cabeza", "costilla", "picadillo", "deshebrada", "birria"]);
 const TOPPING = new Set(["queso", "cebolla", "crema", "cilantro", "onion", "cheese", "salsa", "frijol", "frijoles"]);
 
@@ -990,10 +999,7 @@ function variationLabel(item: IntentMenuItem): string {
 }
 
 function catalogLabels(item: IntentMenuItem): string[] {
-  return spokenLabels(item).filter((label) => {
-    const folded = fold(label);
-    return !(/\bcoca\b/.test(folded) && /\bpepsi\b/.test(folded));
-  });
+  return spokenLabels(item);
 }
 
 function itemLabel(item: IntentMenuItem, language: "en" | "es"): string {
@@ -1043,11 +1049,10 @@ function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: s
   const needed = content.filter((token) => !VARIATION_QUALIFIER.has(token));
   const quals = content.filter((token) => VARIATION_QUALIFIER.has(token));
   if (!needed.length) return false;
+  if (!item) return false;
   return labels.some((label) => {
-    if (item && size && sizeOf(label) !== size) return false;
-    const usable = item ? needed : needed.filter((token) => token.length >= 6 || (token.length >= 4 && !["coca", "cola", "pepsi"].includes(token)));
-    if (!usable.length) return false;
-    return usable.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
+    if (size && sizeOf(label) !== size) return false;
+    return needed.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
   });
 }
 
@@ -1088,10 +1093,11 @@ function isQuestionSentence(sentence: string, file: IntentFile): boolean {
   return /[?¿]/.test(sentence) || isAvailability(sentence, file) || /\b(?:quiere|quieren|tienes|tienen)\b/.test(sentence);
 }
 
-function isAddressOrNumber(sentence: string): boolean {
-  if (/\b(?:street|avenue|ave|road|drive|bank|saint|north|south)\b/.test(sentence)) return true;
+function isOnlyQuantities(sentence: string): boolean {
   const numbers = sentence.match(/\b(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|treinta|cuarenta|cincuenta|one|two|three|four|five|six|seven|eight|nine|zero|forty)\b/g) || [];
-  return numbers.length >= 2 && !/\b(?:taco|quesadilla|horchata|coca|pepsi|menudo|birria|burrito|torta|gordita|sope)\b/.test(sentence);
+  if (numbers.length < 2) return false;
+  const rest = sentence.replace(/\b(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|treinta|cuarenta|cincuenta|one|two|three|four|five|six|seven|eight|nine|zero|forty)\b/g, " ");
+  return dishTokens(rest).length === 0;
 }
 
 function meatOnRungDish(content: string[], cart: Array<{ itemId: string }>, menu: IntentMenuItem[]): boolean {
@@ -1105,8 +1111,11 @@ function meatOnRungDish(content: string[], cart: Array<{ itemId: string }>, menu
 }
 
 function accommodationNote(text: string): string | null {
-  const match = text.match(/\b(?:sin|without|no)\s+(cebolla|onion|crema|cilantro|queso|cheese)\b/);
-  return match ? `sin ${match[1] === "onion" ? "cebolla" : match[1] === "cheese" ? "queso" : match[1]}` : null;
+  const match = text.match(/\b(?:sin|without)\s+([a-z]+)/) || text.match(/\bno quiero\s+(?:el|la|los|las|un|una)?\s*([a-z]+)/);
+  if (!match) return null;
+  const word = match[1];
+  if (!word || word.length < 4 || NOT_A_DISH.has(word)) return null;
+  return `sin ${word === "onion" ? "cebolla" : word === "cheese" ? "queso" : word}`;
 }
 
 function cleanPhrase(phrase: string): string {
@@ -1124,7 +1133,7 @@ export function reconcileCountedRequests(
   turns: Array<{ speaker?: string; text: string; language?: string }>,
   menu: IntentMenuItem[],
 ): CountedReconciliation {
-  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "", closures: [] };
+  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "", closures: [], diagnostics: [] };
   const file = loadConversationIntent();
   if (!file || !menu?.length) return empty;
   const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
@@ -1136,7 +1145,7 @@ export function reconcileCountedRequests(
   }
   const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number; note: string | null }> = [];
   sentences.forEach((sentence, index) => {
-    if (sentence.question || isQuestionSentence(sentence.text, file) || isAddressOrNumber(sentence.text)) return;
+    if (sentence.question || isQuestionSentence(sentence.text, file) || isOnlyQuantities(sentence.text)) return;
     let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
     const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
     if (verb) body = body.slice(verb.length).trim();
@@ -1159,44 +1168,41 @@ export function reconcileCountedRequests(
     return false;
   });
   const lines: CountedLine[] = [];
-  const reviews: string[] = [];
-  let reply = "";
+  const diagnostics: CountedDiagnostic[] = [];
+  let hold = false;
   const working = cart.map((line) => ({ itemId: line.itemId }));
   for (const request of open) {
     if (working.some((line) => lineCovers(line, menu, request.content, request.size))) continue;
     const exact = exactItems(menu, request.content, request.size);
     const named = exact.length === 1 ? exact[0] : null;
-    const namedLabel = named ? itemLabel(named, request.language) : "";
     if (named && staffDeclinedVariation(staff, named)) {
-      const reason = request.language === "es"
-        ? `Pedido contado sin resolver: ${namedLabel}. No está disponible y no lo agregué.`
-        : `Unresolved counted request: ${namedLabel}. It is not available, so I did not add it.`;
-      reviews.push(reason);
-      reply = reason;
+      diagnostics.push({ kind: "no-stock", itemIds: [named.id], quantity: request.quantity });
+      hold = true;
       continue;
     }
-    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) continue;
-    const note = request.language === "es"
-      ? `Recuperado, hay que confirmar: ${namedLabel}.`
-      : `Recovered, needs confirmation: ${namedLabel}.`;
-    const restriction = sentences.map((sentence, index) => sentence.question ? null : accommodationNote(sentence.text) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text) : null).find((value) => value) || null;
+    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
+      diagnostics.push({ kind: exact.length > 1 ? "ambiguous" : "unresolved", itemIds: exact.slice(0, 8).map((item) => item.id), quantity: request.quantity });
+      hold = true;
+      continue;
+    }
+    const namedLabel = itemLabel(named, request.language);
+    const restriction = sentences.map((sentence) => sentence.question ? null : accommodationNote(sentence.text) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text) : null).find((value) => value) || null;
     lines.push({
       itemId: named.id,
       quantity: request.quantity,
       modifiers: [],
-      readback: `${namedLabel}. ${note}`,
+      readback: namedLabel,
       recovered: true,
       elviNotes: restriction ? ["confirmar", restriction] : ["confirmar"],
     });
+    diagnostics.push({ kind: "recovered", itemIds: [named.id], quantity: request.quantity });
     working.push({ itemId: named.id });
-    reviews.push(note);
-    reply = note;
   }
   if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part.text) && !part.question && !takeQuantity(part.text, file).quantity))) {
     lines[0].elviNotes.push("botella");
   }
-  if (!lines.length && !reviews.length && !closures.length) return empty;
-  return { lines, reviewReason: reviews[0] || null, reply, closures };
+  if (!lines.length && !hold && !closures.length) return empty;
+  return { lines, reviewReason: hold ? COUNTED_HOLD : null, reply: hold ? COUNTED_HOLD : "", closures, diagnostics };
 }
 
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {

@@ -887,6 +887,16 @@ function noteTrace(order: any, extra: Record<string, unknown>) {
   return order;
 }
 
+/** Staff diagnostic. Item ids and a kind only. Never a caller sentence, and never outside a test scratch path. */
+function noteCountedDiagnostic(rows: Array<{ kind: string; itemIds: string[]; quantity: number }>) {
+  if (process.env.NODE_ENV !== "test" || !rows?.length) return;
+  const file = process.env.ELVI_COUNTED_DIAG || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return;
+  try {
+    for (const row of rows) appendFileSync(file, JSON.stringify({ kind: row.kind, itemIds: row.itemIds, quantity: row.quantity }) + "\n");
+  } catch { /* test log only */ }
+}
+
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
   // catalog price (data/site-catalog.json), never a modifier upcharge ("$1" for QCO) or a meat prompt.
@@ -8009,10 +8019,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     (steps as any).reviewReason = heldReason;
     const counted = reconcileCountedRequests(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : []);
     for (const line of counted.lines) cart.push(line as any);
-    if (counted.lines.length) steps.push({ source: "end-counted-request", heard: counted.lines.map((line) => line.readback).join(" "), reply: counted.reply });
-    if (counted.reviewReason || counted.lines.length || counted.closures.length) {
-      steps.push({ source: "counted-low-confidence", heard: counted.reviewReason || counted.reply || "", reply: counted.reply, closures: counted.closures });
-    }
+    if (counted.reviewReason && !(steps as any).reviewReason) (steps as any).reviewReason = counted.reviewReason;
+    if (counted.diagnostics.length) steps.push({ source: "counted-request", heard: counted.diagnostics.map((row) => row.kind).join(" ") });
+    noteCountedDiagnostic(counted.diagnostics);
   // A spoken accommodation that was not applied stays a review hold. It is not a line note and not a fulfilled exclusion.
   if (intentPending?.accommodation && !(steps as any).reviewReason) {
     (steps as any).reviewReason = `unresolved accommodation: ${intentPending.accommodation}`;
