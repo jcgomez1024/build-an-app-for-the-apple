@@ -2,7 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
-import { catalogSkuName, enforceSiteAvailability } from "./site-catalog.js";
+import { enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
   type: "add_item" | "remove_item" | "update_item";
@@ -942,10 +942,13 @@ export type CountedLine = {
   elviNotes: string[];
 };
 
+export type CountedClosure = { target: string; kind: "withdrawal" | "negation" | "replacement" };
+
 export type CountedReconciliation = {
   lines: CountedLine[];
   reviewReason: string | null;
   reply: string;
+  closures: CountedClosure[];
 };
 
 function sameStem(a: string, b: string): boolean {
@@ -979,8 +982,18 @@ function dishTokens(text: string): string[] {
   return significant(cleaned).map((token) => (token === "dieta" ? "diet" : token)).filter((token) => !SIZE_WORD.has(token) && !NOT_A_DISH.has(token) && !NOT_A_DISH.has(stem(token)));
 }
 
+function variationLabel(item: IntentMenuItem): string {
+  return item.variationName && !/^regular$/i.test(item.variationName) ? item.variationName : "";
+}
+
 function catalogLabels(item: IntentMenuItem): string[] {
-  return [catalogSkuName(item), item.variationName, item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
+  return [variationLabel(item), item.name, item.nameEs, ...(item.aliases || [])].filter((label): label is string => !!label && fold(label).length > 0 && !/^regular$/i.test(label));
+}
+
+function itemLabel(item: IntentMenuItem, language: "en" | "es"): string {
+  const variation = variationLabel(item);
+  if (language === "es" && item.nameEs && !/online/i.test(item.nameEs) && !variation) return item.nameEs;
+  return variation || item.name || item.nameEs || "";
 }
 
 function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es" {
@@ -1004,7 +1017,7 @@ function exactLabel(label: string, content: string[], size: string | null): bool
 
 function exactItems(menu: IntentMenuItem[], content: string[], size: string | null): IntentMenuItem[] {
   const byVariation = menu.filter((item) => {
-    const sku = catalogSkuName(item);
+    const sku = variationLabel(item);
     return !!sku && exactLabel(sku, content, size);
   });
   if (byVariation.length) return byVariation;
@@ -1030,7 +1043,7 @@ function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: s
 }
 
 function unspokenSize(item: IntentMenuItem, phrase: string): boolean {
-  const label = catalogSkuName(item) || item.variationName || "";
+  const label = variationLabel(item);
   if (!label) return false;
   return !!sizeOf(label) && !sizeOf(phrase);
 }
@@ -1046,13 +1059,29 @@ function requiredOpen(item: IntentMenuItem, phrase: string): boolean {
  * Names and variation labels only. One exact catalog row can be recovered for confirmation.
  * Anything else stays a review reason in the call's language. No invented SKU or option.
  */
-const CLOSES_REQUEST = /\b(?:quita(?:r|me|le)?|ya no|no quiero|no la quiero|no lo quiero|remove|take (?:it|that|them) off|instead of|en vez de|rather than)\b/;
+function requestHead(sentence: string): string {
+  return sentence.split(/\b(?:en los|en las|en el|en la|con|with|on the|para)\b/)[0];
+}
 
-function closesRequest(sentence: string, content: string[]): boolean {
+function closureFor(sentence: string, content: string[]): CountedClosure | null {
   const dish = content.filter((token) => !VARIATION_QUALIFIER.has(token));
-  if (!dish.some((token) => heard(sentence, token))) return false;
-  if (CLOSES_REQUEST.test(sentence)) return true;
-  return dish.some((token) => tokenNegated(sentence, token));
+  const head = requestHead(sentence);
+  if (!dish.length || !dish.some((token) => heard(head, token))) return null;
+  const target = dish.join(" ");
+  if (/\b(?:instead of|en vez de|rather than)\b/.test(head)) return { target, kind: "replacement" };
+  if (/\b(?:quita(?:r|me|le)?|ya no|remove|take (?:it|that|them) off)\b/.test(head)) return { target, kind: "withdrawal" };
+  if (/\bno quiero\b/.test(head) || dish.some((token) => tokenNegated(head, token))) return { target, kind: "negation" };
+  return null;
+}
+
+function cleanPhrase(phrase: string): string {
+  return phrase
+    .replace(/\b(?:like|como)\b.*$/, "")
+    .replace(/^(?:of|de)\s+(?:your|su|tus|the|el|la|los|las)\s+/, "")
+    .replace(/^(?:of|de|your|su)\s+/, "")
+    .replace(/\b(?:big|grande|the|a|an|el|la|los|las)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function reconcileCountedRequests(
@@ -1060,7 +1089,7 @@ export function reconcileCountedRequests(
   turns: Array<{ speaker?: string; text: string; language?: string }>,
   menu: IntentMenuItem[],
 ): CountedReconciliation {
-  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "" };
+  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "", closures: [] };
   const file = loadConversationIntent();
   if (!file || !menu?.length) return empty;
   const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
@@ -1076,16 +1105,22 @@ export function reconcileCountedRequests(
     let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
     const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
     if (verb) body = body.slice(verb.length).trim();
-    if (CLOSES_REQUEST.test(sentence.text) || file.replacementCues.some((cue) => sentence.text.startsWith(fold(cue)))) return;
+    if (file.replacementCues.some((cue) => sentence.text.startsWith(fold(cue)))) return;
     if (/\b(?:agrega|y)\s+unas?\s*$/.test(sentence.text)) return;
-    const taken = takeQuantity(body, file);
+    const taken = takeQuantity(cleanPhrase(body), file);
     if (!taken.quantity || taken.unclear) return;
-    const content = dishTokens(taken.rest);
+    const content = dishTokens(cleanPhrase(taken.rest));
     if (!content.length) return;
-    if (closesRequest(sentence.text, content)) return;
-    requests.push({ phrase: taken.rest, quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index });
+    if (closureFor(sentence.text, content)) return;
+    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index });
   });
-  const open = requests.filter((request) => !sentences.slice(request.index + 1).some((sentence) => closesRequest(sentence.text, request.content) || /\b(?:instead of|en vez de|rather than|mejor|instead)\b/.test(sentence.text)));
+  const closures: CountedClosure[] = [];
+  const open = requests.filter((request) => {
+    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content)).find((closure) => closure);
+    if (!later) return true;
+    closures.push(later);
+    return false;
+  });
   const lines: CountedLine[] = [];
   const reviews: string[] = [];
   let reply = "";
@@ -1094,32 +1129,33 @@ export function reconcileCountedRequests(
     if (working.some((line) => lineCovers(line, menu, request.content, request.size))) continue;
     const exact = exactItems(menu, request.content, request.size);
     const named = exact.length === 1 ? exact[0] : null;
+    const namedLabel = named ? itemLabel(named, request.language) : "";
     if (named && staffDeclinedVariation(staff, named)) {
       const reason = request.language === "es"
-        ? `Pedido contado sin resolver: ${request.phrase}. No está disponible y no lo agregué.`
-        : `Unresolved counted request: ${request.phrase}. It is not available, so I did not add it.`;
+        ? `Pedido contado sin resolver: ${namedLabel}. No está disponible y no lo agregué.`
+        : `Unresolved counted request: ${namedLabel}. It is not available, so I did not add it.`;
       reviews.push(reason);
       reply = reason;
       continue;
     }
     if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
-      if (!menu.some((item) => sharesContent(item, request.content))) continue;
+      const choices = exact.length > 1 ? exact.slice(0, 4).map((item) => itemLabel(item, request.language)).join(", ") : cleanPhrase(request.phrase);
+      if (!choices || !menu.some((item) => sharesContent(item, request.content))) continue;
       const reason = request.language === "es"
-        ? `Pedido contado sin resolver: ${request.phrase}. No lo agregué.`
-        : `Unresolved counted request: ${request.phrase}. I did not add it.`;
+        ? `Pedido contado sin resolver: ${choices}. No lo agregué.`
+        : `Unresolved counted request: ${choices}. I did not add it.`;
       reviews.push(reason);
       reply = reason;
       continue;
     }
-    const label = catalogSkuName(named) || named.name || named.nameEs;
     const note = request.language === "es"
-      ? `Recuperado, hay que confirmar: ${request.phrase}.`
-      : `Recovered, needs confirmation: ${request.phrase}.`;
+      ? `Recuperado, hay que confirmar: ${namedLabel}.`
+      : `Recovered, needs confirmation: ${namedLabel}.`;
     lines.push({
       itemId: named.id,
       quantity: request.quantity,
       modifiers: [],
-      readback: `${label}. ${note}`,
+      readback: `${namedLabel}. ${note}`,
       recovered: true,
       elviNotes: ["confirmar"],
     });
@@ -1130,8 +1166,8 @@ export function reconcileCountedRequests(
   if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part) && !takeQuantity(part, file).quantity))) {
     lines[0].elviNotes.push("botella");
   }
-  if (!lines.length && !reviews.length) return empty;
-  return { lines, reviewReason: reviews[0] || null, reply };
+  if (!lines.length && !reviews.length && !closures.length) return empty;
+  return { lines, reviewReason: reviews[0] || null, reply, closures };
 }
 
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {

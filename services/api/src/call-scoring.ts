@@ -2,6 +2,7 @@
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
 import { appendFileSync } from "node:fs";
+import { frozenPhoneMenu, frozenPhoneMenuAllowed } from "./phone-menu.js";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
 import { applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
@@ -878,27 +879,35 @@ export function mixMeats(acts: any[], text: string) {
   }
 }
 
+function noteTrace(order: any, extra: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "test") return order;
+  const file = process.env.ELVI_RECONCILE_TRACE || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return order;
+  try { appendFileSync(file, JSON.stringify({ test: process.argv[1] || "", ...extra }) + "\n"); } catch { /* test log only */ }
+  return order;
+}
+
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
   // catalog price (data/site-catalog.json), never a modifier upcharge ("$1" for QCO) or a meat prompt.
   // alexvoc1: "ya va pa allá" / restating the drinks on an order already placed — no new cart.
   if (isStatusFollowUpCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true }, { stage: "status-call", reconcileRan: false });
   // daniel-cancel1: a callback cancelling an earlier order — never a new cart (nothing from memory, recap or the old order).
   if (isCancelOrderCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true }, { stage: "cancel-order", reconcileRan: false });
   // pedro2: caller gave up ("entonces no quiero nada") and nothing was ordered or wrapped up after — no order.
   if (isAbandonedOrder(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "abandoned-order", reconcileRan: false });
   // juanFollow1: a callback about an order already placed (complaint / address / "mi pedido") — no new cart.
   if (isExistingOrderCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true };
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true }, { stage: "existing-order-call", reconcileRan: false });
   // demi1: asked for the person in charge and never named a dish — a false cart (pozole from the intro) is not an order.
   if (isPersonInChargeCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "person-in-charge", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, personInCharge: true };
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "person-in-charge", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, personInCharge: true }, { stage: "person-in-charge", reconcileRan: false });
   // cmissing1: only availability questions + "I'll call you back" / "le hablo luego" — no cart, no final ticket.
   if (isCallBackNoOrder(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-no-order", reconcileRan: false });
   if (isQuestionOnlyCall(turns)) {
     const steps: any[] = [];
     const ctx: string[] = []; let lastReply = "";
@@ -906,7 +915,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       ctx.push(t.text); if (ctx.length > 3) ctx.shift();
       const reply = priceAnswer(ctx.join(" "), t.language === "en" ? "en" : "es");
       if (reply && reply !== lastReply) { const prev = steps[steps.length - 1]; if (prev && ctx.length > 1 && reply.length > prev.reply.length && prev.heard === ctx[ctx.length - 2]) steps.pop(); steps.push({ source: "caller-price-question", heard: t.text, language: t.language, reply, actions: [] }); lastReply = reply; } }
-    return { cart: [] as Line[], steps, autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, questionOnly: true } as any;
+    return noteTrace({ cart: [] as Line[], steps, autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, questionOnly: true }, { stage: "question-only", reconcileRan: false });
   }
   const origTurns = turns.map((t) => ({ speaker: t.speaker, text: String(t.text || "") })); // gloria1: as heard, before in-loop merges/rewrites
   const declinedAsk = declinedAsks(origTurns as any); // jonathan2: declined "¿tiene X?" never rings, even on a later "quería eso"
@@ -7977,21 +7986,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   // juan-loose1: an already-added soup/side/loose tortilla stays unless this call cancelled it.
   // Runs after every rebuild so a later remove or a wiped cart cannot drop an explicit order.
-  {
-    const menuFn = (run as any).menu;
+  const menuFn = (run as any).menu;
     let menuEnd: any = null;
     let loader: "ok" | "missing" | "throwing" = "ok";
-    if (typeof menuFn !== "function") loader = "missing";
-    else { try { menuEnd = await menuFn(); } catch { loader = "throwing"; menuEnd = null; } }
+    let menuSource: "caller" | "frozen" | "missing" = "missing";
+    if (typeof menuFn === "function") {
+      menuSource = "caller";
+      try { menuEnd = await menuFn(); } catch { loader = "throwing"; menuEnd = null; }
+    } else if (frozenPhoneMenuAllowed()) {
+      menuEnd = frozenPhoneMenu();
+      menuSource = "frozen";
+      loader = Array.isArray(menuEnd) && menuEnd.length ? "ok" : "missing";
+    } else loader = "missing";
     const catalog = (run as any).posCatalog || cachedPosCatalog();
     if (retainSpokenOrder(cart as any[], origTurns as any, (Array.isArray(menuEnd) ? menuEnd : []) as any[], catalog))
       steps.push({ source: "end-retain-spoken", heard: "ordered soup, side, loose tortilla" });
     applyVerduraAparte(cart as any[], origTurns as any);
-    let reviewReason: string | null = null;
-    if (loader !== "ok") reviewReason = `confirmar menú: ${loader}`;
+    let heldReason: string | null = null;
+    if (loader !== "ok") heldReason = `confirmar menú: ${loader}`;
     else if (flagUnresolvedRequired(cart as any[], menuEnd as any, "ok"))
       steps.push({ source: "end-unresolved-required", heard: "required catalog option still open" });
-    (steps as any).reviewReason = reviewReason;
+    (steps as any).reviewReason = heldReason;
     const counted = reconcileCountedRequests(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : []);
     for (const line of counted.lines) cart.push(line as any);
     if (counted.lines.length) steps.push({ source: "end-counted-request", heard: counted.lines.map((line) => line.readback).join(" "), reply: counted.reply });
@@ -7999,25 +8014,25 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       (steps as any).reviewReason = counted.reviewReason;
       steps.push({ source: "end-unresolved-count", heard: counted.reviewReason, reply: counted.reply });
     }
-  }
   // A spoken accommodation that was not applied stays a review hold. It is not a line note and not a fulfilled exclusion.
   if (intentPending?.accommodation && !(steps as any).reviewReason) {
     (steps as any).reviewReason = `unresolved accommodation: ${intentPending.accommodation}`;
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
-  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
+  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, closures: counted.closures }); }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  if (process.env.ELVI_RECONCILE_TRACE) {
-    appendFileSync(process.env.ELVI_RECONCILE_TRACE, JSON.stringify({
-      test: process.argv[1] || "",
-      lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
-      reviewReason,
-    }) + "\n");
-  }
-  return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+    stage: "order",
+    reconcileRan: menuSource !== "missing",
+    menuSource,
+    menuCount: Array.isArray(menuEnd) ? menuEnd.length : 0,
+    closures: counted.closures,
+    lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
+    reviewReason,
+  });
 }
 
