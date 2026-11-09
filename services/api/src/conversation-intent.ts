@@ -463,6 +463,29 @@ function asksWhichLine(folded: string): boolean {
   return /\b(?:ask me which|which line|which one|preguntame cual|pregunta cual|cual antes)\b/.test(folded);
 }
 
+function modifierKey(modifiers: Array<{ step?: string; option?: string }> | undefined): string {
+  return [...(modifiers || [])].map((modifier) => `${modifier.step || ""}\0${modifier.option || ""}`).sort().join("|");
+}
+
+function sameSpokenLine(cart: NonNullable<IntentInput["cart"]>, action: IntentAction): boolean {
+  if (action.type !== "add_item") return false;
+  const wanted = modifierKey(action.modifiers);
+  return cart.some((line) => line.itemId === action.itemId && Number(line.quantity) === action.quantity && modifierKey(line.modifiers) === wanted);
+}
+
+function describeOwnLine(line: { itemId: string; modifiers?: Array<{ step?: string; option?: string }> }, menu: IntentMenuItem[]): string {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  const name = item?.name || line.itemId;
+  const mods = (line.modifiers || []).map((modifier) => `${modifier.step} = ${modifier.option}`).filter((text) => text !== " = ");
+  return mods.length ? `${name}, ${mods.join("; ")}` : name;
+}
+
+function unresolvedEarlierEdit(folded: string): boolean {
+  return /\b(?:and|y)\s+(?:change|cambia|cambie|cambiar)\b/.test(folded)
+    && /\b(?:earlier|anterior|first|primera)\b/.test(folded)
+    && !/\b(?:change|cambia|cambie|cambiar)\b.+\b(?:for|por|to)\b/.test(folded);
+}
+
 function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es", folded: string): IntentDecision | null {
   const taken = takeQuantity(folded, file);
   if (!taken.quantity || taken.unclear || !taken.rest) return null;
@@ -566,7 +589,17 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     const stripped = stripDiscourse(folded);
     if (stripped && stripped !== folded) {
       const added = directOrder(input, file, language, stripped);
-      if (added?.actions.length) return remember({ ...added, pending: null });
+      if (added?.actions.length) {
+        if (unresolvedEarlierEdit(folded) && cart.length) {
+          const earlier = cart[0];
+          const named = describeOwnLine(earlier, input.menu);
+          const note = language === "es"
+            ? ` No cambié la línea anterior porque no dijeron el cambio: ${named}.`
+            : ` I did not change the earlier line because the change was not specified: ${named}.`;
+          return remember({ ...added, reply: `${added.reply}${note}`, pending: null });
+        }
+        return remember({ ...added, pending: null });
+      }
     }
   }
   const replacementCues = [...file.replacementCues, "instead of ", "en vez de ", "replace ", "cambia ", "cambio "];
@@ -618,8 +651,20 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
   }
   const onlyAdd = folded.match(/\b(?:only add|solo agrega|solamente agrega)\s+(.+)$/);
   if (onlyAdd) {
+    const anaphoric = /^(?:those|these|esos|esas)\b/.test(onlyAdd[1]);
     const added = directOrder(input, file, language, onlyAdd[1].replace(/^(?:those|these|esos|esas)\s+/, ""));
-    if (added?.actions.length) return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+    if (added?.actions.length) {
+      if (anaphoric && added.actions.every((action) => sameSpokenLine(cart, action))) {
+        const kept = added.actions.find((action) => action.type === "add_item");
+        const line = cart.find((entry) => kept && entry.itemId === kept.itemId && Number(entry.quantity) === kept.quantity && modifierKey(entry.modifiers) === modifierKey(kept.modifiers));
+        const named = line ? describeOwnLine(line, input.menu) : "";
+        const reply = language === "es"
+          ? `Eso ya está en la orden, no lo agregué otra vez.${named ? ` ${named}.` : ""}`
+          : `That is already on the order, so I did not add it again.${named ? ` ${named}.` : ""}`;
+        return remember({ kind: "accept", reply, actions: [], pending: null });
+      }
+      return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+    }
   }
   if (/\b(?:and|y)\s+(?:change|cambia|cambie|cambiar|swap|replace)\b/.test(folded)
     && /\b(?:earlier|anterior|first|primera)\b/.test(folded)
