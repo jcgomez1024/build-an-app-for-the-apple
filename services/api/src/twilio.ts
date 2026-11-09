@@ -1005,15 +1005,17 @@ export function buildTicketLines(
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);
     choices = applied.choices;
-    // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
-    // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
+    // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too.
+    // A spoken restriction on the line itself (sin cebolla, no quiero cebolla) prints on any line.
     const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:|enchiladas:)|\baparte\b/iu.test(String(n))); // vapor1: per-order filling mix
-    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...confirmNotes])];
+    const restrictionNotes = [...(row?.elviNotes || [])].filter((n) => /^(?:sin|no|without)\b/i.test(String(n)));
+    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...restrictionNotes, ...confirmNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
       ...confirmNotes,
+      ...restrictionNotes,
     ].filter(Boolean);
     return {
       name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,
