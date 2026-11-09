@@ -1,19 +1,13 @@
-// Restored counted-request cases plus the claims that previously had no stored output.
-// The phone menu rows do not carry a test-supplied variation name. Runtime catalog lookup supplies it.
-import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+// Restored counted-request cases. variationName comes from frozenPhoneMenu, not a later Square-id lookup.
+import { execFileSync, execSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { reconcileCountedRequests } from "../../src/conversation-intent.ts";
-import { catalogSkuName } from "../../src/site-catalog.ts";
 import { phoneMenu } from "./evaluate.ts";
 
 const outPath = process.argv[2];
 if (!outPath) throw new Error("usage: run-counted-cases.ts <out.json>");
 
-const phone = phoneMenu().map((item) => {
-  const copy = { ...item };
-  delete (copy as { variationName?: string }).variationName;
-  return copy;
-});
+const phone = phoneMenu();
 const freeze = JSON.parse(readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json", "utf8"));
 const horchata = freeze.find((item: any) => item.id === "sq-drink-agua-fresca-horchata-32oz-HL6HPK");
 
@@ -25,12 +19,13 @@ function run(id: string, turns: Array<{ speaker?: string; text: string; language
     lines: decision.lines,
     reviewReason: decision.reviewReason,
     reply: decision.reply,
-    runtime_sku: decision.lines.map((line) => catalogSkuName(menu.find((item: any) => item.id === line.itemId) || {})),
+    closures: decision.closures,
+    item_variation: decision.lines.map((line) => menu.find((item: any) => item.id === line.itemId)?.variationName || null),
   };
 }
 
 const coke = (kind: "regular" | "diet") => phone.find((item) => {
-  const sku = catalogSkuName(item);
+  const sku = String(item.variationName || "");
   return kind === "diet" ? /diet/i.test(sku) && /coca/i.test(sku) : /^coca cola$/i.test(sku);
 });
 
@@ -40,7 +35,10 @@ const cases = [
   run("declined", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "No, no quiero la coca.", language: "es" }], phone),
   run("removed", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "Quita la coca.", language: "es" }], phone),
   run("staff-out", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "staff", text: "No hay coca hoy." }], phone),
-  run("replaced", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "Mejor una pepsi.", language: "es" }], phone),
+  run("replaced", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "En vez de la coca, una pepsi.", language: "es" }], phone),
+  run("mejor-a-las-seis", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "Mejor a las seis.", language: "es" }], phone),
+  run("sin-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "Sin cebolla en los tacos.", language: "es" }], [{ id: "taco-1", name: "Taco", variationName: "Taco" }]),
+  run("no-quiero-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "No quiero cebolla en los tacos.", language: "es" }], [{ id: "taco-1", name: "Taco", variationName: "Taco" }]),
   run("diet", [{ speaker: "caller", text: "Una coca diet.", language: "es" }], phone),
   run("zero", [{ speaker: "caller", text: "Una coca zero.", language: "es" }], phone),
   run("beside-diet", [{ speaker: "caller", text: "Una coca.", language: "es" }], phone, [{ itemId: coke("diet").id, quantity: 1 }]),
@@ -62,13 +60,16 @@ const cases = [
 
 const plainId = cases.find((row) => row.id === "plain")!.lines[0]?.itemId || "";
 const checks: Record<string, boolean> = {
-  plain: cases.find((row) => row.id === "plain")!.lines.length === 1 && /coca cola$/i.test(catalogSkuName(coke("regular"))),
+  plain: cases.find((row) => row.id === "plain")!.lines.length === 1 && cases.find((row) => row.id === "plain")!.reviewReason === "Recuperado, hay que confirmar: Coca Cola.",
   "negated-no": cases.find((row) => row.id === "negated-no")!.lines.length === 0,
   declined: cases.find((row) => row.id === "declined")!.lines.length === 0 && !cases.find((row) => row.id === "declined")!.reviewReason,
   removed: cases.find((row) => row.id === "removed")!.lines.length === 0 && !cases.find((row) => row.id === "removed")!.reviewReason,
   "staff-out": cases.find((row) => row.id === "staff-out")!.lines.length === 0,
-  replaced: !cases.find((row) => row.id === "replaced")!.lines.some((line) => line.itemId === plainId),
-  diet: /diet/i.test(catalogSkuName(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId) || {})),
+  replaced: !cases.find((row) => row.id === "replaced")!.lines.some((line) => line.itemId === plainId) && cases.find((row) => row.id === "replaced")!.closures.some((closure) => closure.target === "coca" && closure.kind === "replacement"),
+  "mejor-a-las-seis": cases.find((row) => row.id === "mejor-a-las-seis")!.lines[0]?.itemId === plainId && cases.find((row) => row.id === "mejor-a-las-seis")!.closures.length === 0,
+  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
+  "no-quiero-cebolla": cases.find((row) => row.id === "no-quiero-cebolla")!.lines.some((line) => line.itemId === "taco-1") && cases.find((row) => row.id === "no-quiero-cebolla")!.closures.length === 0,
+  diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.variationName || "")),
   zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && !!cases.find((row) => row.id === "zero")!.reviewReason,
   "beside-diet": cases.find((row) => row.id === "beside-diet")!.lines.length === 0,
   "cross-turn-quita": cases.find((row) => row.id === "cross-turn-quita")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-quita")!.reviewReason,
@@ -80,10 +81,24 @@ const checks: Record<string, boolean> = {
   "horchata-replaced-later": !cases.find((row) => row.id === "horchata-replaced-later")!.reviewReason,
   "horchata-es-already-there": !cases.find((row) => row.id === "horchata-es-already-there")!.reviewReason,
 };
+const prodTrace = "/tmp/elvi-prod-trace-must-not-exist.jsonl";
+const prod = JSON.parse(execFileSync("npx", ["tsx", "test/offline/prod-gate.ts", prodTrace], {
+  cwd: "/agent/repos/build-an-app-for-the-apple/services/api",
+  encoding: "utf8",
+  env: { ...process.env, NODE_ENV: "production", ELVI_FROZEN_PHONE_MENU: "1", ELVI_RECONCILE_TRACE: prodTrace, ELVI_CALL_LOG_DIR: "/tmp/elvi-prod-gate-logs", ELVI_CALLERS_FILE: "/tmp/elvi-prod-gate-logs/callers.json" },
+}));
+const productionGate = {
+  trace_written: existsSync(prodTrace),
+  reviewReason: prod.reviewReason,
+  lines: prod.lines,
+  frozen_menu_not_attached: prod.reviewReason === "confirmar menú: missing" && prod.lines === 0 && !existsSync(prodTrace),
+};
+checks["production-cannot-trace-or-attach-menu"] = productionGate.frozen_menu_not_attached;
 const body = {
   sha: execSync("git rev-parse HEAD", { cwd: "/agent/repos/build-an-app-for-the-apple" }).toString().trim(),
-  variation_name_source: "catalogSkuName reads site-catalog.json through squareCatalogObjectId and squareVariationId. evaluate.ts does not set variationName.",
+  variation_name_source: "frozenPhoneMenu copies sku.name onto variationName while building the committed site-catalog menu. Reconciliation reads that field. It does not look up a Square id again.",
   checks,
+  production_gate: productionGate,
   cases,
 };
 writeFileSync(outPath, JSON.stringify(body, null, 2));

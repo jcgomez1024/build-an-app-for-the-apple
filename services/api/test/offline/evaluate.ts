@@ -3,8 +3,7 @@
 // No Square, Twilio, caller-memory, or network calls.
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { nameFromTranscriptInfo } from "../../src/order-name.ts";
-import { menuIdForVariation } from "../../src/retain-spoken.ts";
-import { loadSiteCatalog } from "../../src/site-catalog.ts";
+import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { orderValidation, ticketFromShadow, type Confirmed } from "../../src/offline-evidence.ts";
 import { CASES, type OfflineCase } from "./cases.ts";
 
@@ -29,23 +28,8 @@ let menuCache: any[] | null = null;
 
 export function phoneMenu(): any[] {
   if (menuCache) return menuCache;
-  const site = loadSiteCatalog();
-  if (!site) throw new Error("site catalog missing");
-  menuCache = site.products.flatMap((p) => (p.skus || []).map((sku) => ({
-    id: menuIdForVariation(p.name, sku.name, sku.squareId),
-    name: /^regular$/i.test(sku.name) ? p.name : `${p.name} ${sku.name}`,
-    nameEs: p.siteName || p.name,
-    squareCatalogObjectId: p.squareId,
-    squareVariationId: sku.squareId,
-    priceCents: sku.priceCents || 0,
-    modifierGroups: (p.groups || []).map((g) => ({
-      name: g.name,
-      minSelections: g.min,
-      maxSelections: g.max,
-      options: g.choices.map((c) => ({ name: c.name, priceDeltaCents: c.priceCents })),
-      defaultOptions: g.choices.filter((c) => c.preselected).map((c) => c.name),
-    })),
-  })));
+  menuCache = frozenPhoneMenu();
+  if (!menuCache.length) throw new Error("site catalog missing");
   return menuCache;
 }
 
