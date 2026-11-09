@@ -1,6 +1,7 @@
 // Declared synthetic boundaries plus the isolated ticket store.
 // Not an independent holdout. Does not import twilio until the scratch dir is set.
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -63,6 +64,9 @@ const saved = JSON.parse(readFileSync(path.join(scratch, "elvi-tickets.json"), "
 const recovered = evidence.recoveryAcceptance(saved);
 const continued: any = await shadow([...holdTurns, "Okay, thank you."], freeze);
 const ticket2 = await twilio.upsertTicket({ callSid, caller: "", name: null, phase: "final", transcript: [...holdTurns, "Okay, thank you."].join("\n") }, describeFrom(freeze), continued.cart, continued);
+const savedBytes = readFileSync(path.join(scratch, "elvi-tickets.json"));
+const savedHash = createHash("sha256").update(savedBytes).digest("hex");
+const reread = JSON.parse(execFileSync("node", ["-e", `const fs=require("fs"); const p=${JSON.stringify(path.join(scratch, "elvi-tickets.json"))}; const b=fs.readFileSync(p); const row=JSON.parse(b.toString()).find((item)=>item.callSid==="CA-synthetic-hold-0001"); console.log(JSON.stringify({hash:require("crypto").createHash("sha256").update(b).digest("hex"), phase:row.phase, acceptance:row.acceptance, reviewReason:row.reviewReason}));`], { encoding: "utf8" }));
 const after = Object.fromEntries(prodRoots.map((root) => [root, snap(root)]));
 const productionUntouched = prodRoots.every((root) => JSON.stringify(before[root]) === JSON.stringify(after[root]));
 const holdPersists = saved?.phase === "review"
@@ -70,7 +74,10 @@ const holdPersists = saved?.phase === "review"
   && recovered.phase === "review"
   && ticket2.phase === "review"
   && ticket2.reviewReason === saved.reviewReason
-  && productionUntouched;
+  && productionUntouched
+  && reread.hash === savedHash
+  && reread.phase === "review"
+  && reread.reviewReason === saved.reviewReason;
 
 const synthetic = [
   { id: "plain", turns: [{ speaker: "caller", text: "Una coca." }], expect: "regular" },
@@ -111,12 +118,25 @@ const projectionOk = !!coke && coke.name.length > 0 && coke.quantity === 1 && co
   && cokeTicket && cokeTicket.name.length > 0 && cokeTicket.quantity === 1 && cokeTicket.totalCents === 350
   && !(cokeTicket.notes || []).some((note: string) => /botella|bottle/i.test(note));
 
+const forward = repair.reconcileCountedCoca([], [{ speaker: "caller", text: "Una coca." }], phone);
+const reversed = repair.reconcileCountedCoca([], [{ speaker: "caller", text: "Una coca." }], [...phone].reverse());
+const sameSku = forward.action === "add" && reversed.action === "add" && forward.item.id === reversed.item.id && !/pepsi-pepsi|pepsi-[a-z0-9]{6}$/i.test(forward.item.id);
+const zeroRun: any = async () => ({ actions: [], reply: "" });
+zeroRun.menu = () => phone;
+const zeroOrder: any = await scoring.shadowOrderFromTurns([{ speaker: "caller", text: "Una coca zero.", language: "es", start: 0, end: 1 }], zeroRun);
+const zeroReply = (zeroOrder.steps || []).map((step: any) => step.reply || "").filter(Boolean);
+const zeroOk = (zeroOrder.cart || []).length === 0 && typeof zeroOrder.reviewReason === "string" && /unresolved counted request/.test(zeroOrder.reviewReason) && zeroReply.length > 0;
+const asked = repair.reconcileCountedCoca([], [{ speaker: "caller", text: "¿Tienes dos cocas?" }], phone);
+const askOk = asked.action === "none";
+const clearRecovered = evidence.gateTicketAcceptance({ validation: "clear", reviewReason: null, cart: [{ itemId: "x", quantity: 1 }], autoAccepted: false });
+const clearOk = clearRecovered.phase === "final" && clearRecovered.acceptance === "validation-complete";
 const freezeCoca = freeze.find((item: any) => item.id === "sq-drink-coca-cola-JJE4KC");
 const body = {
   candidate_sha: execSync("git rev-parse HEAD", { cwd: "/agent/repos/build-an-app-for-the-apple" }).toString().trim(),
-  persistence: { scratch, production_untouched: prodRoots.every((root) => JSON.stringify(before[root]) === JSON.stringify(after[root])), saved_phase: saved?.phase, saved_review: saved?.reviewReason, recovered, continuation: { phase: ticket2.phase, reviewReason: ticket2.reviewReason }, hold_persists: holdPersists },
+  persistence: { scratch, production_untouched: prodRoots.every((root) => JSON.stringify(before[root]) === JSON.stringify(after[root])), saved_phase: saved?.phase, saved_review: saved?.reviewReason, recovered, continuation_return: { phase: ticket2.phase, reviewReason: ticket2.reviewReason }, file_reread: reread, file_hash: savedHash, hold_persists: holdPersists, note: "file_reread is a second process reading the saved file after the continuation write. continuation_return is only the in-process object." },
   synthetic,
   c01: { fulfillment: c01Shadow.fulfillment, lines: c01Lines, ticket_lines: ticketLines.map((line: any) => ({ name: line.name, quantity: line.quantity, notes: line.notes, choices: line.choices, totalCents: line.totalCents })), projection_ok: projectionOk },
+  counted: { same_sku: sameSku, forward: forward.action === "add" ? forward.item.id : forward.action, reversed: reversed.action === "add" ? reversed.item.id : reversed.action, zero_review: zeroOrder.reviewReason ?? null, zero_reply: zeroReply, availability_not_a_line: askOk, clear_recovered_unchanged: clearOk },
   bottle_mapping: {
     freeze_description: freezeCoca?.description || null,
     freeze_modifier_groups: (freezeCoca?.modifierGroups || []).map((group: any) => group.name),
@@ -131,4 +151,8 @@ const syntheticOk = synthetic.every((row) => row.ok);
 console.log(holdPersists ? "PASS" : "FAIL", "persistence-hold");
 for (const row of synthetic) console.log(row.ok ? "PASS" : "FAIL", row.id, row.ids.join(","));
 console.log(projectionOk ? "PASS" : "FAIL", "c01-projection", JSON.stringify(c01Lines));
-if (!holdPersists || !syntheticOk || !projectionOk) process.exit(1);
+console.log(sameSku ? "PASS" : "FAIL", "reversed-menu", forward.action === "add" ? forward.item.id : forward.action, reversed.action === "add" ? reversed.item.id : reversed.action);
+console.log(zeroOk ? "PASS" : "FAIL", "zero-review", zeroOrder.reviewReason, zeroReply.join(" | "));
+console.log(askOk ? "PASS" : "FAIL", "availability-not-a-line");
+console.log(clearOk ? "PASS" : "FAIL", "clear-recovered-unchanged", clearRecovered.acceptance);
+if (!holdPersists || !syntheticOk || !projectionOk || !sameSku || !zeroOk || !askOk || !clearOk) process.exit(1);
