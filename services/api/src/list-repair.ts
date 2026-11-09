@@ -656,6 +656,16 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
         host.quantity = part.qty;
         changed = true;
       }
+      if (part.deluxe) {
+        const regulars = same.filter((line) => /regular/i.test(String(line.itemId || "")));
+        if (regulars.length && same.some((line) => /deluxe|preparada/i.test(String(line.itemId || "")))) {
+          for (const extra of regulars) {
+            const at = cart.indexOf(extra);
+            if (at >= 0) cart.splice(at, 1);
+          }
+          changed = true;
+        }
+      }
       if (same.length > 1 && part.qty > 0 && same.every((line) => (Number(line.quantity) || 1) === part.qty)) {
         for (const extra of same.slice(1)) {
           const at = cart.indexOf(extra);
