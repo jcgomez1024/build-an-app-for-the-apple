@@ -124,6 +124,12 @@ function nameTokens(name: string): string[] {
   return normalizeName(name).split(" ").filter((token) => token.length >= 4 && !CATALOG_STOP.has(token));
 }
 
+/** True when two catalog names share a dish word, so a second product would repeat the line. */
+export function sameSpokenDish(left: string, right: string): boolean {
+  const other = new Set(nameTokens(right));
+  return nameTokens(left).some((token) => tokenHit(token, other));
+}
+
 /** One catalog row for a dish the text names. Variations of the same product collapse to the closest row. A tie between products adds nothing. */
 export function matchSpokenCatalog(
   dishText: string,

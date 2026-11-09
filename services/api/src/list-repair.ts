@@ -1,4 +1,4 @@
-import { catalogMentions, matchSpokenCatalog } from "./menu-names.js";
+import { catalogMentions, matchSpokenCatalog, sameSpokenDish } from "./menu-names.js";
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -1138,6 +1138,8 @@ function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: Af
     for (const match of matchSpokenCatalog(window.dish, window.option, menu)) {
       if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id)) continue;
       if (cart.some((line) => line.itemId === match.id || productId(menu, line.itemId) === match.product)) continue;
+      const present = cart.map((line) => String(menu.find((item) => item.id === line.itemId)?.name || "")).join(" ");
+      if (sameSpokenDish(match.label, present)) continue;
       if (isDrinkHit(menu, match)) {
         const family = drinkFamily(match.label);
         const other = callerDrinks.find((drink) => drink.id !== match.id && drinkFamily(drink.label) === family);
