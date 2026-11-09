@@ -1781,12 +1781,14 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
       const names = selected.length ? selected : (group.defaultOptions || []).slice(0, 1);
       const tokens = tokensFor(names, options);
       if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings)) {
-        const marker = `confirmar ${group.name}`;
-        const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
-        const onlyThis = before.length === 1 && before[0] === marker;
-        if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
-        if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
-        if (onlyThis) delete line.validation;
+        if (selected.length) {
+          const marker = `confirmar ${group.name}`;
+          const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+          const onlyThis = before.length === 1 && before[0] === marker;
+          if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+          if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+          if (onlyThis) delete line.validation;
+        }
         continue;
       }
       const marker = `confirmar ${group.name}`;
