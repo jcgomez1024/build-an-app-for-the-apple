@@ -26,7 +26,12 @@ export function normalizeSpoken(value: string): string {
 
 /** One fold for a required choice. The cart meat list and the hold both use it. */
 export function spokenChoiceWords(value: string): Set<string> {
-  const spoken = normalizeSpoken(value);
+  let spoken = normalizeSpoken(value);
+  spoken = spoken.replace(/\btreinta y dos\s+(?:onzas?|ounces?|oz)\b/g, "32oz");
+  spoken = spoken.replace(/\bdieciseis\s+(?:onzas?|ounces?|oz)\b/g, "16oz");
+  spoken = spoken.replace(/\bveinticuatro\s+(?:onzas?|ounces?|oz)\b/g, "24oz");
+  spoken = spoken.replace(/\bveinte\s+(?:onzas?|ounces?|oz)\b/g, "20oz");
+  spoken = spoken.replace(/\b(\d+)\s+(?:onzas?|ounces?|oz)\b/g, "$1oz");
   const hits = new Set(spoken.split(" ").filter(Boolean));
   const add = (...words: string[]) => words.forEach((word) => hits.add(word));
   if (/\b(?:alpastor|al pastor|el pastor|pastor)\b/.test(spoken)) add("pastor", "alpastor");

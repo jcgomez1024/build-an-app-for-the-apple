@@ -199,6 +199,15 @@ flagUnresolvedRequired([cornMenudo], menu, "ok");
 noteUnspokenRequiredChoice([cornMenudo], [{ speaker: "caller", text: "Un menudo." }], menu);
 const cornGate = gateTicketAcceptance({ requestedPhase: "final", autoAccepted: false, validation: orderValidation([cornMenudo]), cart: [cornMenudo] });
 check("menudo-corn-default-finalizes-clean", cornGate.phase === "final" && orderValidation([cornMenudo]) === "clear" && (cornMenudo.modifiers || []).some((mod: any) => /corn/i.test(mod.option) && /comal/i.test(mod.option)) && !tortillaNote(cornMenudo), JSON.stringify({ phase: cornGate.phase, validation: orderValidation([cornMenudo]), mods: cornMenudo.modifiers, notes: cornMenudo.elviNotes }));
+const horchata = menu.find((item) => item.id === "sq-drink-agua-fresca-horchata-32oz-HL6HPK");
+if (!horchata) throw new Error("phone menu is missing horchata");
+function drinkSize(text: string) {
+  const line = { itemId: horchata.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [{ speaker: "caller", text }], menu);
+  return line.elviNotes || [];
+}
+check("spoken-ounce-size-is-not-a-hold", !drinkSize("Two 32-ounce horchatas.").some((note) => /tamaño/.test(note)) && !drinkSize("Dos horchatas de treinta y dos onzas.").some((note) => /tamaño/.test(note)));
+check("unspoken-drink-size-stays-held", drinkSize("Una horchata.").some((note) => /tamaño/.test(note)));
 const garnishMenu = menu.map((item) => item.id === menudo.id ? { ...item, modifierGroups: [...(item.modifierGroups || []), { name: "(C) Menudo Garnish", minSelections: 1, maxSelections: 1, options: ["Cebolla", "Cilantro"], defaultOptions: ["Cebolla"] }] } : item);
 const garnishLine = { itemId: menudo.id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }, { step: "(C) Menudo Garnish", option: "Cebolla" }], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([garnishLine], [{ speaker: "caller", text: "Un menudo." }], garnishMenu);
