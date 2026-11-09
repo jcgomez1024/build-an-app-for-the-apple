@@ -146,21 +146,31 @@ function editDistance(left: string, right: string): number {
   return row[b.length];
 }
 
-/** Same family, or a near or garbled name (quesabirria beside queso birria). Not a phrase list. */
-export function nearDishName(left: string, right: string): boolean {
-  if (sameSpokenDish(left, right)) return true;
+function isPlural(left: string, right: string): boolean {
+  return left === right || left === `${right}s` || right === `${left}s` || left === `${right}es` || right === `${left}es`;
+}
+
+/** "libra" / "media libra" are the spoken sizes of a catalog lb / half-lb row. */
+export function spokenSizeWords(text: string): string[] {
+  const folded = normalizeName(text);
+  if (/\bmedia\s+libra\b|\bhalf\s+(?:a\s+)?pound\b/.test(folded)) return ["half", "lb"];
+  if (/\blibras?\b|\bpounds?\b|\blb\b/.test(folded)) return ["lb"];
+  return [];
+}
+
+/** family = same dish word. garbled = one name swallows the other (quesabirria vs birria), not a plural. */
+export function nameRelation(left: string, right: string): "garbled" | "family" | null {
   const a = nameTokens(left);
   const b = nameTokens(right);
+  let family = false;
+  let garbled = false;
   for (const leftToken of a) for (const rightToken of b) {
-    if (leftToken.length < 5 || rightToken.length < 5) continue;
-    if (leftToken.includes(rightToken) || rightToken.includes(leftToken)) return true;
-    const limit = Math.max(leftToken.length, rightToken.length) >= 8 ? 2 : 1;
-    if (editDistance(leftToken, rightToken) <= limit) return true;
+    if (isPlural(leftToken, rightToken)) family = true;
+    else if (leftToken.length >= 5 && rightToken.length >= 5 && (leftToken.includes(rightToken) || rightToken.includes(leftToken))) garbled = true;
   }
-  const compact = (value: string) => normalizeName(value).replace(/[^a-z0-9]/g, "");
-  const leftCompact = compact(left);
-  const rightCompact = compact(right);
-  return leftCompact.length >= 6 && rightCompact.length >= 6 && (leftCompact.includes(rightCompact) || rightCompact.includes(leftCompact));
+  if (garbled) return "garbled";
+  if (family || sameSpokenDish(left, right)) return "family";
+  return null;
 }
 
 /** One catalog row for a dish the text names. Variations of the same product collapse to the closest row. A tie between products adds nothing. */

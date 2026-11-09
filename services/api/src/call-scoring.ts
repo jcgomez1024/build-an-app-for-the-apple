@@ -998,7 +998,12 @@ function noteReplayRow(order: any, extra: Record<string, unknown>) {
   };
   const diagnostic = Array.isArray(extra.diagnostic) ? extra.diagnostic.map(String) : [];
   try {
-    appendFileSync(file, JSON.stringify({ id, seq: n, phase, reviewReasons, lines, diagnostic, menu, menuMissing, affirmedStaffList }) + "\n");
+    appendFileSync(file, JSON.stringify({
+      id, seq: n, phase, reviewReasons, lines, diagnostic, menu, menuMissing, affirmedStaffList,
+      fulfillment: order?.fulfillment || null,
+      addressPresent: !!order?.address,
+      readyTime: order?.readyTime || null,
+    }) + "\n");
   } catch { /* test log only */ }
 }
 
