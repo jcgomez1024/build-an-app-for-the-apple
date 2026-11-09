@@ -1847,15 +1847,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || (!prevStyleOnly && SMALL_SOPE.test(applySharedAliases(prevCaller, "phone")))
         || pendingSmallSope;
       const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
-      const meatOnly = !!(mm && !FOOD.test(text) && !dishesNamed(text).size);
-      const recentTalk = history.slice(-6).map((row) => row.text).join(" ");
-      const discussingSope = /\bsopes?(?:asos?|azos?)?\b/iu.test(`${text} ${recentTalk}`);
-      const discussingOther = !discussingSope && /\b(?:tacos?|quesadillas?|doradas?|tortas?|gorditas?|burritos?|taquer)/iu.test(`${recentTalk} ${lastStaff}`);
       if (source.startsWith("caller") && saidSope && SMALL_SOPE.test(applySharedAliases(text, "phone"))
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende|grandes?\s+o\s+chic)/iu.test(text) && !mm) {
         pendingSmallSope = true;
-      } else if (source.startsWith("caller") && saidSmall && (saidSope || (meatOnly && !discussingOther))
-        && !(cart.some((line) => kindOfItem(line.itemId) === "taco") && !saidSope)
+      } else if (source.startsWith("caller") && saidSmall && (saidSope || pendingSmallSope)
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)/iu.test(text)
         && !acts.some((a: any) => a.type === "add_item" && /sopes[ae]so/i.test(String(a.itemId)))
         && !cart.some((l) => /sopes[ae]so/i.test(String(l.itemId)))) {
@@ -8207,7 +8202,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  else if (validation === "clear" && cart.length && !reviewReason) autoAccepted = true;
   return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",

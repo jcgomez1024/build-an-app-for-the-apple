@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
-import { applyAffirmedStaffList, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
@@ -263,6 +263,46 @@ noteUnspokenRequiredChoice([earlierEs, addedEs], [
   { speaker: "caller", text: "De pollo, no de bistec." },
 ], menu);
 check("same-number-covers-the-earlier-line", !tortillaNote(earlier) && !meatNote(earlier) && !tortillaNote(addedOne) && !meatNote(addedOne) && !tortillaNote(earlierEs) && !meatNote(earlierEs) && !tortillaNote(addedEs) && !meatNote(addedEs), JSON.stringify({ earlier: earlier.elviNotes, added: addedOne.elviNotes, earlierEs: earlierEs.elviNotes, addedEs: addedEs.elviNotes }));
+const bareHandmade = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([bareHandmade], [
+  { speaker: "caller", text: "Una quesadilla de bistec." },
+  { speaker: "staff", text: "¿De qué tortilla?" },
+  { speaker: "caller", text: "Hecha mano." },
+], menu);
+check("hecha-mano-without-a-is-comal", !tortillaNote(bareHandmade), JSON.stringify(bareHandmade.elviNotes));
+const comalPicadillo = { itemId: quesadilla.id, quantity: 3, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Picadillo / Ground Beef" }, comalMod], elviNotes: [] as string[] };
+const longerPicadillo = { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Picadillo / Ground Beef with Potatoes" }], elviNotes: [] as string[] };
+const sharedWord = [comalPicadillo, longerPicadillo];
+applyDishScopedParts(sharedWord, [
+  { speaker: "caller", text: "Una de dos quesadillas doradas de bistec preparadas." },
+  { speaker: "caller", text: "Unas tres quesadillas de comal de picadillo." },
+], menu);
+check("shared-word-drops-the-option-that-adds-a-word", !sharedWord.some((line) => /potatoes/i.test(JSON.stringify(line.modifiers))), JSON.stringify(sharedWord.map((line) => line.itemId)));
+const streetLine = { itemId: taco.id, quantity: 2, modifiers: [groupOption(taco, /tortilla/i, /street|taquer|TST/i) || tacoComal, tacoBistec], elviNotes: [] as string[] };
+const comalLine = { itemId: taco.id, quantity: 2, modifiers: [tacoComal, tacoBistec], elviNotes: [] as string[] };
+const streetAndComal = [streetLine, comalLine];
+applyDishScopedParts(streetAndComal, [
+  { speaker: "caller", text: "Dos tacos taqueros de bistec." },
+  { speaker: "caller", text: "Y dos tacos de bistec al comal." },
+], menu);
+check("street-and-comal-of-the-same-meat-both-stay", streetAndComal.length === 2, JSON.stringify(streetAndComal));
+const firstOrder = { itemId: taco.id, quantity: 2, modifiers: [tacoComal, groupOption(taco, /carne|meat/i, /pastor/i) || tacoBistec], elviNotes: [] as string[] };
+const secondOrder = { itemId: taco.id, quantity: 2, modifiers: [tacoComal, groupOption(taco, /carne|meat/i, /cabeza/i) || tacoBistec], elviNotes: [] as string[] };
+const twoOrders = [firstOrder, secondOrder];
+applyDishScopedParts(twoOrders, [{ speaker: "caller", text: "Cuatro tacos de comal, dos de pastor y dos de cabeza." }], menu);
+check("two-orders-of-the-same-dish-both-stay", twoOrders.length === 2, JSON.stringify(twoOrders.map((line) => line.quantity)));
+const regularDoradaLine = { itemId: "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] as string[] };
+const deluxeDoradaLine = { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] as string[] };
+const bothStyles = [regularDoradaLine, deluxeDoradaLine];
+applyDishScopedParts(bothStyles, [{ speaker: "caller", text: "Una quesadilla dorada regular de bistec y una preparada de bistec." }], menu);
+check("regular-and-deluxe-of-the-same-meat-both-stay", bothStyles.length === 2, JSON.stringify(bothStyles.map((line) => line.itemId)));
+const splitA = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, bistecMod], elviNotes: [] as string[] };
+const splitB = { itemId: quesadilla.id, quantity: 1, modifiers: [comalMod, pastorMod], elviNotes: [] as string[] };
+noteUnspokenRequiredChoice([splitA, splitB], [
+  { speaker: "caller", text: "Dos quesadillas de comal." },
+  { speaker: "caller", text: "Una de bistec y una de pastor." },
+], menu);
+check("split-total-covers-each-line", !tortillaNote(splitA) && !tortillaNote(splitB), JSON.stringify({ a: splitA.elviNotes, b: splitB.elviNotes }));
 const garnishMenu = menu.map((item) => item.id === menudo.id ? { ...item, modifierGroups: [...(item.modifierGroups || []), { name: "(C) Menudo Garnish", minSelections: 1, maxSelections: 1, options: ["Cebolla", "Cilantro"], defaultOptions: ["Cebolla"] }] } : item);
 const garnishLine = { itemId: menudo.id, quantity: 1, modifiers: [{ step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" }, { step: "(C) Menudo Garnish", option: "Cebolla" }], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([garnishLine], [{ speaker: "caller", text: "Un menudo." }], garnishMenu);
@@ -355,7 +395,15 @@ Promise.all([
     { speaker: "caller", text: "A nombre de Ana." },
     { speaker: "staff", text: "Dame quince minutos." },
   ]),
-]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra, c11, deliveryAdd, plainAdd]: any[]) => {
+  flow([
+    { speaker: "caller", text: "Cuatro tacos de comal, dos de pastor y dos de cabeza." },
+    { speaker: "caller", text: "Sí, el normal. Uno de lengua." },
+  ]),
+  flow([
+    { speaker: "caller", text: "Sopes de los normales." },
+    { speaker: "caller", text: "De chorizo." },
+  ]),
+]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra, c11, deliveryAdd, plainAdd, tacoNormal, namedSope]: any[]) => {
   const cart = order.cart || [];
   const kept = cart.some((line: any) => line.itemId === pepsi.id) && !cart.some((line: any) => line.itemId === coke.id);
   check("wrong-readback-review-reason", kept && order.reviewReason === STAFF_LIST_REVIEW, JSON.stringify({ reviewReason: order.reviewReason, cart }));
@@ -381,5 +429,7 @@ Promise.all([
   const c11Dorada = (c11.observedLines || []).find((line: any) => /deluxe/i.test(`${line.name} ${(line.modifiers || []).join(" ")}`) && /prensado/i.test((line.modifiers || []).join(" ")));
   check("c11-menudo-uses-corn-default", c11.verdict === "pass" && !!c11Dorada && (c11Menudo?.modifiers || []).some((mod: string) => /corn/i.test(mod) && /comal/i.test(mod)) && !(c11Menudo?.notes || []).some((note: string) => /tortilla/i.test(note)), JSON.stringify({ phase: c11.ticket?.phase, failures: c11.failures, menudo: c11Menudo }));
   check("addon-delivery-is-not-pickup", deliveryAdd.fulfillment !== "PICKUP" && plainAdd.fulfillment !== "PICKUP", JSON.stringify({ delivery: deliveryAdd.fulfillment, plain: plainAdd.fulfillment }));
+  check("normal-during-tacos-does-not-add-a-sope", !(tacoNormal.cart || []).some((line: any) => /sope/i.test(String(line.itemId))), JSON.stringify((tacoNormal.cart || []).map((line: any) => line.itemId)));
+  check("named-small-sope-still-lands", (namedSope.cart || []).some((line: any) => /sope/i.test(String(line.itemId))), JSON.stringify((namedSope.cart || []).map((line: any) => line.itemId)));
   if (failures.length) process.exit(1);
 });

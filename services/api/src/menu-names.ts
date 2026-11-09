@@ -18,7 +18,7 @@ function normalizeName(value: string) {
 export function normalizeSpoken(value: string): string {
   let text = normalizeName(applySharedAliases(String(value || ""), "phone"));
   text = text.replace(/\benjombo\b/g, "combo");
-  text = text.replace(/\bhechas a mano\b/g, "comal").replace(/\bhecha a mano\b/g, "comal");
+  text = text.replace(/\bhechas a mano\b/g, "comal").replace(/\bhecha a mano\b/g, "comal").replace(/\bhechas mano\b/g, "comal").replace(/\bhecha mano\b/g, "comal");
   text = text.replace(/\bcarnita\b/g, "carnitas");
   text = text.replace(/\bnuditos\b/g, "gorditas").replace(/\bgorditos\b/g, "gorditas");
   text = text.replace(/\bcebrada\b/g, "deshebrada");
