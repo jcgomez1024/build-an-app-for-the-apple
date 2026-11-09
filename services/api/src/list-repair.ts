@@ -1197,22 +1197,47 @@ export function mergeReMentionedDrink(cart: any[], turns: Turn[]): boolean {
     if ((first.quantity || 1) === 1 && (l.quantity || 1) === 1) { cart.splice(i--, 1); ch = true; } }
   return ch;
 }
-/** A counted "una coca" the model did not ring. Bottle is a spoken note, not an ounce and not a catalog option. */
-export function addSpokenCountedCoca(cart: any[], turns: Array<{ speaker?: string; text: string }>): boolean {
-  if (cart.some((line) => /coca/i.test(String(line.itemId)) && !/diet/i.test(String(line.itemId)))) return false;
-  const caller = turns.filter((turn) => turn.speaker === "caller").map((turn) => String(turn.text || "")).join(" \n ");
-  if (/(?:aqu[ií]|ya)\s+tengo\b/iu.test(caller) && /\bcocas?\b/iu.test(caller)) return false;
-  if (/\bcocas?\b/iu.test(caller) && /\bpepsi\b/iu.test(caller) && /\b(?:no s[eé]|de los dos|o tienes)\b/iu.test(caller)) return false;
-  const orders = [...caller.matchAll(/\b(un|una|uno|dos|tres|cuatro|[1-4])\s+cocas?(?:\s+colas?)?\b/giu)];
+const COCA_COUNT = "(?:un|una|uno|dos|tres|cuatro|[1-4])";
+const foldDrink = (text: string) => String(text || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+function cocaKind(phrase: string): "regular" | "diet" | "zero" | "other" {
+  if (/\b(?:zero|cero)\b/.test(phrase)) return "zero";
+  if (/\bdiet\b/.test(phrase)) return "diet";
+  return "regular";
+}
+function menuCoca(menu: any[], kind: "regular" | "diet" | "zero") {
+  return (menu || []).find((item) => {
+    const blob = foldDrink(`${item.id} ${item.name} ${item.nameEs || ""}`);
+    if (!/\bcoca\b/.test(blob)) return false;
+    if (kind === "diet") return /\bdiet\b/.test(blob);
+    if (kind === "zero") return /\b(?:zero|cero)\b/.test(blob);
+    return !/\bdiet\b|\b(?:zero|cero)\b/.test(blob);
+  });
+}
+/** A single counted Coca-Cola the model did not ring. Negated, declined, removed, replaced, or out-of-stock requests are not added. Diet and Zero never become a regular Coke. */
+export function addSpokenCountedCoca(cart: any[], turns: Array<{ speaker?: string; text: string }>, menu: any[] = []): boolean {
+  const caller = foldDrink(turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" \n "));
+  const staff = foldDrink(turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text).join(" \n "));
+  if (/(?:aqui|ya)\s+tengo\b/.test(caller) && /\bcocas?\b/.test(caller)) return false;
+  if (/\b(?:no hay|se acabo|agotad|out of|no tengo|no tenemos)\b/.test(staff) && /\bcocas?\b/.test(staff)) return false;
+  if (/\b(?:no|sin|without|quita(?:r|me|le)?|ya no|no quiero)\b[^.\n]{0,40}\bcocas?\b/.test(caller)) return false;
+  if (/\b(?:mejor|en vez de|instead of|instead)\b/.test(caller) && /\b(?:pepsi|sprite|jarrito)\b/.test(caller)) return false;
+  if (/\bcocas?\b/.test(caller) && /\bpepsi\b/.test(caller) && /\b(?:no se|de los dos|o tienes)\b/.test(caller)) return false;
+  const orders = [...caller.matchAll(new RegExp(`\\b(${COCA_COUNT})\\s+((?:diet|zero|cero)\\s+)?cocas?(?:\\s+colas?)?((?:\\s+(?:diet|zero|cero))?)\\b`, "giu"))];
   if (orders.length !== 1) return false;
+  const kind = cocaKind(foldDrink(orders[0][0]));
+  if (kind === "other") return false;
+  const item = menuCoca(menu, kind);
+  if (!item) return false;
+  if (kind === "regular" && cart.some((line) => /\bcoca\b/.test(foldDrink(String(line.itemId))) && /\b(?:diet|zero|cero)\b/.test(foldDrink(String(line.itemId))))) return false;
+  if (cart.some((line) => line.itemId === item.id)) return false;
   const word = orders[0][1].toLowerCase();
   const qty = ({ un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4 } as Record<string, number>)[word] || Number(word) || 1;
-  const bottle = /\bbotellas?\b|\bbottles?\b/iu.test(caller) && !/\b(?:taparrosca|vidrio|glass)\b/iu.test(caller);
+  const bottle = kind === "regular" && /\bbotellas?\b|\bbottles?\b/.test(caller) && !/\b(?:taparrosca|vidrio|glass)\b/.test(caller);
   cart.push({
-    itemId: "sq-drink-coca-cola-JJE4KC",
+    itemId: item.id,
     quantity: qty,
     modifiers: [],
-    readback: bottle ? `${qty} coca cola de botella` : `${qty} coca cola`,
+    readback: `${qty} ${item.name || "coca cola"}`,
     ...(bottle ? { elviNotes: ["botella"] } : {}),
   });
   return true;

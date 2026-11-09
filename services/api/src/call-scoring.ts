@@ -7991,6 +7991,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     else if (flagUnresolvedRequired(cart as any[], menuEnd as any, "ok"))
       steps.push({ source: "end-unresolved-required", heard: "required catalog option still open" });
     (steps as any).reviewReason = reviewReason;
+    if (addSpokenCountedCoca(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : [])) steps.push({ source: "end-spoken-coca", heard: "counted coca" });
   }
   // A spoken accommodation that was not applied stays a review hold. It is not a line note and not a fulfilled exclusion.
   if (intentPending?.accommodation && !(steps as any).reviewReason) {
@@ -8000,7 +8001,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
-  if (addSpokenCountedCoca(cart as any[], origTurns as any)) steps.push({ source: "end-spoken-coca", heard: "counted coca" });
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
