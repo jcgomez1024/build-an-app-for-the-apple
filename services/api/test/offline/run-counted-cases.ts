@@ -2,7 +2,7 @@
 import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { reconcileCountedRequests } from "../../src/conversation-intent.ts";
-import { loadSiteCatalog } from "../../src/site-catalog.ts";
+import { frozenPhoneMenu, squareObjectsFromSiteCatalog } from "../../src/phone-menu.ts";
 import { buildMenuFromSquareCatalog } from "../../src/square.ts";
 import { buildTicketLines } from "../../src/twilio.ts";
 import { phoneMenu } from "./evaluate.ts";
@@ -27,10 +27,8 @@ function run(id: string, turns: Array<{ speaker?: string; text: string; language
   };
 }
 
-const coke = (kind: "regular" | "diet") => phone.find((item) => {
-  const sku = String(item.variationName || "");
-  return kind === "diet" ? /diet/i.test(sku) && /coca/i.test(sku) : /^coca cola$/i.test(sku);
-});
+const taco = { id: "taco-1", name: "Taco", modifierGroups: [{ name: "Toppings", minSelections: 0, maxSelections: 2, options: [{ name: "Cebolla" }, { name: "Crema" }] }] };
+const coke = (kind: "regular" | "diet") => phone.find((item) => kind === "diet" ? /diet/i.test(item.name) && /coca/i.test(item.name) : item.name === "Coca Cola");
 
 const cases = [
   run("plain", [{ speaker: "caller", text: "Una coca.", language: "es" }], phone),
@@ -40,8 +38,10 @@ const cases = [
   run("staff-out", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "staff", text: "No hay coca hoy." }], phone),
   run("replaced", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "En vez de la coca, una pepsi.", language: "es" }], phone),
   run("mejor-a-las-seis", [{ speaker: "caller", text: "Una coca.", language: "es" }, { speaker: "caller", text: "Mejor a las seis.", language: "es" }], phone),
-  run("sin-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "Sin cebolla en los tacos.", language: "es" }], [{ id: "taco-1", name: "Taco", variationName: "Taco" }]),
-  run("no-quiero-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "No quiero cebolla en los tacos.", language: "es" }], [{ id: "taco-1", name: "Taco", variationName: "Taco" }]),
+  run("sin-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "Sin cebolla en los tacos.", language: "es" }], [taco]),
+  run("no-quiero-cebolla", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "No quiero cebolla en los tacos.", language: "es" }], [taco]),
+  run("sin-problema", [{ speaker: "caller", text: "Dos tacos.", language: "es" }, { speaker: "caller", text: "Sin problema.", language: "es" }], [taco]),
+  run("family-already", [{ speaker: "caller", text: "Dos tacos de asada.", language: "es" }], phone, [{ itemId: "sq-taco-TAR7L5", quantity: 2 }]),
   run("diet", [{ speaker: "caller", text: "Una coca diet.", language: "es" }], phone),
   run("zero", [{ speaker: "caller", text: "Una coca zero.", language: "es" }], phone),
   run("beside-diet", [{ speaker: "caller", text: "Una coca.", language: "es" }], phone, [{ itemId: coke("diet").id, quantity: 1 }]),
@@ -61,43 +61,21 @@ const cases = [
   run("horchata-es-already-there", [{ speaker: "caller", text: "Dos horchatas de treinta y dos onzas.", language: "es" }], freeze, [{ itemId: horchata.id, quantity: 2 }]),
 ];
 
-function runtimeMenuFromFrozenExport() {
-  const site = loadSiteCatalog();
-  const objects: any[] = [];
-  const categories = new Map<string, string>();
-  for (const product of site?.products || []) {
-    for (const name of product.categories || []) {
-      if (categories.has(name)) continue;
-      const id = `cat-${categories.size}`;
-      categories.set(name, id);
-      objects.push({ type: "CATEGORY", id, category_data: { name } });
-    }
-  }
-  for (const product of site?.products || []) {
-    objects.push({
-      type: "ITEM",
-      id: product.squareId,
-      item_data: {
-        name: product.siteName || product.name,
-        categories: (product.categories || []).map((name: string) => ({ id: categories.get(name) })),
-        variations: (product.skus || []).map((sku: any) => ({
-          id: sku.squareId,
-          item_variation_data: { name: sku.name, channels: ["ONLINE"], price_money: { amount: sku.priceCents || 0 } },
-        })),
-      },
-    });
-  }
-  return buildMenuFromSquareCatalog(objects);
-}
-
-const runtimeMenu = runtimeMenuFromFrozenExport();
+const runtimeMenu = buildMenuFromSquareCatalog(squareObjectsFromSiteCatalog());
+const frozenMenu = frozenPhoneMenu();
 const runtimeCoca = reconcileCountedRequests([], [{ speaker: "caller", text: "Una coca.", language: "es" }], runtimeMenu);
+const frozenCoca = reconcileCountedRequests([], [{ speaker: "caller", text: "Una coca.", language: "es" }], frozenMenu);
 const runtimeRow = runtimeMenu.find((item) => item.id === runtimeCoca.lines[0]?.itemId);
 const onion = cases.find((row) => row.id === "no-quiero-cebolla")!;
 const printedOnion = buildTicketLines(
-  [{ name: "Taco", quantity: onion.lines[0]?.quantity || 2, choices: [], totalCents: 0 }],
-  [{ itemId: "taco-1", quantity: onion.lines[0]?.quantity || 2, modifiers: [], elviNotes: onion.lines[0]?.elviNotes || [] }],
+  [{ name: "Taco", quantity: 2, choices: [], totalCents: 700 }],
+  [{ itemId: "taco-1", quantity: 2, modifiers: [], elviNotes: ["sin cebolla"] }],
   [],
+);
+const printedDeluxe = buildTicketLines(
+  [{ name: "Quesadilla", quantity: 1, choices: ["DELUXE (Lechuga/Lettuce, Pico, Crema/Sour Cream, Queso Fresco)"], totalCents: 0 }],
+  [{ itemId: "q", quantity: 1, modifiers: [], elviNotes: ["no crema"] }],
+  ["no crema"],
 );
 const plainId = cases.find((row) => row.id === "plain")!.lines[0]?.itemId || "";
 const checks: Record<string, boolean> = {
@@ -108,12 +86,15 @@ const checks: Record<string, boolean> = {
   "staff-out": cases.find((row) => row.id === "staff-out")!.lines.length === 0 && cases.find((row) => row.id === "staff-out")!.reviewReason === "revisar pedido contado",
   replaced: !cases.find((row) => row.id === "replaced")!.lines.some((line) => line.itemId === plainId) && cases.find((row) => row.id === "replaced")!.closures.some((closure) => closure.target === "coca" && closure.kind === "replacement"),
   "mejor-a-las-seis": cases.find((row) => row.id === "mejor-a-las-seis")!.lines[0]?.itemId === plainId && cases.find((row) => row.id === "mejor-a-las-seis")!.closures.length === 0,
-  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla") && line.readback === "Taco") && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
-  "runtime-coca": runtimeCoca.lines.length === 1 && runtimeRow?.name === "Coca Cola" && runtimeRow?.variationName == null && !runtimeMenu.some((item) => item.id === runtimeCoca.lines[0]?.itemId && /pepsi/i.test(item.name)),
-  "no-quiero-cebolla": onion.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla") && line.readback === "Taco") && onion.closures.length === 0,
-  "printed-restriction": printedOnion.some((line) => line.notes.includes("sin cebolla") && String(line.flag || "").includes("sin cebolla")),
+  "sin-cebolla": cases.find((row) => row.id === "sin-cebolla")!.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla")) && cases.find((row) => row.id === "sin-cebolla")!.closures.length === 0,
+  "runtime-coca": runtimeCoca.lines[0]?.itemId === "sq-drink-coca-cola-JJE4KC" && runtimeCoca.lines[0]?.itemId === frozenCoca.lines[0]?.itemId && runtimeRow?.name === "Coca Cola",
+  "no-quiero-cebolla": onion.lines.some((line) => line.itemId === "taco-1" && line.elviNotes.includes("sin cebolla")) && onion.closures.length === 0,
+  "sin-problema": cases.find((row) => row.id === "sin-problema")!.lines.some((line) => line.itemId === "taco-1" && !line.elviNotes.some((note) => /problema/.test(note))),
+  "family-already": cases.find((row) => row.id === "family-already")!.lines.length === 0 && !cases.find((row) => row.id === "family-already")!.reviewReason,
+  "printed-restriction": printedOnion.some((line) => line.notes.filter((note) => note === "sin cebolla").length === 1 && !line.notes.includes("confirmar")),
+  "printed-deluxe-once": printedDeluxe.some((line) => line.notes.filter((note) => /crema/i.test(note)).length === 1),
   "phone-only-prices": phone.find((item) => item.squareVariationId === "PYTW56MHJJGL6JKTZGSXGVWQ")?.priceCents === 1000 && phone.find((item) => item.squareVariationId === "QGR5AQTWVHNW347NOPAKX44U")?.priceCents === 400,
-  diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.variationName || "")),
+  diet: /diet/i.test(String(phone.find((item) => item.id === cases.find((row) => row.id === "diet")!.lines[0]?.itemId)?.name || "")),
   zero: cases.find((row) => row.id === "zero")!.lines.length === 0 && cases.find((row) => row.id === "zero")!.reviewReason === "revisar pedido contado",
   "beside-diet": cases.find((row) => row.id === "beside-diet")!.lines.length === 0,
   "cross-turn-quita": cases.find((row) => row.id === "cross-turn-quita")!.lines.length === 0 && !cases.find((row) => row.id === "cross-turn-quita")!.reviewReason,
@@ -144,13 +125,17 @@ const body = {
   checks,
   production_gate: productionGate,
   cases,
-  printed_ticket: printedOnion.map((line) => ({ name: line.name, quantity: line.quantity, notes: line.notes, flag: line.flag })),
+  printed_ticket: {
+    normal_line: printedOnion.map((line) => ({ name: line.name, quantity: line.quantity, notes: line.notes, flag: line.flag })),
+    deluxe_line: printedDeluxe.map((line) => ({ name: line.name, quantity: line.quantity, notes: line.notes, flag: line.flag })),
+    sin_problema: cases.find((row) => row.id === "sin-problema")!.lines[0]?.elviNotes || [],
+  },
   phone_only_prices: {
     menudo_solo_caldo: phone.find((item) => item.squareVariationId === "PYTW56MHJJGL6JKTZGSXGVWQ")?.priceCents,
     aguacate_full: phone.find((item) => item.squareVariationId === "QGR5AQTWVHNW347NOPAKX44U")?.priceCents,
     source: "The two rows are not in site-catalog.json. Their prices are the amounts the phone repairs already speak when a catalog price is missing: Menudo SOLO Caldo 1000 cents, Aguacate FULL 400 cents. They are not zero.",
   },
-  runtime_coca: { itemId: runtimeCoca.lines[0]?.itemId || null, name: runtimeRow?.name || null, variationName: runtimeRow?.variationName ?? null },
+  runtime_coca: { runtime: runtimeCoca.lines[0]?.itemId || null, frozen: frozenCoca.lines[0]?.itemId || null, name: runtimeRow?.name || null },
 };
 writeFileSync(outPath, JSON.stringify(body, null, 2));
 for (const [id, ok] of Object.entries(checks)) console.log(ok ? "PASS" : "FAIL", id);
