@@ -1550,7 +1550,7 @@ export function noteUnspokenSize(cart: any[], turns: Turn[], menu: any[]): void 
   }
 }
 
-const DISH_WORD = "menudo|fajita|quesadilla|quesa|taco|torta|gordita|burrito|sope|huarache|pozole|birria|mole|enchilada|tamal|tostada|flauta|chimichanga|platillo|dorada|chile";
+const DISH_WORD = "menudo|fajita|quesadilla|quesa|taco|torta|gordita|burrito|sope|huarache|pozole|birria|mole|enchilada|tamal|tostada|flauta|chimichanga|platillo|dorada|chile|agua|horchata|jamaica|coca|pepsi|jarrito";
 const CHOICE_STOP = new Set(["with", "and", "the", "para", "option", "options", "extra", "only", "solo", "quesadilla", "taco", "torta", "gordita", "burrito", "tortilla"]);
 const TORTILLA_DISH = /^(?:quesadilla|quesa|taco|gordita|sope|huarache)$/;
 const QTY_WORD: Record<string, number> = { one: 1, una: 1, un: 1, uno: 1, two: 2, dos: 2, three: 3, tres: 3, four: 4, cuatro: 4, five: 5, cinco: 5, six: 6, seis: 6, seven: 7, siete: 7, eight: 8, ocho: 8, nine: 9, nueve: 9, ten: 10, diez: 10 };
@@ -1656,15 +1656,17 @@ function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[
   return nearest;
 }
 
-function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[], turns: Array<{ text: string }>, index: number): boolean {
+function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[], turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[]): boolean {
   const said = quantitiesIn(text);
   const use = said.length ? said : episode;
   if (!use.length || use.includes(lineQty)) return true;
   if (siblingQtys.some((qty) => use.includes(qty))) return false;
-  // A count that matches no line covers the dish already named, not a count that shows up later.
+  // A count that matches no line covers the dish already named, not a later count of that same dish.
   let first = -1;
   for (let j = 0; j < turns.length; j++) {
     if (!quantitiesIn(turns[j].text).includes(lineQty)) continue;
+    const named = mentionedIn(turns[j].text);
+    if (named.length && !named.some((key) => keys.includes(key))) continue;
     first = j;
     break;
   }
@@ -1704,7 +1706,7 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: bo
     if (turn.speaker === "caller" && named.length) active = named;
     const scope = named.length ? named : active;
     const episode = episodeQty(spokenTurns, i, keys, mentionedIn, siblingQtys);
-    const covered = coversLine(turn.text, episode, lineQty, siblingQtys, spokenTurns, i) || (keepChoices && textHitsTokens(turn.text, tokens));
+    const covered = coversLine(turn.text, episode, lineQty, siblingQtys, spokenTurns, i, keys, mentionedIn) || (keepChoices && textHitsTokens(turn.text, tokens));
     if (!scope.some((key) => keys.includes(key)) || !covered) continue;
     if (turn.speaker === "caller") {
       if (declinesChoice(turn.text)) continue;
