@@ -972,9 +972,11 @@ function sizeOf(text: string): string | null {
   return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
 }
 
+const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato"]);
+
 function dishTokens(text: string): string[] {
   const cleaned = canonSize(text).replace(/\b\d+oz\b/g, " ");
-  return significant(cleaned).map((token) => (token === "dieta" ? "diet" : token)).filter((token) => !SIZE_WORD.has(token));
+  return significant(cleaned).map((token) => (token === "dieta" ? "diet" : token)).filter((token) => !SIZE_WORD.has(token) && !NOT_A_DISH.has(token) && !NOT_A_DISH.has(stem(token)));
 }
 
 function catalogLabels(item: IntentMenuItem): string[] {
@@ -1015,13 +1017,15 @@ function sharesContent(item: IntentMenuItem, content: string[]): boolean {
 
 function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: string[], size: string | null): boolean {
   const item = menu.find((entry) => entry.id === line.itemId);
-  if (!item) return false;
+  const labels = item ? catalogLabels(item) : [String(line.itemId || "").replace(/-/g, " ")];
   const needed = content.filter((token) => !VARIATION_QUALIFIER.has(token));
   const quals = content.filter((token) => VARIATION_QUALIFIER.has(token));
   if (!needed.length) return false;
-  return catalogLabels(item).some((label) => {
-    if (size && sizeOf(label) !== size) return false;
-    return needed.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
+  return labels.some((label) => {
+    if (item && size && sizeOf(label) !== size) return false;
+    const usable = item ? needed : needed.filter((token) => token.length >= 6);
+    if (!usable.length) return false;
+    return usable.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
   });
 }
 
@@ -1073,6 +1077,7 @@ export function reconcileCountedRequests(
     const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
     if (verb) body = body.slice(verb.length).trim();
     if (CLOSES_REQUEST.test(sentence.text) || file.replacementCues.some((cue) => sentence.text.startsWith(fold(cue)))) return;
+    if (/\b(?:agrega|y)\s+unas?\s*$/.test(sentence.text)) return;
     const taken = takeQuantity(body, file);
     if (!taken.quantity || taken.unclear) return;
     const content = dishTokens(taken.rest);
