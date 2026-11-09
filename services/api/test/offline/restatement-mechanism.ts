@@ -64,6 +64,36 @@ async function main() {
     && (compoundSteak[0].modifiers || []).some((m: any) => m.step === "(A) T Tortilla Options" && /Comal/.test(m.option));
   checks.push({ id: "unresolved-change-acknowledged-add-kept", ok: cites && chickenUntouched && steakOnce, detail: `${compound.cart} :: ${compound.reply}` });
 
+  const unrelated = await shadow([
+    "Please add two comal steak tacos.",
+    "Please add one street chicken taco.",
+    "Only add those two comal steak tacos.",
+  ]);
+  const unrelatedSteak = (unrelated.lines || []).filter((line: any) => /Bistec/.test((line.modifiers || []).map((m: any) => m.option).join(" ")))
+    .reduce((sum: number, line: any) => sum + (Number(line.quantity) || 1), 0);
+  const asksWhich = /\bwhich\b/i.test(unrelated.reply) && !/already on the order/i.test(unrelated.reply);
+  const citesSteak = unrelated.reply.includes("(TCO) Taco Comal / Homemade (+$1.00)") && unrelated.reply.includes("(A) T Tortilla Options");
+  checks.push({ id: "new-anaphor-does-not-discard", ok: unrelatedSteak === 2 && asksWhich && citesSteak, detail: `${unrelated.cart} :: ${unrelated.reply}` });
+
+  const ambiguous = await shadow([
+    "Please add one street chicken taco.",
+    "Please add one flour steak taco.",
+    "Add two comal chorizo tacos and change the earlier taco.",
+  ]);
+  const both = ambiguous.reply.includes("(TST) Taco Taquero / Street Taco") && ambiguous.reply.includes("(THR) Taco Harina / Flour (+$0.50)") && /\bwhich\b/i.test(ambiguous.reply);
+  const chorizo = (ambiguous.lines || []).some((line: any) => /Chorizo/.test((line.modifiers || []).map((m: any) => m.option).join(" ")) && Number(line.quantity) === 2);
+  checks.push({ id: "ambiguous-earlier-cites-both", ok: both && chorizo, detail: `${ambiguous.cart} :: ${ambiguous.reply}` });
+
+  const named = await shadow([
+    "Please add one flour steak taco.",
+    "Please add one street chicken taco.",
+    "Add two comal chorizo tacos and change the earlier street chicken taco.",
+  ]);
+  const citesChicken = named.reply.includes("Pollo / Chicken") && named.reply.includes("(TST) Taco Taquero / Street Taco");
+  const notOnlySteak = !(named.reply.includes("Bistec / Steak") && !named.reply.includes("Pollo / Chicken"));
+  const namedChorizo = (named.lines || []).some((line: any) => /Chorizo/.test((line.modifiers || []).map((m: any) => m.option).join(" ")));
+  checks.push({ id: "named-earlier-line-not-position-zero", ok: citesChicken && notOnlySteak && namedChorizo, detail: `${named.cart} :: ${named.reply}` });
+
   for (const check of checks) console.log(check.ok ? "PASS" : "FAIL", check.id, check.detail);
   if (checks.some((check) => !check.ok)) process.exit(1);
 }

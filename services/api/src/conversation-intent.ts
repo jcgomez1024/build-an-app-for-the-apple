@@ -486,6 +486,45 @@ function unresolvedEarlierEdit(folded: string): boolean {
     && !/\b(?:change|cambia|cambie|cambiar)\b.+\b(?:for|por|to)\b/.test(folded);
 }
 
+function splitUnspecifiedChange(folded: string): { add: string; change: string } | null {
+  if (!unresolvedEarlierEdit(folded)) return null;
+  const parts = folded.split(/\b(?:and|y)\s+(?=(?:change|cambia|cambie|cambiar)\b)/);
+  if (parts.length < 2) return null;
+  return { add: parts[0].trim(), change: parts.slice(1).join(" ").trim() };
+}
+
+function earlierTarget(cart: NonNullable<IntentInput["cart"]>, menu: IntentMenuItem[], changeClause: string): { index: number } | "ambiguous" | "none" {
+  if (!cart.length) return "none";
+  const hits: number[] = [];
+  for (let index = 0; index < cart.length; index++) {
+    const item = menu.find((entry) => entry.id === cart[index].itemId);
+    if (!item) continue;
+    const options = spokenOptions(item, changeClause);
+    if (options === "ambiguous") return "ambiguous";
+    if (options.length && options.every((option) => (cart[index].modifiers || []).some((modifier) => modifier.step === option.step && modifier.option === option.option))) hits.push(index);
+  }
+  if (hits.length > 1) return "ambiguous";
+  if (hits.length === 1) return { index: hits[0] };
+  if (cart.length === 1) return { index: 0 };
+  return "ambiguous";
+}
+
+function addActionFromUtterance(input: IntentInput, file: IntentFile, language: "en" | "es", text: string): IntentAction | null {
+  const folded = fold(text);
+  const split = splitUnspecifiedChange(folded);
+  const source = split ? split.add : folded;
+  const stripped = stripDiscourse(source);
+  const decided = directOrder(input, file, language, stripped || source);
+  return decided?.actions.find((action) => action.type === "add_item") || null;
+}
+
+function sameAdd(left: IntentAction, right: IntentAction): boolean {
+  return left.type === "add_item" && right.type === "add_item"
+    && left.itemId === right.itemId
+    && left.quantity === right.quantity
+    && modifierKey(left.modifiers) === modifierKey(right.modifiers);
+}
+
 function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es", folded: string): IntentDecision | null {
   const taken = takeQuantity(folded, file);
   if (!taken.quantity || taken.unclear || !taken.rest) return null;
@@ -586,17 +625,28 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     }
   }
   if (!isCartEdit(folded)) {
-    const stripped = stripDiscourse(folded);
-    if (stripped && stripped !== folded) {
+    const split = splitUnspecifiedChange(folded);
+    const source = split ? split.add : folded;
+    const stripped = stripDiscourse(source);
+    if (stripped && (stripped !== source || split)) {
       const added = directOrder(input, file, language, stripped);
       if (added?.actions.length) {
-        if (unresolvedEarlierEdit(folded) && cart.length) {
-          const earlier = cart[0];
-          const named = describeOwnLine(earlier, input.menu);
-          const note = language === "es"
-            ? ` No cambié la línea anterior porque no dijeron el cambio: ${named}.`
-            : ` I did not change the earlier line because the change was not specified: ${named}.`;
-          return remember({ ...added, reply: `${added.reply}${note}`, pending: null });
+        if (split && cart.length) {
+          const target = earlierTarget(cart, input.menu, split.change);
+          if (target === "ambiguous") {
+            const listed = cart.map((line) => describeOwnLine(line, input.menu)).join(" ");
+            const ask = language === "es"
+              ? ` ¿Cuál línea anterior cambio? ${listed}`
+              : ` Which earlier line should I change? ${listed}`;
+            return remember({ ...added, reply: `${added.reply}${ask}`, pending: null });
+          }
+          if (target !== "none") {
+            const named = describeOwnLine(cart[target.index], input.menu);
+            const note = language === "es"
+              ? ` No cambié la línea anterior porque no dijeron el cambio: ${named}.`
+              : ` I did not change the earlier line because the change was not specified: ${named}.`;
+            return remember({ ...added, reply: `${added.reply}${note}`, pending: null });
+          }
         }
         return remember({ ...added, pending: null });
       }
@@ -653,15 +703,27 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
   if (onlyAdd) {
     const anaphoric = /^(?:those|these|esos|esas)\b/.test(onlyAdd[1]);
     const added = directOrder(input, file, language, onlyAdd[1].replace(/^(?:those|these|esos|esas)\s+/, ""));
-    if (added?.actions.length) {
-      if (anaphoric && added.actions.every((action) => sameSpokenLine(cart, action))) {
-        const kept = added.actions.find((action) => action.type === "add_item");
-        const line = cart.find((entry) => kept && entry.itemId === kept.itemId && Number(entry.quantity) === kept.quantity && modifierKey(entry.modifiers) === modifierKey(kept.modifiers));
+    const addAction = added?.actions.find((action) => action.type === "add_item");
+    if (added?.actions.length && addAction) {
+      const onCart = sameSpokenLine(cart, addAction);
+      const priorText = [...(input.history || [])].reverse().find((turn) => turn.role === "customer" || turn.role === "user")?.text || "";
+      const prior = priorText ? addActionFromUtterance(input, file, language, priorText) : null;
+      const proven = !!prior && sameAdd(prior, addAction) && onCart;
+      if (anaphoric && proven) {
+        const line = cart.find((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
         const named = line ? describeOwnLine(line, input.menu) : "";
         const reply = language === "es"
           ? `Eso ya está en la orden, no lo agregué otra vez.${named ? ` ${named}.` : ""}`
           : `That is already on the order, so I did not add it again.${named ? ` ${named}.` : ""}`;
         return remember({ kind: "accept", reply, actions: [], pending: null });
+      }
+      if (anaphoric && onCart && !proven) {
+        const matches = cart.filter((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
+        const listed = matches.map((entry) => describeOwnLine(entry, input.menu)).join(" ");
+        const reply = language === "es"
+          ? `¿Cuál pedido son esos? No lo agregué y no tomé esta línea como esa referencia: ${listed}`
+          : `Which order does those mean? I did not add it, and I did not decide this line is the one: ${listed}`;
+        return remember({ kind: "clarify", reply, actions: [], pending: null });
       }
       return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
     }
