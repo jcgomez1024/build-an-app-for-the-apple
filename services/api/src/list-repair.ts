@@ -1300,32 +1300,35 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[]): boolean 
   return false;
 }
 
-/** A required catalog default nobody chose for that dish is confirmed and held. An empty required group is already held. */
+function isDefaultOption(chosen: string[], defaults: string[]): boolean {
+  return chosen.length > 0 && chosen.every((name) => defaults.some((def) => {
+    const left = plain(name);
+    const right = plain(def);
+    return left === right || left.startsWith(right) || right.startsWith(left);
+  }));
+}
+
+/** A line whose required choices are all catalog defaults is held when nobody named that default. A chosen meat or side keeps the line. An empty required group is already held. */
 export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
     const keys = dishKeysIn(item?.name || "");
-    for (const group of item?.modifierGroups || []) {
-      if ((group.minSelections ?? 0) < 1) continue;
+    const groups = (item?.modifierGroups || []).filter((group: any) => (group.minSelections ?? 0) >= 1);
+    const filled = groups.map((group: any) => {
       const options = (group.options || []).map((option: any) => typeof option === "string" ? option : option?.name || "").filter(Boolean);
-      const defaults: string[] = group.defaultOptions || [];
-      if (options.length < 2 || !defaults.length) continue;
-      const selected = (line.modifiers || []).filter((mod: any) => plain(mod.step || "") === plain(group.name || ""));
-      if (!selected.length) continue;
-      const chosen = selected.map((mod: any) => String(mod.option || ""));
-      const isDefault = chosen.every((name) => defaults.some((def) => {
-        const left = plain(name);
-        const right = plain(def);
-        return left === right || left.startsWith(right) || right.startsWith(left);
-      }));
-      if (!isDefault) continue;
-      const tokens = [...new Set(chosen.flatMap((name) => {
+      const selected = (line.modifiers || []).filter((mod: any) => plain(mod.step || "") === plain(group.name || "")).map((mod: any) => String(mod.option || ""));
+      return { group, options, selected, defaults: group.defaultOptions || [] };
+    }).filter((row: any) => row.selected.length);
+    if (!filled.length || filled.some((row: any) => !isDefaultOption(row.selected, row.defaults))) continue;
+    for (const row of filled) {
+      if (row.options.length < 2 || !row.defaults.length || !isDefaultOption(row.selected, row.defaults)) continue;
+      const tokens = [...new Set(row.selected.flatMap((name: string) => {
         const mine = choiceTokens(name);
-        const shared = mine.filter((token) => options.every((option) => choiceTokens(option).includes(token)));
+        const shared = mine.filter((token) => row.options.every((option: string) => choiceTokens(option).includes(token)));
         return mine.filter((token) => !shared.includes(token));
       }))];
       if (!tokens.length || choiceSpoken(turns, keys, tokens)) continue;
-      const marker = `confirmar ${group.name}`;
+      const marker = `confirmar ${row.group.name}`;
       if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
       line.validation = "unresolved";
     }
