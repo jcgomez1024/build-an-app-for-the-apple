@@ -911,7 +911,7 @@ function replayTranscriptId(testPath: string, turns: Array<{ speaker?: string; t
   try { source = readFileSync(testPath, "utf8"); } catch { return fallback; }
   const names = [...source.matchAll(/fixtures\/([A-Za-z0-9_.-]+)/g)].map((match) => match[1]).filter((name) => !/menu\.json$/i.test(name));
   const dir = testPath.replace(/\/replay\/[^/]+$/, "/fixtures");
-  let best: { id: string; score: number } | null = null;
+  const scored: Array<{ id: string; score: number }> = [];
   for (const name of [...new Set(names)]) {
     const file = name.endsWith(".json") ? name : `${name}.json`;
     let data: any;
@@ -919,9 +919,29 @@ function replayTranscriptId(testPath: string, turns: Array<{ speaker?: string; t
     const fixtureTurns = Array.isArray(data) ? data : (data?.turns || data?.transcript || []);
     if (!Array.isArray(fixtureTurns)) continue;
     const score = turnPrefixScore(turns, fixtureTurns);
-    if (!best || score > best.score) best = { id: file.replace(/\.json$/, "").replace(/-turns$/, ""), score };
+    if (score > 0) scored.push({ id: file.replace(/\.json$/, "").replace(/-turns$/, ""), score });
   }
-  return best && best.score > 0 ? best.id : fallback;
+  const exact = scored.filter((item) => item.score >= 1000).sort((a, b) => b.score - a.score);
+  if (exact.length) return exact[0].id;
+  const prefixes = scored.filter((item) => item.score > 0 && item.score < 1000);
+  if (prefixes.length === 1) return prefixes[0].id;
+  const own = idBesideTurns(source, turns);
+  return own || fallback;
+}
+
+/** CA id written beside this transcript in the test, not the first CA id in the file. */
+function idBesideTurns(source: string, turns: Array<{ speaker?: string; text?: string }>): string | null {
+  let nearest: { id: string; at: number } | null = null;
+  for (const turn of turns) {
+    const text = String(turn?.text || "");
+    if (text.length < 12) continue;
+    const at = source.indexOf(text);
+    if (at < 0) continue;
+    const ids = [...source.slice(0, at).matchAll(/\bCA[0-9a-f]{6,}\b/g)];
+    const id = ids.length ? ids[ids.length - 1][0] : "";
+    if (id && (!nearest || at < nearest.at)) nearest = { id, at };
+  }
+  return nearest?.id || null;
 }
 
 /** One row per shadow call. Fixture or call id, phase, reason kinds, item names and notes. No caller text and no phone numbers. */
@@ -8100,7 +8120,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     (steps as any).reviewReason = `unresolved accommodation: ${intentPending.accommodation}`;
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
-  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, menuState: loader, closures: counted.closures }); }
+  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"), closures: counted.closures }); }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
   const reviewReason = (steps as any).reviewReason || null;
@@ -8110,7 +8130,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     stage: "order",
     reconcileRan: menuSource !== "missing",
     menuSource,
-    menuState: loader,
+    menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"),
     menuCount: Array.isArray(menuEnd) ? menuEnd.length : 0,
     closures: counted.closures,
     lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
