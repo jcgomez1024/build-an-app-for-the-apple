@@ -651,9 +651,9 @@ export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], menu: any
   for (const [key, mention] of mentions) {
     if (mention.n !== 1) continue;
     const meat = key.slice(key.indexOf(":") + 1);
-    const same = cart.filter((line) => lineFamily(line) === mention.family && meatOfLine(line) === meat);
+    if (mention.family !== "quesadilla") continue;
+    const same = cart.filter((line) => lineFamily(line) === mention.family && meatOfLine(line) === meat && (Number(line.quantity) || 1) === mention.qty);
     if (same.length < 2) continue;
-    same[0].quantity = mention.qty;
     for (const extra of same.slice(1)) {
       const at = cart.indexOf(extra);
       if (at >= 0) cart.splice(at, 1);
