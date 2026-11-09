@@ -302,7 +302,7 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
 
 /** Dishes staff said are not available today ("eso es hasta mañana", "no hay", "se acabó"), from the caller's question. */
 // relleno2: "se me acabaron", "se acabó", "ya no hay/tengo/queda", "no me quedan", "se terminaron", "agotado" (plus the older list)
-export const UNAVAIL_ES = /\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:(?:me|nos|le|les)\s+)?(?:acab|termin)(?:o|a|aron|an)\b|\bya\s+no\s+(?:hay|tengo|tenemos|queda|quedan|(?:me|nos)\s+queda(?:n)?)\b|\bno\s+(?:me|nos)\s+queda(?:n)?\b|\bno\s+(?:tenemos|tengo)\b(?!\s+(?:de\s+)?(?:chorizo|bistec|steak|asada|pastor|alpastor|pollo|carnitas|cabeza|lengua|tripa|buche|prensado|costilla|birria|deshebrada|picadillo|duro|chicharron|queso|papa|frijol|nopal|hongo|flor|rajas|huevo|camaron|pescado)\w*\b)|\bagotad[oa]s?\b|\bmanana\s+si\b|^no\s+(?:hoy|ahorita)\b|\bhoy\s+no\b/;
+export const UNAVAIL_ES = /\bhasta\s+manana\b|\bno\s+hay\b|\bse\s+(?:(?:me|nos|le|les)\s+)?(?:acab|termin)(?:o|a|aron|an)\b|\bya\s+no\s+(?:hay|tengo|tenemos|queda|quedan|(?:me|nos)\s+queda(?:n)?)\b|\bno\s+(?:me|nos)\s+queda(?:n)?\b|\bno\s+(?:tenemos|tengo)\b(?!\s+(?:de\s+)?(?:chorizo|bistec|steak|asada|pastor|alpastor|pollo|carnitas|cabeza|lengua|tripa|buche|prensado|costilla|deshebrada|picadillo|duro|chicharron|queso|papa|frijol|nopal|hongo|flor|rajas|huevo|camaron|pescado)\w*\b)|\bagotad[oa]s?\b|\bmanana\s+si\b|^no\s+(?:hoy|ahorita)\b|\bhoy\s+no\b/;
 /** A staff "unavailable" dish key ("chile relleno", "pozole verde") matches a menu id when every word stem is in it. */
 export function unavailMatchesId(d: string, id: string): boolean {
   const x = String(id || "").toLowerCase(); const ws = d.split(/\s+/).filter((w) => w.length >= 3);

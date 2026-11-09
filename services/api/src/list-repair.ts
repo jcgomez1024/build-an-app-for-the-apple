@@ -1,4 +1,4 @@
-import { catalogMentions, matchSpokenCatalog, sameSpokenDish } from "./menu-names.js";
+import { catalogMentions, matchSpokenCatalog, nearDishName } from "./menu-names.js";
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -1031,7 +1031,7 @@ export function staffRecapText(turns: Turn[]): string | null {
 const AFFIRM = /^(?:si|yes|yeah|yep|ok(?:ay)?|claro|andale|exactamente|sounds good|perfect|right|correcto|va)\b/;
 export const STAFF_LIST_REVIEW = "revisar lectura del personal";
 
-export type AffirmedStaffResult = { fired: boolean; added: string[]; flagged: string[] };
+export type AffirmedStaffResult = { fired: boolean; added: string[]; flagged: string[]; priorIds?: string[] };
 
 function cleanYes(text: string): boolean {
   const p = plain(text);
@@ -1110,36 +1110,66 @@ function qtyFor(text: string, label: string): number {
   return 1;
 }
 
-/** A staff-confirmed catalog dish that taco and quesadilla lists do not cover. Questions do not add a dish. */
+function staffDenial(text: string): boolean {
+  return /\b(?:no tenemos|no hay|we don t have|out of stock|unavailable|sold out|se acabo)\b/.test(plain(text));
+}
+
+function closingStaff(text: string): boolean {
+  return /\b(?:algo mas|anything else|que mas)\b/.test(plain(text));
+}
+
+const VARIATION_SIZE = /^(?:lb|solo|only|consome|consom|broth|full|half)$/;
+
+function unspokenSize(label: string, spoken: string): boolean {
+  const said = new Set(plain(spoken).split(" ").filter(Boolean));
+  return plain(label).split(" ").some((token) => token.length >= 2 && VARIATION_SIZE.test(token) && !said.has(token) && !said.has(`${token}s`));
+}
+
+/** A catalog dish the caller ordered, or a clean yes to that same staff dish. A closing staff turn alone adds nothing. */
 function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: AffirmedStaffResult) {
   const callerOrder = turns.filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).map((turn) => turn.text).join(" ");
   const callerDrinks = catalogMentions(callerOrder, menu).filter((hit) => isDrinkHit(menu, hit));
   const windows: Array<{ dish: string; option: string }> = [];
   turns.forEach((turn, index) => {
-    if (turn.speaker !== "staff" || isQuestionOrUpsell(turn.text) || staffAvailability(turn.text)) return;
+    if (turn.speaker !== "staff" || isQuestionOrUpsell(turn.text) || staffAvailability(turn.text) || closingStaff(turn.text)) return;
     const next = turns[index + 1];
-    if (next?.speaker === "caller" && cleanYes(next.text)) windows.push({ dish: turn.text, option: turn.text });
-    const laterCaller = turns.slice(index + 1).some((item) => item.speaker === "caller");
-    const prev = [...turns.slice(0, index)].reverse().find((item) => item.speaker === "caller");
-    if (!laterCaller && prev && ORDER_VERB.test(plain(prev.text))) windows.push({ dish: turn.text, option: turn.text });
+    if (next?.speaker === "caller" && cleanYes(next.text)) windows.push({ dish: turn.text, option: `${turn.text} ${next.text}` });
   });
   for (let index = 0; index < turns.length; index++) {
     const turn = turns[index];
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text) || !ORDER_VERB.test(plain(turn.text))) continue;
     const parts = [turn.text];
     let cursor = index + 1;
-    while (cursor < turns.length && turns[cursor].speaker === "caller" && !/[?¿]/.test(turns[cursor].text)) parts.push(turns[cursor++].text);
-    const yesAt = turns.findIndex((item, at) => at >= cursor && item.speaker === "caller" && cleanYes(item.text));
-    if (yesAt < 0) continue;
-    const before = turns[yesAt - 1];
-    windows.push({ dish: parts.join(" "), option: before?.speaker === "staff" ? before.text : parts.join(" ") });
+    while (cursor < turns.length) {
+      const item = turns[cursor];
+      if (item.speaker === "caller" && !/[?¿]/.test(item.text) && !ORDER_VERB.test(plain(item.text))) { parts.push(item.text); cursor++; continue; }
+      if (item.speaker === "staff" && isQuestionOrUpsell(item.text) && !staffDenial(item.text)) {
+        const answer = turns[cursor + 1];
+        if (answer?.speaker === "caller" && (cleanYes(answer.text) || !ORDER_VERB.test(plain(answer.text)))) {
+          parts.push(item.text);
+          if (answer && !cleanYes(answer.text)) parts.push(answer.text);
+          cursor += 2;
+          continue;
+        }
+      }
+      break;
+    }
+    const nextStaff = turns.slice(index + 1).find((item) => item.speaker === "staff");
+    if (nextStaff && staffDenial(nextStaff.text)) continue;
+    windows.push({ dish: parts.join(" "), option: parts.join(" ") });
   }
   for (const window of windows) {
     for (const match of matchSpokenCatalog(window.dish, window.option, menu)) {
       if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id)) continue;
       if (cart.some((line) => line.itemId === match.id || productId(menu, line.itemId) === match.product)) continue;
       const present = cart.map((line) => String(menu.find((item) => item.id === line.itemId)?.name || "")).join(" ");
-      if (sameSpokenDish(match.label, present)) continue;
+      if (nearDishName(match.label, present)) {
+        const other = cart.find((line) => nearDishName(match.label, String(menu.find((item) => item.id === line.itemId)?.name || "")));
+        const flag = `near:${other?.itemId || match.id}`;
+        if (!result.flagged.includes(flag)) result.flagged.push(flag);
+        result.fired = true;
+        continue;
+      }
       if (isDrinkHit(menu, match)) {
         const family = drinkFamily(match.label);
         const other = callerDrinks.find((drink) => drink.id !== match.id && drinkFamily(drink.label) === family);
@@ -1150,16 +1180,53 @@ function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: Af
           continue;
         }
       }
-      cart.push({ itemId: match.id, quantity: qtyFor(window.dish, match.label), modifiers: match.options.map((row) => ({ step: row.step, option: row.option })) });
+      const created: any = { itemId: match.id, quantity: qtyFor(window.dish, match.label), modifiers: match.options.map((row) => ({ step: row.step, option: row.option })) };
+      if (unspokenSize(match.label, `${window.dish} ${window.option}`)) created.elviNotes = ["confirmar"];
+      cart.push(created);
       result.added.push(match.id);
       result.fired = true;
     }
   }
 }
 
+/** A chosen variation that names a size nobody spoke stays on the ticket and is held. */
+export function noteUnspokenSize(cart: any[], turns: Turn[], menu: any[]): void {
+  const said = new Set(plain(turns.map((turn) => turn.text).join(" ")).split(" ").filter(Boolean));
+  for (const line of cart) {
+    const item = menu.find((row) => row.id === line.itemId);
+    if (!item?.squareCatalogObjectId) continue;
+    const siblings = menu.filter((row) => row.squareCatalogObjectId === item.squareCatalogObjectId);
+    if (siblings.length < 2) continue;
+    const sizes = plain(item.name || "").split(" ").filter((token) => VARIATION_SIZE.test(token) && siblings.some((row) => !plain(row.name || "").split(" ").includes(token)));
+    if (!sizes.length || sizes.every((token) => said.has(token) || said.has(`${token}s`))) continue;
+    if ((line.elviNotes || []).includes("confirmar")) continue;
+    line.elviNotes = [...(line.elviNotes || []), "confirmar"];
+  }
+}
+
+/** Drop a catalog add that repeats a line already on the final cart, and keep only adds that remain. */
+export function settleAffirmedAdds(cart: any[], menu: any[], result: AffirmedStaffResult): AffirmedStaffResult {
+  const prior = new Set(result.priorIds || []);
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const line = cart[i];
+    if (!result.added.includes(String(line.itemId))) continue;
+    const name = String(menu.find((item) => item.id === line.itemId)?.name || "");
+    const other = cart.find((item, at) => at !== i && nearDishName(name, String(menu.find((row) => row.id === item.itemId)?.name || "")));
+    if (!other) continue;
+    cart.splice(i, 1);
+    const flag = `near:${other.itemId}`;
+    if (!result.flagged.includes(flag)) result.flagged.push(flag);
+    result.fired = true;
+  }
+  const ids = new Set(cart.map((line) => String(line.itemId)));
+  result.added = result.added.filter((id) => ids.has(id) && !prior.has(id));
+  delete result.priorIds;
+  return result;
+}
+
 /** Add listed lines that are missing. A conflict keeps the caller's line and records a reason. Never overwrite or delete. */
 export function applyAffirmedStaffList(cart: any[], turns: Turn[], menu: any[]): AffirmedStaffResult {
-  const result: AffirmedStaffResult = { fired: false, added: [], flagged: [] };
+  const result: AffirmedStaffResult = { fired: false, added: [], flagged: [], priorIds: cart.map((line) => String(line.itemId || "")) };
   if (!staffReadback(turns)) applyParsedStaffList(cart, turns, menu, result);
   addConfirmedCatalog(cart, turns, menu, result);
   return result;

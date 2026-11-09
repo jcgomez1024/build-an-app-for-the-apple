@@ -42,6 +42,21 @@ export function fulfillmentIn(text: string): Fulfillment | null {
 /** Staff declines delivery / driver out — never keep DELIVERY from that cue (raul1). */
 const STAFF_NO_DELIVERY = /\b(?:(?:el\s+)?delivery\s+se\s+fue|se\s+fue\s+(?:el\s+)?(?:delivery|repartidor)|driver\s+(?:is\s+)?out|no\s+(?:hay\s+)?delivery|ahorita\s+no(?:\s*,|\s+\p{L})|no\s+tenemos\s+(?:delivery|domicilio|repartidor)|(?:no\s+)?(?:tenemos|tiene(?:n)?)\s+(?:servicio\s+a\s+)?domicilio\s*(?:ahorita|ahora|hoy)?\b|no\s+delivery)\b/iu;
 
+const CLOCK_HOUR: Record<string, number> = { una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const CLOCK_MIN: Record<string, number> = { cinco: 5, diez: 10, quince: 15, veinte: 20, treinta: 30, cuarenta: 40, media: 30, cuarto: 15, five: 5, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, half: 30, quarter: 15 };
+
+/** A spoken clock ("a las once diez", "at 11:10") as H:MM. Not a quantity and not a caller sentence. */
+export function spokenClock(text: string): string | null {
+  const p = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const m = p.match(/\b(?:a\s+las?|las|at)\s+(\d{1,2}|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?::|(?:\s+y)?\s+)(\d{1,2}|cinco|diez|quince|veinte|treinta|cuarenta|media|cuarto|five|ten|fifteen|twenty|thirty|forty|half|quarter)?\b/);
+  if (!m) return null;
+  const hour = Number(m[1]) || CLOCK_HOUR[m[1]];
+  if (!hour || hour > 12) return null;
+  const minute = m[2] ? (Number(m[2]) || CLOCK_MIN[m[2]] || 0) : 0;
+  if (minute > 59) return null;
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
 /** Fulfillment for a whole call (caller + staff read-back, in time order). Default null = not said (ticket stays TO GO). */
 export function detectFulfillment(turns: Turnish[]): { fulfillment: Fulfillment | null; by: "caller" | "staff" | null; heard: string | null } {
   let out: { fulfillment: Fulfillment | null; by: "caller" | "staff" | null; heard: string | null } = { fulfillment: null, by: null, heard: null };

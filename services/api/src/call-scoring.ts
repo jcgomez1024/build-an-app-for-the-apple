@@ -14,7 +14,7 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyAffirmedStaffList, STAFF_LIST_REVIEW, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyAffirmedStaffList, settleAffirmedAdds, noteUnspokenSize, STAFF_LIST_REVIEW, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
@@ -25,7 +25,7 @@ import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
 import { nameFromAnswer } from "./order-name.js";
-import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
+import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn, spokenClock } from "./delivery.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -3598,6 +3598,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
   // fix1036: fulfillment heard anywhere (caller or staff read-back "delivery, tus quesadillas…"); last mention wins.
   let fulfillment: "DELIVERY" | "PICKUP" | null = null;
+  let readyTime: string | null = null;
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
   let sideOffer = "", sideOfferAge = 9; // larry1: staff side offer stays answerable for 2 caller turns ("On the gordita?" "No," "Yes… two of those")
@@ -8138,6 +8139,16 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     const counted = reconcileCountedRequests(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : []);
     for (const line of counted.lines) cart.push(line as any);
     if (counted.reviewReason && !(steps as any).reviewReason) (steps as any).reviewReason = counted.reviewReason;
+    if (Array.isArray(menuEnd)) {
+      noteUnspokenSize(cart as any[], origTurns as any, menuEnd as any[]);
+      affirmedStaffList = settleAffirmedAdds(cart as any[], menuEnd as any[], affirmedStaffList);
+    }
+    else {
+      const ids = new Set((cart as any[]).map((line) => String(line.itemId)));
+      const prior = new Set(affirmedStaffList.priorIds || []);
+      affirmedStaffList.added = affirmedStaffList.added.filter((id) => ids.has(id) && !prior.has(id));
+      delete affirmedStaffList.priorIds;
+    }
     if (affirmedStaffList.flagged.length) {
       noteCountedDiagnostic(affirmedStaffList.flagged.map((token) => {
         const sep = String(token).indexOf(":");
@@ -8155,10 +8166,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"), closures: counted.closures }); }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
+  const clock = [...origTurns].reverse().map((turn) => spokenClock(String(turn.text || ""))).find((value) => value);
+  if (fulfillment === "PICKUP" && clock) readyTime = clock;
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",
     menuSource,

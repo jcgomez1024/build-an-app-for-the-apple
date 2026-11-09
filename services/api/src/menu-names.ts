@@ -130,6 +130,39 @@ export function sameSpokenDish(left: string, right: string): boolean {
   return nameTokens(left).some((token) => tokenHit(token, other));
 }
 
+function editDistance(left: string, right: string): number {
+  const a = left;
+  const b = right;
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const next = a[i - 1] === b[j - 1] ? prev : Math.min(prev, row[j - 1], row[j]) + 1;
+      prev = row[j];
+      row[j] = next;
+    }
+  }
+  return row[b.length];
+}
+
+/** Same family, or a near or garbled name (quesabirria beside queso birria). Not a phrase list. */
+export function nearDishName(left: string, right: string): boolean {
+  if (sameSpokenDish(left, right)) return true;
+  const a = nameTokens(left);
+  const b = nameTokens(right);
+  for (const leftToken of a) for (const rightToken of b) {
+    if (leftToken.length < 5 || rightToken.length < 5) continue;
+    if (leftToken.includes(rightToken) || rightToken.includes(leftToken)) return true;
+    const limit = Math.max(leftToken.length, rightToken.length) >= 8 ? 2 : 1;
+    if (editDistance(leftToken, rightToken) <= limit) return true;
+  }
+  const compact = (value: string) => normalizeName(value).replace(/[^a-z0-9]/g, "");
+  const leftCompact = compact(left);
+  const rightCompact = compact(right);
+  return leftCompact.length >= 6 && rightCompact.length >= 6 && (leftCompact.includes(rightCompact) || rightCompact.includes(leftCompact));
+}
+
 /** One catalog row for a dish the text names. Variations of the same product collapse to the closest row. A tie between products adds nothing. */
 export function matchSpokenCatalog(
   dishText: string,
