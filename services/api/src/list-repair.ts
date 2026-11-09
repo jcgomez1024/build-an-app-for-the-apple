@@ -666,8 +666,18 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
           changed = true;
         }
       }
-      if (same.length > 1 && part.qty > 0 && same.every((line) => (Number(line.quantity) || 1) === part.qty)) {
-        for (const extra of same.slice(1)) {
+      const styleOf = (line: any) => {
+        const blob = (line.modifiers || []).map((mod: any) => String(mod.option || "")).join(" ");
+        if (/taquer|street|\(TST\)/i.test(blob)) return "street";
+        if (/harina|flour/i.test(blob)) return "flour";
+        if (/deluxe|preparada/i.test(blob)) return "deluxe";
+        if (/regular/i.test(blob)) return "regular";
+        if (/comal|homemade|\(QCO\)|\(TCO\)/i.test(blob)) return "comal";
+        return "";
+      };
+      const twins = same.filter((line) => styleOf(line) === styleOf(same[0]) && (Number(line.quantity) || 1) === part.qty);
+      if (twins.length > 1 && part.qty > 0) {
+        for (const extra of twins.slice(1)) {
           const at = cart.indexOf(extra);
           if (at >= 0) cart.splice(at, 1);
         }
