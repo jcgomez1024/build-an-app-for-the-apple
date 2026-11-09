@@ -1,8 +1,10 @@
 // Affirmed staff lists may add a missing line. They never overwrite or delete a caller line.
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
+import { detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
+import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
 import { evaluateCase } from "./evaluate.ts";
 
@@ -71,6 +73,10 @@ const latest = applyAffirmedStaffList(latestCart, [
 const meats = latestCart.flatMap((line) => (line.modifiers || []).map((mod: any) => mod.option)).join(" ");
 check("latest-list-wins", latest.fired && latestCart.length === 1 && /bistec/i.test(meats) && !/pastor/i.test(meats) && latestCart[0].quantity === 3, JSON.stringify({ latestCart, latest }));
 
+check("quantity-is-not-a-time", spokenClock("me das las tres quesadillas") === null && spokenClock("como a las once diez") === "11:10");
+check("person-pickup-is-not-togo", detectFulfillment([{ speaker: "caller", text: "Él lo recoge." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Voy a recoger a mi hijo." }]).fulfillment !== "PICKUP" && detectFulfillment([{ speaker: "caller", text: "Para recogerla." }]).fulfillment === "PICKUP");
+check("no-tenemos-birria-is-unavailable", staffUnavailable([{ speaker: "caller", text: "Quiero un platillo de birria." }, { speaker: "staff", text: "No tenemos birria." }]).some((dish) => dish.includes("birria")));
+
 const run: any = async () => ({ actions: [], reply: "" });
 run.menu = () => menu;
 function flow(turns: Array<{ speaker: string; text: string }>) {
@@ -109,7 +115,8 @@ Promise.all([
   evaluateCase(CASES.find((row) => row.id === "C07")!),
   evaluateCase(CASES.find((row) => row.id === "C10")!),
   flow(CASES.find((row) => row.id === "C10")!.turns),
-]).then(([order, closing, denied, sized, ronald, c07, c10, c10order]: any[]) => {
+  flow([{ speaker: "caller", text: "Quiero una libra de birria." }]),
+]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra]: any[]) => {
   const cart = order.cart || [];
   const kept = cart.some((line: any) => line.itemId === pepsi.id) && !cart.some((line: any) => line.itemId === coke.id);
   check("wrong-readback-review-reason", kept && order.reviewReason === STAFF_LIST_REVIEW, JSON.stringify({ reviewReason: order.reviewReason, cart }));
@@ -118,7 +125,7 @@ Promise.all([
   check("wrong-readback-scratch-diagnostic", diag.includes("staff-list-brand") && diag.includes(pepsi.id) && !/\btráeme\b/i.test(diag));
   check("c07-still-passes", c07.verdict === "pass", c07.failures?.join("; "));
   const closingCart = closing.cart || [];
-  check("closing-staff-adds-nothing", !closingCart.some((line: any) => /birria/i.test(`${line.itemId} ${JSON.stringify(line.modifiers || [])}`)), JSON.stringify(closingCart));
+  check("closing-staff-adds-nothing", !closingCart.some((line: any) => /birria/i.test(`${line.itemId} ${JSON.stringify(line.modifiers || [])}`)) && !!closing.reviewReason && closing.validation === "unresolved", JSON.stringify({ reviewReason: closing.reviewReason, validation: closing.validation, closingCart }));
   const deniedCart = denied.cart || [];
   check("denial-then-yes-adds-nothing", !deniedCart.some((line: any) => /birria/i.test(String(line.itemId))), JSON.stringify(deniedCart));
   const sizedCart = sized.cart || [];
@@ -128,6 +135,8 @@ Promise.all([
   const platter = ronaldCart.some((line: any) => /birria-de-chivo/i.test(String(line.itemId)));
   const queso = ronaldCart.some((line: any) => /queso-birria/i.test(String(line.itemId)));
   check("garbled-duplicate-not-added", queso && !platter, JSON.stringify(ronaldCart.map((line: any) => line.itemId)));
-  check("c10-pickup", c10.ticket?.fulfillment === "PICKUP" && c10order.readyTime === "11:10" && !c10.failures.some((line: string) => /fulfillment/.test(line)), `${c10.failures?.join("; ")} time=${c10order.readyTime} fulfillment=${c10order.fulfillment}`);
+  check("c10-pickup", c10.ticket?.fulfillment === "PICKUP" && c10order.readyTime === "11:10" && c10order.addressPresent !== true && !c10.failures.some((line: string) => /fulfillment/.test(line)), `${c10.failures?.join("; ")} time=${c10order.readyTime} fulfillment=${c10order.fulfillment}`);
+  const libraLine = (libra.cart || []).find((line: any) => /1-lb-of-birria/i.test(String(line.itemId)));
+  check("libra-does-not-hold", !!libraLine && !(libraLine.elviNotes || []).includes("confirmar"), JSON.stringify(libra.cart));
   if (failures.length) process.exit(1);
 });
