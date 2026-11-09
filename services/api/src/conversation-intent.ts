@@ -518,6 +518,44 @@ function addActionFromUtterance(input: IntentInput, file: IntentFile, language: 
   return decided?.actions.find((action) => action.type === "add_item") || null;
 }
 
+// The cart array is the object both pipelines already hand to the next turn.
+// Phone records a witness only after apply() pushes the intent actions.
+// The reducer records it inside applyIntentCart, on the array that function returns.
+// An empty witness means the previous intent turn applied no add. Pending is untouched.
+const appliedRequestWitness = new WeakMap<object, IntentAction[]>();
+
+export function recordAppliedRequest(cart: object | null | undefined, actions: IntentAction[]): void {
+  if (!cart || typeof cart !== "object") return;
+  const adds = (actions || []).filter((action) => action?.type === "add_item").map((action) => ({
+    type: "add_item" as const,
+    itemId: action.itemId,
+    quantity: Number(action.quantity) || 1,
+    modifiers: (action.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
+  }));
+  appliedRequestWitness.set(cart, adds);
+}
+
+function readAppliedRequest(cart: object | null | undefined): IntentAction[] {
+  if (!cart || typeof cart !== "object") return [];
+  return appliedRequestWitness.get(cart) || [];
+}
+
+function unresolvedConstraint(priorText: string, action: IntentAction, menu: IntentMenuItem[], file: IntentFile): string {
+  const item = menu.find((entry) => entry.id === action.itemId);
+  const consumed = new Set<string>();
+  const absorb = (value: string) => { for (const word of fold(value).split(" ")) { const token = stem(word); if (token) consumed.add(token); } };
+  absorb(item?.name || "");
+  absorb(item?.nameEs || "");
+  for (const modifier of action.modifiers || []) { absorb(modifier.step || ""); absorb(modifier.option || ""); }
+  for (const lead of DISCOURSE_LEADS) absorb(lead);
+  for (const word of Object.keys(file.quantities)) absorb(word);
+  absorb("those these esos esas only solo solamente");
+  return fold(priorText).split(" ").filter((word) => {
+    const token = stem(word);
+    return token.length >= 3 && !STOP.has(word) && !STOP.has(token) && !consumed.has(token);
+  }).join(" ");
+}
+
 function sameAdd(left: IntentAction, right: IntentAction): boolean {
   return left.type === "add_item" && right.type === "add_item"
     && left.itemId === right.itemId
@@ -549,7 +587,7 @@ function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es"
  * Decide a whole short turn. Returns null when this is not one of the conversation-intent
  * shapes, so the existing parser keeps the turn.
  */
-export function resolveConversationIntent(input: IntentInput): IntentDecision | null {
+function decideConversationIntent(input: IntentInput): IntentDecision | null {
   const file = loadConversationIntent();
   if (!file || !Array.isArray(input.menu) || !input.menu.length) return null;
   const folded = fold(input.transcript);
@@ -706,10 +744,10 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     const addAction = added?.actions.find((action) => action.type === "add_item");
     if (added?.actions.length && addAction) {
       const onCart = sameSpokenLine(cart, addAction);
+      const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
       const priorText = [...(input.history || [])].reverse().find((turn) => turn.role === "customer" || turn.role === "user")?.text || "";
       const prior = priorText ? addActionFromUtterance(input, file, language, priorText) : null;
-      const proven = !!prior && sameAdd(prior, addAction) && onCart;
-      if (anaphoric && proven) {
+      if (anaphoric && witnessed && onCart) {
         const line = cart.find((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
         const named = line ? describeOwnLine(line, input.menu) : "";
         const reply = language === "es"
@@ -717,7 +755,14 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
           : `That is already on the order, so I did not add it again.${named ? ` ${named}.` : ""}`;
         return remember({ kind: "accept", reply, actions: [], pending: null });
       }
-      if (anaphoric && onCart && !proven) {
+      if (anaphoric && prior && sameAdd(prior, addAction) && !witnessed) {
+        const unresolved = unresolvedConstraint(priorText, addAction, input.menu, file);
+        const reply = language === "es"
+          ? `No apliqué el pedido anterior, así que no lo tomé como ya cumplido.${unresolved ? ` Sin resolver: ${unresolved}.` : ""} No lo agregué.`
+          : `I did not apply the previous request, so I did not treat it as fulfilled.${unresolved ? ` Unresolved: ${unresolved}.` : ""} I did not add it.`;
+        return remember({ kind: "clarify", reply, actions: [], pending: null });
+      }
+      if (anaphoric && onCart && !witnessed) {
         const matches = cart.filter((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
         const listed = matches.map((entry) => describeOwnLine(entry, input.menu)).join(" ");
         const reply = language === "es"
@@ -832,6 +877,14 @@ function hasLeftover(folded: string, consumed: string[], file: IntentFile, ignor
   });
 }
 
+export function resolveConversationIntent(input: IntentInput): IntentDecision | null {
+  const decision = decideConversationIntent(input);
+  // A returned add is not yet a witness. The caller records one only if it applies the actions.
+  // A turn with no add leaves no witness, including when the caller keeps this same cart.
+  if (!decision?.actions?.some((action) => action.type === "add_item")) recordAppliedRequest(input.cart, []);
+  return decision;
+}
+
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {
   const next = cart.map((line) => ({ ...line, modifiers: [...(line.modifiers || [])] }));
   for (const action of actions) {
@@ -846,5 +899,6 @@ export function applyIntentCart<T extends { itemId: string; quantity: number; mo
       if (index >= 0) next[index] = { ...next[index], quantity: action.quantity };
     }
   }
+  recordAppliedRequest(next, actions);
   return next;
 }

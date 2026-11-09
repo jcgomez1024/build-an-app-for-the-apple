@@ -18,7 +18,7 @@ import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
-import { applyIntentCart, resolveConversationIntent } from "./conversation-intent.js";
+import { applyIntentCart, recordAppliedRequest, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
@@ -934,10 +934,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let shadowAddress: string | null = null;
   let shadowAddressConfirmed = false;
   const apply = (actions: any[] = []) => {
+    const appliedAdds: any[] = [];
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
       if (a.type === "add_item" && sizeAnswer && cart.length && cart[cart.length - 1].itemId === a.itemId) { const p0 = cart.pop()!; a = { ...a, quantity: p0.quantity || a.quantity }; }
-      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
+      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); if (a.intentKept) appliedAdds.push(a); }
       else if (a.type === "update_item") {
         const indexed = a.lineIndex != null && cart[a.lineIndex]?.itemId === a.itemId ? a.lineIndex : -1;
         const i = indexed >= 0 ? indexed : cart.map((l) => l.itemId).lastIndexOf(a.itemId);
@@ -952,6 +953,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         shadowAddressConfirmed = true;
       }
     }
+    if (actions.some((action) => action?.intentKept)) recordAppliedRequest(cart, appliedAdds);
   };
   // fix24: a removal ("no crema") belongs to the dish it was said with, else to the last dish touched. Two Deluxe
   // dishes and no way to tell which → ambiguous (the ticket flags it for staff instead of guessing).
