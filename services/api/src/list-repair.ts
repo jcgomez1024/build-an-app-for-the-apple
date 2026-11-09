@@ -1679,6 +1679,7 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: bo
     for (const key of keys) if (new RegExp(`\\b${key}s?\\b`).test(text)) found.push(key);
     return [...new Set(found)];
   };
+  const keepChoices = spokenTurns.some((turn) => turn.speaker === "caller" && /\b(?:keeping its choices|same choices|mismas opciones)\b/.test(turn.text));
   let active: string[] = [];
   for (let i = 0; i < spokenTurns.length; i++) {
     const turn = spokenTurns[i];
@@ -1686,7 +1687,8 @@ function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: bo
     if (turn.speaker === "caller" && named.length) active = named;
     const scope = named.length ? named : active;
     const episode = episodeQty(spokenTurns, i, keys, mentionedIn);
-    if (!scope.some((key) => keys.includes(key)) || !coversLine(turn.text, episode, lineQty, siblingQtys)) continue;
+    const covered = coversLine(turn.text, episode, lineQty, siblingQtys) || (keepChoices && textHitsTokens(turn.text, tokens));
+    if (!scope.some((key) => keys.includes(key)) || !covered) continue;
     if (turn.speaker === "caller") {
       if (declinesChoice(turn.text)) continue;
       if (textHitsTokens(turn.text, tokens)) return true;
