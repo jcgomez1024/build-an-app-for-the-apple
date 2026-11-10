@@ -413,6 +413,38 @@ const huevoLines = reconcileSpokenExtras([
   { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaHuevo], elviNotes: [] },
 ], [{ speaker: "caller", text: "Con huevo." }], menu);
 check("huevo-across-eligible-lines-still-holds", !!gorditaHuevo && huevoLines.includes("huevo"), JSON.stringify(huevoLines));
+const guacBurrito = menu.find((item) => item.id === "sq-burrito-TGWBEN");
+const guacOnBurrito = groupOption(guacBurrito, /burrito options/i, /^guacamole dip$/i);
+const cola = menu.find((item) => item.name === "Coca Cola");
+const guacLine = [{ itemId: guacBurrito.id, quantity: 1, modifiers: guacOnBurrito ? [guacOnBurrito] : [], elviNotes: [] as string[] }];
+const avocadoCovered = reconcileSpokenExtras(guacLine.map((line) => ({ ...line, modifiers: [...line.modifiers] })), [{ speaker: "caller", text: "With avocado." }], menu);
+const aguacateOnGuac = reconcileSpokenExtras(guacLine.map((line) => ({ ...line, modifiers: [...line.modifiers] })), [{ speaker: "caller", text: "Con aguacate." }], menu);
+check("avocado-already-on-the-line-as-guacamole-does-not-hold", !!guacOnBurrito && !avocadoCovered.includes("avocado") && !aguacateOnGuac.includes("aguacate"), JSON.stringify({ avocadoCovered, aguacateOnGuac }));
+const noGuacLine = reconcileSpokenExtras([
+  { itemId: shrimp.id, quantity: 1, modifiers: [], elviNotes: [] },
+  { itemId: jamaica.id, quantity: 1, modifiers: [], elviNotes: [] },
+  { itemId: cola.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "Con guacamole." }], menu);
+check("guacamole-with-no-eligible-line-holds", noGuacLine.includes("guacamole"), JSON.stringify(noGuacLine));
+const missingAguacate = reconcileSpokenExtras([
+  { itemId: guacBurrito.id, quantity: 1, modifiers: [groupOption(guacBurrito, /carne|meat/i, /lengua/i)].filter(Boolean), elviNotes: [] },
+  { itemId: cola.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "Con aguacate." }], menu);
+check("aguacate-missing-on-the-only-eligible-line-holds", missingAguacate.includes("aguacate"), JSON.stringify(missingAguacate));
+const stillAmbiguous = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [qgd], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita], elviNotes: [] },
+], [{ speaker: "caller", text: "Con queso." }], menu);
+check("unnamed-extra-already-on-one-of-several-eligible-lines-stays-held", stillAmbiguous.includes("queso"), JSON.stringify(stillAmbiguous));
+const cadfShape = reconcileSpokenExtras([
+  { itemId: guacBurrito.id, quantity: 1, modifiers: [groupOption(guacBurrito, /size|grande/i, /grande/i), groupOption(guacBurrito, /carne|meat/i, /lengua/i), guacOnBurrito].filter(Boolean), elviNotes: [] },
+  { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] },
+  { itemId: elvisDip.id, quantity: 1, modifiers: [groupOption(elvisDip, /side|dip/i, /solo chips/i) || { step: "Dips", option: "SOLO CHIPS" }], elviNotes: [] },
+], [
+  { speaker: "caller", text: "Con aguacate, por favor." },
+  { speaker: "caller", text: "De esas de las doradas con bistec." },
+], menu);
+check("aguacate-stays-in-the-reason-when-another-eligible-line-lacks-it", cadfShape.includes("aguacate") && cadfShape.includes("bistec"), JSON.stringify(cadfShape));
 const cremaOnOne = { step: "topping", option: "Crema / Sour Cream" };
 const otherCrema = reconcileSpokenExtras([
   { itemId: gordita.id, quantity: 1, modifiers: [qgd, gorditaBistec, cremaOnOne], elviNotes: [] },

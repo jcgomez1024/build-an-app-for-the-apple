@@ -2350,22 +2350,42 @@ function alreadyPresent(token: string, present: Set<string>): boolean {
   return normalizedForms(token).some((form) => present.has(form));
 }
 
-function textHasToken(text: string, token: string): boolean {
-  const wanted = new Set(normalizedForms(token));
-  return plain(text).split(" ").some((word) => normalizedForms(word).some((form) => wanted.has(form)));
+function textHasForms(text: string, forms: Set<string>): boolean {
+  return plain(text).split(" ").some((word) => normalizedForms(word).some((form) => forms.has(form)));
 }
 
-/** A line can take the token when the token is already on it, or the item's own name, options, or included parts contain it. */
-function lineCouldTake(line: any, token: string, menu: any[]): boolean {
-  if (alreadyPresent(token, linePresent(line, menu))) return true;
+function presentHasForms(forms: Set<string>, present: Set<string>): boolean {
+  for (const form of forms) if (present.has(form)) return true;
+  return false;
+}
+
+/** Aguacate, avocado, and guacamole are one family when each word is actually in the menu. Plurals, stems, and diminutives use normalizedForms. */
+const AVOCADO_FAMILY = ["aguacate", "avocado", "guacamole"];
+
+function familyWords(token: string, vocab: Set<string>): string[] {
+  const present = AVOCADO_FAMILY.filter((word) => vocab.has(word) || [...vocab].some((entry) => normalizedForms(entry).includes(word)));
+  if (present.length < 2) return [];
+  const spoken = new Set(normalizedForms(token));
+  return present.some((word) => normalizedForms(word).some((form) => spoken.has(form))) ? present : [];
+}
+
+function matchForms(token: string, vocab: Set<string>): Set<string> {
+  const forms = new Set(normalizedForms(token));
+  for (const word of familyWords(token, vocab)) for (const form of normalizedForms(word)) forms.add(form);
+  return forms;
+}
+
+/** A line can take the token when the token is already on it, or the item's own name, options, or included parts contain it or a menu synonym. */
+function lineCouldTake(line: any, forms: Set<string>, menu: any[]): boolean {
+  if (presentHasForms(forms, linePresent(line, menu))) return true;
   const item = menu.find((row) => row.id === line.itemId);
   if (!item) return false;
-  if ([item.name, item.nameEs, item.variationName, item.readbackName, item.readbackNameEs].some((text) => textHasToken(String(text || ""), token))) return true;
+  if ([item.name, item.nameEs, item.variationName, item.readbackName, item.readbackNameEs].some((text) => textHasForms(String(text || ""), forms))) return true;
   const selected = (line.modifiers || []).map((mod: any) => `${mod?.step || ""} ${mod?.option || ""}`).join(" ");
-  if (textHasToken(includedText(item, selected), token)) return true;
+  if (textHasForms(includedText(item, selected), forms)) return true;
   for (const group of item.modifierGroups || []) {
     for (const choice of group.options || []) {
-      if (textHasToken(optionLabel(choice), token)) return true;
+      if (textHasForms(optionLabel(choice), forms)) return true;
     }
   }
   return false;
@@ -2401,11 +2421,13 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
     for (const bit of spokenBits(turn.text)) {
       const token = menuToken(bit.token, vocab);
       if (!token) continue;
+      const forms = matchForms(token, vocab);
+      const synonym = familyWords(token, vocab).length > 1;
       const base = targetLines(bit.clause, cart, menu);
       let targets = narrowTargets(bit.clause, token, base, menu, vocab);
       const sideCue = bit.cue === "side" || bit.cue === "lado" || bit.cue === "aparte";
       if (sideCue) {
-        const sideLines = cart.filter((line) => alreadyPresent(token, linePresent(line, menu)));
+        const sideLines = cart.filter((line) => presentHasForms(forms, linePresent(line, menu)));
         if (sideLines.length) targets = sideLines;
       }
       const anaphor = anaphorTargets(bit.clause, token, previousCaller, cart, menu, vocab);
@@ -2417,7 +2439,7 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       if (bit.withdrawn) {
         const at = unnamed.indexOf(token);
         if (at >= 0) unnamed.splice(at, 1);
-        const spokenForms = new Set(normalizedForms(token));
+        const spokenForms = forms;
         for (const line of targets) {
           const item = menu.find((row) => row.id === line.itemId);
           line.modifiers = (line.modifiers || []).filter((mod: any) => {
@@ -2435,9 +2457,9 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       const namedLine = dishKeysIn(bit.clause).length > 0 && base.length < cart.length;
       const narrowed = targets.length < base.length;
       const lineScoped = namedLine || narrowed || sideCue || !!anaphor || targets.length < 2;
-      const has = (line: any) => alreadyPresent(token, linePresent(line, menu));
-      const eligible = targets.filter((line) => lineCouldTake(line, token, menu));
-      const covered = lineScoped ? targets.some(has) : eligible.length === 0 || eligible.every(has);
+      const has = (line: any) => presentHasForms(forms, linePresent(line, menu));
+      const eligible = targets.filter((line) => lineCouldTake(line, forms, menu));
+      const covered = lineScoped ? targets.some(has) : eligible.length === 0 ? !synonym : eligible.every(has);
       if (covered || unnamed.includes(token)) continue;
       unnamed.push(token);
     }
