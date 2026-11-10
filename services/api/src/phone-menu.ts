@@ -54,12 +54,13 @@ export function squareObjectsFromSiteCatalog(): any[] {
   return objects;
 }
 
-function groupsFor(product: { groups?: Array<{ name: string; min: number; max: number; choices: Array<{ name: string; priceCents: number; preselected?: boolean }> }> }) {
+function groupsFor(product: { groups?: Array<{ squareId?: string; name: string; min: number; max: number; choices: Array<{ squareId?: string; name: string; priceCents: number; preselected?: boolean }> }> }) {
   return (product.groups || []).map((group) => ({
+    id: group.squareId,
     name: group.name,
     minSelections: group.min,
     maxSelections: group.max,
-    options: group.choices.map((choice) => ({ name: choice.name, priceDeltaCents: choice.priceCents })),
+    options: group.choices.map((choice) => ({ id: choice.squareId, name: choice.name, priceDeltaCents: choice.priceCents })),
     defaultOptions: group.choices.filter((choice) => choice.preselected).map((choice) => choice.name),
   }));
 }
