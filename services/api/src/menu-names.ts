@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { applySharedAliases } from "./aliases.js";
 
 // One spoken name for a catalog row. Runtime Square menus and the frozen phone menu both use it.
@@ -28,6 +29,33 @@ export function normalizeSpoken(value: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+export type OptionAlias = { optionId: string; name: string; aliases: string[] };
+
+let optionAliasCache: OptionAlias[] | null = null;
+
+/** Approved spoken names for catalog option ids. pastor and chicken are not approved aliases. */
+export function loadOptionAliases(): OptionAlias[] {
+  if (optionAliasCache) return optionAliasCache;
+  try {
+    const file = JSON.parse(readFileSync(new URL("../data/option-aliases.json", import.meta.url), "utf8"));
+    optionAliasCache = Array.isArray(file.options) ? file.options : [];
+  } catch {
+    optionAliasCache = [];
+  }
+  return optionAliasCache;
+}
+
+export function optionAliasWords(token: string): string[] {
+  const folded = normalizeName(token);
+  const rows = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => normalizeName(alias) === folded));
+  const words = new Set<string>();
+  for (const row of rows) {
+    words.add(folded);
+    for (const word of normalizeName(row.name || "").split(" ")) if (word.length >= 4) words.add(word);
+  }
+  return [...words];
+}
+
 /** One fold for a required choice. The cart meat list and the hold both use it. */
 export function spokenChoiceWords(value: string): Set<string> {
   let spoken = normalizeSpoken(value);
@@ -38,8 +66,9 @@ export function spokenChoiceWords(value: string): Set<string> {
   spoken = spoken.replace(/\b(\d+)\s+(?:onzas?|ounces?|oz)\b/g, "$1oz");
   const hits = new Set(spoken.split(" ").filter(Boolean));
   const add = (...words: string[]) => words.forEach((word) => hits.add(word));
+  // Flagged for review. Not an approved alias: the catalog token is alpastor, not pastor.
   if (/\b(?:alpastor|al pastor|el pastor|pastor)\b/.test(spoken)) add("pastor", "alpastor");
-  if (/\basada\b/.test(spoken)) add("asada", "bistec", "steak");
+  for (const word of [...hits]) for (const extra of optionAliasWords(word)) hits.add(extra);
   if (/\bduros?\b/.test(spoken) || /\bchicharron/.test(spoken)) add("duro", "chicharron");
   if (/\bdorad/.test(spoken)) add("dorada");
   if (/\bhomemade\b/.test(spoken) || /\bcomal\b/.test(spoken)) add("comal", "homemade");

@@ -2,7 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
-import { spokenLabels } from "./menu-names.js";
+import { loadOptionAliases, spokenLabels } from "./menu-names.js";
 import { enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
@@ -15,7 +15,7 @@ export type IntentAction = {
 };
 
 export type IntentPending = {
-  operation: "replace" | "add";
+  operation: "replace" | "add" | "clarify_clause";
   itemId: string;
   quantity: number | null;
   modifiers: Array<{ step: string; option: string }>;
@@ -29,7 +29,8 @@ export type IntentDecision = {
   kind: "availability" | "accept" | "replace" | "add" | "clarify";
   reply: string;
   actions: IntentAction[];
-  pending?: IntentPending | null;
+  /** One pending record, or the add plus the unnamed earlier-line change. The list's operation is clarify_clause. */
+  pending?: IntentPending | Array<IntentPending> & { operation?: "clarify_clause" } | null;
 };
 
 type IntentFile = {
@@ -56,7 +57,7 @@ export type IntentMenuItem = {
   available?: boolean;
   unavailable?: boolean;
   squareCatalogObjectId?: string;
-  modifierGroups?: Array<{ name: string; minSelections?: number; options?: Array<string | { name: string }> }>;
+  modifierGroups?: Array<{ name: string; minSelections?: number; options?: Array<string | { id?: string; name: string }> }>;
 };
 
 export type IntentInput = {
@@ -263,7 +264,7 @@ function blocked(language: "en" | "es", item: IntentMenuItem, actions: IntentAct
 }
 
 const SIZE_WORD = new Set(["ounce", "ounces", "onza", "onzas", "oz", "treinta", "veinte", "grande", "chica", "chico", "large", "small"]);
-const pendingBySession = new Map<string, IntentPending>();
+const pendingBySession = new Map<string, NonNullable<IntentDecision["pending"]>>();
 
 function requiredMissing(item: IntentMenuItem, modifiers: Array<{ step: string; option: string }>): string[] {
   return (item.modifierGroups || [])
@@ -633,7 +634,8 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
   if (!folded) return null;
   const language = input.language === "en" ? "en" : "es";
   const cart = input.cart || [];
-  const pending = input.pending !== undefined ? input.pending : (input.sessionKey ? pendingBySession.get(input.sessionKey) || null : null);
+  const rawPending = input.pending !== undefined ? input.pending : (input.sessionKey ? pendingBySession.get(input.sessionKey) || null : null);
+  const pending = Array.isArray(rawPending) ? null : rawPending;
   const remember = (decision: IntentDecision): IntentDecision => {
     if (input.sessionKey) {
       if (decision.pending) pendingBySession.set(input.sessionKey, decision.pending);
@@ -711,28 +713,29 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
         if (added?.actions.length) {
         if (split && cart.length) {
           const target = earlierTarget(cart, input.menu, split.change);
-          const addAction = added.actions.find((action) => action.type === "add_item");
-          const held = addAction ? {
-            operation: "add" as const,
-            itemId: addAction.itemId,
-            quantity: addAction.quantity,
-            modifiers: (addAction.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
-            targetIndex: typeof target === "object" ? target.index : null,
+          const described = (line: { modifiers?: Array<{ step?: string; option?: string }> }) => (line.modifiers || []).map((modifier) => `${modifier.step || ""} = ${modifier.option || ""}`).filter((text) => text !== " = ").join("; ");
+          const held = (index: number | null, itemId: string): IntentPending => ({
+            operation: "clarify_clause",
+            itemId,
+            quantity: null,
+            modifiers: [],
+            targetIndex: index,
             unresolved: ["requested_change"],
-          } : null;
+          });
           if (target === "ambiguous") {
-            const listed = cart.map((line) => (line.modifiers || []).map((modifier) => modifier.option).filter(Boolean).join(", ")).filter(Boolean).join("; ");
+            const listed = cart.map((line) => described(line)).filter(Boolean).join("; ");
             const ask = language === "es"
-              ? `No cambié la orden. ¿Cuál línea anterior cambio? ${listed}`
-              : `I did not change the order. Which earlier line should I change? ${listed}`;
-            return remember({ kind: "clarify", reply: ask, actions: [], pending: held });
+              ? `Agregué lo nuevo. ¿Cuál línea anterior cambio? ${listed}`
+              : `I added the new items. Which earlier line should I change? ${listed}`;
+            return remember({ kind: "clarify", reply: ask, actions: added.actions, pending: held(null, cart[0].itemId) });
           }
           if (target !== "none") {
-            const named = (cart[target.index].modifiers || []).map((modifier) => modifier.option).filter(Boolean).join(", ");
-            const note = language === "es"
-              ? `No cambié la orden. La línea anterior se queda${named ? `: ${named}` : ""}. No dijeron el cambio.`
-              : `I did not change the order. The earlier line stays${named ? `: ${named}` : ""}. The change was not specified.`;
-            return remember({ kind: "clarify", reply: note, actions: [], pending: held });
+            const line = cart[target.index];
+            const named = described(line);
+            const ask = language === "es"
+              ? `Agregué lo nuevo. ¿Qué cambio en la línea anterior? ${named}`
+              : `I added the new items. What should I change on the earlier item? ${named}`;
+            return remember({ kind: "clarify", reply: ask, actions: added.actions, pending: held(target.index, line.itemId) });
           }
         }
         return remember({ ...added, pending: null });
@@ -793,7 +796,17 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
     const earlierStays = /\b(?:leave|deja|dejar)\b/.test(folded) && /\b(?:earlier|anterior|primera|first)\b/.test(folded);
     const addAction = added?.actions.find((action) => action.type === "add_item");
     if (added?.actions.length && addAction) {
-      if (anaphoric && earlierStays) return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+      if (anaphoric && earlierStays) {
+        const onCart = sameSpokenLine(cart, addAction);
+        const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
+        if (onCart || witnessed) {
+          const reply = language === "es"
+            ? "La línea anterior se queda. Eso ya está en la orden."
+            : "The earlier line stays. That is already on the order.";
+          return remember({ kind: "accept", reply, actions: [], pending: null });
+        }
+        return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+      }
       const onCart = sameSpokenLine(cart, addAction);
       const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
       const priorText = [...(input.history || [])].reverse().find((turn) => turn.role === "customer" || turn.role === "user")?.text || "";
@@ -1161,19 +1174,61 @@ function styleHeard(token: string, text: string): boolean {
   return token === "aceite" && heard(text, "dorada");
 }
 
-function meatKey(token: string): string {
-  if (token === "asada" || token === "steak") return "bistec";
-  if (token === "pastor") return "alpastor";
-  if (token === "chicken") return "pollo";
-  return token;
+function optionRecord(option: string | { id?: string; name: string }): { id: string; name: string } {
+  return typeof option === "string" ? { id: "", name: option } : { id: option.id || "", name: option.name || "" };
 }
 
-function lineMatches(request: { content: string[]; size: string | null }, text: string): boolean {
+/** Option ids a spoken meat names. An approved alias wins; otherwise the option's own name tokens. */
+function optionIdsForSpoken(menu: IntentMenuItem[], token: string): Set<string> {
+  const aliasIds = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => fold(alias) === token)).map((row) => row.optionId);
+  if (aliasIds.length) return new Set(aliasIds);
+  const ids = new Set<string>();
+  for (const item of menu) {
+    for (const group of item.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const option = optionRecord(choice);
+        if (!option.id) continue;
+        if (fold(option.name).split(" ").some((word) => word.length >= 4 && sameStem(word, token))) ids.add(option.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function lineModifierIds(line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): Set<string> {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  const ids = new Set<string>();
+  if (!item) return ids;
+  for (const modifier of line.modifiers || []) {
+    const name = fold(String(modifier.option || ""));
+    if (!name) continue;
+    for (const group of item.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const option = optionRecord(choice);
+        if (option.id && fold(option.name) === name) ids.add(option.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function lineMatches(request: { content: string[]; size: string | null }, line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): boolean {
+  const text = lineText(line, menu);
+  if (!text) return false;
   const family = familyTokens(request.content);
   if (!family.length || !family.some((token) => heard(text, token))) return false;
-  const meats = [...new Set(request.content.filter((token) => MEAT.has(token)).map(meatKey))];
-  const lineMeats = [...new Set([...MEAT].filter((token) => heard(text, token)).map(meatKey))];
-  if (meats.length && lineMeats.length && meats.some((token) => !lineMeats.includes(token))) return false;
+  const meats = request.content.filter((token) => MEAT.has(token));
+  if (meats.length) {
+    const onLine = lineModifierIds(line, menu);
+    const covered = meats.every((token) => {
+      const ids = optionIdsForSpoken(menu, token);
+      if (ids.size && [...ids].some((id) => onLine.has(id))) return true;
+      const aliasRows = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => fold(alias) === token));
+      if (aliasRows.length) return aliasRows.some((row) => fold(row.name).split(" ").some((word) => word.length >= 4 && heard(text, word)));
+      return heard(text, token);
+    });
+    if (!covered) return false;
+  }
   const styles = request.content.filter((token) => DISH_STYLE.has(token) || token === "aceite");
   if (styles.some((token) => !styleHeard(token, text))) return false;
   if (request.size && sizeOf(text) !== request.size) return false;
@@ -1186,10 +1241,10 @@ function coveredByFamily(
   cart: Array<{ itemId: string; quantity?: number; modifiers?: Array<{ option?: string }> }>,
   menu: IntentMenuItem[],
 ): Set<number> {
-  const pools = cart.map((line) => ({ text: lineText(line, menu), left: Number(line.quantity) || 1 })).filter((pool) => pool.text);
+  const pools = cart.map((line) => ({ line, text: lineText(line, menu), left: Number(line.quantity) || 1 })).filter((pool) => pool.text);
   const covered = new Set<number>();
   requests.forEach((request, index) => {
-    const matches = pools.filter((pool) => pool.left > 0 && lineMatches(request, pool.text as string));
+    const matches = pools.filter((pool) => pool.left > 0 && lineMatches(request, pool.line, menu));
     if (matches.reduce((sum, pool) => sum + pool.left, 0) < request.quantity) return;
     let need = request.quantity;
     for (const pool of matches) {

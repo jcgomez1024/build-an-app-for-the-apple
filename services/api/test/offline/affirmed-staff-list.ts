@@ -4,7 +4,7 @@ import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { reconcileCountedRequests, resolveConversationIntent } from "../../src/conversation-intent.ts";
 import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
-import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, reconcileSpokenExtras, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
@@ -287,10 +287,46 @@ applyDishScopedParts(alLado, [
   { speaker: "caller", text: "La de al lado de la horchata." },
 ], menu);
 check("al-lado-de-resolves-the-other-agua", alLado.length === 1 && alLado[0].itemId === otherAgua[0].id && alLado[0].quantity === 2 && !alLado.some((line) => /horchata/i.test(String(line.itemId))), JSON.stringify(alLado));
+const qCorn = groupOption(quesadilla, /tortilla/i, /comal/i);
+const qSteak = groupOption(quesadilla, /carne|meat/i, /bistec|steak/i);
+const qBeans = groupOption(quesadilla, /con \/ with/i, /frijol|bean/i);
+function extraGate(turns: Array<{ speaker: string; text: string }>, modifiers: any[]) {
+  const cart = [{ itemId: quesadilla.id, quantity: 1, modifiers: modifiers.map((mod) => ({ ...mod })), elviNotes: [] as string[] }];
+  const unnamed = reconcileSpokenExtras(cart, turns, menu);
+  const gate = gateTicketAcceptance({ requestedPhase: "final", validation: unnamed.length ? "unresolved" : "clear", reviewReason: unnamed.length ? `confirmar ${unnamed.join(", ")}` : null, cart });
+  return { cart, unnamed, gate };
+}
+for (const [name, turns, seeded, expectBeans, expectHold] of [
+  ["modifier-applied-is-final", [{ speaker: "caller", text: "One quesadilla with beans." }], true, true, false],
+  ["modificador-aplicado-queda-final", [{ speaker: "caller", text: "Una quesadilla con frijoles." }], true, true, false],
+  ["modifier-unmappable-holds", [{ speaker: "caller", text: "One quesadilla with glitter." }], false, false, "glitter"],
+  ["modificador-sin-catalogo-queda-en-revision", [{ speaker: "caller", text: "Una quesadilla con purpurina." }], false, false, "purpurina"],
+  ["modifier-withdrawn-is-final-without-it", [{ speaker: "caller", text: "One quesadilla with beans." }, { speaker: "caller", text: "Without beans." }], true, false, false],
+  ["modificador-retirado-queda-final-sin-el", [{ speaker: "caller", text: "Una quesadilla con frijoles." }, { speaker: "caller", text: "Sin frijoles." }], true, false, false],
+] as const) {
+  const result = extraGate(turns as any, [qCorn, qSteak, ...(seeded && qBeans ? [qBeans] : [])]);
+  const hasBeans = (result.cart[0].modifiers || []).some((mod: any) => /frijol|bean/i.test(String(mod.option || "")));
+  const held = expectHold ? result.gate.phase === "review" && String(result.gate.reviewReason || "").includes(String(expectHold)) : result.gate.phase === "final" && !result.unnamed.length;
+  check(name, held && hasBeans === expectBeans, JSON.stringify({ phase: result.gate.phase, reason: result.gate.reviewReason, mods: result.cart[0].modifiers, unnamed: result.unnamed }));
+}
+const riceEn = extraGate([{ speaker: "caller", text: "One quesadilla and a side of rice." }], [qCorn, qSteak]);
+const riceEs = extraGate([{ speaker: "caller", text: "Una quesadilla y un lado de arroz." }], [qCorn, qSteak]);
+const ricePresent = (cart: any[]) => cart.some((line) => /sq-sides-arroz-rice-26S6E6/.test(String(line.itemId)));
+check("side-ordered-is-present-or-held", (ricePresent(riceEn.cart) && riceEn.gate.phase === "final") || (riceEn.gate.phase === "review" && /rice/.test(String(riceEn.gate.reviewReason || ""))), JSON.stringify({ phase: riceEn.gate.phase, reason: riceEn.gate.reviewReason, ids: riceEn.cart.map((line) => line.itemId) }));
+check("lado-pedido-esta-o-queda-en-revision", (ricePresent(riceEs.cart) && riceEs.gate.phase === "final") || (riceEs.gate.phase === "review" && /arroz/.test(String(riceEs.gate.reviewReason || ""))), JSON.stringify({ phase: riceEs.gate.phase, reason: riceEs.gate.reviewReason, ids: riceEs.cart.map((line) => line.itemId) }));
 const countedMissing = reconcileCountedRequests([], [{ speaker: "caller", text: "Tres tacos de bistec." }], menu);
 check("missing-spoken-count-holds", countedMissing.reviewReason === "revisar pedido contado" && countedMissing.lines.length === 0, JSON.stringify(countedMissing));
 const countedPresent = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: [tacoBistec] }], [{ speaker: "caller", text: "Tres tacos de asada de bistec." }], menu);
 check("same-meat-two-words-are-covered", countedPresent.reviewReason !== "revisar pedido contado", JSON.stringify(countedPresent));
+const bistecOption = (taco.modifierGroups || []).flatMap((group: any) => group.options || []).find((option: any) => option?.name === "Bistec / Steak");
+const optionAliases = JSON.parse(readFileSync(new URL("../../data/option-aliases.json", import.meta.url), "utf8"));
+const asadaRow = (optionAliases.options || []).find((row: any) => row.optionId === bistecOption?.id);
+check("asada-alias-is-the-bistec-option-id", !!bistecOption?.id && asadaRow?.name === "Bistec / Steak" && (asadaRow.aliases || []).includes("asada") && !(optionAliases.options || []).some((row: any) => (row.aliases || []).includes("pastor") || (row.aliases || []).includes("chicken")), JSON.stringify({ id: bistecOption?.id, row: asadaRow }));
+const asadaOnly = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: [tacoBistec] }], [{ speaker: "caller", text: "Tres tacos de asada." }], menu);
+check("asada-option-id-covers-spoken-asada", asadaOnly.reviewReason !== "revisar pedido contado", JSON.stringify(asadaOnly));
+const tacoPollo = groupOption(taco, /carne|meat/i, /pollo|chicken/i);
+const asadaOnPollo = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: tacoPollo ? [tacoPollo] : [] }], [{ speaker: "caller", text: "Tres tacos de asada." }], menu);
+check("asada-does-not-cover-a-different-meat", !!tacoPollo && asadaOnPollo.reviewReason === "revisar pedido contado", JSON.stringify(asadaOnPollo));
 const countedRestated = reconcileCountedRequests([{ itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 3, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }], [
   { speaker: "caller", text: "Tres quesadillas de aceite de bistec." },
   { speaker: "caller", text: "Dame las tres, tres quesadillas nada más." },
@@ -585,14 +621,27 @@ Promise.all([
     { speaker: "caller", text: "One street chicken taco." },
     { speaker: "caller", text: "Add two homemade comal steak tacos and change the earlier taco." },
   ]);
-  check("unspecified-change-does-not-add-yet", (compound.cart || []).filter((line: any) => /taco/i.test(String(line.itemId))).length === 1, JSON.stringify((compound.cart || []).map((line: any) => `${line.quantity} ${line.itemId}`)));
+  const optionText = (line: any) => (line.modifiers || []).map((modifier: any) => modifier.option).join(" ");
+  const chickenLine = (compound.cart || []).find((line: any) => /pollo|chicken/i.test(optionText(line)));
+  const addedLine = (compound.cart || []).find((line: any) => /bistec|steak/i.test(optionText(line)));
+  const compoundReply = ((compound.steps || []).filter((step: any) => step.source === "conversation-intent").at(-1) || {}).reply || "";
+  check("unspecified-change-adds-and-keeps-the-earlier-line", Number(chickenLine?.quantity) === 1 && Number(addedLine?.quantity) === 2 && /Pollo \/ Chicken/.test(compoundReply) && /\(A\) T Tortilla Options/.test(compoundReply), JSON.stringify({ cart: (compound.cart || []).map((line: any) => `${line.quantity} ${optionText(line)}`), reply: compoundReply }));
   const settled = await flow([
     { speaker: "caller", text: "One street chicken taco." },
     { speaker: "caller", text: "Add two homemade comal steak tacos and change the earlier taco." },
     { speaker: "caller", text: "Leave the earlier taco exactly as it was; only add those two homemade comal steak tacos." },
   ]);
   const settledTacos = (settled.cart || []).filter((line: any) => /taco/i.test(String(line.itemId)));
-  check("leave-earlier-then-adds-the-new-line", settledTacos.length === 2 && settledTacos.some((line: any) => Number(line.quantity) === 2), JSON.stringify(settledTacos.map((line: any) => line.quantity)));
+  const settledChicken = settledTacos.find((line: any) => /pollo|chicken/i.test(optionText(line)));
+  const settledSteak = settledTacos.find((line: any) => /bistec|steak/i.test(optionText(line)));
+  check("leave-earlier-does-not-add-them-again", settledTacos.length === 2 && Number(settledChicken?.quantity) === 1 && Number(settledSteak?.quantity) === 2, JSON.stringify(settledTacos.map((line: any) => `${line.quantity} ${optionText(line)}`)));
+  const spanish = await flow([
+    { speaker: "caller", text: "Un taco taquero de pollo." },
+    { speaker: "caller", text: "Agrega dos tacos de comal de bistec y cambia el taco anterior." },
+  ]);
+  const spanishChicken = (spanish.cart || []).find((line: any) => /pollo|chicken/i.test(optionText(line)));
+  const spanishSteak = (spanish.cart || []).find((line: any) => /bistec|steak/i.test(optionText(line)));
+  check("cambio-anterior-agrega-y-deja-la-linea", Number(spanishChicken?.quantity) === 1 && Number(spanishSteak?.quantity) === 2, JSON.stringify((spanish.cart || []).map((line: any) => `${line.quantity} ${optionText(line)}`)));
   const intentAdd = resolveConversationIntent({
     transcript: "Leave the earlier taco exactly as it was; only add those two homemade comal steak tacos.",
     language: "en",
