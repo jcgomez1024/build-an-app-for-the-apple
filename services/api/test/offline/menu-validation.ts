@@ -220,7 +220,7 @@ export async function integrationChecks(): Promise<Check[]> {
     {
       id: "shadow-valid-catalog-choices-stay-accepted",
       layer: "integration",
-      ok: valid.validation === "clear" && onMenu(valid) && !valid.reviewReason && !(valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))) && gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, reviewReason: valid.reviewReason, cart: valid.cart }).phase === "final",
+      ok: valid.validation === "clear" && valid.autoAccepted === false && onMenu(valid) && !valid.reviewReason && !(valid.cart || []).some((l: any) => (l.elviNotes || []).some((note: string) => /^confirmar\b/.test(note))) && gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, reviewReason: valid.reviewReason, cart: valid.cart }).phase === "final",
       detail: `validation=${valid.validation} reason=${valid.reviewReason || ""} gate=${gateTicketAcceptance?.({ requestedPhase: "final", autoAccepted: valid.autoAccepted, validation: valid.validation, reviewReason: valid.reviewReason, cart: valid.cart }).phase} lines=${(valid.cart || []).map((l: any) => `${l.itemId}:${l.validation || "ok"}:${(l.elviNotes || []).join("/")}`).join(" ; ")}`,
     },
     {
