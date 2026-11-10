@@ -2241,29 +2241,75 @@ function menuToken(raw: string, vocab: Set<string>): string | null {
   return hits.length === 1 ? hits[0] : null;
 }
 
+function normalizedForms(word: string): string[] {
+  const forms = new Set<string>();
+  const add = (value: string) => {
+    if (value.length < 4 || EXTRA_STOP.has(value) || forms.has(value)) return;
+    forms.add(value);
+    if (value.endsWith("es") && value.length > 5) add(value.slice(0, -2));
+    if (value.endsWith("s") && value.length > 4) add(value.slice(0, -1));
+    if (/(?:ita|ito)$/.test(value) && value.length > 5) {
+      const stem = value.slice(0, -3);
+      add(stem);
+      add(`${stem}a`);
+      add(`${stem}o`);
+      add(`${stem}e`);
+    }
+    for (const part of compoundForms(value)) add(part);
+  };
+  add(plain(word));
+  return [...forms];
+}
+
+function includedText(item: any): string {
+  const chunks: string[] = [];
+  const take = (text: string) => {
+    const parts = String(text || "").split(/comes with\s*:/i);
+    for (let i = 1; i < parts.length; i++) chunks.push(parts[i].split(/your choice|elige/i)[0]);
+  };
+  take(item?.description || "");
+  for (const alias of item?.aliases || []) take(String(alias));
+  return chunks.join(" ");
+}
+
 function cartVocabulary(cart: any[], menu: any[]): Set<string> {
   const present = new Set<string>();
   const add = (text: string) => {
-    for (const word of plain(text).split(" ")) {
-      if (word.length < 4) continue;
-      present.add(word);
-      for (const part of compoundForms(word)) present.add(part);
-    }
+    for (const word of plain(text).split(" ")) for (const form of normalizedForms(word)) present.add(form);
   };
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
     add(item?.name || "");
-    for (const mod of line.modifiers || []) add(String(mod?.option || ""));
+    add(item?.variationName || "");
+    add(item?.readbackName || "");
+    add(includedText(item));
+    for (const mod of line.modifiers || []) {
+      add(String(mod?.step || ""));
+      const selected = String(mod?.option || "");
+      add(selected);
+      const wanted = plain(selected);
+      for (const group of item?.modifierGroups || []) {
+        for (const choice of group.options || []) {
+          const name = optionLabel(choice);
+          const folded = plain(name);
+          if (folded && wanted && (folded === wanted || folded.startsWith(wanted) || wanted.startsWith(folded))) add(name);
+        }
+      }
+    }
     for (const note of line.elviNotes || []) add(String(note));
   }
   return present;
+}
+
+function alreadyPresent(token: string, present: Set<string>): boolean {
+  return normalizedForms(token).some((form) => present.has(form));
 }
 
 /** Spoken modifiers and sides. Hold only a menu token that is not already on the cart. The hold is a review reason, not a kitchen note. */
 export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): string[] {
   if (!Array.isArray(cart) || !menu?.length) return [];
   const vocab = menuVocabulary(menu);
-  const present = cartVocabulary(cart, menu);
+  let present = cartVocabulary(cart, menu);
   const unnamed: string[] = [];
   for (const turn of turns) {
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
@@ -2273,21 +2319,23 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       if (bit.withdrawn) {
         const at = unnamed.indexOf(token);
         if (at >= 0) unnamed.splice(at, 1);
+        const spokenForms = new Set(normalizedForms(token));
         for (const line of cart) {
           const item = menu.find((row) => row.id === line.itemId);
           line.modifiers = (line.modifiers || []).filter((mod: any) => {
             const option = plain(String(mod.option || ""));
-            if (!option.split(" ").includes(token)) return true;
+            const optionForms = option.split(" ").flatMap((word) => normalizedForms(word));
+            if (!optionForms.some((form) => spokenForms.has(form))) return true;
             const groups = item?.modifierGroups || [];
             const group = groups.find((entry: any) => plain(entry.name || "") === plain(mod.step || ""))
               || groups.find((entry: any) => (entry.options || []).some((choice: any) => plain(optionLabel(choice)) === option));
             return !group || Number(group.minSelections) >= 1;
           });
         }
-        present.delete(token);
+        present = cartVocabulary(cart, menu);
         continue;
       }
-      if (present.has(token) || unnamed.includes(token)) continue;
+      if (alreadyPresent(token, present) || unnamed.includes(token)) continue;
       unnamed.push(token);
     }
   }

@@ -340,6 +340,23 @@ check("papa-and-pata-stay-distinct", papa.unnamed.length === 0 && pata.unnamed.i
 const tacoPastor = groupOption(taco, /carne|meat/i, /alpastor|pastor/i);
 const pastorCovered = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: tacoPastor ? [tacoPastor] : [] }], [{ speaker: "caller", text: "Tres tacos de pastor." }], menu);
 check("pastor-display-name-covers-alpastor", !!tacoPastor && pastorCovered.reviewReason !== "revisar pedido contado", JSON.stringify(pastorCovered));
+const frijolRefritos = extraGate([{ speaker: "caller", text: "Con frijol." }], [qCorn, qSteak, { step: "(C) Con / With", option: "Frijoles Refritos / Refried Beans" }]);
+check("frijol-on-frijoles-refritos-does-not-hold", frijolRefritos.unnamed.length === 0 && frijolRefritos.gate.phase === "final", JSON.stringify(frijolRefritos.unnamed));
+const frijolCon = extraGate([{ speaker: "caller", text: "Con frijol." }], [qCorn, qSteak, { step: "(C) Con / With", option: "**Con Frijoles / With Beans (+$0.50)" }]);
+check("frijol-on-con-frijoles-does-not-hold", frijolCon.unnamed.length === 0 && frijolCon.gate.phase === "final", JSON.stringify(frijolCon.unnamed));
+const quesoStyle = extraGate([
+  { speaker: "caller", text: "Con queso." },
+  { speaker: "caller", text: "Sin queso." },
+  { speaker: "caller", text: "No, con queso." },
+], [{ step: "(A) Gordita Options", option: "(QGD) Queso Gordita (+$0.50)" }]);
+check("queso-style-already-selected-does-not-hold", quesoStyle.unnamed.length === 0 && quesoStyle.gate.phase === "final" && (quesoStyle.cart[0].modifiers || []).some((mod: any) => /queso/i.test(String(mod.option))), JSON.stringify({ unnamed: quesoStyle.unnamed, mods: quesoStyle.cart[0].modifiers }));
+const described = menu.map((item) => item.id === quesadilla.id ? { ...item, description: `${item.description || ""}\nComes with:\nOnion, cilantro, and lime on the side\nYour choice of salsa: Mild • Medium • Hot` } : item);
+const includedLine = [{ itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, qSteak], elviNotes: [] as string[] }];
+const includedOnion = reconcileSpokenExtras(includedLine, [{ speaker: "caller", text: "One taco with onion." }], described);
+const choiceSalsa = reconcileSpokenExtras(includedLine.map((line) => ({ ...line, modifiers: [...line.modifiers] })), [{ speaker: "caller", text: "One taco with salsa." }], described);
+check("included-onion-does-not-hold", !includedOnion.includes("onion") && choiceSalsa.includes("salsa"), JSON.stringify({ onion: includedOnion, salsa: choiceSalsa }));
+const costillaSpoken = reconcileCountedRequests([{ itemId: "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }] }], [{ speaker: "caller", text: "Una quesadilla de costilla en aceite." }], menu);
+check("spoken-costilla-not-on-the-line-still-holds", costillaSpoken.reviewReason === "revisar pedido contado", JSON.stringify(costillaSpoken));
 const ticket = buildTicketLines(
   [{ name: "Quesadilla", quantity: 1, choices: ["(QST) Quesadilla Taquera / Street Quesadilla"] }],
   [{ itemId: quesadilla.id, quantity: 1, modifiers: [], elviNotes: ["confirmar salsa", "confirmar (B) Q Carnes / Meats"] }],
