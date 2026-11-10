@@ -355,6 +355,57 @@ const includedLine = [{ itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, q
 const includedOnion = reconcileSpokenExtras(includedLine, [{ speaker: "caller", text: "One taco with onion." }], described);
 const choiceSalsa = reconcileSpokenExtras(includedLine.map((line) => ({ ...line, modifiers: [...line.modifiers] })), [{ speaker: "caller", text: "One taco with salsa." }], described);
 check("included-onion-does-not-hold", !includedOnion.includes("onion") && choiceSalsa.includes("salsa"), JSON.stringify({ onion: includedOnion, salsa: choiceSalsa }));
+const pataOption = { step: "extra", option: "EXTRA Pata / Beef Feet (+$3.00)" };
+const papasOption = { step: "filling", option: "Nopales con Papas / Cacti with Potatoes" };
+const papaOnPata = extraGate([{ speaker: "caller", text: "Con papa." }], [qCorn, qSteak, pataOption]);
+const pataOnPapas = extraGate([{ speaker: "caller", text: "Con pata." }], [qCorn, qSteak, papasOption]);
+const papasOnPata = extraGate([{ speaker: "caller", text: "Con papas." }], [qCorn, qSteak, pataOption]);
+check("papa-and-pata-do-not-clear-each-other", papaOnPata.unnamed.length === 0 && pataOnPapas.unnamed.includes("pata") && !pataOnPapas.unnamed.includes("papa") && papasOnPata.unnamed.includes("papas") && !papasOnPata.unnamed.includes("pata"), JSON.stringify({ papaOnPata: papaOnPata.unnamed, pataOnPapas: pataOnPapas.unnamed, papasOnPata: papasOnPata.unnamed }));
+const qgd = { step: "(A) Gordita Options", option: "(QGD) Queso Gordita (+$0.50)" };
+const plainGordita = { step: "(A) Gordita Options", option: "(GD) Gordita" };
+const secondQueso = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [qgd], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaBistec], elviNotes: [] },
+], [{ speaker: "caller", text: "The bistec gordita with queso." }], menu);
+check("queso-for-the-line-without-it-still-holds", secondQueso.includes("queso"), JSON.stringify(secondQueso));
+const catalog = JSON.parse(readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json", "utf8"));
+const doradaDesc = catalog.find((item: any) => item.id === regularDorada)?.description || "";
+const doradaMenu = menu.map((item) => item.id === regularDorada ? { ...item, description: doradaDesc } : item);
+const regularDoradaCart = [{ itemId: regularDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] as string[] }];
+const regularToppings = reconcileSpokenExtras(regularDoradaCart, [
+  { speaker: "caller", text: "A regular dorada with lettuce." },
+  { speaker: "caller", text: "A regular dorada with sour cream." },
+  { speaker: "caller", text: "Una dorada regular con lechuga." },
+  { speaker: "caller", text: "Una dorada regular con crema." },
+], doradaMenu);
+check("regular-dorada-does-not-inherit-deluxe-toppings", ["lettuce", "sour", "lechuga", "crema"].every((word) => regularToppings.includes(word)), JSON.stringify(regularToppings));
+const splitMenu = menu.map((item) => {
+  if (item.id === quesadilla.id) return { ...item, description: "Comes with:\nOnion, cilantro, and lime on the side\nYour choice of salsa: Mild • Medium • Hot" };
+  if (item.id === gordita.id) return { ...item, description: "Comes with:\nLime on the side" };
+  return item;
+});
+const otherLineOnion = reconcileSpokenExtras([
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, qSteak], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [gorditaBistec], elviNotes: [] },
+], [{ speaker: "caller", text: "A gordita with onion." }], splitMenu);
+check("included-on-one-line-does-not-clear-another", otherLineOnion.includes("onion"), JSON.stringify(otherLineOnion));
+const birria = catalog.find((item: any) => item.id === "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD");
+const birriaMenu = menu.some((item) => item.id === birria.id) ? menu.map((item) => item.id === birria.id ? { ...item, description: birria.description } : item) : [...menu, birria];
+const tacoSalsa = reconcileSpokenExtras([
+  { itemId: taco.id, quantity: 1, modifiers: [tacoComal, tacoBistec], elviNotes: [] },
+  { itemId: birria.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "A taco with salsa." }], birriaMenu);
+const birriaSalsa = reconcileSpokenExtras([
+  { itemId: birria.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "Birria with salsa." }], birriaMenu);
+const tacoTortilla = reconcileSpokenExtras([
+  { itemId: taco.id, quantity: 1, modifiers: [tacoBistec], elviNotes: [] },
+  { itemId: birria.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "A taco with tortillas." }], birriaMenu);
+const birriaTortilla = reconcileSpokenExtras([
+  { itemId: birria.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "Birria with tortillas." }], birriaMenu);
+check("birria-inclusions-stay-on-the-birria-line", tacoSalsa.includes("salsa") && !birriaSalsa.includes("salsa") && (tacoTortilla.includes("tortilla") || tacoTortilla.includes("tortillas")) && !birriaTortilla.includes("tortilla") && !birriaTortilla.includes("tortillas"), JSON.stringify({ tacoSalsa, birriaSalsa, tacoTortilla, birriaTortilla }));
 const costillaSpoken = reconcileCountedRequests([{ itemId: "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }] }], [{ speaker: "caller", text: "Una quesadilla de costilla en aceite." }], menu);
 check("spoken-costilla-not-on-the-line-still-holds", costillaSpoken.reviewReason === "revisar pedido contado", JSON.stringify(costillaSpoken));
 const ticket = buildTicketLines(

@@ -2186,9 +2186,16 @@ function optionLabel(option: any): string {
   return typeof option === "string" ? option : option?.name || "";
 }
 
-function spokenBits(text: string): Array<{ token: string; withdrawn: boolean }> {
+function spokenBits(text: string): Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> {
   const words = plain(text).split(" ").filter(Boolean);
-  const found: Array<{ token: string; withdrawn: boolean }> = [];
+  const found: Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> = [];
+  const clauseFrom = (at: number) => {
+    let start = 0;
+    for (let i = at - 1; i >= 0; i--) {
+      if (words[i] === "y" || words[i] === "and" || words[i] === "otra" || words[i] === "otro") { start = i + 1; break; }
+    }
+    return words.slice(start, at + 4).join(" ");
+  };
   for (let i = 0; i < words.length; i++) {
     const cue = words[i];
     const withdrawn = cue === "sin" || cue === "without" || cue === "quita" || cue === "remove";
@@ -2196,11 +2203,11 @@ function spokenBits(text: string): Array<{ token: string; withdrawn: boolean }> 
     if (!EXTRA_INTRO.test(cue) && !withdrawn && !bareNo) continue;
     if (bareNo && !withdrawn) {
       const next = words[i + 1];
-      if (next && next.length >= 4 && !EXTRA_STOP.has(next) && !/^\d/.test(next)) found.push({ token: next, withdrawn: true });
+      if (next && next.length >= 4 && !EXTRA_STOP.has(next) && !/^\d/.test(next)) found.push({ token: next, withdrawn: true, clause: clauseFrom(i), cue });
       continue;
     }
     const token = words.slice(i + 1, i + 4).find((word) => word.length >= 4 && !EXTRA_STOP.has(word) && !/^\d/.test(word));
-    if (token) found.push({ token, withdrawn });
+    if (token) found.push({ token, withdrawn, clause: clauseFrom(i), cue });
   }
   return found;
 }
@@ -2261,66 +2268,105 @@ function normalizedForms(word: string): string[] {
   return [...forms];
 }
 
-function includedText(item: any): string {
+function includedText(item: any, selected: string): string {
   const chunks: string[] = [];
+  const chosen = plain(selected);
   const take = (text: string) => {
     const parts = String(text || "").split(/comes with\s*:/i);
-    for (let i = 1; i < parts.length; i++) chunks.push(parts[i].split(/your choice|elige/i)[0]);
+    for (let i = 1; i < parts.length; i++) {
+      const body = parts[i].split(/your choice|elige/i)[0];
+      for (const row of body.split(/\n/)) {
+        const qualifier = row.match(/\((?:on|para|de)?\s*([^)]+)\)/i);
+        if (qualifier) {
+          const words = plain(qualifier[1]).split(" ").filter((word) => word.length >= 4);
+          if (!words.some((word) => chosen.includes(word))) continue;
+        }
+        chunks.push(row.replace(/\([^)]*\)/g, " "));
+      }
+    }
   };
   take(item?.description || "");
   for (const alias of item?.aliases || []) take(String(alias));
   return chunks.join(" ");
 }
 
-function cartVocabulary(cart: any[], menu: any[]): Set<string> {
+function linePresent(line: any, menu: any[]): Set<string> {
   const present = new Set<string>();
   const add = (text: string) => {
     for (const word of plain(text).split(" ")) for (const form of normalizedForms(word)) present.add(form);
   };
-  for (const line of cart) {
-    const item = menu.find((row) => row.id === line.itemId);
-    add(item?.name || "");
-    add(item?.variationName || "");
-    add(item?.readbackName || "");
-    add(includedText(item));
-    for (const mod of line.modifiers || []) {
-      add(String(mod?.step || ""));
-      const selected = String(mod?.option || "");
-      add(selected);
-      const wanted = plain(selected);
-      for (const group of item?.modifierGroups || []) {
-        for (const choice of group.options || []) {
-          const name = optionLabel(choice);
-          const folded = plain(name);
-          if (folded && wanted && (folded === wanted || folded.startsWith(wanted) || wanted.startsWith(folded))) add(name);
-        }
+  const item = menu.find((row) => row.id === line.itemId);
+  const selected = (line.modifiers || []).map((mod: any) => `${mod?.step || ""} ${mod?.option || ""}`).join(" ");
+  add(item?.name || "");
+  add(item?.nameEs || "");
+  add(item?.variationName || "");
+  add(item?.readbackName || "");
+  add(includedText(item, selected));
+  for (const mod of line.modifiers || []) {
+    add(String(mod?.step || ""));
+    const label = String(mod?.option || "");
+    add(label);
+    const wanted = plain(label);
+    for (const group of item?.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const name = optionLabel(choice);
+        const folded = plain(name);
+        if (folded && wanted && (folded === wanted || folded.startsWith(wanted) || wanted.startsWith(folded))) add(name);
       }
     }
-    for (const note of line.elviNotes || []) add(String(note));
   }
+  for (const note of line.elviNotes || []) add(String(note));
   return present;
+}
+
+function itemBlob(item: any): string {
+  return plain(`${item?.name || ""} ${item?.nameEs || ""} ${item?.id || ""} ${(item?.aliases || []).join(" ")} ${item?.variationName || ""} ${item?.readbackName || ""}`);
+}
+
+function targetLines(clause: string, cart: any[], menu: any[]): any[] {
+  const keys = dishKeysIn(clause);
+  if (!keys.length) return cart;
+  const named = cart.filter((line) => {
+    const item = menu.find((row) => row.id === line.itemId);
+    return !!item && keys.some((key) => new RegExp(`\\b${key}`).test(itemBlob(item)));
+  });
+  return named.length ? named : cart;
+}
+
+function narrowTargets(clause: string, token: string, lines: any[], menu: any[], vocab: Set<string>): any[] {
+  const others = [...new Set(plain(clause).split(" ").map((word) => menuToken(word, vocab)).filter((word): word is string => !!word && word !== token))];
+  let best = lines;
+  for (const word of others) {
+    const hits = lines.filter((line) => alreadyPresent(word, linePresent(line, menu)));
+    if (hits.length && hits.length < best.length) best = hits;
+  }
+  return best;
 }
 
 function alreadyPresent(token: string, present: Set<string>): boolean {
   return normalizedForms(token).some((form) => present.has(form));
 }
 
-/** Spoken modifiers and sides. Hold only a menu token that is not already on the cart. The hold is a review reason, not a kitchen note. */
+/** Spoken modifiers and sides. A hold is for the line that was named, and only when that line does not already have the token. */
 export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): string[] {
   if (!Array.isArray(cart) || !menu?.length) return [];
   const vocab = menuVocabulary(menu);
-  let present = cartVocabulary(cart, menu);
   const unnamed: string[] = [];
   for (const turn of turns) {
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
     for (const bit of spokenBits(turn.text)) {
       const token = menuToken(bit.token, vocab);
       if (!token) continue;
+      let targets = narrowTargets(bit.clause, token, targetLines(bit.clause, cart, menu), menu, vocab);
+      if (bit.cue === "side" || bit.cue === "lado" || bit.cue === "aparte") {
+        const sideLines = cart.filter((line) => alreadyPresent(token, linePresent(line, menu)));
+        if (sideLines.length) targets = sideLines;
+      }
       if (bit.withdrawn) {
         const at = unnamed.indexOf(token);
         if (at >= 0) unnamed.splice(at, 1);
         const spokenForms = new Set(normalizedForms(token));
-        for (const line of cart) {
+        for (const line of targets) {
           const item = menu.find((row) => row.id === line.itemId);
           line.modifiers = (line.modifiers || []).filter((mod: any) => {
             const option = plain(String(mod.option || ""));
@@ -2332,10 +2378,10 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
             return !group || Number(group.minSelections) >= 1;
           });
         }
-        present = cartVocabulary(cart, menu);
         continue;
       }
-      if (alreadyPresent(token, present) || unnamed.includes(token)) continue;
+      const covered = targets.some((line) => alreadyPresent(token, linePresent(line, menu)));
+      if (covered || unnamed.includes(token)) continue;
       unnamed.push(token);
     }
   }
