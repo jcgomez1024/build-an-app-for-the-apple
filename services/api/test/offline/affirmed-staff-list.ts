@@ -430,12 +430,49 @@ const missingAguacate = reconcileSpokenExtras([
   { itemId: guacBurrito.id, quantity: 1, modifiers: [groupOption(guacBurrito, /carne|meat/i, /lengua/i)].filter(Boolean), elviNotes: [] },
   { itemId: cola.id, quantity: 1, modifiers: [], elviNotes: [] },
 ], [{ speaker: "caller", text: "Con aguacate." }], menu);
-check("aguacate-missing-on-the-only-eligible-line-holds", missingAguacate.includes("aguacate"), JSON.stringify(missingAguacate));
-const stillAmbiguous = reconcileSpokenExtras([
-  { itemId: gordita.id, quantity: 1, modifiers: [qgd], elviNotes: [] },
-  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita], elviNotes: [] },
-], [{ speaker: "caller", text: "Con queso." }], menu);
-check("unnamed-extra-already-on-one-of-several-eligible-lines-stays-held", stillAmbiguous.includes("queso"), JSON.stringify(stillAmbiguous));
+check("aguacate-missing-on-the-only-eligible-line-holds", missingAguacate.includes("aguacate") && !(missingAguacate.asks || []).length, JSON.stringify({ held: missingAguacate, asks: missingAguacate.asks }));
+const quesoCart = () => [
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...qgd }], elviNotes: [] as string[] },
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...plainGordita }, { ...gorditaBistec }], elviNotes: [] as string[] },
+];
+const papasCart = () => [
+  { itemId: regularDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] as string[] },
+  { itemId: regularDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, doradaPapas], elviNotes: [] as string[] },
+];
+const chileCart = () => [
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, qSteak], elviNotes: [] as string[] },
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, groupOption(quesadilla, /carne|meat/i, /huevo con chile/i)], elviNotes: [] as string[] },
+];
+const huevoCart = () => [
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaBistec], elviNotes: [] as string[] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaHuevo], elviNotes: [] as string[] },
+];
+const asked = (cart: any[], text: string) => reconcileSpokenExtras(cart, [{ speaker: "caller", text }], menu);
+const quesoAsk = asked(quesoCart(), "Con queso.");
+const papasAsk = asked(papasCart(), "Con papas.");
+const chileAsk = asked(chileCart(), "Con chile.");
+const huevoAsk = asked(huevoCart(), "Con huevo.");
+const asksFor = (result: any) => result.asks || [];
+check("which-dish-question-for-queso-papas-chile-and-huevo",
+  quesoAsk.includes("queso") && papasAsk.includes("papas") && chileAsk.includes("chile") && huevoAsk.includes("huevo")
+  && asksFor(quesoAsk).some((ask: any) => /queso/i.test(ask.question) && /gordita/i.test(ask.question) && /bistec/i.test(ask.question))
+  && asksFor(papasAsk).some((ask: any) => /papas/i.test(ask.question) && /(?:dorada|quesadilla)/i.test(ask.question) && /bistec/i.test(ask.question))
+  && asksFor(chileAsk).some((ask: any) => /chile/i.test(ask.question) && /quesadilla/i.test(ask.question))
+  && asksFor(huevoAsk).some((ask: any) => /huevo/i.test(ask.question) && /gordita/i.test(ask.question)),
+  JSON.stringify({ queso: asksFor(quesoAsk), papas: asksFor(papasAsk), chile: asksFor(chileAsk), huevo: asksFor(huevoAsk) }));
+const pickCart = quesoCart();
+const pickResult = reconcileSpokenExtras(pickCart, [{ speaker: "caller", text: "Con queso." }, { speaker: "caller", text: "La de bistec." }], menu);
+const bothCart = quesoCart();
+const bothResult = reconcileSpokenExtras(bothCart, [{ speaker: "caller", text: "With queso." }, { speaker: "caller", text: "Both." }], menu);
+const noneCart = quesoCart();
+const noneResult = reconcileSpokenExtras(noneCart, [{ speaker: "caller", text: "Con queso." }, { speaker: "caller", text: "Ninguna." }], menu);
+const openCart = quesoCart();
+const openResult = reconcileSpokenExtras(openCart, [{ speaker: "caller", text: "Con queso." }], menu);
+const hasQueso = (line: any) => (line?.modifiers || []).some((mod: any) => /queso/i.test(String(mod.option)));
+check("which-dish-answer-applies-only-the-chosen-line", !pickResult.includes("queso") && hasQueso(pickCart[1]) && hasQueso(pickCart[0]) && pickCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ result: pickResult, asks: pickResult.asks, cart: pickCart }));
+check("which-dish-both-adds-the-missing-line", !bothResult.includes("queso") && bothCart.every(hasQueso) && (bothResult.asks || []).some((ask: any) => ask.resolution === "both"), JSON.stringify({ result: bothResult, cart: bothCart }));
+check("which-dish-none-clears-the-hold", !noneResult.includes("queso") && !hasQueso(noneCart[1]) && (noneResult.asks || []).some((ask: any) => ask.resolution === "none"), JSON.stringify({ result: noneResult, cart: noneCart }));
+check("which-dish-unanswered-stays-held", openResult.includes("queso") && !hasQueso(openCart[1]) && (openResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ result: openResult, asks: openResult.asks, cart: openCart }));
 const cadfShape = reconcileSpokenExtras([
   { itemId: guacBurrito.id, quantity: 1, modifiers: [groupOption(guacBurrito, /size|grande/i, /grande/i), groupOption(guacBurrito, /carne|meat/i, /lengua/i), guacOnBurrito].filter(Boolean), elviNotes: [] },
   { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] },

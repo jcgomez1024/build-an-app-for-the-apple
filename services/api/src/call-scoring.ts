@@ -8190,6 +8190,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (Array.isArray(menuEnd)) noteUnspokenRequiredChoice(cart as any[], origTurns as any, menuEnd as any[]);
   if (Array.isArray(menuEnd)) {
     const unnamed = reconcileSpokenExtras(cart as any[], origTurns as any, menuEnd as any[]);
+    if (unnamed.asks?.length) steps.push({ source: "extra-which", heard: unnamed.asks.map((ask) => ask.token).join(" "), reply: unnamed.asks.map((ask) => ask.question).join(" ") });
     if (unnamed.length && !(steps as any).reviewReason) (steps as any).reviewReason = `confirmar ${unnamed.join(", ")}`;
   }
   const clock = callerReadyTime(origTurns as any);

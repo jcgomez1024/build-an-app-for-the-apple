@@ -2359,7 +2359,8 @@ function presentHasForms(forms: Set<string>, present: Set<string>): boolean {
   return false;
 }
 
-/** Aguacate, avocado, and guacamole are one family when each word is actually in the menu. Plurals, stems, and diminutives use normalizedForms. */
+/** Fixed trio. A word joins the family only when this menu's vocabulary contains it.
+ *  Whole avocado item: sq-extras-aguacate-full-QGR5AQ. Plurals, stems, and diminutives use normalizedForms. */
 const AVOCADO_FAMILY = ["aguacate", "avocado", "guacamole"];
 
 function familyWords(token: string, vocab: Set<string>): string[] {
@@ -2410,13 +2411,84 @@ function anaphorTargets(clause: string, token: string, previous: string, cart: a
   return distinguished.length === 1 ? distinguished : "hold";
 }
 
-/** Spoken modifiers and sides. A hold is for the line that was named, and only when that line does not already have the token. */
-export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): string[] {
-  if (!Array.isArray(cart) || !menu?.length) return [];
+export type ExtraAsk = { token: string; question: string; language: "es" | "en"; resolution: "applied" | "both" | "none" | "hold" };
+export type SpokenExtraResult = string[] & { asks: ExtraAsk[] };
+
+function labelWords(line: any, menu: any[]): string[] {
+  const item = menu.find((row) => row.id === line.itemId);
+  const text = `${item?.name || ""} ${item?.nameEs || ""} ${(line.modifiers || []).map((mod: any) => `${mod?.option || ""}`).join(" ")}`;
+  return [...new Set(plain(text).split(" ").filter((word) => word.length >= 4 && !EXTRA_STOP.has(word)))];
+}
+
+function dishLanguage(text: string): "es" | "en" {
+  const spoken = plain(text);
+  if (/\b(?:with|the|please|and)\b/.test(spoken) && !/\b(?:con|por|favor)\b/.test(spoken)) return "en";
+  return "es";
+}
+
+function dishPhrase(line: any, menu: any[], eligible: any[], language: "es" | "en"): string {
+  const item = menu.find((row) => row.id === line.itemId);
+  const base = plain(`${item?.name || ""}`).split(" ").find((word) => word.length >= 4) || "platillo";
+  const shared = new Set(eligible.filter((other) => other !== line).flatMap((other) => labelWords(other, menu)));
+  const hint = labelWords(line, menu).find((word) => !shared.has(word) && word !== base);
+  if (language === "en") return hint ? `the ${hint} ${base}` : `the ${base}`;
+  return hint ? `la ${base} de ${hint}` : `la ${base}`;
+}
+
+function whichDishQuestion(token: string, eligible: any[], menu: any[], language: "es" | "en"): string {
+  const names = eligible.map((line) => dishPhrase(line, menu, eligible, language));
+  return language === "en"
+    ? `Which dish gets the ${token}: ${names.join(" or ")}?`
+    : `¿En cuál va el ${token}: ${names.join(" o ")}?`;
+}
+
+function choiceAttempt(text: string): boolean {
+  const words = plain(text).split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 6 && spokenBits(text).length === 0;
+}
+
+function answerChoice(text: string, eligible: any[], menu: any[]): "both" | "none" | any | null {
+  const spoken = plain(text).replace(/\s+/g, " ").trim();
+  if (/^(?:both(?:\s+of\s+them)?|all(?:\s+of\s+them)?|las\s+dos|los\s+dos|ambas|ambos|todas|todos)$/.test(spoken)) return "both";
+  if (/^(?:none|neither|ninguna|ninguno|nada)$/.test(spoken)) return "none";
+  const words = new Set(spoken.split(" ").filter((word) => word.length >= 4));
+  const hits = eligible.filter((line) => {
+    const shared = new Set(eligible.filter((other) => other !== line).flatMap((other) => labelWords(other, menu)));
+    return labelWords(line, menu).some((word) => words.has(word) && !shared.has(word));
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function placeExtra(line: any, forms: Set<string>, menu: any[]): boolean {
+  if (presentHasForms(forms, linePresent(line, menu))) return true;
+  const item = menu.find((row) => row.id === line.itemId);
+  if (!item) return false;
+  const groups: Array<{ name: string; option: string; max: number }> = [];
+  for (const group of item.modifierGroups || []) {
+    const hits = (group.options || []).map((choice: any) => optionLabel(choice)).filter((name: string) => textHasForms(name, forms));
+    if (hits.length === 1) groups.push({ name: group.name, option: hits[0], max: Number(group.maxSelections) || 0 });
+  }
+  const selected = groups.find((group) => (line.modifiers || []).some((mod: any) => plain(mod?.step || "") === plain(group.name)));
+  const pick = selected || (groups.length === 1 ? groups[0] : null);
+  if (!pick) return false;
+  const mods = line.modifiers || (line.modifiers = []);
+  const at = mods.findIndex((mod: any) => plain(mod?.step || "") === plain(pick.name));
+  if (at >= 0 && pick.max === 1) mods[at] = { step: pick.name, option: pick.option };
+  else if (!mods.some((mod: any) => textHasForms(String(mod?.option || ""), forms))) mods.push({ step: pick.name, option: pick.option });
+  return presentHasForms(forms, linePresent(line, menu));
+}
+
+/** Spoken modifiers and sides. A hold is for the line that was named, and only when that line does not already have the token.
+ *  Several eligible lines produce a which-dish question. The extra is applied only after the caller picks. */
+export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): SpokenExtraResult {
+  const asks: ExtraAsk[] = [];
+  const finish = (unnamed: string[]): SpokenExtraResult => Object.assign(unnamed, { asks });
+  if (!Array.isArray(cart) || !menu?.length) return finish([]);
   const vocab = menuVocabulary(menu);
   const unnamed: string[] = [];
   let previousCaller = "";
-  for (const turn of turns) {
+  for (let turnIndex = 0; turnIndex < turns.length; turnIndex++) {
+    const turn = turns[turnIndex];
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
     for (const bit of spokenBits(turn.text)) {
       const token = menuToken(bit.token, vocab);
@@ -2461,11 +2533,29 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       const eligible = targets.filter((line) => lineCouldTake(line, forms, menu));
       const covered = lineScoped ? targets.some(has) : eligible.length === 0 ? !synonym : eligible.every(has);
       if (covered || unnamed.includes(token)) continue;
+      if (!lineScoped && eligible.length > 1) {
+        const language = dishLanguage(turn.text);
+        const question = whichDishQuestion(token, eligible, menu, language);
+        const later: Turn[] = [];
+        for (let i = turnIndex + 1; i < turns.length && later.length < 2; i++) {
+          if (turns[i].speaker === "caller" && !/[?¿]/.test(turns[i].text)) later.push(turns[i]);
+        }
+        let choice: "both" | "none" | any | null = null;
+        if (later[0] && choiceAttempt(later[0].text)) choice = answerChoice(later[0].text, eligible, menu);
+        if (!choice && later[0] && choiceAttempt(later[0].text) && later[1] && choiceAttempt(later[1].text)) choice = answerChoice(later[1].text, eligible, menu);
+        if (choice === "none") { asks.push({ token, question, language, resolution: "none" }); continue; }
+        const chosen = choice === "both" ? eligible.filter((line) => !has(line)) : choice ? [choice] : [];
+        if (chosen.length && chosen.every((line) => placeExtra(line, forms, menu))) {
+          asks.push({ token, question, language, resolution: choice === "both" ? "both" : "applied" });
+          continue;
+        }
+        asks.push({ token, question, language, resolution: "hold" });
+      }
       unnamed.push(token);
     }
     previousCaller = turn.text;
   }
-  return unnamed;
+  return finish(unnamed);
 }
 
 /** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */
