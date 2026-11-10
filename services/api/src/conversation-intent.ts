@@ -708,22 +708,31 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
     const stripped = stripDiscourse(source);
     if (stripped && (stripped !== source || split)) {
       const added = directOrder(input, file, language, stripped);
-      if (added?.actions.length) {
+        if (added?.actions.length) {
         if (split && cart.length) {
           const target = earlierTarget(cart, input.menu, split.change);
+          const addAction = added.actions.find((action) => action.type === "add_item");
+          const held = addAction ? {
+            operation: "add" as const,
+            itemId: addAction.itemId,
+            quantity: addAction.quantity,
+            modifiers: (addAction.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
+            targetIndex: typeof target === "object" ? target.index : null,
+            unresolved: ["requested_change"],
+          } : null;
           if (target === "ambiguous") {
-            const listed = cart.map((line) => describeOwnLine(line, input.menu)).join(" ");
+            const listed = cart.map((line) => (line.modifiers || []).map((modifier) => modifier.option).filter(Boolean).join(", ")).filter(Boolean).join("; ");
             const ask = language === "es"
-              ? ` ¿Cuál línea anterior cambio? ${listed}`
-              : ` Which earlier line should I change? ${listed}`;
-            return remember({ ...added, reply: `${added.reply}${ask}`, pending: null });
+              ? `No cambié la orden. ¿Cuál línea anterior cambio? ${listed}`
+              : `I did not change the order. Which earlier line should I change? ${listed}`;
+            return remember({ kind: "clarify", reply: ask, actions: [], pending: held });
           }
           if (target !== "none") {
-            const named = describeOwnLine(cart[target.index], input.menu);
+            const named = (cart[target.index].modifiers || []).map((modifier) => modifier.option).filter(Boolean).join(", ");
             const note = language === "es"
-              ? ` No cambié la línea anterior porque no dijeron el cambio: ${named}.`
-              : ` I did not change the earlier line because the change was not specified: ${named}.`;
-            return remember({ ...added, reply: `${added.reply}${note}`, pending: null });
+              ? `No cambié la orden. La línea anterior se queda${named ? `: ${named}` : ""}. No dijeron el cambio.`
+              : `I did not change the order. The earlier line stays${named ? `: ${named}` : ""}. The change was not specified.`;
+            return remember({ kind: "clarify", reply: note, actions: [], pending: held });
           }
         }
         return remember({ ...added, pending: null });
@@ -781,8 +790,10 @@ function decideConversationIntent(input: IntentInput): IntentDecision | null {
   if (onlyAdd) {
     const anaphoric = /^(?:those|these|esos|esas)\b/.test(onlyAdd[1]);
     const added = directOrder(input, file, language, onlyAdd[1].replace(/^(?:those|these|esos|esas)\s+/, ""));
+    const earlierStays = /\b(?:leave|deja|dejar)\b/.test(folded) && /\b(?:earlier|anterior|primera|first)\b/.test(folded);
     const addAction = added?.actions.find((action) => action.type === "add_item");
     if (added?.actions.length && addAction) {
+      if (anaphoric && earlierStays) return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
       const onCart = sameSpokenLine(cart, addAction);
       const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
       const priorText = [...(input.history || [])].reverse().find((turn) => turn.role === "customer" || turn.role === "user")?.text || "";
@@ -1150,12 +1161,19 @@ function styleHeard(token: string, text: string): boolean {
   return token === "aceite" && heard(text, "dorada");
 }
 
+function meatKey(token: string): string {
+  if (token === "asada" || token === "steak") return "bistec";
+  if (token === "pastor") return "alpastor";
+  if (token === "chicken") return "pollo";
+  return token;
+}
+
 function lineMatches(request: { content: string[]; size: string | null }, text: string): boolean {
   const family = familyTokens(request.content);
   if (!family.length || !family.some((token) => heard(text, token))) return false;
-  const meats = request.content.filter((token) => MEAT.has(token));
-  const lineMeats = [...MEAT].filter((token) => heard(text, token));
-  if (meats.length && lineMeats.length && meats.some((token) => !heard(text, token))) return false;
+  const meats = [...new Set(request.content.filter((token) => MEAT.has(token)).map(meatKey))];
+  const lineMeats = [...new Set([...MEAT].filter((token) => heard(text, token)).map(meatKey))];
+  if (meats.length && lineMeats.length && meats.some((token) => !lineMeats.includes(token))) return false;
   const styles = request.content.filter((token) => DISH_STYLE.has(token) || token === "aceite");
   if (styles.some((token) => !styleHeard(token, text))) return false;
   if (request.size && sizeOf(text) !== request.size) return false;
@@ -1238,6 +1256,10 @@ export function reconcileCountedRequests(
   const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number; note: string | null }> = [];
   sentences.forEach((sentence, index) => {
     if (sentence.question || isQuestionSentence(sentence.text, file) || isOnlyQuantities(sentence.text)) return;
+    if (/\b(?:next to|beside|other than|al lado de|junto a)\b/.test(sentence.text)) {
+      const before = sentence.text.split(/\b(?:next to|beside|other than|al lado de|junto a)\b/)[0];
+      if (!dishTokens(cleanPhrase(before)).some((token) => !MEAT.has(token) && !TOPPING.has(token))) return;
+    }
     let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
     const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
     if (verb) body = body.slice(verb.length).trim();
@@ -1263,9 +1285,26 @@ export function reconcileCountedRequests(
   const diagnostics: CountedDiagnostic[] = [];
   let hold = false;
   const already = coveredByFamily(open, cart, menu);
+  const addsMore = (phrase: string) => /\b(?:tambien|otra|otro|otras|otros|another|more|plus|adicional|ademas)\b/.test(phrase);
+  for (let index = 0; index < open.length; index++) {
+    if (already.has(index) || addsMore(open[index].phrase)) continue;
+    const family = familyTokens(open[index].content);
+    const earlier = open.findIndex((other, at) => at < index && other.quantity === open[index].quantity && familyTokens(other.content).some((token) => family.includes(token)));
+    if (earlier >= 0 && already.has(earlier)) already.add(index);
+  }
   const working = cart.map((line) => ({ itemId: line.itemId }));
+  const staffDenied = (token: string) => {
+    const stem = token.replace(/s$/, "");
+    if (stem.length < 4) return false;
+    return turns.some((turn) => turn.speaker === "staff" && (new RegExp(`\\bno\\s+hay\\s+${stem}`).test(fold(turn.text)) || new RegExp(`\\b${stem}\\w*\\s+(?:are|is)\\s+unavailable\\b`).test(fold(turn.text))));
+  };
   open.forEach((request, index) => {
     if (already.has(index)) return;
+    if (familyTokens(request.content).some(staffDenied)) {
+      diagnostics.push({ kind: "no-stock", itemIds: [], quantity: request.quantity });
+      hold = true;
+      return;
+    }
     const offMenu = offMenuIds(request, cart, menu);
     const onMenuFamily = cart.some((line) => {
       const text = lineText(line, menu);

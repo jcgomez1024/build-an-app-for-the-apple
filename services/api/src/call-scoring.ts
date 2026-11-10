@@ -2776,7 +2776,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
 
     // carlos1d: "tres tacos taqueros" + "dos de bistec y uno de chorizo" — force TST meat lines when model []
-    if (source.startsWith("caller") && listedMeats(text).length >= 1
+    const deniedDish = staffUnavailable((allStaff || []).map((row: string) => ({ speaker: "staff", text: row })) as any);
+    const orderedNoun = (text.match(/\b(tacos?|quesadillas?|gorditas?|tortas?|burritos?|sopes?|horchatas?)\b/iu) || [])[1] || "";
+    const staffDeniedDish = !!orderedNoun && deniedDish.some((dish) => orderedNoun.replace(/es$|s$/g, "").startsWith(dish.slice(0, 4)) || dish.startsWith(orderedNoun.replace(/es$|s$/g, "").slice(0, 4)));
+    if (!staffDeniedDish && source.startsWith("caller") && listedMeats(text).length >= 1
       && !/\b(?:al\s+rev[eé]s|mejor\s+dicho|comal|aceite|dorad|quesadilla|tienen|hay)\b/iu.test(text)
       && (/\btacos?\b/iu.test(text) || /\btaquer/i.test(text) || /\btaquer/i.test(history.filter((h) => h.role === "customer").slice(-3).map((h) => h.text).join(" ")))
       && !acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)))) {
@@ -8198,6 +8201,12 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   } else {
     const marked = [...origTurns].map((turn, index) => ({ index, speaker: turn.speaker, cue: fulfillmentCue(String(turn.text || "")) })).filter((row) => row.cue).pop();
     if (marked && fulfillment) (steps as any).fulfillmentCue = { turn: marked.index, speaker: marked.speaker, cue: marked.cue };
+  }
+  if (Array.isArray(menuEnd)) {
+    const lateCounted = reconcileCountedRequests(cart as any[], origTurns as any, menuEnd as any[]);
+    if (lateCounted.reviewReason) {
+      if (!(steps as any).reviewReason) (steps as any).reviewReason = lateCounted.reviewReason;
+    } else if ((steps as any).reviewReason === "revisar pedido contado") (steps as any).reviewReason = null;
   }
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);

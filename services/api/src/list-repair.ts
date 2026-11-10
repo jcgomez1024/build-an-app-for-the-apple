@@ -559,10 +559,12 @@ function catalogSpeechTokens(menu: any[]): Set<string> {
   return speech;
 }
 
+const DRINK_LOCATOR = /\b(?:next to|beside|other than|al lado de|junto a)\b/;
+
 function locatesDish(text: string, speech: string): boolean {
-  const at = text.search(/\b(?:next to|beside|other than)\b/);
+  const at = text.search(DRINK_LOCATOR);
   if (at < 0 || !speech) return false;
-  return text.slice(at).split(" ").slice(0, 6).includes(speech);
+  return text.slice(at).split(" ").slice(0, 8).includes(speech);
 }
 
 function inStockItem(item: any): boolean {
@@ -619,7 +621,7 @@ function flavorWasOrdered(turns: Turn[], speech: string): boolean {
     let match: RegExpExecArray | null;
     while ((match = re.exec(text))) {
       const before = text.slice(Math.max(0, match.index - 30), match.index);
-      if (!/\b(?:next to|beside|other than)\b/.test(before)) return true;
+      if (!DRINK_LOCATOR.test(before)) return true;
     }
   }
   return false;
@@ -883,7 +885,7 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
     } else if (!meats.length && counts.length === 1 && counts[0] <= 10 && text.split(" ").length <= 8 && offered && !locatesDish(text, offered.family) && (offered.family === "birria" || (isDrinkProduct(String(menu.find((row) => row.id === offered.itemId)?.name || "")) && !droppedLater(offered.family))) && !/^no\b/.test(text) && !named.some((row) => row.family !== offered.family)) {
       parts.push({ family: offered.family, meat: null, qty: counts[0] || 1, itemId: offered.itemId, sizeSpoken: spokenSizeWords(turn.text).length > 0, turn: i });
       offered = null;
-    } else if (!meats.length && named.length === 1 && named[0].drink && counts.length && text.includes(named[0].family) && !droppedLater(named[0].family)) {
+    } else if (!meats.length && named.length === 1 && named[0].drink && (counts.length || locatesDish(text, named[0].family)) && text.includes(named[0].family) && !droppedLater(named[0].family)) {
       const located = locatesDish(text, named[0].family);
       const family = frescaFamily(menu, menu.find((row) => row.id === named[0].id) || { id: named[0].id, name: named[0].family });
       const others = family.filter((row) => row.id !== named[0].id);
@@ -2263,7 +2265,24 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
         continue;
       }
       const tokens = tokensFor(names, options);
-      if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings)) {
+      const knownDish = keys.some((key) => new RegExp(`^(?:${DISH_WORD})$`).test(key));
+      const callerSentences = turns.filter((turn) => turn.speaker === "caller").map((turn) => plain(turn.text));
+      const itemWords = new Set(plain(`${item?.name || ""} ${item?.id || ""}`).split(" ").filter((word) => word.length >= 4));
+      const optionToken = (name: string) => plain(name).split(" ").filter((word) => word.length >= 5 && !itemWords.has(word));
+      const exactSelected = (line.modifiers || []).map((mod: any) => String(mod.option || "")).filter((option) => options.some((name) => plain(name) === plain(option)));
+      const selectedTokens = new Set(exactSelected.flatMap(optionToken));
+      const sentenceHas = (sentence: string, word: string) => new RegExp(`\\b${word}s?\\b`).test(sentence);
+      const aboutThis = (sentence: string) => {
+        const named = dishKeysIn(sentence);
+        return !named.some((key) => !keys.includes(key));
+      };
+      const spokeThisOption = exactSelected.some((name) => optionToken(name).some((word) => callerSentences.some((sentence) => aboutThis(sentence) && sentenceHas(sentence, word))));
+      const spokeDifferentOption = options.some((name) => {
+        if (exactSelected.some((chosen) => plain(chosen) === plain(name))) return false;
+        return optionToken(name).some((word) => !selectedTokens.has(word) && callerSentences.some((sentence) => aboutThis(sentence) && sentenceHas(sentence, word) && ![...selectedTokens].some((chosen) => sentenceHas(sentence, chosen))));
+      });
+      const meatGroup = /carne|meat|nacho/i.test(String(group.name || ""));
+      if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings) || (!knownDish && meatGroup && spokeThisOption && !spokeDifferentOption)) {
         if (selected.length) {
           const marker = `confirmar ${group.name}`;
           const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));

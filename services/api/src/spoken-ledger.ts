@@ -333,6 +333,15 @@ export function staffUnavailable(turns: T[]): string[] {
     const affirmed = (d: string) => new RegExp(String.raw`\b(?:tengo|tenemos|si\s+hay|hay|todavia\s+hay|queda|quedan)\s+(?:\w+\s+){0,2}` + d.slice(0, 5)).test(win) && !clauses.some((c) => c.includes(d.slice(0, 5)));
     const prev = prev0;
     for (const m of prev.matchAll(/\b(enchiladas?|tacos?\s+al\s+vapor|tamales?|pozole|menudo|mole|chilaquiles|birria|caldo|guisados?|tostadas?|flautas?)\b/g)) out.add(m[1].replace(/s$/, "").replace(/^taco al vapor$/, "tacos al vapor"));
+    const notADish = new Set(["disculpa", "perdon", "sorry", "hoy", "ahora", "nada", "eso", "esto", "aqui", "todavia", "senor", "senora", "problema"]);
+    const addNamed = (word: string) => {
+      const stem = word.replace(/s$/, "");
+      if (!notADish.has(stem) && !notADish.has(word)) out.add(stem);
+    };
+    for (const clause of clauses) {
+      for (const m of clause.matchAll(/\bno\s+hay\s+([a-z]{4,14})\b/g)) addNamed(m[1]);
+      for (const m of clause.matchAll(/\b([a-z]{4,14})\s+(?:are|is)\s+unavailable\b/g)) addNamed(m[1]);
+    }
     // relleno2 (CA8f33ce5): "Chile relleno se me acabaron" — more dishes, said in the staff turn or the ask just before it
     for (const m of prev.matchAll(/\b(chiles?\s+rellenos?|sopes?|huaraches?|ceviche|cocteles?|camarones|tamales?|pambazos?|tlayudas?|alambres?|molcajetes?|fajitas?|chicharron(?:es)?|elotes?|esquites?|champurrado|atole|horchata|jamaica|tamarindo|flan|churros?)\b/g))
       out.add(m[1].replace(/^chiles?\s+rellenos?$/, "chile relleno").replace(/es$/, (e) => (/(?:camarones|chicharrones)$/.test(m[1]) ? "es" : e)).replace(/(?<=[aeiou])s$/, ""));

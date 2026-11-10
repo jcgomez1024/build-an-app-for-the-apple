@@ -1,6 +1,7 @@
 // Affirmed staff lists may add a missing line. They never overwrite or delete a caller line.
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
+import { reconcileCountedRequests, resolveConversationIntent } from "../../src/conversation-intent.ts";
 import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
@@ -279,6 +280,22 @@ applyDishScopedParts(oneOther, [
   { speaker: "caller", text: "The one next to the horchata." },
 ], menu);
 check("one-other-agua-fresca-resolves", oneOther.length === 1 && oneOther[0].itemId === otherAgua[0].id && oneOther[0].quantity === 2 && !oneOther.some((line) => /horchata/i.test(String(line.itemId))), JSON.stringify(oneOther));
+const alLado: any[] = [];
+applyDishScopedParts(alLado, [
+  { speaker: "caller", text: "Dos aguas." },
+  { speaker: "staff", text: "¿La horchata?" },
+  { speaker: "caller", text: "La de al lado de la horchata." },
+], menu);
+check("al-lado-de-resolves-the-other-agua", alLado.length === 1 && alLado[0].itemId === otherAgua[0].id && alLado[0].quantity === 2 && !alLado.some((line) => /horchata/i.test(String(line.itemId))), JSON.stringify(alLado));
+const countedMissing = reconcileCountedRequests([], [{ speaker: "caller", text: "Tres tacos de bistec." }], menu);
+check("missing-spoken-count-holds", countedMissing.reviewReason === "revisar pedido contado" && countedMissing.lines.length === 0, JSON.stringify(countedMissing));
+const countedPresent = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: [tacoBistec] }], [{ speaker: "caller", text: "Tres tacos de asada de bistec." }], menu);
+check("same-meat-two-words-are-covered", countedPresent.reviewReason !== "revisar pedido contado", JSON.stringify(countedPresent));
+const countedRestated = reconcileCountedRequests([{ itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 3, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }], [
+  { speaker: "caller", text: "Tres quesadillas de aceite de bistec." },
+  { speaker: "caller", text: "Dame las tres, tres quesadillas nada más." },
+], menu);
+check("restated-count-is-not-another-order", countedRestated.reviewReason !== "revisar pedido contado", JSON.stringify(countedRestated));
 const manyMenu = [...menu, { id: "sq-drink-agua-fresca-pina-32oz-TEST01", name: "Agua Fresca Pina 32oz", modifierGroups: [] }];
 const many: any[] = [];
 applyDishScopedParts(many, [
@@ -524,7 +541,7 @@ Promise.all([
     { speaker: "caller", text: "Sopes de los normales." },
     { speaker: "caller", text: "De chorizo." },
   ]),
-]).then(([order, closing, denied, sized, ronald, c07, c10, c10order, libra, c11, deliveryAdd, plainAdd, tacoNormal, namedSope]: any[]) => {
+]).then(async ([order, closing, denied, sized, ronald, c07, c10, c10order, libra, c11, deliveryAdd, plainAdd, tacoNormal, namedSope]: any[]) => {
   const cart = order.cart || [];
   const kept = cart.some((line: any) => line.itemId === pepsi.id) && !cart.some((line: any) => line.itemId === coke.id);
   check("wrong-readback-review-reason", kept && order.reviewReason === STAFF_LIST_REVIEW, JSON.stringify({ reviewReason: order.reviewReason, cart }));
@@ -552,5 +569,37 @@ Promise.all([
   check("addon-delivery-is-not-pickup", deliveryAdd.fulfillment !== "PICKUP" && plainAdd.fulfillment !== "PICKUP", JSON.stringify({ delivery: deliveryAdd.fulfillment, plain: plainAdd.fulfillment }));
   check("normal-during-tacos-does-not-add-a-sope", !(tacoNormal.cart || []).some((line: any) => /sope/i.test(String(line.itemId))), JSON.stringify((tacoNormal.cart || []).map((line: any) => line.itemId)));
   check("named-small-sope-still-lands", (namedSope.cart || []).some((line: any) => /sope/i.test(String(line.itemId))), JSON.stringify((namedSope.cart || []).map((line: any) => line.itemId)));
+  const c05 = await evaluateCase(CASES.find((row) => row.id === "C05")!);
+  check("c05-counted-hold-cleared", c05.verdict === "pass" && c05.ticket?.phase === "final" && c05.ticket?.reviewReason == null, JSON.stringify({ phase: c05.ticket?.phase, reason: c05.ticket?.reviewReason, failures: c05.failures }));
+  check("c07-counted-hold-cleared", c07.verdict === "pass" && c07.ticket?.phase === "final" && c07.ticket?.reviewReason == null, JSON.stringify({ phase: c07.ticket?.phase, reason: c07.ticket?.reviewReason, failures: c07.failures }));
+  const c09 = await evaluateCase(CASES.find((row) => row.id === "C09")!);
+  const dip = (c09.observedLines || []).find((line: any) => /elvis|dip/i.test(line.name || ""));
+  check("c09-chorizo-clears-the-meat-hold", c09.verdict === "pass" && (dip?.notes || []).some((note: string) => /Elvis Dip Side/.test(note)) && !(dip?.notes || []).some((note: string) => /Nachos Carne/.test(note)), JSON.stringify(dip));
+  const deniedTaco = await flow([
+    { speaker: "caller", text: "¿Hay tacos?" },
+    { speaker: "staff", text: "No hay tacos." },
+    { speaker: "caller", text: "Entonces quiero un taco taquero de pollo." },
+  ]);
+  check("staff-no-hay-does-not-add-that-dish", !(deniedTaco.cart || []).some((line: any) => /taco/i.test(String(line.itemId))), JSON.stringify((deniedTaco.cart || []).map((line: any) => line.itemId)));
+  const compound = await flow([
+    { speaker: "caller", text: "One street chicken taco." },
+    { speaker: "caller", text: "Add two homemade comal steak tacos and change the earlier taco." },
+  ]);
+  check("unspecified-change-does-not-add-yet", (compound.cart || []).filter((line: any) => /taco/i.test(String(line.itemId))).length === 1, JSON.stringify((compound.cart || []).map((line: any) => `${line.quantity} ${line.itemId}`)));
+  const settled = await flow([
+    { speaker: "caller", text: "One street chicken taco." },
+    { speaker: "caller", text: "Add two homemade comal steak tacos and change the earlier taco." },
+    { speaker: "caller", text: "Leave the earlier taco exactly as it was; only add those two homemade comal steak tacos." },
+  ]);
+  const settledTacos = (settled.cart || []).filter((line: any) => /taco/i.test(String(line.itemId)));
+  check("leave-earlier-then-adds-the-new-line", settledTacos.length === 2 && settledTacos.some((line: any) => Number(line.quantity) === 2), JSON.stringify(settledTacos.map((line: any) => line.quantity)));
+  const intentAdd = resolveConversationIntent({
+    transcript: "Leave the earlier taco exactly as it was; only add those two homemade comal steak tacos.",
+    language: "en",
+    menu,
+    cart: [{ itemId: taco.id, quantity: 1, modifiers: [groupOption(taco, /tortilla/i, /street|taquer|TST/i) || tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec] }],
+    history: [{ role: "customer", text: "Add two homemade comal steak tacos and change the earlier taco." }],
+  });
+  check("leave-earlier-intent-adds", (intentAdd?.actions || []).some((action) => action.type === "add_item" && action.quantity === 2), JSON.stringify(intentAdd));
   if (failures.length) process.exit(1);
 });
