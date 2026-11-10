@@ -244,7 +244,7 @@ export const CASES: OfflineCase[] = [
   },
   {
     id: "C09",
-    title: "Staff-named Elvis dip wins; flavor and catalog size stay unresolved",
+    title: "The other agua fresca is the one we carry; the dip options stay open",
     role: "candidate",
     pageNamedGate: false,
     turns: [
@@ -264,13 +264,15 @@ export const CASES: OfflineCase[] = [
     lines: [
       { label: "shrimp cocktail", match: [/shrimp|camar[oó]n|coctel|cóctel/i], qty: { value: 1, provenance: S } },
       { label: "elvis dip chorizo", match: [/elvis|queso/i, /chorizo/i], qty: { value: 1, provenance: S } },
-      { label: "red drinks", match: [/agua|punch|horchata|jamaica|fresa|strawberry/i], qty: { value: 2, provenance: T } },
+      { label: "jamaica", match: [/jamaica/i], qty: { value: 2, provenance: T } },
     ],
-    absent: [{ label: "strawberry committed mid-sentence", match: /fresa|strawberry/i, provenance: T }],
+    absent: [
+      { label: "strawberry committed mid-sentence", match: /fresa|strawberry/i, provenance: T },
+      { label: "horchata was only the landmark", match: /horchata/i, provenance: T },
+    ],
     unresolved: [
-      { field: "drink-flavor", provenance: "inferred", note: "Relative punch next to horchata. Flavor was not named. Do not assert Jamaica." },
       { field: "drink-32oz", provenance: "catalog-default", note: "Large 32oz is a catalog default, not spoken." },
-      { field: "dip-chips", provenance: "catalog-required", note: "Chips are catalog-required, not spoken." },
+      { field: "dip-chips", provenance: "catalog-required", note: "Chips are catalog-required, not spoken. Carlos approved the other agua fresca on Nov 10 2026, 12:24 PM ET, because the menu has two agua fresca options." },
     ],
   },
   {

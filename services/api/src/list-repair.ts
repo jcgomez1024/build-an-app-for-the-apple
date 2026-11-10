@@ -14,7 +14,16 @@ const NUMW = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one
 const MEATS: Array<[RegExp, string]> = [[/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"], [/\btripas?\b/, "tripa"],
   [/\bcabezas?\b/, "cabeza"], [/\bprensado\b/, "prensado"], [/\blenguas?\b/, "lengua"], [/\bchorizo\b/, "chorizo"], [/\bpollo\b|\bchicken\b/, "pollo"], [/\bcarnitas\b/, "carnitas"],
   [/\bbuche\b/, "buche"], [/\bbirria\b/, "birria"], [/\bdeshebrada\b/, "deshebrada"], [/\bpicadillo\b/, "picadillo"]];
-const meatIn = (p: string) => { let best: [number, string] | null = null; for (const [re, k] of MEATS) { const m = p.match(re); if (m && (!best || (m.index || 0) < best[0])) best = [m.index || 0, k]; } return best?.[1] || null; };
+function scopedFamilyId(id: string): string | null {
+  if (/^sq-qd-/.test(id) || /quesadilla-dorada/.test(id)) return "qd";
+  if (/^sq-quesadilla-/.test(id)) return "quesadilla";
+  if (/^sq-taco-/.test(id)) return "taco";
+  if (/^sq-torta-/.test(id)) return "torta";
+  if (/horchata/i.test(id)) return "horchata";
+  if (/birria/i.test(id) && !/queso-birria/i.test(id)) return "birria";
+  return null;
+}
+const meatIn = (p: string) => { const text = plain(p); let best: [number, string] | null = null; for (const [re, key] of MEATS) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } return best?.[1] || null; };
 type Kind = "taco" | "quesadilla" | "qd";
 const famOf = (k: Kind) => (k === "taco" ? "taco" : "q");
 export const kindOfLine = (l: any): Kind | null => { const id = String(l?.itemId || ""); return /^sq-qd-/.test(id) ? "qd" : /^sq-quesadilla-/.test(id) ? "quesadilla" : /^sq-taco-/.test(id) ? "taco" : null; };
@@ -541,14 +550,11 @@ function catalogSpeechTokens(menu: any[]): Set<string> {
     for (const token of common) freq.set(token, (freq.get(token) || 0) + 1);
   }
   const speech = new Set<string>();
-  for (const [id, common] of commons) {
-    if (!common.length) continue;
-    const idText = plain(id);
-    const named = common.filter((token) => idText.includes(token));
-    const pool = named.length ? named : common;
-    const token = [...pool].sort((a, b) => (freq.get(a)! - freq.get(b)!) || a.length - b.length)[0];
-    speech.add(token);
-    speech.add(token.endsWith("s") ? token.slice(0, -1) : `${token}s`);
+  for (const common of commons.values()) {
+    for (const token of common) {
+      speech.add(token);
+      speech.add(token.endsWith("s") ? token.slice(0, -1) : `${token}s`);
+    }
   }
   return speech;
 }
@@ -559,15 +565,68 @@ function locatesDish(text: string, speech: string): boolean {
   return text.slice(at).split(" ").slice(0, 6).includes(speech);
 }
 
+function inStockItem(item: any): boolean {
+  return item?.soldOut !== true && item?.available !== false && item?.unavailable !== true;
+}
+
+/** Drinks that share the landmark's non-unique name tokens. The flavor word is whatever is left. */
+function frescaFamily(menu: any[], item: any): any[] {
+  if (!item || !inStockItem(item)) return [];
+  const tokens = plain(item.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+  const drinks = menu.filter((row) => row?.id && inStockItem(row) && (isDrinkProduct(String(row.name || "")) || /sq-drink/.test(String(row.id))));
+  const shared = tokens.filter((token) => drinks.some((row) => row.id !== item.id && plain(row.name || "").split(" ").includes(token)));
+  if (!shared.length) return [item];
+  return drinks.filter((row) => shared.every((token) => plain(row.name || "").split(" ").includes(token)));
+}
+
+function flavorToken(item: any, family: any[]): string {
+  const tokens = plain(item?.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+  const shared = new Set(tokens.filter((token) => family.some((row) => row.id !== item.id && plain(row.name || "").split(" ").includes(token))));
+  return tokens.find((token) => !shared.has(token)) || tokens[0] || "drink";
+}
+
+/** A flavor word is a drink-name token that belongs to one in-stock drink. Shared words such as agua are not flavors. */
+function drinkFlavorWords(menu: any[]): Set<string> {
+  const drinks = menu.filter((row) => row?.id && inStockItem(row) && (isDrinkProduct(String(row.name || "")) || /sq-drink/.test(String(row.id))));
+  const freq = new Map<string, number>();
+  for (const row of drinks) {
+    const tokens = [...new Set(plain(row.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word)))];
+    for (const token of tokens) freq.set(token, (freq.get(token) || 0) + 1);
+  }
+  return new Set([...freq.entries()].filter(([, count]) => count === 1).map(([token]) => token));
+}
+
+function unnamedDrinkCount(turns: Turn[], menu: any[]): number | null {
+  const flavors = drinkFlavorWords(menu);
+  let count: number | null = null;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const text = plain(turn.text);
+    const hit = text.match(new RegExp(`\\b(${NUMW})\\s+(?:\\w+\\s+){0,5}(?:drinks?|aguas?)\\b`));
+    if (!hit) continue;
+    if ([...flavors].some((flavor) => new RegExp(`\\b${flavor}s?\\b`).test(hit[0]))) continue;
+    count = numOf(hit[1]) || count;
+  }
+  return count;
+}
+
+function flavorWasOrdered(turns: Turn[], speech: string): boolean {
+  if (!speech) return false;
+  const re = new RegExp(`\\b${speech}s?\\b`, "g");
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const text = plain(turn.text);
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text))) {
+      const before = text.slice(Math.max(0, match.index - 30), match.index);
+      if (!/\b(?:next to|beside|other than)\b/.test(before)) return true;
+    }
+  }
+  return false;
+}
+
 function scopedFamily(line: any): string | null {
-  const id = String(line?.itemId || "");
-  if (/^sq-qd-/.test(id)) return "qd";
-  if (/^sq-quesadilla-/.test(id)) return "quesadilla";
-  if (/^sq-taco-/.test(id)) return "taco";
-  if (/^sq-torta-/.test(id)) return "torta";
-  if (/horchata/i.test(id)) return "horchata";
-  if (/birria/i.test(id) && !/queso-birria|queso birria/i.test(id)) return "birria";
-  return null;
+  return scopedFamilyId(String(line?.itemId || ""));
 }
 
 function nounFamily(noun: string): string | null {
@@ -685,7 +744,7 @@ function variantChoice(menu: any[], family: string, spoken: string): { note: str
 /** A spoken meat, drink, or count stays on the dish it was said with. A second copy is not a new order. */
 export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): boolean {
   if (!Array.isArray(cart) || !menu?.length) return false;
-  type Part = { family: string; meat: string | null; qty: number; deluxe?: boolean; bound?: boolean; itemId?: string; sizeSpoken?: boolean; turn?: number };
+  type Part = { family: string; meat: string | null; qty: number; deluxe?: boolean; bound?: boolean; itemId?: string; sizeSpoken?: boolean; turn?: number; hold?: boolean };
   const sizeWord = /^(?:grande|large|chica|chico|small|media|medio|half|ounce|onzas?|ounces)$/;
   const nameTokens = (value: string) => plain(value).split(" ").filter((word) => word.length >= 4 && !sizeWord.test(word) && !/^\d/.test(word));
   const frequency = new Map<string, number>();
@@ -825,23 +884,20 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
       parts.push({ family: offered.family, meat: null, qty: counts[0] || 1, itemId: offered.itemId, sizeSpoken: spokenSizeWords(turn.text).length > 0, turn: i });
       offered = null;
     } else if (!meats.length && named.length === 1 && named[0].drink && counts.length && text.includes(named[0].family) && !droppedLater(named[0].family)) {
-      let chosen = named[0];
-      let drinkQty = counts[counts.length - 1] || 1;
-      const located = locatesDish(text, chosen.family);
-      if (located) {
-        const aguas = menu.filter((row) => row.id !== chosen.id && /\bagua\b/.test(plain(row.name || "")) && /\bfresca\b/.test(plain(row.name || "")));
-        const counted = turns.slice(0, i + 1).map((row) => row.speaker === "caller" ? plain(row.text) : "").map((said) => said.match(new RegExp(`\\b(${NUMW})\\s+(?:\\w+\\s+){0,4}(?:drinks?|aguas?)\\b`))).filter(Boolean).pop();
-        if (aguas.length === 1) {
-          const sibling = aguas[0];
-          const flavor = plain(sibling.name || "").split(" ").find((word) => word.length >= 4 && !["agua", "fresca", "32oz"].includes(word)) || "drink";
-          locatedLandmarks.add(chosen.id);
-          chosen = { ...chosen, id: sibling.id, family: flavor };
-          if (counted) drinkQty = numOf(counted[1]) || drinkQty;
-        } else {
-          chosen = null as any;
-        }
+      const located = locatesDish(text, named[0].family);
+      const family = frescaFamily(menu, menu.find((row) => row.id === named[0].id) || { id: named[0].id, name: named[0].family });
+      const others = family.filter((row) => row.id !== named[0].id);
+      const counted = unnamedDrinkCount(turns.slice(0, i + 1), menu);
+      const drinkQty = located ? (counted || counts[counts.length - 1] || 1) : (counts[counts.length - 1] || 1);
+      if (located && others.length === 1) {
+        const sibling = others[0];
+        parts.push({ family: flavorToken(sibling, family), meat: null, qty: drinkQty, itemId: sibling.id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+        if (!flavorWasOrdered(turns, named[0].family)) locatedLandmarks.add(named[0].id);
+      } else if (located && others.length >= 2) {
+        parts.push({ family: named[0].family, meat: null, qty: drinkQty, itemId: named[0].id, hold: true, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+      } else {
+        parts.push({ family: named[0].family, meat: null, qty: drinkQty, itemId: named[0].id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
       }
-      if (chosen) parts.push({ family: chosen.family, meat: null, qty: drinkQty, itemId: chosen.id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
     }
     offered = null;
   }
@@ -858,17 +914,19 @@ export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): b
   let changed = false;
   const seen = new Set<string>();
   for (const part of parts) {
-    const key = `${part.family}:${part.meat || ""}:${part.qty}`;
+    const key = `${part.family}:${part.itemId || ""}:${part.meat || ""}:${part.qty}`;
     if (seen.has(key)) continue;
     seen.add(key);
     if (part.itemId) {
       const callerText = part.family === "birria" ? birriaVariantText(turns, part.turn ?? 0) : "";
       const variant = part.family === "birria" ? variantChoice(menu, part.family, callerText) : { note: null, itemId: part.itemId };
       const sized = part.family !== "birria" && catalogSizeCount(menu, part.family) > 1 && !part.sizeSpoken;
-      const notes = [variant.note, sized ? "confirmar tamaño" : null].filter(Boolean);
-      const existing = cart.find((line) => scopedFamily(line) === part.family);
+      const notes = [variant.note, sized ? "confirmar tamaño" : null, part.hold ? "confirmar" : null].filter(Boolean);
+      const targetId = variant.itemId || part.itemId;
+      const existing = cart.find((line) => line.itemId === targetId) || cart.find((line) => part.family && scopedFamily(line) === part.family);
       if (existing) {
         if (part.family === "birria" && variant.itemId && existing.itemId !== variant.itemId) { existing.itemId = variant.itemId; changed = true; }
+        if (part.hold && part.qty && Number(existing.quantity) !== part.qty) { existing.quantity = part.qty; changed = true; }
         if (part.family === "birria" && /NHFHDD/.test(String(variant.itemId || existing.itemId || ""))) {
           const kept = (existing.elviNotes || []).filter((note: string) => note !== "confirmar" && note !== "confirmar tamaño");
           if (kept.length !== (existing.elviNotes || []).length) {
@@ -2233,17 +2291,25 @@ function noteAskedExtraTortillas(line: any, item: any, turns: Turn[], keys: stri
   const optionById = (id: string) => (group.options || []).find((choice: any) => choice?.id === id);
   let active: string[] = [];
   let ask: "comal" | "flour" | "unspecified" | null = null;
-  for (const turn of turns) {
-    const named = dishKeysIn(normalizeSpoken(turn.text));
-    if (turn.speaker === "caller" && named.length) active = named;
-    if (turn.speaker !== "caller") continue;
-    const text = plain(normalizeSpoken(turn.text));
-    if (!/\btortillas?\b/.test(text) || !/\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(text)) continue;
-    const scope = named.length ? named : active;
-    if (keys.length && scope.length && !scope.some((key) => keys.includes(key))) continue;
+  const classify = (text: string) => {
     const comal = /\b(?:comal|homemade)\b/.test(text);
     const flour = /\b(?:harina|flour)\b/.test(text);
-    ask = comal === flour ? "unspecified" : comal ? "comal" : "flour";
+    return comal === flour ? "unspecified" as const : comal ? "comal" as const : "flour" as const;
+  };
+  const inScope = (named: string[]) => {
+    const scope = named.length ? named : active;
+    return !(keys.length && scope.length && !scope.some((key) => keys.includes(key)));
+  };
+  for (let index = 0; index < turns.length; index++) {
+    const turn = turns[index];
+    const named = dishKeysIn(normalizeSpoken(turn.text));
+    if (turn.speaker === "caller" && named.length) active = named;
+    const text = plain(normalizeSpoken(turn.text));
+    const asksMore = /\btortillas?\b/.test(text) && /\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(text);
+    if (turn.speaker === "caller" && asksMore && inScope(named)) ask = classify(text);
+    if (turn.speaker !== "staff" || !asksMore) continue;
+    const reply = turns[index + 1];
+    if (reply?.speaker === "caller" && acceptsReadback(reply.text) && inScope(active)) ask = classify(text);
   }
   if (!ask) return;
   const marker = `confirmar ${group.name}`;
