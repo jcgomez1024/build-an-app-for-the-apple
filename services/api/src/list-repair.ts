@@ -2180,7 +2180,7 @@ function siblingQuantities(cart: any[], menu: any[], keys: string[]): number[] {
 }
 
 const EXTRA_INTRO = /\b(?:con|with|sin|without|extra|side|aparte|lado)\b/;
-const EXTRA_STOP = new Set(["with", "con", "extra", "side", "sides", "aparte", "lado", "double", "todo", "all", "the", "los", "las", "una", "uno", "por", "favor", "please", "and", "mas", "more", "para", "from", "that", "this", "your", "grande", "full", "half", "misma", "mismas", "mismo", "mismos", "same", "opcion", "opciones", "option", "options", "cantidad"]);
+const EXTRA_STOP = new Set(["with", "con", "extra", "side", "sides", "aparte", "lado", "double", "todo", "all", "the", "los", "las", "una", "uno", "por", "favor", "please", "and", "mas", "more", "para", "from", "that", "this", "your", "grande", "full", "half", "misma", "mismas", "mismo", "mismos", "same", "opcion", "opciones", "option", "options", "cantidad", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]);
 
 function optionLabel(option: any): string {
   return typeof option === "string" ? option : option?.name || "";
