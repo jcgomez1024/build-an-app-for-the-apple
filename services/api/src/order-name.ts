@@ -92,9 +92,10 @@ export function nameFromAnswer(text: string): string | null {
   }
   // luke1 (CA661a30): "Mi español es muy mal" / bare "muy mal" — phrase junk, never a name
   if (/\bmi\s+espa[nñ]ol\b/iu.test(s) || /^\s*muy\s+mal\s*[.!]?\s*$/iu.test(s) || /\bes\s+muy\s+mal\b/iu.test(s)) return null;
-  if (rejectedIntroText(s)) return null;
-  const introduced = introName(s);
-  if (introduced) return introduced;
+  if (introLeads(s) && !introName(s)) {
+    const rest = s.replace(/^(?:(?:hi|hey|hello|hola|ah|oh|um|uh|yeah|yes|yep|ok(?:ay)?|bueno|pues|este|s[ií]|no|nop)[,.\s]+)*(?:this\s+is|it'?s|es)\s+/iu, "");
+    if (!/\p{Lu}[\p{L}'’-]+/u.test(rest)) return null;
+  }
   // cabedeb7: trailing "I'm just" / bare Just — never order_name (same junk as And/Dale)
   if (/\bi['’]?m\s+just\b/iu.test(s) || /^\s*just\s*[.!,]?\s*$/iu.test(s)) return null;
   // daryl1 / shannon1 class: "it's for Daryl" / "for Shannon" / "para Luis" → bare name (never "For Daryl")
@@ -844,17 +845,20 @@ const INTRO_NOT_NAME = /^(?:with|the|from|for|at|and|of|in|on|to|a|an|de|del|con
 export function introName(text: string): string | null {
   const m = String(text || "").match(INTRO_CUE);
   if (!m) return null;
-  const rest = m[1].replace(/[.,!?¿¡"“”']/g, " ").replace(/\s+/g, " ").trim();
-  const proper = rest.match(/^(\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?)(?![\p{L}])/u);
+  const rest = m[1].split(/[.,!?¿¡]/)[0].replace(/["“”']/g, " ").replace(/\s+/g, " ").trim();
+  const proper = rest.match(/^(\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?)/u);
   if (!proper) return null;
   const first = proper[1].split(/\s+/)[0];
   if (NOT_NAMES.test(first) || NOT_NAME.test(first) || INTRO_NOT_NAME.test(first)) return null;
   const after = rest.slice(proper[1].length).trim();
-  if (after && !/^(?:please|por favor|gracias|thanks)\b/iu.test(after)) return null;
+  if (/^(?:with|from|de|del|con)\b/iu.test(after)) return null;
   return cleanFullName(proper[1]);
 }
+function introLeads(text: string): boolean {
+  return /^(?:(?:hi|hey|hello|hola|ah|oh|um|uh|yeah|yes|yep|ok(?:ay)?|bueno|pues|este|s[ií]|no|nop)[,.\s]+)*(?:this\s+is|es)\s+(?!para\b)/iu.test(String(text || "").trim());
+}
 export function rejectedIntroText(text: string): boolean {
-  return INTRO_CUE.test(String(text || "")) && !introName(text);
+  return introLeads(text) && !introName(text);
 }
 /** Staff read back a piece of a non-name ("normales" → "Norm", "this is crazy" → "Crazy"). */
 function echoOfNonName(echo: string, turns: Array<{ speaker: string; text: string }>): boolean {
@@ -863,14 +867,13 @@ function echoOfNonName(echo: string, turns: Array<{ speaker: string; text: strin
   return turns.some((t) => t.speaker === "caller" && String(t.text || "").split(/\s+/).some((word) => {
     const w = foldName(word);
     const related = w === e || (w.length > e.length && w.startsWith(e));
-    return related && (NOT_NAMES.test(word) || !/^\p{Lu}/u.test(word) || rejectedIntroText(t.text));
+    return related && (NOT_NAMES.test(word) || rejectedIntroText(t.text));
   }));
 }
 /** "this is Zander" / "soy Osmar Lira" is a guest name. "this is Demi with the Dollar General" is an affiliation — "with" is not a surname, and the phrase is not a pickup name. */
 export function selfIntroName(text: string): string | null {
   const introduced = introName(text);
   if (introduced) return introduced;
-  if (rejectedIntroText(text)) return null;
   let found: string | null = null;
   SELF_NAME.lastIndex = 0;
   for (const m of String(text || "").matchAll(SELF_NAME)) {
@@ -1161,7 +1164,8 @@ export function staffConfirmedName(heard: string, turns?: Array<{ speaker?: stri
 export function snapToKnownName(heard: string | null | undefined, known: Array<string | null | undefined>, turns?: Array<{ speaker?: string; text?: string }> | null): string | null {
   const h = String(heard || "").trim(); if (!h) return null;
   const kept = known.map((k) => (k ? cleanFirstName(k) || String(k).trim() : "")).find(Boolean) || null;
-  if (kept && Array.isArray(turns) && turns.some((t) => rejectedIntroText(String(t?.text || "")))) return kept;
+  const wordFold = (word: string) => foldName(word).replace(/[^a-z]/g, "");
+  if (kept && Array.isArray(turns) && turns.some((t) => rejectedIntroText(String(t?.text || "")) && String(t?.text || "").split(/\s+/).some((word) => wordFold(word) === wordFold(h)))) return kept;
   if (staffConfirmedName(h, turns) && !isFillerLedName(h)) return h;
   for (const k of known) { if (!k) continue; const kf = cleanFirstName(k) || k;
     if (soundsLikeName(h, k)) return k; if (soundsLikeName(h, kf)) return kf; }

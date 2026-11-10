@@ -58,6 +58,7 @@ export function isAck(x: string): boolean {
   const y = nf(x);
   if (!y || /\b(?:quiero|dame|deme|me\s+da|me\s+pone|ponme|ordeno|i'?ll|i\s+want|give\s+me|can\s+i)\b/.test(y)) return false;
   if (/\b(?:\d+|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six)\b/.test(y)) return false;
+  if (!/\b(?:gracias|thanks|thank)\b/.test(y)) return false;
   return /^(?:(?:ah|oh|ok(?:ay)?|bueno|gracias|thanks|thank(?:\s+you)?|vale|sale|perfecto|listo|bye|adios)\s*)+$/.test(y);
 }
 /** A caller turn whose food words are all in the staff's last lines ("Coctel de camarón." after staff "cóctel de camarón"). */

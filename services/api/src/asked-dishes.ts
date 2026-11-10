@@ -44,7 +44,7 @@ export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu:
   const seen = new Set<string>();
   steps.forEach((s, si) => {
     const reply = String(s?.reply || "");
-    if (/\?/.test(reply) && /\b(?:\so\s|\sor\s)\b/i.test(reply)) return;
+    const choice = /\?/.test(reply) && /\b(?:\so\s|\sor\s)\b/i.test(reply);
     if (isAvailQ(String(s?.heard || ""))) return;
     const m = reply.match(/^([^:¿?\n]{3,70}):\s*¿?[^?]*\?/u);
     if (!m || !s.heard) return;
@@ -65,7 +65,7 @@ export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu:
       if (p) modifiers.push({ step: g.name, option: p.option, ...(p.how === "default" ? { isDefault: true } : {}) });
       else notes.push(`confirmar ${g.name}`);
     }
-    cart.push({ itemId: item.id, quantity, modifiers, ...(notes.length ? { elviNotes: notes } : {}), asked: true });
+    cart.push({ itemId: item.id, quantity, modifiers, ...(notes.length ? { elviNotes: notes } : {}), ...(choice ? {} : { asked: true }) });
     steps.push({ source: "asked-dish", heard: String(s.heard).slice(0, 80), item: item.id });
   });
 }

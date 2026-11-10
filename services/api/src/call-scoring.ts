@@ -3714,7 +3714,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || /\b(?:normalmente|usualmente|usually)\b[\s\S]{0,60}\b(?:tortilla\s+)?(?:amarilla|blanca|ma[ií]z|harina|corn|flour)/iu.test(t.text)
         || /\bson\s+de\s+tortilla\s+(?:amarilla|blanca)/iu.test(t.text)
         || (/\btortilla\s+(?:amarilla|blanca)\b/iu.test(t.text) && /\?|¿/.test(t.text) && !ORDER_QTY.test(t.text))) return true;
-      return spokenAvailQ(t.text);
+      return spokenAvailQ(t.text) && /\b(?:hacen|hace|preparan|prepara|sirven|sirve|ofrecen|ofrece|make)\b/iu.test(t.text);
     };
     // jose2: "me pone dos, una de picadillo…" after doradas avail is an order, not bare filler
     const nextIsOrderBare = (nx: CallTurn) => !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\b(?:me\s+)?puede(?:s)?\s+(?:preparar|hacer|dar|poner)\b|\b(?:me\s+)?pone(?:s|r)?\b|\bpon(?:me|ga)\b|\b[oó]rdenes?\b/iu.test(nx.text);
