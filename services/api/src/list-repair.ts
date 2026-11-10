@@ -1,6 +1,6 @@
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
 import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
-import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
+import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -2467,7 +2467,8 @@ function ordinalChoice(text: string, eligible: any[]): any | null {
     [/\b(?:cuarta|cuarto|fourth)\b/, 3],
   ];
   const hit = ordinals.find(([pattern]) => pattern.test(spoken));
-  return hit ? eligible[hit[1]] || null : null;
+  if (!hit) return null;
+  return eligible[hit[1]] || "past";
 }
 
 function pronounChoice(text: string, eligible: any[], has: (line: any) => boolean): any | null {
@@ -2477,11 +2478,12 @@ function pronounChoice(text: string, eligible: any[], has: (line: any) => boolea
   return missing.length === 1 ? missing[0] : null;
 }
 
-function answerChoice(text: string, eligible: any[], menu: any[], has: (line: any) => boolean): "both" | "none" | any | null {
+function answerChoice(text: string, eligible: any[], menu: any[], has: (line: any) => boolean): "both" | "none" | "past" | any | null {
   const spoken = plain(text).replace(/\s+/g, " ").trim();
   if (/^(?:both(?:\s+of\s+them)?|all(?:\s+of\s+them)?|las\s+dos|los\s+dos|ambas|ambos|todas|todos)$/.test(spoken)) return "both";
   if (/^(?:none|neither|ninguna|ninguno|nada)$/.test(spoken)) return "none";
   const ordinal = ordinalChoice(text, eligible);
+  if (ordinal === "past") return "past";
   if (ordinal) return ordinal;
   const pronoun = pronounChoice(text, eligible, has);
   if (pronoun) return pronoun;
@@ -2500,24 +2502,72 @@ function groupRole(name: string): "meat" | "extra" | "upgrade" {
   return "upgrade";
 }
 
-function placeExtra(line: any, forms: Set<string>, menu: any[]): boolean {
+type ExtraPick = { name: string; option: string; optionId?: string; max: number; role?: "extra" | "upgrade" };
+
+function optionIdOf(choice: any): string | undefined {
+  return choice && typeof choice === "object" && choice.id ? String(choice.id) : undefined;
+}
+
+function findCatalogOption(item: any, match: (name: string) => boolean): ExtraPick | null {
+  for (const group of item?.modifierGroups || []) {
+    for (const choice of group.options || []) {
+      const name = optionLabel(choice);
+      if (!match(name)) continue;
+      return { name: group.name, option: name, optionId: optionIdOf(choice), max: Number(group.maxSelections) || 0 };
+    }
+  }
+  return null;
+}
+
+/** Carlos: taco "con queso" is Con Queso Fresco on top; a quesadilla already has melted cheese, and only extra/más queso adds EXTRA Queso Derretido. */
+function approvedCheese(item: any, clause: string): "covered" | ExtraPick | null {
+  const said = plain(clause);
+  if (!/\b(?:queso|quesito|cheese)\b/.test(said)) return null;
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  const extra = EXPLICIT_EXTRA_MELTED.test(said);
+  if (/quesadilla/.test(name)) {
+    if (!extra) return "covered";
+    return findCatalogOption(item, (option) => /^extra queso derretido \/ melted cheese$/.test(plainOpt(option)));
+  }
+  if ((/\btacos?\b/.test(name) || /sq-taco-/.test(String(item?.id || ""))) && !/dorad/.test(name) && TACO_CON_QUESO.test(said) && !extra) {
+    return findCatalogOption(item, (option) => /^con queso fresco \/ with cheese$/.test(plainOpt(option)));
+  }
+  return null;
+}
+
+function writePick(line: any, pick: ExtraPick, forms: Set<string>): boolean {
+  const mods = line.modifiers || (line.modifiers = []);
+  const next = { step: pick.name, option: pick.option, ...(pick.optionId ? { optionId: pick.optionId } : {}) };
+  const at = mods.findIndex((mod: any) => plain(mod?.step || "") === plain(pick.name));
+  if (at >= 0 && pick.max === 1) mods[at] = next;
+  else if (!mods.some((mod: any) => textHasForms(String(mod?.option || ""), forms))) mods.push(next);
+  return true;
+}
+
+function placeExtra(line: any, forms: Set<string>, menu: any[], clause = ""): boolean {
   if (presentHasForms(forms, linePresent(line, menu))) return true;
   const item = menu.find((row) => row.id === line.itemId);
   if (!item) return false;
-  const unique: Array<{ name: string; option: string; max: number; role: "extra" | "upgrade" }> = [];
+  const approved = approvedCheese(item, clause);
+  if (approved === "covered") return true;
+  if (approved) return writePick(line, approved, forms);
+  const unique: ExtraPick[] = [];
   for (const group of item.modifierGroups || []) {
     const role = groupRole(group.name || "");
     if (role === "meat") continue;
-    const hits = (group.options || []).map((choice: any) => optionLabel(choice)).filter((name: string) => textHasForms(name, forms));
-    if (hits.length === 1) unique.push({ name: group.name, option: hits[0], max: Number(group.maxSelections) || 0, role });
+    const hits = (group.options || []).filter((choice: any) => textHasForms(optionLabel(choice), forms));
+    if (hits.length === 1) unique.push({ name: group.name, option: optionLabel(hits[0]), optionId: optionIdOf(hits[0]), max: Number(group.maxSelections) || 0, role });
   }
   const extras = unique.filter((group) => group.role === "extra");
-  const pick = extras.length === 1 ? extras[0] : extras.length > 1 ? null : unique.length === 1 ? unique[0] : null;
+  const upgrades = unique.filter((group) => group.role === "upgrade");
+  const owned = upgrades.filter((group) => (line.modifiers || []).some((mod: any) => plain(mod?.step || "") === plain(group.name)));
+  const pick = extras.length && upgrades.length
+    ? (owned.length === 1 ? owned[0] : null)
+    : extras.length === 1 ? extras[0]
+    : upgrades.length === 1 ? upgrades[0]
+    : null;
   if (!pick) return false;
-  const mods = line.modifiers || (line.modifiers = []);
-  const at = mods.findIndex((mod: any) => plain(mod?.step || "") === plain(pick.name));
-  if (at >= 0 && pick.max === 1) mods[at] = { step: pick.name, option: pick.option };
-  else if (!mods.some((mod: any) => textHasForms(String(mod?.option || ""), forms))) mods.push({ step: pick.name, option: pick.option });
+  writePick(line, pick, forms);
   return presentHasForms(forms, linePresent(line, menu));
 }
 
@@ -2590,11 +2640,11 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
         for (const attempt of later) {
           if (!choiceAttempt(attempt.text)) continue;
           const picked = answerChoice(attempt.text, eligible, menu, has);
-          if (picked) { choice = picked; break; }
+          if (picked && picked !== "past") { choice = picked; break; }
         }
         if (choice === "none") { asks.push({ token, question, language, resolution: "none" }); continue; }
         const chosen = choice === "both" ? eligible.filter((line) => !has(line)) : choice ? [choice] : [];
-        if (chosen.length && chosen.every((line) => placeExtra(line, forms, menu))) {
+        if (chosen.length && chosen.every((line) => placeExtra(line, forms, menu, turn.text))) {
           asks.push({ token, question, language, resolution: choice === "both" ? "both" : "applied" });
           continue;
         }

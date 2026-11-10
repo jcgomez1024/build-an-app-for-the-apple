@@ -211,6 +211,7 @@ const sayIn = (lang: Lang, text: string) =>
   `<Say language="${sayLocale(lang)}" voice="${SAY_VOICE[lang]}">${xmlEscape(text)}</Say>`;
 /** The <Say> the call handler would speak for an open which-dish question. Shadow carts are not submitted. */
 export function spokenOrderReply(order: { shadow?: boolean; autoAccepted?: boolean; steps?: Array<{ source?: string; spoken?: boolean; reply?: string; language?: string }> } | null | undefined): string | null {
+  if (order?.shadow !== true) return null;
   const step = [...(order?.steps || [])].reverse().find((row) => row?.spoken && row?.source === "extra-which" && row?.reply);
   if (!step?.reply) return null;
   return sayIn(step.language === "en" ? "en" : "es", step.reply);

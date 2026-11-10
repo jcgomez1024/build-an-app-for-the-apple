@@ -6,7 +6,7 @@ import { flagUnresolvedRequired, gateTicketAcceptance, handoffShadowCart, orderV
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, reconcileSpokenExtras, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
-import { buildTicketLines, spokenOrderReply } from "../../src/twilio.ts";
+import { buildTicketLines, registerTwilioRoutes, spokenOrderReply } from "../../src/twilio.ts";
 import { isAck, isAvailQ, staffUnavailable } from "../../src/spoken-ledger.ts";
 import { applyAskedDishes } from "../../src/asked-dishes.ts";
 import { nameFromTranscriptInfo, snapToKnownName } from "../../src/order-name.ts";
@@ -474,8 +474,16 @@ const noneResult = reconcileSpokenExtras(noneCart, answered(quesoAsk, "Con queso
 const openCart = quesoCart();
 const openResult = reconcileSpokenExtras(openCart, [{ speaker: "caller", text: "Con queso." }], menu);
 const hasQueso = (line: any) => (line?.modifiers || []).some((mod: any) => /queso/i.test(String(mod.option)));
-check("which-dish-answer-applies-only-the-chosen-line", !pickResult.includes("queso") && hasQueso(pickCart[1]) && hasQueso(pickCart[0]) && pickCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ result: pickResult, asks: pickResult.asks, cart: pickCart }));
-check("which-dish-both-adds-the-missing-line", !bothResult.includes("queso") && bothCart.every(hasQueso) && (bothResult.asks || []).some((ask: any) => ask.resolution === "both"), JSON.stringify({ result: bothResult, cart: bothCart }));
+const QGD_ID = "WLHGZCJ422ECZZJ6FOCDMD7G";
+const QGD_NAME = "(QGD) Queso Gordita";
+const FRESCO_ID = "4TRCE2IOO7IWI6GPIVVYTKZH";
+const FRESCO_NAME = "**Con Queso Fresco / With Cheese";
+const MELTED_ID = "W2NNG4SDYJBPGBAF4RSEC4VF";
+const MELTED_NAME = "**EXTRA Queso Derretido / Melted Cheese";
+const exactMod = (line: any, id: string, name: string) => (line?.modifiers || []).some((mod: any) => mod.optionId === id && mod.option === name);
+const sideQueso = (line: any) => (line?.modifiers || []).some((mod: any) => /extra side queso|queso derretido|con queso fresco/i.test(String(mod.option || "")));
+check("which-dish-answer-applies-only-the-chosen-line", !pickResult.includes("queso") && exactMod(pickCart[1], QGD_ID, QGD_NAME) && !sideQueso(pickCart[1]) && pickCart[1].modifiers.some((mod: any) => /bistec/i.test(mod.option)) && pickCart[0].modifiers.length === 1 && pickCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ result: pickResult, cart: pickCart }));
+check("which-dish-both-adds-the-missing-line", !bothResult.includes("queso") && exactMod(bothCart[1], QGD_ID, QGD_NAME) && !sideQueso(bothCart[1]) && bothCart[0].modifiers.length === 1 && (bothResult.asks || []).some((ask: any) => ask.resolution === "both"), JSON.stringify({ result: bothResult, cart: bothCart }));
 check("which-dish-none-clears-the-hold", !noneResult.includes("queso") && !hasQueso(noneCart[1]) && (noneResult.asks || []).some((ask: any) => ask.resolution === "none"), JSON.stringify({ result: noneResult, cart: noneCart }));
 check("which-dish-unanswered-stays-held", openResult.includes("queso") && !hasQueso(openCart[1]) && (openResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ result: openResult, asks: openResult.asks, cart: openCart }));
 const esaCart = quesoCart();
@@ -490,13 +498,13 @@ const bothBare = () => [
 const bareAsk = asked(bothBare(), "Con queso.");
 const esaAmbiguous = bothBare();
 const esaHold = reconcileSpokenExtras(esaAmbiguous, answered(bareAsk, "Con queso.", "Esa."), menu);
-check("pronoun-resolves-only-the-one-missing-line", !esaResult.includes("queso") && hasQueso(esaCart[1]) && esaCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !thatResult.includes("queso") && hasQueso(thatCart[1]), JSON.stringify({ esaResult, thatResult, esaCart, thatCart }));
+check("pronoun-resolves-only-the-one-missing-line", !esaResult.includes("queso") && exactMod(esaCart[1], QGD_ID, QGD_NAME) && !sideQueso(esaCart[1]) && esaCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !thatResult.includes("queso") && exactMod(thatCart[1], QGD_ID, QGD_NAME), JSON.stringify({ esaResult, thatResult, esaCart, thatCart }));
 check("pronoun-holds-when-the-referent-is-not-unique", esaHold.includes("queso") && esaAmbiguous.every((line) => !hasQueso(line)), JSON.stringify({ esaHold, esaAmbiguous }));
 const firstCart = quesoCart();
 const firstResult = reconcileSpokenExtras(firstCart, answered(quesoAsk, "Con queso.", "La primera."), menu);
 const secondCart = quesoCart();
 const secondResult = reconcileSpokenExtras(secondCart, answered(thatAsk, "With queso.", "The second one."), menu);
-check("ordinal-follows-the-order-named-in-the-question", !firstResult.includes("queso") && !hasQueso(firstCart[1]) && firstCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !secondResult.includes("queso") && hasQueso(secondCart[1]), JSON.stringify({ firstResult, secondResult, firstCart, secondCart }));
+check("ordinal-follows-the-order-named-in-the-question", !firstResult.includes("queso") && !hasQueso(firstCart[1]) && firstCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !secondResult.includes("queso") && exactMod(secondCart[1], QGD_ID, QGD_NAME) && !sideQueso(secondCart[1]), JSON.stringify({ firstResult, secondResult, firstCart, secondCart }));
 const nadaCart = quesoCart();
 const nadaResult = reconcileSpokenExtras(nadaCart, [
   { speaker: "caller", text: "Con queso." },
@@ -508,7 +516,44 @@ const asideResult = reconcileSpokenExtras(asideCart, answered(quesoAsk, "Con que
 check("off-topic-answer-does-not-add-or-clear-the-extra", nadaResult.includes("queso") && !hasQueso(nadaCart[1]) && asideResult.includes("queso") && !hasQueso(asideCart[1]) && (asideResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ nadaResult, asideResult, nadaCart, asideCart }));
 const retryCart = quesoCart();
 const retryResult = reconcileSpokenExtras(retryCart, answered(quesoAsk, "Con queso.", "Quiero saber si van a abrir mañana temprano por favor", "La de bistec."), menu);
-check("failed-answer-then-retry-applies-the-chosen-line", !retryResult.includes("queso") && hasQueso(retryCart[1]) && retryCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ retryResult, retryCart }));
+check("failed-answer-then-retry-applies-the-chosen-line", !retryResult.includes("queso") && exactMod(retryCart[1], QGD_ID, QGD_NAME) && !sideQueso(retryCart[1]) && retryCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ retryResult, retryCart }));
+const thirdCart = quesoCart();
+const thirdResult = reconcileSpokenExtras(thirdCart, answered(quesoAsk, "Con queso.", "La tercera."), menu);
+const thirdDish = quesoCart();
+const thirdDishResult = reconcileSpokenExtras(thirdDish, answered(quesoAsk, "Con queso.", "La tercera de bistec."), menu);
+check("ordinal-past-the-named-list-stays-held", thirdResult.includes("queso") && thirdDishResult.includes("queso") && !hasQueso(thirdCart[1]) && !exactMod(thirdDish[1], QGD_ID, QGD_NAME) && !sideQueso(thirdDish[1]) && (thirdResult.asks || []).some((ask: any) => ask.resolution === "hold") && (thirdDishResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ thirdResult, thirdDishResult, thirdCart, thirdDish }));
+const failedRetry = quesoCart();
+const failedRetryResult = reconcileSpokenExtras(failedRetry, answered(quesoAsk, "Con queso.", "La gordita.", "La tercera de bistec."), menu);
+check("retry-that-also-fails-stays-held", failedRetryResult.includes("queso") && failedRetryResult.join(", ") === "queso" && !exactMod(failedRetry[1], QGD_ID, QGD_NAME) && !sideQueso(failedRetry[1]) && (failedRetryResult.asks || []).some((ask: any) => ask.token === "queso" && ask.resolution === "hold"), JSON.stringify({ failedRetryResult, failedRetry }));
+const unownedAskCart = () => [
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...gorditaBistec }], elviNotes: [] as string[] },
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...gorditaHuevo }], elviNotes: [] as string[] },
+];
+const unownedAsk = asked(unownedAskCart(), "Con queso.");
+const unownedCart = unownedAskCart();
+const unownedResult = reconcileSpokenExtras(unownedCart, answered(unownedAsk, "Con queso.", "La de bistec."), menu);
+check("gordita-queso-holds-without-a-line-owned-upgrade", unownedResult.includes("queso") && !exactMod(unownedCart[0], QGD_ID, QGD_NAME) && !sideQueso(unownedCart[0]) && (unownedResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ unownedResult, unownedCart }));
+const tacoQueso = () => [
+  { itemId: taco.id, quantity: 1, modifiers: [tacoComal, tacoBistec].filter(Boolean), elviNotes: [] as string[] },
+  { itemId: taco.id, quantity: 1, modifiers: [tacoComal, groupOption(taco, /carne|meat/i, /pollo|chicken/i) || tacoBistec].filter(Boolean), elviNotes: [] as string[] },
+];
+const tacoAsk = asked(tacoQueso(), "Con queso.");
+const tacoPick = tacoQueso();
+const tacoResult = reconcileSpokenExtras(tacoPick, answered(tacoAsk, "Con queso.", "La de bistec."), menu);
+check("taco-con-queso-is-fresco-on-top", !tacoResult.includes("queso") && exactMod(tacoPick[0], FRESCO_ID, FRESCO_NAME) && !tacoPick[0].modifiers.some((mod: any) => /derretido|extra side queso/i.test(String(mod.option))) && tacoPick[0].modifiers.some((mod: any) => /bistec/i.test(mod.option)), JSON.stringify({ tacoResult, mods: tacoPick[0].modifiers }));
+const quesadillaPlain = () => [
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, qSteak], elviNotes: [] as string[] },
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, groupOption(quesadilla, /carne|meat/i, /pollo|chicken/i) || qSteak], elviNotes: [] as string[] },
+];
+const plainBefore = JSON.stringify(quesadillaPlain()[0].modifiers);
+const quesadillaAsk = asked(quesadillaPlain(), "Con queso.");
+const quesadillaPick = quesadillaPlain();
+const quesadillaResult = reconcileSpokenExtras(quesadillaPick, answered(quesadillaAsk, "Con queso.", "La de bistec."), menu);
+check("quesadilla-con-queso-adds-nothing", !quesadillaResult.includes("queso") && JSON.stringify(quesadillaPick[0].modifiers) === plainBefore && (quesadillaResult.asks || []).some((ask: any) => ask.resolution === "applied"), JSON.stringify({ quesadillaResult, mods: quesadillaPick[0].modifiers }));
+const meltedAsk = asked(quesadillaPlain(), "Extra queso.");
+const meltedPick = quesadillaPlain();
+const meltedResult = reconcileSpokenExtras(meltedPick, answered(meltedAsk, "Extra queso.", "La de bistec."), menu);
+check("quesadilla-extra-queso-is-melted", !meltedResult.includes("queso") && exactMod(meltedPick[0], MELTED_ID, MELTED_NAME) && !meltedPick[0].modifiers.some((mod: any) => /extra side queso|con queso fresco/i.test(String(mod.option))), JSON.stringify({ meltedResult, mods: meltedPick[0].modifiers }));
 const chilePick = chileCart();
 const chileAnswered = reconcileSpokenExtras(chilePick, answered(chileAsk, "Con chile.", "La de bistec."), menu);
 const chileMeat = (chilePick[0].modifiers || []).find((mod: any) => /carne|meat/i.test(String(mod.step)));
@@ -976,6 +1021,9 @@ Promise.all([
   const traceRows = readFileSync(replayFile, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
   check("replay-trace-includes-the-full-code-sha", traceRows.some((row) => /^[0-9a-f]{40}$/.test(String(row.codeSha || ""))), JSON.stringify(traceRows[0]?.codeSha));
   const spokenHandoff = handoffShadowCart({ ...spokenOrder, autoAccepted: true, shadow: true, validation: "clear" });
+  const liveQuestion = { steps: [{ source: "extra-which", spoken: true, language: "es", reply: "¿En cuál va el queso: la gordita de bistec?" }] };
+  check("spoken-reply-stays-null-off-a-shadow-order", spokenOrderReply({ ...liveQuestion, shadow: false }) === null && spokenOrderReply(liveQuestion) === null && spokenOrderReply(null) === null, String(spokenOrderReply({ ...liveQuestion, shadow: false })));
+  check("live-routes-do-not-call-spoken-order-reply", !registerTwilioRoutes.toString().includes("spokenOrderReply"));
   check("which-dish-question-is-the-spoken-reply", !!spoken && /<Say\b/.test(spoken) && /queso/i.test(spoken) && !/square|payment-link|checkout/i.test(spoken), spoken || JSON.stringify(spokenOrder?.steps));
   check("spoken-which-dish-stays-off-square-and-kitchen", spokenHandoff.square === null && spokenHandoff.kitchen.autoAccepted === false && spokenOrder?.shadow === true, JSON.stringify({ square: spokenHandoff.square, kitchen: spokenHandoff.kitchen.autoAccepted }));
   let squareError = "";
