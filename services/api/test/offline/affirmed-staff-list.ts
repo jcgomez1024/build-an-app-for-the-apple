@@ -1,12 +1,12 @@
 // Affirmed staff lists may add a missing line. They never overwrite or delete a caller line.
-import { readFileSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { reconcileCountedRequests, resolveConversationIntent } from "../../src/conversation-intent.ts";
 import { flagUnresolvedRequired, gateTicketAcceptance, handoffShadowCart, orderValidation, ticketFromShadow } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, reconcileSpokenExtras, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
-import { buildTicketLines } from "../../src/twilio.ts";
+import { buildTicketLines, spokenOrderReply } from "../../src/twilio.ts";
 import { isAck, isAvailQ, staffUnavailable } from "../../src/spoken-ledger.ts";
 import { applyAskedDishes } from "../../src/asked-dishes.ts";
 import { nameFromTranscriptInfo, snapToKnownName } from "../../src/order-name.ts";
@@ -460,12 +460,17 @@ check("which-dish-question-for-queso-papas-chile-and-huevo",
   && asksFor(chileAsk).some((ask: any) => /chile/i.test(ask.question) && /quesadilla/i.test(ask.question))
   && asksFor(huevoAsk).some((ask: any) => /huevo/i.test(ask.question) && /gordita/i.test(ask.question)),
   JSON.stringify({ queso: asksFor(quesoAsk), papas: asksFor(papasAsk), chile: asksFor(chileAsk), huevo: asksFor(huevoAsk) }));
+const answered = (preview: any, text: string, ...answers: string[]) => [
+  { speaker: "caller", text },
+  { speaker: "staff", text: (preview.asks || [])[0]?.question || "" },
+  ...answers.map((answer) => ({ speaker: "caller", text: answer })),
+];
 const pickCart = quesoCart();
-const pickResult = reconcileSpokenExtras(pickCart, [{ speaker: "caller", text: "Con queso." }, { speaker: "caller", text: "La de bistec." }], menu);
+const pickResult = reconcileSpokenExtras(pickCart, answered(quesoAsk, "Con queso.", "La de bistec."), menu);
 const bothCart = quesoCart();
-const bothResult = reconcileSpokenExtras(bothCart, [{ speaker: "caller", text: "With queso." }, { speaker: "caller", text: "Both." }], menu);
+const bothResult = reconcileSpokenExtras(bothCart, answered(asked(quesoCart(), "With queso."), "With queso.", "Both."), menu);
 const noneCart = quesoCart();
-const noneResult = reconcileSpokenExtras(noneCart, [{ speaker: "caller", text: "Con queso." }, { speaker: "caller", text: "Ninguna." }], menu);
+const noneResult = reconcileSpokenExtras(noneCart, answered(quesoAsk, "Con queso.", "Ninguna."), menu);
 const openCart = quesoCart();
 const openResult = reconcileSpokenExtras(openCart, [{ speaker: "caller", text: "Con queso." }], menu);
 const hasQueso = (line: any) => (line?.modifiers || []).some((mod: any) => /queso/i.test(String(mod.option)));
@@ -473,6 +478,42 @@ check("which-dish-answer-applies-only-the-chosen-line", !pickResult.includes("qu
 check("which-dish-both-adds-the-missing-line", !bothResult.includes("queso") && bothCart.every(hasQueso) && (bothResult.asks || []).some((ask: any) => ask.resolution === "both"), JSON.stringify({ result: bothResult, cart: bothCart }));
 check("which-dish-none-clears-the-hold", !noneResult.includes("queso") && !hasQueso(noneCart[1]) && (noneResult.asks || []).some((ask: any) => ask.resolution === "none"), JSON.stringify({ result: noneResult, cart: noneCart }));
 check("which-dish-unanswered-stays-held", openResult.includes("queso") && !hasQueso(openCart[1]) && (openResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ result: openResult, asks: openResult.asks, cart: openCart }));
+const esaCart = quesoCart();
+const esaResult = reconcileSpokenExtras(esaCart, answered(quesoAsk, "Con queso.", "Esa."), menu);
+const thatCart = quesoCart();
+const thatAsk = asked(quesoCart(), "With queso.");
+const thatResult = reconcileSpokenExtras(thatCart, answered(thatAsk, "With queso.", "That one."), menu);
+const bothBare = () => [
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...plainGordita }, { ...gorditaBistec }], elviNotes: [] as string[] },
+  { itemId: gordita.id, quantity: 1, modifiers: [{ ...plainGordita }, { ...gorditaHuevo }], elviNotes: [] as string[] },
+];
+const bareAsk = asked(bothBare(), "Con queso.");
+const esaAmbiguous = bothBare();
+const esaHold = reconcileSpokenExtras(esaAmbiguous, answered(bareAsk, "Con queso.", "Esa."), menu);
+check("pronoun-resolves-only-the-one-missing-line", !esaResult.includes("queso") && hasQueso(esaCart[1]) && esaCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !thatResult.includes("queso") && hasQueso(thatCart[1]), JSON.stringify({ esaResult, thatResult, esaCart, thatCart }));
+check("pronoun-holds-when-the-referent-is-not-unique", esaHold.includes("queso") && esaAmbiguous.every((line) => !hasQueso(line)), JSON.stringify({ esaHold, esaAmbiguous }));
+const firstCart = quesoCart();
+const firstResult = reconcileSpokenExtras(firstCart, answered(quesoAsk, "Con queso.", "La primera."), menu);
+const secondCart = quesoCart();
+const secondResult = reconcileSpokenExtras(secondCart, answered(thatAsk, "With queso.", "The second one."), menu);
+check("ordinal-follows-the-order-named-in-the-question", !firstResult.includes("queso") && !hasQueso(firstCart[1]) && firstCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)) && !secondResult.includes("queso") && hasQueso(secondCart[1]), JSON.stringify({ firstResult, secondResult, firstCart, secondCart }));
+const nadaCart = quesoCart();
+const nadaResult = reconcileSpokenExtras(nadaCart, [
+  { speaker: "caller", text: "Con queso." },
+  { speaker: "staff", text: "¿Algo más?" },
+  { speaker: "caller", text: "Nada." },
+], menu);
+const asideCart = quesoCart();
+const asideResult = reconcileSpokenExtras(asideCart, answered(quesoAsk, "Con queso.", "¿A qué hora cierran?"), menu);
+check("off-topic-answer-does-not-add-or-clear-the-extra", nadaResult.includes("queso") && !hasQueso(nadaCart[1]) && asideResult.includes("queso") && !hasQueso(asideCart[1]) && (asideResult.asks || []).some((ask: any) => ask.resolution === "hold"), JSON.stringify({ nadaResult, asideResult, nadaCart, asideCart }));
+const retryCart = quesoCart();
+const retryResult = reconcileSpokenExtras(retryCart, answered(quesoAsk, "Con queso.", "Quiero saber si van a abrir mañana temprano por favor", "La de bistec."), menu);
+check("failed-answer-then-retry-applies-the-chosen-line", !retryResult.includes("queso") && hasQueso(retryCart[1]) && retryCart[0].modifiers.some((mod: any) => /queso gordita/i.test(mod.option)), JSON.stringify({ retryResult, retryCart }));
+const chilePick = chileCart();
+const chileAnswered = reconcileSpokenExtras(chilePick, answered(chileAsk, "Con chile.", "La de bistec."), menu);
+const chileMeat = (chilePick[0].modifiers || []).find((mod: any) => /carne|meat/i.test(String(mod.step)));
+const chileExtra = (chilePick[0].modifiers || []).some((mod: any) => /chiles asados/i.test(String(mod.option)));
+check("chile-attaches-to-the-extras-group-not-the-meat", /bistec/i.test(String(chileMeat?.option || "")) && chileExtra && !(chilePick[0].modifiers || []).some((mod: any) => /huevo con chile/i.test(String(mod.option))) && !chileAnswered.includes("chile"), JSON.stringify({ chileAnswered, mods: chilePick[0].modifiers }));
 const cadfShape = reconcileSpokenExtras([
   { itemId: guacBurrito.id, quantity: 1, modifiers: [groupOption(guacBurrito, /size|grande/i, /grande/i), groupOption(guacBurrito, /carne|meat/i, /lengua/i), guacOnBurrito].filter(Boolean), elviNotes: [] },
   { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] },
@@ -916,6 +957,27 @@ Promise.all([
   ] as any, adding as any);
   const emptyAfterAsk = (order: any) => !(order?.cart || []).length && !(order?.cart || []).some((line: any) => line.asked);
   check("availability-then-thanks-leaves-the-cart-empty", emptyAfterAsk(spanishAvail) && emptyAfterAsk(englishAvail), JSON.stringify({ es: spanishAvail?.cart, en: englishAvail?.cart }));
+  const dishRun: any = async (text: string) => {
+    if (/duro/i.test(text)) return { actions: [{ type: "add_item", itemId: gordita.id, quantity: 1, modifiers: [{ ...qgd }] }], reply: "¿Algo más?" };
+    if (/gordita/i.test(text) && /bistec/i.test(text)) return { actions: [{ type: "add_item", itemId: gordita.id, quantity: 1, modifiers: [{ ...plainGordita }, { ...gorditaBistec }] }], reply: "¿Algo más?" };
+    return { actions: [], reply: "¿Algo más?" };
+  };
+  dishRun.menu = () => menu;
+  const replayFile = "/tmp/r62-spoken-replay.jsonl";
+  try { unlinkSync(replayFile); } catch { /* fresh trace */ }
+  process.env.ELVI_REPLAY_ROWS = replayFile;
+  const spokenOrder = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Una gordita de duro con queso.", language: "es" },
+    { speaker: "caller", text: "Y una gordita de bistec.", language: "es" },
+    { speaker: "caller", text: "Con queso.", language: "es" },
+  ] as any, dishRun);
+  delete process.env.ELVI_REPLAY_ROWS;
+  const spoken = spokenOrderReply(spokenOrder);
+  const traceRows = readFileSync(replayFile, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  check("replay-trace-includes-the-full-code-sha", traceRows.some((row) => /^[0-9a-f]{40}$/.test(String(row.codeSha || ""))), JSON.stringify(traceRows[0]?.codeSha));
+  const spokenHandoff = handoffShadowCart({ ...spokenOrder, autoAccepted: true, shadow: true, validation: "clear" });
+  check("which-dish-question-is-the-spoken-reply", !!spoken && /<Say\b/.test(spoken) && /queso/i.test(spoken) && !/square|payment-link|checkout/i.test(spoken), spoken || JSON.stringify(spokenOrder?.steps));
+  check("spoken-which-dish-stays-off-square-and-kitchen", spokenHandoff.square === null && spokenHandoff.kitchen.autoAccepted === false && spokenOrder?.shadow === true, JSON.stringify({ square: spokenHandoff.square, kitchen: spokenHandoff.kitchen.autoAccepted }));
   let squareError = "";
   try { await createCheckout({ shadow: true, cart: [{ itemId: gordita.id, quantity: 1 }], fulfillment: "PICKUP", customer: {} } as any); }
   catch (err) { squareError = err instanceof Error ? err.message : String(err); }

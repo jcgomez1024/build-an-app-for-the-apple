@@ -1,6 +1,7 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
+import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { frozenPhoneMenu, frozenPhoneMenuAllowed } from "./phone-menu.js";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
@@ -997,9 +998,11 @@ function noteReplayRow(order: any, extra: Record<string, unknown>) {
     flagged: [...(affirmedRaw.flagged || [])].map(String),
   };
   const diagnostic = Array.isArray(extra.diagnostic) ? extra.diagnostic.map(String) : [];
+  let codeSha = "";
+  try { codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { codeSha = ""; }
   try {
     appendFileSync(file, JSON.stringify({
-      id, seq: n, phase, reviewReasons, lines, diagnostic, menu, menuMissing, affirmedStaffList,
+      codeSha, id, seq: n, phase, reviewReasons, lines, diagnostic, menu, menuMissing, affirmedStaffList,
       fulfillment: order?.fulfillment || null,
       addressPresent: !!order?.address,
       readyTime: order?.readyTime || null,
@@ -8190,7 +8193,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (Array.isArray(menuEnd)) noteUnspokenRequiredChoice(cart as any[], origTurns as any, menuEnd as any[]);
   if (Array.isArray(menuEnd)) {
     const unnamed = reconcileSpokenExtras(cart as any[], origTurns as any, menuEnd as any[]);
-    if (unnamed.asks?.length) steps.push({ source: "extra-which", heard: unnamed.asks.map((ask) => ask.token).join(" "), reply: unnamed.asks.map((ask) => ask.question).join(" ") });
+    const pendingAsks = (unnamed.asks || []).filter((ask) => ask.resolution === "hold");
+    if (pendingAsks.length) {
+      const reply = pendingAsks.map((ask) => ask.question).join(" ");
+      const language = pendingAsks[0].language;
+      last = { actions: [], reply, language };
+      steps.push({ source: "extra-which", spoken: true, heard: pendingAsks.map((ask) => ask.token).join(" "), language, reply });
+    } else if (unnamed.asks?.length) {
+      steps.push({ source: "extra-which", spoken: true, heard: unnamed.asks.map((ask) => ask.token).join(" "), language: unnamed.asks[0].language, reply: unnamed.asks.map((ask) => ask.question).join(" ") });
+    }
     if (unnamed.length && !(steps as any).reviewReason) (steps as any).reviewReason = `confirmar ${unnamed.join(", ")}`;
   }
   const clock = callerReadyTime(origTurns as any);

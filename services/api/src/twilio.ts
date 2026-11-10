@@ -209,6 +209,12 @@ export const SAY_VOICE: Record<Lang, string> = {
 const sayLocale = (lang: Lang) => (lang === "en" ? "en-US" : "es-MX");
 const sayIn = (lang: Lang, text: string) =>
   `<Say language="${sayLocale(lang)}" voice="${SAY_VOICE[lang]}">${xmlEscape(text)}</Say>`;
+/** The <Say> the call handler would speak for an open which-dish question. Shadow carts are not submitted. */
+export function spokenOrderReply(order: { shadow?: boolean; autoAccepted?: boolean; steps?: Array<{ source?: string; spoken?: boolean; reply?: string; language?: string }> } | null | undefined): string | null {
+  const step = [...(order?.steps || [])].reverse().find((row) => row?.spoken && row?.source === "extra-which" && row?.reply);
+  if (!step?.reply) return null;
+  return sayIn(step.language === "en" ? "en" : "es", step.reply);
+}
 
 /** Pre-generated xAI cloned-voice MP3s (Carlos). <Play> when present; Polly neural <Say> otherwise. */
 const promptsDir = path.join(apiRoot, "data/phone-prompts");

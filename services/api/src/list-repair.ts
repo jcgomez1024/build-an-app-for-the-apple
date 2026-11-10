@@ -2447,10 +2447,44 @@ function choiceAttempt(text: string): boolean {
   return words.length > 0 && words.length <= 6 && spokenBits(text).length === 0;
 }
 
-function answerChoice(text: string, eligible: any[], menu: any[]): "both" | "none" | any | null {
+function questionWasSpoken(turns: Turn[], before: number, question: string): number {
+  const wanted = plain(question).replace(/[¿?]/g, "").trim();
+  if (!wanted) return -1;
+  for (let i = 0; i < before; i++) {
+    if (turns[i].speaker === "caller") continue;
+    const said = plain(turns[i].text).replace(/[¿?]/g, "").trim();
+    if (said.includes(wanted)) return i;
+  }
+  return -1;
+}
+
+function ordinalChoice(text: string, eligible: any[]): any | null {
+  const spoken = plain(text);
+  const ordinals: Array<[RegExp, number]> = [
+    [/\b(?:primera|primero|first)\b/, 0],
+    [/\b(?:segunda|segundo|second)\b/, 1],
+    [/\b(?:tercera|tercero|third)\b/, 2],
+    [/\b(?:cuarta|cuarto|fourth)\b/, 3],
+  ];
+  const hit = ordinals.find(([pattern]) => pattern.test(spoken));
+  return hit ? eligible[hit[1]] || null : null;
+}
+
+function pronounChoice(text: string, eligible: any[], has: (line: any) => boolean): any | null {
+  const spoken = plain(text);
+  if (!/^(?:esa|ese|eso|that(?:\s+one)?|this(?:\s+one)?)$/.test(spoken)) return null;
+  const missing = eligible.filter((line) => !has(line));
+  return missing.length === 1 ? missing[0] : null;
+}
+
+function answerChoice(text: string, eligible: any[], menu: any[], has: (line: any) => boolean): "both" | "none" | any | null {
   const spoken = plain(text).replace(/\s+/g, " ").trim();
   if (/^(?:both(?:\s+of\s+them)?|all(?:\s+of\s+them)?|las\s+dos|los\s+dos|ambas|ambos|todas|todos)$/.test(spoken)) return "both";
   if (/^(?:none|neither|ninguna|ninguno|nada)$/.test(spoken)) return "none";
+  const ordinal = ordinalChoice(text, eligible);
+  if (ordinal) return ordinal;
+  const pronoun = pronounChoice(text, eligible, has);
+  if (pronoun) return pronoun;
   const words = new Set(spoken.split(" ").filter((word) => word.length >= 4));
   const hits = eligible.filter((line) => {
     const shared = new Set(eligible.filter((other) => other !== line).flatMap((other) => labelWords(other, menu)));
@@ -2459,17 +2493,26 @@ function answerChoice(text: string, eligible: any[], menu: any[]): "both" | "non
   return hits.length === 1 ? hits[0] : null;
 }
 
+function groupRole(name: string): "meat" | "extra" | "upgrade" {
+  const folded = plain(name);
+  if (/\b(?:carne|carnes|meat|meats|relleno|rellenos|filling|fillings|guisado)\b/.test(folded)) return "meat";
+  if (/\bextras?\b/.test(folded)) return "extra";
+  return "upgrade";
+}
+
 function placeExtra(line: any, forms: Set<string>, menu: any[]): boolean {
   if (presentHasForms(forms, linePresent(line, menu))) return true;
   const item = menu.find((row) => row.id === line.itemId);
   if (!item) return false;
-  const groups: Array<{ name: string; option: string; max: number }> = [];
+  const unique: Array<{ name: string; option: string; max: number; role: "extra" | "upgrade" }> = [];
   for (const group of item.modifierGroups || []) {
+    const role = groupRole(group.name || "");
+    if (role === "meat") continue;
     const hits = (group.options || []).map((choice: any) => optionLabel(choice)).filter((name: string) => textHasForms(name, forms));
-    if (hits.length === 1) groups.push({ name: group.name, option: hits[0], max: Number(group.maxSelections) || 0 });
+    if (hits.length === 1) unique.push({ name: group.name, option: hits[0], max: Number(group.maxSelections) || 0, role });
   }
-  const selected = groups.find((group) => (line.modifiers || []).some((mod: any) => plain(mod?.step || "") === plain(group.name)));
-  const pick = selected || (groups.length === 1 ? groups[0] : null);
+  const extras = unique.filter((group) => group.role === "extra");
+  const pick = extras.length === 1 ? extras[0] : extras.length > 1 ? null : unique.length === 1 ? unique[0] : null;
   if (!pick) return false;
   const mods = line.modifiers || (line.modifiers = []);
   const at = mods.findIndex((mod: any) => plain(mod?.step || "") === plain(pick.name));
@@ -2536,13 +2579,19 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       if (!lineScoped && eligible.length > 1) {
         const language = dishLanguage(turn.text);
         const question = whichDishQuestion(token, eligible, menu, language);
+        const askedAt = questionWasSpoken(turns, turns.length, question);
         const later: Turn[] = [];
-        for (let i = turnIndex + 1; i < turns.length && later.length < 2; i++) {
-          if (turns[i].speaker === "caller" && !/[?¿]/.test(turns[i].text)) later.push(turns[i]);
+        if (askedAt > turnIndex) {
+          for (let i = askedAt + 1; i < turns.length && later.length < 2; i++) {
+            if (turns[i].speaker === "caller") later.push(turns[i]);
+          }
         }
         let choice: "both" | "none" | any | null = null;
-        if (later[0] && choiceAttempt(later[0].text)) choice = answerChoice(later[0].text, eligible, menu);
-        if (!choice && later[0] && choiceAttempt(later[0].text) && later[1] && choiceAttempt(later[1].text)) choice = answerChoice(later[1].text, eligible, menu);
+        for (const attempt of later) {
+          if (!choiceAttempt(attempt.text)) continue;
+          const picked = answerChoice(attempt.text, eligible, menu, has);
+          if (picked) { choice = picked; break; }
+        }
         if (choice === "none") { asks.push({ token, question, language, resolution: "none" }); continue; }
         const chosen = choice === "both" ? eligible.filter((line) => !has(line)) : choice ? [choice] : [];
         if (chosen.length && chosen.every((line) => placeExtra(line, forms, menu))) {
