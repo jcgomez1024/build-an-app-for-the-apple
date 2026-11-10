@@ -2189,10 +2189,13 @@ function optionLabel(option: any): string {
 function spokenBits(text: string): Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> {
   const words = plain(text).split(" ").filter(Boolean);
   const found: Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> = [];
-  const clauseFrom = (at: number) => {
+    const clauseFrom = (at: number) => {
     let start = 0;
     for (let i = at - 1; i >= 0; i--) {
-      if (words[i] === "y" || words[i] === "and" || words[i] === "otra" || words[i] === "otro") { start = i + 1; break; }
+      const word = words[i];
+      const next = words[i + 1] || "";
+      const anotherDish = (word === "otra" || word === "otro") && dishKeysIn(next).length > 0;
+      if (word === "y" || word === "and" || anotherDish) { start = i + 1; break; }
     }
     return words.slice(start, at + 4).join(" ");
   };
@@ -2347,21 +2350,49 @@ function alreadyPresent(token: string, present: Set<string>): boolean {
   return normalizedForms(token).some((form) => present.has(form));
 }
 
+const ANAPHOR = /\b(?:other|otro|otra|that|this|ese|esa|aquel|aquella|those|esos|esas)\b/;
+
+/** "the other one" / "that one" / a demonstrative, with two lines of the same dish.
+ *  Resolve to the sibling the previous clause left over, or hold. Never let one line's token clear the other. */
+function anaphorTargets(clause: string, token: string, previous: string, cart: any[], menu: any[], vocab: Set<string>): any[] | "hold" | null {
+  const spoken = plain(clause);
+  const head = spoken.split(new RegExp(`\\b${token}\\b`))[0] || "";
+  if (!ANAPHOR.test(head) || cart.length < 2) return null;
+  if (new Set(cart.map((line) => line.itemId)).size !== 1) return "hold";
+  const prevBase = previous ? targetLines(previous, cart, menu) : cart;
+  const prev = previous ? narrowTargets(previous, "", prevBase, menu, vocab) : cart;
+  const distinguished = prev.length && prev.length < cart.length ? prev : [];
+  if (/\b(?:other|otro|otra)\b/.test(head)) {
+    const rest = distinguished.length ? cart.filter((line) => !distinguished.includes(line)) : [];
+    return rest.length === 1 ? rest : "hold";
+  }
+  return distinguished.length === 1 ? distinguished : "hold";
+}
+
 /** Spoken modifiers and sides. A hold is for the line that was named, and only when that line does not already have the token. */
 export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): string[] {
   if (!Array.isArray(cart) || !menu?.length) return [];
   const vocab = menuVocabulary(menu);
   const unnamed: string[] = [];
+  let previousCaller = "";
   for (const turn of turns) {
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
     for (const bit of spokenBits(turn.text)) {
       const token = menuToken(bit.token, vocab);
       if (!token) continue;
-      let targets = narrowTargets(bit.clause, token, targetLines(bit.clause, cart, menu), menu, vocab);
-      if (bit.cue === "side" || bit.cue === "lado" || bit.cue === "aparte") {
+      const base = targetLines(bit.clause, cart, menu);
+      let targets = narrowTargets(bit.clause, token, base, menu, vocab);
+      const sideCue = bit.cue === "side" || bit.cue === "lado" || bit.cue === "aparte";
+      if (sideCue) {
         const sideLines = cart.filter((line) => alreadyPresent(token, linePresent(line, menu)));
         if (sideLines.length) targets = sideLines;
       }
+      const anaphor = anaphorTargets(bit.clause, token, previousCaller, cart, menu, vocab);
+      if (anaphor === "hold") {
+        if (!unnamed.includes(token)) unnamed.push(token);
+        continue;
+      }
+      if (anaphor) targets = anaphor;
       if (bit.withdrawn) {
         const at = unnamed.indexOf(token);
         if (at >= 0) unnamed.splice(at, 1);
@@ -2380,10 +2411,15 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
         }
         continue;
       }
-      const covered = targets.some((line) => alreadyPresent(token, linePresent(line, menu)));
+      const namedLine = dishKeysIn(bit.clause).length > 0 && base.length < cart.length;
+      const narrowed = targets.length < base.length;
+      const lineScoped = namedLine || narrowed || sideCue || !!anaphor || targets.length < 2;
+      const has = (line: any) => alreadyPresent(token, linePresent(line, menu));
+      const covered = lineScoped ? targets.some(has) : targets.every(has);
       if (covered || unnamed.includes(token)) continue;
       unnamed.push(token);
     }
+    previousCaller = turn.text;
   }
   return unnamed;
 }

@@ -18,7 +18,7 @@ import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGr
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
-import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
+import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ as spokenAvailQ, isAck, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
@@ -1168,7 +1168,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // anthony1: a caller availability question ("¿tienes pollo a la crema?") or an echo of staff's menu list ("Coctel de camarón")
     // orders nothing — drop any adds the model made on that turn.
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
-      && (isAvailQ(text) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
+      && ((spokenAvailQ(text) || isAck(text)) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
       (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item");
     // brenda1: "this is the Elvis, right?" (pozole), "more lengua" / "not too much rice" after staff's "rice and beans is fine?" (mole),
     // "two green, one red, the avocado salsa" (tacos/huarache) — none of these start a new dish.
@@ -1183,7 +1183,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)) {
       const off = staffUnavailable(allStaff.map((x) => ({ speaker: "staff", text: x })) as any);
       const pt = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-      const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !isAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
+      const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !spokenAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
       if (off.length) (r as any).actions = (r as any).actions.filter((a: any) => !(a?.type === "add_item" && off.some((d) => (String(a.itemId).toLowerCase().includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(a.itemId).toLowerCase())) && !reorder(d))));
       dropPutOnReAdd((r as any).actions, cart as any[], text); // pedro3: "si la pueden poner en nopales" changes the gorditas, not a new one
       if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
@@ -3714,7 +3714,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || /\b(?:normalmente|usualmente|usually)\b[\s\S]{0,60}\b(?:tortilla\s+)?(?:amarilla|blanca|ma[ií]z|harina|corn|flour)/iu.test(t.text)
         || /\bson\s+de\s+tortilla\s+(?:amarilla|blanca)/iu.test(t.text)
         || (/\btortilla\s+(?:amarilla|blanca)\b/iu.test(t.text) && /\?|¿/.test(t.text) && !ORDER_QTY.test(t.text))) return true;
-      return false;
+      return spokenAvailQ(t.text);
     };
     // jose2: "me pone dos, una de picadillo…" after doradas avail is an order, not bare filler
     const nextIsOrderBare = (nx: CallTurn) => !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\b(?:me\s+)?puede(?:s)?\s+(?:preparar|hacer|dar|poner)\b|\b(?:me\s+)?pone(?:s|r)?\b|\bpon(?:me|ga)\b|\b[oó]rdenes?\b/iu.test(nx.text);
@@ -8219,7 +8219,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",
     menuSource,

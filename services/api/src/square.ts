@@ -305,6 +305,7 @@ export function sandboxDeliveryCharges(q: Quote) {
 function loadDeliveryFile() { try { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); } catch { return {}; } }
 
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
+  if ((input as { shadow?: boolean })?.shadow === true) throw new Error("A shadow cart cannot be sent to Square");
   const runtime = getSquareConfig(config);
   if (!runtime.locationId) {
     throw new Error("Missing SQUARE_LOCATION_ID");

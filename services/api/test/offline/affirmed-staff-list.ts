@@ -2,12 +2,15 @@
 import { readFileSync } from "node:fs";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { reconcileCountedRequests, resolveConversationIntent } from "../../src/conversation-intent.ts";
-import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from "../../src/offline-evidence.ts";
+import { flagUnresolvedRequired, gateTicketAcceptance, handoffShadowCart, orderValidation, ticketFromShadow } from "../../src/offline-evidence.ts";
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, reconcileSpokenExtras, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { buildTicketLines } from "../../src/twilio.ts";
-import { staffUnavailable } from "../../src/spoken-ledger.ts";
+import { isAck, isAvailQ, staffUnavailable } from "../../src/spoken-ledger.ts";
+import { applyAskedDishes } from "../../src/asked-dishes.ts";
+import { nameFromTranscriptInfo, snapToKnownName } from "../../src/order-name.ts";
+import { createCheckout } from "../../src/square.ts";
 import { CASES } from "./cases.ts";
 import { evaluateCase } from "./evaluate.ts";
 
@@ -368,6 +371,51 @@ const secondQueso = reconcileSpokenExtras([
   { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaBistec], elviNotes: [] },
 ], [{ speaker: "caller", text: "The bistec gordita with queso." }], menu);
 check("queso-for-the-line-without-it-still-holds", secondQueso.includes("queso"), JSON.stringify(secondQueso));
+const unnamedQueso = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [qgd], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita], elviNotes: [] },
+], [{ speaker: "caller", text: "Con queso." }], menu);
+check("unnamed-clause-does-not-clear-the-other-line", unnamedQueso.includes("queso"), JSON.stringify(unnamedQueso));
+const cremaOnOne = { step: "topping", option: "Crema / Sour Cream" };
+const otherCrema = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [qgd, gorditaBistec, cremaOnOne], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaPastor], elviNotes: [] },
+], [{ speaker: "caller", text: "The other one with crema." }], menu);
+const thatCrema = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [qgd, gorditaBistec, cremaOnOne], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaPastor], elviNotes: [] },
+], [{ speaker: "caller", text: "That one with crema." }], menu);
+const resolvedOther = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaBistec, cremaOnOne], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaPastor], elviNotes: [] },
+], [
+  { speaker: "caller", text: "The bistec gordita with queso." },
+  { speaker: "caller", text: "La otra con crema." },
+], menu);
+check("other-one-is-not-cleared-by-the-line-that-has-it", otherCrema.includes("crema") && thatCrema.includes("crema") && resolvedOther.includes("crema"), JSON.stringify({ otherCrema, thatCrema, resolvedOther }));
+check("availability-question-is-not-an-order", isAvailQ("¿hacen quesadillas doradas hoy?") && isAvailQ("do you make doradas today?") && isAvailQ("¿tienen horchata?") && isAck("ah bueno, gracias") && isAck("ok thanks"), "");
+const askedCart: any[] = [];
+applyAskedDishes(askedCart, [{ reply: "(QD) Quesadilla Dorada: ¿REGULAR o DELUXE?", heard: "¿hacen quesadillas doradas hoy?", source: "caller" }], [{ speaker: "caller", text: "¿hacen quesadillas doradas hoy?" }], menu);
+check("choice-question-does-not-mark-asked", askedCart.length === 0 || !askedCart.some((line) => line.asked), JSON.stringify(askedCart));
+const crazyTurns = [{ speaker: "caller" as const, text: "This is crazy." }, { speaker: "staff" as const, text: "Crazy, muy bien." }];
+const crazy = nameFromTranscriptInfo(crazyTurns);
+check("this-is-crazy-keeps-mariko", !crazy && snapToKnownName("Crazy", ["Mariko"], crazyTurns) === "Mariko", JSON.stringify({ crazy, kept: snapToKnownName("Crazy", ["Mariko"], crazyTurns) }));
+const normales = nameFromTranscriptInfo([
+  { speaker: "staff", text: "¿con queso o normales?" },
+  { speaker: "caller", text: "normales" },
+  { speaker: "staff", text: "Norm, okey." },
+]);
+const esNormales = nameFromTranscriptInfo([
+  { speaker: "staff", text: "¿Tu nombre?" },
+  { speaker: "caller", text: "Es normales." },
+  { speaker: "staff", text: "Norm, muy bien." },
+]);
+check("normales-does-not-become-norm", (!normales || normales.name !== "Norm") && (!esNormales || esNormales.name !== "Norm"), JSON.stringify({ normales, esNormales }));
+const shadowCart = { cart: [{ itemId: gordita.id, quantity: 1, modifiers: [plainGordita] }], autoAccepted: true, validation: "clear" as const, shadow: true };
+const shadowView = ticketFromShadow(shadowCart);
+const shadowHandoff = handoffShadowCart(shadowCart);
+const shadowKitchen = buildTicketLines([{ name: "Gordita", quantity: 1, choices: ["(GD) Gordita"] }], shadowCart.cart, []);
+check("shadow-autoaccept-does-not-reach-square-or-kitchen", shadowView.autoAccepted === false && shadowHandoff.square === null && shadowHandoff.kitchen.autoAccepted === false && !JSON.stringify(shadowKitchen).includes("autoAccepted"), JSON.stringify({ view: shadowView.autoAccepted, kitchen: shadowHandoff.kitchen.autoAccepted, ticket: shadowKitchen }));
 const catalog = JSON.parse(readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json", "utf8"));
 const doradaDesc = catalog.find((item: any) => item.id === regularDorada)?.description || "";
 const doradaMenu = menu.map((item) => item.id === regularDorada ? { ...item, description: doradaDesc } : item);
@@ -751,5 +799,20 @@ Promise.all([
     history: [{ role: "customer", text: "Add two homemade comal steak tacos and change the earlier taco." }],
   });
   check("leave-earlier-intent-adds", (intentAdd?.actions || []).some((action) => action.type === "add_item" && action.quantity === 2), JSON.stringify(intentAdd));
+  const adding = Object.assign(async () => ({ actions: [{ type: "add_item", itemId: regularDorada, quantity: 1, modifiers: [] }], reply: "(QD) Quesadilla Dorada: ¿REGULAR o DELUXE?" }), { menu: () => menu });
+  const spanishAvail = await shadowOrderFromTurns([
+    { speaker: "caller", text: "¿hacen quesadillas doradas hoy?", language: "es" },
+    { speaker: "caller", text: "Ah bueno, gracias.", language: "es" },
+  ] as any, adding as any);
+  const englishAvail = await shadowOrderFromTurns([
+    { speaker: "caller", text: "Do you make doradas today?", language: "en" },
+    { speaker: "caller", text: "Ok thanks.", language: "en" },
+  ] as any, adding as any);
+  const emptyAfterAsk = (order: any) => !(order?.cart || []).length && !(order?.cart || []).some((line: any) => line.asked);
+  check("availability-then-thanks-leaves-the-cart-empty", emptyAfterAsk(spanishAvail) && emptyAfterAsk(englishAvail), JSON.stringify({ es: spanishAvail?.cart, en: englishAvail?.cart }));
+  let squareError = "";
+  try { await createCheckout({ shadow: true, cart: [{ itemId: gordita.id, quantity: 1 }], fulfillment: "PICKUP", customer: {} } as any); }
+  catch (err) { squareError = err instanceof Error ? err.message : String(err); }
+  check("shadow-cart-cannot-checkout", /shadow cart/i.test(squareError), squareError);
   if (failures.length) process.exit(1);
 });

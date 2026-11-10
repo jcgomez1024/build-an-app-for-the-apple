@@ -24,8 +24,8 @@ import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favor
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
-import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu } from "./offline-evidence.js";
-export { recoveryAcceptance, attachRecoveryMenu };
+import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu, handoffShadowCart } from "./offline-evidence.js";
+export { recoveryAcceptance, attachRecoveryMenu, handoffShadowCart };
 
 /** Ticket loaded from this process's scratch store, then the same recovery gate upsertTicket uses. */
 export function recoverStoredTicket(callSid: string) {
@@ -1055,7 +1055,7 @@ export async function upsertTicket(
   const explicitApproval = (partial as { explicitApproval?: boolean }).explicitApproval === true || prev?.explicitlyApproved === true;
   const gated = gateTicketAcceptance({
     requestedPhase: partial.phase || prev?.phase || "listening",
-    autoAccepted: elviOrder?.autoAccepted,
+    autoAccepted: elviOrder?.shadow === true ? handoffShadowCart(elviOrder).kitchen.autoAccepted : elviOrder?.autoAccepted,
     validation: elviOrder?.validation,
     reviewReason: elviOrder?.reviewReason,
     statusCall: !!elviOrder?.statusCall,

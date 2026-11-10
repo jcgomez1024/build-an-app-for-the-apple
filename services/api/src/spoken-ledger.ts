@@ -38,7 +38,7 @@ const OTHER = /\b(?:burritos?|sopes?|tostadas?|flautas?|menudo|caldo|pozole|huar
 const QB_ID = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7";
 // no flavor said ("mezclados") → the Jarrito line carries the mixed note; staff picks the flavors
 const JARRITO_ID = "sq-drink-jarrito-mandarina-mandarin-I4GNSG";
-const AVQ = /^(?:(?:y|e|eh|ah|em|este|oiga|oye|disculpe|hola|bueno|si)\s+)*(?:y\s+)?(?:tienes?|tienen|hay|venden|manejan)\b/;
+const AVQ = /^(?:(?:y|e|eh|ah|em|este|oiga|oye|disculpe|hola|bueno|si)\s+)*(?:y\s+)?(?:tienes?|tienen|hay|venden|manejan|hacen|hace|preparan|prepara|sirven|sirve|ofrecen|ofrece)\b/;
 /** "¿tienes pollo a la crema? Ajá" / "tiene quesadilla de birria" — asks, orders nothing (no order verb or count+dish). */
 // cmissing1 (CA8e3de9a): English "calling to see if you guys have pozole verde", "how about ceviche?", "what about X?",
 // "is there X?", "any X today?" — asks, orders nothing (same rule as the Spanish ¿tiene/hay).
@@ -52,6 +52,13 @@ export function isAvailQ(x: string): boolean {
   // a "how about X" after the caller already ordered is a suggestion ask, still no add: no count words allowed
   if (/\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro)\s+[a-z]/.test(y) && !AVQ.test(y)) return false;
   return AVQ.test(y) || AVQ_EN.test(y.replace(/^(?:(?:but|no|hi|hey|ok(?:ay)?)\s+)+/, "").replace(/^i\s+was\s+/, "i was "));
+}
+/** Thanks / ok / bueno with no order and no count. An acknowledgement never adds a line. */
+export function isAck(x: string): boolean {
+  const y = nf(x);
+  if (!y || /\b(?:quiero|dame|deme|me\s+da|me\s+pone|ponme|ordeno|i'?ll|i\s+want|give\s+me|can\s+i)\b/.test(y)) return false;
+  if (/\b(?:\d+|dos|tres|cuatro|cinco|seis|one|two|three|four|five|six)\b/.test(y)) return false;
+  return /^(?:(?:ah|oh|ok(?:ay)?|bueno|gracias|thanks|thank(?:\s+you)?|vale|sale|perfecto|listo|bye|adios)\s*)+$/.test(y);
 }
 /** A caller turn whose food words are all in the staff's last lines ("Coctel de camarón." after staff "cóctel de camarón"). */
 export function isEchoOfStaff(x: string, staff: string): boolean {
