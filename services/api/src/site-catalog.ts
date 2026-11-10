@@ -29,6 +29,14 @@ export function siteProductFor(squareItemId?: string) {
   return loadSiteCatalog()?.products.find((p) => p.squareId === squareItemId) || null;
 }
 
+/** Variation label from the site catalog row. The spoken match uses this name, not the id text. */
+export function catalogSkuName(item: { variationName?: string; squareCatalogObjectId?: string; squareVariationId?: string } | null | undefined): string {
+  if (!item) return "";
+  if (item.variationName && !/^regular$/i.test(item.variationName)) return item.variationName;
+  const sku = siteProductFor(item.squareCatalogObjectId)?.skus.find((entry) => entry.squareId === item.squareVariationId);
+  return sku?.name && !/^regular$/i.test(sku.name) ? sku.name : "";
+}
+
 export function siteSellsSquareItem(squareItemId?: string) {
   return Boolean(siteProductFor(squareItemId));
 }

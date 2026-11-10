@@ -30,6 +30,7 @@ test("adolfo2: combo quesadillas gets arroz y frijoles, no unchosen deluxe/salsa
   assert.match(mods, /Arroz - Rice and Frijoles Refritos/); assert.doesNotMatch(mods, /SOLO/);
   assert.match(mods, /QCO/); assert.equal((mods.match(/Bistec/g) || []).length, 2);
   assert.doesNotMatch(mods, /DELUXE \(|Salsa Asada/);
+  assert.doesNotMatch((c[0].elviNotes || []).join(" "), /COMBO Sides/i);
 });
 test("adolfo2: STT roast → arroz only next to frijoles/combo", () => {
   assert.equal(fixArrozStt("el combo de roast y frijoles"), "el combo de arroz y frijoles");

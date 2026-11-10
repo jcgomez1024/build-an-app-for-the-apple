@@ -1,4 +1,6 @@
-import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
+import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
+import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
+import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
 // a street/taquero context carries across the list; a later tortilla pick resolves the pending line (no second QD);
@@ -12,7 +14,16 @@ const NUMW = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one
 const MEATS: Array<[RegExp, string]> = [[/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"], [/\btripas?\b/, "tripa"],
   [/\bcabezas?\b/, "cabeza"], [/\bprensado\b/, "prensado"], [/\blenguas?\b/, "lengua"], [/\bchorizo\b/, "chorizo"], [/\bpollo\b|\bchicken\b/, "pollo"], [/\bcarnitas\b/, "carnitas"],
   [/\bbuche\b/, "buche"], [/\bbirria\b/, "birria"], [/\bdeshebrada\b/, "deshebrada"], [/\bpicadillo\b/, "picadillo"]];
-const meatIn = (p: string) => { let best: [number, string] | null = null; for (const [re, k] of MEATS) { const m = p.match(re); if (m && (!best || (m.index || 0) < best[0])) best = [m.index || 0, k]; } return best?.[1] || null; };
+function scopedFamilyId(id: string): string | null {
+  if (/^sq-qd-/.test(id) || /quesadilla-dorada/.test(id)) return "qd";
+  if (/^sq-quesadilla-/.test(id)) return "quesadilla";
+  if (/^sq-taco-/.test(id)) return "taco";
+  if (/^sq-torta-/.test(id)) return "torta";
+  if (/horchata/i.test(id)) return "horchata";
+  if (/birria/i.test(id) && !/queso-birria/i.test(id)) return "birria";
+  return null;
+}
+const meatIn = (p: string) => { const text = plain(p); let best: [number, string] | null = null; for (const [re, key] of MEATS) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } return best?.[1] || null; };
 type Kind = "taco" | "quesadilla" | "qd";
 const famOf = (k: Kind) => (k === "taco" ? "taco" : "q");
 export const kindOfLine = (l: any): Kind | null => { const id = String(l?.itemId || ""); return /^sq-qd-/.test(id) ? "qd" : /^sq-quesadilla-/.test(id) ? "quesadilla" : /^sq-taco-/.test(id) ? "taco" : null; };
@@ -423,6 +434,685 @@ function dropDeclinedOffers(cart: any[], turns: Turn[]): boolean {
   }
   return changed;
 }
+function meatsInText(text: string): string[] {
+  const spoken = plain(text);
+  return MEATS.filter(([re]) => re.test(spoken)).map(([, key]) => key);
+}
+
+function familyInClause(text: string): string | null {
+  const spoken = plain(text);
+  if (/\bquesadillas?\b/.test(spoken) && /\b(?:dorad|aceite|frit)/.test(spoken)) return "qd";
+  if (/\bdoradas?\b/.test(spoken) && !/\btacos?\b/.test(spoken)) return "qd";
+  if (/\bquesadillas?\b|\bquesas?\b/.test(spoken)) return "quesadilla";
+  if (/\btacos?\b/.test(spoken)) return "taco";
+  if (/\btortas?\b/.test(spoken) && !/\btortillas?\b/.test(spoken)) return "torta";
+  if (/\bhorchatas?\b/.test(spoken)) return "horchata";
+  return null;
+}
+
+function qtyBeforeDish(text: string, family: string): number | null {
+  const spoken = plain(text);
+  const noun = family === "qd" ? "quesadillas?|doradas?" : family === "quesadilla" ? "quesadillas?|quesas?" : family === "taco" ? "tacos?" : family === "torta" ? "tortas?" : "horchatas?";
+  const wrapped = spoken.match(new RegExp(`\\b(?:una|un)\\s+de\\s+(${NUMW})\\s+(?:${noun})\\b`));
+  if (wrapped) return numOf(wrapped[1]) || null;
+  const direct = spoken.match(new RegExp(`\\b(${NUMW})\\s+(?:${noun})\\b`));
+  return direct ? numOf(direct[1]) || null : null;
+}
+
+type AcceptedPart = { family: string; qty: number; meat: string | null };
+
+function acceptedParts(turns: Turn[]): { parts: AcceptedPart[]; leaked: Set<string> } {
+  const leaked = new Set<string>();
+  const ordered = new Set<string>();
+  const parts: AcceptedPart[] = [];
+  let replacing = false;
+  let carryFamily: string | null = null;
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    if (turn.speaker === "staff" && /\botra vez\b|\brepite|\bde nuevo\b/.test(plain(turn.text))) { replacing = true; continue; }
+    if (turn.speaker !== "caller" || callerDeclines(turn.text)) continue;
+    if (isAvailabilityAsk(turn.text)) {
+      if (askRefused(turns, i)) for (const meat of meatsInText(turn.text)) leaked.add(meat);
+      continue;
+    }
+    const clauses = plain(turn.text).split(/,|\by\b/);
+    let lastFamily: string | null = carryFamily;
+    const fresh: AcceptedPart[] = [];
+    for (const clause of clauses) {
+      const family = familyInClause(clause) || lastFamily;
+      if (familyInClause(clause)) { lastFamily = family; carryFamily = family; }
+      const meats = meatsInText(clause);
+      for (const meat of meats) ordered.add(meat);
+      if (!family) continue;
+      const qty = qtyBeforeDish(clause, family) || (/\botra\b|\buna\b|\buno\b/.test(clause) && meats.length ? 1 : null);
+      if (meats.length > 1) {
+        const each = (qty || meats.length) === meats.length ? 1 : (qty || 1);
+        for (const meat of meats) fresh.push({ family, qty: each, meat });
+      } else fresh.push({ family, qty: qty || 1, meat: meats[0] || null });
+    }
+    const both = plain(turn.text).match(/\b(?:los|las)\s+dos\s+de\s+([a-z]+)/);
+    if (both && lastFamily) {
+      const meat = meatIn(both[1]);
+      if (meat) {
+        for (let at = parts.length - 1; at >= 0; at--) if (parts[at].family === lastFamily) parts.splice(at, 1);
+        parts.push({ family: lastFamily, qty: 2, meat });
+        ordered.add(meat);
+        carryFamily = lastFamily;
+        continue;
+      }
+    }
+    const split = plain(turn.text).match(/\buna\s+de\s+([a-z]+)\s+y\s+otra\s+de\s+([a-z]+)/);
+    if (split && lastFamily) {
+      const first = meatIn(split[1]);
+      const second = meatIn(split[2]);
+      if (first && second) {
+        fresh.length = 0;
+        fresh.push({ family: lastFamily, qty: 1, meat: first }, { family: lastFamily, qty: 1, meat: second });
+        ordered.add(first); ordered.add(second);
+      }
+    }
+    if (!fresh.length) continue;
+    if (replacing) {
+      for (const part of fresh) {
+        const at = parts.findIndex((row) => row.family === part.family && row.meat === part.meat);
+        if (at >= 0) parts[at] = part;
+        else if (!parts.some((row) => row.family === part.family)) parts.push(part);
+      }
+      replacing = false;
+      continue;
+    }
+    for (const part of fresh) {
+      const same = parts.find((row) => row.family === part.family && row.meat === part.meat);
+      if (same) same.qty = Math.max(same.qty, part.qty);
+      else parts.push(part);
+    }
+  }
+  for (const meat of ordered) leaked.delete(meat);
+  return { parts, leaked };
+}
+
+/** Dish-name tokens taken from the catalog. A stop word may not be one of these. */
+function catalogSpeechTokens(menu: any[]): Set<string> {
+  const groups = new Map<string, string[][]>();
+  for (const item of menu) {
+    const id = String(item?.squareCatalogObjectId || item?.id || "");
+    const tokens = plain(`${item?.name || ""} ${item?.id || ""}`).split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+    const list = groups.get(id) || [];
+    list.push(tokens);
+    groups.set(id, list);
+  }
+  const freq = new Map<string, number>();
+  const commons = new Map<string, string[]>();
+  for (const [id, lists] of groups) {
+    if (!lists.length) continue;
+    const common = [...new Set(lists[0].filter((token) => lists.every((list) => list.includes(token))))];
+    commons.set(id, common);
+    for (const token of common) freq.set(token, (freq.get(token) || 0) + 1);
+  }
+  const speech = new Set<string>();
+  for (const common of commons.values()) {
+    for (const token of common) {
+      speech.add(token);
+      speech.add(token.endsWith("s") ? token.slice(0, -1) : `${token}s`);
+    }
+  }
+  return speech;
+}
+
+const DRINK_LOCATOR = /\b(?:next to|beside|other than|al lado de|junto a)\b/;
+
+function locatesDish(text: string, speech: string): boolean {
+  const at = text.search(DRINK_LOCATOR);
+  if (at < 0 || !speech) return false;
+  return text.slice(at).split(" ").slice(0, 8).includes(speech);
+}
+
+function inStockItem(item: any): boolean {
+  return item?.soldOut !== true && item?.available !== false && item?.unavailable !== true;
+}
+
+/** Drinks that share the landmark's non-unique name tokens. The flavor word is whatever is left. */
+function frescaFamily(menu: any[], item: any): any[] {
+  if (!item || !inStockItem(item)) return [];
+  const tokens = plain(item.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+  const drinks = menu.filter((row) => row?.id && inStockItem(row) && (isDrinkProduct(String(row.name || "")) || /sq-drink/.test(String(row.id))));
+  const shared = tokens.filter((token) => drinks.some((row) => row.id !== item.id && plain(row.name || "").split(" ").includes(token)));
+  if (!shared.length) return [item];
+  return drinks.filter((row) => shared.every((token) => plain(row.name || "").split(" ").includes(token)));
+}
+
+function flavorToken(item: any, family: any[]): string {
+  const tokens = plain(item?.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+  const shared = new Set(tokens.filter((token) => family.some((row) => row.id !== item.id && plain(row.name || "").split(" ").includes(token))));
+  return tokens.find((token) => !shared.has(token)) || tokens[0] || "drink";
+}
+
+/** A flavor word is a drink-name token that belongs to one in-stock drink. Shared words such as agua are not flavors. */
+function drinkFlavorWords(menu: any[]): Set<string> {
+  const drinks = menu.filter((row) => row?.id && inStockItem(row) && (isDrinkProduct(String(row.name || "")) || /sq-drink/.test(String(row.id))));
+  const freq = new Map<string, number>();
+  for (const row of drinks) {
+    const tokens = [...new Set(plain(row.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word)))];
+    for (const token of tokens) freq.set(token, (freq.get(token) || 0) + 1);
+  }
+  return new Set([...freq.entries()].filter(([, count]) => count === 1).map(([token]) => token));
+}
+
+function unnamedDrinkCount(turns: Turn[], menu: any[]): number | null {
+  const flavors = drinkFlavorWords(menu);
+  let count: number | null = null;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const text = plain(turn.text);
+    const hit = text.match(new RegExp(`\\b(${NUMW})\\s+(?:\\w+\\s+){0,5}(?:drinks?|aguas?)\\b`));
+    if (!hit) continue;
+    if ([...flavors].some((flavor) => new RegExp(`\\b${flavor}s?\\b`).test(hit[0]))) continue;
+    count = numOf(hit[1]) || count;
+  }
+  return count;
+}
+
+function flavorWasOrdered(turns: Turn[], speech: string): boolean {
+  if (!speech) return false;
+  const re = new RegExp(`\\b${speech}s?\\b`, "g");
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const text = plain(turn.text);
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text))) {
+      const before = text.slice(Math.max(0, match.index - 30), match.index);
+      if (!DRINK_LOCATOR.test(before)) return true;
+    }
+  }
+  return false;
+}
+
+function scopedFamily(line: any): string | null {
+  return scopedFamilyId(String(line?.itemId || ""));
+}
+
+function nounFamily(noun: string): string | null {
+  if (/dorad/.test(noun)) return "qd";
+  if (/quesadilla/.test(noun)) return "quesadilla";
+  if (/taco/.test(noun)) return "taco";
+  if (/torta/.test(noun)) return "torta";
+  if (/gordita/.test(noun)) return "gordita";
+  return null;
+}
+
+function optionWords(name: string): string[] {
+  return plain(name).split(" ").filter((word) => word.length >= 4);
+}
+
+/** Two catalog options can share a spoken word. The one that adds an unspoken word loses. */
+function pickSpokenOption(spoken: string, options: string[]): string | null {
+  const words = new Set(plain(spoken).split(" ").filter(Boolean));
+  const hit = (token: string) => words.has(token) || words.has(`${token}s`) || (token.endsWith("s") && words.has(token.slice(0, -1)));
+  const sets = options.map((name) => ({ name, tokens: optionWords(name) }));
+  const matched = sets.filter((row) => row.tokens.some(hit));
+  if (!matched.length) return null;
+  const said = [...new Set(matched.flatMap((row) => row.tokens.filter(hit)))];
+  const covers = matched.filter((row) => said.every((token) => row.tokens.includes(token)));
+  const pool = covers.length ? covers : matched;
+  const extra = (row: { tokens: string[] }) => row.tokens.filter((token) => !hit(token) && !pool.every((other) => other.tokens.includes(token)));
+  const tight = pool.filter((row) => extra(row).length === 0);
+  const best = (tight.length ? tight : pool).sort((a, b) => a.tokens.length - b.tokens.length || extra(a).length - extra(b).length);
+  return best[0]?.name || null;
+}
+
+function putMeat(line: any, meat: string, menu: any[]): boolean {
+  const item = menu.find((row) => row.id === line.itemId);
+  const group = (item?.modifierGroups || []).find((entry: any) => /carne|meat/i.test(String(entry.name || "")) && !/extra|combo/i.test(String(entry.name || "")));
+  const names = (group?.options || []).map(oname).filter(Boolean);
+  const option = pickSpokenOption(meat, names) || names.find((name: string) => meatIn(plain(name)) === meat);
+  if (!group || !option) return false;
+  line.modifiers = [...(line.modifiers || []).filter((mod: any) => mod.step !== group.name), { step: group.name, option }];
+  return true;
+}
+
+function countsIn(text: string): number[] {
+  const found: number[] = [];
+  for (const word of text.split(" ")) {
+    if (NUM[word]) found.push(NUM[word]);
+    else if (/^\d+$/.test(word)) found.push(Number(word));
+  }
+  return found;
+}
+
+function meatsIn(text: string): Array<{ at: number; meat: string }> {
+  const found: Array<{ at: number; meat: string }> = [];
+  for (const [re, key] of MEATS) {
+    const global = new RegExp(re.source, "g");
+    let match: RegExpExecArray | null;
+    while ((match = global.exec(text))) found.push({ at: match.index, meat: key });
+  }
+  return found.sort((a, b) => a.at - b.at);
+}
+
+function catalogSizeCount(menu: any[], family: string): number {
+  const items = menu.filter((row) => scopedFamily({ itemId: row.id }) === family);
+  const text = (row: any) => plain(`${row.name || ""} ${row.id || ""}`);
+  const pounds = new Set(items.map((row) => (text(row).match(/(\d+)\s*lb/) || [])[1]).filter(Boolean));
+  if (pounds.size) return pounds.size;
+  return new Set(items.map((row) => (text(row).match(/(\d+)\s*oz/) || [])[1]).filter(Boolean)).size;
+}
+
+/** A later order of tortillas is not a birria variant. The variant is what was said with the platter, or a short answer to the variant question. */
+function birriaVariantText(turns: Turn[], index: number): string {
+  const bits: string[] = [];
+  const offer = [...turns.slice(0, index)].reverse().find((turn) => turn.speaker === "staff");
+  if (offer) bits.push(offer.text);
+  for (let cursor = 0; cursor < turns.length; cursor++) {
+    const turn = turns[cursor];
+    if (turn.speaker !== "caller") continue;
+    const text = plain(turn.text);
+    if (/\bbirrias?\b/.test(text)) { bits.push(turn.text); continue; }
+    const asked = [...turns.slice(0, cursor)].reverse().find((row) => row.speaker === "staff");
+    const variantQuestion = !!asked && /\bbirrias?\b/.test(plain(asked.text)) && /\b(?:consome|tortillas?|solo)\b/.test(plain(asked.text));
+    if (variantQuestion && text.split(" ").length <= 8 && /\b(?:consome|tortillas?|solo|only)\b/.test(text) && !/\b(?:dos|tres|cuatro|cinco|seis|extra|extras)\b/.test(text)) bits.push(turn.text);
+  }
+  return bits.join(" ");
+}
+
+/** Words that split a family into separate catalog rows. Nothing spoken, or both broth and tortillas, is the consomé-and-tortillas row. */
+function variantChoice(menu: any[], family: string, spoken: string): { note: string | null; itemId: string | null } {
+  const items = menu.filter((row) => scopedFamily({ itemId: row.id }) === family);
+  if (items.length < 2) return { note: null, itemId: items[0]?.id || null };
+  const tokensOf = (row: any) => plain(row.name || "").split(" ").filter((word) => word.length >= 4 && !/^\d/.test(word));
+  const sets = items.map(tokensOf);
+  const shared = new Set(sets[0].filter((token) => sets.every((row) => row.includes(token))));
+  const extra = [...new Set(sets.flat())].filter((token) => !shared.has(token) && token !== "solo" && token !== "only");
+  const used = new Set<string>();
+  const labels: string[] = [];
+  for (const token of extra) {
+    if (used.has(token)) continue;
+    const cluster = extra.filter((other) => sets.every((row) => row.includes(token) === row.includes(other)));
+    cluster.forEach((word) => used.add(word));
+    labels.push(cluster[0]);
+  }
+  const both = items.find((row) => {
+    const name = plain(row.name || "");
+    return /\bconsome\b/.test(name) && /\btortillas?\b/.test(name) && !/\bsolo\b/.test(name) && /\b1\s*lb\b/.test(name);
+  }) || items.find((row) => /NHFHDD/.test(String(row.id || "")));
+  const said = plain(spoken);
+  const chosen = labels.filter((token) => said.includes(token));
+  if (chosen.length === 1) {
+    const item = items.find((row) => tokensOf(row).includes(chosen[0]) && !labels.some((token) => token !== chosen[0] && tokensOf(row).includes(token)));
+    return { note: null, itemId: item?.id || both?.id || null };
+  }
+  return { note: null, itemId: both?.id || null };
+}
+
+/** A spoken meat, drink, or count stays on the dish it was said with. A second copy is not a new order. */
+export function applyDishScopedParts(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if (!Array.isArray(cart) || !menu?.length) return false;
+  type Part = { family: string; meat: string | null; qty: number; deluxe?: boolean; bound?: boolean; itemId?: string; sizeSpoken?: boolean; turn?: number; hold?: boolean };
+  const sizeWord = /^(?:grande|large|chica|chico|small|media|medio|half|ounce|onzas?|ounces)$/;
+  const nameTokens = (value: string) => plain(value).split(" ").filter((word) => word.length >= 4 && !sizeWord.test(word) && !/^\d/.test(word));
+  const frequency = new Map<string, number>();
+  for (const item of menu) for (const token of new Set(nameTokens(item.name || ""))) frequency.set(token, (frequency.get(token) || 0) + 1);
+  const dishStop = new Set([...frequency.entries()].filter(([, count]) => count >= 30).map(([token]) => token));
+  for (const token of catalogSpeechTokens(menu)) dishStop.delete(token);
+  const meatOptions = [...new Set(menu.flatMap((item) => (item.modifierGroups || []).filter((group: any) => /carne|meat/i.test(String(group.name || "")) && !/extra|combo/i.test(String(group.name || ""))).flatMap((group: any) => (group.options || []).map((option: any) => plain(typeof option === "string" ? option : option?.name || "")).filter(Boolean))))];
+  const heads = new Map<string, Set<string>>();
+  for (const name of meatOptions) {
+    const words = name.split(" ").filter((word) => word.length >= 4);
+    const head = words[0];
+    if (!head) continue;
+    const set = heads.get(head) || new Set<string>();
+    words.forEach((word) => set.add(word));
+    heads.set(head, set);
+  }
+  const wordHeads = new Map<string, number>();
+  for (const words of heads.values()) for (const word of words) wordHeads.set(word, (wordHeads.get(word) || 0) + 1);
+  const sharedMeatWords = new Set([...wordHeads.entries()].filter(([, count]) => count >= 3).map(([word]) => word));
+  const meatLex = new Map<string, string[]>();
+  for (const name of meatOptions) {
+    const words = name.split(" ").filter((word) => word.length >= 4);
+    const head = words[0];
+    if (!head) continue;
+    const key = meatIn(head) || meatIn(name) || head;
+    const tokens = meatLex.get(key) || [];
+    for (const word of words) if (!sharedMeatWords.has(word) || word === head) tokens.push(word);
+    if (head.startsWith("al") && head.length > 6) tokens.push(head.slice(2));
+    meatLex.set(key, [...new Set(tokens)]);
+  }
+  const scanMeats = (value: string) => {
+    const found: Array<{ at: number; meat: string }> = [];
+    const words = value.split(" ");
+    let cursor = 0;
+    for (const word of words) {
+      const at = value.indexOf(word, cursor);
+      cursor = at + word.length;
+      for (const [key, tokens] of meatLex) {
+        if (!tokens.some((token) => word === token || word === `${token}s` || (token.endsWith("s") && word === token.slice(0, -1)))) continue;
+        if (!found.some((row) => row.at === at && row.meat === key)) found.push({ at, meat: key });
+      }
+    }
+    return found.sort((a, b) => a.at - b.at);
+  };
+  const itemTokens = (item: any) => plain(`${item.name || ""} ${(item.aliases || []).join(" ")}`).split(" ").filter((word) => word.length >= 4 && !dishStop.has(word) && !sizeWord.test(word) && !/^\d+oz$/.test(word));
+  const familyTokenLists = new Map<string, string[][]>();
+  for (const item of menu) {
+    const family = scopedFamily({ itemId: item.id });
+    if (!family) continue;
+    const list = familyTokenLists.get(family) || [];
+    list.push(itemTokens(item));
+    familyTokenLists.set(family, list);
+  }
+  const familyCommon = new Map<string, Set<string>>();
+  for (const [family, lists] of familyTokenLists) {
+    const [first, ...rest] = lists;
+    familyCommon.set(family, new Set((first || []).filter((token) => rest.every((list) => list.includes(token)))));
+  }
+  const parts: Part[] = [];
+  const locatedLandmarks = new Set<string>();
+  let active: string | null = null;
+  let offered: { family: string; itemId: string } | null = null;
+  let preparada = false;
+  const namedDishes = (text: string) => {
+    const words = new Set(plain(text).split(" "));
+    const has = (token: string) => words.has(token) || words.has(`${token}s`) || (token.endsWith("s") && words.has(token.slice(0, -1)));
+    const hits: Array<{ id: string; family: string; extra: number; shared: number; drink: boolean }> = [];
+    for (const item of menu) {
+      const tokens = itemTokens(item);
+      const family = scopedFamily({ itemId: item.id });
+      if (!family) continue;
+      const common = familyCommon.get(family);
+      const pool = common && common.size ? tokens.filter((token) => common.has(token)) : tokens;
+      const shared = pool.filter(has);
+      if (!shared.length) continue;
+      hits.push({ id: item.id, family, extra: tokens.filter((token) => !has(token)).length, shared: shared.length, drink: isDrinkProduct(String(item.name || "")) });
+    }
+    const kept = hits.filter((hit) => !hits.some((other) => other.id !== hit.id && other.extra < hit.extra && other.shared >= hit.shared));
+    const best = new Map<string, { id: string; family: string; extra: number; shared: number; drink: boolean }>();
+    for (const hit of kept.length ? kept : hits) {
+      const have = best.get(hit.family);
+      if (!have || hit.extra < have.extra || (hit.extra === have.extra && hit.shared > have.shared)) best.set(hit.family, hit);
+    }
+    return [...best.values()];
+  };
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    const text = plain(turn.text);
+    const named = namedDishes(turn.text);
+    if (turn.speaker === "staff") {
+      if (named.length === 1) offered = { family: named[0].family, itemId: named[0].id };
+      if (/\bpreparad/.test(text) && /\?/.test(turn.text)) {
+        const next = turns.slice(i + 1).find((row) => row.speaker === "caller");
+        if (next && acceptsReadback(next.text)) preparada = true;
+      }
+      continue;
+    }
+    if (isAvailabilityAsk(turn.text)) {
+      if (named.length === 1) offered = { family: named[0].family, itemId: named[0].id };
+      continue;
+    }
+    const dishNamed = named.filter((row) => !row.drink);
+    if (dishNamed.length) active = [...dishNamed].sort((a, b) => b.shared - a.shared)[0].family;
+    const meats = scanMeats(text);
+    const counts = countsIn(text);
+    const qty = counts.find((count) => count > 1) || counts[0] || 1;
+    const deluxe = preparada || /\bpreparad/.test(text);
+    const specific = [...dishNamed].sort((a, b) => b.shared - a.shared)[0];
+    const markers = dishNamed.map((row) => ({ family: row.family, at: text.indexOf(row.family === "qd" ? "dorad" : row.family) })).filter((row) => row.at >= 0).sort((a, b) => a.at - b.at);
+    const conMeat = meats.some((meat) => new RegExp(`\\bcon\\s+${meat.meat}\\b`).test(text));
+    const asking = /[?¿]/.test(turn.text);
+    const droppedLater = (family: string) => turns.slice(i + 1).some((row) => row.speaker === "caller" && plain(row.text).includes(family) && namedDishes(row.text).some((hit) => hit.family !== family));
+    if (markers.length && meats.length && !conMeat && !asking) {
+      const grouped = new Map<string, string[]>();
+      for (const meat of meats) {
+        const marker = [...markers].reverse().find((row) => row.at <= meat.at) || (markers.length === 1 ? markers[0] : undefined);
+        if (!marker) continue;
+        const list = grouped.get(marker.family) || [];
+        list.push(meat.meat);
+        grouped.set(marker.family, list);
+      }
+      for (const [family, list] of grouped) {
+        const familyQty = list.length > 1 ? 1 : qty;
+        for (const meat of list) parts.push({ family, meat, qty: familyQty, deluxe: family === "qd" && deluxe, bound: grouped.size > 1, turn: i });
+      }
+      for (const row of named) {
+        if (!row.drink || grouped.has(row.family) || !counts.length) continue;
+        parts.push({ family: row.family, meat: null, qty: counts[counts.length - 1] || 1, itemId: row.id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+      }
+    } else if (meats.length >= 2 && active && !conMeat && !asking && meats[0].meat !== meats[1].meat) {
+      for (const meat of meats.slice(0, 2)) parts.push({ family: active, meat: meat.meat, qty: 1, deluxe: active === "qd" && deluxe, bound: true, turn: i });
+    } else if (meats.length === 1 && specific?.family && !conMeat && !asking) {
+      parts.push({ family: specific.family, meat: meats[0].meat, qty, deluxe: specific.family === "qd" && deluxe, turn: i });
+    } else if (meats.length === 1 && active && qty > 1 && !conMeat && !asking && parts.some((part) => part.family === active && part.meat === meats[0].meat)) {
+      parts.push({ family: active, meat: meats[0].meat, qty, deluxe: active === "qd" && deluxe, turn: i });
+    } else if (!meats.length && counts.length === 1 && counts[0] <= 10 && text.split(" ").length <= 8 && offered && !locatesDish(text, offered.family) && (offered.family === "birria" || (isDrinkProduct(String(menu.find((row) => row.id === offered.itemId)?.name || "")) && !droppedLater(offered.family))) && !/^no\b/.test(text) && !named.some((row) => row.family !== offered.family)) {
+      parts.push({ family: offered.family, meat: null, qty: counts[0] || 1, itemId: offered.itemId, sizeSpoken: spokenSizeWords(turn.text).length > 0, turn: i });
+      offered = null;
+    } else if (!meats.length && named.length === 1 && named[0].drink && (counts.length || locatesDish(text, named[0].family)) && text.includes(named[0].family) && !droppedLater(named[0].family)) {
+      const located = locatesDish(text, named[0].family);
+      const family = frescaFamily(menu, menu.find((row) => row.id === named[0].id) || { id: named[0].id, name: named[0].family });
+      const others = family.filter((row) => row.id !== named[0].id);
+      const counted = unnamedDrinkCount(turns.slice(0, i + 1), menu);
+      const drinkQty = located ? (counted || counts[counts.length - 1] || 1) : (counts[counts.length - 1] || 1);
+      if (located && others.length === 1) {
+        const sibling = others[0];
+        parts.push({ family: flavorToken(sibling, family), meat: null, qty: drinkQty, itemId: sibling.id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+        if (!flavorWasOrdered(turns, named[0].family)) locatedLandmarks.add(named[0].id);
+      } else if (located && others.length >= 2) {
+        parts.push({ family: named[0].family, meat: null, qty: drinkQty, itemId: named[0].id, hold: true, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+      } else {
+        parts.push({ family: named[0].family, meat: null, qty: drinkQty, itemId: named[0].id, sizeSpoken: spokenSizeWords(turn.text).length > 0 });
+      }
+    }
+    offered = null;
+  }
+  if (preparada) for (const part of parts) if (part.family === "qd") part.deluxe = true;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part.meat || part.qty < 2) continue;
+    const earlier = parts.slice(0, i).filter((row) => row.family === part.family && row.bound && row.meat);
+    const sum = earlier.reduce((total, row) => total + row.qty, 0);
+    if (sum === part.qty && earlier.some((row) => row.meat !== part.meat)) {
+      for (const row of earlier) if (row.meat !== part.meat) row.meat = null;
+    }
+  }
+  let changed = false;
+  const seen = new Set<string>();
+  for (const part of parts) {
+    const key = `${part.family}:${part.itemId || ""}:${part.meat || ""}:${part.qty}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (part.itemId) {
+      const callerText = part.family === "birria" ? birriaVariantText(turns, part.turn ?? 0) : "";
+      const variant = part.family === "birria" ? variantChoice(menu, part.family, callerText) : { note: null, itemId: part.itemId };
+      const sized = part.family !== "birria" && catalogSizeCount(menu, part.family) > 1 && !part.sizeSpoken;
+      const notes = [variant.note, sized ? "confirmar tamaño" : null, part.hold ? "confirmar" : null].filter(Boolean);
+      const targetId = variant.itemId || part.itemId;
+      const existing = cart.find((line) => line.itemId === targetId) || cart.find((line) => part.family && scopedFamily(line) === part.family);
+      if (existing) {
+        if (part.family === "birria" && variant.itemId && existing.itemId !== variant.itemId) { existing.itemId = variant.itemId; changed = true; }
+        if (part.hold && part.qty && Number(existing.quantity) !== part.qty) { existing.quantity = part.qty; changed = true; }
+        if (part.family === "birria" && /NHFHDD/.test(String(variant.itemId || existing.itemId || ""))) {
+          const kept = (existing.elviNotes || []).filter((note: string) => note !== "confirmar" && note !== "confirmar tamaño");
+          if (kept.length !== (existing.elviNotes || []).length) {
+            if (kept.length) existing.elviNotes = kept;
+            else delete existing.elviNotes;
+            changed = true;
+          }
+        } else if ((existing.elviNotes || []).includes("confirmar tamaño")) {
+          existing.elviNotes = (existing.elviNotes || []).filter((note: string) => note !== "confirmar tamaño");
+          if (!existing.elviNotes.length) delete existing.elviNotes;
+          changed = true;
+        }
+        for (const note of notes) if (!(existing.elviNotes || []).includes(note)) {
+          existing.elviNotes = [...(existing.elviNotes || []), note];
+          changed = true;
+        }
+        continue;
+      }
+      const item = menu.find((row) => row.id === (variant.itemId || part.itemId));
+      if (!item) continue;
+      cart.push({ itemId: item.id, quantity: part.qty, modifiers: [], ...(notes.length ? { elviNotes: notes } : {}) });
+      changed = true;
+      continue;
+    }
+    const lines = cart.filter((line) => scopedFamily(line) === part.family);
+    if (part.meat && lines.some((line) => meatOfLine(line) === part.meat)) {
+      const same = lines.filter((line) => meatOfLine(line) === part.meat);
+      const host = same[0];
+      if (host && part.qty > 1 && (Number(host.quantity) || 1) === 1 && same.length === 1) {
+        host.quantity = part.qty;
+        changed = true;
+      }
+      const saidRegular = turns.some((row) => {
+        if (row.speaker !== "caller" || !/\bregular(?:es)?\b/.test(plain(row.text))) return false;
+        const spoken = plain(row.text);
+        const at = spoken.search(/\bregular/);
+        const before = spoken.slice(0, at);
+        const dishes = [...before.matchAll(/\b(dorad\w*|quesadillas?|tacos?|tortas?|gorditas?|burritos?|cocas?|horchatas?|sodas?|aguas?|menudos?|fajitas?)\b/g)];
+        const last = dishes[dishes.length - 1]?.[1] || "";
+        if (/^dorad/.test(last)) return true;
+        if (!last && /\bdorad/.test(spoken)) return true;
+        return /^quesadilla/.test(last) && (!part.meat || scanMeats(spoken).some((hit) => hit.meat === part.meat));
+      });
+      if (part.deluxe && !saidRegular) {
+        const regulars = same.filter((line) => /regular/i.test(String(line.itemId || "")));
+        if (regulars.length && same.some((line) => /deluxe|preparada/i.test(String(line.itemId || "")))) {
+          for (const extra of regulars) {
+            const at = cart.indexOf(extra);
+            if (at >= 0) cart.splice(at, 1);
+          }
+          changed = true;
+        }
+      }
+      const styleOf = (line: any) => {
+        const blob = (line.modifiers || []).map((mod: any) => String(mod.option || "")).join(" ");
+        if (/taquer|street|\(TST\)/i.test(blob)) return "street";
+        if (/harina|flour/i.test(blob)) return "flour";
+        if (/deluxe|preparada/i.test(blob)) return "deluxe";
+        if (/regular/i.test(blob)) return "regular";
+        if (/comal|homemade|\(QCO\)|\(TCO\)/i.test(blob)) return "comal";
+        return "";
+      };
+      const twins = same.filter((line) => styleOf(line) === styleOf(same[0]) && (Number(line.quantity) || 1) === part.qty);
+      const spokenCopies = parts.filter((row) => row.family === part.family && row.meat === part.meat && row.qty === part.qty).length;
+      if (twins.length > spokenCopies && part.qty > 1) {
+        for (const extra of twins.slice(spokenCopies)) {
+          const at = cart.indexOf(extra);
+          if (at >= 0) cart.splice(at, 1);
+        }
+        changed = true;
+      }
+      const other = parts.find((row) => row.family === part.family && row.turn === part.turn && row.meat && row.meat !== part.meat);
+      if (host && other?.meat && part.deluxe && (Number(host.quantity) || 1) === 2 && !lines.some((line) => meatOfLine(line) === other.meat)) {
+        host.quantity = 1;
+        const clone = structuredClone(host);
+        clone.quantity = 1;
+        if (putMeat(clone, other.meat, menu)) { cart.push(clone); changed = true; }
+      }
+      continue;
+    }
+    const misplaced = part.bound && part.meat && lines.find((line) => {
+      const meat = meatOfLine(line);
+      return !!meat && meat !== part.meat && parts.some((other) => other.turn === part.turn && other.family !== part.family && other.meat === meat);
+    });
+    if (misplaced && part.meat && putMeat(misplaced, part.meat, menu)) { changed = true; continue; }
+    if (!part.meat || !part.deluxe) continue;
+    const host = lines.find((line) => meatOfLine(line) === part.meat && (Number(line.quantity) || 1) > 1);
+    const other = parts.find((row) => row.family === part.family && row.turn === part.turn && row.meat && row.meat !== part.meat);
+    if (host && other?.meat && (Number(host.quantity) || 1) === 2 && !lines.some((line) => meatOfLine(line) === other.meat)) {
+      host.quantity = 1;
+      const clone = structuredClone(host);
+      clone.quantity = 1;
+      if (putMeat(clone, other.meat, menu)) { cart.push(clone); changed = true; }
+    }
+  }
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const family = scopedFamily(cart[i]);
+    const meat = meatOfLine(cart[i]);
+    if (!family || !meat) continue;
+    const wanted = parts.some((part) => part.family === family && part.meat === meat);
+    const sameDish = (left: string, right: string) => (left === "qd" && right === "quesadilla") || (left === "quesadilla" && right === "qd");
+    const boundElsewhere = parts.some((part) => part.bound && part.family !== family && part.meat === meat && !sameDish(part.family, family));
+    if (boundElsewhere && !wanted) { cart.splice(i, 1); changed = true; }
+  }
+  for (const line of cart) {
+    const meat = meatOfLine(line);
+    if (!meat) continue;
+    const item = menu.find((row) => row.id === line.itemId);
+    const group = (item?.modifierGroups || []).find((entry: any) => /carne|meat/i.test(String(entry.name || "")) && !/extra|combo/i.test(String(entry.name || "")));
+    const selected = (line.modifiers || []).find((mod: any) => mod.step === group?.name);
+    const names = (group?.options || []).map(oname).filter(Boolean);
+    if (!selected || !names.length) continue;
+    const spoken = turns.filter((row) => row.speaker === "caller" && scanMeats(plain(row.text)).some((hit) => hit.meat === meat)).map((row) => row.text).join(" ");
+    if (!spoken) continue;
+    const picked = pickSpokenOption(`${meat} ${spoken}`, names);
+    if (!picked || picked === selected.option || meatIn(plain(picked)) !== meat) continue;
+    const unspoken = (name: string) => optionWords(name).filter((word) => !plain(`${meat} ${spoken}`).split(" ").includes(word)).length;
+    if (unspoken(picked) >= unspoken(String(selected.option || ""))) continue;
+    selected.option = picked;
+    changed = true;
+  }
+  const spokenLines = new Map<string, { count: number; meats: Set<string> }>();
+  for (const part of parts) {
+    if (!part.family || !part.meat) continue;
+    const row = spokenLines.get(part.family) || { count: 0, meats: new Set<string>() };
+    row.count += 1;
+    row.meats.add(part.meat);
+    spokenLines.set(part.family, row);
+  }
+  const mentionsFamily = (text: string, family: string) => family === "qd" ? /\bdorad/.test(text) : new RegExp(`\\b${family}s?\\b`).test(text);
+  const saidWithFamily = (family: string, meat: string) => {
+    let active: string | null = null;
+    for (const turn of turns) {
+      if (turn.speaker !== "caller") continue;
+      const text = plain(turn.text);
+      const named = [...text.matchAll(/\b(dorad\w*|quesadillas?|tacos?|tortas?|gorditas?|burritos?|birrias?|menudos?|fajitas?|moles?|platillos?|horchatas?)\b/g)].map((match) => match[1]);
+      if (named.some((word) => mentionsFamily(word, family) || (family === "qd" && /dorad/.test(word)))) active = family;
+      else if (named.length) active = named[0];
+      const inScope = named.some((word) => mentionsFamily(word, family) || (family === "qd" && /dorad/.test(word))) || (!named.length && active === family);
+      if (inScope && scanMeats(text).some((hit) => hit.meat === meat)) return true;
+    }
+    return false;
+  };
+  for (const [family, spoken] of spokenLines) {
+    const lines = cart.filter((line) => scopedFamily(line) === family);
+    if (!spoken.count || lines.length <= spoken.count) continue;
+    for (let i = cart.length - 1; i >= 0; i--) {
+      if (scopedFamily(cart[i]) !== family) continue;
+      const meat = meatOfLine(cart[i]);
+      if (!meat || spoken.meats.has(meat) || saidWithFamily(family, meat)) continue;
+      const spokenForAnotherDish = parts.some((part) => part.family !== family && part.meat === meat);
+      if (!spokenForAnotherDish) continue;
+      cart.splice(i, 1);
+      changed = true;
+    }
+  }
+  for (const id of locatedLandmarks) {
+    if (!cart.some((line) => line.itemId !== id && /agua-fresca/i.test(String(line.itemId || "")))) continue;
+    const at = cart.findIndex((line) => line.itemId === id);
+    if (at >= 0) { cart.splice(at, 1); changed = true; }
+  }
+  for (const line of cart) {
+    if (!/NHFHDD/.test(String(line.itemId || ""))) continue;
+    const kept = (line.elviNotes || []).filter((note: string) => note !== "confirmar");
+    if (kept.length === (line.elviNotes || []).length) continue;
+    if (kept.length) line.elviNotes = kept;
+    else delete line.elviNotes;
+    changed = true;
+  }
+  return changed;
+}
+
+/** A meat that appears only inside a refused availability question does not stay on the cart. Nothing else is deleted by phrase. */
+export function reconcileAcceptedDishParts(cart: any[], turns: Turn[], _menu: any[]): boolean {
+  if (!Array.isArray(cart)) return false;
+  const { leaked } = acceptedParts(turns);
+  let changed = false;
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const meat = meatOfLine(cart[i]);
+    if (meat && leaked.has(meat)) { cart.splice(i, 1); changed = true; }
+  }
+  return changed;
+}
+
 /** Drop cart lines for a declined availability ask ("¿tiene tacos dorados?" → "No"). "Quería eso" is not a reorder. */
 export function dropDeclinedAsk(cart: any[], turns: Turn[]): boolean {
   if (!Array.isArray(cart)) return false;
@@ -1027,6 +1717,1264 @@ export function staffRecapText(turns: Turn[]): string | null {
   }
   return null;
 }
+const AFFIRM = /^(?:si|yes|yeah|yep|ok(?:ay)?|claro|andale|exactamente|sounds good|perfect|right|correcto|va)\b/;
+export const STAFF_LIST_REVIEW = "revisar lectura del personal";
+
+export type AffirmedStaffResult = { fired: boolean; added: string[]; flagged: string[]; priorIds?: string[] };
+
+function cleanYes(text: string): boolean {
+  const p = plain(text);
+  if (!AFFIRM.test(p)) return false;
+  const rest = p.replace(AFFIRM, "").replace(/^(?:por favor|gracias|thanks|please)\b/, "").trim();
+  return !rest || !/\b(?:pero|cambia|falta|no|sin)\b/.test(rest);
+}
+
+function isQuestionOrUpsell(text: string): boolean {
+  const p = plain(text);
+  if (/\b(?:quiere|quieren|le pongo|te pongo|les pongo|tambien tenemos|also have)\b/.test(p)) return true;
+  const body = String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/¿\s*algo mas\s*\??/gi, " ").replace(/,?\s*right\s*\??/gi, " ").replace(/¿\s*verdad\s*\??/gi, " ");
+  return /[?¿]/.test(body);
+}
+
+function clausesOf(text: string): string[] {
+  return plain(text).split(/\s*,\s*|\s+y\s+/).map((part) => part.trim()).filter(Boolean);
+}
+
+function attachClauseOption(line: any, menu: any[], clause: string) {
+  const meat = meatOfLine(line);
+  const groupsHere = groups(menu, line.itemId).filter((g) => /con \/|with|extra/i.test(g.name));
+  for (const g of groupsHere) for (const option of g.options || []) {
+    const name = oname(option);
+    const words = plain(name).split(" ").filter((word) => word.length >= 5 && word !== meat && !MEATS.some(([re]) => re.test(word)));
+    if (!words.some((word) => clause.includes(word))) continue;
+    if ((line.modifiers || []).some((mod: any) => mod.option === name)) return;
+    line.modifiers = [...(line.modifiers || []), { step: g.name, option: name }];
+    return;
+  }
+}
+
+function sameFamily(item: any, line: Exp): boolean {
+  const kind = kindOfLine(item);
+  return !!kind && famOf(kind) === famOf(line.kind);
+}
+
+function styleOfLine(line: any): Exp["style"] | undefined {
+  const text = plain((line.modifiers || []).map((mod: any) => mod.option).join(" "));
+  if (/\bcomal\b/.test(text)) return "comal";
+  if (/\btaquer|\bstreet\b/.test(text)) return "taquero";
+  if (/\bharina\b|\bflour\b/.test(text)) return "harina";
+  return undefined;
+}
+
+function drinkFamily(label: string): string {
+  const name = plain(label);
+  if (/\b(?:coca|pepsi|sprite|fanta|soda|cola)\b/.test(name)) return "soda";
+  if (/\b(?:horchata|jamaica|tamarindo|agua)\b/.test(name)) return "agua";
+  return "drink";
+}
+
+function isDrinkHit(menu: any[], hit: { id: string; label: string }): boolean {
+  return /drink|coca|pepsi|horchata|jamaica|jarrito|sprite|fanta|soda/i.test(`${hit.id} ${hit.label} ${menu.find((item) => item.id === hit.id)?.name || ""}`);
+}
+
+const ORDER_VERB = /\b(?:quiero|quisiera|pone|ponme|pongame|dame|deme|prepar\w*|traeme|traer|want|give me|one of|i d like)\b/;
+
+function staffAvailability(text: string): boolean {
+  const p = plain(text);
+  if (/\b(?:te tengo|le tengo|so i have|i have|i got)\b/.test(p)) return false;
+  return /\b(?:tenemos|we have|available|unavailable|in stock|out of stock|no hay|no tenemos|se acabo|sold out)\b/.test(p);
+}
+
+function productId(menu: any[], id: string): string {
+  return menu.find((item) => item.id === id)?.squareCatalogObjectId || id;
+}
+
+function qtyFor(text: string, label: string): number {
+  const spoken = plain(text);
+  for (const word of plain(label).split(" ").filter((token) => token.length >= 4)) {
+    const stem = word.endsWith("s") ? word.slice(0, -1) : word;
+    const hit = spoken.match(new RegExp(`\\b(${NUMW})\\s+(?:\\w+\\s+){0,4}(?:${stem}|${word})\\b`));
+    if (hit) return numOf(hit[1]) || 1;
+  }
+  return 1;
+}
+
+function staffDenial(text: string): boolean {
+  return /\b(?:no tenemos|no hay|we don t have|out of stock|unavailable|sold out|se acabo)\b/.test(plain(text));
+}
+
+function closingStaff(text: string): boolean {
+  return /\b(?:algo mas|anything else|que mas)\b/.test(plain(text));
+}
+
+const VARIATION_SIZE = /^(?:lb|solo|only|consome|consom|broth|full|half)$/;
+
+function retractedDish(text: string, label: string): boolean {
+  if (!/\b(?:instead|en vez|quita|ya no|no quiero|cambia)\b/.test(plain(text))) return false;
+  return nameRelation(label, text) !== null;
+}
+
+function lineConflict(candidate: string, line: any, menu: any[]): "garbled" | "same" | null {
+  const other = String(menu.find((item) => item.id === line.itemId)?.name || "");
+  const relation = nameRelation(candidate, other);
+  if (relation === "garbled") return "garbled";
+  if (relation !== "family") return null;
+  const candidateMeat = meatIn(plain(candidate));
+  const existingMeat = meatOfLine(line) || meatIn(plain(other));
+  if (candidateMeat && existingMeat && candidateMeat !== existingMeat) return null;
+  return "same";
+}
+
+function unspokenSize(label: string, spoken: string): boolean {
+  const said = new Set(plain(spoken).split(" ").filter(Boolean));
+  return plain(label).split(" ").some((token) => token.length >= 2 && VARIATION_SIZE.test(token) && !said.has(token) && !said.has(`${token}s`));
+}
+
+/** A catalog dish the caller ordered, or a clean yes to that same staff dish. A closing staff turn alone adds nothing. */
+function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: AffirmedStaffResult) {
+  const callerOrder = turns.filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).map((turn) => turn.text).join(" ");
+  const callerDrinks = catalogMentions(callerOrder, menu).filter((hit) => isDrinkHit(menu, hit));
+  const windows: Array<{ dish: string; option: string }> = [];
+  const callerBlob = turns.filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" ");
+  turns.forEach((turn, index) => {
+    if (turn.speaker !== "staff" || isQuestionOrUpsell(turn.text) || staffAvailability(turn.text)) return;
+    const next = turns[index + 1];
+    const yes = next?.speaker === "caller" && cleanYes(next.text);
+    if (yes && !closingStaff(turn.text)) windows.push({ dish: turn.text, option: `${turn.text} ${next.text}` });
+    if (!yes && closingStaff(turn.text)) {
+      for (const match of matchSpokenCatalog(turn.text, turn.text, menu)) {
+        if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id)) continue;
+        if (cart.some((line) => line.itemId === match.id || productId(menu, line.itemId) === match.product)) continue;
+        if (nameRelation(match.label, callerBlob)) continue;
+        const flag = `unconfirmed:${match.id}`;
+        if (!result.flagged.includes(flag)) result.flagged.push(flag);
+        result.fired = true;
+      }
+    }
+  });
+  for (let index = 0; index < turns.length; index++) {
+    const turn = turns[index];
+    if (turn.speaker !== "caller" || /[?¿]/.test(turn.text) || !ORDER_VERB.test(plain(turn.text))) continue;
+    const parts = [turn.text];
+    let cursor = index + 1;
+    while (cursor < turns.length) {
+      const item = turns[cursor];
+      if (item.speaker === "caller" && !/[?¿]/.test(item.text) && !ORDER_VERB.test(plain(item.text))) { parts.push(item.text); cursor++; continue; }
+      if (item.speaker === "staff" && isQuestionOrUpsell(item.text) && !staffDenial(item.text)) {
+        const answer = turns[cursor + 1];
+        if (answer?.speaker === "caller" && (cleanYes(answer.text) || !ORDER_VERB.test(plain(answer.text)))) {
+          parts.push(item.text);
+          if (answer && !cleanYes(answer.text)) parts.push(answer.text);
+          cursor += 2;
+          continue;
+        }
+      }
+      break;
+    }
+    const nextStaff = turns.slice(index + 1).find((item) => item.speaker === "staff");
+    if (nextStaff && staffDenial(nextStaff.text)) continue;
+    windows.push({ dish: parts.join(" "), option: parts.join(" ") });
+  }
+  for (const window of windows) {
+    for (const match of matchSpokenCatalog(window.dish, window.option, menu)) {
+      if (/^sq-(?:taco|quesadilla|qd)-/.test(match.id) || retractedDish(`${window.dish} ${window.option}`, match.label)) continue;
+      if (cart.some((line) => line.itemId === match.id || productId(menu, line.itemId) === match.product)) continue;
+      const conflict = cart.map((line) => ({ line, kind: lineConflict(match.label, line, menu) })).find((row) => row.kind);
+      if (conflict?.kind === "garbled") {
+        const flag = `near:${conflict.line.itemId}`;
+        if (!result.flagged.includes(flag)) result.flagged.push(flag);
+        result.fired = true;
+        continue;
+      }
+      if (conflict?.kind === "same") continue;
+      if (isDrinkHit(menu, match)) {
+        const family = drinkFamily(match.label);
+        const other = callerDrinks.find((drink) => drink.id !== match.id && drinkFamily(drink.label) === family);
+        if (other) {
+          const flag = `brand:${cart.find((line) => line.itemId === other.id)?.itemId || other.id}`;
+          if (!result.flagged.includes(flag)) result.flagged.push(flag);
+          result.fired = true;
+          continue;
+        }
+      }
+      const created: any = { itemId: match.id, quantity: qtyFor(window.dish, match.label), modifiers: match.options.map((row) => ({ step: row.step, option: row.option })) };
+      if (unspokenSize(match.label, `${window.dish} ${window.option}`)) created.elviNotes = ["confirmar"];
+      cart.push(created);
+      result.added.push(match.id);
+      result.fired = true;
+    }
+  }
+}
+
+/** A chosen variation that names a size nobody spoke stays on the ticket and is held. */
+function varyingSizes(item: any, siblings: any[]): string[] {
+  const tokens = plain(item?.name || "").split(" ");
+  return tokens.filter((token) => VARIATION_SIZE.test(token) && siblings.some((row) => !plain(row.name || "").split(" ").includes(token)));
+}
+
+export function noteUnspokenSize(cart: any[], turns: Turn[], menu: any[]): void {
+  const said = new Set(plain(turns.map((turn) => turn.text).join(" ")).split(" ").filter(Boolean));
+  for (const word of spokenSizeWords(turns.map((turn) => turn.text).join(" "))) said.add(word);
+  for (const line of cart) {
+    const item = menu.find((row) => row.id === line.itemId);
+    if (!item?.squareCatalogObjectId) continue;
+    const siblings = menu.filter((row) => row.squareCatalogObjectId === item.squareCatalogObjectId);
+    if (siblings.length < 2) continue;
+    const spokenSibling = siblings
+      .map((row) => ({ row, sizes: varyingSizes(row, siblings) }))
+      .filter((entry) => entry.sizes.some((token) => said.has(token) || said.has(`${token}s`)))
+      .sort((a, b) => a.sizes.filter((token) => !said.has(token)).length - b.sizes.filter((token) => !said.has(token)).length)[0]?.row;
+    if (spokenSibling && spokenSibling.id !== line.itemId && varyingSizes(item, siblings).some((token) => !said.has(token))) line.itemId = spokenSibling.id;
+    const current = menu.find((row) => row.id === line.itemId) || item;
+    const sizes = varyingSizes(current, siblings);
+    if (!sizes.length || sizes.some((token) => said.has(token) || said.has(`${token}s`))) continue;
+    if ((line.elviNotes || []).includes("confirmar")) continue;
+    line.elviNotes = [...(line.elviNotes || []), "confirmar"];
+  }
+}
+
+const DISH_WORD = "menudo|fajita|quesadilla|quesa|taco|torta|gordita|burrito|sope|huarache|pozole|birria|mole|enchilada|tamal|tostada|flauta|chimichanga|platillo|dorada|chile|agua|horchata|jamaica|coca|pepsi|jarrito";
+const CHOICE_STOP = new Set(["with", "and", "the", "para", "option", "options", "extra", "only", "solo", "quesadilla", "taco", "torta", "gordita", "burrito", "tortilla"]);
+const TORTILLA_DISH = /^(?:quesadilla|quesa|taco|gordita|sope|huarache)$/;
+const QTY_WORD: Record<string, number> = { one: 1, una: 1, un: 1, uno: 1, two: 2, dos: 2, three: 3, tres: 3, four: 4, cuatro: 4, five: 5, cinco: 5, six: 6, seis: 6, seven: 7, siete: 7, eight: 8, ocho: 8, nine: 9, nueve: 9, ten: 10, diez: 10 };
+
+function dishKeysIn(text: string): string[] {
+  return [...new Set([...plain(text).matchAll(new RegExp(`\\b(${DISH_WORD})s?\\b`, "g"))].map((match) => match[1] === "quesa" ? "quesadilla" : match[1]))];
+}
+
+function choiceTokens(name: string): string[] {
+  const folded = plain(name);
+  const words = folded.split(" ").filter((word) => word.length >= 4 && !CHOICE_STOP.has(word) && !/^\d+$/.test(word));
+  const sizes = (folded.match(/\d+\s*oz/g) || []).map((size) => size.replace(/\s+/g, ""));
+  return [...new Set([...words, ...words.flatMap((word) => compoundForms(word)), ...sizes])];
+}
+
+function lineChoiceKeys(item: any): string[] {
+  const keys = dishKeysIn(`${item?.name || ""} ${item?.id || ""}`);
+  for (const word of normalizeSpoken(String(item?.name || "")).split(" ")) {
+    if (word.length >= 5 && !CHOICE_STOP.has(word)) keys.push(word.replace(/s$/, ""));
+  }
+  if (/combo/i.test(`${item?.name || ""} ${item?.id || ""}`)) keys.push("combo");
+  if (/dorad/i.test(`${item?.name || ""} ${item?.id || ""}`)) keys.push("dorada");
+  if (/chile/i.test(`${item?.name || ""}`) && /relleno/i.test(`${item?.name || ""}`)) keys.push("chile");
+  return [...new Set(keys)];
+}
+
+function acceptsReadback(text: string): boolean {
+  const spoken = normalizeSpoken(text);
+  if (/\b(?:pero|cambia|falta|wrong)\b/.test(spoken)) return false;
+  if (/^(?:si|yes|yeah|yep|ok|okay|claro|andale|exactamente|correcto|va|perfecto)\b/.test(spoken)) return true;
+  return /\b(?:seria todo|eso es todo|es todo|that s all|that s it|nada mas)\b/.test(spoken);
+}
+
+function declinesChoice(text: string): boolean {
+  return /\b(?:either|doesn t matter|no importa|cualquier|whatever|no matter)\b/.test(plain(text));
+}
+
+function optionChoiceTokens(name: string, options: string[]): string[] {
+  const mine = choiceTokens(normalizeSpoken(name));
+  const shared = mine.filter((token) => options.every((option) => choiceTokens(normalizeSpoken(option)).includes(token)));
+  const distinctive = mine.filter((token) => !shared.includes(token));
+  return distinctive.length ? distinctive : mine;
+}
+
+function ozOf(name: string): string | null {
+  const hit = plain(name).match(/(\d+)\s*oz/);
+  return hit ? `${hit[1]}oz` : null;
+}
+
+function stemOf(name: string): string {
+  return plain(name).replace(/\d+\s*oz/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function tokensFor(names: string[], options: string[]): string[] {
+  const sized = names.filter((name) => {
+    const oz = ozOf(name);
+    const stem = stemOf(name);
+    return !!oz && options.some((option) => { const other = ozOf(option); return !!other && other !== oz && stemOf(option) === stem; });
+  });
+  if (sized.length) return [...new Set(sized.map((name) => ozOf(name) || ""))].filter(Boolean);
+  return [...new Set(names.flatMap((name) => optionChoiceTokens(name, options)))];
+}
+
+function textHitsTokens(text: string, tokens: string[]): boolean {
+  const hits = spokenChoiceWords(text);
+  return tokens.some((token) => hits.has(token) || hits.has(`${token}s`) || (token.endsWith("s") && hits.has(token.slice(0, -1))) || (token.endsWith("es") && hits.has(token.slice(0, -2))));
+}
+
+function quantitiesIn(text: string): number[] {
+  const found: number[] = [];
+  for (const word of plain(text).split(" ")) {
+    if (QTY_WORD[word]) found.push(QTY_WORD[word]);
+    else if (/^\d+$/.test(word)) found.push(Number(word));
+  }
+  return found;
+}
+
+function turnCoversLine(text: string, lineQty: number, siblingQtys: number[]): boolean {
+  const said = quantitiesIn(text);
+  if (!said.length || !siblingQtys.some((qty) => said.includes(qty))) return true;
+  return said.includes(lineQty);
+}
+
+function subsetSum(target: number, nums: number[]): boolean {
+  const reach = new Set<number>([0]);
+  for (const num of nums) {
+    if (num <= 0) continue;
+    for (const have of [...reach]) if (have + num <= target) reach.add(have + num);
+  }
+  return reach.has(target);
+}
+
+/** A spoken total covers the lines whose quantities are its parts. */
+function splitListCovers(lineQty: number, spokenQty: number, siblingQtys: number[]): boolean {
+  if (spokenQty === lineQty) return true;
+  if (lineQty <= 0 || lineQty > spokenQty) return false;
+  const bag = [...siblingQtys];
+  const at = bag.indexOf(lineQty);
+  if (at < 0) return false;
+  bag.splice(at, 1);
+  return subsetSum(spokenQty - lineQty, bag);
+}
+
+/** A style said with no number covers the dish count already on the table, not a later separate order. */
+function episodeQty(turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[], siblingQtys: number[]): number[] {
+  const here = quantitiesIn(turns[index].text);
+  if (here.length) return here;
+  let nearest: number[] = [];
+  for (let j = index - 1; j >= 0; j--) {
+    const named = mentionedIn(turns[j].text);
+    if (named.length && !named.some((key) => keys.includes(key))) break;
+    const qty = quantitiesIn(turns[j].text);
+    if (!qty.length) continue;
+    if (!nearest.length) nearest = qty;
+    if (siblingQtys.some((lineQty) => qty.includes(lineQty))) return qty;
+  }
+  return nearest;
+}
+
+function coversLine(text: string, episode: number[], lineQty: number, siblingQtys: number[], turns: Array<{ text: string }>, index: number, keys: string[], mentionedIn: (text: string) => string[]): boolean {
+  const said = quantitiesIn(text);
+  const use = said.length ? said : episode;
+  if (!use.length || use.includes(lineQty)) return true;
+  if (use.some((qty) => splitListCovers(lineQty, qty, siblingQtys))) return true;
+  if (siblingQtys.some((qty) => use.includes(qty))) return false;
+  // A count that matches no line covers a dish whose own count was already spoken. A merged total that was never said stays open.
+  let first = -1;
+  for (let j = 0; j < turns.length; j++) {
+    if (!quantitiesIn(turns[j].text).includes(lineQty)) continue;
+    const named = mentionedIn(turns[j].text);
+    if (named.length && !named.some((key) => keys.includes(key))) continue;
+    first = j;
+    break;
+  }
+  return first >= 0 && first <= index;
+}
+
+function wholeOrderComal(text: string): boolean {
+  return /\b(?:todas|all)\b.{0,40}\b(?:comal|homemade)\b|\b(?:comal|homemade)\b.{0,40}\b(?:todas|all)\b/.test(plain(text));
+}
+
+function shortTortillaAnswer(text: string): boolean {
+  return /^(?:de |en |las |los |si |yes |yep |yeah |por favor )*(?:comal|homemade)(?: por favor)?$/.test(plain(text));
+}
+
+function tortillaQuestion(text: string): boolean {
+  return /\b(?:comal|homemade|tortilla|harina|flour|maiz|corn|street|taquer)\b/.test(plain(text));
+}
+
+/** A choice binds to the dish being discussed, including a later clause and an accepted readback. */
+function choiceSpoken(turns: Turn[], keys: string[], tokens: string[], combo: boolean, lineQty = 1, siblingQtys: number[] = [lineQty]): boolean {
+  if (!tokens.length) return true;
+  const spokenTurns = turns.map((turn) => ({ ...turn, text: normalizeSpoken(turn.text) }));
+  const tortillaLine = keys.some((key) => TORTILLA_DISH.test(key));
+  const wantsComal = tokens.some((token) => token === "comal" || token === "homemade");
+  if (tortillaLine && wantsComal && spokenTurns.some((turn) => turn.speaker === "caller" && wholeOrderComal(turn.text))) return true;
+  if (!keys.length) return spokenTurns.some((turn) => turn.speaker === "caller" && !declinesChoice(turn.text) && textHitsTokens(turn.text, tokens));
+  const mentionedIn = (text: string) => {
+    const found = [...dishKeysIn(text), ...(combo && /\bcombo\b/.test(text) ? ["combo"] : [])];
+    for (const key of keys) if (new RegExp(`\\b${key}s?\\b`).test(text)) found.push(key);
+    return [...new Set(found)];
+  };
+  const pieces: Array<{ qty: number; text: string }> = [];
+  let dishNow: string[] = [];
+  for (let i = 0; i < spokenTurns.length; i++) {
+    const turn = spokenTurns[i];
+    const namedHere = mentionedIn(turn.text);
+    if (turn.speaker === "caller" && namedHere.length) dishNow = namedHere;
+    if (turn.speaker !== "caller") continue;
+    const qtys = quantitiesIn(turn.text).filter((qty) => qty > 0 && qty < lineQty);
+    if (!qtys.length) continue;
+    const scope = namedHere.length ? namedHere : dishNow;
+    if (!scope.some((key) => keys.includes(key))) continue;
+    let window = turn.text;
+    for (let j = i + 1; j < spokenTurns.length; j++) {
+      const later = spokenTurns[j];
+      if (later.speaker === "caller" && quantitiesIn(later.text).some((qty) => qty > 0)) break;
+      const laterNames = mentionedIn(later.text);
+      if (laterNames.length && !laterNames.some((key) => keys.includes(key))) continue;
+      if (later.speaker === "caller") { window += ` ${later.text}`; continue; }
+      const reply = spokenTurns.slice(j + 1).find((row) => row.speaker === "caller");
+      if (reply && (acceptsReadback(reply.text) || textHitsTokens(reply.text, tokens))) window += ` ${later.text}`;
+    }
+    for (const qty of qtys) pieces.push({ qty, text: window });
+  }
+  const otherQty = [...siblingQtys];
+  const selfAt = otherQty.indexOf(lineQty);
+  if (selfAt >= 0) otherQty.splice(selfAt, 1);
+  const taken = new Map<number, number>();
+  for (const qty of otherQty) taken.set(qty, (taken.get(qty) || 0) + 1);
+  const covering: number[] = [];
+  for (const piece of pieces) {
+    if (!textHitsTokens(piece.text, tokens)) continue;
+    const left = taken.get(piece.qty) || 0;
+    if (left > 0) { taken.set(piece.qty, left - 1); continue; }
+    covering.push(piece.qty);
+  }
+  if (covering.length && subsetSum(lineQty, covering)) return true;
+  let active: string[] = [];
+  for (let i = 0; i < spokenTurns.length; i++) {
+    const turn = spokenTurns[i];
+    const named = mentionedIn(turn.text);
+    if (turn.speaker === "caller" && named.length) active = named;
+    const scope = named.length ? named : active;
+    const namesFamily = turn.speaker === "caller" && named.some((key) => keys.includes(key));
+    const episode = quantitiesIn(turn.text).length || !namesFamily ? episodeQty(spokenTurns, i, keys, mentionedIn, siblingQtys) : [];
+    const covered = coversLine(turn.text, episode, lineQty, siblingQtys, spokenTurns, i, keys, mentionedIn);
+    if (!scope.some((key) => keys.includes(key)) || !covered) continue;
+    if (turn.speaker === "caller") {
+      if (declinesChoice(turn.text)) continue;
+      if (textHitsTokens(turn.text, tokens)) return true;
+      const prev = [...spokenTurns.slice(0, i)].reverse().find((row) => row.speaker === "staff");
+      if (tortillaLine && wantsComal && shortTortillaAnswer(turn.text) && prev && tortillaQuestion(prev.text)) {
+        const asked = dishKeysIn(prev.text);
+        const covered = asked.length ? asked : active;
+        if (covered.some((key) => keys.includes(key))) return true;
+      }
+      continue;
+    }
+    if (!textHitsTokens(turn.text, tokens)) continue;
+    const next = spokenTurns.slice(i + 1).find((row) => row.speaker === "caller");
+    if (!next || declinesChoice(next.text)) continue;
+    const chose = textHitsTokens(next.text, tokens);
+    const yes = acceptsReadback(next.text);
+    const repeated = quantitiesIn(turn.text).includes(lineQty) && spokenTurns.slice(0, i).some((row) => row.speaker === "caller" && textHitsTokens(row.text, tokens));
+    if (!chose && !yes && !repeated) continue;
+    if (yes && !chose && /\bor\b|\bo\b/.test(plain(turn.text))) {
+      const other = ["comal", "homemade", "harina", "flour", "street", "taquera", "corn", "grande", "regular"].filter((word) => spokenChoiceWords(turn.text).has(word) && !tokens.includes(word));
+      if (other.length) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+function siblingQuantities(cart: any[], menu: any[], keys: string[]): number[] {
+  const family = keys.filter((key) => new RegExp(`^(?:${DISH_WORD})$`).test(key));
+  return cart.map((line) => {
+    const item = menu.find((row) => row.id === line.itemId);
+    if (!item) return 0;
+    const other = lineChoiceKeys(item);
+    return family.some((key) => other.includes(key)) ? Number(line.quantity) || 1 : 0;
+  }).filter((qty) => qty > 0);
+}
+
+const EXTRA_INTRO = /\b(?:con|with|sin|without|extra|side|aparte|lado)\b/;
+const EXTRA_STOP = new Set(["with", "con", "extra", "side", "sides", "aparte", "lado", "double", "todo", "all", "the", "los", "las", "una", "uno", "por", "favor", "please", "and", "mas", "more", "para", "from", "that", "this", "your", "grande", "full", "half", "misma", "mismas", "mismo", "mismos", "same", "opcion", "opciones", "option", "options", "cantidad", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]);
+
+function optionLabel(option: any): string {
+  return typeof option === "string" ? option : option?.name || "";
+}
+
+function spokenBits(text: string): Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> {
+  const words = plain(text).split(" ").filter(Boolean);
+  const found: Array<{ token: string; withdrawn: boolean; clause: string; cue: string }> = [];
+    const clauseFrom = (at: number) => {
+    let start = 0;
+    for (let i = at - 1; i >= 0; i--) {
+      const word = words[i];
+      const next = words[i + 1] || "";
+      const anotherDish = (word === "otra" || word === "otro") && dishKeysIn(next).length > 0;
+      if (word === "y" || word === "and" || anotherDish) { start = i + 1; break; }
+    }
+    return words.slice(start, at + 4).join(" ");
+  };
+  for (let i = 0; i < words.length; i++) {
+    const cue = words[i];
+    const withdrawn = cue === "sin" || cue === "without" || cue === "quita" || cue === "remove";
+    const bareNo = cue === "no";
+    if (!EXTRA_INTRO.test(cue) && !withdrawn && !bareNo) continue;
+    if (bareNo && !withdrawn) {
+      const next = words[i + 1];
+      if (next && next.length >= 4 && !EXTRA_STOP.has(next) && !/^\d/.test(next)) found.push({ token: next, withdrawn: true, clause: clauseFrom(i), cue });
+      continue;
+    }
+    const token = words.slice(i + 1, i + 4).find((word) => word.length >= 4 && !EXTRA_STOP.has(word) && !/^\d/.test(word));
+    if (token) found.push({ token, withdrawn, clause: clauseFrom(i), cue });
+  }
+  return found;
+}
+
+function menuVocabulary(menu: any[]): Set<string> {
+  const vocab = new Set<string>();
+  const add = (text: string) => {
+    for (const word of plain(text).split(" ")) {
+      if (word.length < 4 || EXTRA_STOP.has(word)) continue;
+      vocab.add(word);
+      for (const part of compoundForms(word)) vocab.add(part);
+    }
+  };
+  for (const item of menu) {
+    add(item?.name || "");
+    for (const group of item?.modifierGroups || []) {
+      add(group?.name || "");
+      for (const choice of group.options || []) add(optionLabel(choice));
+    }
+  }
+  return vocab;
+}
+
+/** Exact catalog token, or one diminutive or plural of a token. Distinct catalog tokens never collapse. */
+function menuToken(raw: string, vocab: Set<string>): string | null {
+  const token = plain(raw);
+  if (token.length < 4 || EXTRA_STOP.has(token)) return null;
+  if (vocab.has(token)) return token;
+  const stems: string[] = [];
+  if (/(?:ita|ito)$/.test(token) && token.length > 5) {
+    const stem = token.slice(0, -3);
+    stems.push(stem, `${stem}a`, `${stem}o`, `${stem}e`);
+  }
+  if (token.endsWith("es") && token.length > 5) stems.push(token.slice(0, -2));
+  if (token.endsWith("s") && token.length > 4) stems.push(token.slice(0, -1));
+  for (const word of [token, ...stems]) for (const part of compoundForms(word)) stems.push(part);
+  const hits = [...new Set(stems.filter((stem) => vocab.has(stem)))];
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function normalizedForms(word: string): string[] {
+  const forms = new Set<string>();
+  const add = (value: string) => {
+    if (value.length < 4 || EXTRA_STOP.has(value) || forms.has(value)) return;
+    forms.add(value);
+    if (value.endsWith("es") && value.length > 5) add(value.slice(0, -2));
+    if (value.endsWith("s") && value.length > 4) add(value.slice(0, -1));
+    if (/(?:ita|ito)$/.test(value) && value.length > 5) {
+      const stem = value.slice(0, -3);
+      add(stem);
+      add(`${stem}a`);
+      add(`${stem}o`);
+      add(`${stem}e`);
+    }
+    for (const part of compoundForms(value)) add(part);
+  };
+  add(plain(word));
+  return [...forms];
+}
+
+function includedText(item: any, selected: string): string {
+  const chunks: string[] = [];
+  const chosen = plain(selected);
+  const take = (text: string) => {
+    const parts = String(text || "").split(/comes with\s*:/i);
+    for (let i = 1; i < parts.length; i++) {
+      const body = parts[i].split(/your choice|elige/i)[0];
+      for (const row of body.split(/\n/)) {
+        const qualifier = row.match(/\((?:on|para|de)?\s*([^)]+)\)/i);
+        if (qualifier) {
+          const words = plain(qualifier[1]).split(" ").filter((word) => word.length >= 4);
+          if (!words.some((word) => chosen.includes(word))) continue;
+        }
+        chunks.push(row.replace(/\([^)]*\)/g, " "));
+      }
+    }
+  };
+  take(item?.description || "");
+  for (const alias of item?.aliases || []) take(String(alias));
+  return chunks.join(" ");
+}
+
+function linePresent(line: any, menu: any[]): Set<string> {
+  const present = new Set<string>();
+  const add = (text: string) => {
+    for (const word of plain(text).split(" ")) for (const form of normalizedForms(word)) present.add(form);
+  };
+  const item = menu.find((row) => row.id === line.itemId);
+  const selected = (line.modifiers || []).map((mod: any) => `${mod?.step || ""} ${mod?.option || ""}`).join(" ");
+  add(item?.name || "");
+  add(item?.nameEs || "");
+  add(item?.variationName || "");
+  add(item?.readbackName || "");
+  add(includedText(item, selected));
+  for (const mod of line.modifiers || []) {
+    add(String(mod?.step || ""));
+    const label = String(mod?.option || "");
+    add(label);
+    const wanted = plain(label);
+    for (const group of item?.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const name = optionLabel(choice);
+        const folded = plain(name);
+        if (folded && wanted && (folded === wanted || folded.startsWith(wanted) || wanted.startsWith(folded))) add(name);
+      }
+    }
+  }
+  for (const note of line.elviNotes || []) add(String(note));
+  return present;
+}
+
+function itemBlob(item: any): string {
+  return plain(`${item?.name || ""} ${item?.nameEs || ""} ${item?.id || ""} ${(item?.aliases || []).join(" ")} ${item?.variationName || ""} ${item?.readbackName || ""}`);
+}
+
+function targetLines(clause: string, cart: any[], menu: any[]): any[] {
+  const keys = dishKeysIn(clause);
+  if (!keys.length) return cart;
+  const named = cart.filter((line) => {
+    const item = menu.find((row) => row.id === line.itemId);
+    return !!item && keys.some((key) => new RegExp(`\\b${key}`).test(itemBlob(item)));
+  });
+  return named.length ? named : cart;
+}
+
+function narrowTargets(clause: string, token: string, lines: any[], menu: any[], vocab: Set<string>): any[] {
+  const others = [...new Set(plain(clause).split(" ").map((word) => menuToken(word, vocab)).filter((word): word is string => !!word && word !== token))];
+  let best = lines;
+  for (const word of others) {
+    const hits = lines.filter((line) => alreadyPresent(word, linePresent(line, menu)));
+    if (hits.length && hits.length < best.length) best = hits;
+  }
+  return best;
+}
+
+function alreadyPresent(token: string, present: Set<string>): boolean {
+  return normalizedForms(token).some((form) => present.has(form));
+}
+
+function textHasForms(text: string, forms: Set<string>): boolean {
+  return plain(text).split(" ").some((word) => normalizedForms(word).some((form) => forms.has(form)));
+}
+
+function presentHasForms(forms: Set<string>, present: Set<string>): boolean {
+  for (const form of forms) if (present.has(form)) return true;
+  return false;
+}
+
+/** Fixed trio. A word joins the family only when this menu's vocabulary contains it.
+ *  Whole avocado item: sq-extras-aguacate-full-QGR5AQ. Plurals, stems, and diminutives use normalizedForms. */
+const AVOCADO_FAMILY = ["aguacate", "avocado", "guacamole"];
+
+function familyWords(token: string, vocab: Set<string>): string[] {
+  const present = AVOCADO_FAMILY.filter((word) => vocab.has(word) || [...vocab].some((entry) => normalizedForms(entry).includes(word)));
+  if (present.length < 2) return [];
+  const spoken = new Set(normalizedForms(token));
+  return present.some((word) => normalizedForms(word).some((form) => spoken.has(form))) ? present : [];
+}
+
+function matchForms(token: string, vocab: Set<string>): Set<string> {
+  const forms = new Set(normalizedForms(token));
+  for (const word of familyWords(token, vocab)) for (const form of normalizedForms(word)) forms.add(form);
+  return forms;
+}
+
+/** A line can take the token when the token is already on it, or the item's own name, options, or included parts contain it or a menu synonym. */
+function lineCouldTake(line: any, forms: Set<string>, menu: any[]): boolean {
+  if (presentHasForms(forms, linePresent(line, menu))) return true;
+  const item = menu.find((row) => row.id === line.itemId);
+  if (!item) return false;
+  if ([item.name, item.nameEs, item.variationName, item.readbackName, item.readbackNameEs].some((text) => textHasForms(String(text || ""), forms))) return true;
+  const selected = (line.modifiers || []).map((mod: any) => `${mod?.step || ""} ${mod?.option || ""}`).join(" ");
+  if (textHasForms(includedText(item, selected), forms)) return true;
+  for (const group of item.modifierGroups || []) {
+    for (const choice of group.options || []) {
+      if (textHasForms(optionLabel(choice), forms)) return true;
+    }
+  }
+  return false;
+}
+
+const ANAPHOR = /\b(?:other|otro|otra|that|this|ese|esa|aquel|aquella|those|esos|esas)\b/;
+
+/** "the other one" / "that one" / a demonstrative, with two lines of the same dish.
+ *  Resolve to the sibling the previous clause left over, or hold. Never let one line's token clear the other. */
+function anaphorTargets(clause: string, token: string, previous: string, cart: any[], menu: any[], vocab: Set<string>): any[] | "hold" | null {
+  const spoken = plain(clause);
+  const head = spoken.split(new RegExp(`\\b${token}\\b`))[0] || "";
+  if (!ANAPHOR.test(head) || cart.length < 2) return null;
+  if (new Set(cart.map((line) => line.itemId)).size !== 1) return "hold";
+  const prevBase = previous ? targetLines(previous, cart, menu) : cart;
+  const prev = previous ? narrowTargets(previous, "", prevBase, menu, vocab) : cart;
+  const distinguished = prev.length && prev.length < cart.length ? prev : [];
+  if (/\b(?:other|otro|otra)\b/.test(head)) {
+    const rest = distinguished.length ? cart.filter((line) => !distinguished.includes(line)) : [];
+    return rest.length === 1 ? rest : "hold";
+  }
+  return distinguished.length === 1 ? distinguished : "hold";
+}
+
+export type ExtraAsk = { token: string; question: string; language: "es" | "en"; resolution: "applied" | "both" | "none" | "hold" };
+export type SpokenExtraResult = string[] & { asks: ExtraAsk[] };
+
+function labelWords(line: any, menu: any[]): string[] {
+  const item = menu.find((row) => row.id === line.itemId);
+  const text = `${item?.name || ""} ${item?.nameEs || ""} ${(line.modifiers || []).map((mod: any) => `${mod?.option || ""}`).join(" ")}`;
+  return [...new Set(plain(text).split(" ").filter((word) => word.length >= 4 && !EXTRA_STOP.has(word)))];
+}
+
+function dishLanguage(text: string): "es" | "en" {
+  const spoken = plain(text);
+  if (/\b(?:with|the|please|and)\b/.test(spoken) && !/\b(?:con|por|favor)\b/.test(spoken)) return "en";
+  return "es";
+}
+
+function dishPhrase(line: any, menu: any[], eligible: any[], language: "es" | "en"): string {
+  const item = menu.find((row) => row.id === line.itemId);
+  const base = plain(`${item?.name || ""}`).split(" ").find((word) => word.length >= 4) || "platillo";
+  const shared = new Set(eligible.filter((other) => other !== line).flatMap((other) => labelWords(other, menu)));
+  const hint = labelWords(line, menu).find((word) => !shared.has(word) && word !== base);
+  if (language === "en") return hint ? `the ${hint} ${base}` : `the ${base}`;
+  return hint ? `la ${base} de ${hint}` : `la ${base}`;
+}
+
+function whichDishQuestion(token: string, eligible: any[], menu: any[], language: "es" | "en"): string {
+  const names = eligible.map((line) => dishPhrase(line, menu, eligible, language));
+  return language === "en"
+    ? `Which dish gets the ${token}: ${names.join(" or ")}?`
+    : `¿En cuál va el ${token}: ${names.join(" o ")}?`;
+}
+
+function choiceAttempt(text: string): boolean {
+  const words = plain(text).split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 6 && spokenBits(text).length === 0;
+}
+
+function questionWasSpoken(turns: Turn[], before: number, question: string): number {
+  const wanted = plain(question).replace(/[¿?]/g, "").trim();
+  if (!wanted) return -1;
+  for (let i = 0; i < before; i++) {
+    if (turns[i].speaker === "caller") continue;
+    const said = plain(turns[i].text).replace(/[¿?]/g, "").trim();
+    if (said.includes(wanted)) return i;
+  }
+  return -1;
+}
+
+function ordinalChoice(text: string, eligible: any[]): any | null {
+  const spoken = plain(text);
+  const ordinals: Array<[RegExp, number]> = [
+    [/\b(?:primera|primero|first)\b/, 0],
+    [/\b(?:segunda|segundo|second)\b/, 1],
+    [/\b(?:tercera|tercero|third)\b/, 2],
+    [/\b(?:cuarta|cuarto|fourth)\b/, 3],
+  ];
+  const hit = ordinals.find(([pattern]) => pattern.test(spoken));
+  if (!hit) return null;
+  return eligible[hit[1]] || "past";
+}
+
+function pronounChoice(text: string, eligible: any[], has: (line: any) => boolean): any | null {
+  const spoken = plain(text);
+  if (!/^(?:esa|ese|eso|that(?:\s+one)?|this(?:\s+one)?)$/.test(spoken)) return null;
+  const missing = eligible.filter((line) => !has(line));
+  return missing.length === 1 ? missing[0] : null;
+}
+
+function answerChoice(text: string, eligible: any[], menu: any[], has: (line: any) => boolean): "both" | "none" | "past" | any | null {
+  const spoken = plain(text).replace(/\s+/g, " ").trim();
+  if (/^(?:both(?:\s+of\s+them)?|all(?:\s+of\s+them)?|las\s+dos|los\s+dos|ambas|ambos|todas|todos)$/.test(spoken)) return "both";
+  if (/^(?:none|neither|ninguna|ninguno|nada)$/.test(spoken)) return "none";
+  const ordinal = ordinalChoice(text, eligible);
+  if (ordinal === "past") return "past";
+  if (ordinal) return ordinal;
+  const pronoun = pronounChoice(text, eligible, has);
+  if (pronoun) return pronoun;
+  const words = new Set(spoken.split(" ").filter((word) => word.length >= 4));
+  const hits = eligible.filter((line) => {
+    const shared = new Set(eligible.filter((other) => other !== line).flatMap((other) => labelWords(other, menu)));
+    return labelWords(line, menu).some((word) => words.has(word) && !shared.has(word));
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function groupRole(name: string): "meat" | "extra" | "upgrade" {
+  const folded = plain(name);
+  if (/\b(?:carne|carnes|meat|meats|relleno|rellenos|filling|fillings|guisado)\b/.test(folded)) return "meat";
+  if (/\bextras?\b/.test(folded)) return "extra";
+  return "upgrade";
+}
+
+type ExtraPick = { name: string; option: string; optionId?: string; max: number; role?: "extra" | "upgrade" };
+
+function optionIdOf(choice: any): string | undefined {
+  return choice && typeof choice === "object" && choice.id ? String(choice.id) : undefined;
+}
+
+function findCatalogOption(item: any, match: (name: string) => boolean): ExtraPick | null {
+  for (const group of item?.modifierGroups || []) {
+    for (const choice of group.options || []) {
+      const name = optionLabel(choice);
+      if (!match(name)) continue;
+      return { name: group.name, option: name, optionId: optionIdOf(choice), max: Number(group.maxSelections) || 0 };
+    }
+  }
+  return null;
+}
+
+/** Carlos: taco "con queso" is Con Queso Fresco on top; a quesadilla already has melted cheese, and only extra/más queso adds EXTRA Queso Derretido. */
+function approvedCheese(item: any, clause: string): "covered" | ExtraPick | null {
+  const said = plain(clause);
+  if (!/\b(?:queso|quesito|cheese)\b/.test(said)) return null;
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  const extra = EXPLICIT_EXTRA_MELTED.test(said);
+  if (/quesadilla/.test(name)) {
+    if (!extra) return "covered";
+    return findCatalogOption(item, (option) => /^extra queso derretido \/ melted cheese$/.test(plainOpt(option)));
+  }
+  if ((/\btacos?\b/.test(name) || /sq-taco-/.test(String(item?.id || ""))) && !/dorad/.test(name) && TACO_CON_QUESO.test(said) && !extra) {
+    return findCatalogOption(item, (option) => /^con queso fresco \/ with cheese$/.test(plainOpt(option)));
+  }
+  return null;
+}
+
+function writePick(line: any, pick: ExtraPick, forms: Set<string>): boolean {
+  const mods = line.modifiers || (line.modifiers = []);
+  const next = { step: pick.name, option: pick.option, ...(pick.optionId ? { optionId: pick.optionId } : {}) };
+  const at = mods.findIndex((mod: any) => plain(mod?.step || "") === plain(pick.name));
+  if (at >= 0 && pick.max === 1) mods[at] = next;
+  else if (!mods.some((mod: any) => textHasForms(String(mod?.option || ""), forms))) mods.push(next);
+  return true;
+}
+
+function placeExtra(line: any, forms: Set<string>, menu: any[], clause = ""): boolean {
+  if (presentHasForms(forms, linePresent(line, menu))) return true;
+  const item = menu.find((row) => row.id === line.itemId);
+  if (!item) return false;
+  const approved = approvedCheese(item, clause);
+  if (approved === "covered") return true;
+  if (approved) return writePick(line, approved, forms);
+  const unique: ExtraPick[] = [];
+  for (const group of item.modifierGroups || []) {
+    const role = groupRole(group.name || "");
+    if (role === "meat") continue;
+    const hits = (group.options || []).filter((choice: any) => textHasForms(optionLabel(choice), forms));
+    if (hits.length === 1) unique.push({ name: group.name, option: optionLabel(hits[0]), optionId: optionIdOf(hits[0]), max: Number(group.maxSelections) || 0, role });
+  }
+  const extras = unique.filter((group) => group.role === "extra");
+  const upgrades = unique.filter((group) => group.role === "upgrade");
+  const owned = upgrades.filter((group) => (line.modifiers || []).some((mod: any) => plain(mod?.step || "") === plain(group.name)));
+  const pick = extras.length && upgrades.length
+    ? (owned.length === 1 ? owned[0] : null)
+    : extras.length === 1 ? extras[0]
+    : upgrades.length === 1 ? upgrades[0]
+    : null;
+  if (!pick) return false;
+  writePick(line, pick, forms);
+  return presentHasForms(forms, linePresent(line, menu));
+}
+
+/** Spoken modifiers and sides. A hold is for the line that was named, and only when that line does not already have the token.
+ *  Several eligible lines produce a which-dish question. The extra is applied only after the caller picks. */
+export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): SpokenExtraResult {
+  const asks: ExtraAsk[] = [];
+  const finish = (unnamed: string[]): SpokenExtraResult => Object.assign(unnamed, { asks });
+  if (!Array.isArray(cart) || !menu?.length) return finish([]);
+  const vocab = menuVocabulary(menu);
+  const unnamed: string[] = [];
+  let previousCaller = "";
+  for (let turnIndex = 0; turnIndex < turns.length; turnIndex++) {
+    const turn = turns[turnIndex];
+    if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
+    for (const bit of spokenBits(turn.text)) {
+      const token = menuToken(bit.token, vocab);
+      if (!token) continue;
+      const forms = matchForms(token, vocab);
+      const synonym = familyWords(token, vocab).length > 1;
+      const base = targetLines(bit.clause, cart, menu);
+      let targets = narrowTargets(bit.clause, token, base, menu, vocab);
+      const sideCue = bit.cue === "side" || bit.cue === "lado" || bit.cue === "aparte";
+      if (sideCue) {
+        const sideLines = cart.filter((line) => presentHasForms(forms, linePresent(line, menu)));
+        if (sideLines.length) targets = sideLines;
+      }
+      const anaphor = anaphorTargets(bit.clause, token, previousCaller, cart, menu, vocab);
+      if (anaphor === "hold") {
+        if (!unnamed.includes(token)) unnamed.push(token);
+        continue;
+      }
+      if (anaphor) targets = anaphor;
+      if (bit.withdrawn) {
+        const at = unnamed.indexOf(token);
+        if (at >= 0) unnamed.splice(at, 1);
+        const spokenForms = forms;
+        for (const line of targets) {
+          const item = menu.find((row) => row.id === line.itemId);
+          line.modifiers = (line.modifiers || []).filter((mod: any) => {
+            const option = plain(String(mod.option || ""));
+            const optionForms = option.split(" ").flatMap((word) => normalizedForms(word));
+            if (!optionForms.some((form) => spokenForms.has(form))) return true;
+            const groups = item?.modifierGroups || [];
+            const group = groups.find((entry: any) => plain(entry.name || "") === plain(mod.step || ""))
+              || groups.find((entry: any) => (entry.options || []).some((choice: any) => plain(optionLabel(choice)) === option));
+            return !group || Number(group.minSelections) >= 1;
+          });
+        }
+        continue;
+      }
+      const namedLine = dishKeysIn(bit.clause).length > 0 && base.length < cart.length;
+      const narrowed = targets.length < base.length;
+      const lineScoped = namedLine || narrowed || sideCue || !!anaphor || targets.length < 2;
+      const has = (line: any) => presentHasForms(forms, linePresent(line, menu));
+      const eligible = targets.filter((line) => lineCouldTake(line, forms, menu));
+      const covered = lineScoped ? targets.some(has) : eligible.length === 0 ? !synonym : eligible.every(has);
+      if (covered || unnamed.includes(token)) continue;
+      if (!lineScoped && eligible.length > 1) {
+        const language = dishLanguage(turn.text);
+        const question = whichDishQuestion(token, eligible, menu, language);
+        const askedAt = questionWasSpoken(turns, turns.length, question);
+        const later: Turn[] = [];
+        if (askedAt > turnIndex) {
+          for (let i = askedAt + 1; i < turns.length && later.length < 2; i++) {
+            if (turns[i].speaker === "caller") later.push(turns[i]);
+          }
+        }
+        let choice: "both" | "none" | any | null = null;
+        for (const attempt of later) {
+          if (!choiceAttempt(attempt.text)) continue;
+          const picked = answerChoice(attempt.text, eligible, menu, has);
+          if (picked && picked !== "past") { choice = picked; break; }
+        }
+        if (choice === "none") { asks.push({ token, question, language, resolution: "none" }); continue; }
+        const chosen = choice === "both" ? eligible.filter((line) => !has(line)) : choice ? [choice] : [];
+        if (chosen.length && chosen.every((line) => placeExtra(line, forms, menu, turn.text))) {
+          asks.push({ token, question, language, resolution: choice === "both" ? "both" : "applied" });
+          continue;
+        }
+        asks.push({ token, question, language, resolution: "hold" });
+      }
+      unnamed.push(token);
+    }
+    previousCaller = turn.text;
+  }
+  return finish(unnamed);
+}
+
+/** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */
+export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
+  for (const line of cart) {
+    const item = menu.find((row) => row.id === line.itemId);
+    if (!item) continue;
+    const keys = lineChoiceKeys(item);
+    const combo = keys.includes("combo");
+    const lineQty = Number(line.quantity) || 1;
+    const siblings = siblingQuantities(cart, menu, keys);
+    for (const group of item.modifierGroups || []) {
+      if ((group.minSelections ?? 0) < 1) continue;
+      const options = (group.options || []).map((option: any) => typeof option === "string" ? option : option?.name || "").filter(Boolean);
+      if (options.length < 2) continue;
+      const groupName = plain(group.name || "");
+      const belongs = (option: string) => {
+        const spoken = plain(option);
+        return options.some((name) => { const catalog = plain(name); return !!spoken && (catalog === spoken || catalog.startsWith(spoken) || spoken.startsWith(catalog)); });
+      };
+      const selected = (line.modifiers || []).filter((mod: any) => {
+        const step = plain(mod.step || "");
+        if (step === groupName) return true;
+        return belongs(String(mod.option || "")) && step !== groupName;
+      }).map((mod: any) => String(mod.option || ""));
+      const approved = houseDefaultOption(item, group);
+      const approvedName = approved && options.find((name) => plain(name) === plain(approved));
+      if (approvedName) {
+        const others = options.filter((name) => plain(name) !== plain(approvedName));
+        const saidOther = others.length > 0 && choiceSpoken(turns, keys, tokensFor(others, options), combo, lineQty, siblings);
+        const hasOther = (line.modifiers || []).some((mod: any) => others.some((name) => plain(mod.option || "") === plain(name)));
+        const hasApproved = selected.some((name) => plain(name) === plain(approvedName)) || (line.modifiers || []).some((mod: any) => {
+          const option = String(mod.option || "");
+          return textHitsTokens(option, tokensFor([approvedName], options)) && !others.some((name) => textHitsTokens(option, tokensFor([name], options)));
+        });
+        const saidOnThisDish = (() => {
+          let active: string[] = [];
+          for (const turn of turns) {
+            const named = dishKeysIn(normalizeSpoken(turn.text));
+            if (turn.speaker === "caller" && named.length) active = named;
+            if (turn.speaker !== "caller") continue;
+            const scope = named.length ? named : active;
+            if (!scope.some((key) => keys.includes(key))) continue;
+            if (others.some((name) => textHitsTokens(normalizeSpoken(turn.text), tokensFor([name], options)))) return true;
+          }
+          return false;
+        })();
+        if (saidOther && !hasOther && (!hasApproved || saidOnThisDish)) {
+          const spokenOther = others.find((name) => choiceSpoken(turns, keys, tokensFor([name], options), combo, lineQty, siblings));
+          if (spokenOther) {
+            line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== groupName), { step: group.name, option: spokenOther }];
+            const marker = `confirmar ${group.name}`;
+            const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+            const onlyThis = before.length === 1 && before[0] === marker;
+            if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+            if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+            if (onlyThis) delete line.validation;
+            continue;
+          }
+        }
+        if (hasApproved && !hasOther) {
+          const marker = `confirmar ${group.name}`;
+          const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+          const onlyThis = before.length === 1 && before[0] === marker;
+          if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+          if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+          if (onlyThis) delete line.validation;
+          continue;
+        }
+        if (!saidOther && !hasOther) {
+          if (!selected.length) line.modifiers = [...(line.modifiers || []), { step: group.name, option: approvedName }];
+          const marker = `confirmar ${group.name}`;
+          const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+          const onlyThis = before.length === 1 && before[0] === marker;
+          if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+          if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+          if (onlyThis) delete line.validation;
+          continue;
+        }
+      }
+      const names = selected.length ? selected : (group.defaultOptions || []).slice(0, 1);
+      if (!names.length) {
+        const marker = `confirmar ${group.name}`;
+        if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
+        line.validation = "unresolved";
+        continue;
+      }
+      const tokens = tokensFor(names, options);
+      const knownDish = keys.some((key) => new RegExp(`^(?:${DISH_WORD})$`).test(key));
+      const callerSentences = turns.filter((turn) => turn.speaker === "caller").map((turn) => plain(turn.text));
+      const itemWords = new Set(plain(`${item?.name || ""} ${item?.id || ""}`).split(" ").filter((word) => word.length >= 4));
+      const optionToken = (name: string) => plain(name).split(" ").filter((word) => word.length >= 5 && !itemWords.has(word));
+      const exactSelected = (line.modifiers || []).map((mod: any) => String(mod.option || "")).filter((option) => options.some((name) => plain(name) === plain(option)));
+      const selectedTokens = new Set(exactSelected.flatMap(optionToken));
+      const sentenceHas = (sentence: string, word: string) => new RegExp(`\\b${word}s?\\b`).test(sentence);
+      const aboutThis = (sentence: string) => {
+        const named = dishKeysIn(sentence);
+        return !named.some((key) => !keys.includes(key));
+      };
+      const spokeThisOption = exactSelected.some((name) => optionToken(name).some((word) => callerSentences.some((sentence) => aboutThis(sentence) && sentenceHas(sentence, word))));
+      const spokeDifferentOption = options.some((name) => {
+        if (exactSelected.some((chosen) => plain(chosen) === plain(name))) return false;
+        return optionToken(name).some((word) => !selectedTokens.has(word) && callerSentences.some((sentence) => aboutThis(sentence) && sentenceHas(sentence, word) && ![...selectedTokens].some((chosen) => sentenceHas(sentence, chosen))));
+      });
+      const meatGroup = /carne|meat|nacho/i.test(String(group.name || ""));
+      if (choiceSpoken(turns, keys, tokens, combo, lineQty, siblings) || (!knownDish && meatGroup && spokeThisOption && !spokeDifferentOption)) {
+        if (selected.length) {
+          const marker = `confirmar ${group.name}`;
+          const before = (line.elviNotes || []).filter((note: string) => /^confirmar\b/i.test(note));
+          const onlyThis = before.length === 1 && before[0] === marker;
+          if ((line.elviNotes || []).includes(marker)) line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+          if (line.elviNotes && !line.elviNotes.length) delete line.elviNotes;
+          if (onlyThis) delete line.validation;
+        }
+        continue;
+      }
+      const marker = `confirmar ${group.name}`;
+      if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
+      line.validation = "unresolved";
+    }
+    noteDrinkSize(line, item, turns, keys, menu);
+    noteAskedExtraTortillas(line, item, turns, keys);
+  }
+}
+
+function noteAskedExtraTortillas(line: any, item: any, turns: Turn[], keys: string[]): void {
+  const itemIds = `${item?.squareCatalogObjectId || ""} ${item?.id || ""}`;
+  if (!EXTRA_TORTILLAS.itemIds.some((id) => itemIds.includes(id))) return;
+  const group = (item.modifierGroups || []).find((entry: any) => entry?.id === EXTRA_TORTILLAS.groupId);
+  if (!group) return;
+  const optionById = (id: string) => (group.options || []).find((choice: any) => choice?.id === id);
+  let active: string[] = [];
+  let ask: "comal" | "flour" | "unspecified" | null = null;
+  const classify = (text: string) => {
+    const comal = /\b(?:comal|homemade)\b/.test(text);
+    const flour = /\b(?:harina|flour)\b/.test(text);
+    return comal === flour ? "unspecified" as const : comal ? "comal" as const : "flour" as const;
+  };
+  const inScope = (named: string[]) => {
+    const scope = named.length ? named : active;
+    return !(keys.length && scope.length && !scope.some((key) => keys.includes(key)));
+  };
+  for (let index = 0; index < turns.length; index++) {
+    const turn = turns[index];
+    const named = dishKeysIn(normalizeSpoken(turn.text));
+    if (turn.speaker === "caller" && named.length) active = named;
+    const text = plain(normalizeSpoken(turn.text));
+    const asksMore = /\btortillas?\b/.test(text) && /\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(text);
+    if (turn.speaker === "caller" && asksMore && inScope(named)) ask = classify(text);
+    if (turn.speaker !== "staff" || !asksMore) continue;
+    const reply = turns[index + 1];
+    if (reply?.speaker === "caller" && acceptsReadback(reply.text) && inScope(active)) ask = classify(text);
+  }
+  if (!ask) return;
+  const marker = `confirmar ${group.name}`;
+  if (ask === "unspecified") {
+    if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
+    line.validation = "unresolved";
+    return;
+  }
+  const option = optionById(ask === "comal" ? EXTRA_TORTILLAS.comalOptionId : EXTRA_TORTILLAS.flourOptionId);
+  if (!option?.name) {
+    if (!(line.elviNotes || []).includes(marker)) line.elviNotes = [...(line.elviNotes || []), marker];
+    line.validation = "unresolved";
+    return;
+  }
+  const already = (line.modifiers || []).some((mod: any) => mod?.option === option.name);
+  if (!already) line.modifiers = [...(line.modifiers || []), { step: group.name, option: option.name }];
+  if ((line.elviNotes || []).includes(marker)) {
+    line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+    if (!line.elviNotes.length) delete line.elviNotes;
+  }
+}
+
+function drinkKey(item: any): string {
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  if (/horchata/.test(name)) return "horchata";
+  if (/jamaica/.test(name)) return "jamaica";
+  return name.replace(/\d+\s*oz/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function familySizes(menu: any[], item: any): string[] {
+  const key = drinkKey(item);
+  const sizes = new Set<string>();
+  for (const row of menu) {
+    if (drinkKey(row) !== key) continue;
+    const size = ozOf(`${row.name || ""} ${row.id || ""}`);
+    if (size) sizes.add(size);
+  }
+  return [...sizes];
+}
+
+function askedCup(text: string): "32oz" | "other" | null {
+  const spoken = spokenChoiceWords(text);
+  if (spoken.has("32oz") || spoken.has("grande") || spoken.has("big") || spoken.has("large")) return "32oz";
+  if (/\b(?:chica|chico|small|little|16oz|20oz)\b/.test(plain(text))) return "other";
+  return null;
+}
+
+/** One catalog size is not an unspoken choice. A size the catalog does not sell stays a mismatch. */
+function noteDrinkSize(line: any, item: any, turns: Turn[], keys: string[], menu: any[]): void {
+  const sizes = familySizes(menu, item);
+  if (sizes.length < 2) {
+    const only = sizes[0] || "";
+    let active = false;
+    for (const turn of turns) {
+      const spoken = normalizeSpoken(turn.text);
+      const named = keys.some((key) => new RegExp(`\\b${key}s?\\b`).test(spoken));
+      if (turn.speaker === "caller" && named) active = true;
+      if (turn.speaker === "caller" && dishKeysIn(spoken).length && !named) active = false;
+      if (turn.speaker !== "caller" || (!named && !active)) continue;
+      const asked = askedCup(turn.text);
+      if (asked === "other" && only === "32oz") {
+        if (!(line.elviNotes || []).includes("confirmar tamaño distinto")) line.elviNotes = [...(line.elviNotes || []), "confirmar tamaño distinto"];
+        line.validation = "unresolved";
+      }
+    }
+    return;
+  }
+  const spoken = sizes.some((size) => choiceSpoken(turns, keys, [size, "grande", "big", "large"], false));
+  if (spoken) return;
+  if (!(line.elviNotes || []).includes("confirmar tamaño")) line.elviNotes = [...(line.elviNotes || []), "confirmar tamaño"];
+  line.validation = "unresolved";
+}
+
+/** Drop a catalog add that repeats a line already on the final cart, and keep only adds that remain. */
+export function settleAffirmedAdds(cart: any[], menu: any[], result: AffirmedStaffResult): AffirmedStaffResult {
+  const prior = new Set(result.priorIds || []);
+  for (let i = cart.length - 1; i >= 0; i--) {
+    const line = cart[i];
+    if (!result.added.includes(String(line.itemId))) continue;
+    const kind = cart.map((item, at) => at === i ? null : lineConflict(String(menu.find((row) => row.id === line.itemId)?.name || ""), item, menu)).find((value) => value);
+    const other = cart.find((item, at) => at !== i && lineConflict(String(menu.find((row) => row.id === line.itemId)?.name || ""), item, menu));
+    if (!other || !kind) continue;
+    cart.splice(i, 1);
+    if (kind === "garbled") {
+      const flag = `near:${other.itemId}`;
+      if (!result.flagged.includes(flag)) result.flagged.push(flag);
+      result.fired = true;
+    }
+  }
+  const ids = new Set(cart.map((line) => String(line.itemId)));
+  result.added = result.added.filter((id) => ids.has(id) && !prior.has(id));
+  delete result.priorIds;
+  return result;
+}
+
+/** Add listed lines that are missing. A conflict keeps the caller's line and records a reason. Never overwrite or delete. */
+export function applyAffirmedStaffList(cart: any[], turns: Turn[], menu: any[]): AffirmedStaffResult {
+  const result: AffirmedStaffResult = { fired: false, added: [], flagged: [], priorIds: cart.map((line) => String(line.itemId || "")) };
+  if (!staffReadback(turns)) applyParsedStaffList(cart, turns, menu, result);
+  addConfirmedCatalog(cart, turns, menu, result);
+  return result;
+}
+
+function applyParsedStaffList(cart: any[], turns: Turn[], menu: any[], result: AffirmedStaffResult) {
+  let chosen = -1;
+  for (let i = turns.length - 2; i >= 0; i--) {
+    const staff = turns[i];
+    const next = turns[i + 1];
+    if (staff.speaker !== "staff" || next.speaker !== "caller") continue;
+    if (!cleanYes(next.text) || isQuestionOrUpsell(staff.text)) continue;
+    const listed = parseList(staff.text).some((line) => line.meat);
+    const drink = catalogMentions(staff.text, menu).some((hit) => isDrinkHit(menu, hit));
+    if (!listed && !drink) continue;
+    chosen = i;
+    break;
+  }
+  if (chosen < 0) return result;
+  result.fired = true;
+  const staff = turns[chosen];
+  const lines = parseList(staff.text).filter((line) => line.meat);
+  const callerSaid = turns.slice(0, chosen).filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).flatMap((turn) => parseList(turn.text));
+  const laterCaller = plain(turns.slice(chosen + 2).filter((turn) => turn.speaker === "caller").map((turn) => turn.text).join(" "));
+  const laterMeat = /\b(?:mejor|cambia|quita|en vez)\b/.test(laterCaller) ? meatIn(laterCaller) : null;
+  for (const line of lines) {
+    const callerSame = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat === line.meat);
+    const callerOther = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat && said.meat !== line.meat);
+    const existingSame = cart.filter((item) => sameFamily(item, line) && meatOfLine(item) === line.meat);
+    const retracted = laterMeat ? laterMeat !== line.meat : (/\b(?:quita|no quiero)\b/.test(laterCaller) && laterCaller.includes(line.kind));
+    if (retracted || (callerOther.length && !callerSame.length)) {
+      const kept = existingSame[0] || cart.find((item) => sameFamily(item, line) && meatOfLine(item) === (laterMeat || callerOther[0]?.meat)) || cart.find((item) => sameFamily(item, line));
+      result.flagged.push(`${retracted ? "deleted" : "meat"}:${kept?.itemId || line.kind}`);
+      continue;
+    }
+    if (existingSame.length) {
+      const item = existingSame[0];
+      const callerQty = callerSame.length ? callerSame[callerSame.length - 1].qty : undefined;
+      const callerStyle = [...callerSame].reverse().find((said) => said.style)?.style;
+      const have = styleOfLine(item);
+      if ((callerQty != null && line.qty !== callerQty) || (callerQty == null && (Number(item.quantity) || 1) !== line.qty)) result.flagged.push(`quantity:${item.itemId}`);
+      if ((callerStyle && line.style && callerStyle !== line.style) || (!callerStyle && have && line.style && have !== line.style)) result.flagged.push(`style:${item.itemId}`);
+      continue;
+    }
+    const created: any = { itemId: "", quantity: line.qty, modifiers: [] };
+    setLine(created, line, menu);
+    if (!created.itemId) continue;
+    cart.push(created);
+    result.added.push(String(created.itemId));
+  }
+  const callerOrder = turns.slice(0, chosen).filter((turn) => turn.speaker === "caller" && !/[?¿]/.test(turn.text)).map((turn) => turn.text).join(" ");
+  const callerDrinks = catalogMentions(callerOrder, menu).filter((hit) => isDrinkHit(menu, hit));
+  for (const hit of catalogMentions(staff.text, menu).filter((item) => isDrinkHit(menu, item))) {
+    if (callerDrinks.some((drink) => drink.id === hit.id)) continue;
+    const family = drinkFamily(hit.label);
+    const other = callerDrinks.find((drink) => drink.id !== hit.id && drinkFamily(drink.label) === family);
+    if (!other) continue;
+    const kept = cart.find((item) => item.itemId === other.id);
+    const flag = `brand:${kept?.itemId || other.id}`;
+    if (!result.flagged.includes(flag)) result.flagged.push(flag);
+  }
+  for (const clause of clausesOf(staff.text)) {
+    const parsed = parseList(clause).find((line) => line.meat);
+    if (!parsed) continue;
+    const item = cart.find((entry) => sameFamily(entry, parsed) && meatOfLine(entry) === parsed.meat);
+    if (item) attachClauseOption(item, menu, clause);
+  }
+  return result;
+}
+
 export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
   const txt = staffRecapText(turns); if (!txt) return false;
   const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
@@ -2538,6 +4486,66 @@ export function applyQdConTodo(cart: any[], turns: Turn[]): boolean { let ch = f
       l.itemId = DLX_ID; l.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(l.modifiers || []).filter((m: any) => !/\(QD\)/.test(String(m.option)))]; ch = true; } }
   return ch;
 }
+const SETTLED_REG = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+function settledQdMeat(line: any): string | null {
+  return (line.modifiers || []).find((mod: any) => /Carnes/.test(String(mod.step)))?.option || null;
+}
+function asRegularDorada(line: any): void {
+  line.itemId = SETTLED_REG;
+  line.modifiers = [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+}
+function asDeluxeDorada(line: any): void {
+  line.itemId = DLX_ID;
+  line.modifiers = [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }, ...(line.modifiers || []).filter((mod: any) => !/\(QD\)/.test(String(mod.option)))];
+}
+function laterChoseRegular(turns: Turn[], index: number): boolean {
+  return turns.slice(index + 1).some((turn) => {
+    if (turn.speaker !== "caller") return false;
+    const spoken = plain(turn.text);
+    if (/\b(?:coca|dieta|pepsi|horchata|jamaica|soda)\b/.test(spoken) && !/\b(?:dorad|quesadilla)\b/.test(spoken)) return false;
+    const aboutThis = /\b(?:dorad|quesadilla)\b/.test(spoken) || /^(?:no[, ]+)?regulares?\b/.test(spoken);
+    return aboutThis && /\bno\b/.test(spoken) && /\bregulares?\b/.test(spoken);
+  });
+}
+/** Post-settle con todo. Only the lines that turn named. No readable meat upgrades one in-scope regular dorada, otherwise it holds. A later "no, regular" stays regular. */
+export function applySettledQdConTodo(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  turns.forEach((turn, index) => {
+    if (turn.speaker !== "caller") return;
+    const said = plain(turn.text);
+    if (!/\bdorad[ao]s?\b/.test(said) || !/\bcon todo\b|\bwith everything\b|\beverything on it\b/.test(said)) return;
+    const doradas = cart.filter((line) => QD_REG.test(String(line.itemId)) || QD_DLX.test(String(line.itemId)));
+    const meats = b22Meats(b22low(turn.text));
+    const reject = laterChoseRegular(turns, index);
+    if (meats.length) {
+      const scope = doradas.filter((line) => meats.includes(String(settledQdMeat(line))));
+      for (const line of scope) {
+        if (reject) { if (QD_DLX.test(String(line.itemId))) { asRegularDorada(line); changed = true; } continue; }
+        if (QD_REG.test(String(line.itemId))) { asDeluxeDorada(line); changed = true; }
+      }
+      return;
+    }
+    const accounted = new Set(turns.flatMap((other, at) => {
+      if (other.speaker !== "caller" || at === index) return [];
+      const text = plain(other.text);
+      if (!/\bdorad|\bquesadilla/.test(text) || (/\bdorad/.test(text) && /\bcon todo\b|\bwith everything\b/.test(text))) return [];
+      return b22Meats(b22low(other.text));
+    }));
+    const scope = doradas.filter((line) => !accounted.has(String(settledQdMeat(line))));
+    if (reject) {
+      for (const line of scope) if (QD_DLX.test(String(line.itemId))) { asRegularDorada(line); changed = true; }
+      return;
+    }
+    if (scope.length === 1 && QD_REG.test(String(scope[0].itemId))) { asDeluxeDorada(scope[0]); changed = true; return; }
+    if (scope.length > 1) for (const line of scope) {
+      if ((line.elviNotes || []).includes("confirmar")) continue;
+      line.elviNotes = [...(line.elviNotes || []), "confirmar"];
+      line.validation = "unresolved";
+      changed = true;
+    }
+  });
+  return changed;
+}
 // sophie1: "quesadilla de masa" = comal (QCO); meat from the same or the next caller turns before another dish.
 export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let ch = false;
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const p = plain(t.text);
@@ -2554,7 +4562,7 @@ export function applyQuesadillaMasa(cart: any[], turns: Turn[]): boolean { let c
 // juan-qd1 (CA36cd1a): staff "¿te gustarían preparadas?" → caller "Sí, …" = the regular doradas become DELUXE Preparada.
 export function applyStaffPreparadaYes(cart: any[], turns: Turn[]): boolean { let ch = false;
   for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "staff") continue; const p = plain(t.text);
-    if (!/\bpreparad[ao]s?\b|\bdeluxe\b/.test(p) || !/\?/.test(t.text) || /\bo\s+(?:normal|regular)|\bor\s+regular\b/.test(p)) continue;
+    if (!/\bpreparad[ao]s?\b|\bdeluxe\b/.test(p) || !/\?/.test(t.text) || /\bo\s+(?:normal|regular)|\bor\s+regular\b/.test(p) || /\bno\s+preparad/.test(p)) continue;
     const nx = turns.slice(i + 1).find((u) => u.speaker === "caller"); if (!nx) continue; const q = plain(nx.text);
     if (!/^(?:ah |eh |okay |ok )?(?:si|yes|yeah|claro|por favor|aja|las dos|ambas|both)\b/.test(q) || /\b(?:normal|regular)(?:es)?\b/.test(q)) continue;
     for (const l of cart) { if (!QD_REG.test(String(l.itemId))) continue;

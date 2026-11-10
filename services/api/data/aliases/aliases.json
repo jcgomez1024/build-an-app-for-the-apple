@@ -252,7 +252,7 @@
     },
     {
       "id": "ful-domicilio",
-      "match": "\\b(?:para\\s+)?(?:entrega(?:r)?\\s+)?a\\s+domicilio\\b|\\bpara\\s+entrega\\b|\\bentrega\\s+a\\s+(?:la\\s+)?casa\\b",
+      "match": "\\b(?:para\\s+)?(?:entrega(?:r)?\\s+)?(?:a|hasta)\\s+domicilio\\b|\\bpara\\s+entrega\\b|\\bentrega\\s+a\\s+(?:la\\s+)?casa\\b",
       "to": "__DELIVERY__",
       "example": "es para entrega a domicilio",
       "scope": [
@@ -274,7 +274,7 @@
     },
     {
       "id": "ful-pickup-es",
-      "match": "\\b(?:para|pa'?)\\s+llevar\\b|\\b(?:para\\s+)?recoger\\b|\\b(?:lo|la|los|las)\\s+recojo\\b|\\b(?:yo\\s+)?paso\\s+por\\s+(?:[eé]l|ella|ellos|ellas|la\\s+orden|el\\s+pedido)(?![\\p{L}\\p{N}])|\\bvoy\\s+por\\s+(?:[eé]l|ella|la\\s+orden|el\\s+pedido)(?![\\p{L}\\p{N}])",
+      "match": "\\b(?:para|pa'?)\\s+llevar\\b|\\b(?:para\\s+)?recoger(?:l[oa]s?)?\\b|\\b(?:lo|la|los|las)\\s+recojo\\b|\\b(?:yo\\s+)?paso\\s+por\\s+(?:[eé]l|ella|ellos|ellas|la\\s+orden|el\\s+pedido)(?![\\p{L}\\p{N}])|\\bvoy\\s+por\\s+(?:[eé]l|ella|la\\s+orden|el\\s+pedido)(?![\\p{L}\\p{N}])",
       "to": "__PICKUP__",
       "example": "para llevar / pa' llevar / paso por él",
       "note": "'para llevar' = to-go/pickup, NOT delivery",

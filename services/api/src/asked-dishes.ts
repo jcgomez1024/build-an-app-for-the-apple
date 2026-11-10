@@ -3,6 +3,7 @@
 // relleno never reached the cart. Rule: once Elvi has asked a dish's side/choice questions, that dish is in the cart.
 import { dishNamedIn } from "./elvi.js";
 import { declinedQuesabirria } from "./list-repair.js";
+import { isAck, isAvailQ } from "./spoken-ledger.js";
 
 type Turn = { speaker: string; text: string };
 const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -37,10 +38,15 @@ export function pickFromSpeech(group: any, said: string): { option: string; how:
 
 export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu: any[]) {
   if (!Array.isArray(menu) || !menu.length) return;
-  const callerAll = turns.filter((t) => t.speaker === "caller").map((t) => t.text).join(" ");
+  const callerTurns = turns.filter((t) => t.speaker === "caller").map((t) => t.text);
+  const callerAll = callerTurns.join(" ");
+  if (callerTurns.length && callerTurns.every((text) => isAvailQ(text) || isAck(text))) return;
   const seen = new Set<string>();
   steps.forEach((s, si) => {
-    const m = String(s?.reply || "").match(/^([^:¿?\n]{3,70}):\s*¿?[^?]*\?/u);
+    const reply = String(s?.reply || "");
+    const choice = /\?/.test(reply) && /\b(?:\so\s|\sor\s)\b/i.test(reply);
+    if (isAvailQ(String(s?.heard || ""))) return;
+    const m = reply.match(/^([^:¿?\n]{3,70}):\s*¿?[^?]*\?/u);
     if (!m || !s.heard) return;
     const item = itemForQuestion(m[1].trim(), menu);
     if (!item || seen.has(item.id)) return;
@@ -59,7 +65,7 @@ export function applyAskedDishes(cart: any[], steps: any[], turns: Turn[], menu:
       if (p) modifiers.push({ step: g.name, option: p.option, ...(p.how === "default" ? { isDefault: true } : {}) });
       else notes.push(`confirmar ${g.name}`);
     }
-    cart.push({ itemId: item.id, quantity, modifiers, ...(notes.length ? { elviNotes: notes } : {}), asked: true });
+    cart.push({ itemId: item.id, quantity, modifiers, ...(notes.length ? { elviNotes: notes } : {}), ...(choice ? {} : { asked: true }) });
     steps.push({ source: "asked-dish", heard: String(s.heard).slice(0, 80), item: item.id });
   });
 }

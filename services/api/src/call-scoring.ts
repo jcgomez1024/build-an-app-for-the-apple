@@ -1,6 +1,9 @@
 // Listen-only call scoring: split the dual-channel recording (ch1 = caller, ch2 = staff),
 // transcribe each track with word timestamps, interleave into turns, and replay the caller
 // turns through Elvi's order context one at a time (shadow session, never checkout).
+import { execFileSync } from "node:child_process";
+import { appendFileSync, readFileSync } from "node:fs";
+import { frozenPhoneMenu, frozenPhoneMenuAllowed } from "./phone-menu.js";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
 import { applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
@@ -12,18 +15,18 @@ import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesS
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
-import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
+import { applySaidDishMeat, applyQdCheeseSplit, applyMultiMeatGroup, dropStaffGrandeBurrito, applyBurritoGroupFillings, applyNachosSaid, applyStaffPreparadaYes, applyAguaChica, applyQdGroups, applyCoctelPulpo, COCTEL_PULPO_SAID, COCTEL_IDS, applyBurritoFillings, applyQdConTodo, applySettledQdConTodo, applyQuesadillaMasa, applyAguacateFull, applyFriedQuesadilla, applyFriedQuesadillaTicket, applyConsomeTotal, applyQBDecline, applyRestatedQty, applyStaffMenudo, applyMenudoSoloCaldo, applyQuesaAfterSoup, quesaContextDish, applyTacoMeatList, applyTortillaPackDedupe, applyTortaSaid, applyQuesadillaCombo, applyQuesadillaMeatSaid, applyQdCorrection, applyConsomeSolo, applyCoctelNotCeviche, applyMenudoCountSinPata, applyMenudoPata, applyVerduraAparte, wantsExtraCarne, applyExtraCarne, applyMeatSplitQty, applyEnglishMultiItem, applyQdRecap, applyBurritoMeatRepeat, applyLateTortillaChoice, addAskedEsquite, addAskedJarrito, applyRelayOrders, applyAlex3, mergeReMentionedDrink, applySopesAsada, applyBurritoSaid, applyStaffReadback, fillMeatlessFromCaller, dropDeluxeComponentSides, applySaidQuesoFresco, splitEnchiladaOrders, applyNegatedMeat, applyAffirmedMeatRecap, dropUnsaidDorados, dropDeclinedAsk, reconcileAcceptedDishParts, applyDishScopedParts, stripDeclinedAskAdds, declinedAsks, applyRiceBeansSide, applyCremaOnSide, combinedRiceBeansSide, guardRiceBeansSide, riceBeansSideNotShell, applyCombinedRiceBeansSide, applyMeatBienDorada, applySolasVerduraAparte, applySpokenCount, applySideSize, applyMenudoSinPata, applySaidMeat, applyAsadosSide, applyMenudoHominy, dropQdRegularTwin, applyMenudo3Alex2, applyLuis3, applyReadbackCounts, dropTortillaStyleAsk, applyStatedDishTotal, applyStaffRecap, applyAffirmedStaffList, settleAffirmedAdds, noteUnspokenSize, noteUnspokenRequiredChoice, reconcileSpokenExtras, STAFF_LIST_REVIEW, applyMarta1, applyStreetCornDoradoOrder, applyEnchiladaConTodo, applyGorditaChicharron, dropAbandonedTostadas, applyCompanionMeats } from "./list-repair.js";
 import { dropUnsaidDishes, applyCountedDishMeat, ringUnnamedSodas, applyRellenoOrder, dropMeatlessDup, applyArbolSalsa, dropStaffUnavailable } from "./order-repair.js";
 import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
-import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
+import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ as spokenAvailQ, isAck, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
-import { applyIntentCart, resolveConversationIntent } from "./conversation-intent.js";
+import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
 import { callerLedger, callerLedgerEn, priceCents, spokenTotalDollars, priceAnswer } from "./caller-ledger.js";
-import { nameFromAnswer } from "./order-name.js";
-import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn } from "./delivery.js";
+import { nameFromAnswer, nameFromTranscriptInfo } from "./order-name.js";
+import { fulfillmentIn, detectFulfillment, detectAddress, addressesIn, callerReadyTime, staffWaitMinutes, fulfillmentCue } from "./delivery.js";
 export type Speaker = "caller" | "staff";
 export type CallTurn = { speaker: Speaker; start: number; end: number; text: string; language: "es" | "en" };
 type Word = { text: string; start: number; end: number };
@@ -877,27 +880,171 @@ export function mixMeats(acts: any[], text: string) {
   }
 }
 
+function noteTrace(order: any, extra: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "test") return order;
+  noteReplayRow(order, extra);
+  const file = process.env.ELVI_RECONCILE_TRACE || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return order;
+  try { appendFileSync(file, JSON.stringify({ test: process.argv[1] || "", ...extra }) + "\n"); } catch { /* test log only */ }
+  return order;
+}
+
+const replaySeq = new Map<string, number>();
+let replayTurns: Array<{ speaker?: string; text?: string }> | null = null;
+
+function turnPrefixScore(turns: Array<{ speaker?: string; text?: string }>, fixtureTurns: Array<{ speaker?: string; text?: string }>): number {
+  let matched = 0;
+  const limit = Math.min(turns.length, fixtureTurns.length);
+  for (let i = 0; i < limit; i++) {
+    if ((turns[i]?.speaker || "") !== (fixtureTurns[i]?.speaker || "") || String(turns[i]?.text || "") !== String(fixtureTurns[i]?.text || "")) break;
+    matched++;
+  }
+  if (!matched) return 0;
+  if (matched === turns.length && matched === fixtureTurns.length) return matched + 1000;
+  return matched === turns.length ? matched : 0;
+}
+
+/** The fixture whose turns are these turns, not the first id written in the test file. */
+function replayTranscriptId(testPath: string, turns: Array<{ speaker?: string; text?: string }> | null): string {
+  const fallback = (testPath.split("/").pop() || "replay").replace(/\.test\.ts$/, "");
+  if (!turns?.length) return fallback;
+  let source = "";
+  try { source = readFileSync(testPath, "utf8"); } catch { return fallback; }
+  const names = [...source.matchAll(/fixtures\/([A-Za-z0-9_.-]+)/g)].map((match) => match[1]).filter((name) => !/menu\.json$/i.test(name));
+  const dir = testPath.replace(/\/replay\/[^/]+$/, "/fixtures");
+  const scored: Array<{ id: string; score: number }> = [];
+  for (const name of [...new Set(names)]) {
+    const file = name.endsWith(".json") ? name : `${name}.json`;
+    let data: any;
+    try { data = JSON.parse(readFileSync(`${dir}/${file}`, "utf8")); } catch { continue; }
+    const fixtureTurns = Array.isArray(data) ? data : (data?.turns || data?.transcript || []);
+    if (!Array.isArray(fixtureTurns)) continue;
+    const score = turnPrefixScore(turns, fixtureTurns);
+    if (score > 0) scored.push({ id: file.replace(/\.json$/, "").replace(/-turns$/, ""), score });
+  }
+  const exact = scored.filter((item) => item.score >= 1000).sort((a, b) => b.score - a.score);
+  if (exact.length) return exact[0].id;
+  const prefixes = scored.filter((item) => item.score > 0 && item.score < 1000);
+  if (prefixes.length === 1) return prefixes[0].id;
+  const own = idBesideTurns(source, turns);
+  return own || fallback;
+}
+
+/** CA id written beside this transcript in the test, not the first CA id in the file. */
+function idBesideTurns(source: string, turns: Array<{ speaker?: string; text?: string }>): string | null {
+  let nearest: { id: string; at: number } | null = null;
+  for (const turn of turns) {
+    const text = String(turn?.text || "");
+    if (text.length < 12) continue;
+    const at = source.indexOf(text);
+    if (at < 0) continue;
+    const ids = [...source.slice(0, at).matchAll(/\bCA[0-9a-f]{6,}\b/g)];
+    const id = ids.length ? ids[ids.length - 1][0] : "";
+    if (id && (!nearest || at < nearest.at)) nearest = { id, at };
+  }
+  return nearest?.id || null;
+}
+
+function replayLineDetail(line: any, menu: any[]) {
+  const mods = Array.isArray(line?.modifiers) ? line.modifiers : [];
+  const option = (mod: any) => String(mod?.option || "");
+  const meat = mods.find((mod: any) => /carne|meat/i.test(String(mod?.step || "")) && !/extra|salsa|tortilla|con \/|with/i.test(String(mod?.step || "")));
+  const style = mods.find((mod: any) => /tortilla|style|\(qd\)/i.test(String(mod?.step || "")));
+  const notes = [...(line?.elviNotes || [])].map(String).filter((note: string) => note.length <= 80 && !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(note));
+  return {
+    itemId: line?.itemId || null,
+    name: (menu || []).find((item: any) => item.id === line?.itemId)?.name || null,
+    quantity: Number(line?.quantity) || 1,
+    meat: meat ? option(meat) : null,
+    style: style ? option(style) : null,
+    modifiers: mods.map(option).filter(Boolean),
+    notes,
+  };
+}
+
+/** One row per shadow call. Fixture or call id, phase, reason kinds, catalog labels. No caller text and no phone numbers. */
+function noteReplayRow(order: any, extra: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "test") return;
+  const file = process.env.ELVI_REPLAY_ROWS || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return;
+  const testPath = process.argv[1] || "";
+  const id = replayTranscriptId(testPath, replayTurns);
+  const n = (replaySeq.get(id) || 0) + 1;
+  replaySeq.set(id, n);
+  const menu = extra.menuState === "ok" || extra.menuState === "missing" || extra.menuState === "throwing" ? extra.menuState : "not-loaded";
+  const menuMissing = menu === "missing" || menu === "throwing";
+  const cart = Array.isArray(order?.cart) ? order.cart : [];
+  const confirmOnLine = cart.some((line: any) => (line?.elviNotes || []).some((note: string) => /^confirmar\b/i.test(String(note))));
+  const reviewReasons: string[] = [];
+  const reason = String(order?.reviewReason || "");
+  if (reason === "revisar pedido contado") reviewReasons.push("revisar pedido contado");
+  if (reason === "revisar lectura del personal") reviewReasons.push("revisar lectura del personal");
+  if (confirmOnLine || /^confirmar\b/i.test(reason)) reviewReasons.push(/^confirmar\b/i.test(reason) ? reason : "confirmar");
+  if (order?.pending?.accommodation || /^unresolved accommodation\b/.test(reason)) reviewReasons.push("accommodation");
+  const phase = order?.statusCall || order?.noOrder ? "listening" : (reviewReasons.length || order?.validation === "unresolved" ? "review" : (cart.length ? "final" : "listening"));
+  const lines = (Array.isArray(extra.replayLines) ? extra.replayLines : cart.map((line: any) => replayLineDetail(line, []))).map((line: any) => ({
+    itemId: line.itemId ?? null,
+    name: line.name ?? null,
+    quantity: Number(line.quantity) || 1,
+    meat: line.meat ?? null,
+    style: line.style ?? null,
+    modifiers: [...(line.modifiers || [])].map(String),
+    notes: [...(line.notes || [])].map(String).filter((note: string) => note.length <= 80 && !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(note)),
+  }));
+  const affirmedRaw = extra.affirmedStaffList && typeof extra.affirmedStaffList === "object" ? extra.affirmedStaffList as { fired?: boolean; added?: unknown[]; flagged?: unknown[] } : {};
+  const affirmedStaffList = {
+    fired: !!affirmedRaw.fired,
+    added: [...(affirmedRaw.added || [])].map(String),
+    flagged: [...(affirmedRaw.flagged || [])].map(String),
+  };
+  const diagnostic = Array.isArray(extra.diagnostic) ? extra.diagnostic.map(String) : [];
+  let codeSha = "";
+  try { codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { codeSha = ""; }
+  try {
+    appendFileSync(file, JSON.stringify({
+      codeSha, id, seq: n, phase, reviewReasons, lines, diagnostic, menu, menuMissing, affirmedStaffList,
+      fulfillment: order?.fulfillment || null,
+      addressPresent: !!order?.address,
+      readyTime: order?.readyTime || null,
+      waitMinutes: order?.waitMinutes ?? null,
+      readyCue: order?.readyCue || null,
+      fulfillmentCue: order?.fulfillmentCue || null,
+    }) + "\n");
+  } catch { /* test log only */ }
+}
+
+/** Staff diagnostic. Item ids and a kind only. Never a caller sentence, and never outside a test scratch path. */
+function noteCountedDiagnostic(rows: Array<{ kind: string; itemIds: string[]; quantity: number }>) {
+  if (process.env.NODE_ENV !== "test" || !rows?.length) return;
+  const file = process.env.ELVI_COUNTED_DIAG || "";
+  if ((!file.startsWith("/tmp/") && !file.startsWith("/opt/cursor/artifacts/")) || file.includes("/data/logs")) return;
+  try {
+    for (const row of rows) appendFileSync(file, JSON.stringify({ kind: row.kind, itemIds: row.itemIds, quantity: row.quantity }) + "\n");
+  } catch { /* test log only */ }
+}
+
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
+  replayTurns = turns;
   // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
   // catalog price (data/site-catalog.json), never a modifier upcharge ("$1" for QCO) or a meat prompt.
   // alexvoc1: "ya va pa allá" / restating the drinks on an order already placed — no new cart.
   if (isStatusFollowUpCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "status-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true }, { stage: "status-call", reconcileRan: false });
   // daniel-cancel1: a callback cancelling an earlier order — never a new cart (nothing from memory, recap or the old order).
   if (isCancelOrderCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true }, { stage: "cancel-order", reconcileRan: false });
   // pedro2: caller gave up ("entonces no quiero nada") and nothing was ordered or wrapped up after — no order.
   if (isAbandonedOrder(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "abandoned-order", reconcileRan: false });
   // juanFollow1: a callback about an order already placed (complaint / address / "mi pedido") — no new cart.
   if (isExistingOrderCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true };
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "existing-order-call", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, existingOrderCall: true }, { stage: "existing-order-call", reconcileRan: false });
   // demi1: asked for the person in charge and never named a dish — a false cart (pozole from the intro) is not an order.
   if (isPersonInChargeCall(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "person-in-charge", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, personInCharge: true };
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "person-in-charge", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, personInCharge: true }, { stage: "person-in-charge", reconcileRan: false });
   // cmissing1: only availability questions + "I'll call you back" / "le hablo luego" — no cart, no final ticket.
   if (isCallBackNoOrder(turns as any))
-    return { cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any;
+    return noteTrace({ cart: [] as Line[], steps: [{ source: "call-back-no-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-no-order", reconcileRan: false });
   if (isQuestionOnlyCall(turns)) {
     const steps: any[] = [];
     const ctx: string[] = []; let lastReply = "";
@@ -905,7 +1052,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       ctx.push(t.text); if (ctx.length > 3) ctx.shift();
       const reply = priceAnswer(ctx.join(" "), t.language === "en" ? "en" : "es");
       if (reply && reply !== lastReply) { const prev = steps[steps.length - 1]; if (prev && ctx.length > 1 && reply.length > prev.reply.length && prev.heard === ctx[ctx.length - 2]) steps.pop(); steps.push({ source: "caller-price-question", heard: t.text, language: t.language, reply, actions: [] }); lastReply = reply; } }
-    return { cart: [] as Line[], steps, autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, questionOnly: true } as any;
+    return noteTrace({ cart: [] as Line[], steps, autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, questionOnly: true }, { stage: "question-only", reconcileRan: false });
   }
   const origTurns = turns.map((t) => ({ speaker: t.speaker, text: String(t.text || "") })); // gloria1: as heard, before in-loop merges/rewrites
   const declinedAsk = declinedAsks(origTurns as any); // jonathan2: declined "¿tiene X?" never rings, even on a later "quería eso"
@@ -923,6 +1070,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   const history: Array<{ role: "customer" | "assistant"; text: string }> = [];
   const steps: any[] = [];
+  let affirmedStaffList = { fired: false, added: [] as string[], flagged: [] as string[] };
   let lastTouched: Line | null = null;
   const touchedNow: Line[] = [];
   let person: string | null = null, plateN = 0, personSegStart = 0; // multi1/agustin1: per-person groups; segStart for para-X backfill
@@ -934,10 +1082,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let shadowAddress: string | null = null;
   let shadowAddressConfirmed = false;
   const apply = (actions: any[] = []) => {
+    const appliedAdds: any[] = [];
     for (let a of actions) {
       // size1: a bare size answer ("A regular.") to "¿regular o grande?" resizes the dish just rung, it isn't a 2nd one (Paco).
       if (a.type === "add_item" && sizeAnswer && cart.length && cart[cart.length - 1].itemId === a.itemId) { const p0 = cart.pop()!; a = { ...a, quantity: p0.quantity || a.quantity }; }
-      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); }
+      if (a.type === "add_item") { const l: Line = { itemId: a.itemId, quantity: a.quantity, modifiers: a.modifiers, readback: a.readback, ...(person ? { person } : {}), ...(a.intentKept ? { intentKept: true } : {}) } as Line; cart.push(l); lastTouched = l; touchedNow.push(l); if (a.intentKept) appliedAdds.push(a); }
       else if (a.type === "update_item") {
         const indexed = a.lineIndex != null && cart[a.lineIndex]?.itemId === a.itemId ? a.lineIndex : -1;
         const i = indexed >= 0 ? indexed : cart.map((l) => l.itemId).lastIndexOf(a.itemId);
@@ -952,6 +1101,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         shadowAddressConfirmed = true;
       }
     }
+    if (actions.some((action) => action?.intentKept)) recordAppliedRequest(cart, appliedAdds);
   };
   // fix24: a removal ("no crema") belongs to the dish it was said with, else to the last dish touched. Two Deluxe
   // dishes and no way to tell which → ambiguous (the ticket flags it for staff instead of guessing).
@@ -1006,7 +1156,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         transcript: text, language, menu, history, cart, discussedTexts,
         staffTexts: turns.filter((t) => t.speaker === "staff").map((t) => t.text),
       }) : null;
-      if (decision && decision.kind === "accept" && !FOOD.test(text) && !dishesNamed(text).size) {
+      const recentDish = [...dishesNamed(history.filter((h) => h.role === "customer").slice(-4).map((h) => h.text).join(" "))].some((kind) => !cart.some((line) => kindOfItem(line.itemId) === kind));
+      if (decision && decision.kind === "accept" && !FOOD.test(text) && !dishesNamed(text).size && !recentDish) {
         const intentReply = { reply: decision.reply, actions: decision.actions, language };
         history.push({ role: "customer", text }, { role: "assistant", text: decision.reply });
         apply(decision.actions.map((action) => ({ ...action, intentKept: true })));
@@ -1020,7 +1171,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     // anthony1: a caller availability question ("¿tienes pollo a la crema?") or an echo of staff's menu list ("Coctel de camarón")
     // orders nothing — drop any adds the model made on that turn.
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)
-      && (isAvailQ(text) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
+      && ((spokenAvailQ(text) || isAck(text)) && !/\b(?:\d+|dos|tres|cuatro|cinco|seis|ocho|diez)\s+\p{L}/iu.test(text) || isEchoOfStaff(text, recentStaff.slice(-2).join(" "))))
       (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item");
     // brenda1: "this is the Elvis, right?" (pozole), "more lengua" / "not too much rice" after staff's "rice and beans is fine?" (mole),
     // "two green, one red, the avocado salsa" (tacos/huarache) — none of these start a new dish.
@@ -1035,7 +1186,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     if ((source === "caller" || source === "caller-retry") && Array.isArray((r as any)?.actions)) {
       const off = staffUnavailable(allStaff.map((x) => ({ speaker: "staff", text: x })) as any);
       const pt = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-      const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !isAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
+      const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !spokenAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
       if (off.length) (r as any).actions = (r as any).actions.filter((a: any) => !(a?.type === "add_item" && off.some((d) => (String(a.itemId).toLowerCase().includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(a.itemId).toLowerCase())) && !reorder(d))));
       dropPutOnReAdd((r as any).actions, cart as any[], text); // pedro3: "si la pueden poner en nopales" changes the gorditas, not a new one
       if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
@@ -1699,11 +1850,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || (!prevStyleOnly && SMALL_SOPE.test(applySharedAliases(prevCaller, "phone")))
         || pendingSmallSope;
       const mm = text.match(new RegExp(String.raw`\b(${MEAT_LIST})\b`, "iu"));
-      const meatOnly = !!(mm && !FOOD.test(text) && !dishesNamed(text).size);
       if (source.startsWith("caller") && saidSope && SMALL_SOPE.test(applySharedAliases(text, "phone"))
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende|grandes?\s+o\s+chic)/iu.test(text) && !mm) {
         pendingSmallSope = true;
-      } else if (source.startsWith("caller") && saidSmall && (saidSope || meatOnly)
+      } else if (source.startsWith("caller") && saidSmall && (saidSope || pendingSmallSope)
         && !/\b(?:tienen|tienes|hay|tiene|ten[eé]s|vende)/iu.test(text)
         && !acts.some((a: any) => a.type === "add_item" && /sopes[ae]so/i.test(String(a.itemId)))
         && !cart.some((l) => /sopes[ae]so/i.test(String(l.itemId)))) {
@@ -2629,7 +2779,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
 
     // carlos1d: "tres tacos taqueros" + "dos de bistec y uno de chorizo" — force TST meat lines when model []
-    if (source.startsWith("caller") && listedMeats(text).length >= 1
+    const deniedDish = staffUnavailable((allStaff || []).map((row: string) => ({ speaker: "staff", text: row })) as any);
+    const menuNouns = new Set((await loadIntentMenu()).flatMap((item: any) => String(item?.name || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").split(" ").filter((word: string) => word.length >= 4)));
+    const staffDeniedDish = text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").split(" ").some((word) => {
+      const stem = word.replace(/s$/, "");
+      if (stem.length < 4 || ![...menuNouns].some((noun) => noun === stem || noun.startsWith(stem) || stem.startsWith(noun))) return false;
+      return deniedDish.some((dish) => dish === stem || dish.startsWith(stem.slice(0, 4)) || stem.startsWith(dish.slice(0, 4)));
+    });
+    if (!staffDeniedDish && source.startsWith("caller") && listedMeats(text).length >= 1
       && !/\b(?:al\s+rev[eé]s|mejor\s+dicho|comal|aceite|dorad|quesadilla|tienen|hay)\b/iu.test(text)
       && (/\btacos?\b/iu.test(text) || /\btaquer/i.test(text) || /\btaquer/i.test(history.filter((h) => h.role === "customer").slice(-3).map((h) => h.text).join(" ")))
       && !acts.some((a: any) => a.type === "add_item" && /taco/i.test(String(a.itemId)))) {
@@ -3458,6 +3615,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
   // fix1036: fulfillment heard anywhere (caller or staff read-back "delivery, tus quesadillas…"); last mention wins.
   let fulfillment: "DELIVERY" | "PICKUP" | null = null;
+  let readyTime: string | null = null;
   let staffAskedComal = false; // staff: "¿En el comal?" → caller: "Sí" = homemade corn tortilla on the last quesadilla
   let lastAdded: Line | null = null;
   let sideOffer = "", sideOfferAge = 9; // larry1: staff side offer stays answerable for 2 caller turns ("On the gordita?" "No," "Yes… two of those")
@@ -3559,7 +3717,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         || /\b(?:normalmente|usualmente|usually)\b[\s\S]{0,60}\b(?:tortilla\s+)?(?:amarilla|blanca|ma[ií]z|harina|corn|flour)/iu.test(t.text)
         || /\bson\s+de\s+tortilla\s+(?:amarilla|blanca)/iu.test(t.text)
         || (/\btortilla\s+(?:amarilla|blanca)\b/iu.test(t.text) && /\?|¿/.test(t.text) && !ORDER_QTY.test(t.text))) return true;
-      return false;
+      return spokenAvailQ(t.text) && /\b(?:hacen|hace|preparan|prepara|sirven|sirve|ofrecen|ofrece|make)\b/iu.test(t.text);
     };
     // jose2: "me pone dos, una de picadillo…" after doradas avail is an order, not bare filler
     const nextIsOrderBare = (nx: CallTurn) => !dishesNamed(nx.text).size && /\b(?:order|get|take|want|have)\s+(?:some|it|one|that|those|them)\b|\b(?:l[oa]s?)\s+quiero\b|\bquiero\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\bdame\s+(?:un[oa]?|dos|tres|es[oa]s?)\s*[.,!]*$|\b(?:me\s+)?puede(?:s)?\s+(?:preparar|hacer|dar|poner)\b|\b(?:me\s+)?pone(?:s|r)?\b|\bpon(?:me|ga)\b|\b[oó]rdenes?\b/iu.test(nx.text);
@@ -7856,8 +8014,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
 
   // ca2e1da7 (Santiago): staff quoted a ready time ("dame unos veinte", "si me das unos 20 minutos te la hago") and
-  // nobody mentioned delivery/an address → the caller is picking up.
-  if (!fulfillment && cart.length) {
+  // nobody mentioned delivery/an address → the caller is picking up. A status call or an add to an existing order is not.
+  const alreadyPlaced = /\b(?:acabo\s+de\s+(?:hacer|pedir|ordenar)\s+(?:una|la|mi)\s+orden|i\s+just\s+(?:placed|made)\s+an?\s+order|forgot\s+to\s+(?:add|order)|add\s+(?:to|on)\s+(?:my|the|that)\s+order)\b/iu;
+  const statusOrExisting = !!(steps as any).addOn || isStatusFollowUpCall(origTurns as any) || isExistingOrderCall(origTurns as any) || origTurns.some((turn) => turn.speaker === "caller" && alreadyPlaced.test(String(turn.text || "")));
+  if (!fulfillment && cart.length && !statusOrExisting) {
     const all = turns.map((t: any) => String(t.text || "")).join(" ");
     const staffAll = turns.filter((t: any) => t.speaker === "staff").map((t: any) => String(t.text || "")).join(" ");
     const deliv = /\b(?:delivery|deliver|domicilio|a\s+domicilio|env[ií]o|entrega|direcci[oó]n|address|doordash|uber\s*eats|grubhub|llevar\s+a\s+mi\s+casa|me\s+la\s+(?:lleva|traen?))\b/iu.test(all);
@@ -7932,7 +8092,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu);
       applyMenudoSinPata(cart as any[], turns as any, menu); applySaidMeat(cart as any[], turns as any, menu); applyAsadosSide(cart as any[], turns as any, menu);
       { const ct = (turns as any[]).filter((t) => t.speaker === "caller").map((t) => String(t.text || "")); applyOrCount(cart as any[], ct); for (const t of ct) addEnumeratedMeats(cart as any[], t, menu); } // stephanie1
-      applyMenudoHominy(cart as any[], turns as any); dropQdRegularTwin(cart as any[], turns as any); applyMenudo3Alex2(cart as any[], turns as any, menu); applyLuis3(cart as any[], turns as any, menu); applyReadbackCounts(cart as any[], turns as any); dropTortillaStyleAsk(cart as any[], turns as any); applyStatedDishTotal(cart as any[], turns as any); applyStaffRecap(cart as any[], turns as any, menu); applyMarta1(cart as any[], turns as any, menu); applyAlex3(cart as any[], turns as any, menu); applySopesAsada(cart as any[], turns as any); applyBurritoSaid(cart as any[], turns as any); mergeReMentionedDrink(cart as any[], turns as any);  applyRelayOrders(cart as any[], turns as any, menu); addAskedJarrito(cart as any[], turns as any, menu); addAskedEsquite(cart as any[], turns as any, menu); applyLateTortillaChoice(cart as any[], turns as any, menu); applyQdRecap(cart as any[], turns as any, menu); applyBurritoMeatRepeat(cart as any[], turns as any, menu); applyEnglishMultiItem(cart as any[], turns as any, menu); applyMeatSplitQty(cart as any[], turns as any); applyExtraCarne(cart as any[], turns as any, menu); applyQdCorrection(cart as any[], turns as any); applyMenudoPata(cart as any[], turns as any); applyVerduraAparte(cart as any[], turns as any); applyConsomeSolo(cart as any[], turns as any); applyCoctelNotCeviche(cart as any[], turns as any); applyMenudoCountSinPata(cart as any[], turns as any); applyQuesadillaMeatSaid(cart as any[], turns as any); applyTacoMeatList(cart as any[], turns as any); applyTortillaPackDedupe(cart as any[], turns as any); applyTortaSaid(cart as any[], turns as any); applyQuesadillaCombo(cart as any[], turns as any); applyAguacateFull(cart as any[], turns as any, menu); applyQuesaAfterSoup(cart as any[], turns as any); applyMenudoSoloCaldo(cart as any[], turns as any, menu); applyRestatedQty(cart as any[], turns as any); applyStaffMenudo(cart as any[], turns as any); applyQBDecline(cart as any[], turns as any); applyFriedQuesadilla(cart as any[], turns as any); applyConsomeTotal(cart as any[], turns as any); applyBurritoFillings(cart as any[], turns as any); applyQdConTodo(cart as any[], turns as any); applyQuesadillaMasa(cart as any[], turns as any); applyStaffPreparadaYes(cart as any[], turns as any); applyAguaChica(cart as any[], turns as any); applyQdGroups(cart as any[], turns as any); applyCoctelPulpo(cart as any[], turns as any); applyMultiMeatGroup(cart as any[], turns as any, menu); applySaidDishMeat(cart as any[], turns as any, menu || []); applyQdCheeseSplit(cart as any[], turns as any); dropStaffGrandeBurrito(cart as any[], turns as any); applyBurritoGroupFillings(cart as any[], turns as any); applyNachosSaid(cart as any[], turns as any); capCartQty(cart as any[], turns as any); applyConfirmedReadback(cart as any[], turns as any, menu); /* carlos3 */ applyGuisadoChoice(cart as any[], turns as any, menu); /* pedro3 */ applyStaffCountEcho(cart as any[], turns as any); /* yoni1 */ foldPhantomComalMeat(cart as any[], (turns as any[]).filter((t: any) => t.speaker === "caller").map((t: any) => String(t.text))); /* sergio1 */ applyStaffDrinkConfirm(cart as any[], turns as any); /* josh3 */ applyStaffDoradaReadback(cart as any[], turns as any, (menu || []) as any[]); /* freddy2 */ applyMenudoCountConfirm(cart as any[], turns as any); /* jennifer1 */ dropDeclinedAsk(cart as any[], origTurns as any); applyMakeItNMerge(cart as any[], turns as any); applyExtraCounts(cart as any[], turns as any); /* nikki1 / jonathan2 */ applyComboSidesBoth(cart as any[], turns as any); dropUnchosenToppings(cart as any[], turns as any); /* adolfo2 */ applyGroupBlockCounts(cart as any[], turns as any); /* ronald2 */ dropUnsaidQuesoBirrias(cart as any[], turns as any); applyGorditaQueso(cart as any[], turns as any); dropGorditaReaddTwin(cart as any[], turns as any); /* jonathan1 */ applyStaffMeatCountEcho(cart as any[], turns as any); addSaidTorta(cart as any[], turns as any, (menu || []) as any[]); addSideFrijoles(cart as any[], turns as any, (menu || []) as any[]); /* cris1 */ } } // hominy1, dayana2; nicky1, cafa1, braulio1, christopher1, daniela1
+      applyMenudoHominy(cart as any[], turns as any); dropQdRegularTwin(cart as any[], turns as any); applyMenudo3Alex2(cart as any[], turns as any, menu); applyLuis3(cart as any[], turns as any, menu); applyReadbackCounts(cart as any[], turns as any); dropTortillaStyleAsk(cart as any[], turns as any); applyStatedDishTotal(cart as any[], turns as any); applyStaffRecap(cart as any[], turns as any, menu); affirmedStaffList = applyAffirmedStaffList(cart as any[], turns as any, menu); applyMarta1(cart as any[], turns as any, menu); applyAlex3(cart as any[], turns as any, menu); applySopesAsada(cart as any[], turns as any); applyBurritoSaid(cart as any[], turns as any); mergeReMentionedDrink(cart as any[], turns as any);  applyRelayOrders(cart as any[], turns as any, menu); addAskedJarrito(cart as any[], turns as any, menu); addAskedEsquite(cart as any[], turns as any, menu); applyLateTortillaChoice(cart as any[], turns as any, menu); applyQdRecap(cart as any[], turns as any, menu); applyBurritoMeatRepeat(cart as any[], turns as any, menu); applyEnglishMultiItem(cart as any[], turns as any, menu); applyMeatSplitQty(cart as any[], turns as any); applyExtraCarne(cart as any[], turns as any, menu); applyQdCorrection(cart as any[], turns as any); applyMenudoPata(cart as any[], turns as any); applyVerduraAparte(cart as any[], turns as any); applyConsomeSolo(cart as any[], turns as any); applyCoctelNotCeviche(cart as any[], turns as any); applyMenudoCountSinPata(cart as any[], turns as any); applyQuesadillaMeatSaid(cart as any[], turns as any); applyTacoMeatList(cart as any[], turns as any); applyTortillaPackDedupe(cart as any[], turns as any); applyTortaSaid(cart as any[], turns as any); applyQuesadillaCombo(cart as any[], turns as any); applyAguacateFull(cart as any[], turns as any, menu); applyQuesaAfterSoup(cart as any[], turns as any); applyMenudoSoloCaldo(cart as any[], turns as any, menu); applyRestatedQty(cart as any[], turns as any); applyStaffMenudo(cart as any[], turns as any); applyQBDecline(cart as any[], turns as any); applyFriedQuesadilla(cart as any[], turns as any); applyConsomeTotal(cart as any[], turns as any); applyBurritoFillings(cart as any[], turns as any); applyQdConTodo(cart as any[], turns as any); applyQuesadillaMasa(cart as any[], turns as any); applyStaffPreparadaYes(cart as any[], turns as any); applyAguaChica(cart as any[], turns as any); applyQdGroups(cart as any[], turns as any); applyCoctelPulpo(cart as any[], turns as any); applyMultiMeatGroup(cart as any[], turns as any, menu); applySaidDishMeat(cart as any[], turns as any, menu || []); applyQdCheeseSplit(cart as any[], turns as any); dropStaffGrandeBurrito(cart as any[], turns as any); applyBurritoGroupFillings(cart as any[], turns as any); applyNachosSaid(cart as any[], turns as any); capCartQty(cart as any[], turns as any); applyConfirmedReadback(cart as any[], turns as any, menu); /* carlos3 */ applyGuisadoChoice(cart as any[], turns as any, menu); /* pedro3 */ applyStaffCountEcho(cart as any[], turns as any); /* yoni1 */ foldPhantomComalMeat(cart as any[], (turns as any[]).filter((t: any) => t.speaker === "caller").map((t: any) => String(t.text))); /* sergio1 */ applyStaffDrinkConfirm(cart as any[], turns as any); /* josh3 */ applyStaffDoradaReadback(cart as any[], turns as any, (menu || []) as any[]); /* freddy2 */ applyMenudoCountConfirm(cart as any[], turns as any); /* jennifer1 */ dropDeclinedAsk(cart as any[], origTurns as any); applyMakeItNMerge(cart as any[], turns as any); applyExtraCounts(cart as any[], turns as any); /* nikki1 / jonathan2 */ applyComboSidesBoth(cart as any[], turns as any); dropUnchosenToppings(cart as any[], turns as any); /* adolfo2 */ applyGroupBlockCounts(cart as any[], turns as any); /* ronald2 */ dropUnsaidQuesoBirrias(cart as any[], turns as any); applyGorditaQueso(cart as any[], turns as any); dropGorditaReaddTwin(cart as any[], turns as any); /* jonathan1 */ applyStaffMeatCountEcho(cart as any[], turns as any); addSaidTorta(cart as any[], turns as any, (menu || []) as any[]); addSideFrijoles(cart as any[], turns as any, (menu || []) as any[]); /* cris1 */ } } // hominy1, dayana2; nicky1, cafa1, braulio1, christopher1, daniela1
   // relleno2 (CA8f33ce5): staff-unavailable wins over EVERY re-add pass (asked-dishes, relleno, readback…) — run it last.
   dropStaffUnavailable(cart as any[], turns as any);
   dropDeclinedAsk(cart as any[], origTurns as any); // jonathan2: declined availability ask stays off the ticket
@@ -7965,7 +8125,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       steps.push({ source: "end-companion-meats", heard: "both meats on each" });
   }
   // A ready time with food on the ticket is pickup. An earlier empty-cart pass must not stick after the order is rebuilt.
-  if (!fulfillment && cart.length && !address) {
+  if (!fulfillment && cart.length && !address && !statusOrExisting) {
     const all = turns.map((t: any) => String(t.text || "")).join(" ");
     const staffAll = turns.filter((t: any) => t.speaker === "staff").map((t: any) => String(t.text || "")).join(" ");
     const deliv = /\b(?:delivery|deliver|domicilio|a\s+domicilio|env[ií]o|entrega|direcci[oó]n|address|doordash|uber\s*eats|grubhub|llevar\s+a\s+mi\s+casa|me\s+la\s+(?:lleva|traen?))\b/iu.test(all);
@@ -7974,29 +8134,116 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   // juan-loose1: an already-added soup/side/loose tortilla stays unless this call cancelled it.
   // Runs after every rebuild so a later remove or a wiped cart cannot drop an explicit order.
-  {
-    const menuFn = (run as any).menu;
+  const menuFn = (run as any).menu;
     let menuEnd: any = null;
     let loader: "ok" | "missing" | "throwing" = "ok";
-    if (typeof menuFn !== "function") loader = "missing";
-    else { try { menuEnd = await menuFn(); } catch { loader = "throwing"; menuEnd = null; } }
+    let menuSource: "caller" | "frozen" | "missing" = "missing";
+    if (typeof menuFn === "function") {
+      menuSource = "caller";
+      try { menuEnd = await menuFn(); } catch { loader = "throwing"; menuEnd = null; }
+    } else if (frozenPhoneMenuAllowed()) {
+      menuEnd = frozenPhoneMenu();
+      menuSource = "frozen";
+      loader = Array.isArray(menuEnd) && menuEnd.length ? "ok" : "missing";
+    } else loader = "missing";
     const catalog = (run as any).posCatalog || cachedPosCatalog();
     if (retainSpokenOrder(cart as any[], origTurns as any, (Array.isArray(menuEnd) ? menuEnd : []) as any[], catalog))
       steps.push({ source: "end-retain-spoken", heard: "ordered soup, side, loose tortilla" });
     applyVerduraAparte(cart as any[], origTurns as any);
-    let reviewReason: string | null = null;
-    if (loader !== "ok") reviewReason = `confirmar menú: ${loader}`;
+    let heldReason: string | null = null;
+    if (loader !== "ok") heldReason = `confirmar menú: ${loader}`;
     else if (flagUnresolvedRequired(cart as any[], menuEnd as any, "ok"))
       steps.push({ source: "end-unresolved-required", heard: "required catalog option still open" });
-    (steps as any).reviewReason = reviewReason;
+    (steps as any).reviewReason = heldReason;
+    const counted = reconcileCountedRequests(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd : []);
+    for (const line of counted.lines) cart.push(line as any);
+    if (counted.reviewReason && !(steps as any).reviewReason) (steps as any).reviewReason = counted.reviewReason;
+    if (Array.isArray(menuEnd)) {
+      noteUnspokenSize(cart as any[], origTurns as any, menuEnd as any[]);
+      affirmedStaffList = settleAffirmedAdds(cart as any[], menuEnd as any[], affirmedStaffList);
+    }
+    else {
+      const ids = new Set((cart as any[]).map((line) => String(line.itemId)));
+      const prior = new Set(affirmedStaffList.priorIds || []);
+      affirmedStaffList.added = affirmedStaffList.added.filter((id) => ids.has(id) && !prior.has(id));
+      delete affirmedStaffList.priorIds;
+    }
+    if (affirmedStaffList.flagged.length) {
+      noteCountedDiagnostic(affirmedStaffList.flagged.map((token) => {
+        const sep = String(token).indexOf(":");
+        return { kind: `staff-list-${sep < 0 ? "flag" : token.slice(0, sep)}`, itemIds: sep < 0 ? [] : [token.slice(sep + 1)], quantity: 0 };
+      }));
+      if (!(steps as any).reviewReason) (steps as any).reviewReason = STAFF_LIST_REVIEW;
+    }
+    if (counted.diagnostics.length) steps.push({ source: "counted-request", heard: counted.diagnostics.map((row) => row.kind).join(" ") });
+    noteCountedDiagnostic(counted.diagnostics);
+  // A spoken accommodation that was not applied stays a review hold. It is not a line note and not a fulfilled exclusion.
+  if (intentPending?.accommodation && !(steps as any).reviewReason) {
+    (steps as any).reviewReason = `unresolved accommodation: ${intentPending.accommodation}`;
   }
   // relleno2: nothing left (or only a call-back after "se me acabaron") → never an auto-accepted final ticket
-  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return { cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true } as any; }
+  if (!cart.length) { autoAccepted = false; if (CALLBACK_SAID(turns as any)) return noteTrace({ cart: [] as Line[], steps: [...steps, { source: "call-back-no-order", heard: "" }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "call-back-after-order", reconcileRan: true, menuSource, menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"), closures: counted.closures }); }
   // anastasia1: pickup, or transcript text that isn't an address (no number / street word), never fills the address field
   if (address && (fulfillment === "PICKUP" || (!/\d/.test(String(address)) && !/^[a-z .'-]{1,40}\b(?:st|street|ave|avenue|rd|road|dr|drive|blvd|lane|ln|ct|court|way|calle|avenida)\.?$/i.test(String(address).trim())))) { address = null as any; addressConfirmed = false as any; }
+  applySettledQdConTodo(cart as any[], origTurns as any);
+  if (Array.isArray(menuEnd)) {
+    reconcileAcceptedDishParts(cart as any[], origTurns as any, menuEnd as any[]);
+    applyDishScopedParts(cart as any[], origTurns as any, menuEnd as any[]);
+  }
+  if (Array.isArray(menuEnd)) noteUnspokenRequiredChoice(cart as any[], origTurns as any, menuEnd as any[]);
+  if (Array.isArray(menuEnd)) {
+    const unnamed = reconcileSpokenExtras(cart as any[], origTurns as any, menuEnd as any[]);
+    const pendingAsks = (unnamed.asks || []).filter((ask) => ask.resolution === "hold");
+    if (pendingAsks.length) {
+      const reply = pendingAsks.map((ask) => ask.question).join(" ");
+      const language = pendingAsks[0].language;
+      last = { actions: [], reply, language };
+      steps.push({ source: "extra-which", spoken: true, heard: pendingAsks.map((ask) => ask.token).join(" "), language, reply });
+    } else if (unnamed.asks?.length) {
+      steps.push({ source: "extra-which", spoken: true, heard: unnamed.asks.map((ask) => ask.token).join(" "), language: unnamed.asks[0].language, reply: unnamed.asks.map((ask) => ask.question).join(" ") });
+    }
+    if (unnamed.length && !(steps as any).reviewReason) (steps as any).reviewReason = `confirmar ${unnamed.join(", ")}`;
+  }
+  const clock = callerReadyTime(origTurns as any);
+  if (clock) {
+    readyTime = clock.time;
+    (steps as any).readyCue = { turn: clock.turn, speaker: clock.speaker, cue: clock.cue };
+  }
+  const wait = staffWaitMinutes(origTurns as any);
+  const deliverySaid = origTurns.some((turn) => fulfillmentIn(String(turn.text || "")) === "DELIVERY");
+  const nameTaken = !!nameFromTranscriptInfo(origTurns as any);
+  if (!fulfillment && !address && !deliverySaid && nameTaken && wait && cart.length && !statusOrExisting) {
+    fulfillment = "PICKUP";
+    (steps as any).fulfillmentCue = { turn: wait.turn, speaker: wait.speaker, cue: "name+wait" };
+  } else if (statusOrExisting && fulfillment === "PICKUP") {
+    fulfillment = deliverySaid ? "DELIVERY" : null;
+    if (!deliverySaid) delete (steps as any).fulfillmentCue;
+  } else {
+    const marked = [...origTurns].map((turn, index) => ({ index, speaker: turn.speaker, cue: fulfillmentCue(String(turn.text || "")) })).filter((row) => row.cue).pop();
+    if (marked && fulfillment) (steps as any).fulfillmentCue = { turn: marked.index, speaker: marked.speaker, cue: marked.cue };
+  }
+  if (Array.isArray(menuEnd)) {
+    const lateCounted = reconcileCountedRequests(cart as any[], origTurns as any, menuEnd as any[]);
+    if (lateCounted.reviewReason) {
+      if (!(steps as any).reviewReason) (steps as any).reviewReason = lateCounted.reviewReason;
+    } else if ((steps as any).reviewReason === "revisar pedido contado") (steps as any).reviewReason = null;
+  }
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return { ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, validation, ...(reviewReason ? { reviewReason } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, address, addressConfirmed, ...(groups.length ? { groups } : {}) };
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+    stage: "order",
+    reconcileRan: menuSource !== "missing",
+    menuSource,
+    menuState: loader === "throwing" ? "throwing" : (Array.isArray(menuEnd) && menuEnd.length > 0 && loader === "ok" ? "ok" : "missing"),
+    menuCount: Array.isArray(menuEnd) ? menuEnd.length : 0,
+    closures: counted.closures,
+    lines: (cart as any[]).map((line) => ({ itemId: line.itemId, quantity: Number(line.quantity) || 1 })),
+    reviewReason,
+    countedReview: counted.reviewReason,
+    diagnostic: counted.diagnostics.map((row) => row.kind),
+    affirmedStaffList,
+    replayLines: (cart as any[]).map((line) => replayLineDetail(line, Array.isArray(menuEnd) ? menuEnd : [])),
+  });
 }
 
