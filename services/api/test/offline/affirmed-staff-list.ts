@@ -10,7 +10,7 @@ import { buildTicketLines } from "../../src/twilio.ts";
 import { isAck, isAvailQ, staffUnavailable } from "../../src/spoken-ledger.ts";
 import { applyAskedDishes } from "../../src/asked-dishes.ts";
 import { nameFromTranscriptInfo, snapToKnownName } from "../../src/order-name.ts";
-import { createCheckout } from "../../src/square.ts";
+import { createCheckout, squareCall } from "../../src/square.ts";
 import { CASES } from "./cases.ts";
 import { evaluateCase } from "./evaluate.ts";
 
@@ -376,6 +376,43 @@ const unnamedQueso = reconcileSpokenExtras([
   { itemId: gordita.id, quantity: 1, modifiers: [plainGordita], elviNotes: [] },
 ], [{ speaker: "caller", text: "Con queso." }], menu);
 check("unnamed-clause-does-not-clear-the-other-line", unnamedQueso.includes("queso"), JSON.stringify(unnamedQueso));
+const menudoPata = menu.find((item) => item.id === "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG");
+const mole = menu.find((item) => item.id === "sq-mole-tradicional-platillo-4THFAW");
+const birriaItem = menu.find((item) => item.id === "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDD");
+const elvisDip = menu.find((item) => item.name === "Elvis Dip");
+const shrimp = menu.find((item) => /coctel de camaron \/ shrimp$/i.test(item.name));
+const jamaica = menu.find((item) => /jamaica/i.test(item.name));
+const dipChorizo = groupOption(elvisDip, /carne|meat/i, /chorizo/i);
+const moleRice = groupOption(mole, /mole/i, /solo arroz/i);
+const doradaPapas = groupOption(menu.find((item) => item.id === regularDorada), /carne|meat/i, /nopales con papas/i);
+const gorditaHuevo = groupOption(gordita, /carne|meat/i, /huevo con chile/i);
+const pataBeside = reconcileSpokenExtras([
+  { itemId: menudoPata.id, quantity: 3, modifiers: [], elviNotes: [] },
+  { itemId: regularDorada, quantity: 2, modifiers: [{ step: "(QD) Style", option: "(QD) DELUXE Preparada" }], elviNotes: [] },
+  { itemId: quesadilla.id, quantity: 1, modifiers: [qCorn, qSteak], elviNotes: [] },
+], [{ speaker: "caller", text: "Con pata." }], menu);
+check("menudo-pata-beside-other-dishes-does-not-hold", !!menudoPata && !pataBeside.includes("pata"), JSON.stringify(pataBeside));
+const arrozOnMole = reconcileSpokenExtras([
+  { itemId: mole.id, quantity: 1, modifiers: moleRice ? [moleRice] : [], elviNotes: [] },
+  { itemId: birriaItem.id, quantity: 1, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "Con arroz." }], menu);
+check("arroz-on-the-only-eligible-line-does-not-hold", !!moleRice && !!birriaItem && !arrozOnMole.includes("arroz"), JSON.stringify(arrozOnMole));
+const chorizoOnDip = reconcileSpokenExtras([
+  { itemId: shrimp.id, quantity: 1, modifiers: [], elviNotes: [] },
+  { itemId: elvisDip.id, quantity: 1, modifiers: dipChorizo ? [dipChorizo] : [], elviNotes: [] },
+  { itemId: jamaica.id, quantity: 2, modifiers: [], elviNotes: [] },
+], [{ speaker: "caller", text: "A large bowl of queso with chorizo." }], menu);
+check("chorizo-on-the-only-eligible-line-does-not-hold", !!dipChorizo && !!shrimp && !!jamaica && !chorizoOnDip.includes("chorizo"), JSON.stringify(chorizoOnDip));
+const papasLines = reconcileSpokenExtras([
+  { itemId: regularDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: [] },
+  { itemId: regularDorada, quantity: 1, modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, doradaPapas], elviNotes: [] },
+], [{ speaker: "caller", text: "Con papas." }], menu);
+check("papas-across-eligible-lines-still-holds", !!doradaPapas && papasLines.includes("papas"), JSON.stringify(papasLines));
+const huevoLines = reconcileSpokenExtras([
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaBistec], elviNotes: [] },
+  { itemId: gordita.id, quantity: 1, modifiers: [plainGordita, gorditaHuevo], elviNotes: [] },
+], [{ speaker: "caller", text: "Con huevo." }], menu);
+check("huevo-across-eligible-lines-still-holds", !!gorditaHuevo && huevoLines.includes("huevo"), JSON.stringify(huevoLines));
 const cremaOnOne = { step: "topping", option: "Crema / Sour Cream" };
 const otherCrema = reconcileSpokenExtras([
   { itemId: gordita.id, quantity: 1, modifiers: [qgd, gorditaBistec, cremaOnOne], elviNotes: [] },
@@ -814,5 +851,17 @@ Promise.all([
   try { await createCheckout({ shadow: true, cart: [{ itemId: gordita.id, quantity: 1 }], fulfillment: "PICKUP", customer: {} } as any); }
   catch (err) { squareError = err instanceof Error ? err.message : String(err); }
   check("shadow-cart-cannot-checkout", /shadow cart/i.test(squareError), squareError);
+  const shadowBody = JSON.stringify({ shadow: true, cart: [{ itemId: gordita.id, quantity: 1 }] });
+  const writes = [
+    ["/v2/customers", "POST"],
+    ["/v2/orders/shadow-order", "PUT"],
+    ["/v2/online-checkout/payment-links", "POST"],
+  ];
+  const writeErrors: string[] = [];
+  for (const [path, method] of writes) {
+    try { await squareCall(path, { method, body: shadowBody }, {}); writeErrors.push(`${method} ${path} sent`); }
+    catch (err) { writeErrors.push(err instanceof Error ? err.message : String(err)); }
+  }
+  check("shadow-cart-cannot-use-other-square-writes", writeErrors.every((message) => /shadow cart/i.test(message)), writeErrors.join(" | "));
   if (failures.length) process.exit(1);
 });

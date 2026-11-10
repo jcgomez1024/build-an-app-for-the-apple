@@ -99,11 +99,29 @@ function squareHeaders(config: SquareRuntimeConfig) {
   };
 }
 
+/** A shadow cart is not a Square order. Mutating calls refuse it before any network request. */
+export function shadowCartPayload(body: unknown): boolean {
+  let value = body;
+  if (typeof body === "string") {
+    try { value = JSON.parse(body); } catch { return false; }
+  }
+  if (!value || typeof value !== "object") return false;
+  const row = value as { shadow?: boolean; cart?: unknown; order?: { shadow?: boolean; cart?: unknown } };
+  return (row.shadow === true && Array.isArray(row.cart)) || (row.order?.shadow === true && Array.isArray(row.order.cart));
+}
+
+export function assertNoShadowSquareWrite(method: string | undefined, body: unknown) {
+  const verb = String(method || "GET").toUpperCase();
+  if (verb === "GET" || verb === "HEAD") return;
+  if (shadowCartPayload(body)) throw new Error("A shadow cart cannot be sent to Square");
+}
+
 async function squareRequest<T>(
   path: string,
   init: RequestInit,
   config: SquareRuntimeConfig
 ): Promise<T> {
+  assertNoShadowSquareWrite(init.method, init.body);
   const response = await fetch(`${getSquareBaseUrl(config.env)}${path}`, {
     ...init,
     headers: {
@@ -305,7 +323,7 @@ export function sandboxDeliveryCharges(q: Quote) {
 function loadDeliveryFile() { try { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); } catch { return {}; } }
 
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
-  if ((input as { shadow?: boolean })?.shadow === true) throw new Error("A shadow cart cannot be sent to Square");
+  assertNoShadowSquareWrite("POST", input);
   const runtime = getSquareConfig(config);
   if (!runtime.locationId) {
     throw new Error("Missing SQUARE_LOCATION_ID");

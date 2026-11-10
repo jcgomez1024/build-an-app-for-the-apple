@@ -2350,6 +2350,27 @@ function alreadyPresent(token: string, present: Set<string>): boolean {
   return normalizedForms(token).some((form) => present.has(form));
 }
 
+function textHasToken(text: string, token: string): boolean {
+  const wanted = new Set(normalizedForms(token));
+  return plain(text).split(" ").some((word) => normalizedForms(word).some((form) => wanted.has(form)));
+}
+
+/** A line can take the token when the token is already on it, or the item's own name, options, or included parts contain it. */
+function lineCouldTake(line: any, token: string, menu: any[]): boolean {
+  if (alreadyPresent(token, linePresent(line, menu))) return true;
+  const item = menu.find((row) => row.id === line.itemId);
+  if (!item) return false;
+  if ([item.name, item.nameEs, item.variationName, item.readbackName, item.readbackNameEs].some((text) => textHasToken(String(text || ""), token))) return true;
+  const selected = (line.modifiers || []).map((mod: any) => `${mod?.step || ""} ${mod?.option || ""}`).join(" ");
+  if (textHasToken(includedText(item, selected), token)) return true;
+  for (const group of item.modifierGroups || []) {
+    for (const choice of group.options || []) {
+      if (textHasToken(optionLabel(choice), token)) return true;
+    }
+  }
+  return false;
+}
+
 const ANAPHOR = /\b(?:other|otro|otra|that|this|ese|esa|aquel|aquella|those|esos|esas)\b/;
 
 /** "the other one" / "that one" / a demonstrative, with two lines of the same dish.
@@ -2415,7 +2436,8 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
       const narrowed = targets.length < base.length;
       const lineScoped = namedLine || narrowed || sideCue || !!anaphor || targets.length < 2;
       const has = (line: any) => alreadyPresent(token, linePresent(line, menu));
-      const covered = lineScoped ? targets.some(has) : targets.every(has);
+      const eligible = targets.filter((line) => lineCouldTake(line, token, menu));
+      const covered = lineScoped ? targets.some(has) : eligible.length === 0 || eligible.every(has);
       if (covered || unnamed.includes(token)) continue;
       unnamed.push(token);
     }
