@@ -84,6 +84,10 @@ The model row is unverified. A stub pass does not show that the model follows th
 - `ticket.complete` is true only for a final, auto-accepted cart with no `confirmar` note and no `noOrder` flag.
 - Candidate failures are remaining findings. The suite does not claim 12/12.
 
+## House approvals
+
+Carlos's standalone approvals, including gordita "con queso" and the `a755b68` which-dish cheese note, are in `HOUSE-APPROVALS.md`. They are not `HOUSE_DEFAULTS` entries.
+
 ## Limits
 
 - Live model actions are not replayed. An empty stub cannot reproduce a wrong model add that the repairs then delete, or a line that only the model would add.
