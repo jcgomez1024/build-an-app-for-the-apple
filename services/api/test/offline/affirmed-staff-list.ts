@@ -6,6 +6,7 @@ import { flagUnresolvedRequired, gateTicketAcceptance, orderValidation } from ".
 import { callerReadyTime, detectFulfillment, spokenClock } from "../../src/delivery.ts";
 import { applyAffirmedStaffList, applyDishScopedParts, applySettledQdConTodo, noteUnspokenRequiredChoice, reconcileAcceptedDishParts, reconcileSpokenExtras, STAFF_LIST_REVIEW } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
+import { buildTicketLines } from "../../src/twilio.ts";
 import { staffUnavailable } from "../../src/spoken-ledger.ts";
 import { CASES } from "./cases.ts";
 import { evaluateCase } from "./evaluate.ts";
@@ -299,8 +300,8 @@ function extraGate(turns: Array<{ speaker: string; text: string }>, modifiers: a
 for (const [name, turns, seeded, expectBeans, expectHold] of [
   ["modifier-applied-is-final", [{ speaker: "caller", text: "One quesadilla with beans." }], true, true, false],
   ["modificador-aplicado-queda-final", [{ speaker: "caller", text: "Una quesadilla con frijoles." }], true, true, false],
-  ["modifier-unmappable-holds", [{ speaker: "caller", text: "One quesadilla with glitter." }], false, false, "glitter"],
-  ["modificador-sin-catalogo-queda-en-revision", [{ speaker: "caller", text: "Una quesadilla con purpurina." }], false, false, "purpurina"],
+  ["filler-is-not-menu-vocabulary", [{ speaker: "caller", text: "One quesadilla with glitter." }], false, false, false],
+  ["relleno-no-es-vocabulario", [{ speaker: "caller", text: "Una quesadilla con purpurina." }], false, false, false],
   ["modifier-withdrawn-is-final-without-it", [{ speaker: "caller", text: "One quesadilla with beans." }, { speaker: "caller", text: "Without beans." }], true, false, false],
   ["modificador-retirado-queda-final-sin-el", [{ speaker: "caller", text: "Una quesadilla con frijoles." }, { speaker: "caller", text: "Sin frijoles." }], true, false, false],
 ] as const) {
@@ -314,6 +315,38 @@ const riceEs = extraGate([{ speaker: "caller", text: "Una quesadilla y un lado d
 const ricePresent = (cart: any[]) => cart.some((line) => /sq-sides-arroz-rice-26S6E6/.test(String(line.itemId)));
 check("side-ordered-is-present-or-held", (ricePresent(riceEn.cart) && riceEn.gate.phase === "final") || (riceEn.gate.phase === "review" && /rice/.test(String(riceEn.gate.reviewReason || ""))), JSON.stringify({ phase: riceEn.gate.phase, reason: riceEn.gate.reviewReason, ids: riceEn.cart.map((line) => line.itemId) }));
 check("lado-pedido-esta-o-queda-en-revision", (ricePresent(riceEs.cart) && riceEs.gate.phase === "final") || (riceEs.gate.phase === "review" && /arroz/.test(String(riceEs.gate.reviewReason || ""))), JSON.stringify({ phase: riceEs.gate.phase, reason: riceEs.gate.reviewReason, ids: riceEs.cart.map((line) => line.itemId) }));
+const noKitchenWord = (cart: any[]) => !cart.some((line) => (line.elviNotes || []).some((note: string) => /^confirmar\s+\S+$/i.test(String(note))));
+const heldWord = (turns: Array<{ speaker: string; text: string }>, word: string) => {
+  const result = extraGate(turns, [qCorn, qSteak]);
+  return result.unnamed.includes(word) && result.gate.phase === "review" && String(result.gate.reviewReason || "").includes(word) && noKitchenWord(result.cart);
+};
+check("missing-salsa-holds", heldWord([{ speaker: "caller", text: "One quesadilla with salsa." }], "salsa"), "");
+check("missing-nopales-holds", heldWord([{ speaker: "caller", text: "Una quesadilla con nopales." }], "nopales"), "");
+check("missing-pata-holds", heldWord([{ speaker: "caller", text: "Un menudo con pata." }], "pata"), "");
+const salsaOnLine = extraGate([{ speaker: "caller", text: "One quesadilla with salsa." }], [qCorn, qSteak, { step: "salsa", option: "Mild Salsa Roja" }]);
+check("salsa-already-in-the-cart-does-not-hold", salsaOnLine.unnamed.length === 0 && salsaOnLine.gate.phase === "final", JSON.stringify(salsaOnLine.unnamed));
+const nopalesOnLine = extraGate([{ speaker: "caller", text: "Con nopales." }], [qCorn, qSteak, { step: "filling", option: "Nopales con Papas / Cacti with Potatoes" }]);
+check("nopales-already-in-the-cart-does-not-hold", nopalesOnLine.unnamed.length === 0 && nopalesOnLine.gate.phase === "final", JSON.stringify(nopalesOnLine.unnamed));
+const sourOnLine = extraGate([{ speaker: "caller", text: "With sour cream." }], [qCorn, qSteak, { step: "topping", option: "Crema / Sour Cream" }]);
+check("sour-already-in-the-cart-does-not-hold", !sourOnLine.unnamed.includes("sour") && sourOnLine.gate.phase === "final", JSON.stringify(sourOnLine.unnamed));
+check("salsita-already-in-the-cart-does-not-hold", extraGate([{ speaker: "caller", text: "Con salsita." }], [qCorn, qSteak, { step: "salsa", option: "Mild Salsa Roja" }]).unnamed.length === 0, "");
+check("opales-does-not-hold", extraGate([{ speaker: "caller", text: "Con opales." }], [qCorn, qSteak, { step: "filling", option: "Nopales con Papas / Cacti with Potatoes" }]).unnamed.length === 0 && extraGate([{ speaker: "caller", text: "Con opales." }], [qCorn, qSteak]).unnamed.length === 0, "");
+check("razas-does-not-hold", extraGate([{ speaker: "caller", text: "Con razas." }], [qCorn, qSteak]).unnamed.length === 0, "");
+check("just-does-not-hold", extraGate([{ speaker: "caller", text: "With just that." }], [qCorn, qSteak]).unnamed.length === 0, "");
+const papa = extraGate([{ speaker: "caller", text: "Con papa." }], [qCorn, qSteak]);
+const pata = extraGate([{ speaker: "caller", text: "Con pata." }], [qCorn, qSteak]);
+const papas = extraGate([{ speaker: "caller", text: "Con papas." }], [qCorn, qSteak]);
+check("papa-and-pata-stay-distinct", papa.unnamed.length === 0 && pata.unnamed.includes("pata") && !pata.unnamed.includes("papa") && papas.unnamed.includes("papas") && !papas.unnamed.includes("pata") && !papas.unnamed.includes("papa"), JSON.stringify({ papa: papa.unnamed, pata: pata.unnamed, papas: papas.unnamed }));
+const tacoPastor = groupOption(taco, /carne|meat/i, /alpastor|pastor/i);
+const pastorCovered = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: tacoPastor ? [tacoPastor] : [] }], [{ speaker: "caller", text: "Tres tacos de pastor." }], menu);
+check("pastor-display-name-covers-alpastor", !!tacoPastor && pastorCovered.reviewReason !== "revisar pedido contado", JSON.stringify(pastorCovered));
+const ticket = buildTicketLines(
+  [{ name: "Quesadilla", quantity: 1, choices: ["(QST) Quesadilla Taquera / Street Quesadilla"] }],
+  [{ itemId: quesadilla.id, quantity: 1, modifiers: [], elviNotes: ["confirmar salsa", "confirmar (B) Q Carnes / Meats"] }],
+  [],
+);
+const ticketText = JSON.stringify(ticket);
+check("review-word-is-not-on-the-kitchen-ticket", !ticketText.includes("confirmar salsa") && ticketText.includes("confirmar (B) Q Carnes / Meats"), ticketText);
 const countedMissing = reconcileCountedRequests([], [{ speaker: "caller", text: "Tres tacos de bistec." }], menu);
 check("missing-spoken-count-holds", countedMissing.reviewReason === "revisar pedido contado" && countedMissing.lines.length === 0, JSON.stringify(countedMissing));
 const countedPresent = reconcileCountedRequests([{ itemId: taco.id, quantity: 3, modifiers: [tacoBistec] }], [{ speaker: "caller", text: "Tres tacos de asada de bistec." }], menu);

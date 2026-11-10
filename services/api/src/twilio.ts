@@ -1000,7 +1000,8 @@ export function buildTicketLines(
     const ask = (row?.modifiers || []).find((m: any) => m.step === "meat_needs_ask" || m.groupName === "meat_needs_ask");
     let choices = labelled[i];
     const lineHasDeluxe = hasDeluxe(choices);
-    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n))).map((n) => String(n));
+    const reviewWord = (note: string) => /^confirmar\s+\S+$/i.test(String(note).trim());
+    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n)) && !reviewWord(String(n))).map((n) => String(n));
     let lineRemovals: string[] = (removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals)).filter((n) => !/^confirmar\b/i.test(String(n)));
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);

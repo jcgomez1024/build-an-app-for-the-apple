@@ -1,5 +1,5 @@
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
-import { catalogMentions, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
+import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
 import { fixEnchiladaSpokenMods } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -1946,7 +1946,7 @@ function choiceTokens(name: string): string[] {
   const folded = plain(name);
   const words = folded.split(" ").filter((word) => word.length >= 4 && !CHOICE_STOP.has(word) && !/^\d+$/.test(word));
   const sizes = (folded.match(/\d+\s*oz/g) || []).map((size) => size.replace(/\s+/g, ""));
-  return [...new Set([...words, ...sizes])];
+  return [...new Set([...words, ...words.flatMap((word) => compoundForms(word)), ...sizes])];
 }
 
 function lineChoiceKeys(item: any): string[] {
@@ -2205,98 +2205,93 @@ function spokenBits(text: string): Array<{ token: string; withdrawn: boolean }> 
   return found;
 }
 
-function itemWords(item: any): string[] {
-  return plain(`${item?.name || ""} ${item?.id || ""}`).split(" ").filter((word) => word.length >= 4 && !EXTRA_STOP.has(word) && !/^\d/.test(word));
-}
-
-function isSideItem(item: any): boolean {
-  return /^sides\b/i.test(String(item?.name || "")) || /sq-sides-/.test(String(item?.id || ""));
-}
-
-function optionHits(item: any, token: string): Array<{ group: string; option: string; required: boolean }> {
-  const hits: Array<{ group: string; option: string; required: boolean }> = [];
-  for (const group of item?.modifierGroups || []) {
-    const required = Number(group.minSelections) >= 1;
-    for (const choice of group.options || []) {
-      const name = optionLabel(choice);
-      const words = plain(name).split(" ").filter((word) => word.length >= 4 && !EXTRA_STOP.has(word));
-      if (words.some((word) => word === token || word.startsWith(token) || token.startsWith(word))) hits.push({ group: group.name, option: name, required });
+function menuVocabulary(menu: any[]): Set<string> {
+  const vocab = new Set<string>();
+  const add = (text: string) => {
+    for (const word of plain(text).split(" ")) {
+      if (word.length < 4 || EXTRA_STOP.has(word)) continue;
+      vocab.add(word);
+      for (const part of compoundForms(word)) vocab.add(part);
+    }
+  };
+  for (const item of menu) {
+    add(item?.name || "");
+    for (const group of item?.modifierGroups || []) {
+      add(group?.name || "");
+      for (const choice of group.options || []) add(optionLabel(choice));
     }
   }
-  return hits;
+  return vocab;
 }
 
-/** Spoken optional modifiers and sides, one ledger per dish. A mapped choice stays on the line. An unmapped word holds under its own name. */
+/** Exact catalog token, or one diminutive or plural of a token. Distinct catalog tokens never collapse. */
+function menuToken(raw: string, vocab: Set<string>): string | null {
+  const token = plain(raw);
+  if (token.length < 4 || EXTRA_STOP.has(token)) return null;
+  if (vocab.has(token)) return token;
+  const stems: string[] = [];
+  if (/(?:ita|ito)$/.test(token) && token.length > 5) {
+    const stem = token.slice(0, -3);
+    stems.push(stem, `${stem}a`, `${stem}o`, `${stem}e`);
+  }
+  if (token.endsWith("es") && token.length > 5) stems.push(token.slice(0, -2));
+  if (token.endsWith("s") && token.length > 4) stems.push(token.slice(0, -1));
+  for (const word of [token, ...stems]) for (const part of compoundForms(word)) stems.push(part);
+  const hits = [...new Set(stems.filter((stem) => vocab.has(stem)))];
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function cartVocabulary(cart: any[], menu: any[]): Set<string> {
+  const present = new Set<string>();
+  const add = (text: string) => {
+    for (const word of plain(text).split(" ")) {
+      if (word.length < 4) continue;
+      present.add(word);
+      for (const part of compoundForms(word)) present.add(part);
+    }
+  };
+  for (const line of cart) {
+    const item = menu.find((row) => row.id === line.itemId);
+    add(item?.name || "");
+    for (const mod of line.modifiers || []) add(String(mod?.option || ""));
+    for (const note of line.elviNotes || []) add(String(note));
+  }
+  return present;
+}
+
+/** Spoken modifiers and sides. Hold only a menu token that is not already on the cart. The hold is a review reason, not a kitchen note. */
 export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): string[] {
   if (!Array.isArray(cart) || !menu?.length) return [];
-  const sides = menu.filter(isSideItem);
-  type Want = { token: string; scope: string[]; kind: "option" | "side" | "missing"; group?: string; option?: string; sideId?: string };
-  const wanted: Want[] = [];
-  let scope: string[] = [];
+  const vocab = menuVocabulary(menu);
+  const present = cartVocabulary(cart, menu);
+  const unnamed: string[] = [];
   for (const turn of turns) {
     if (turn.speaker !== "caller" || /[?¿]/.test(turn.text)) continue;
-    const bits = spokenBits(turn.text);
-    const introTokens = new Set(bits.map((bit) => bit.token));
-    const named = menu.filter((item) => !isSideItem(item) && itemWords(item).some((word) => !introTokens.has(word) && new RegExp(`\\b${word}s?\\b`).test(plain(turn.text))));
-    if (named.length) scope = [...new Set(named.map((item) => String(item.id)))];
-    for (const bit of bits) {
+    for (const bit of spokenBits(turn.text)) {
+      const token = menuToken(bit.token, vocab);
+      if (!token) continue;
       if (bit.withdrawn) {
-        for (let i = wanted.length - 1; i >= 0; i--) if (wanted[i].token === bit.token) wanted.splice(i, 1);
+        const at = unnamed.indexOf(token);
+        if (at >= 0) unnamed.splice(at, 1);
         for (const line of cart) {
           const item = menu.find((row) => row.id === line.itemId);
           line.modifiers = (line.modifiers || []).filter((mod: any) => {
             const option = plain(String(mod.option || ""));
-            if (!option.split(" ").includes(bit.token)) return true;
+            if (!option.split(" ").includes(token)) return true;
             const groups = item?.modifierGroups || [];
             const group = groups.find((entry: any) => plain(entry.name || "") === plain(mod.step || ""))
               || groups.find((entry: any) => (entry.options || []).some((choice: any) => plain(optionLabel(choice)) === option));
             return !group || Number(group.minSelections) >= 1;
           });
         }
+        present.delete(token);
         continue;
       }
-      const pool = scope.length ? menu.filter((item) => scope.includes(String(item.id))) : menu.filter((item) => cart.some((line) => line.itemId === item.id));
-      const hits = pool.flatMap((item) => optionHits(item, bit.token));
-      const namedOnDish = pool.some((item) => itemWords(item).some((word) => word === bit.token));
-      if (namedOnDish && !/\b(?:side|lado|aparte)\b/.test(plain(turn.text))) continue;
-      if (hits.some((hit) => hit.required) && !/\b(?:side|lado|aparte)\b/.test(plain(turn.text))) continue;
-      const unique = [...new Map(hits.filter((hit) => !hit.required).map((hit) => [`${hit.group}\0${hit.option}`, hit])).values()];
-      const sidePool = sides.filter((item) => itemWords(item).some((word) => word === bit.token || word.startsWith(bit.token)));
-      const sized = new Set(["grande", "full", "half"]);
-      const unsized = sidePool.filter((item) => !itemWords(item).some((word) => sized.has(word)));
-      const sideChoices = (unsized.length ? unsized : sidePool).sort((a, b) => itemWords(a).length - itemWords(b).length);
-      const shortest = sideChoices.length ? itemWords(sideChoices[0]).length : 0;
-      const side = sideChoices.filter((item) => itemWords(item).length === shortest).length === 1 ? sideChoices[0] : null;
-      const asSide = /\b(?:side|lado|aparte)\b/.test(plain(turn.text));
-      const present = unique.some((hit) => cart.some((line) => (line.modifiers || []).some((mod: any) => plain(mod.option || "") === plain(hit.option))));
-      if (asSide && side) wanted.push({ token: bit.token, scope, kind: "side", sideId: side.id });
-      else if (unique.length === 1) wanted.push({ token: bit.token, scope, kind: "option", group: unique[0].group, option: unique[0].option });
-      else if (unique.length > 1 && present) continue;
-      else if (!asSide && side && !unique.length) wanted.push({ token: bit.token, scope, kind: "side", sideId: side.id });
-      else wanted.push({ token: bit.token, scope, kind: "missing" });
+      if (present.has(token) || unnamed.includes(token)) continue;
+      unnamed.push(token);
     }
   }
-  const unnamed: string[] = [];
-  for (const want of wanted) {
-    const lines = cart.filter((line) => {
-      const item = menu.find((row) => row.id === line.itemId);
-      if (!item || isSideItem(item)) return false;
-      if (!want.scope.length) return true;
-      return want.scope.includes(String(item.id)) || itemWords(item).some((word) => want.scope.some((id) => plain(id).includes(word)));
-    });
-    if (want.kind === "option" && want.option) {
-      if (lines.some((line) => (line.modifiers || []).some((mod: any) => plain(mod.option || "") === plain(want.option || "")))) continue;
-    }
-    if (want.kind === "side" && want.sideId && cart.some((line) => line.itemId === want.sideId)) continue;
-    if (!unnamed.includes(want.token)) unnamed.push(want.token);
-    const note = `confirmar ${want.token}`;
-    const host = lines[0];
-    if (host && !(host.elviNotes || []).includes(note)) {
-      host.elviNotes = [...(host.elviNotes || []), note];
-      host.validation = "unresolved";
-    }
-  }
-  return [...new Set(unnamed)];
+  return unnamed;
 }
 
 /** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */

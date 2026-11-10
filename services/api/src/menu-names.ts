@@ -45,6 +45,16 @@ export function loadOptionAliases(): OptionAlias[] {
   return optionAliasCache;
 }
 
+/** A fused display name such as Alpastor yields the same token as "al pastor" or "el pastor". */
+export function compoundForms(word: string): string[] {
+  const token = normalizeName(word).replace(/[^a-z0-9]/g, "");
+  if ((token.startsWith("al") || token.startsWith("el")) && token.length >= 6) {
+    const rest = token.slice(2);
+    if (rest.length >= 4) return [rest];
+  }
+  return [];
+}
+
 export function optionAliasWords(token: string): string[] {
   const folded = normalizeName(token);
   const rows = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => normalizeName(alias) === folded));
@@ -66,9 +76,10 @@ export function spokenChoiceWords(value: string): Set<string> {
   spoken = spoken.replace(/\b(\d+)\s+(?:onzas?|ounces?|oz)\b/g, "$1oz");
   const hits = new Set(spoken.split(" ").filter(Boolean));
   const add = (...words: string[]) => words.forEach((word) => hits.add(word));
-  // Flagged for review. Not an approved alias: the catalog token is alpastor, not pastor.
-  if (/\b(?:alpastor|al pastor|el pastor|pastor)\b/.test(spoken)) add("pastor", "alpastor");
-  for (const word of [...hits]) for (const extra of optionAliasWords(word)) hits.add(extra);
+  for (const word of [...hits]) {
+    for (const part of compoundForms(word)) hits.add(part);
+    for (const extra of optionAliasWords(word)) hits.add(extra);
+  }
   if (/\bduros?\b/.test(spoken) || /\bchicharron/.test(spoken)) add("duro", "chicharron");
   if (/\bdorad/.test(spoken)) add("dorada");
   if (/\bhomemade\b/.test(spoken) || /\bcomal\b/.test(spoken)) add("comal", "homemade");

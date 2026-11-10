@@ -2,7 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
-import { loadOptionAliases, spokenLabels } from "./menu-names.js";
+import { compoundForms, loadOptionAliases, spokenLabels } from "./menu-names.js";
 import { enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
@@ -1188,7 +1188,7 @@ function optionIdsForSpoken(menu: IntentMenuItem[], token: string): Set<string> 
       for (const choice of group.options || []) {
         const option = optionRecord(choice);
         if (!option.id) continue;
-        if (fold(option.name).split(" ").some((word) => word.length >= 4 && sameStem(word, token))) ids.add(option.id);
+        if (fold(option.name).split(" ").some((word) => word.length >= 4 && (sameStem(word, token) || compoundForms(word).some((part) => sameStem(part, token))))) ids.add(option.id);
       }
     }
   }
@@ -1224,8 +1224,9 @@ function lineMatches(request: { content: string[]; size: string | null }, line: 
       const ids = optionIdsForSpoken(menu, token);
       if (ids.size && [...ids].some((id) => onLine.has(id))) return true;
       const aliasRows = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => fold(alias) === token));
-      if (aliasRows.length) return aliasRows.some((row) => fold(row.name).split(" ").some((word) => word.length >= 4 && heard(text, word)));
-      return heard(text, token);
+      if (aliasRows.length) return aliasRows.some((row) => fold(row.name).split(" ").some((word) => word.length >= 4 && (heard(text, word) || compoundForms(word).some((part) => heard(text, part)))));
+      if (heard(text, token)) return true;
+      return fold(text).split(" ").some((word) => compoundForms(word).some((part) => sameStem(part, token)));
     });
     if (!covered) return false;
   }
