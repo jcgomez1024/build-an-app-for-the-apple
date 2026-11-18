@@ -1823,7 +1823,7 @@ test("only a real first answer clears the other line", () => {
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
     assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, false, said);
   }
-  for (const said of ["Una extra de queso.", "21 en total.", "Treinta en total.", "Tres en total pesos.", "10 dollars en total."]) {
+  for (const said of ["21 en total.", "Treinta en total.", "Tres en total pesos.", "10 dollars en total."]) {
     const turns = [
       { speaker: "caller", text: "Dos tacos de bistec." },
       { speaker: "caller", text: said },
@@ -1831,6 +1831,12 @@ test("only a real first answer clears the other line", () => {
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
     assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, false, said);
   }
+  const cheese = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Una extra de queso." },
+  ];
+  assert.equal(callerSpokenQty(cheese, "taco", "bistec", ""), 2);
+  assert.equal(staffQuantity(cheese, "taco", "bistec", 2, 2, "").flag, true);
 });
 
 test("a later una de does not cancel a count hint", () => {
@@ -1888,6 +1894,48 @@ test("a later count phrase still flags when an earlier una is a topping", () => 
     { speaker: "caller", text: "Agrégale uno de bistec." },
   ];
   assert.equal(staffQuantity(readback, "taco", "bistec", 1, 1, "").flag, true);
+});
+
+test("every una count phrase flags", () => {
+  const phrases = [
+    "Una extra de bistec.",
+    "Uno extra de pollo.",
+    "Una extra de cada uno.",
+    "Agrégale una de crema y otra de bistec.",
+    "Agrégale una de queso, ahora son tres.",
+  ];
+  for (const said of phrases) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+  const readback = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Una extra de bistec." },
+  ];
+  assert.equal(staffQuantity(readback, "taco", "bistec", 1, 1, "").flag, true);
+  for (const turns of [
+    [
+      { speaker: "caller", text: "Una gordita con queso." },
+      { speaker: "caller", text: "Agrégale una de queso." },
+    ],
+    [
+      { speaker: "caller", text: "Una gordita con queso y dos tacos de bistec." },
+      { speaker: "caller", text: "Agrégale una de queso." },
+    ],
+  ]) {
+    const qty = callerSpokenQty(turns, "gordita", "", "");
+    assert.equal(staffQuantity(turns, "gordita", "", qty ?? 1, qty ?? 1, "").flag, true);
+  }
 });
 
 test("a continued bistec and an alias are one open line", () => {
