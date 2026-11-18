@@ -1,4 +1,6 @@
 // pedro3 (CA0afcaf19, Nov 1): modifier phrasing, staff-offered "X o Y" guisado choice, "sí, y con huevo picoso", resumed-after-bye.
+import { compoundForms } from "./menu-names.js";
+import { frozenPhoneMenu } from "./phone-menu.js";
 type Turn = { speaker: string; text: string };
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 const COUNT = /\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|otr[ao]s?|one|two|three|another)\s+(?:m[aá]s\s+)?(?:gorditas?|tacos?|quesadillas?|huaraches?|tortas?|burritos?|sopes?|tostadas?)\b/iu;
@@ -369,17 +371,47 @@ export function statedDishPutQty(turns: Turn[], noun: RegExp): number {
 }
 /** after-call: after a caller "make it N" / "mejor las N" / bare "me puede poner N", same-dish lines with the same meat
  *  become ONE line whose qty is N (a single line of 1 becomes 4; a 1 plus a second add of 4 collapse to one line of N). */
-const LINE_MEAT = /\b(?:bistec|steak|asada|pastor|chorizo|pollo|chicken|carnitas|tripa|lengua|cabeza|prensado|costilla|picadillo|deshebrada|buche)\b/iu;
+const MEAT_WORD_SKIP = new Set(["option", "options", "carne", "meat", "with", "con", "and", "the", "extra", "beef", "pork", "roasted", "mexican", "shredded", "ground", "spicy", "pulled"]);
+let lineMeatPattern: RegExp | null = null;
+/** Capturing matcher built from catalog meat-group options. "alpastor" also matches "pastor" and "al pastor". */
+function lineMeatRe(): RegExp {
+  if (lineMeatPattern) return lineMeatPattern;
+  const words = new Set<string>();
+  try {
+    for (const item of frozenPhoneMenu()) {
+      for (const group of item?.modifierGroups || []) {
+        const name = String(group?.name || "");
+        if (!/carne|meat/i.test(name) || /salsa|tortilla|extra/i.test(name)) continue;
+        for (const option of group.options || []) {
+          const label = String(typeof option === "string" ? option : option?.name || "");
+          for (const side of label.split("/")) {
+            const head = fold(side).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4 && !MEAT_WORD_SKIP.has(word) && !/^\d/.test(word));
+            if (!head) continue;
+            words.add(head);
+            for (const part of compoundForms(head)) {
+              words.add(part);
+              if (head.startsWith("al") || head.startsWith("el")) words.add(`${head.slice(0, 2)} ${part}`);
+            }
+          }
+        }
+      }
+    }
+  } catch { /* frozen menu unavailable */ }
+  const alt = [...words].sort((a, b) => b.length - a.length).join("|");
+  lineMeatPattern = alt ? new RegExp(`\\b(${alt})\\b`, "iu") : /$^/;
+  return lineMeatPattern;
+}
 function spokenLineKeys(text: string): string[] {
   const body = fold(text).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
   const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
+  const meatRe = lineMeatRe();
   for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
     const named = part.match(dishRe);
-    const meat = part.match(LINE_MEAT);
+    const meat = part.match(meatRe);
     if (named) dish = named[1];
-    if (meat && (named || dish)) keys.add(`${dish}|${meat[1]}`);
+    if (meat?.[1] && (named || dish)) keys.add(`${dish}|${meat[1].toLowerCase()}`);
     else if (named) keys.add(`${named[1]}|`);
   }
   return [...keys];
@@ -391,7 +423,7 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
   const made = makeItN(turn.text);
   if (!made) return false;
   const tail = fold(made.tail);
-  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || LINE_MEAT.test(tail)) return false;
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || lineMeatRe().test(tail)) return false;
   let keys = spokenLineKeys(turn.text);
   if (!keys.length) {
     for (let j = index - 1; j >= 0; j--) {

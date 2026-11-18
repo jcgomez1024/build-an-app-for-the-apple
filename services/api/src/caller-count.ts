@@ -149,12 +149,14 @@ function askedCounts(turns: Turn[]): Asked[] {
   return out;
 }
 /** The leading otra/otro/another clause, only when de, a dish, or a known meat follows. The rest of the turn stays separate. */
-export function peelAnother(text: string): { dish: string | null; meat: string | null; said: string; rest: string } | null {
+export function peelAnother(text: string): { dish: string | null; meat: string | null; said: string; rest: string; cancel?: boolean } | null {
   const cleaned = plain(text).replace(/\b(?:por favor|please)\b/g, " ").replace(/[,]+/g, " ").replace(/\s+/g, " ").trim();
   if (/\b(?:orden|order)\b/.test(cleaned)) return null;
   const opened = cleaned.match(/^(?:y\s+|and\s+)?(?:otra|otro|another)\b\s*(.*)$/);
   if (!opened) return null;
   let tail = opened[1].trim();
+  if (/\blo mismo\b|\bthe same\b/.test(cleaned)) return null;
+  if (/\bno\s+mejor\s+no\b/.test(cleaned)) return { dish: null, meat: null, said: "", rest: "", cancel: true };
   if (/^(?:mas|more)$/.test(tail)) return null;
   if (/^(?:mas|more)\s+/.test(tail)) {
     const after = tail.replace(/^(?:mas|more)\s+/, "");
@@ -181,7 +183,8 @@ export function peelAnother(text: string): { dish: string | null; meat: string |
   const meat = meatIn(clause);
   if (!meat && first !== "de" && first !== "of") return null;
   const said = clause.match(/\b(?:de|of)\s+([a-z]+)/)?.[1] || clause.split(" ").find((word) => meatIn(word)) || first;
-  return { dish: dishIn(clause), meat, said, rest: tokens.slice(end).join(" ").replace(/^(?:y|and)\s+/, "") };
+  const namedDish = dishIn(clause);
+  return { dish: namedDish && namedDish === meat ? null : namedDish, meat, said, rest: tokens.slice(end).join(" ").replace(/^(?:y|and)\s+/, "") };
 }
 function topicMatches(topic: string, itemText: string, dish: string, meat: string): boolean {
   const tokens = (text: string) => plain(text).split(" ").filter((word) => word.length >= 4);
@@ -205,17 +208,19 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
   const keyOf = (dish: string, style: string, meat: string) => `${dish}|${style}|${meat}`;
   const put = (dish: string, style: string, meat: string, n: number) => counts.set(keyOf(dish, style, meat), n);
   const add = (dish: string, style: string, meat: string, n: number) => counts.set(keyOf(dish, style, meat), (counts.get(keyOf(dish, style, meat)) || 0) + n);
+  const bareMore = (seg: string) => !seg.replace(/\b(?:mas|more|por|favor|please|ya)\b/g, " ").replace(/\by\b/g, " ").trim();
   const additive = (before: string, seg: string) => {
     const tail = before.trim().split(/\s+/).slice(-4).join(" ");
     if (/\b(?:otros|otras)\b/.test(tail)) return true;
     if (/\b(?:otra|otro|another)\b/.test(tail) && !/\borden\b/.test(tail)) return true;
     if (/\b(?:mas|more)\b/.test(tail)) return true;
-    return /\b(?:mas|more)\b/.test(seg) && !/\b(?:mas|more)\s*$/.test(seg);
+    if (!/\b(?:mas|more)\b/.test(seg)) return false;
+    return bareMore(seg) || !/\b(?:mas|more)\s*$/.test(seg);
   };
-  // "más N X" adds onto the open line only when X is that dish or meat, or when nothing follows.
+  // "más N X" adds onto the open line only when X is that dish or meat, or when nothing but más follows.
   const sameTarget = (seg: string, dish: string, meat: string) => {
+    if (bareMore(seg)) return true;
     const body = seg.trim();
-    if (!body) return true;
     const named = dishIn(body);
     const meatNamed = meatIn(body);
     if (named && named !== dish) return false;
@@ -229,6 +234,11 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     let p = plain(raw);
     if (!p) continue;
     const otra = peelAnother(p);
+    if (otra?.cancel) continue;
+    if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:otra|otro|another)\s+(?:mas|more)$/.test(p) && open && lastMeat) {
+      add(open, openStyle, lastMeat, 1);
+      continue;
+    }
     if (otra?.meat) {
       const dish = otra.dish || open;
       if (dish) {
