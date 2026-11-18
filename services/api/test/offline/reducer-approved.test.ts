@@ -1254,6 +1254,46 @@ test("que tal los tacos is not an order and two more counts", () => {
   assert.equal(callerSpokenQty(both, "taco", "pollo", ""), 1);
 });
 
+test("a numbered que tal order keeps its count and still asks", async () => {
+  const pastor = [
+    { speaker: "caller", text: "Qué tal, los tacos de pastor, dos por favor." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(pastor, "taco", "alpastor", ""), 2);
+  assert.deepEqual(staffQuantity(pastor, "taco", "alpastor", 4, 4, ""), { quantity: 2, flag: true });
+  const mixed = [
+    { speaker: "caller", text: "Qué tal, la quesadilla de pollo y dos tacos de bistec." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(mixed, "taco", "bistec", ""), 2);
+  assert.deepEqual(staffQuantity(mixed, "taco", "bistec", 4, 4, ""), { quantity: 2, flag: true });
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "¿Qué tal los tacos de pastor?" },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "alpastor", ""), null);
+  const asked: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Qué tal, la quesadilla de pollo y dos tacos de bistec." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Dos más." },
+  ] as any, shadowRun((text) => /m[aá]s/i.test(text)
+    ? { actions: [{ type: "update_item", itemId: "sq-taco-TAR7L5", quantity: 4, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] }], reply: "guess" }
+    : /bistec|quesadilla|pollo/i.test(text)
+      ? { actions: [], reply: "ok" }
+      : { actions: [], reply: "ok" }));
+  assert.match((asked.steps || []).map((step: any) => step.reply).join(" "), /¿Dos más de cuál platillo\?/);
+  const bare = [
+    { speaker: "caller", text: "Dos de bistec. Una quesadilla de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(bare, "quesadilla", "pollo", ""), 1);
+  const across = [
+    { speaker: "caller", text: "Dos de bistec." },
+    { speaker: "caller", text: "Una quesadilla de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(across, "quesadilla", "pollo", ""), 1);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

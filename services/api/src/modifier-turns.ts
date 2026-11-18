@@ -447,7 +447,9 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
   }
   if (!body) return { keys: [], dish };
   if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return { keys: [], dish };
-  if (asked && /^(?:los|las|el|la)\b/.test(body) && !/\b(?:dame|deme|ponme|quiero|quisiera|me\s+das?|give\s+me|i\s+want)\b/.test(body)) return { keys: [], dish };
+  const numbered = /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/.test(body);
+  const another = /,\s*\S|\s+y\s+\S|\s+and\s+\S/.test(body);
+  if (asked && /^(?:los|las|el|la)\b/.test(body) && !numbered && !another && !/\b(?:dame|deme|ponme|quiero|quisiera|me\s+das?|give\s+me|i\s+want)\b/.test(body)) return { keys: [], dish };
   body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys: string[] = [];
   const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
@@ -521,8 +523,9 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
     for (const key of spokenLineKeys(turns[j].text)) {
       const [rawDish, meat] = key.split("|");
       const dish = rawDish || carry;
-      if (dish) carry = dish;
+      if (rawDish) carry = rawDish;
       if (dish && meat) keys.add(`${dish}|${meat}`);
+      else if (meat && /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\b/.test(fold(turns[j].text))) keys.add(`|${meat}`);
     }
   }
   if (!cart?.length) return [...keys];
