@@ -500,6 +500,14 @@ function otraSpoken(part: string, meatRe: RegExp): string {
   let rest = (es?.[1] || en?.[1] || yde?.[1] || "").trim().replace(/^(?:la|el)\s+de\s+/, "");
   return rest.match(meatRe)?.[1] || "";
 }
+function dropFilledBare(keys: Iterable<string>): string[] {
+  const list = [...keys];
+  const filled = new Set(list.filter((key) => key.split("|")[1]).map((key) => key.split("|")[0]).filter(Boolean));
+  return list.filter((key) => {
+    const [dish, meat] = key.split("|");
+    return !!meat || !filled.has(dish);
+  });
+}
 function spokenLineKeys(text: string): string[] {
   const keys = new Set<string>();
   let dish = "";
@@ -509,7 +517,7 @@ function spokenLineKeys(text: string): string[] {
     dish = parsed.dish;
     for (const key of parsed.keys) keys.add(key);
   }
-  return [...keys];
+  return dropFilledBare(keys);
 }
 function keysInSentence(sentence: string, dish: string): { keys: string[]; dish: string } {
   let body = fold(sentence).replace(/[¿?¡!.]/g, " ").replace(/\s+/g, " ").trim();
@@ -536,6 +544,10 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
     if (fillingJoin(part, found)) found = [found[0]];
     if (!found.length) {
       if (named) keys.push(`${dishKey(named[1])}|`);
+      else {
+        const drink = part.match(/\b(cocas?|cokes?|horchatas?|jamaicas?|refrescos?|sodas?|consomes?|nachos?)\b/);
+        if (drink) keys.push(`${drink[1].replace(/s$/, "")}|`);
+      }
       continue;
     }
     const otraWord = otraSpoken(fold(part).trim(), meatRe);
@@ -572,15 +584,21 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
     }
   }
   if (keys.size > 1) return true;
-  if (/\bmejor\b/.test(fold(turn.text))) return false;
   return openLineKeys(turns, index).length > 1 && earlierAnother(turns, index);
 }
 function earlierAnother(turns: Turn[], index: number): boolean {
   for (let j = index - 1; j >= 0; j--) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
     const text = fold(String(turns[j].text || "")).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
-    if (/^(?:si|yes|yeah|ok|okay)$/.test(text)) continue;
+    if (/^(?:si|yes|yeah|ok|okay|claro)(?:\s+por\s+favor|\s+please)?$/.test(text)) continue;
     return /^(?:y\s+|and\s+)?(?:otra|otro|another)\b|^(?:y\s+)de\b/.test(text);
+  }
+  return false;
+}
+function callerCountBetween(turns: Turn[], from: number, to: number): boolean {
+  for (let j = from + 1; j < to; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    if (/\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/.test(fold(String(turns[j].text || "")))) return true;
   }
   return false;
 }
@@ -614,21 +632,31 @@ function linesOnOrder(cart: any[]): Set<string> {
   }
   return found;
 }
+const DRINK_LINE = /^(?:coca|coke|horchata|jamaica|refresco|soda|consome|nacho)$/;
 export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
   const keys = new Set<string>();
   let carry = "";
+  const bareAt = new Map<string, number>();
+  const filled = new Set<string>();
   for (let j = 0; j < index; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
     if (callerTurnCancelled(turns, j)) continue;
     for (const key of spokenLineKeys(turns[j].text)) {
       const [rawDish, meat] = key.split("|");
+      if (rawDish && DRINK_LINE.test(rawDish)) { keys.add(`${rawDish}|`); continue; }
       const dish = rawDish || carry;
       if (rawDish) carry = rawDish;
-      if (dish && meat) keys.add(`${dish}|${meat}`);
-      else if (meat) keys.add(`|${meat}`);
-      else if (dish) keys.add(`${dish}|`);
+      if (dish && meat) {
+        keys.add(`${dish}|${meat}`);
+        if (bareAt.has(dish) && !callerCountBetween(turns, bareAt.get(dish) || 0, j)) filled.add(dish);
+      } else if (meat) keys.add(`|${meat}`);
+      else if (dish) {
+        keys.add(`${dish}|`);
+        if (!bareAt.has(dish)) bareAt.set(dish, j);
+      }
     }
   }
+  for (const dish of filled) keys.delete(`${dish}|`);
   let list = [...keys];
   if (!list.some((key) => key.split("|")[1])) list = list.filter((key) => key.split("|")[1]);
   if (!cart?.length) return list;

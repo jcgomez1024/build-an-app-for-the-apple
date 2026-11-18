@@ -1581,6 +1581,70 @@ test("que sean tres asks when the second line is another meat or a dish", async 
   assert.notEqual(callerSpokenQty(before, "taco", "bistec", ""), 2);
 });
 
+test("a later meat fills the dish instead of leaving a second key", () => {
+  const check = (said: string, meat: string, more: string) => {
+    const base = [{ speaker: "caller", text: said }];
+    const added = [...base, { speaker: "caller", text: more }];
+    const set = [...base, { speaker: "caller", text: /two/i.test(more) ? "Make it three." : "Que sean tres." }];
+    assert.equal(callerSpokenQty(added, "taco", meat, ""), 4, said);
+    assert.deepEqual(staffQuantity(added, "taco", meat, 2, 2, ""), { quantity: 4, flag: true }, said);
+    assert.equal(callerSpokenQty(set, "taco", meat, ""), 3, said);
+    assert.deepEqual(staffQuantity(set, "taco", meat, 2, 2, ""), { quantity: 3, flag: true }, said);
+  };
+  check("Dos tacos. Las dos de bistec.", "bistec", "Dos más.");
+  check("Dos tacos, los dos de bistec.", "bistec", "Dos más.");
+  check("Dos tacos. De bistec.", "bistec", "Dos más.");
+  check("Two tacos. Steak.", "bistec", "Two more.");
+  const onion = [{ speaker: "caller", text: "Tres tacos. Uno de bistec no cebolla." }];
+  const onionMore = [...onion, { speaker: "caller", text: "Dos más." }];
+  const before = callerSpokenQty(onion, "taco", "bistec", "");
+  assert.equal(callerSpokenQty(onionMore, "taco", "bistec", ""), (before || 0) + 2);
+  assert.equal(staffQuantity(onionMore, "taco", "bistec", before || 0, before || 0, "").flag, true);
+  const asked = [
+    { speaker: "caller", text: "Dos tacos." },
+    { speaker: "staff", text: "¿De qué?" },
+    { speaker: "caller", text: "Las dos de pollo." },
+  ];
+  assert.equal(callerSpokenQty([...asked, { speaker: "caller", text: "Dos más." }], "taco", "pollo", ""), 4);
+  assert.deepEqual(staffQuantity([...asked, { speaker: "caller", text: "Dos más." }], "taco", "pollo", 2, 2, ""), { quantity: 4, flag: true });
+  assert.equal(callerSpokenQty([...asked, { speaker: "caller", text: "Que sean tres." }], "taco", "pollo", ""), 3);
+  assert.deepEqual(staffQuantity([...asked, { speaker: "caller", text: "Que sean tres." }], "taco", "pollo", 2, 2, ""), { quantity: 3, flag: true });
+  const guessed = [
+    { speaker: "caller", text: "Dos tacos de pollo." },
+    { speaker: "caller", text: "Otro de bistec." },
+    { speaker: "caller", text: "Mejor que sean tres." },
+  ];
+  assert.notEqual(callerSpokenQty(guessed, "taco", "pollo", ""), 3);
+  assert.notEqual(callerSpokenQty(guessed, "taco", "bistec", ""), 3);
+  assert.equal(staffQuantity(guessed, "taco", "pollo", 3, 3, "").flag, true);
+  assert.equal(staffQuantity(guessed, "taco", "bistec", 3, 1, "").flag, true);
+  for (const side of ["y una coca", "y una horchata", "y un consomé", "y unos nachos"]) {
+    const turns = [
+      { speaker: "caller", text: `Dos tacos de bistec ${side}.` },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.notEqual(callerSpokenQty(turns, "taco", "bistec", ""), 3, side);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, true, side);
+  }
+  for (const filler of ["Sí, por favor.", "Claro."]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+      { speaker: "caller", text: filler },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.equal(ambiguousMakeIt(turns, 2), true, filler);
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, filler);
+    const otra = [
+      { speaker: "caller", text: "Dos tacos de pollo." },
+      { speaker: "caller", text: "Otro de bistec." },
+      { speaker: "caller", text: filler },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.equal(ambiguousMakeIt(otra, 3), true, filler);
+    assert.notEqual(callerSpokenQty(otra, "taco", "bistec", ""), 3, filler);
+  }
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

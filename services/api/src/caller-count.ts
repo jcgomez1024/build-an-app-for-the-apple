@@ -309,7 +309,7 @@ function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
       const keys = openLineKeys(turns, ti);
       const only = keys.length === 1 ? keys[0].split("|") : null;
       const lineMeat = only?.[1] ? meatIn(only[1]) || only[1] : "";
-      if (keys.length === 1 && only && (only[0] || open) && lineMeat) put(only[0] || open, openStyle, lineMeat, made.n);
+      if (only && (only[0] || open) && lineMeat) put(only[0] || open, openStyle, lineMeat, made.n);
       else if (lastMeat) put(open, openStyle, lastMeat, made.n);
       else put(open, openStyle || "", "", made.n);
     }
