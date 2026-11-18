@@ -381,10 +381,23 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 function countHint(text: string): boolean {
   const p = plain(text);
-  if (/\b(?:un|una|uno)\s+(?:extra|de)\b/.test(p)) return false;
-  const n = "\\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
-  const any = `${n}|un|una|uno`;
-  if (new RegExp(`\\b(?:${n})\\s+extra\\b|\\bagregale\\s+(?:${any})\\b|\\bsubele\\s+a\\s+(?:${any})\\b|\\b(?:${any})\\s+menos\\b|\\bquitale\\s+(?:${any})\\b|\\bponle\\s+otro\\b|\\blets?\\s+do\\s+(?:${any})\\b|\\blet\\s+s\\s+do\\s+(?:${any})\\b`, "i").test(p)) return true;
+  const word = "dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
+  const any = `una|uno|un|${word}|\\d+`;
+  const lone = /^(?:una|uno|un)$/;
+  const blocks = (num: string, end: number) => lone.test(num) && /^(?:extra|de|queso|cebolla|crema|salsa|guacamole|aguacate|lechuga|frijoles)\b/.test(p.slice(end).trim());
+  const hit = (re: RegExp) => {
+    const m = p.match(re);
+    if (!m || m.index == null || !m[1]) return false;
+    const at = m.index + m[0].lastIndexOf(m[1]) + m[1].length;
+    return !blocks(m[1], at);
+  };
+  if (hit(new RegExp(`\\b(${word}|\\d+)\\s+extra\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bagregale\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bsubele\\s+a\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+menos\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bquitale\\s+(${any})\\b`, "i"))) return true;
+  if (/\bponle\s+otro\b/.test(p)) return true;
+  if (hit(new RegExp(`\\blets?\\s+do\\s+(${any})\\b`, "i")) || hit(new RegExp(`\\blet\\s+s\\s+do\\s+(${any})\\b`, "i"))) return true;
   if (!/\ben\s+total\b/.test(p) || /\b(?:pesos?|dolares?|dollars?|euros?|bucks?|centavos?)\b/.test(p)) return false;
   const before = p.slice(0, p.search(/\ben\s+total\b/));
   const said = (before.match(/(\d+|[a-z]+)\s*$/) || [])[1] || "";

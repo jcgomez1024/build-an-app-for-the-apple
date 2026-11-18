@@ -1833,6 +1833,26 @@ test("only a real first answer clears the other line", () => {
   }
 });
 
+test("a later una de does not cancel a count hint", () => {
+  for (const said of [
+    "Agrégale dos y una de pollo.",
+    "Quítale uno, y una de bistec.",
+    "Dos extra y una de queso.",
+    "Súbele a tres y una de asada.",
+    "Ponle otro y una de pollo.",
+    "Tres en total y uno de bistec.",
+    "Uno menos, y una de pastor.",
+    "Agrégale dos, una de cada una.",
+  ]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const qty = callerSpokenQty(turns, "taco", "bistec", "");
+    assert.equal(staffQuantity(turns, "taco", "bistec", qty ?? 2, qty ?? 2, "").flag, true, said);
+  }
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
