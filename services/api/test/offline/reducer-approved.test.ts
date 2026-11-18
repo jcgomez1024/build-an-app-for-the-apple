@@ -108,10 +108,10 @@ test("a restated más una coca adds no second coke", () => {
 });
 
 test("más una coca de dieta adds no regular coke", () => {
-  const cart = [{ itemId: "sq-drink-diet-coke", quantity: 1, modifiers: [] }];
+  const cart = [{ itemId: "sq-drink-diet-coca-cola-ZOE5GZ", quantity: 1, modifiers: [] }];
   applyLineScopedQuantity(cart, [{ speaker: "caller", text: "Más una coca de dieta." }]);
   assert.equal(cart.length, 1);
-  assert.equal(cart[0].itemId, "sq-drink-diet-coke");
+  assert.equal(cart[0].itemId, "sq-drink-diet-coca-cola-ZOE5GZ");
   assert.equal(cart.some((row) => row.itemId === "sq-drink-coca-cola-JJE4KC"), false);
 });
 
@@ -124,6 +124,25 @@ test("otra de bistec in its own turn after a quesadilla adds no taco", () => {
   assert.equal(cart.length, 1);
   assert.equal(cart[0].itemId, "sq-quesadilla-HLT6CR");
   assert.equal(cart[0].quantity, 1);
+});
+
+test("shadow scoring adds two more when the turn record shows the model applied nothing", async () => {
+  const chorizo = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+  const run: any = async (text: string) => {
+    const spoken = text.toLowerCase();
+    if (/more|m[aá]s/.test(spoken)) return { actions: [], reply: "ok" };
+    if (/chorizo/.test(spoken)) return { actions: [{ type: "add_item", itemId: "sq-gordita-M647RE", quantity: 3, modifiers: [chorizo] }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  };
+  run.menu = () => menu;
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "en", text: "Three gorditas of chorizo." },
+    { speaker: "staff", start: 1, end: 2, language: "en", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "en", text: "Two more gorditas of chorizo." },
+  ] as any, run);
+  const lines = (order.cart || []).filter((line: any) => line.itemId === "sq-gordita-M647RE" && (line.modifiers || []).some((mod: any) => /chorizo/i.test(String(mod.option))));
+  assert.equal(lines.length, 1, JSON.stringify(order.cart));
+  assert.equal(lines[0].quantity, 5);
 });
 
 test("shadow scoring keeps a two-more add the turn already applied", async () => {
