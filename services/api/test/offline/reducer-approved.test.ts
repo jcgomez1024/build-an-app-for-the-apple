@@ -1821,7 +1821,7 @@ test("only a real first answer clears the other line", () => {
       { speaker: "caller", text: "Que sean tres." },
     ];
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
-    assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, false, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, true, said);
   }
   for (const said of ["21 en total.", "Tres en total pesos."]) {
     const turns = [
@@ -1960,6 +1960,21 @@ test("a later en total still flags beside a price", () => {
     ];
     const twoQty = callerSpokenQty(two, "taco", "bistec", "");
     assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+});
+
+test("a side after y still flags the make-it", () => {
+  for (const said of ["Dos tacos de bistec y some chips.", "Dos tacos de bistec y a order of chips."]) {
+    const one = [
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.equal(staffQuantity(one, "taco", "bistec", 3, 3, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: said.replace("Dos tacos de bistec y ", "Dos tacos de bistec y una quesadilla de pollo y ") },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.equal(staffQuantity(two, "taco", "bistec", 3, 3, "").flag, true, `two ${said}`);
   }
 });
 

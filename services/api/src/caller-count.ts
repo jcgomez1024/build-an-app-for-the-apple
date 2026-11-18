@@ -401,16 +401,12 @@ function countHint(text: string): boolean {
 }
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];
-  const take = (part: string, english: boolean) => {
-    const lead = english ? /^(?:a|an|some|unos|unas|un|una|orden\s+de)\s+([a-z]{4,})/ : /^(?:unos|unas|un|una|orden\s+de)\s+([a-z]{4,})/;
-    const named = part.match(lead);
-    if (!named || COUNT_SKIP.has(named[1]) || dishIn(named[1]) || meatIn(named[1])) return;
-    if (keys.some((key) => key.includes(named[1]))) return;
+  for (const part of plain(text).split(/\s+y\s+|\s+and\s+/).slice(1)) {
+    const named = part.match(/^(?:unos|unas|un|una|a|an|some|orden\s+de)\s+([a-z]{4,})/);
+    if (!named || COUNT_SKIP.has(named[1]) || dishIn(named[1]) || meatIn(named[1])) continue;
+    if (keys.some((key) => key.includes(named[1]))) continue;
     out.push(named[1]);
-  };
-  const body = plain(text);
-  for (const part of body.split(/\s+y\s+/).slice(1)) take(part, false);
-  for (const part of body.split(/\s+and\s+/).slice(1)) take(part, true);
+  }
   return out;
 }
 function meatsNamed(text: string): string[] {
