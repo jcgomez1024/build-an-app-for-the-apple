@@ -1823,7 +1823,7 @@ test("only a real first answer clears the other line", () => {
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
     assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, true, said);
   }
-  for (const said of ["21 en total.", "Tres en total pesos."]) {
+  for (const said of ["21 en total.", "Tres en total pesos.", "Treinta en total."]) {
     const turns = [
       { speaker: "caller", text: "Dos tacos de bistec." },
       { speaker: "caller", text: said },
@@ -1831,7 +1831,7 @@ test("only a real first answer clears the other line", () => {
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
     assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, true, said);
   }
-  for (const said of ["Treinta en total.", "10 dollars en total."]) {
+  for (const said of ["10 dollars en total."]) {
     const turns = [
       { speaker: "caller", text: "Dos tacos de bistec." },
       { speaker: "caller", text: said },
@@ -1975,6 +1975,37 @@ test("a side after y still flags the make-it", () => {
       { speaker: "caller", text: "Que sean tres." },
     ];
     assert.equal(staffQuantity(two, "taco", "bistec", 3, 3, "").flag, true, `two ${said}`);
+  }
+});
+
+test("plain counts, a bare por favor, a dish before en total, and higher numbers flag", () => {
+  for (const said of [
+    "Agrega uno.",
+    "Quita uno.",
+    "Súbelo a tres.",
+    "Pon tres.",
+    "Dame otro.",
+    "Add one.",
+    "Tres, por favor.",
+    "Tres tacos en total.",
+    "Veintiuno en total.",
+    "Veinticinco en total.",
+    "Treinta en total.",
+    "Cuarenta extra.",
+    "Cien en total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
   }
 });
 

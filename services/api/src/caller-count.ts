@@ -381,7 +381,7 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 function countHint(text: string): boolean {
   const p = plain(text);
-  const word = "dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
+  const word = "dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|veintiuno|veintiun|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|ciento|cien|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
   const any = `una|uno|un|${word}|\\d+`;
   const hit = (re: RegExp) => {
     for (const m of p.matchAll(new RegExp(re.source, "gi"))) {
@@ -397,6 +397,15 @@ function countHint(text: string): boolean {
   if (/\bponle\s+otro\b/.test(p)) return true;
   if (hit(new RegExp(`\\blets?\\s+do\\s+(${any})\\b`, "i")) || hit(new RegExp(`\\blet\\s+s\\s+do\\s+(${any})\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+en\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bagrega\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bquita\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bsubelo\\s+a\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bpon\\s+(${any})\\b`, "i"))) return true;
+  if (/\bdame\s+otro\b/.test(p)) return true;
+  if (hit(new RegExp(`\\badd\\s+(${any})\\b`, "i"))) return true;
+  if (new RegExp(`^(?:${any})\\s+por\\s+favor$`, "i").test(p)) return true;
+  const dish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
   return false;
 }
 function missedSideWords(text: string, keys: string[]): string[] {
