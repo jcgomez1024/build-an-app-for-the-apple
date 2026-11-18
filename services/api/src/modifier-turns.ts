@@ -712,11 +712,7 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
     }
   }
   for (const dish of filled) keys.delete(`${dish}|`);
-  const otherFood = [...keys].some((key) => {
-    const dish = key.split("|")[0];
-    return dish && !extraLineWords().has(dish) && !timeKeys.has(key);
-  });
-  if (!otherFood) for (const key of timeKeys) keys.delete(key);
+  if (timeKeys.size === 1 && keys.size === 1 && ![...timeKeys][0].split("|")[0]) keys.delete([...timeKeys][0]);
   let list = [...keys];
   if (!list.some((key) => key.split("|")[1])) list = list.filter((key) => key.split("|")[1]);
   if (!cart?.length) return list;

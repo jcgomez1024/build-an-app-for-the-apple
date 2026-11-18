@@ -386,11 +386,10 @@ function countHint(text: string): boolean {
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];
   for (const part of plain(text).split(/\s+y\s+|\s+and\s+/).slice(1)) {
-    for (const word of part.split(" ")) {
-      if (word.length < 5 || COUNT_SKIP.has(word) || dishIn(word) || meatIn(word)) continue;
-      if (keys.some((key) => key.includes(word))) continue;
-      out.push(word);
-    }
+    const named = part.match(/^(?:unos|unas|un|una|a|an|some|orden\s+de)\s+([a-z]{4,})/);
+    if (!named || COUNT_SKIP.has(named[1]) || dishIn(named[1]) || meatIn(named[1])) continue;
+    if (keys.some((key) => key.includes(named[1]))) continue;
+    out.push(named[1]);
   }
   return out;
 }
@@ -406,22 +405,25 @@ function keyCovers(key: string, wantDish: string, wantMeat: string): boolean {
 function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boolean {
   const pending = new Set<string>();
   const missed = new Set<string>();
-  const dropNamed = (text: string) => {
+  const clearOthers = (text: string) => {
     const namedDish = dishIn(text);
     const namedMeat = meatIn(text);
-    if (!namedDish && !namedMeat) return;
-    for (const key of [...pending]) {
+    if (!namedMeat || !pending.size) return;
+    const matches = [...pending].filter((key) => {
       const [od, om] = key.split("|");
       const meat = om ? meatIn(om) || om : "";
-      if ((namedDish && od === namedDish) || (namedMeat && meat === namedMeat)) pending.delete(key);
-    }
-    for (const word of [...missed]) if (word === namedDish || word === namedMeat) missed.delete(word);
+      if (meat !== namedMeat) return false;
+      if (namedDish && od && od !== namedDish) return false;
+      return true;
+    });
+    if (matches.length !== 1) return;
+    for (const key of [...pending]) if (key !== matches[0]) pending.delete(key);
   };
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i];
     if (turn?.speaker && turn.speaker !== "caller") continue;
     const text = String(turn.text || "");
-    dropNamed(text);
+    clearOthers(text);
     const bare = makeItN(text);
     const bareTail = bare ? plain(bare.tail) : "";
     const bareCount = (!!bare && !dishIn(bareTail) && !meatIn(bareTail)) || ambiguousMore(turns, i);

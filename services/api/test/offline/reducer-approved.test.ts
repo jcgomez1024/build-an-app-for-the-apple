@@ -1704,8 +1704,8 @@ test("a time plus a meat stays open beside the next dish", () => {
     { speaker: "caller", text: "Que sean tres." },
     { speaker: "caller", text: "De bistec." },
   ];
-  assert.equal(staffQuantity(named, "taco", "bistec", 2, 2, "").flag, false);
-  assert.equal(staffQuantity(named, "torta", "", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(named, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(named, "torta", "", 2, 2, "").flag, false);
   const missed = [
     { speaker: "caller", text: "Dos tacos de bistec y una memela." },
     { speaker: "caller", text: "Que sean tres." },
@@ -1714,6 +1714,55 @@ test("a time plus a meat stays open beside the next dish", () => {
   assert.equal(callerSpokenQty(missed, "taco", "bistec", ""), 3);
   assert.equal(staffQuantity(missed, "taco", "bistec", 3, 3, "").flag, true);
   assert.equal(staffQuantity(missed, "memela", "", 1, 1, "").flag, true);
+});
+
+test("a time meat fills the earlier tacos and a bare side does not flag", () => {
+  const pastor = [
+    { speaker: "caller", text: "Dos tacos." },
+    { speaker: "caller", text: "Para las dos, de pastor." },
+  ];
+  assert.equal(callerSpokenQty([...pastor, { speaker: "caller", text: "Dos más." }], "taco", "alpastor", ""), 4);
+  assert.equal(staffQuantity([...pastor, { speaker: "caller", text: "Dos más." }], "taco", "alpastor", 2, 2, "").flag, true);
+  assert.equal(callerSpokenQty([...pastor, { speaker: "caller", text: "Que sean tres." }], "taco", "alpastor", ""), 3);
+  assert.equal(staffQuantity([...pastor, { speaker: "caller", text: "Que sean tres." }], "taco", "alpastor", 2, 2, "").flag, true);
+  const asked = [
+    { speaker: "caller", text: "Dos tacos." },
+    { speaker: "staff", text: "¿De qué?" },
+    { speaker: "caller", text: "Son las dos de pollo." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(asked, "taco", "pollo", ""), 3);
+  assert.equal(staffQuantity(asked, "taco", "pollo", 2, 2, "").flag, true);
+  const both = [
+    { speaker: "caller", text: "Para las dos, dos de bistec y una de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.ok(openLineKeys(both, 1).some((key) => key.endsWith("|bistec")));
+  assert.ok(openLineKeys(both, 1).some((key) => key.endsWith("|pollo")));
+  assert.equal(staffQuantity(both, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(both, "taco", "pollo", 1, 1, "").flag, true);
+  const shared = [
+    { speaker: "caller", text: "Un taco de bistec y una quesadilla de bistec." },
+    { speaker: "caller", text: "Que sean tres." },
+    { speaker: "caller", text: "De bistec." },
+  ];
+  assert.equal(staffQuantity(shared, "taco", "bistec", 1, 1, "").flag, true);
+  assert.equal(staffQuantity(shared, "quesadilla", "bistec", 1, 1, "").flag, true);
+  const dishOnly = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Que sean tres." },
+    { speaker: "caller", text: "Los tacos." },
+  ];
+  assert.equal(staffQuantity(dishOnly, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(dishOnly, "torta", "", 2, 2, "").flag, true);
+  for (const said of ["Dos tacos de bistec y luego.", "Dos tacos de bistec y nomás.", "Dos tacos de bistec y ahorita.", "Dos tacos de bistec y mejor.", "Dos tacos de bistec y Juan.", "Two steak tacos and thanks."]) {
+    const turns = [
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: /two/i.test(said) ? "Make it three." : "Que sean tres." },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, false, said);
+  }
 });
 
 test("extra count phrases flag and do not change the quantity", () => {
