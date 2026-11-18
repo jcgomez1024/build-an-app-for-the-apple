@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags, repeatLastFood } from "../../src/list-repair.ts";
 import { applyStaffOrderCount } from "../../src/readback-pass.ts";
-import { callerSpokenQty } from "../../src/caller-count.ts";
+import { callerSpokenQty, staffQuantity } from "../../src/caller-count.ts";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
@@ -592,4 +592,99 @@ test("a correct readback keeps the added otra count", () => {
   ], menu, true);
   const lines = cart.filter((line) => line.itemId === "sq-quesadilla-HLT6CR");
   assert.equal(lines.reduce((sum, line) => sum + line.quantity, 0), 2);
+});
+
+test("más una coca does not add onto the tacos, in ES and EN", () => {
+  const es = [{ speaker: "caller", text: "Dos tacos de chorizo más una coca." }];
+  const en = [{ speaker: "caller", text: "Two tacos of chorizo plus one coke." }];
+  assert.equal(callerSpokenQty(es, "taco", "chorizo", ""), 2);
+  assert.equal(callerSpokenQty(en, "taco", "chorizo", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Dos tacos de chorizo más una gordita." }], "taco", "chorizo", ""), 2);
+  const cart = [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }];
+  applyLineScopedQuantity(cart, es);
+  assert.equal(cart[0].quantity, 2);
+  assert.equal(cart.filter((line) => line.itemId === "sq-drink-coca-cola-JJE4KC").reduce((sum, line) => sum + line.quantity, 0), 1);
+  const english = [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }];
+  applyLineScopedQuantity(english, en);
+  assert.equal(english[0].quantity, 2);
+  assert.equal(english.filter((line) => line.itemId === "sq-drink-coca-cola-JJE4KC").length, 1);
+});
+
+test("otro taco, otra quesadilla, otra más, otro de, and por favor each add one", () => {
+  const prior = [
+    { speaker: "caller", text: "Un taco de bistec." },
+    { speaker: "caller", text: "Una quesadilla de bistec." },
+  ];
+  const added = (extra: string) => callerSpokenQty([...prior, { speaker: "caller", text: extra }], "taco", "bistec", "");
+  assert.equal(added("Y otro taco de bistec."), 2);
+  assert.equal(callerSpokenQty([...prior, { speaker: "caller", text: "Otra quesadilla de bistec." }], "quesadilla", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([...prior, { speaker: "caller", text: "Otra más de bistec." }], "quesadilla", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Un taco de bistec." }, { speaker: "caller", text: "Otro de bistec." }], "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Una quesadilla de bistec." }, { speaker: "caller", text: "Otra de bistec por favor." }], "quesadilla", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "One steak taco." }, { speaker: "caller", text: "And another steak taco." }], "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Dos tacos de bistec." }, { speaker: "caller", text: "Dos tacos de bistec." }], "taco", "bistec", ""), 2);
+  const taco = [{ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] }];
+  assert.match(repeatLastFood(taco, "Y otro taco de bistec.", menu, "es")?.reply || "", /Ok, otro taco de bistec/);
+  assert.equal(taco.length, 2);
+  const quesadilla = [{ itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] }];
+  assert.match(repeatLastFood(quesadilla, "Otra quesadilla de bistec.", menu, "es")?.reply || "", /Ok, otra quesadilla de bistec/);
+  assert.match(repeatLastFood(quesadilla, "Otra más de bistec.", menu, "es")?.reply || "", /Ok, otra quesadilla de bistec/);
+  assert.match(repeatLastFood(taco, "Otro de bistec.", menu, "es")?.reply || "", /Ok, otro taco de bistec/);
+  assert.match(repeatLastFood(quesadilla, "Otra de bistec por favor.", menu, "es")?.reply || "", /Ok, otra quesadilla de bistec/);
+  assert.match(repeatLastFood(taco, "And another steak taco.", menu, "en")?.reply || "", /Ok, another steak taco/);
+});
+
+test("mejor que sean tres sets only the line being discussed", () => {
+  const turns = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Una quesadilla de chorizo." },
+    { speaker: "caller", text: "Mejor que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(turns, "quesadilla", "chorizo", ""), 3);
+  assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2);
+  assert.deepEqual(staffQuantity(turns, "quesadilla", "chorizo", 3, 1, ""), { quantity: 3, flag: false });
+  assert.deepEqual(staffQuantity(turns, "taco", "bistec", 2, 2, ""), { quantity: 2, flag: false });
+  const english = [
+    { speaker: "caller", text: "Two steak tacos." },
+    { speaker: "caller", text: "One chorizo quesadilla." },
+    { speaker: "caller", text: "Make it three." },
+  ];
+  assert.equal(callerSpokenQty(english, "quesadilla", "chorizo", ""), 3);
+  assert.equal(callerSpokenQty(english, "taco", "bistec", ""), 2);
+});
+
+test("¿Dos de pastor? counts the Alpastor line", () => {
+  const turns = [
+    { speaker: "caller", text: "Tacos de pastor." },
+    { speaker: "staff", text: "¿Dos de pastor?" },
+    { speaker: "caller", text: "Sí." },
+  ];
+  assert.equal(callerSpokenQty(turns, "taco", "Alpastor / Roasted Pork", "Alpastor / Roasted Pork"), 2);
+  assert.equal(callerSpokenQty(turns, "taco", "Bistec / Steak", "Bistec / Steak"), null);
+  const english = [
+    { speaker: "caller", text: "Pastor tacos." },
+    { speaker: "staff", text: "Two pastor?" },
+    { speaker: "caller", text: "Yes." },
+  ];
+  assert.equal(callerSpokenQty(english, "taco", "alpastor", "Alpastor / Roasted Pork"), 2);
+});
+
+test("otra de pollo on a torta prefers Pollo over Milanesa Pollo", () => {
+  const torta = menu.find((item) => item.id === "sq-torta-4GNTTE");
+  const names = (torta?.modifierGroups || []).flatMap((group) => (group.options || []).map((choice) => typeof choice === "string" ? choice : choice.name));
+  assert.ok(names.some((name) => name === "Pollo / Chicken"));
+  assert.ok(names.some((name) => /milanesa pollo/i.test(name)));
+  const cart = [{ itemId: "sq-torta-4GNTTE", quantity: 1, modifiers: [{ step: "(B) Torta Carne Options", option: "Bistec / Steak" }] }];
+  const reply = repeatLastFood(cart, "Otra de pollo.", menu, "es");
+  assert.match(reply?.reply || "", /Ok, otra torta de pollo/);
+  assert.equal(cart.length, 2);
+  assert.match(JSON.stringify(cart[1].modifiers), /Pollo \/ Chicken/);
+  assert.doesNotMatch(JSON.stringify(cart[1].modifiers), /Milanesa/);
+});
+
+test("enchiladas take the plural confirmation", () => {
+  const cart = [{ itemId: "sq-enchiladas-orden-de-enchiladas-6-6QOYJ5", quantity: 1, modifiers: [{ step: "(A) Enchiladas Carne Options (ONLINE)", option: "Bistec / Steak" }] }];
+  const reply = repeatLastFood(cart, "Otra de pollo.", menu, "es");
+  assert.match(reply?.reply || "", /Ok, otras enchiladas de pollo/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Pollo/);
 });

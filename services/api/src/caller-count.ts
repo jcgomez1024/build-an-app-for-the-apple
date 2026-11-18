@@ -4,6 +4,7 @@
 // next caller turn that names the meat and gives no new number. A staff count question ("Two?" / "¿Dos?" /
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
+import { compoundForms } from "./menu-names.js";
 import { makeItN } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
@@ -85,10 +86,15 @@ function translations(): Map<string, Set<string>> {
 }
 function expand(list: string[]): Set<string> {
   const out = new Set<string>();
-  for (const word of list) {
+  const seen = new Set<string>();
+  const addWord = (word: string) => {
+    if (!word || seen.has(word)) return;
+    seen.add(word);
     out.add(word);
-    if (word.endsWith("s") && word.length > 4) out.add(word.slice(0, -1));
-  }
+    if (word.endsWith("s") && word.length > 4) addWord(word.slice(0, -1));
+    for (const part of compoundForms(word)) addWord(part);
+  };
+  for (const word of list) addWord(word);
   const pairs = translations();
   for (const word of [...out]) for (const alt of pairs.get(word) || []) out.add(alt);
   return out;
@@ -171,15 +177,37 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     if (/\b(?:mas|more)\b/.test(tail)) return true;
     return /\b(?:mas|more)\b/.test(seg) && !/\b(?:mas|more)\s*$/.test(seg);
   };
+  // "más una coca" / "más una gordita" names a new item. It does not add onto the line before the más.
+  const DRINK_WORD = /\b(?:cocas?|cokes?|coca|pepsis?|sprites?|fantas?|sodas?|refrescos?|horchatas?|jamaicas?|jarritos?|drinks?|bebidas?)\b/;
+  const differentItem = (seg: string, dish: string, meat: string) => {
+    if (dishIn(seg) === dish || meatIn(seg) === meat) return false;
+    if (DRINK_WORD.test(seg)) return true;
+    const other = dishIn(seg);
+    return !!other && other !== dish;
+  };
+  const anotherAdd = (text: string): { dish: string | null; meat: string } | null => {
+    const cleaned = text.replace(/\b(?:por favor|please)\b/g, " ").replace(/\s+/g, " ").trim();
+    if (!/^(?:y\s+|and\s+)?(?:otra|otro|another)\b/.test(cleaned) || /\b(?:orden|order)\b/.test(cleaned)) return null;
+    const body = cleaned.replace(/^(?:y\s+|and\s+)?(?:otra|otro|another)(?:\s+(?:mas|more))?\s+/, "").replace(/^(?:de|of)\s+/, "").trim();
+    const meat = meatIn(body);
+    return meat ? { dish: dishIn(body), meat } : null;
+  };
   for (const turn of turns || []) {
     if (turn.speaker && turn.speaker !== "caller") continue;
     const raw = String(turn.text || "");
     const p = plain(raw);
     if (!p) continue;
-    const otra = p.match(/^(?:y\s+)?(?:otra|otro)\s+de\s+(.+)$/) || p.match(/^(?:and\s+)?another\s+(.+)$/);
-    if (otra && !/\borden\b/.test(p) && open) {
-      const otraMeat = meatIn(otra[1]);
-      if (otraMeat) { add(open, openStyle, otraMeat, 1); continue; }
+    const otra = anotherAdd(p);
+    if (otra) {
+      const dish = otra.dish || open;
+      if (dish) {
+        const style = otra.dish && otra.dish !== open ? styleKey(p) : (styleKey(p) || openStyle);
+        add(dish, style, otra.meat, 1);
+        open = dish;
+        if (style) openStyle = style;
+        lastMeat = otra.meat;
+        continue;
+      }
     }
     const numbered = [...p.matchAll(new RegExp(`\\b(${NUMW})\\b`, "g"))];
     const meat = meatIn(p);
@@ -198,7 +226,10 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
       if (!meat) continue;
     } else copied = false;
     const made = makeItN(raw);
-    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open) put(open, "", "", made.n);
+    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open) {
+      if (lastMeat) put(open, openStyle, lastMeat, made.n);
+      else put(open, openStyle || "", "", made.n);
+    }
     const parts: Part[] = [];
     let bare: Pending | null = null;
     for (let i = 0; i < numbered.length; i++) {
@@ -215,7 +246,7 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
       if (segDish) open = segDish;
       const useDish = segDish || (segMeat ? open : null);
       if (!useDish || !segMeat) {
-        if (additive(before, seg) && open && lastMeat) add(open, openStyle, lastMeat, n);
+        if (additive(before, seg) && open && lastMeat && !differentItem(seg, open, lastMeat)) add(open, openStyle, lastMeat, n);
         else if (segDish && !segMeat) bare = { dish: segDish, n, style: segStyle || openStyle };
         continue;
       }

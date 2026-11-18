@@ -1430,39 +1430,86 @@ function dishWord(item: any, language: "es" | "en"): string {
   const source = language === "en" ? (item?.name || item?.nameEs || "") : (item?.nameEs || item?.name || "");
   return plain(source).split(" ").find((word) => word.length > 2) || "item";
 }
+function lineFamily(item: any): string {
+  const id = String(item?.id || "");
+  if (/^sq-taco-/.test(id) && !/dorados/.test(id)) return "taco";
+  if (/quesadilla/.test(id)) return "quesadilla";
+  if (/^sq-torta-/.test(id)) return "torta";
+  if (/enchilada/.test(id)) return "enchilada";
+  if (/gordita/.test(id)) return "gordita";
+  if (/burrito/.test(id)) return "burrito";
+  if (/sope/.test(id)) return "sope";
+  if (/huarache/.test(id)) return "huarache";
+  return "";
+}
+function familyOf(word: string): string {
+  const stem = plain(word).replace(/s$/, "");
+  if (/^taco|^dorad/.test(stem)) return /^dorad/.test(stem) ? "quesadilla" : "taco";
+  if (/^quesadilla|^qd/.test(stem)) return "quesadilla";
+  if (/^torta/.test(stem)) return "torta";
+  if (/^enchilada/.test(stem)) return "enchilada";
+  if (/^gordita/.test(stem)) return "gordita";
+  if (/^burrito/.test(stem)) return "burrito";
+  if (/^sope/.test(stem)) return "sope";
+  if (/^huarache|^guarache/.test(stem)) return "huarache";
+  return "";
+}
+/** "Otra de bistec por favor", "y otro taco de bistec", "otra más de bistec", "another steak". */
+function anotherRequest(text: string): { family: string; said: string } | null {
+  const cleaned = plain(text).replace(/\b(?:por favor|please)\b/g, " ").replace(/\s+/g, " ").trim();
+  if (!/^(?:y\s+|and\s+)?(?:otra|otro|another)\b/.test(cleaned) || /\b(?:orden|order)\b/.test(cleaned)) return null;
+  const body = cleaned.replace(/^(?:y\s+|and\s+)?(?:otra|otro|another)(?:\s+(?:mas|more))?\s+/, "").replace(/^(?:de|of)\s+/, "").trim();
+  if (!body || /\b(?:con|with|sin|without)\b/.test(body)) return null;
+  return { family: familyOf(body.split(" ").find((word) => familyOf(word)) || ""), said: body };
+}
+function meatRank(name: string, saidMeat: string): number {
+  const spoken = plain(name).split(" ").flatMap((word) => [word, ...compoundForms(word)]).join(" ");
+  if (meatIn(spoken) !== saidMeat) return 0;
+  const tokens = plain(name.split("/")[0]).replace(/^\d+\s*x\s+/, "").split(" ").filter((word) => word.length > 2);
+  const extra = tokens.filter((word) => meatIn([word, ...compoundForms(word)].join(" ")) !== saidMeat);
+  return extra.length ? 1 : 2;
+}
+function genderWord(dish: string): string {
+  const plural = /s$/.test(dish);
+  const stem = plural ? dish.replace(/s$/, "") : dish;
+  const feminine = /a$/.test(stem);
+  if (plural) return feminine ? "otras" : "otros";
+  return feminine ? "otra" : "otro";
+}
 function meatWord(option: string, language: "es" | "en"): string {
   const side = language === "en" && option.includes("/") ? option.split("/")[1] : option.split("/")[0];
   return plain(side).split(" ").find((word) => word.length > 2) || plain(side);
 }
 /** "Otra de bistec" / "another steak" repeats the most recent food, same item and style, with that meat option. */
 export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string } | null {
-  const spoken = plain(text);
-  const es = spoken.match(/^(?:y\s+)?otra\s+de\s+([a-z]+(?:\s+[a-z]+)?)$/);
-  const en = spoken.match(/^(?:and\s+)?another\s+([a-z]+(?:\s+[a-z]+)?)$/);
-  const said = (es || en)?.[1] || "";
-  if (!said || /\b(?:tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|huaraches?)\b/.test(spoken)) return null;
-  const saidMeat = meatIn(said);
+  const request = anotherRequest(text);
+  if (!request) return null;
+  const saidMeat = meatIn(request.said);
+  const said = plain(request.said).split(" ").find((word) => meatIn(word)) || plain(request.said).split(" ").find((word) => word.length > 2) || request.said;
   const ask = language === "en"
     ? `Another ${said} of which dish?`
     : `¿Otra de ${said} de cuál platillo?`;
-  const last = [...(cart || [])].reverse().find((line) => {
+  const foods = [...(cart || [])].reverse().filter((line) => {
     const item = (menu || []).find((row) => row?.id === line?.itemId);
     return item && !drinkItem(item);
   });
+  const last = request.family ? foods.find((line) => lineFamily((menu || []).find((row) => row?.id === line?.itemId)) === request.family) : foods[0];
   if (!last || !saidMeat) return { reply: ask };
   const item = (menu || []).find((row) => row?.id === last.itemId);
-  const matches: Array<{ step: string; option: string; optionId: string }> = [];
+  const matches: Array<{ step: string; option: string; optionId: string; rank: number }> = [];
   for (const group of item?.modifierGroups || []) {
     if (!meatGroup(group)) continue;
     for (const choice of group.options || []) {
       const name = choiceName(choice);
-      const spoken = plain(name).split(" ").flatMap((word) => [word, ...compoundForms(word)]).join(" ");
-      if (meatIn(spoken) !== saidMeat) continue;
-      matches.push({ step: String(group.name || ""), option: name, optionId: choiceId(choice) });
+      const rank = meatRank(name, saidMeat);
+      if (!rank) continue;
+      matches.push({ step: String(group.name || ""), option: name, optionId: choiceId(choice), rank });
     }
   }
-  const onLine = matches.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step));
-  const chosen = onLine.length === 1 ? onLine[0] : matches.length === 1 ? matches[0] : null;
+  const best = Math.max(0, ...matches.map((match) => match.rank));
+  const top = matches.filter((match) => match.rank === best);
+  const already = top.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step && meatIn(plain(mod.option)) === saidMeat));
+  const chosen = already[0] || (top.length === 1 ? top[0] : null);
   if (!chosen) return { reply: ask };
   const copy = JSON.parse(JSON.stringify(last));
   copy.quantity = 1;
@@ -1472,7 +1519,7 @@ export function repeatLastFood(cart: any[], text: string, menu: any[], language:
   cart.push(copy);
   const dish = dishWord(item, language);
   const meat = meatWord(chosen.option, language);
-  const one = /a$/.test(dish) ? "otra" : "otro";
+  const one = genderWord(dish);
   return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, ${one} ${dish} de ${meat}, ¿verdad?` };
 }
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
@@ -1503,8 +1550,28 @@ export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
       else continue;
       changed = true;
     }
+    const more = text.match(new RegExp(`(?<!nada )\\b(?:mas|more|plus)\\s+(${NUMW})\\s+(.+)$`));
+    const drinkId = more && drinkAfterMore(more[2]);
+    const drinkQty = more ? numOf(more[1]) : 0;
+    if (drinkId && drinkQty && !cart.some((line) => line.itemId === drinkId)) {
+      cart.push({ itemId: drinkId, quantity: drinkQty, modifiers: [] });
+      changed = true;
+    }
   }
   return changed;
+}
+const DIET_COCA = "sq-drink-diet-coca-cola-ZOE5GZ";
+const PLAIN_COCA = "sq-drink-coca-cola-JJE4KC";
+const DIET_PEPSI = "sq-drink-diet-pepsi-6FHXJE";
+const PLAIN_PEPSI = "sq-drink-pepsi-DIJPIW";
+function drinkAfterMore(rest: string): string | null {
+  const diet = /\b(?:dieta|diet)\b/.test(rest);
+  if (/\b(?:cocas?|cokes?|coca(?:\s+colas?)?)\b/.test(rest)) return diet ? DIET_COCA : PLAIN_COCA;
+  if (/\bpepsis?\b/.test(rest)) return diet ? DIET_PEPSI : PLAIN_PEPSI;
+  if (diet) return null;
+  if (/\bhorchatas?\b/.test(rest)) return "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
+  if (/\bjamaicas?\b/.test(rest)) return "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG";
+  return null;
 }
 const SIZE_WORD = /^\W*(?:la\s+|el\s+|una?\s+)?(chic[ao]|small|peque[nñ][ao]|regular|grande|large|big)\b/;
 /** "¿chica o grande?" → "Chica": the open Sides line gets the catalog size option (chica/small = regular, grande = GRANDE). */
