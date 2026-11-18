@@ -120,18 +120,29 @@ test("otro de pastor is a new taco, EN and ES", () => {
   assert.equal(pastor(en)?.quantity, 1);
 });
 
-test("a shadow readback flags a disagreement and does not rewrite", () => {
+test("confirm-only shadow readback stays off unless the flag is set", () => {
   const line = () => ({ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] });
-  const shadow = [line(), { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] }];
+  const bistec = () => ({ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] });
   const turns = [{ speaker: "staff", text: "Te tengo seis tacos de chorizo y tres tacos de bistec." }];
-  applyStaffReadback(shadow, turns, menu, true);
-  assert.equal(shadow[0].quantity, 2);
-  assert.equal(shadow[1].quantity, 1);
-  assert.ok((shadow as any).readbackFlags.some((flag: string) => flag.startsWith("quantity:")));
-  const live = [line(), { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] }];
+  const previous = process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  const off = [line(), bistec()];
+  applyStaffReadback(off, turns, menu, true);
+  assert.equal(off[0].quantity, 6);
+  assert.equal(off[1].quantity, 3);
+  assert.equal((off as any).readbackFlags, undefined);
+  process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = "1";
+  const on = [line(), bistec()];
+  applyStaffReadback(on, turns, menu, true);
+  assert.equal(on[0].quantity, 2);
+  assert.equal(on[1].quantity, 1);
+  assert.ok((on as any).readbackFlags.some((flag: string) => flag.startsWith("quantity:")));
+  const live = [line(), bistec()];
   applyStaffReadback(live, turns, menu, false);
   assert.equal(live[0].quantity, 6);
   assert.equal(live[1].quantity, 3);
+  if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
 });
 
 test("nada más and anything else change nothing", () => {

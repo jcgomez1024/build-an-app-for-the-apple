@@ -103,8 +103,8 @@ function setLine(l: any, e: Exp, menu: any[]) {
  *  A shadow order never gains a line from the readback. */
 export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shadow = false): boolean {
   const rb = staffReadback(turns); if (!rb) return false;
-  // Shadow readback confirms. It does not rewrite count, meat, or tortilla unless the flag is explicitly off.
-  const confirmOnly = shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY !== "0";
+  // Confirm-only is off unless ELVI_SHADOW_READBACK_CONFIRM_ONLY=1. Shadow then keeps the caller's count, meat, and tortilla and flags a mismatch.
+  const confirmOnly = shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY === "1";
   const flags: string[] = [];
   const keys = new Set(rb.lines.map((e) => `${famOf(e.kind)}:${e.meat}`));
   const claimed = new Set<any>();
@@ -1425,7 +1425,9 @@ function addNamedAfterMore(cart: any[], text: string, turn: Turn, menu: any[]): 
     }
   }
   const other = text.match(/\b(?:otro|otra|another)(?:\s+(?:one|un|una))?\s+(?:de|of)\s+([a-z]+)\b/);
-  const meat = other ? meatIn(other[1]) : null;
+  const beforeOther = other ? text.slice(0, other.index || 0) : "";
+  const dishBefore = [...beforeOther.matchAll(/\b(tacos?|quesadillas?|gorditas?|tortas?|sopes?|huaraches?)\b/g)].pop();
+  const meat = other && (!dishBefore || /^tacos?$/.test(dishBefore[1])) ? meatIn(other[1]) : null;
   if (meat) {
     const lines = cart.filter((line) => /^sq-taco-/.test(String(line.itemId || "")) && lineMeatKey(line) === meat);
     if (lines.length === 1 && !modelAlreadyApplied(turn, lines[0])) { lines[0].quantity = (Number(lines[0].quantity) || 0) + 1; changed = true; }
