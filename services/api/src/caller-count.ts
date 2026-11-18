@@ -265,7 +265,8 @@ function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
     else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p) && openLineKeys(turns, ti, cart).length === 1) {
       const keys = openLineKeys(turns, ti, cart);
       const n = numOf((p.match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\b/) || [])[1] || "");
-      const [dish, meat] = keys[0].split("|");
+      const [dish, spoken] = keys[0].split("|");
+      const meat = meatIn(spoken) || spoken;
       if (n && dish && meat) { add(dish, openStyle, meat, n); open = dish; lastMeat = meat; }
       continue;
     }

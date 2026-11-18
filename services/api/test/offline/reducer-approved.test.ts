@@ -1155,6 +1155,33 @@ test("otro taco de bistec in the same turn totals three and a dish question open
   ], "taco", "bistec", ""), 4);
 });
 
+test("dos más uses the same meat key as the lookup", () => {
+  for (const said of ["Dos tacos al pastor.", "Dos tacos de pastor.", "Dos tacos de al pastor."]) {
+    assert.equal(callerSpokenQty([
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Dos más." },
+    ], "taco", "alpastor", ""), 4, said);
+  }
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de tripas." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "tripa", ""), 4);
+});
+
+test("a greeting does not hide the food after it", () => {
+  const turns = [{ speaker: "caller", text: "Hola, me da dos tacos de bistec y uno de pollo." }];
+  assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 1);
+  assert.equal(callerSpokenQty([
+    ...turns,
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty([
+    ...turns,
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "pollo", ""), 1);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

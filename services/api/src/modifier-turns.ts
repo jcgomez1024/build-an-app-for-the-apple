@@ -428,9 +428,11 @@ function dishKey(word: string): string {
 function spokenLineKeys(text: string): string[] {
   const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
   if (!statements.trim()) return [];
-  const greeting = fold(statements);
-  if (/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(greeting)) return [];
-  const body = fold(statements).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
+  let body = fold(statements).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+  body = body.replace(/^(?:(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas)\s+)+/, "").trim();
+  if (!body) return [];
+  if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return [];
+  body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
   const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
