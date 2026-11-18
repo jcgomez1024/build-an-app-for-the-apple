@@ -429,7 +429,7 @@ function spokenLineKeys(text: string): string[] {
   const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
   if (!statements.trim()) return [];
   const greeting = fold(statements);
-  if (/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual|cuando|donde)\b/.test(greeting) && !new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(greeting)) return [];
+  if (/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(greeting)) return [];
   const body = fold(statements).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
@@ -440,7 +440,8 @@ function spokenLineKeys(text: string): string[] {
     const meat = part.match(meatRe);
     if (named) dish = dishKey(named[1]);
     if (meat?.[1] && (named || dish)) keys.add(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-    else if (named && !/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual)\b/.test(part.trim())) keys.add(`${dishKey(named[1])}|`);
+    else if (meat?.[1]) keys.add(`|${catalogMeatKey(meat[1])}`);
+    else if (named) keys.add(`${dishKey(named[1])}|`);
   }
   return [...keys];
 }
@@ -475,25 +476,41 @@ function callerTurnCancelled(turns: Turn[], index: number): boolean {
   }
   return false;
 }
-function meatsOnOrder(cart: any[]): Set<string> {
+function dishOfLine(line: any): string {
+  const blob = `${line?.itemId || ""} ${line?.name || ""} ${line?.readback || ""}`;
+  const hit = blob.match(/\b(quesadilla|taco|gordita|torta|burrito|sope|menudo|pozole|birria|huarache|enchilada)s?\b/i);
+  if (hit) return hit[1].toLowerCase().replace(/s$/, "");
+  return /^sq-qd-/.test(String(line?.itemId || "")) ? "quesadilla" : "";
+}
+function linesOnOrder(cart: any[]): Set<string> {
   const found = new Set<string>();
   const re = lineMeatRe();
-  for (const line of cart || []) for (const mod of line?.modifiers || []) {
-    const hit = String(mod?.option || "").match(re);
-    if (hit?.[1]) found.add(catalogMeatKey(hit[1]));
+  for (const line of cart || []) {
+    const dish = dishOfLine(line);
+    if (!dish) continue;
+    for (const mod of line?.modifiers || []) {
+      const hit = String(mod?.option || "").match(re);
+      if (hit?.[1]) found.add(`${dish}|${catalogMeatKey(hit[1])}`);
+    }
   }
   return found;
 }
 export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
   const keys = new Set<string>();
+  let carry = "";
   for (let j = 0; j < index; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
     if (callerTurnCancelled(turns, j)) continue;
-    for (const key of spokenLineKeys(turns[j].text)) if (!key.endsWith("|")) keys.add(key);
+    for (const key of spokenLineKeys(turns[j].text)) {
+      const [rawDish, meat] = key.split("|");
+      const dish = rawDish || carry;
+      if (dish) carry = dish;
+      if (dish && meat) keys.add(`${dish}|${meat}`);
+    }
   }
   if (!cart?.length) return [...keys];
-  const present = meatsOnOrder(cart);
-  return [...keys].filter((key) => present.has(key.split("|")[1] || ""));
+  const present = linesOnOrder(cart);
+  return [...keys].filter((key) => present.has(key));
 }
 /** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
 export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boolean {

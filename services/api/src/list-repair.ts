@@ -126,7 +126,7 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
       claimed.add(l);
       const id = String(l.itemId || e.kind);
       const itemText = readbackStyleText(e, l);
-      const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, Number(l.quantity) || 0, itemText);
+      const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, Number(l.quantity) || 0, itemText, cart);
       l.quantity = decided.quantity;
       if (decided.flag) flags.push(`quantity:${id}`);
       if (e.meat && meatOfLine(l) !== e.meat) flags.push(`meat:${id}`);
@@ -135,7 +135,7 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
     }
     claimed.add(l); setLine(l, e, menu);
     const itemText = readbackStyleText(e, l);
-    const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText);
+    const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText, cart);
     l.quantity = decided.quantity;
     if (decided.flag) flags.push(`quantity:${String(l.itemId || e.kind)}`);
   }
@@ -1853,7 +1853,7 @@ export function applyReadbackCounts(cart: any[], turns: Turn[]): boolean {
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
     const dish = (String(ls[0].itemId).match(/^sq-([a-z]+)/) || [])[1] || "";
     const itemText = (ls[0].modifiers || []).map((m: any) => m.option).join(" ");
-    const decided = staffQuantity(turns, dish, p.meat, p.qty, sum, itemText);
+    const decided = staffQuantity(turns, dish, p.meat, p.qty, sum, itemText, cart);
     if (!(sum === decided.quantity && ls.length === 1)) {
       if (!decided.flag || decided.quantity !== sum) {
         ls[0].quantity = decided.quantity; for (const x of ls.slice(1)) cart.splice(cart.indexOf(x), 1); changed = true;

@@ -5,7 +5,7 @@
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
 import { compoundForms } from "./menu-names.js";
-import { ambiguousMakeIt, ambiguousMore, makeItN } from "./modifier-turns.js";
+import { ambiguousMakeIt, ambiguousMore, makeItN, openLineKeys } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
 type Turn = { speaker?: string; text?: string };
@@ -221,7 +221,7 @@ function topicMatches(topic: string, itemText: string, dish: string, meat: strin
 type Part = { dish: string; style: string; meat: string; n: number };
 type Pending = { dish: string; n: number; style: string };
 
-function explicitCounts(turns: Turn[]): Map<string, number> {
+function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
   const counts = new Map<string, number>();
   let open: string | null = null;
   let openStyle = "";
@@ -261,7 +261,14 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     if (otra?.cancel) {
       if (!otra.rest) continue;
       p = otra.rest;
-    } else if (ambiguousMore(turns, ti)) continue;
+    } else if (ambiguousMore(turns, ti, cart)) continue;
+    else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p) && openLineKeys(turns, ti, cart).length === 1) {
+      const keys = openLineKeys(turns, ti, cart);
+      const n = numOf((p.match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\b/) || [])[1] || "");
+      const [dish, meat] = keys[0].split("|");
+      if (n && dish && meat) { add(dish, openStyle, meat, n); open = dish; lastMeat = meat; }
+      continue;
+    }
     else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:otra|otro|another)\s+(?:mas|more)(?:\s+por favor|\s+please)?$/.test(p) && open && lastMeat && !nextCallerCancels(turns, ti)) {
       add(open, openStyle, lastMeat, 1);
       continue;
@@ -331,11 +338,13 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     if (parts.length >= 2) lastParts = parts;
     else if (parts.length === 1 && dishIn(p)) lastParts = parts;
     if (!otra?.meat && !otra?.cancel && open) {
-      for (const hit of p.matchAll(/\b(?:y\s+|and\s+)(?:otra|otro|another)\s+de\s+([a-z]+)/g)) {
-        const extra = meatIn(hit[1]);
+      for (const hit of p.matchAll(/\b(?:y\s+|and\s+)(?:otra|otro|another)\s+(?:de\s+([a-z]+)|([a-z]+)\s+de\s+([a-z]+))/g)) {
+        const extra = meatIn(hit[3] || hit[1] || "");
         if (!extra) continue;
-        add(open, openStyle, extra, 1);
+        const named = hit[2] ? dishIn(hit[2]) : null;
+        add(named || open, openStyle, extra, 1);
         lastMeat = extra;
+        if (named) open = named;
       }
     }
   }
@@ -343,11 +352,11 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
 }
 
 /** Caller's spoken quantity for this dish, style and meat. Null when the caller never counted it. */
-export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null, itemText = ""): number | null {
+export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null, itemText = "", cart?: any[]): number | null {
   const wantDish = dishIn(dish) || plain(dish).replace(/s$/, "");
   const wantMeat = meat ? meatIn(meat) || plain(meat) : "";
   const wantStyle = styleKey(itemText);
-  const counts = explicitCounts(turns);
+  const counts = explicitCounts(turns, cart);
   if (!wantMeat) {
     const put = counts.get(`${wantDish}||`) || null;
     if (put) return put;
@@ -365,8 +374,8 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 }
 
 /** Quantity a staff readback may write. The caller count wins; a missing caller count keeps the cart quantity. */
-export function staffQuantity(turns: Turn[], dish: string, meat: string | null, staffQty: number, cartQty: number, itemText = ""): { quantity: number; flag: boolean } {
-  const said = callerSpokenQty(turns, dish, meat, itemText);
+export function staffQuantity(turns: Turn[], dish: string, meat: string | null, staffQty: number, cartQty: number, itemText = "", cart?: any[]): { quantity: number; flag: boolean } {
+  const said = callerSpokenQty(turns, dish, meat, itemText, cart);
   if (said != null && said === staffQty) return { quantity: staffQty, flag: false };
   if (said != null) return { quantity: said, flag: true };
   return { quantity: cartQty, flag: cartQty !== staffQty };

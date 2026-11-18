@@ -62,7 +62,7 @@ export function applyConfirmedReadback(cart: any[], turns: any[], menu: any[]): 
     const twin = old.find((a) => kindOf(a.itemId) === r.kind && (a.modifiers || []).some((x: any) => x.step === mg.name && x.option === mo.name)) || proto;
     const c = JSON.parse(JSON.stringify(twin)); delete c.lineId;
     const callerQty = Number(twin.quantity) || 0;
-    const decided = staffQuantity(turns, r.kind, mo.name, r.qty, callerQty, `${to.name} ${mo.name}`);
+    const decided = staffQuantity(turns, r.kind, mo.name, r.qty, callerQty, `${to.name} ${mo.name}`, cart);
     c.quantity = decided.quantity || callerQty || r.qty;
     if (decided.flag) {
       const flags = (cart as any).readbackFlags || [];

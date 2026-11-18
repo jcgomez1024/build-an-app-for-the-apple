@@ -147,7 +147,7 @@ export function applyStaffOrderCount(cart: any[], turns: T): void {
     }
     if (!ls.length) continue;
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
-    const decided = staffQuantity(turns, dish, null, n, sum);
+    const decided = staffQuantity(turns, dish, null, n, sum, "", cart);
     if (sum === decided.quantity && ls.length === 1) {
       if (decided.flag) {
         const flags = (cart as any).readbackFlags || [];
@@ -241,7 +241,7 @@ export function applyEnglishReadback(cart: any[], turns: T): void {
   if (had) {
     const staffQty = nOf(side![1]) || Number(had.quantity) || 0;
     const itemText = (had.modifiers || []).map((m: any) => m.option).join(" ");
-    const decided = staffQuantity(turns, "", null, staffQty, Number(had.quantity) || 0, itemText);
+    const decided = staffQuantity(turns, "", null, staffQty, Number(had.quantity) || 0, itemText, cart);
     had.quantity = decided.quantity || had.quantity;
     if (decided.flag) {
       const flags = (cart as any).readbackFlags || [];

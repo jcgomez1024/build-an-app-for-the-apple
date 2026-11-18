@@ -1036,7 +1036,7 @@ function shadowOtraCancelOnly(turns: Array<{ speaker?: string; text?: string }>)
   let prev = -1;
   for (let j = at - 1; j >= 0; j--) if (turns[j].speaker === "caller") { prev = j; break; }
   if (prev < 0 || !/^(?:y\s+)?(?:otra|otro|another)\b/i.test(String(turns[prev].text || ""))) return false;
-  return true;
+  return !turns.slice(prev + 1, at).some((turn) => turn.speaker !== "caller" && /[?¿]/.test(String(turn.text || "")));
 }
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   replayTurns = turns;
@@ -3892,14 +3892,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           continue;
         }
         t = { ...t, text: undone };
-      } else if (undone !== null && otraLine && staffAfterOtra && !undone) {
-        otraLine = null;
-        staffAfterOtra = false;
-        const reply = "Ok.";
-        last = { actions: [], reply, language: t.language };
-        steps.push({ source: "another-cancel", heard: t.text, reply, language: t.language });
-        history.push({ role: "customer", text: t.text }, { role: "assistant", text: reply });
-        continue;
       } else if (undone === null) {
         otraLine = null;
         staffAfterOtra = false;
