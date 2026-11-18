@@ -428,8 +428,9 @@ function dishKey(word: string): string {
 function spokenLineKeys(text: string): string[] {
   const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
   if (!statements.trim()) return [];
-  let body = fold(statements).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
-  body = body.replace(/^(?:(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas)\s+)+/, "").trim();
+  let body = fold(statements).replace(/[¿?¡!.]/g, " ").replace(/\s+/g, " ").trim();
+  const opener = /^(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas|que tal|como estas?)\b\s*,?\s*/;
+  while (opener.test(body)) body = body.replace(opener, "").trim();
   if (!body) return [];
   if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return [];
   body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");

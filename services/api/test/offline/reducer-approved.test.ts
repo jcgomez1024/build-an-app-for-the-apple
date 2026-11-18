@@ -1182,6 +1182,50 @@ test("a greeting does not hide the food after it", () => {
   ], "taco", "pollo", ""), 1);
 });
 
+test("a comma keeps each item and an opening que tal does not hide the order", () => {
+  const two = [
+    { speaker: "caller", text: "Dos tacos de bistec, uno de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(two, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(two, "taco", "pollo", ""), 1);
+  const dishes = [
+    { speaker: "caller", text: "Un taco de bistec, una quesadilla de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(dishes, "taco", "bistec", ""), 1);
+  assert.equal(callerSpokenQty(dishes, "quesadilla", "pollo", ""), 1);
+  const three = [
+    { speaker: "caller", text: "Dos tacos de bistec, uno de pollo, una quesadilla de chorizo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(three, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(three, "taco", "pollo", ""), 1);
+  assert.equal(callerSpokenQty(three, "quesadilla", "chorizo", ""), 1);
+  const makeTwo = [
+    { speaker: "caller", text: "Dos tacos de bistec, uno de pollo." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(makeTwo, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(makeTwo, "taco", "pollo", ""), 1);
+  const makeThree = [
+    { speaker: "caller", text: "Dos tacos de bistec, uno de pollo, una quesadilla de chorizo." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(makeThree, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(makeThree, "taco", "pollo", ""), 1);
+  assert.equal(callerSpokenQty(makeThree, "quesadilla", "chorizo", ""), 1);
+  for (const said of [
+    "Hola, cómo está, me da dos tacos de bistec y uno de pollo.",
+    "Qué tal, me da dos tacos de bistec y uno de pollo.",
+    "Cómo está, me da dos tacos de bistec y uno de pollo.",
+  ]) {
+    const turns = [{ speaker: "caller", text: said }];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 1, said);
+  }
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
