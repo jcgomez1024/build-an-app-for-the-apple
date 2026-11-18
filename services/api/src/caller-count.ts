@@ -378,10 +378,19 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
   return asked.length ? asked[asked.length - 1].n : null;
 }
 
+function unresolvedCount(turns: Turn[]): boolean {
+  for (let i = 0; i < (turns || []).length; i++) {
+    const turn = turns[i];
+    if (turn?.speaker && turn.speaker !== "caller") continue;
+    if (ambiguousMakeIt(turns, i) || ambiguousMore(turns, i)) return true;
+  }
+  return false;
+}
 /** Quantity a staff readback may write. The caller count wins; a missing caller count keeps the cart quantity. */
 export function staffQuantity(turns: Turn[], dish: string, meat: string | null, staffQty: number, cartQty: number, itemText = "", cart?: any[]): { quantity: number; flag: boolean } {
   const said = callerSpokenQty(turns, dish, meat, itemText, cart);
-  if (said != null && said === staffQty) return { quantity: staffQty, flag: false };
+  const asked = unresolvedCount(turns);
+  if (said != null && said === staffQty) return { quantity: staffQty, flag: asked };
   if (said != null) return { quantity: said, flag: true };
-  return { quantity: cartQty, flag: cartQty !== staffQty };
+  return { quantity: cartQty, flag: asked || cartQty !== staffQty };
 }

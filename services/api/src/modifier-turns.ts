@@ -493,6 +493,43 @@ function leadMeat(part: string, pattern: RegExp): string {
   if (bits[0] === "al" && bits[1]) return `${bits[0]} ${bits[1]}`;
   return bits[0];
 }
+let extraWords: Set<string> | null = null;
+function extraLineWords(): Set<string> {
+  if (extraWords) return extraWords;
+  const stop = new Set(["agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "fresa", "mango", "limon", "lime", "pina", "pineapple", "strawberry", "mandarin", "mandarina"]);
+  const words = new Set<string>();
+  const add = (token: string) => {
+    if (token.length < 4 || stop.has(token) || /^\d/.test(token)) return;
+    words.add(token);
+    if (token.endsWith("s") && token.length > 4) words.add(token.slice(0, -1));
+  };
+  try {
+    for (const item of frozenPhoneMenu()) {
+      const name = String(item?.name || "");
+      const blob = fold(`${name} ${item?.nameEs || ""} ${(item?.aliases || []).join(" ")}`);
+      const drink = item?.category === "drinks";
+      const side = /^(?:nachos|sides|dips|elvis dip)\b/i.test(name);
+      if (drink || side) for (const token of blob.split(/[^a-z0-9]+/)) add(token);
+      else if (blob.split(/[^a-z0-9]+/).includes("consome")) add("consome");
+    }
+  } catch { /* frozen menu unavailable */ }
+  extraWords = words;
+  return words;
+}
+function extraLineWord(part: string): string {
+  const words = extraLineWords();
+  for (const token of fold(part).split(/[^a-z0-9]+/)) {
+    if (words.has(token)) return token.endsWith("s") && words.has(token.slice(0, -1)) ? token.slice(0, -1) : token;
+    if (token.endsWith("s") && words.has(token.slice(0, -1))) return token.slice(0, -1);
+  }
+  return "";
+}
+function drinkKeysOnly(keys: Set<string>): boolean {
+  if (!keys.size) return false;
+  const words = extraLineWords();
+  for (const key of keys) if (!words.has(key.split("|")[0])) return false;
+  return true;
+}
 function otraSpoken(part: string, meatRe: RegExp): string {
   const es = part.match(/^(?:y\s+|and\s+)?(?:otra|otro)\s+de\s+(.+)$/);
   const en = part.match(/^(?:and\s+)?another(?:\s+of)?\s+(.+)$/);
@@ -545,19 +582,20 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
     if (!found.length) {
       if (named) keys.push(`${dishKey(named[1])}|`);
       else {
-        const drink = part.match(/\b(cocas?|cokes?|horchatas?|jamaicas?|refrescos?|sodas?|consomes?|nachos?)\b/);
-        if (drink) keys.push(`${drink[1].replace(/s$/, "")}|`);
+        const drink = extraLineWord(part);
+        if (drink) keys.push(`${drink}|`);
       }
       continue;
     }
     const otraWord = otraSpoken(fold(part).trim(), meatRe);
     const clockMeat = leadMeat(fold(part).trim(), /^(?:a|son|antes\s+de|despues\s+de)\s+las\s+dos\s+de\s+(.+)$/);
     const afterClock = /^(?:antes|despues)\s+de\s+las\s+dos\b/.test(body) && /^de\s+\S/.test(fold(part).trim());
+    const bareDe = /^de\s+\S/.test(fold(part).trim()) && !/\b(?:para|a|son)\s+las\s+dos\b/.test(body);
     for (const meat of found) {
       if (!meat[1] || meatRefused(part, meat[1])) continue;
       const meatKey = catalogMeatKey(meat[1]);
       const same = (word: string) => !!word && (catalogMeatKey(word) === meatKey || fold(word) === fold(meat[1]));
-      if (same(clockMeat) || afterClock) { keys.push(`|${meatKey}`); continue; }
+      if (same(clockMeat) || afterClock || (bareDe && !named && !dish)) { keys.push(`|${meatKey}`); continue; }
       if (otraWord && !same(otraWord) && !countBesideMeat(part, meat[1])) continue;
       if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${meatKey}`);
       else if (same(otraWord) || countBesideMeat(body, meat[1])) keys.push(`|${meatKey}`);
@@ -575,7 +613,7 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
   if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || lineMeatRe().test(tail)) return false;
   const bare = /\bque\s+sean\b/.test(fold(turn.text)) && !/\bmejor\b/.test(fold(turn.text));
   const keys = new Set(spokenLineKeys(turn.text));
-  if (bare) for (const key of openLineKeys(turns, index)) keys.add(key);
+  if (bare || drinkKeysOnly(keys)) for (const key of openLineKeys(turns, index)) keys.add(key);
   else if (!keys.size) {
     for (let j = index - 1; j >= 0; j--) {
       if (turns[j].speaker && turns[j].speaker !== "caller") continue;
@@ -596,9 +634,14 @@ function earlierAnother(turns: Turn[], index: number): boolean {
   return false;
 }
 function callerCountBetween(turns: Turn[], from: number, to: number): boolean {
+  const food = new RegExp(`\\b(?:${DISH_NOUN}|(?:${lineMeatRe().source}))\\b`, "iu");
+  const number = /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/;
   for (let j = from + 1; j < to; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
-    if (/\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/.test(fold(String(turns[j].text || "")))) return true;
+    let text = fold(String(turns[j].text || ""));
+    text = text.replace(/\b(?:para|a|son|antes de|despues de)\s+las\s+dos(?:\s+de\s+la\s+(?:tarde|manana|noche)|\s+en\s+punto)?\b/g, " ");
+    if (!number.test(text) || !food.test(text)) continue;
+    if (new RegExp(`(?:${number.source})(?:\\s+\\w+){0,4}\\s+(?:${food.source})|(?:${food.source})(?:\\s+\\w+){0,4}\\s+(?:${number.source})`, "iu").test(text)) return true;
   }
   return false;
 }
@@ -632,7 +675,6 @@ function linesOnOrder(cart: any[]): Set<string> {
   }
   return found;
 }
-const DRINK_LINE = /^(?:coca|coke|horchata|jamaica|refresco|soda|consome|nacho)$/;
 export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
   const keys = new Set<string>();
   let carry = "";
@@ -643,7 +685,7 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
     if (callerTurnCancelled(turns, j)) continue;
     for (const key of spokenLineKeys(turns[j].text)) {
       const [rawDish, meat] = key.split("|");
-      if (rawDish && DRINK_LINE.test(rawDish)) { keys.add(`${rawDish}|`); continue; }
+      if (rawDish && extraLineWords().has(rawDish)) { keys.add(`${rawDish}|`); continue; }
       const dish = rawDish || carry;
       if (rawDish) carry = rawDish;
       if (dish && meat) {

@@ -1645,6 +1645,42 @@ test("a later meat fills the dish instead of leaving a second key", () => {
   }
 });
 
+test("an unresolved count flags the staff readback", () => {
+  const onion = [
+    { speaker: "caller", text: "Dos tacos." },
+    { speaker: "caller", text: "Una con cebolla." },
+    { speaker: "caller", text: "Las dos de bistec." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(onion, "taco", "bistec", ""), 3);
+  assert.equal(staffQuantity(onion, "taco", "bistec", 2, 2, "").flag, true);
+  const timed = [
+    { speaker: "caller", text: "Dos tacos." },
+    { speaker: "caller", text: "A las dos." },
+    { speaker: "caller", text: "De bistec." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(timed, "taco", "bistec", ""), 3);
+  assert.equal(staffQuantity(timed, "taco", "bistec", 2, 2, "").flag, true);
+  for (const said of ["Make it two, and a coke.", "Mejor tres, y una horchata.", "Hazlo dos y una coca."]) {
+    const turns = [
+      { speaker: "caller", text: "Two steak tacos and one chicken taco." },
+      { speaker: "caller", text: said },
+    ];
+    const made = /tres/.test(said) ? 3 : 2;
+    assert.notEqual(callerSpokenQty(turns, "taco", "pollo", ""), made, said);
+    assert.equal(staffQuantity(turns, "taco", "pollo", made, made, "").flag, true, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, true, said);
+  }
+  const missed = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(missed, "taco", "bistec", ""), 2);
+  assert.equal(staffQuantity(missed, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(missed, "torta", "", 2, 2, "").flag, true);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
