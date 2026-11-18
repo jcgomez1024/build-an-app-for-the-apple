@@ -2057,6 +2057,34 @@ test("menu dishes and the added count phrases flag", () => {
   assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
 });
 
+test("bowls, in total, a meat before en total, and porfavor flag", () => {
+  const blob = menu.map((item) => [item.name, item.nameEs, ...(item.aliases || [])].join(" ")).join("\n").toLowerCase();
+  for (const word of ["sopesaso", "esquite", "agua"]) assert.match(blob, new RegExp(`\\b${word}\\b`), word);
+  for (const said of [
+    "Tres bowls en total.",
+    "Three in total.",
+    "Tres quesadillas de pollo en total.",
+    "En total tres.",
+    "Tres porfavor.",
+    "Tres sopesaso en total.",
+    "Tres esquite en total.",
+    "Tres agua en total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
