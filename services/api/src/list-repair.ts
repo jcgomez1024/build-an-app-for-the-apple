@@ -1,3 +1,4 @@
+import { staffQuantity } from "./caller-count.js";
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
 import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
 import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
@@ -118,18 +119,28 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
       if (shadow) { if (confirmOnly) flags.push(`missing:${e.kind}:${e.meat || "none"}`); continue; }
       const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l);
     }
+    const dish = fam === "taco" ? "taco" : "quesadilla";
+    const existed = Boolean(pick);
+    const cartQty = existed ? Number(l.quantity) || 0 : Number(e.qty) || 0;
     if (confirmOnly) {
       claimed.add(l);
       const id = String(l.itemId || e.kind);
-      if (Number(l.quantity) !== Number(e.qty)) flags.push(`quantity:${id}`);
+      const itemText = readbackStyleText(e, l);
+      const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, Number(l.quantity) || 0, itemText);
+      l.quantity = decided.quantity;
+      if (decided.flag) flags.push(`quantity:${id}`);
       if (e.meat && meatOfLine(l) !== e.meat) flags.push(`meat:${id}`);
       if (e.style && styleOfLine(l) !== e.style) flags.push(`style:${id}`);
       continue;
     }
     claimed.add(l); setLine(l, e, menu);
+    const itemText = readbackStyleText(e, l);
+    const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText);
+    l.quantity = decided.quantity;
+    if (decided.flag) flags.push(`quantity:${String(l.itemId || e.kind)}`);
   }
-  if (confirmOnly) { if (flags.length) (cart as any).readbackFlags = [...new Set(flags)]; }
-  else for (let i = cart.length - 1; i >= 0; i--) {
+  if (flags.length) (cart as any).readbackFlags = [...new Set([...(cart as any).readbackFlags || [], ...flags])];
+  if (!confirmOnly) for (let i = cart.length - 1; i >= 0; i--) {
     const l = cart[i]; const k = kindOfLine(l); if (!k || claimed.has(l)) continue;
     const m = meatOfLine(l);
     if (keys.has(`${famOf(k)}:${m}`) || (!m && rb.lines.some((e) => famOf(e.kind) === famOf(k)))) cart.splice(i, 1);
@@ -1398,6 +1409,53 @@ function modelAlreadyApplied(turn: Turn, line: any): boolean {
     return !said || said === meatOfLine(line);
   });
 }
+function choiceName(choice: any): string {
+  return typeof choice === "string" ? choice : String(choice?.name || "");
+}
+function choiceId(choice: any): string {
+  return typeof choice === "string" ? "" : String(choice?.id || "");
+}
+function catalogTokens(value: string): string[] {
+  return plain(value).split(" ").filter((word) => word.length >= 4);
+}
+function drinkItem(item: any): boolean {
+  return /\b(?:drink|bebida)\b/.test(plain(String(item?.category || "")));
+}
+/** "Otra de bistec" / "another steak" repeats the most recent food, same item and style, with that catalog option. */
+export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string } | null {
+  const spoken = plain(text);
+  const es = spoken.match(/^(?:y\s+)?otra\s+de\s+([a-z]+(?:\s+[a-z]+)?)$/);
+  const en = spoken.match(/^(?:and\s+)?another\s+([a-z]+(?:\s+[a-z]+)?)$/);
+  const words = catalogTokens((es || en)?.[1] || "");
+  if (!words.length || /\b(?:tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|huaraches?)\b/.test(spoken)) return null;
+  const last = [...(cart || [])].reverse().find((line) => {
+    const item = (menu || []).find((row) => row?.id === line?.itemId);
+    return item && !drinkItem(item);
+  });
+  if (!last) return null;
+  const item = (menu || []).find((row) => row?.id === last.itemId);
+  const matches: Array<{ step: string; option: string; optionId: string }> = [];
+  for (const group of item?.modifierGroups || []) {
+    for (const choice of group.options || []) {
+      const name = choiceName(choice);
+      if (!words.some((word) => catalogTokens(name).includes(word))) continue;
+      matches.push({ step: String(group.name || ""), option: name, optionId: choiceId(choice) });
+    }
+  }
+  const onLine = matches.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step));
+  const chosen = onLine.length === 1 ? onLine[0] : matches.length === 1 ? matches[0] : null;
+  if (!chosen) return null;
+  const copy = JSON.parse(JSON.stringify(last));
+  copy.quantity = 1;
+  delete copy.lineId;
+  copy.modifiers = (copy.modifiers || []).filter((mod: any) => mod.step !== chosen.step);
+  copy.modifiers.push({ step: chosen.step, option: chosen.option, ...(chosen.optionId ? { optionId: chosen.optionId } : {}) });
+  cart.push(copy);
+  const dish = plain(language === "en" ? (item.name || item.nameEs || "") : (item.nameEs || item.name || "")).split(" ").find((word) => word.length > 2) || "item";
+  const meatSide = language === "en" && chosen.option.includes("/") ? chosen.option.split("/")[1] : chosen.option.split("/")[0];
+  const meat = plain(meatSide).split(" ").find((word) => word.length > 2) || plain(meatSide);
+  return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, otra ${dish} de ${meat}, ¿verdad?` };
+}
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
   let changed = false;
@@ -1705,7 +1763,7 @@ export function liveLuis3(r: any, input: any) {
 
 // alan1 (CA0a42f0, Oct 31 12:27 PM ET): "una de bistec y una de pastor" + "otra orden igual" → staff "entonces te tengo |
 // dos tortas de bistec y dos tortas de al pastor" (read-back split over two staff turns); Elvi rang 3 bistec + 1 pastor.
-// The final staff read-back's "N <dish> de <meat>" counts win for each (dish, meat) it names (any dish kind, joined turns).
+// The final staff read-back names each (dish, meat). A count that differs from the caller's is flagged and does not change quantity.
 export function finalReadbackPairs(turns: Turn[]): Array<{ id: RegExp; meat: string; qty: number }> {
   let i = -1; turns.forEach((t, j) => { if (t.speaker === "staff" && READBACK.test(plain(t.text))) i = j; }); if (i < 0) return [];
   let txt = plain(turns[i].text); for (let j = i + 1; j < turns.length && turns[j].speaker === "staff"; j++) txt += " " + plain(turns[j].text);
@@ -1723,8 +1781,21 @@ export function applyReadbackCounts(cart: any[], turns: Turn[]): boolean {
   let changed = false;
   for (const p of finalReadbackPairs(turns)) { if (p.id.source.includes("taco") || p.id.source.includes("quesadilla")) continue; // applyStaffReadback owns tacos/q
     const ls = cart.filter((l) => p.id.test(String(l.itemId)) && carneOf(l) === p.meat); if (!ls.length || !p.qty) continue;
-    const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0); if (sum === p.qty && ls.length === 1) continue;
-    ls[0].quantity = p.qty; for (const x of ls.slice(1)) cart.splice(cart.indexOf(x), 1); changed = true; }
+    const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
+    const dish = (String(ls[0].itemId).match(/^sq-([a-z]+)/) || [])[1] || "";
+    const itemText = (ls[0].modifiers || []).map((m: any) => m.option).join(" ");
+    const decided = staffQuantity(turns, dish, p.meat, p.qty, sum, itemText);
+    if (!(sum === decided.quantity && ls.length === 1)) {
+      if (!decided.flag || decided.quantity !== sum) {
+        ls[0].quantity = decided.quantity; for (const x of ls.slice(1)) cart.splice(cart.indexOf(x), 1); changed = true;
+      }
+    }
+    if (decided.flag) {
+      const flags = (cart as any).readbackFlags || [];
+      const token = `quantity:${String(ls[0].itemId || "")}`;
+      if (!flags.includes(token)) flags.push(token);
+      (cart as any).readbackFlags = flags;
+    } }
   return changed;
 }
 
@@ -1777,6 +1848,16 @@ export function staffRecapText(turns: Turn[]): string | null {
 }
 const AFFIRM = /^(?:si|yes|yeah|yep|ok(?:ay)?|claro|andale|exactamente|sounds good|perfect|right|correcto|va)\b/;
 export const STAFF_LIST_REVIEW = "revisar lectura del personal";
+/** A quantity flag names a line in the final cart. Other flags stay. */
+export function pruneQuantityFlags(cart: any[], flags: string[]): string[] {
+  const ids = new Set((cart || []).map((line) => String(line?.itemId || "")));
+  return (flags || []).filter((flag) => !String(flag).startsWith("quantity:") || ids.has(String(flag).slice("quantity:".length)));
+}
+function readbackStyleText(entry: Exp, line: any): string {
+  const named = entry.kind === "qd" ? (entry.qd === "preparada" ? "deluxe preparada" : "regular") : (entry.style || "");
+  const mods = (line?.modifiers || []).map((mod: any) => mod.option).join(" ");
+  return `${named} ${mods}`;
+}
 
 export type AffirmedStaffResult = { fired: boolean; added: string[]; flagged: string[]; priorIds?: string[] };
 

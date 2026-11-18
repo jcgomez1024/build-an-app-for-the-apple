@@ -1,3 +1,4 @@
+import { staffQuantity } from "./caller-count.js";
 // carlos3 (CAf907ff): the caller confirmed ("sí, cierto") the staff's full readback
 // "tres tacos de comal de bistec, dos tacos taqueros de chorizo, dos quesadillas de harina de bistec…".
 // When every read-back taco/quesadilla names count + tortilla + meat, that readback is the ticket for those dishes.
@@ -59,7 +60,16 @@ export function applyConfirmedReadback(cart: any[], turns: any[], menu: any[]): 
     const to = (tg.options || []).find((o: any) => r.style.test(String(o.name || ""))), mo = (mg.options || []).find((o: any) => r.meat.test(String(o.name || "")));
     if (!to || !mo) return 0;
     const twin = old.find((a) => kindOf(a.itemId) === r.kind && (a.modifiers || []).some((x: any) => x.step === mg.name && x.option === mo.name)) || proto;
-    const c = JSON.parse(JSON.stringify(twin)); c.quantity = r.qty; delete c.lineId;
+    const c = JSON.parse(JSON.stringify(twin)); delete c.lineId;
+    const callerQty = Number(twin.quantity) || 0;
+    const decided = staffQuantity(turns, r.kind, mo.name, r.qty, callerQty, `${to.name} ${mo.name}`);
+    c.quantity = decided.quantity || callerQty || r.qty;
+    if (decided.flag) {
+      const flags = (cart as any).readbackFlags || [];
+      const token = `quantity:${String(c.itemId || "")}`;
+      if (!flags.includes(token)) flags.push(token);
+      (cart as any).readbackFlags = flags;
+    }
     const own = new Set([...(tg.options || []), ...(mg.options || [])].map((o: any) => o.name));
     const mods = (c.modifiers || []).filter((x: any) => x.step !== tg.name && x.step !== mg.name && !own.has(x.option));
     c.modifiers = [{ step: tg.name, option: to.name }, { step: mg.name, option: mo.name }, ...mods];
