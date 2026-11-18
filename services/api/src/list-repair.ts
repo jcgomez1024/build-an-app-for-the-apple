@@ -7,7 +7,7 @@ import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt
 // a meat said for a meatless group applies to it; deluxe components aren't separate sides; "una de pollo y la otra de
 // papas y frijol" after "dos órdenes" splits the enchiladas.
 type Turn = { speaker: string; text: string };
-const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\bcomalde\b/g, "comal de").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
 const numOf = (w: string) => Number(w) || NUM[w] || 0;
 const NUMW = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
@@ -111,8 +111,11 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
     const pick = cands.find((l) => kindOfLine(l) === e.kind && (e.kind !== "qd" || !e.qd || (l.modifiers || []).some((m: any) => new RegExp(e.qd === "regular" ? "REGULAR" : "DELUXE", "i").test(m.option)))) || cands.find((l) => kindOfLine(l) === e.kind) || cands[0] || meatless[0];
     let l = pick;
     if (!l) { if (shadow) continue; const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l); }
+    // Confirm-only is shadow-gated and off unless ELVI_SHADOW_READBACK_CONFIRM_ONLY=1. It does not rewrite count, meat, or tortilla.
+    if (shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY === "1") { claimed.add(l); continue; }
     claimed.add(l); setLine(l, e, menu);
   }
+  if (shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY === "1") return true;
   for (let i = cart.length - 1; i >= 0; i--) {
     const l = cart[i]; const k = kindOfLine(l); if (!k || claimed.has(l)) continue;
     const m = meatOfLine(l);
@@ -1375,22 +1378,26 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
   let changed = false;
-  const extra = "mas|more|otros|otras|otra|otro";
-  const re = new RegExp(`\\b(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)`, "g");
+  const extra = "mas|more|another|otros|otras|otra|otro";
+  const re = new RegExp(`\\b(?:(${extra})\\s+)?(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)(?:\\s+(${extra}))?`, "g");
   for (const turn of turns) {
     if (turn.speaker !== "caller" || meatSplitCounts(turn.text).length >= 2) continue;
     const text = plain(turn.text);
+    if (/^(?:nada mas|algo mas|nothing more|anything else)$/.test(text)) continue;
     for (const match of text.matchAll(re)) {
       if (/^(?:y|con|and)\b/.test(text.slice((match.index || 0) + match[0].length).trim())) continue;
-      const qty = numOf(match[1]);
-      const additive = !!(match[2] || match[4]);
-      const kind = kindRe(match[3]);
-      const meat = meatIn(match[5]);
+      const qty = numOf(match[2]);
+      const additive = !!(match[1] || match[3] || match[5] || match[7]);
+      const kind = kindRe(match[4]);
+      const meat = meatIn(match[6]);
       if (!qty || !kind || !meat) continue;
       const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && (line.modifiers || []).some((mod: any) => meatIn(plain(String(mod.option || ""))) === meat));
       if (lines.length !== 1) continue;
-      if (!additive && Number(lines[0].quantity) === qty) continue;
-      lines[0].quantity = additive ? (Number(lines[0].quantity) || 0) + qty : qty;
+      if (additive) {
+        if (Number(lines[0].quantity) > qty) continue;
+        lines[0].quantity = (Number(lines[0].quantity) || 0) + qty;
+      } else if (Number(lines[0].quantity) !== qty) lines[0].quantity = qty;
+      else continue;
       changed = true;
     }
   }

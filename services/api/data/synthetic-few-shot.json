@@ -4,16 +4,16 @@
     "synthetic": true,
     "verified": true,
     "language": "en",
-    "utterance": "Two steak tacos.",
-    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["P4TER6IY5EV74ELEVWYZGKFQ"] }]
+    "utterance": "Two street steak tacos.",
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["V4C4A5LABVZTPXQPHZGZZ7DA", "P4TER6IY5EV74ELEVWYZGKFQ"] }]
   },
   {
     "id": "syn-es-dos-tacos",
     "synthetic": true,
     "verified": true,
     "language": "es",
-    "utterance": "Dos tacos de bistec.",
-    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["P4TER6IY5EV74ELEVWYZGKFQ"] }]
+    "utterance": "Dos tacos taqueros de bistec.",
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["V4C4A5LABVZTPXQPHZGZZ7DA", "P4TER6IY5EV74ELEVWYZGKFQ"] }]
   },
   {
     "id": "syn-en-add-coke",
@@ -38,15 +38,15 @@
     "synthetic": true,
     "verified": true,
     "language": "en",
-    "utterance": "One gordita.",
-    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1 }]
+    "utterance": "One plain steak gordita.",
+    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1, "option_ids": ["NUR2M5MPCNR2D4MDARRXHB7I", "Q567C5ONYK4GFIKEJPNZCIMA"] }]
   },
   {
     "id": "syn-es-gordita",
     "synthetic": true,
     "verified": true,
     "language": "es",
-    "utterance": "Una gordita.",
-    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1 }]
+    "utterance": "Una gordita sencilla de bistec.",
+    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1, "option_ids": ["NUR2M5MPCNR2D4MDARRXHB7I", "Q567C5ONYK4GFIKEJPNZCIMA"] }]
   }
 ]

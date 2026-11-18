@@ -3,11 +3,6 @@
 
 export type ShadowLine = { itemId: string; quantity: number; modifiers?: Array<{ step?: string; option?: string }> };
 
-/** A staff turn does not add lines. */
-export function staffReadbackAddsNothing(cart: ShadowLine[], speaker: string): ShadowLine[] {
-  return speaker === "staff" ? cart.map((line) => ({ ...line, modifiers: [...(line.modifiers || [])] })) : cart.map((line) => ({ ...line }));
-}
-
 /** A quantity update names one line. Other lines stay. */
 export function quantityScoped(cart: ShadowLine[], lineIndex: number, quantity: number): ShadowLine[] {
   return cart.map((line, index) => index === lineIndex ? { ...line, quantity } : { ...line, modifiers: [...(line.modifiers || [])] });

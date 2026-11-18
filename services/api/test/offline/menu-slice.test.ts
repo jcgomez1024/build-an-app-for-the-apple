@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { approxTokens, cartActionSchema, fewShotBlock, fullCatalogPrompt, loadSyntheticFewShots, promptCatalog, sliceMenu, validateCartActions, type CatalogItem, type SyntheticTurn } from "../../src/menu-slice.ts";
 
@@ -76,11 +77,18 @@ test("style words from the catalog rank a plain taco above a dorada", () => {
 });
 
 test("every few-shot id is on the freeze menu", () => {
-  const menu = JSON.parse(readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json", "utf8"));
+  const bytes = readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json");
+  const sha = createHash("sha256").update(bytes).digest("hex");
+  assert.equal(sha, "06f4400d578f55dfa7c996aa4656ece60d9977921071e6e6083b80dfff8379a7");
+  const menu = JSON.parse(bytes.toString("utf8"));
   for (const turn of loadSyntheticFewShots()) {
     const result = validateCartActions(turn.actions, menu);
     assert.equal(result.ok, true, `${turn.id} ${JSON.stringify(result)}`);
   }
+  const bare = validateCartActions([{ type: "add_item", item_id: "sq-gordita-M647RE", quantity: 1 }], menu);
+  assert.equal(bare.ok, false);
+  const bothStyles = validateCartActions([{ type: "add_item", item_id: "sq-gordita-M647RE", quantity: 1, option_ids: ["NUR2M5MPCNR2D4MDARRXHB7I", "WLHGZCJ422ECZZJ6FOCDMD7G", "Q567C5ONYK4GFIKEJPNZCIMA"] }], menu);
+  assert.equal(bothStyles.ok, false);
 });
 
 test("few-shot uses verified synthetic rows and the approved cap of 3", () => {

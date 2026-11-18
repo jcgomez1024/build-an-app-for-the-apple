@@ -16,7 +16,7 @@ export type CatalogItem = {
   nameEs?: string;
   aliases?: string[];
   variationName?: string;
-  modifierGroups?: Array<{ id?: string; name?: string; options?: Array<string | { id?: string; name?: string }> }>;
+  modifierGroups?: Array<{ id?: string; name?: string; minSelections?: number; maxSelections?: number; options?: Array<string | { id?: string; name?: string }> }>;
 };
 
 export type SliceCartLine = {
@@ -228,22 +228,30 @@ export type Validation =
   | { ok: true }
   | { ok: false; route: "hold"; reviewReason: "confirmar"; errors: string[] };
 
+type GroupIndex = { id?: string; name: string; min: number; max: number; options: Set<string> };
+
 function menuIndex(menu: CatalogItem[]) {
   const items = new Set<string>();
   const optionItem = new Map<string, Set<string>>();
+  const groups = new Map<string, GroupIndex[]>();
   for (const item of menu || []) {
     items.add(item.id);
+    const itemGroups: GroupIndex[] = [];
     for (const group of item.modifierGroups || []) {
+      const options = new Set<string>();
       for (const choice of group.options || []) {
         const id = optionId(choice);
         if (!id) continue;
+        options.add(id);
         const owners = optionItem.get(id) || new Set<string>();
         owners.add(item.id);
         optionItem.set(id, owners);
       }
+      itemGroups.push({ id: group.id, name: group.name || "", min: Number(group.minSelections) || 0, max: Number(group.maxSelections) || 0, options });
     }
+    groups.set(item.id, itemGroups);
   }
-  return { items, optionItem };
+  return { items, optionItem, groups };
 }
 
 /** Reject an item or option id that is not on this menu, or an option from another item. Hold is `confirmar`. */
@@ -260,6 +268,14 @@ export function validateCartActions(actions: unknown, menu: CatalogItem[]): Vali
       const owners = index.optionItem.get(id);
       if (!owners) errors.push(`option:${id}`);
       else if (row.item_id && !owners.has(row.item_id)) errors.push(`group:${id}`);
+    }
+    if (row.type === "add_item" && row.item_id && index.items.has(row.item_id)) {
+      const chosen = new Set(row.option_ids || []);
+      for (const group of index.groups.get(row.item_id) || []) {
+        const count = [...group.options].filter((id) => chosen.has(id)).length;
+        if (group.min >= 1 && count < group.min) errors.push(`required:${group.name}`);
+        if (group.max >= 1 && count > group.max) errors.push(`limit:${group.name}`);
+      }
     }
   }
   return errors.length ? { ok: false, route: "hold", reviewReason: "confirmar", errors } : { ok: true };

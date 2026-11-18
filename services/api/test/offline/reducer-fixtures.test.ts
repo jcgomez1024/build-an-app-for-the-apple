@@ -2,16 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { companionMeatOrders } from "../../src/list-repair.ts";
 import { nameFromTranscriptInfo } from "../../src/order-name.ts";
-import { bindModifier, dropUnavailableOnSwitch, quantityScoped, staffReadbackAddsNothing, type ShadowLine } from "../../src/shadow-reducer.ts";
+import { bindModifier, dropUnavailableOnSwitch, quantityScoped, type ShadowLine } from "../../src/shadow-reducer.ts";
 
 const taco = (quantity: number, option = "Bistec / Steak"): ShadowLine => ({ itemId: "sq-taco-TAR7L5", quantity, modifiers: [{ step: "Carnes", option }] });
-
-test("staff readback never adds, EN and ES", () => {
-  const cart = [taco(2)];
-  assert.equal(staffReadbackAddsNothing(cart, "staff").length, 1);
-  assert.deepEqual(staffReadbackAddsNothing([], "staff"), []);
-  assert.equal(staffReadbackAddsNothing([], "caller").length, 0);
-});
 
 test("quantity and modifiers stay on their own line", () => {
   const cart = [taco(1, "Bistec / Steak"), taco(2, "Alpastor / Roasted Pork")];
