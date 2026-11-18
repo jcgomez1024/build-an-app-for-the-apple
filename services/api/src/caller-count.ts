@@ -262,7 +262,7 @@ function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
       if (!otra.rest) continue;
       p = otra.rest;
     } else if (ambiguousMore(turns, ti, cart)) continue;
-    else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p) && openLineKeys(turns, ti, cart).length === 1) {
+    else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+(?:mas|more)(?:\s+por\s+favor|\s+please)?$/.test(p) && openLineKeys(turns, ti, cart).length === 1) {
       const keys = openLineKeys(turns, ti, cart);
       const n = numOf((p.match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\b/) || [])[1] || "");
       const [dish, spoken] = keys[0].split("|");

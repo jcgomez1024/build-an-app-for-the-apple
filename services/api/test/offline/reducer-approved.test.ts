@@ -1226,6 +1226,34 @@ test("a comma keeps each item and an opening que tal does not hide the order", (
   }
 });
 
+test("que tal los tacos is not an order and two more counts", () => {
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Qué tal los tacos de pastor." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "alpastor", ""), null);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Cómo está los tacos de pastor." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "alpastor", ""), null);
+  const ordered = [
+    { speaker: "caller", text: "Qué tal los de pastor. Dame dos tacos de bistec." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(ordered, "taco", "bistec", ""), 4);
+  assert.equal(callerSpokenQty(ordered, "taco", "alpastor", ""), null);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Two tacos of steak." },
+    { speaker: "caller", text: "Two more." },
+  ], "taco", "bistec", ""), 4);
+  const both = [
+    { speaker: "caller", text: "Two tacos of steak." },
+    { speaker: "caller", text: "One taco of chicken." },
+    { speaker: "caller", text: "Two more." },
+  ];
+  assert.equal(callerSpokenQty(both, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(both, "taco", "pollo", ""), 1);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

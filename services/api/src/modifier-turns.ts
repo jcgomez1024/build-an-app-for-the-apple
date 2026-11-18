@@ -426,27 +426,41 @@ function dishKey(word: string): string {
   return fold(word).replace(/s$/, "");
 }
 function spokenLineKeys(text: string): string[] {
-  const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
-  if (!statements.trim()) return [];
-  let body = fold(statements).replace(/[¿?¡!.]/g, " ").replace(/\s+/g, " ").trim();
-  const opener = /^(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas|que tal|como estas?)\b\s*,?\s*/;
-  while (opener.test(body)) body = body.replace(opener, "").trim();
-  if (!body) return [];
-  if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return [];
-  body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
+  for (const sentence of String(text || "").split(/(?<=[.!]|\?|¿)/)) {
+    if (!sentence.trim() || /[?¿]/.test(sentence)) continue;
+    const parsed = keysInSentence(sentence, dish);
+    dish = parsed.dish;
+    for (const key of parsed.keys) keys.add(key);
+  }
+  return [...keys];
+}
+function keysInSentence(sentence: string, dish: string): { keys: string[]; dish: string } {
+  let body = fold(sentence).replace(/[¿?¡!.]/g, " ").replace(/\s+/g, " ").trim();
+  const opener = /^(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas|que tal|como estas?)\b\s*,?\s*/;
+  const chat = /^(?:que tal|como estas?)\b/;
+  let asked = false;
+  while (opener.test(body)) {
+    if (chat.test(body)) asked = true;
+    body = body.replace(opener, "").trim();
+  }
+  if (!body) return { keys: [], dish };
+  if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return { keys: [], dish };
+  if (asked && /^(?:los|las|el|la)\b/.test(body) && !/\b(?:dame|deme|ponme|quiero|quisiera|me\s+das?|give\s+me|i\s+want)\b/.test(body)) return { keys: [], dish };
+  body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
+  const keys: string[] = [];
   const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
   const meatRe = lineMeatRe();
   for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
     const named = part.match(dishRe);
     const meat = part.match(meatRe);
     if (named) dish = dishKey(named[1]);
-    if (meat?.[1] && (named || dish)) keys.add(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-    else if (meat?.[1]) keys.add(`|${catalogMeatKey(meat[1])}`);
-    else if (named) keys.add(`${dishKey(named[1])}|`);
+    if (meat?.[1] && (named || dish)) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
+    else if (meat?.[1]) keys.push(`|${catalogMeatKey(meat[1])}`);
+    else if (named) keys.push(`${dishKey(named[1])}|`);
   }
-  return [...keys];
+  return { keys, dish };
 }
 /** "que sean dos" names no dish, and this turn or the previous caller turn named more than one line. */
 export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
@@ -520,7 +534,7 @@ export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boole
   const turn = turns[index];
   if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
   const p = fold(turn.text).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
-  if (!/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p)) return false;
+  if (!/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\s+(?:mas|more)(?:\s+por\s+favor|\s+please)?$/.test(p)) return false;
   return openLineKeys(turns, index, cart).length > 1;
 }
 export function moreWhichDish(text: string, language: "es" | "en"): string {
