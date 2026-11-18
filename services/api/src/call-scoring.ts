@@ -11,7 +11,7 @@ import { applyConfirmedReadback } from "./readback-rebuild.js";
 import { dropUnsaidQuesoBirrias, applyGorditaQueso, dropGorditaReaddTwin } from "./gordita-queso.js";
 import { applyGroupBlockCounts } from "./group-blocks.js";
 import { applyComboSidesBoth, dropUnchosenToppings, fixArrozStt } from "./combo-sides.js";
-import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty } from "./modifier-turns.js";
+import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty, ambiguousMakeIt, makeItWhichDish } from "./modifier-turns.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
@@ -3857,6 +3857,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     trackedQty = null;
   };
   for (let t of turns) {
+    const turnAt = turns.indexOf(t);
     if (t.speaker === "caller") { closeTrackedQty(); trackedQty = { turn: t, snap: snapQty() }; }
     // pedro3: "No, espérate" right after staff's bye reopens the order; staff answering food questions after an ETA does too.
     if (t.speaker === "caller" && wrapUp && RESUME_AFTER_BYE.test(t.text)) wrapUp = false;
@@ -4615,6 +4616,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         steps.push({ source: "caller-drink-avail", heard: t.text }); continue;
       }
     }
+    // "que sean dos" with more than one line in this turn or the last one: ask which dish, and do not guess.
+    if (t.speaker === "caller" && ambiguousMakeIt(turns as any, turnAt) && !FOOD.test(t.text)) {
+      const reply = makeItWhichDish(t.text, t.language === "en" ? "en" : "es");
+      last = { actions: [], reply, language: t.language };
+      steps.push({ source: "which-dish-count", heard: t.text, reply, language: t.language });
+      history.push({ role: "customer", text: t.text }, { role: "assistant", text: reply });
+      continue;
+    }
     // fix1136: "Dos, y dos" (counts only, answering staff's "¿cuántas?") restates what's already ordered.
     if (cart.length && isCountOnly(t.text) && !intentPending) { steps.push({ source: "caller-count", heard: t.text }); continue; }
     if (!orderResidue(t.text, (lastAdded as Line | null)?.itemId)) { steps.push({ source: "caller-clarify", heard: t.text }); continue; }
@@ -4911,10 +4920,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const anotherMenu = await loadIntentMenu();
       const another = repeatLastFood(cart as any[], piece, anotherMenu, t.language === "en" ? "en" : "es");
       if (another) {
-        last = { actions: [], reply: another.reply, language: t.language };
         steps.push({ source: "another-of-last", heard: piece, reply: another.reply, language: t.language });
         history.push({ role: "customer", text: piece }, { role: "assistant", text: another.reply });
-        continue;
+        if (!another.rest) {
+          last = { actions: [], reply: another.reply, language: t.language };
+          continue;
+        }
+        piece = another.rest;
       }
       const prev = last ? String(last.reply || "") : "";
       const nBefore = cart.length;

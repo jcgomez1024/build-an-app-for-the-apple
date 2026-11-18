@@ -369,9 +369,48 @@ export function statedDishPutQty(turns: Turn[], noun: RegExp): number {
 }
 /** after-call: after a caller "make it N" / "mejor las N" / bare "me puede poner N", same-dish lines with the same meat
  *  become ONE line whose qty is N (a single line of 1 becomes 4; a 1 plus a second add of 4 collapse to one line of N). */
+const LINE_MEAT = /\b(?:bistec|steak|asada|pastor|chorizo|pollo|chicken|carnitas|tripa|lengua|cabeza|prensado|costilla|picadillo|deshebrada|buche)\b/iu;
+function spokenLineKeys(text: string): string[] {
+  const body = fold(text).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
+  const keys = new Set<string>();
+  let dish = "";
+  const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
+  for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
+    const named = part.match(dishRe);
+    const meat = part.match(LINE_MEAT);
+    if (named) dish = named[1];
+    if (meat && (named || dish)) keys.add(`${dish}|${meat[1]}`);
+    else if (named) keys.add(`${named[1]}|`);
+  }
+  return [...keys];
+}
+/** "que sean dos" names no dish, and this turn or the previous caller turn named more than one line. */
+export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
+  const turn = turns[index];
+  if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
+  const made = makeItN(turn.text);
+  if (!made) return false;
+  const tail = fold(made.tail);
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || LINE_MEAT.test(tail)) return false;
+  let keys = spokenLineKeys(turn.text);
+  if (!keys.length) {
+    for (let j = index - 1; j >= 0; j--) {
+      if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+      keys = spokenLineKeys(turns[j].text);
+      break;
+    }
+  }
+  return keys.length > 1;
+}
+export function makeItWhichDish(text: string, language: "es" | "en"): string {
+  const n = makeItN(text)?.n || 2;
+  const es = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis"];
+  const en = ["", "One", "Two", "Three", "Four", "Five", "Six"];
+  return language === "en" ? `${en[n] || n} of which dish?` : `¿Que sean ${es[n] || n} de cuál platillo?`;
+}
 export function applyMakeItNMerge(cart: any[], turns: Turn[]): void {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return;
-  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k || ambiguousMakeIt(turns, i)) continue;
     const classic = MAKE_IT_N.test(fold(t.text));
     const dish = classic ? "" : putDish(turns, i, k.n, k.tail);
     if (!classic && !dish) continue;

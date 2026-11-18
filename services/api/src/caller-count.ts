@@ -5,7 +5,7 @@
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
 import { compoundForms } from "./menu-names.js";
-import { makeItN } from "./modifier-turns.js";
+import { ambiguousMakeIt, makeItN } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
 type Turn = { speaker?: string; text?: string };
@@ -148,6 +148,41 @@ function askedCounts(turns: Turn[]): Asked[] {
   }
   return out;
 }
+/** The leading otra/otro/another clause, only when de, a dish, or a known meat follows. The rest of the turn stays separate. */
+export function peelAnother(text: string): { dish: string | null; meat: string | null; said: string; rest: string } | null {
+  const cleaned = plain(text).replace(/\b(?:por favor|please)\b/g, " ").replace(/[,]+/g, " ").replace(/\s+/g, " ").trim();
+  if (/\b(?:orden|order)\b/.test(cleaned)) return null;
+  const opened = cleaned.match(/^(?:y\s+|and\s+)?(?:otra|otro|another)\b\s*(.*)$/);
+  if (!opened) return null;
+  let tail = opened[1].trim();
+  if (/^(?:mas|more)$/.test(tail)) return null;
+  if (/^(?:mas|more)\s+/.test(tail)) {
+    const after = tail.replace(/^(?:mas|more)\s+/, "");
+    const head = after.split(" ")[0] || "";
+    if (head !== "de" && head !== "of" && !dishIn(head) && !meatIn(head)) return null;
+    tail = after;
+  }
+  const first = tail.split(" ")[0] || "";
+  if (first !== "de" && first !== "of" && !dishIn(first) && !meatIn(first)) return null;
+  const tokens = tail.split(" ").filter(Boolean);
+  let end = tokens.length;
+  const nextCount = /^(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|four|five)$/;
+  for (let i = 0; i < tokens.length; i++) {
+    const word = tokens[i];
+    if ((word === "y" || word === "and") && i > 0) { end = i; break; }
+    if (nextCount.test(word) && i > 0 && meatIn(tokens.slice(0, i).join(" "))) { end = i; break; }
+    if (word === "con" || word === "with" || word === "sin" || word === "without") {
+      if (!meatIn(tokens.slice(0, i).join(" "))) return null;
+      end = i;
+      break;
+    }
+  }
+  const clause = tokens.slice(0, end).join(" ");
+  const meat = meatIn(clause);
+  if (!meat && first !== "de" && first !== "of") return null;
+  const said = clause.match(/\b(?:de|of)\s+([a-z]+)/)?.[1] || clause.split(" ").find((word) => meatIn(word)) || first;
+  return { dish: dishIn(clause), meat, said, rest: tokens.slice(end).join(" ").replace(/^(?:y|and)\s+/, "") };
+}
 function topicMatches(topic: string, itemText: string, dish: string, meat: string): boolean {
   const tokens = (text: string) => plain(text).split(" ").filter((word) => word.length >= 4);
   const topicWords = expand(tokens(topic));
@@ -177,36 +212,34 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     if (/\b(?:mas|more)\b/.test(tail)) return true;
     return /\b(?:mas|more)\b/.test(seg) && !/\b(?:mas|more)\s*$/.test(seg);
   };
-  // "más una coca" / "más una gordita" names a new item. It does not add onto the line before the más.
-  const DRINK_WORD = /\b(?:cocas?|cokes?|coca|pepsis?|sprites?|fantas?|sodas?|refrescos?|horchatas?|jamaicas?|jarritos?|drinks?|bebidas?)\b/;
-  const differentItem = (seg: string, dish: string, meat: string) => {
-    if (dishIn(seg) === dish || meatIn(seg) === meat) return false;
-    if (DRINK_WORD.test(seg)) return true;
-    const other = dishIn(seg);
-    return !!other && other !== dish;
+  // "más N X" adds onto the open line only when X is that dish or meat, or when nothing follows.
+  const sameTarget = (seg: string, dish: string, meat: string) => {
+    const body = seg.trim();
+    if (!body) return true;
+    const named = dishIn(body);
+    const meatNamed = meatIn(body);
+    if (named && named !== dish) return false;
+    if (meatNamed && meatNamed !== meat) return false;
+    return !!(named || meatNamed);
   };
-  const anotherAdd = (text: string): { dish: string | null; meat: string } | null => {
-    const cleaned = text.replace(/\b(?:por favor|please)\b/g, " ").replace(/\s+/g, " ").trim();
-    if (!/^(?:y\s+|and\s+)?(?:otra|otro|another)\b/.test(cleaned) || /\b(?:orden|order)\b/.test(cleaned)) return null;
-    const body = cleaned.replace(/^(?:y\s+|and\s+)?(?:otra|otro|another)(?:\s+(?:mas|more))?\s+/, "").replace(/^(?:de|of)\s+/, "").trim();
-    const meat = meatIn(body);
-    return meat ? { dish: dishIn(body), meat } : null;
-  };
-  for (const turn of turns || []) {
+  for (let ti = 0; ti < (turns || []).length; ti++) {
+    const turn = turns[ti];
     if (turn.speaker && turn.speaker !== "caller") continue;
     const raw = String(turn.text || "");
-    const p = plain(raw);
+    let p = plain(raw);
     if (!p) continue;
-    const otra = anotherAdd(p);
-    if (otra) {
+    const otra = peelAnother(p);
+    if (otra?.meat) {
       const dish = otra.dish || open;
       if (dish) {
-        const style = otra.dish && otra.dish !== open ? styleKey(p) : (styleKey(p) || openStyle);
+        const head = otra.rest ? p.slice(0, Math.max(0, p.lastIndexOf(otra.rest))) : p;
+        const style = styleKey(head) || (otra.dish && otra.dish !== open ? "" : openStyle);
         add(dish, style, otra.meat, 1);
         open = dish;
         if (style) openStyle = style;
         lastMeat = otra.meat;
-        continue;
+        if (!otra.rest) continue;
+        p = otra.rest;
       }
     }
     const numbered = [...p.matchAll(new RegExp(`\\b(${NUMW})\\b`, "g"))];
@@ -226,7 +259,7 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
       if (!meat) continue;
     } else copied = false;
     const made = makeItN(raw);
-    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open) {
+    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open && !ambiguousMakeIt(turns, ti)) {
       if (lastMeat) put(open, openStyle, lastMeat, made.n);
       else put(open, openStyle || "", "", made.n);
     }
@@ -246,7 +279,7 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
       if (segDish) open = segDish;
       const useDish = segDish || (segMeat ? open : null);
       if (!useDish || !segMeat) {
-        if (additive(before, seg) && open && lastMeat && !differentItem(seg, open, lastMeat)) add(open, openStyle, lastMeat, n);
+        if (additive(before, seg) && open && lastMeat && sameTarget(seg, open, lastMeat)) add(open, openStyle, lastMeat, n);
         else if (segDish && !segMeat) bare = { dish: segDish, n, style: segStyle || openStyle };
         continue;
       }

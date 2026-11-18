@@ -1,4 +1,4 @@
-import { staffQuantity } from "./caller-count.js";
+import { peelAnother, staffQuantity } from "./caller-count.js";
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
 import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
 import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
@@ -1442,26 +1442,6 @@ function lineFamily(item: any): string {
   if (/huarache/.test(id)) return "huarache";
   return "";
 }
-function familyOf(word: string): string {
-  const stem = plain(word).replace(/s$/, "");
-  if (/^taco|^dorad/.test(stem)) return /^dorad/.test(stem) ? "quesadilla" : "taco";
-  if (/^quesadilla|^qd/.test(stem)) return "quesadilla";
-  if (/^torta/.test(stem)) return "torta";
-  if (/^enchilada/.test(stem)) return "enchilada";
-  if (/^gordita/.test(stem)) return "gordita";
-  if (/^burrito/.test(stem)) return "burrito";
-  if (/^sope/.test(stem)) return "sope";
-  if (/^huarache|^guarache/.test(stem)) return "huarache";
-  return "";
-}
-/** "Otra de bistec por favor", "y otro taco de bistec", "otra más de bistec", "another steak". */
-function anotherRequest(text: string): { family: string; said: string } | null {
-  const cleaned = plain(text).replace(/\b(?:por favor|please)\b/g, " ").replace(/\s+/g, " ").trim();
-  if (!/^(?:y\s+|and\s+)?(?:otra|otro|another)\b/.test(cleaned) || /\b(?:orden|order)\b/.test(cleaned)) return null;
-  const body = cleaned.replace(/^(?:y\s+|and\s+)?(?:otra|otro|another)(?:\s+(?:mas|more))?\s+/, "").replace(/^(?:de|of)\s+/, "").trim();
-  if (!body || /\b(?:con|with|sin|without)\b/.test(body)) return null;
-  return { family: familyOf(body.split(" ").find((word) => familyOf(word)) || ""), said: body };
-}
 function meatRank(name: string, saidMeat: string): number {
   const spoken = plain(name).split(" ").flatMap((word) => [word, ...compoundForms(word)]).join(" ");
   if (meatIn(spoken) !== saidMeat) return 0;
@@ -1480,12 +1460,29 @@ function meatWord(option: string, language: "es" | "en"): string {
   const side = language === "en" && option.includes("/") ? option.split("/")[1] : option.split("/")[0];
   return plain(side).split(" ").find((word) => word.length > 2) || plain(side);
 }
+function statedTortilla(text: string, item: any): { step: string; option: string; optionId: string } | null {
+  const spoken = plain(text);
+  const want = /\bharina\b|\bflour\b/.test(spoken) ? /harina|flour/i
+    : /\bcomal\b|\bhomemade\b/.test(spoken) ? /comal|homemade/i
+    : /\btaquer|\bstreet\b/.test(spoken) ? /taquer|street/i
+    : null;
+  if (!want) return null;
+  const hits: Array<{ step: string; option: string; optionId: string }> = [];
+  for (const group of item?.modifierGroups || []) {
+    const step = String(group?.name || "");
+    if (!/tortilla/i.test(step) || /salsa|carne|meat/i.test(step)) continue;
+    for (const choice of group.options || []) {
+      const option = choiceName(choice);
+      if (want.test(option)) hits.push({ step, option, optionId: choiceId(choice) });
+    }
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
 /** "Otra de bistec" / "another steak" repeats the most recent food, same item and style, with that meat option. */
-export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string } | null {
-  const request = anotherRequest(text);
+export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string; rest: string } | null {
+  const request = peelAnother(text);
   if (!request) return null;
-  const saidMeat = meatIn(request.said);
-  const said = plain(request.said).split(" ").find((word) => meatIn(word)) || plain(request.said).split(" ").find((word) => word.length > 2) || request.said;
+  const said = request.said;
   const ask = language === "en"
     ? `Another ${said} of which dish?`
     : `¿Otra de ${said} de cuál platillo?`;
@@ -1493,34 +1490,39 @@ export function repeatLastFood(cart: any[], text: string, menu: any[], language:
     const item = (menu || []).find((row) => row?.id === line?.itemId);
     return item && !drinkItem(item);
   });
-  const last = request.family ? foods.find((line) => lineFamily((menu || []).find((row) => row?.id === line?.itemId)) === request.family) : foods[0];
-  if (!last || !saidMeat) return { reply: ask };
+  const last = request.dish ? foods.find((line) => lineFamily((menu || []).find((row) => row?.id === line?.itemId)) === request.dish) : foods[0];
+  if (!last || !request.meat) return { reply: ask, rest: request.rest };
   const item = (menu || []).find((row) => row?.id === last.itemId);
   const matches: Array<{ step: string; option: string; optionId: string; rank: number }> = [];
   for (const group of item?.modifierGroups || []) {
     if (!meatGroup(group)) continue;
     for (const choice of group.options || []) {
       const name = choiceName(choice);
-      const rank = meatRank(name, saidMeat);
+      const rank = meatRank(name, request.meat);
       if (!rank) continue;
       matches.push({ step: String(group.name || ""), option: name, optionId: choiceId(choice), rank });
     }
   }
   const best = Math.max(0, ...matches.map((match) => match.rank));
   const top = matches.filter((match) => match.rank === best);
-  const already = top.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step && meatIn(plain(mod.option)) === saidMeat));
+  const already = top.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step && meatIn(plain(mod.option)) === request.meat));
   const chosen = already[0] || (top.length === 1 ? top[0] : null);
-  if (!chosen) return { reply: ask };
+  if (!chosen) return { reply: ask, rest: request.rest };
   const copy = JSON.parse(JSON.stringify(last));
   copy.quantity = 1;
   delete copy.lineId;
   copy.modifiers = (copy.modifiers || []).filter((mod: any) => mod.step !== chosen.step);
   copy.modifiers.push({ step: chosen.step, option: chosen.option, ...(chosen.optionId ? { optionId: chosen.optionId } : {}) });
+  const tortilla = statedTortilla(text, item);
+  if (tortilla) {
+    copy.modifiers = copy.modifiers.filter((mod: any) => mod.step !== tortilla.step);
+    copy.modifiers.push({ step: tortilla.step, option: tortilla.option, ...(tortilla.optionId ? { optionId: tortilla.optionId } : {}) });
+  }
   cart.push(copy);
   const dish = dishWord(item, language);
   const meat = meatWord(chosen.option, language);
   const one = genderWord(dish);
-  return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, ${one} ${dish} de ${meat}, ¿verdad?` };
+  return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, ${one} ${dish} de ${meat}, ¿verdad?`, rest: request.rest };
 }
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
@@ -1550,28 +1552,8 @@ export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
       else continue;
       changed = true;
     }
-    const more = text.match(new RegExp(`(?<!nada )\\b(?:mas|more|plus)\\s+(${NUMW})\\s+(.+)$`));
-    const drinkId = more && drinkAfterMore(more[2]);
-    const drinkQty = more ? numOf(more[1]) : 0;
-    if (drinkId && drinkQty && !cart.some((line) => line.itemId === drinkId)) {
-      cart.push({ itemId: drinkId, quantity: drinkQty, modifiers: [] });
-      changed = true;
-    }
   }
   return changed;
-}
-const DIET_COCA = "sq-drink-diet-coca-cola-ZOE5GZ";
-const PLAIN_COCA = "sq-drink-coca-cola-JJE4KC";
-const DIET_PEPSI = "sq-drink-diet-pepsi-6FHXJE";
-const PLAIN_PEPSI = "sq-drink-pepsi-DIJPIW";
-function drinkAfterMore(rest: string): string | null {
-  const diet = /\b(?:dieta|diet)\b/.test(rest);
-  if (/\b(?:cocas?|cokes?|coca(?:\s+colas?)?)\b/.test(rest)) return diet ? DIET_COCA : PLAIN_COCA;
-  if (/\bpepsis?\b/.test(rest)) return diet ? DIET_PEPSI : PLAIN_PEPSI;
-  if (diet) return null;
-  if (/\bhorchatas?\b/.test(rest)) return "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
-  if (/\bjamaicas?\b/.test(rest)) return "sq-drink-agua-fresca-jamaica-32oz-ZLA3ZG";
-  return null;
 }
 const SIZE_WORD = /^\W*(?:la\s+|el\s+|una?\s+)?(chic[ao]|small|peque[nñ][ao]|regular|grande|large|big)\b/;
 /** "¿chica o grande?" → "Chica": the open Sides line gets the catalog size option (chica/small = regular, grande = GRANDE). */

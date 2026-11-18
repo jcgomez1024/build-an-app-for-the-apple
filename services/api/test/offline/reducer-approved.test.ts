@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags, repeatLastFood } from "../../src/list-repair.ts";
 import { applyStaffOrderCount } from "../../src/readback-pass.ts";
-import { callerSpokenQty, staffQuantity } from "../../src/caller-count.ts";
+import { callerSpokenQty, peelAnother, staffQuantity } from "../../src/caller-count.ts";
+import { applyMakeItNMerge } from "../../src/modifier-turns.ts";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
@@ -595,19 +596,8 @@ test("a correct readback keeps the added otra count", () => {
 });
 
 test("más una coca does not add onto the tacos, in ES and EN", () => {
-  const es = [{ speaker: "caller", text: "Dos tacos de chorizo más una coca." }];
-  const en = [{ speaker: "caller", text: "Two tacos of chorizo plus one coke." }];
-  assert.equal(callerSpokenQty(es, "taco", "chorizo", ""), 2);
-  assert.equal(callerSpokenQty(en, "taco", "chorizo", ""), 2);
-  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Dos tacos de chorizo más una gordita." }], "taco", "chorizo", ""), 2);
-  const cart = [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }];
-  applyLineScopedQuantity(cart, es);
-  assert.equal(cart[0].quantity, 2);
-  assert.equal(cart.filter((line) => line.itemId === "sq-drink-coca-cola-JJE4KC").reduce((sum, line) => sum + line.quantity, 0), 1);
-  const english = [{ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }];
-  applyLineScopedQuantity(english, en);
-  assert.equal(english[0].quantity, 2);
-  assert.equal(english.filter((line) => line.itemId === "sq-drink-coca-cola-JJE4KC").length, 1);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Dos tacos de chorizo más una coca." }], "taco", "chorizo", ""), 2);
+  assert.equal(callerSpokenQty([{ speaker: "caller", text: "Two tacos of chorizo plus one coke." }], "taco", "chorizo", ""), 2);
 });
 
 test("otro taco, otra quesadilla, otra más, otro de, and por favor each add one", () => {
@@ -687,4 +677,89 @@ test("enchiladas take the plural confirmation", () => {
   const reply = repeatLastFood(cart, "Otra de pollo.", menu, "es");
   assert.match(reply?.reply || "", /Ok, otras enchiladas de pollo/);
   assert.match(JSON.stringify(cart[1].modifiers), /Pollo/);
+});
+
+test("otra coca, cosa, pregunta, día, vez, igual, and más stay out of the otra handler", () => {
+  for (const phrase of ["otra coca", "otra cosa", "otra pregunta por el horario", "otro día paso", "otra vez lo mismo", "otro igual", "otro más"]) {
+    assert.equal(peelAnother(phrase), null, phrase);
+    assert.equal(repeatLastFood([{ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] }], phrase, menu, "es"), null, phrase);
+  }
+});
+
+test("otro de bistec y uno de pollo keeps the rest of the turn", async () => {
+  const heard: string[] = [];
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Un taco de chorizo." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Otro de bistec y uno de pollo." },
+  ] as any, shadowRun((text) => {
+    heard.push(text);
+    if (/pollo/i.test(text)) return { actions: [{ type: "add_item", itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] }], reply: "ok" };
+    if (/chorizo/i.test(text)) return { actions: [{ type: "add_item", itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  }));
+  assert.ok(heard.some((text) => /uno de pollo/i.test(text)), JSON.stringify(heard));
+  const lines = (order.cart || []).filter((line: any) => line.itemId === "sq-taco-TAR7L5");
+  assert.ok(lines.some((line: any) => /bistec/i.test(JSON.stringify(line.modifiers))));
+  assert.ok(lines.some((line: any) => /pollo/i.test(JSON.stringify(line.modifiers))));
+});
+
+test("más N of a different item does not change the taco count and still reaches the model", async () => {
+  for (const phrase of ["Más un caldo.", "Más un tamal.", "Más un café.", "Más una orden de papas.", "Más dos aguas."]) {
+    assert.equal(callerSpokenQty([
+      { speaker: "caller", text: "Dos tacos de chorizo." },
+      { speaker: "caller", text: phrase },
+    ], "taco", "chorizo", ""), 2, phrase);
+  }
+  const heard: string[] = [];
+  await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Dos tacos de chorizo." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Más un caldo." },
+  ] as any, shadowRun((text) => { heard.push(text); return { actions: [], reply: "ok" }; }));
+  assert.ok(heard.some((text) => /caldo/i.test(text)), JSON.stringify(heard));
+});
+
+test("que sean dos asks which dish when two lines are open", async () => {
+  const turns = [
+    { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de chorizo." },
+    { speaker: "caller", text: "Que sean dos." },
+  ];
+  assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2);
+  assert.equal(callerSpokenQty(turns, "quesadilla", "chorizo", ""), 1);
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  applyMakeItNMerge(cart, turns);
+  assert.equal(cart[0].quantity, 2);
+  assert.equal(cart[1].quantity, 1);
+  const heard: string[] = [];
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Dos tacos de bistec y una quesadilla de chorizo." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Que sean dos." },
+  ] as any, shadowRun((text) => {
+    heard.push(text);
+    if (/que sean/i.test(text)) return { actions: [{ type: "add_item", itemId: "sq-not-a-guess", quantity: 2 }], reply: "guess" };
+    return { actions: [], reply: "ok" };
+  }));
+  assert.equal(heard.some((text) => /que sean/i.test(text)), false, JSON.stringify(heard));
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /¿Que sean dos de cuál platillo\?/);
+  assert.equal((order.cart || []).some((line: any) => line.itemId === "sq-not-a-guess"), false);
+  const english = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "en", text: "Two steak tacos and one chorizo quesadilla." },
+    { speaker: "staff", start: 1, end: 2, language: "en", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "en", text: "Make it three." },
+  ] as any, shadowRun(() => ({ actions: [], reply: "ok" })));
+  assert.match((english.steps || []).map((step: any) => step.reply).join(" "), /Three of which dish\?/);
+});
+
+test("otro taco de harina de bistec uses the flour tortilla", () => {
+  const cart = [{ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] }];
+  const reply = repeatLastFood(cart, "Otro taco de harina de bistec.", menu, "es");
+  assert.match(reply?.reply || "", /Ok, otro taco de bistec/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Harina|Flour/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Bistec/);
+  assert.doesNotMatch(JSON.stringify(cart[1].modifiers), /Street|Taquero/);
 });
