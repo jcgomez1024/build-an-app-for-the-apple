@@ -1389,63 +1389,17 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
   return changed;
 }
 type ModelQty = { itemId: string; option?: string; before: number; after: number };
-const lineMeatKey = (line: any) => meatOfLine(line) || ((line?.modifiers || []).some((mod: any) => /pastor/i.test(String(mod.option || ""))) ? "alpastor" : null);
 function modelAlreadyApplied(turn: Turn, line: any): boolean {
   const recs = ((turn as Turn & { modelQty?: ModelQty[] }).modelQty) || [];
   return recs.some((rec) => {
     if (String(rec.itemId || "") !== String(line.itemId || "") || !(rec.after > rec.before)) return false;
     if (Number(line.quantity) < rec.after) return false;
-    const said = rec.option ? (meatIn(rec.option) || (/pastor/i.test(rec.option) ? "alpastor" : null)) : null;
-    return !said || said === lineMeatKey(line);
+    const said = rec.option ? meatIn(rec.option) : null;
+    return !said || said === meatOfLine(line);
   });
 }
-function meatModifier(menu: any[], itemId: string, meat: string): { step: string; option: string } | null {
-  const item = (menu || []).find((row) => row?.id === itemId);
-  for (const group of item?.modifierGroups || []) {
-    if (!/carne|meat/i.test(String(group.name || ""))) continue;
-    for (const choice of group.options || []) {
-      const name = typeof choice === "string" ? choice : choice?.name;
-      const key = meatIn(name) || (/pastor/i.test(String(name || "")) ? "alpastor" : null);
-      if (key === meat) return { step: group.name, option: name };
-    }
-  }
-  return null;
-}
-/** A trailing más, plus, or otro introduces the next item. It means "more of this line" only when the request ends there. */
-function addNamedAfterMore(cart: any[], text: string, turn: Turn, menu: any[]): boolean {
-  let changed = false;
-  if (/\b(?:mas|plus)\s+(?:un[oa]?|a|an|one|1)?\s*(?:coca(?:\s+cola)?|coke)\b/.test(text)) {
-    const coke = (menu || []).find((row) => /^sq-drink-coca-cola-/.test(String(row?.id || "")));
-    const id = coke?.id || "sq-drink-coca-cola-JJE4KC";
-    const line = cart.find((row) => String(row.itemId || "") === id);
-    if (!(line && modelAlreadyApplied(turn, line))) {
-      if (line) line.quantity = (Number(line.quantity) || 0) + 1;
-      else cart.push({ itemId: id, quantity: 1, modifiers: [] });
-      changed = true;
-    }
-  }
-  const other = text.match(/\b(?:otro|otra|another)(?:\s+(?:one|un|una))?\s+(?:de|of)\s+([a-z]+)\b/);
-  const beforeOther = other ? text.slice(0, other.index || 0) : "";
-  const dishBefore = [...beforeOther.matchAll(/\b(tacos?|quesadillas?|gorditas?|tortas?|sopes?|huaraches?)\b/g)].pop();
-  const meat = other && (!dishBefore || /^tacos?$/.test(dishBefore[1])) ? meatIn(other[1]) : null;
-  if (meat) {
-    const lines = cart.filter((line) => /^sq-taco-/.test(String(line.itemId || "")) && lineMeatKey(line) === meat);
-    if (lines.length === 1 && !modelAlreadyApplied(turn, lines[0])) { lines[0].quantity = (Number(lines[0].quantity) || 0) + 1; changed = true; }
-    else if (!lines.length) {
-      const sib = cart.find((line) => /^sq-taco-/.test(String(line.itemId || "")));
-      const itemId = sib?.itemId || "sq-taco-TAR7L5";
-      const mod = meatModifier(menu, itemId, meat);
-      if (mod) {
-        const tortilla = (sib?.modifiers || []).filter((row: any) => /tortilla/i.test(String(row.step || "")) && !/carne|meat/i.test(String(row.step || "")));
-        cart.push({ itemId, quantity: 1, modifiers: [...tortilla, mod] });
-        changed = true;
-      }
-    }
-  }
-  return changed;
-}
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
-export function applyLineScopedQuantity(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
   let changed = false;
   const lead = "mas|more|another|otros|otras|otra|otro";
   const extra = "mas|more|plus|another|otros|otras|otra|otro";
@@ -1463,7 +1417,7 @@ export function applyLineScopedQuantity(cart: any[], turns: Turn[], menu: any[] 
       const kind = kindRe(match[4]);
       const meat = meatIn(match[6]);
       if (!qty || !kind || !meat) continue;
-      const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && lineMeatKey(line) === meat);
+      const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && meatOfLine(line) === meat);
       if (lines.length !== 1) continue;
       if (additive) {
         if (modelAlreadyApplied(turn, lines[0])) continue;
@@ -1472,7 +1426,6 @@ export function applyLineScopedQuantity(cart: any[], turns: Turn[], menu: any[] 
       else continue;
       changed = true;
     }
-    if (addNamedAfterMore(cart, text, turn, menu)) changed = true;
   }
   return changed;
 }

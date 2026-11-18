@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyAffirmedStaffList, applyLineScopedQuantity, applyStaffReadback, liveMeatSplitQty, parseList } from "../../src/list-repair.ts";
+import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
 const menu = frozenPhoneMenu();
@@ -95,29 +96,53 @@ test("a leading más un adds or stays, and never resets a line at 2", () => {
   assert.equal(kept[1].quantity, 1);
 });
 
-test("a trailing más or plus names the next item, EN and ES", () => {
-  const line = () => ({ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] });
-  const es = [line()];
-  const en = [line()];
-  applyLineScopedQuantity(es, [{ speaker: "caller", text: "Dos tacos de chorizo más una coca." }], menu);
-  applyLineScopedQuantity(en, [{ speaker: "caller", text: "Two chorizo tacos plus a coke." }], menu);
-  assert.equal(es[0].quantity, 2);
-  assert.equal(en[0].quantity, 2);
-  assert.equal(es.find((row) => /coca/i.test(row.itemId))?.quantity, 1);
-  assert.equal(en.find((row) => /coca/i.test(row.itemId))?.quantity, 1);
+test("a restated más una coca adds no second coke", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+    { itemId: "sq-drink-coca-cola-JJE4KC", quantity: 1, modifiers: [] },
+  ];
+  applyLineScopedQuantity(cart, [{ speaker: "caller", text: "Entonces son dos tacos de chorizo más una coca." }]);
+  assert.equal(cart.length, 2);
+  assert.equal(cart[0].quantity, 2);
+  assert.equal(cart[1].quantity, 1);
 });
 
-test("otro de pastor is a new taco, EN and ES", () => {
-  const line = () => ({ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] });
-  const es = [line()];
-  const en = [line()];
-  applyLineScopedQuantity(es, [{ speaker: "caller", text: "Dos tacos de chorizo, otro de pastor." }], menu);
-  applyLineScopedQuantity(en, [{ speaker: "caller", text: "Two chorizo tacos, another one of pastor." }], menu);
-  assert.equal(es[0].quantity, 2);
-  assert.equal(en[0].quantity, 2);
-  const pastor = (cart: any[]) => cart.find((row) => (row.modifiers || []).some((mod: any) => /pastor/i.test(String(mod.option))));
-  assert.equal(pastor(es)?.quantity, 1);
-  assert.equal(pastor(en)?.quantity, 1);
+test("más una coca de dieta adds no regular coke", () => {
+  const cart = [{ itemId: "sq-drink-diet-coke", quantity: 1, modifiers: [] }];
+  applyLineScopedQuantity(cart, [{ speaker: "caller", text: "Más una coca de dieta." }]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].itemId, "sq-drink-diet-coke");
+  assert.equal(cart.some((row) => row.itemId === "sq-drink-coca-cola-JJE4KC"), false);
+});
+
+test("otra de bistec in its own turn after a quesadilla adds no taco", () => {
+  const cart = [{ itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] }];
+  applyLineScopedQuantity(cart, [
+    { speaker: "caller", text: "Una quesadilla de chorizo." },
+    { speaker: "caller", text: "Y otra de bistec." },
+  ]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].itemId, "sq-quesadilla-HLT6CR");
+  assert.equal(cart[0].quantity, 1);
+});
+
+test("shadow scoring keeps a two-more add the turn already applied", async () => {
+  const chorizo = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
+  const run: any = async (text: string) => {
+    const spoken = text.toLowerCase();
+    if (/m[aá]s|more/.test(spoken)) return { actions: [{ type: "update_item", itemId: "sq-gordita-M647RE", quantity: 4 }], reply: "ok" };
+    if (/chorizo/.test(spoken)) return { actions: [{ type: "add_item", itemId: "sq-gordita-M647RE", quantity: 2, modifiers: [chorizo] }], reply: "ok" };
+    return { actions: [], reply: "ok" };
+  };
+  run.menu = () => menu;
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Chorizo, por favor." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Dos gorditas más de chorizo." },
+  ] as any, run);
+  const lines = (order.cart || []).filter((line: any) => line.itemId === "sq-gordita-M647RE" && (line.modifiers || []).some((mod: any) => /chorizo/i.test(String(mod.option))));
+  assert.equal(lines.length, 1, JSON.stringify(order.cart));
+  assert.equal(lines[0].quantity, 4);
 });
 
 test("confirm-only shadow readback stays off unless the flag is set", () => {
