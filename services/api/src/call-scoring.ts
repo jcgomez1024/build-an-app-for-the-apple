@@ -1035,9 +1035,8 @@ function shadowOtraCancelOnly(turns: Array<{ speaker?: string; text?: string }>)
   if (leadingCancel(text) === null) return false;
   let prev = -1;
   for (let j = at - 1; j >= 0; j--) if (turns[j].speaker === "caller") { prev = j; break; }
-  const between = prev < 0 ? turns.slice(0, at) : turns.slice(prev + 1, at);
-  if (between.some((turn) => turn.speaker !== "caller" && /[?¿]/.test(String(turn.text || "")))) return true;
-  return prev >= 0 && /^(?:y\s+)?(?:otra|otro|another)\b/i.test(String(turns[prev].text || ""));
+  if (prev < 0 || !/^(?:y\s+)?(?:otra|otro|another)\b/i.test(String(turns[prev].text || ""))) return false;
+  return true;
 }
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   replayTurns = turns;
@@ -1205,7 +1204,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !spokenAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
       if (off.length) (r as any).actions = (r as any).actions.filter((a: any) => !(a?.type === "add_item" && off.some((d) => (String(a.itemId).toLowerCase().includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(a.itemId).toLowerCase())) && !reorder(d))));
       dropPutOnReAdd((r as any).actions, cart as any[], text); // pedro3: "si la pueden poner en nopales" changes the gorditas, not a new one
-      if (isAbandonTurn(text) && !/[?¿]/.test(String(lastStaff || ""))) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
+      if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
     }
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
     if (Array.isArray((r as any)?.actions)) mergeConFrijolesSplit((r as any).actions, text); // lupita1
@@ -3893,6 +3892,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           continue;
         }
         t = { ...t, text: undone };
+      } else if (undone !== null && otraLine && staffAfterOtra && !undone) {
+        otraLine = null;
+        staffAfterOtra = false;
+        const reply = "Ok.";
+        last = { actions: [], reply, language: t.language };
+        steps.push({ source: "another-cancel", heard: t.text, reply, language: t.language });
+        history.push({ role: "customer", text: t.text }, { role: "assistant", text: reply });
+        continue;
       } else if (undone === null) {
         otraLine = null;
         staffAfterOtra = false;
@@ -4657,7 +4664,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // "que sean dos" with more than one line in this turn or the last one: ask which dish, and do not guess.
-    if (t.speaker === "caller" && ambiguousMore(turns as any, turnAt) && !FOOD.test(t.text)) {
+    if (t.speaker === "caller" && ambiguousMore(turns as any, turnAt, cart as any[]) && !FOOD.test(t.text)) {
       const reply = moreWhichDish(t.text, t.language === "en" ? "en" : "es");
       last = { actions: [], reply, language: t.language };
       steps.push({ source: "which-dish-count", heard: t.text, reply, language: t.language });

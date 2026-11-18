@@ -149,7 +149,7 @@ function askedCounts(turns: Turn[]): Asked[] {
   return out;
 }
 const OTRA_CANCEL = /\b(no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b/;
-const NEW_ITEM_REST = /^(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+de\s+\S+/;
+const NEW_ITEM_REST = /^(?:(?:dame|deme|ponme|mejor|y)\s+)*(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+de\s+\S+/;
 /** Cancel only when the phrase opens the turn and the rest is empty or a new item. A topping keeps the line. */
 export function leadingCancel(text: string): string | null {
   const match = plain(text).match(/^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b\s*(.*)$/);
@@ -159,10 +159,11 @@ export function leadingCancel(text: string): string | null {
   return rest;
 }
 function nextCallerCancels(turns: Turn[], index: number): boolean {
-  let staff = false;
   for (let j = index + 1; j < turns.length; j++) {
-    if (turns[j].speaker && turns[j].speaker !== "caller") { staff = true; continue; }
-    if (staff) return false;
+    if (turns[j].speaker && turns[j].speaker !== "caller") {
+      if (/[?¿]/.test(String(turns[j].text || ""))) return false;
+      continue;
+    }
     return leadingCancel(String(turns[j].text || "")) !== null;
   }
   return false;
@@ -264,7 +265,9 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:otra|otro|another)\s+(?:mas|more)(?:\s+por favor|\s+please)?$/.test(p) && open && lastMeat && !nextCallerCancels(turns, ti)) {
       add(open, openStyle, lastMeat, 1);
       continue;
-    } else if (otra?.meat && !nextCallerCancels(turns, ti)) {
+    } else if (otra?.meat && nextCallerCancels(turns, ti)) {
+      continue;
+    } else if (otra?.meat) {
       const dish = otra.dish || open;
       if (dish) {
         const head = otra.rest ? p.slice(0, Math.max(0, p.lastIndexOf(otra.rest))) : p;
@@ -327,6 +330,14 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     pending = parts.length ? null : bare;
     if (parts.length >= 2) lastParts = parts;
     else if (parts.length === 1 && dishIn(p)) lastParts = parts;
+    if (!otra?.meat && !otra?.cancel && open) {
+      for (const hit of p.matchAll(/\b(?:y\s+|and\s+)(?:otra|otro|another)\s+de\s+([a-z]+)/g)) {
+        const extra = meatIn(hit[1]);
+        if (!extra) continue;
+        add(open, openStyle, extra, 1);
+        lastMeat = extra;
+      }
+    }
   }
   return counts;
 }

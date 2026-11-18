@@ -428,6 +428,8 @@ function dishKey(word: string): string {
 function spokenLineKeys(text: string): string[] {
   const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
   if (!statements.trim()) return [];
+  const greeting = fold(statements);
+  if (/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual|cuando|donde)\b/.test(greeting) && !new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(greeting)) return [];
   const body = fold(statements).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
@@ -437,8 +439,8 @@ function spokenLineKeys(text: string): string[] {
     const named = part.match(dishRe);
     const meat = part.match(meatRe);
     if (named) dish = dishKey(named[1]);
-    if (meat?.[1]) keys.add(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-    else if (named) keys.add(`${dishKey(named[1])}|`);
+    if (meat?.[1] && (named || dish)) keys.add(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
+    else if (named && !/^(?:hola|buenos|buenas|hello|hi|hey|que|como|cual)\b/.test(part.trim())) keys.add(`${dishKey(named[1])}|`);
   }
   return [...keys];
 }
@@ -463,31 +465,43 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
   return keys.size > 1;
 }
 function callerTurnCancelled(turns: Turn[], index: number): boolean {
-  let staff = false;
   for (let j = index + 1; j < turns.length; j++) {
-    if (turns[j].speaker && turns[j].speaker !== "caller") { staff = true; continue; }
-    if (staff) return false;
-    const text = fold(String(turns[j].text || ""));
-    return /^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b(?:\s+(?:\d+|un|una|uno|dos|tres|one|two|three)\s+de\s+\S+)?\s*$/.test(text.replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim());
+    if (turns[j].speaker && turns[j].speaker !== "caller") {
+      if (/[?¿]/.test(String(turns[j].text || ""))) return false;
+      continue;
+    }
+    const text = fold(String(turns[j].text || "")).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+    return /^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b/.test(text);
   }
   return false;
 }
-export function openLineKeys(turns: Turn[], index: number): string[] {
+function meatsOnOrder(cart: any[]): Set<string> {
+  const found = new Set<string>();
+  const re = lineMeatRe();
+  for (const line of cart || []) for (const mod of line?.modifiers || []) {
+    const hit = String(mod?.option || "").match(re);
+    if (hit?.[1]) found.add(catalogMeatKey(hit[1]));
+  }
+  return found;
+}
+export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
   const keys = new Set<string>();
   for (let j = 0; j < index; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
     if (callerTurnCancelled(turns, j)) continue;
     for (const key of spokenLineKeys(turns[j].text)) if (!key.endsWith("|")) keys.add(key);
   }
-  return [...keys];
+  if (!cart?.length) return [...keys];
+  const present = meatsOnOrder(cart);
+  return [...keys].filter((key) => present.has(key.split("|")[1] || ""));
 }
 /** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
-export function ambiguousMore(turns: Turn[], index: number): boolean {
+export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boolean {
   const turn = turns[index];
   if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
   const p = fold(turn.text).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
   if (!/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p)) return false;
-  return openLineKeys(turns, index).length > 1;
+  return openLineKeys(turns, index, cart).length > 1;
 }
 export function moreWhichDish(text: string, language: "es" | "en"): string {
   const word = (fold(text).match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\b/) || [])[1] || "dos";
