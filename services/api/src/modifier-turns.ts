@@ -464,8 +464,7 @@ function countBesideMeat(part: string, meatWord: string): boolean {
   const meat = words.join("|");
   const gap = "(?:\\s*,)?(?:\\s+(?:orden(?:es)?|platos?|tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|orders?|plates?))?(?:\\s*,)?(?:\\s+(?:de|of))?";
   let text = fold(part);
-  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos\b(?!\s+de\s+[a-z])/g, " ");
-  text = text.replace(/\blas\s+dos\s+(?:de\s+la\s+tarde|en\s+punto)\b/g, " ");
+  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos(?:\s+de\s+la\s+(?:tarde|manana|noche)|\s+en\s+punto)?\b/g, " ");
   return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(text);
 }
 function fillingJoin(part: string, meats: RegExpMatchArray[]): boolean {
@@ -486,6 +485,13 @@ function meatRefused(part: string, meatWord: string): boolean {
   const body = fold(part).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
   if (new RegExp(`\\bno\\s+(?:de\\s+|of\\s+)(?:${meat})\\b`, "i").test(body)) return true;
   return new RegExp(`\\b(?:de\\s+|of\\s+)?(?:${meat})\\s+no$`, "i").test(body);
+}
+function leadMeat(part: string, pattern: RegExp): string {
+  const rest = (part.match(pattern) || [])[1] || (part.match(pattern) || [])[2] || "";
+  const bits = rest.trim().split(/\s+/);
+  if (!bits[0] || bits[0] === "la" || bits[0] === "el") return "";
+  if (bits[0] === "al" && bits[1]) return `${bits[0]} ${bits[1]}`;
+  return bits[0];
 }
 function spokenLineKeys(text: string): string[] {
   const keys = new Set<string>();
@@ -525,11 +531,16 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
       if (named) keys.push(`${dishKey(named[1])}|`);
       continue;
     }
+    const otraWord = leadMeat(fold(part).trim(), /^(?:y\s+|and\s+)?(?:otra|otro|another)\s+(?:de\s+|of\s+)(.+)$|^(?:y\s+)de\s+(.+)$/);
+    const clockMeat = leadMeat(fold(part).trim(), /^(?:a|son)\s+las\s+dos\s+de\s+(.+)$/);
     for (const meat of found) {
       if (!meat[1] || meatRefused(part, meat[1])) continue;
-      const another = /^(?:y\s+|and\s+)?(?:otra|otro|another)\s+(?:de\s+|of\s+)|^(?:y\s+)de\s+/.test(fold(part).trim());
-      if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-      else if (another || countBesideMeat(body, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
+      const meatKey = catalogMeatKey(meat[1]);
+      const same = (word: string) => !!word && (catalogMeatKey(word) === meatKey || fold(word) === fold(meat[1]));
+      if (same(clockMeat)) { keys.push(`|${meatKey}`); continue; }
+      if (otraWord && !same(otraWord) && !countBesideMeat(part, meat[1])) continue;
+      if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${meatKey}`);
+      else if (same(otraWord) || countBesideMeat(body, meat[1])) keys.push(`|${meatKey}`);
     }
   }
   return { keys, dish };
@@ -596,12 +607,15 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
       if (rawDish) carry = rawDish;
       if (dish && meat) keys.add(`${dish}|${meat}`);
       else if (meat) keys.add(`|${meat}`);
+      else if (dish) keys.add(`${dish}|`);
     }
   }
-  if (!cart?.length) return [...keys];
+  let list = [...keys];
+  if (!list.some((key) => key.startsWith("|") && key.length > 1)) list = list.filter((key) => key.split("|")[1]);
+  if (!cart?.length) return list;
   const present = linesOnOrder(cart);
   const meats = new Set([...present].map((key) => key.split("|")[1]).filter(Boolean));
-  return [...keys].filter((key) => present.has(key) || (key.startsWith("|") && meats.has(key.slice(1))));
+  return list.filter((key) => present.has(key) || (key.startsWith("|") && meats.has(key.slice(1))) || (key.endsWith("|") && [...present].some((row) => row.startsWith(key))));
 }
 /** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
 export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boolean {

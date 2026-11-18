@@ -3,7 +3,7 @@ import test from "node:test";
 import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags, repeatLastFood } from "../../src/list-repair.ts";
 import { applyStaffOrderCount } from "../../src/readback-pass.ts";
 import { callerSpokenQty, peelAnother, staffQuantity } from "../../src/caller-count.ts";
-import { applyMakeItNMerge, lineMeatRe, openLineKeys } from "../../src/modifier-turns.ts";
+import { ambiguousMakeIt, ambiguousMore, applyMakeItNMerge, lineMeatRe, openLineKeys } from "../../src/modifier-turns.ts";
 import { isAbandonedOrder, isAbandonTurn } from "../../src/readback-pass.ts";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
@@ -1437,33 +1437,80 @@ test("a counted item after con is its own line, and las dos is an order", () => 
   assert.deepEqual(staffQuantity(swapped, "taco", "pollo", 3, 3, ""), { quantity: callerSpokenQty(swapped, "taco", "pollo", "") ?? 2, flag: true });
 });
 
-test("otro de bistec keeps que sean off the earlier pollo", () => {
-  for (const otra of ["Otro de bistec.", "Otra de bistec.", "Y otro de bistec.", "Another of steak."]) {
-    const ask = /another/i.test(otra) ? "Make it three." : "Que sean tres.";
-    const first = /another/i.test(otra) ? "Two chicken tacos." : "Dos tacos de pollo.";
+test("otro de bistec then que sean tres asks which line", async () => {
+  for (const otra of ["Otro de bistec.", "Otra de bistec.", "Y otro de bistec.", "Y de bistec."]) {
+    const ask = "Que sean tres.";
+    const first = "Dos tacos de pollo.";
     const turns = [
       { speaker: "caller", text: first },
       { speaker: "caller", text: otra },
       { speaker: "caller", text: ask },
     ];
     assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 2, otra);
-    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, otra);
-    assert.deepEqual(staffQuantity(turns, "taco", "pollo", 3, 3, ""), { quantity: 2, flag: true }, otra);
-    assert.deepEqual(staffQuantity(turns, "taco", "bistec", 3, 1, ""), { quantity: 3, flag: false }, otra);
+    assert.notEqual(callerSpokenQty(turns, "taco", "bistec", ""), 3, otra);
+    assert.equal(ambiguousMakeIt(turns, 2), true, otra);
     assert.ok(openLineKeys(turns, 2).some((key) => key.endsWith("|bistec")), otra);
+    assert.deepEqual(staffQuantity(turns, "taco", "pollo", 3, 3, ""), { quantity: 2, flag: true }, otra);
+    const heard = staffQuantity(turns, "taco", "bistec", 3, 1, "");
+    assert.equal(heard.flag, true, otra);
+    assert.notEqual(heard.quantity, 3, otra);
   }
-  assert.ok(openLineKeys([
+  const between = [
     { speaker: "caller", text: "Dos tacos de pollo." },
-    { speaker: "caller", text: "Y de bistec." },
+    { speaker: "caller", text: "Otro de bistec." },
+    { speaker: "caller", text: "Sí." },
     { speaker: "caller", text: "Que sean tres." },
-  ], 2).some((key) => key.endsWith("|bistec")));
+  ];
+  assert.equal(ambiguousMakeIt(between, 3), true);
+  assert.equal(callerSpokenQty(between, "taco", "pollo", ""), 2);
+  assert.notEqual(callerSpokenQty(between, "taco", "bistec", ""), 3);
+  assert.equal(staffQuantity(between, "taco", "bistec", 3, 1, "").flag, true);
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "Dos tacos de pollo." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Otro de bistec." },
+    { speaker: "staff", start: 4, end: 5, language: "es", text: "Ok." },
+    { speaker: "caller", start: 6, end: 7, language: "es", text: "Que sean tres." },
+  ] as any, shadowRun((text) => /otro/i.test(text)
+    ? { actions: [{ type: "add_item", itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] }], reply: "ok" }
+    : /pollo/i.test(text)
+      ? { actions: [{ type: "add_item", itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] }], reply: "ok" }
+      : { actions: [{ type: "update_item", itemId: "sq-taco-TAR7L5", quantity: 3 }], reply: "guess" }));
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /¿Que sean tres de cuál platillo\?/);
+  assert.equal((order.cart || []).some((line: any) => line.quantity === 3), false);
+  const extra = openLineKeys([
+    { speaker: "caller", text: "Otro de bistec chorizo." },
+    { speaker: "caller", text: "Listo." },
+  ], 1);
+  assert.ok(extra.some((key) => key.endsWith("|bistec")));
+  assert.equal(extra.some((key) => key.endsWith("|chorizo")), false);
   const timed = [
     { speaker: "caller", text: "A las dos de bistec." },
-    { speaker: "caller", text: "Una quesadilla de pollo." },
+    { speaker: "caller", text: "Una quesadilla." },
     { speaker: "caller", text: "Dos más." },
   ];
-  assert.equal(callerSpokenQty(timed, "quesadilla", "pollo", ""), 1);
-  assert.deepEqual(staffQuantity(timed, "quesadilla", "pollo", 3, 3, ""), { quantity: 1, flag: true });
+  assert.ok(openLineKeys(timed, 2).includes("|bistec"));
+  assert.notEqual(callerSpokenQty(timed, "taco", "bistec", ""), 2);
+  assert.equal(ambiguousMore(timed, 2), true);
+  const asked: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "es", text: "A las dos de bistec." },
+    { speaker: "staff", start: 1, end: 2, language: "es", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "es", text: "Una quesadilla." },
+    { speaker: "staff", start: 4, end: 5, language: "es", text: "Ok." },
+    { speaker: "caller", start: 6, end: 7, language: "es", text: "Dos más." },
+  ] as any, shadowRun(() => ({ actions: [], reply: "ok" })));
+  assert.match((asked.steps || []).map((step: any) => step.reply).join(" "), /¿Dos más de cuál platillo\?/);
+  for (const said of ["A las dos de la mañana.", "Son las dos de la noche.", "A las dos de la tarde.", "Son las dos en punto.", "A las dos.", "Son las dos."]) {
+    assert.equal(callerSpokenQty([
+      { speaker: "caller", text: "Un taco de pollo." },
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Dos más." },
+    ], "taco", "pollo", ""), 3, said);
+    assert.equal(openLineKeys([
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Listo." },
+    ], 1).length, 0, said);
+  }
 });
 
 test("a continued bistec and an alias are one open line", () => {
