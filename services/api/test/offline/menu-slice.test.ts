@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { approxTokens, cartActionSchema, fewShotBlock, fullCatalogPrompt, loadSyntheticFewShots, promptCatalog, sliceMenu, validateCartActions, type CatalogItem, type SyntheticTurn } from "../../src/menu-slice.ts";
 
 const bistec = { id: "bistec-taco", name: "Bistec / Steak" };
@@ -76,8 +77,9 @@ test("style words from the catalog rank a plain taco above a dorada", () => {
   assert.equal(dorados.matched.some((item) => item.id === "sq-taco-TAR7L5"), false);
 });
 
-test("every few-shot id is on the freeze menu", () => {
-  const bytes = readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json");
+const frozenMenuPath = fileURLToPath(new URL("../fixtures/frozen-menu.json", import.meta.url));
+test("every few-shot id is on the freeze menu", { skip: existsSync(frozenMenuPath) ? false : "frozen menu fixture services/api/test/fixtures/frozen-menu.json is missing" }, () => {
+  const bytes = readFileSync(frozenMenuPath);
   const sha = createHash("sha256").update(bytes).digest("hex");
   assert.equal(sha, "06f4400d578f55dfa7c996aa4656ece60d9977921071e6e6083b80dfff8379a7");
   const menu = JSON.parse(bytes.toString("utf8"));

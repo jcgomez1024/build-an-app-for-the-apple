@@ -7,7 +7,7 @@ import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt
 // a meat said for a meatless group applies to it; deluxe components aren't separate sides; "una de pollo y la otra de
 // papas y frijol" after "dos órdenes" splits the enchiladas.
 type Turn = { speaker: string; text: string };
-const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\bcomalde\b/g, "comal de").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
 const numOf = (w: string) => Number(w) || NUM[w] || 0;
 const NUMW = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
@@ -32,7 +32,8 @@ type Exp = { kind: Kind; meat: string | null; qty: number; style?: "comal" | "ta
 
 /** Parse a spoken list ("dos quesadillas del comal de biste, una quesadilla preparada de prensado, tres tacos taqueros de…"). */
 export function parseList(text: string, ctx: { taco?: Exp["style"]; q?: Exp["style"] } = {}): Exp[] {
-  const p = plain(text);
+  // comalde is a staff-readback spelling. Live helpers use plain() and do not see this rewrite.
+  const p = plain(String(text || "").replace(/\bcomalde\b/gi, "comal de"));
   const re = new RegExp(`\\b(${NUMW})\\s+(?=\\S)`, "g");
   const starts = [...p.matchAll(re)].map((m) => m.index || 0);
   const out: Exp[] = [];
@@ -102,6 +103,9 @@ function setLine(l: any, e: Exp, menu: any[]) {
  *  A shadow order never gains a line from the readback. */
 export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shadow = false): boolean {
   const rb = staffReadback(turns); if (!rb) return false;
+  // Shadow readback confirms. It does not rewrite count, meat, or tortilla unless the flag is explicitly off.
+  const confirmOnly = shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY !== "0";
+  const flags: string[] = [];
   const keys = new Set(rb.lines.map((e) => `${famOf(e.kind)}:${e.meat}`));
   const claimed = new Set<any>();
   for (const e of rb.lines) {
@@ -110,13 +114,22 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
     const meatless = cart.filter((l) => !claimed.has(l) && kindOfLine(l) && famOf(kindOfLine(l)!) === fam && !meatOfLine(l));
     const pick = cands.find((l) => kindOfLine(l) === e.kind && (e.kind !== "qd" || !e.qd || (l.modifiers || []).some((m: any) => new RegExp(e.qd === "regular" ? "REGULAR" : "DELUXE", "i").test(m.option)))) || cands.find((l) => kindOfLine(l) === e.kind) || cands[0] || meatless[0];
     let l = pick;
-    if (!l) { if (shadow) continue; const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l); }
-    // Confirm-only is shadow-gated and off unless ELVI_SHADOW_READBACK_CONFIRM_ONLY=1. It does not rewrite count, meat, or tortilla.
-    if (shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY === "1") { claimed.add(l); continue; }
+    if (!l) {
+      if (shadow) { if (confirmOnly) flags.push(`missing:${e.kind}:${e.meat || "none"}`); continue; }
+      const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l);
+    }
+    if (confirmOnly) {
+      claimed.add(l);
+      const id = String(l.itemId || e.kind);
+      if (Number(l.quantity) !== Number(e.qty)) flags.push(`quantity:${id}`);
+      if (e.meat && meatOfLine(l) !== e.meat) flags.push(`meat:${id}`);
+      if (e.style && styleOfLine(l) !== e.style) flags.push(`style:${id}`);
+      continue;
+    }
     claimed.add(l); setLine(l, e, menu);
   }
-  if (shadow && process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY === "1") return true;
-  for (let i = cart.length - 1; i >= 0; i--) {
+  if (confirmOnly) { if (flags.length) (cart as any).readbackFlags = [...new Set(flags)]; }
+  else for (let i = cart.length - 1; i >= 0; i--) {
     const l = cart[i]; const k = kindOfLine(l); if (!k || claimed.has(l)) continue;
     const m = meatOfLine(l);
     if (keys.has(`${famOf(k)}:${m}`) || (!m && rb.lines.some((e) => famOf(e.kind) === famOf(k)))) cart.splice(i, 1);
@@ -1375,32 +1388,89 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
   }
   return changed;
 }
-/** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
-export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
+type ModelQty = { itemId: string; option?: string; before: number; after: number };
+const lineMeatKey = (line: any) => meatOfLine(line) || ((line?.modifiers || []).some((mod: any) => /pastor/i.test(String(mod.option || ""))) ? "alpastor" : null);
+function modelAlreadyApplied(turn: Turn, line: any): boolean {
+  const recs = ((turn as Turn & { modelQty?: ModelQty[] }).modelQty) || [];
+  return recs.some((rec) => {
+    if (String(rec.itemId || "") !== String(line.itemId || "") || !(rec.after > rec.before)) return false;
+    if (Number(line.quantity) < rec.after) return false;
+    const said = rec.option ? (meatIn(rec.option) || (/pastor/i.test(rec.option) ? "alpastor" : null)) : null;
+    return !said || said === lineMeatKey(line);
+  });
+}
+function meatModifier(menu: any[], itemId: string, meat: string): { step: string; option: string } | null {
+  const item = (menu || []).find((row) => row?.id === itemId);
+  for (const group of item?.modifierGroups || []) {
+    if (!/carne|meat/i.test(String(group.name || ""))) continue;
+    for (const choice of group.options || []) {
+      const name = typeof choice === "string" ? choice : choice?.name;
+      const key = meatIn(name) || (/pastor/i.test(String(name || "")) ? "alpastor" : null);
+      if (key === meat) return { step: group.name, option: name };
+    }
+  }
+  return null;
+}
+/** A trailing más, plus, or otro introduces the next item. It means "more of this line" only when the request ends there. */
+function addNamedAfterMore(cart: any[], text: string, turn: Turn, menu: any[]): boolean {
   let changed = false;
-  const lead = "another|otros|otras|otra|otro";
-  const extra = "mas|more|another|otros|otras|otra|otro";
+  if (/\b(?:mas|plus)\s+(?:un[oa]?|a|an|one|1)?\s*(?:coca(?:\s+cola)?|coke)\b/.test(text)) {
+    const coke = (menu || []).find((row) => /^sq-drink-coca-cola-/.test(String(row?.id || "")));
+    const id = coke?.id || "sq-drink-coca-cola-JJE4KC";
+    const line = cart.find((row) => String(row.itemId || "") === id);
+    if (!(line && modelAlreadyApplied(turn, line))) {
+      if (line) line.quantity = (Number(line.quantity) || 0) + 1;
+      else cart.push({ itemId: id, quantity: 1, modifiers: [] });
+      changed = true;
+    }
+  }
+  const other = text.match(/\b(?:otro|otra|another)(?:\s+(?:one|un|una))?\s+(?:de|of)\s+([a-z]+)\b/);
+  const meat = other ? meatIn(other[1]) : null;
+  if (meat) {
+    const lines = cart.filter((line) => /^sq-taco-/.test(String(line.itemId || "")) && lineMeatKey(line) === meat);
+    if (lines.length === 1 && !modelAlreadyApplied(turn, lines[0])) { lines[0].quantity = (Number(lines[0].quantity) || 0) + 1; changed = true; }
+    else if (!lines.length) {
+      const sib = cart.find((line) => /^sq-taco-/.test(String(line.itemId || "")));
+      const itemId = sib?.itemId || "sq-taco-TAR7L5";
+      const mod = meatModifier(menu, itemId, meat);
+      if (mod) {
+        const tortilla = (sib?.modifiers || []).filter((row: any) => /tortilla/i.test(String(row.step || "")) && !/carne|meat/i.test(String(row.step || "")));
+        cart.push({ itemId, quantity: 1, modifiers: [...tortilla, mod] });
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+/** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
+export function applyLineScopedQuantity(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+  let changed = false;
+  const lead = "mas|more|another|otros|otras|otra|otro";
+  const extra = "mas|more|plus|another|otros|otras|otra|otro";
   const re = new RegExp(`\\b(?:(${lead})\\s+)?(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)(?:\\s+(${extra}))?`, "g");
   for (const turn of turns) {
-    if (turn.speaker !== "caller" || meatSplitCounts(turn.text).length >= 2) continue;
+    if (turn.speaker !== "caller") continue;
     const text = plain(turn.text);
     if (/^(?:nada mas|algo mas|nothing more|anything else)$/.test(text)) continue;
-    for (const match of text.matchAll(re)) {
-      if (/^(?:y|con|and)\b/.test(text.slice((match.index || 0) + match[0].length).trim())) continue;
+    if (meatSplitCounts(turn.text).length < 2) for (const match of text.matchAll(re)) {
+      const rest = text.slice((match.index || 0) + match[0].length).trim();
+      if (/^(?:y|con|and)\b/.test(rest)) continue;
       const qty = numOf(match[2]);
-      const additive = !!(match[1] || match[3] || match[5] || match[7]);
+      const trailing = !!match[7];
+      const additive = !!(match[1] || match[3] || match[5] || (trailing && !rest));
       const kind = kindRe(match[4]);
       const meat = meatIn(match[6]);
       if (!qty || !kind || !meat) continue;
-      const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && (line.modifiers || []).some((mod: any) => meatIn(plain(String(mod.option || ""))) === meat));
+      const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && lineMeatKey(line) === meat);
       if (lines.length !== 1) continue;
       if (additive) {
-        if (Number(lines[0].quantity) > qty) continue;
+        if (modelAlreadyApplied(turn, lines[0])) continue;
         lines[0].quantity = (Number(lines[0].quantity) || 0) + qty;
-      } else if (Number(lines[0].quantity) !== qty) lines[0].quantity = qty;
+      } else if (!trailing && Number(lines[0].quantity) !== qty) lines[0].quantity = qty;
       else continue;
       changed = true;
     }
+    if (addNamedAfterMore(cart, text, turn, menu)) changed = true;
   }
   return changed;
 }

@@ -3837,7 +3837,27 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const merged0 = turns;
   let wrapUp = false; // rich1: staff goodbye / pickup ETA — later caller chatter never re-prompts
   let intentPending: any = null;
+  const meatOptOf = (line: any) => String((line?.modifiers || []).find((mod: any) => /carne|meat/i.test(String(mod?.step || "")) || /bistec|chorizo|pastor|pollo|carnitas|tripa|lengua|cabeza|suadero/i.test(String(mod?.option || "")))?.option || "");
+  const snapQty = () => (cart as any[]).map((line) => ({ itemId: String(line.itemId || ""), option: meatOptOf(line), qty: Number(line.quantity) || 0 }));
+  let trackedQty: { turn: any; snap: Array<{ itemId: string; option: string; qty: number }> } | null = null;
+  const closeTrackedQty = () => {
+    if (!trackedQty) return;
+    const used = new Set<number>();
+    const recs: Array<{ itemId: string; option: string; before: number; after: number }> = [];
+    for (const line of cart as any[]) {
+      const option = meatOptOf(line);
+      const qty = Number(line.quantity) || 0;
+      const idx = trackedQty.snap.findIndex((row, at) => !used.has(at) && row.itemId === String(line.itemId || "") && row.option === option);
+      if (idx >= 0) {
+        used.add(idx);
+        if (qty > trackedQty.snap[idx].qty) recs.push({ itemId: String(line.itemId || ""), option, before: trackedQty.snap[idx].qty, after: qty });
+      } else if (qty > 0) recs.push({ itemId: String(line.itemId || ""), option, before: 0, after: qty });
+    }
+    if (recs.length) trackedQty.turn.modelQty = [...(trackedQty.turn.modelQty || []), ...recs];
+    trackedQty = null;
+  };
   for (let t of turns) {
+    if (t.speaker === "caller") { closeTrackedQty(); trackedQty = { turn: t, snap: snapQty() }; }
     // pedro3: "No, espérate" right after staff's bye reopens the order; staff answering food questions after an ETA does too.
     if (t.speaker === "caller" && wrapUp && RESUME_AFTER_BYE.test(t.text)) wrapUp = false;
     if (t.speaker !== "caller" && wrapUp && !WRAP_UP.test(t.text) && (FOOD.test(t.text) || listedMeats(t.text).length > 0)) wrapUp = false;
@@ -4915,6 +4935,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
   }
+  closeTrackedQty();
   await acceptOpen(lang0());
   for (const y of yesAdds) { // case1d
     const re = /frijol|bean/.test(y.what) ? /con frijoles|with beans/i : new RegExp(y.what, "i");
@@ -8089,7 +8110,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       applyRiceBeansSide(cart as any[], turns as any, menu); applyCremaOnSide(cart as any[], turns as any, menu); // aaron1
       applyCombinedRiceBeansSide(cart as any[], turns as any); // alicia1: combined side, not rice-only or a quesadilla shell
       applyRellenoOrder(cart as any[], turns as any, menu); dropMeatlessDup(cart as any[], menu); applyArbolSalsa(cart as any[], turns as any, menu);
-      applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applyLineScopedQuantity(cart as any[], turns as any); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu);
+      applyMeatBienDorada(cart as any[], turns as any); applySpokenCount(cart as any[], turns as any); applyLineScopedQuantity(cart as any[], turns as any, menu); applySolasVerduraAparte(cart as any[], turns as any, menu); applySideSize(cart as any[], turns as any, menu);
       applyMenudoSinPata(cart as any[], turns as any, menu); applySaidMeat(cart as any[], turns as any, menu); applyAsadosSide(cart as any[], turns as any, menu);
       { const ct = (turns as any[]).filter((t) => t.speaker === "caller").map((t) => String(t.text || "")); applyOrCount(cart as any[], ct); for (const t of ct) addEnumeratedMeats(cart as any[], t, menu); } // stephanie1
       applyMenudoHominy(cart as any[], turns as any); dropQdRegularTwin(cart as any[], turns as any); applyMenudo3Alex2(cart as any[], turns as any, menu); applyLuis3(cart as any[], turns as any, menu); applyReadbackCounts(cart as any[], turns as any); dropTortillaStyleAsk(cart as any[], turns as any); applyStatedDishTotal(cart as any[], turns as any); applyStaffRecap(cart as any[], turns as any, menu, true); affirmedStaffList = applyAffirmedStaffList(cart as any[], turns as any, menu); applyMarta1(cart as any[], turns as any, menu); applyAlex3(cart as any[], turns as any, menu); applySopesAsada(cart as any[], turns as any); applyBurritoSaid(cart as any[], turns as any); mergeReMentionedDrink(cart as any[], turns as any);  applyRelayOrders(cart as any[], turns as any, menu); addAskedJarrito(cart as any[], turns as any, menu); addAskedEsquite(cart as any[], turns as any, menu); applyLateTortillaChoice(cart as any[], turns as any, menu); applyQdRecap(cart as any[], turns as any, menu); applyBurritoMeatRepeat(cart as any[], turns as any, menu); applyEnglishMultiItem(cart as any[], turns as any, menu); applyMeatSplitQty(cart as any[], turns as any); applyExtraCarne(cart as any[], turns as any, menu); applyQdCorrection(cart as any[], turns as any); applyMenudoPata(cart as any[], turns as any); applyVerduraAparte(cart as any[], turns as any); applyConsomeSolo(cart as any[], turns as any); applyCoctelNotCeviche(cart as any[], turns as any); applyMenudoCountSinPata(cart as any[], turns as any); applyQuesadillaMeatSaid(cart as any[], turns as any); applyTacoMeatList(cart as any[], turns as any); applyTortillaPackDedupe(cart as any[], turns as any); applyTortaSaid(cart as any[], turns as any); applyQuesadillaCombo(cart as any[], turns as any); applyAguacateFull(cart as any[], turns as any, menu); applyQuesaAfterSoup(cart as any[], turns as any); applyMenudoSoloCaldo(cart as any[], turns as any, menu); applyRestatedQty(cart as any[], turns as any); applyStaffMenudo(cart as any[], turns as any); applyQBDecline(cart as any[], turns as any); applyFriedQuesadilla(cart as any[], turns as any); applyConsomeTotal(cart as any[], turns as any); applyBurritoFillings(cart as any[], turns as any); applyQdConTodo(cart as any[], turns as any); applyQuesadillaMasa(cart as any[], turns as any); applyStaffPreparadaYes(cart as any[], turns as any); applyAguaChica(cart as any[], turns as any); applyQdGroups(cart as any[], turns as any); applyCoctelPulpo(cart as any[], turns as any); applyMultiMeatGroup(cart as any[], turns as any, menu); applySaidDishMeat(cart as any[], turns as any, menu || []); applyQdCheeseSplit(cart as any[], turns as any); dropStaffGrandeBurrito(cart as any[], turns as any); applyBurritoGroupFillings(cart as any[], turns as any); applyNachosSaid(cart as any[], turns as any); capCartQty(cart as any[], turns as any); applyConfirmedReadback(cart as any[], turns as any, menu); /* carlos3 */ applyGuisadoChoice(cart as any[], turns as any, menu); /* pedro3 */ applyStaffCountEcho(cart as any[], turns as any); /* yoni1 */ foldPhantomComalMeat(cart as any[], (turns as any[]).filter((t: any) => t.speaker === "caller").map((t: any) => String(t.text))); /* sergio1 */ applyStaffDrinkConfirm(cart as any[], turns as any); /* josh3 */ applyStaffDoradaReadback(cart as any[], turns as any, (menu || []) as any[]); /* freddy2 */ applyMenudoCountConfirm(cart as any[], turns as any); /* jennifer1 */ dropDeclinedAsk(cart as any[], origTurns as any); applyMakeItNMerge(cart as any[], turns as any); applyExtraCounts(cart as any[], turns as any); /* nikki1 / jonathan2 */ applyComboSidesBoth(cart as any[], turns as any); dropUnchosenToppings(cart as any[], turns as any); /* adolfo2 */ applyGroupBlockCounts(cart as any[], turns as any); /* ronald2 */ dropUnsaidQuesoBirrias(cart as any[], turns as any); applyGorditaQueso(cart as any[], turns as any); dropGorditaReaddTwin(cart as any[], turns as any); /* jonathan1 */ applyStaffMeatCountEcho(cart as any[], turns as any); addSaidTorta(cart as any[], turns as any, (menu || []) as any[]); addSideFrijoles(cart as any[], turns as any, (menu || []) as any[]); /* cris1 */ } } // hominy1, dayana2; nicky1, cafa1, braulio1, christopher1, daniela1
@@ -8167,6 +8188,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const prior = new Set(affirmedStaffList.priorIds || []);
       affirmedStaffList.added = affirmedStaffList.added.filter((id) => ids.has(id) && !prior.has(id));
       delete affirmedStaffList.priorIds;
+    }
+    if (Array.isArray((cart as any).readbackFlags)) {
+      for (const flag of (cart as any).readbackFlags) if (!affirmedStaffList.flagged.includes(flag)) affirmedStaffList.flagged.push(flag);
+      if ((cart as any).readbackFlags.length) affirmedStaffList.fired = true;
+      delete (cart as any).readbackFlags;
     }
     if (affirmedStaffList.flagged.length) {
       noteCountedDiagnostic(affirmedStaffList.flagged.map((token) => {
