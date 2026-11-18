@@ -2009,6 +2009,54 @@ test("plain counts, a bare por favor, a dish before en total, and higher numbers
   }
 });
 
+test("menu dishes and the added count phrases flag", () => {
+  for (const said of [
+    "Tres pambazos en total.",
+    "Tres fajitas en total.",
+    "Tres nachos en total.",
+    "Tres chimichangas en total.",
+    "Tres combos en total.",
+    "Tres platillos en total.",
+    "Tres chilaquiles en total.",
+    "Tres horchatas en total.",
+    "Tres cocas en total.",
+    "Tres jarritos en total.",
+    "Tres órdenes en total.",
+    "Dame tres.",
+    "Dame otra.",
+    "Ponle tres.",
+    "Súbela a tres.",
+    "Bájale a tres.",
+    "Bájalo a tres.",
+    "Tres, porfa.",
+    "Tres, please.",
+    "Add another.",
+    "Remove two.",
+    "Take two off.",
+    "Give me another.",
+    "Three tacos in total.",
+    "Three total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+  const dollars = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "10 dollars en total." },
+  ];
+  assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

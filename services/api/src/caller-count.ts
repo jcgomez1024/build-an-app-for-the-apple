@@ -379,6 +379,33 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 }
 
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
+let cachedMenuDishes: string | null = null;
+function menuDishWords(): string {
+  if (cachedMenuDishes != null) return cachedMenuDishes;
+  const skip = new Set(["online", "ounce", "ounces", "pack", "meal", "size", "with", "your", "from", "that", "this", "plus", "only", "have", "been", "will", "they", "them", "than", "then", "when", "what", "into", "over", "also", "just", "like", "each", "both", "some", "more", "most", "such", "very", "full", "half", "dollars", "dollar", "pesos", "peso", "dolares", "dolar", "euros", "euro", "bucks", "buck", "centavos", "centavo", "total", "extra", "favor", "please", "porfa"]);
+  const found = new Set<string>();
+  const add = (token: string) => {
+    if (!/^[a-z][a-z0-9]+$/.test(token) || token.length < 4 || skip.has(token)) return;
+    found.add(token);
+    if (/s$/.test(token)) return;
+    found.add(/[aeiou]$/.test(token) ? `${token}s` : `${token}es`);
+  };
+  for (const token of "pambazo pambazos fajita fajitas nacho nachos chimichanga chimichangas combo combos platillo platillos chilaquile chilaquiles horchata horchatas coca cocas jarrito jarritos orden ordenes".split(" ")) add(token);
+  const items = catalog();
+  if (!items.length) return [...found].sort((a, b) => b.length - a.length).join("|");
+  for (const item of items) {
+    const aliases = Array.isArray(item?.aliases) ? item.aliases : [];
+    const nameWords = new Set(plain(`${item?.name || ""} ${item?.nameEs || ""}`).split(" ").filter((token) => token.length >= 4));
+    for (const token of nameWords) add(token);
+    for (const alias of aliases) {
+      const tokens = plain(String(alias || "")).split(" ").filter(Boolean);
+      const short = tokens.length <= 4;
+      for (const token of tokens) if (token.length >= 4 && (short || nameWords.has(token))) add(token);
+    }
+  }
+  cachedMenuDishes = [...found].sort((a, b) => b.length - a.length).join("|");
+  return cachedMenuDishes;
+}
 function countHint(text: string): boolean {
   const p = plain(text);
   const word = "dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|veintiuno|veintiun|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|ciento|cien|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
@@ -402,10 +429,25 @@ function countHint(text: string): boolean {
   if (hit(new RegExp(`\\bsubelo\\s+a\\s+(${any})\\b`, "i"))) return true;
   if (hit(new RegExp(`\\bpon\\s+(${any})\\b`, "i"))) return true;
   if (/\bdame\s+otro\b/.test(p)) return true;
+  if (hit(new RegExp(`\\bdame\\s+(${any})\\b`, "i"))) return true;
+  if (/\bdame\s+otra\b/.test(p)) return true;
   if (hit(new RegExp(`\\badd\\s+(${any})\\b`, "i"))) return true;
+  if (/\badd\s+another\b/.test(p)) return true;
+  if (hit(new RegExp(`\\bremove\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\btake\\s+(${any})\\s+off\\b`, "i"))) return true;
+  if (/\bgive\s+me\s+another\b/.test(p)) return true;
+  if (hit(new RegExp(`\\bponle\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bsubela\\s+a\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bbajale\\s+a\\s+(${any})\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\bbajalo\\s+a\\s+(${any})\\b`, "i"))) return true;
   if (new RegExp(`^(?:${any})\\s+por\\s+favor$`, "i").test(p)) return true;
-  const dish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
+  if (new RegExp(`^(?:${any})\\s+porfa$`, "i").test(p)) return true;
+  if (new RegExp(`^(?:${any})\\s+please$`, "i").test(p)) return true;
+  const legacyDish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
+  const dish = `${legacyDish}|${cachedMenuDishes ?? menuDishWords()}`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+in\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+total\\b`, "i"))) return true;
   return false;
 }
 function missedSideWords(text: string, keys: string[]): string[] {
