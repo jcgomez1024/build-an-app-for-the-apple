@@ -2085,6 +2085,50 @@ test("bowls, in total, a meat before en total, and porfavor flag", () => {
   }
 });
 
+test("both plural spellings and menu meats before en total flag", () => {
+  for (const said of [
+    "Tres sandwiches en total.",
+    "Tres dishes en total.",
+    "Tres minerales en total.",
+    "Tres platters en total.",
+    "Tres onions en total.",
+    "Tres orders en total.",
+    "Tres tacos de alpastor en total.",
+    "Tres tacos de al pastor en total.",
+    "Tres tacos de duro en total.",
+    "Tres tacos de nopales en total.",
+    "Tres tacos de huevo en total.",
+    "Tres tacos de vegetales en total.",
+    "Tres tacos de frijoles en total.",
+    "Tres tacos de arroz en total.",
+    "Tres tacos de queso en total.",
+    "Tres tacos de papas en total.",
+    "Tres tacos de rajas en total.",
+    "Tres tacos de mole en total.",
+    "Tres tacos de camarones en total.",
+    "Tres tacos de milanesa en total.",
+    "Tres tacos de pata en total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    assert.equal(callerSpokenQty(one, "taco", "bistec", ""), 2, said);
+    assert.equal(staffQuantity(one, "taco", "bistec", 2, 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    assert.equal(callerSpokenQty(two, "taco", "bistec", ""), 2, `two ${said}`);
+    assert.equal(staffQuantity(two, "taco", "bistec", 2, 2, "").flag, true, `two ${said}`);
+  }
+  const dollars = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "10 dollars en total." },
+  ];
+  assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
