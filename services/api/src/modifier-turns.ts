@@ -420,7 +420,32 @@ function catalogMeatKey(word: string): string {
   }
   if (compact === "alpastor" || folded === "al pastor" || compact === "pastor") return "pastor";
   for (const part of compoundForms(compact)) if (part === "pastor") return "pastor";
+  const canon = optionCanonOf(compact);
+  if (canon !== compact) return catalogMeatKey(canon);
   return compact;
+}
+let optionCanon: Map<string, string> | null = null;
+function optionCanonOf(compact: string): string {
+  if (!optionCanon) {
+    optionCanon = new Map();
+    try {
+      for (const item of frozenPhoneMenu()) for (const group of item?.modifierGroups || []) {
+        const name = String(group?.name || "");
+        if (!/carne|meat/i.test(name) || /salsa|tortilla|extra/i.test(name)) continue;
+        for (const option of group.options || []) {
+          const label = String(typeof option === "string" ? option : option?.name || "");
+          const heads: string[] = [];
+          for (const side of label.split("/")) {
+            const head = fold(side).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4 && !MEAT_WORD_SKIP.has(word) && !/^\d/.test(word));
+            if (head) heads.push(head.replace(/\s+/g, ""));
+          }
+          if (!heads.length) continue;
+          for (const head of heads) if (!optionCanon.has(head)) optionCanon.set(head, heads[0]);
+        }
+      }
+    } catch { /* frozen menu unavailable */ }
+  }
+  return optionCanon.get(compact) || compact;
 }
 function dishKey(word: string): string {
   return fold(word).replace(/s$/, "");
@@ -432,7 +457,18 @@ function countBesideMeat(part: string, meatWord: string): boolean {
   const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (!words.length) return false;
   const meat = words.join("|");
-  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b(?:\\s+(?:de|of))?\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
+  const gap = "(?:\\s*,)?(?:\\s+[a-z]+)?(?:\\s*,)?(?:\\s+(?:de|of))?";
+  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
+}
+function meatRefused(part: string, meatWord: string): boolean {
+  const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
+  const key = catalogMeatKey(meatWord);
+  const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!words.length) return false;
+  const meat = words.join("|");
+  const body = fold(part).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (new RegExp(`\\bno\\s+(?:de\\s+|of\\s+)(?:${meat})\\b`, "i").test(body)) return true;
+  return new RegExp(`\\b(?:de\\s+|of\\s+)?(?:${meat})\\s+no$`, "i").test(body);
 }
 function spokenLineKeys(text: string): string[] {
   const keys = new Set<string>();
@@ -465,12 +501,17 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
   const meatRe = lineMeatRe();
   for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
     const named = part.match(dishRe);
-    const meat = part.match(meatRe);
     if (named) dish = dishKey(named[1]);
-    const rejected = !named && /\bno\b/.test(part);
-    if (meat?.[1] && (named || dish) && !rejected) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-    else if (meat?.[1] && !rejected && countBesideMeat(part, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
-    else if (named) keys.push(`${dishKey(named[1])}|`);
+    const found = [...part.matchAll(new RegExp(meatRe.source, "giu"))];
+    if (!found.length) {
+      if (named) keys.push(`${dishKey(named[1])}|`);
+      continue;
+    }
+    for (const meat of found) {
+      if (!meat[1] || meatRefused(part, meat[1])) continue;
+      if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
+      else if (countBesideMeat(body, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
+    }
   }
   return { keys, dish };
 }

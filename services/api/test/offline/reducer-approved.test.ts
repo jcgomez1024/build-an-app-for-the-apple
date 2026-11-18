@@ -3,7 +3,7 @@ import test from "node:test";
 import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags, repeatLastFood } from "../../src/list-repair.ts";
 import { applyStaffOrderCount } from "../../src/readback-pass.ts";
 import { callerSpokenQty, peelAnother, staffQuantity } from "../../src/caller-count.ts";
-import { applyMakeItNMerge, lineMeatRe } from "../../src/modifier-turns.ts";
+import { applyMakeItNMerge, lineMeatRe, openLineKeys } from "../../src/modifier-turns.ts";
 import { isAbandonedOrder, isAbandonTurn } from "../../src/readback-pass.ts";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
@@ -1316,6 +1316,54 @@ test("a numbered que tal order keeps its count and still asks", async () => {
     { speaker: "caller", text: "Dos tacos de pollo, de bistec no." },
     { speaker: "caller", text: "Dos más." },
   ], "taco", "bistec", ""), null);
+  const topping = [
+    { speaker: "caller", text: "Dos tacos de pollo y uno de bistec no cebolla." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(topping, "taco", "pollo", ""), 2);
+  assert.deepEqual(staffQuantity(topping, "taco", "pollo", 4, 4, ""), { quantity: 2, flag: true });
+  const english = [
+    { speaker: "caller", text: "Two chicken tacos and one of steak no onion." },
+    { speaker: "caller", text: "Two more." },
+  ];
+  assert.equal(callerSpokenQty(english, "taco", "pollo", ""), 2);
+  assert.deepEqual(staffQuantity(english, "taco", "pollo", 4, 4, ""), { quantity: 2, flag: true });
+  const spicy = [
+    { speaker: "caller", text: "Dos tacos de pollo sin cebolla no picante." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(spicy, "taco", "pollo", ""), 4);
+  assert.deepEqual(staffQuantity(spicy, "taco", "pollo", 9, 9, ""), { quantity: 4, flag: true });
+  const swap = [
+    { speaker: "caller", text: "Dos tacos de chorizo." },
+    { speaker: "caller", text: "Uno de pollo no mejor de bistec." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(swap, "taco", "chorizo", ""), 2);
+  assert.deepEqual(staffQuantity(swap, "taco", "chorizo", 4, 4, ""), { quantity: 2, flag: true });
+  const topped = [
+    { speaker: "caller", text: "Tres tacos. Uno de bistec no cebolla." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.ok(openLineKeys(topped, 1).some((key) => key.endsWith("|bistec")));
+  for (const said of ["Dos órdenes de bistec.", "Dos, de bistec.", "Bistec, dos."]) {
+    assert.equal(callerSpokenQty([
+      { speaker: "caller", text: `${said} Una quesadilla de pollo.` },
+      { speaker: "caller", text: "Dos más." },
+    ], "quesadilla", "pollo", ""), 1, said);
+  }
+  const steakCart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 4, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] },
+  ];
+  for (const said of ["Four of steak.", "Ten steak."]) {
+    const turns = [
+      { speaker: "caller", text: `${said} One chicken quesadilla.` },
+      { speaker: "caller", text: "Two more." },
+    ];
+    assert.equal(callerSpokenQty(turns, "quesadilla", "pollo", "", steakCart), 1, said);
+    assert.deepEqual(staffQuantity(turns, "quesadilla", "pollo", 3, 3, "", steakCart), { quantity: 1, flag: true }, said);
+  }
 });
 
 test("a continued bistec and an alias are one open line", () => {
