@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { companionMeatOrders } from "../../src/list-repair.ts";
+import { applyCompanionMeats, companionMeatOrders } from "../../src/list-repair.ts";
+import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 import { nameFromTranscriptInfo } from "../../src/order-name.ts";
 import { bindModifier, dropUnavailableOnSwitch, quantityScoped, type ShadowLine } from "../../src/shadow-reducer.ts";
 
@@ -23,8 +24,19 @@ test("an unavailable item is dropped when the caller switches, EN and ES", () =>
   assert.equal(dropUnavailableOnSwitch(cart, ["sq-pozole"], "sq-pozole").length, 2);
 });
 
-test("X con Y both meats is pending Carlos", { skip: "pending Carlos: do not lock X con Y as both meats on a quesadilla" }, () => {
-  companionMeatOrders("Dos quesadillas de bistec con chorizo.");
+test("X con Y puts both meats on each quesadilla", () => {
+  const said = "Dos quesadillas de bistec con chorizo.";
+  assert.deepEqual(companionMeatOrders(said), [{ fam: "quesadilla", qty: 2, meats: ["bistec", "chorizo"] }]);
+  const cart = [
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  applyCompanionMeats(cart, [{ speaker: "caller", text: said }], frozenPhoneMenu());
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 2);
+  const options = (cart[0].modifiers || []).map((mod) => String(mod.option));
+  assert.equal(options.filter((option) => /bistec/i.test(option)).length, 1);
+  assert.equal(options.filter((option) => /chorizo/i.test(option)).length, 1);
 });
 
 test("goodbye and filler phrases are never names, EN and ES", () => {
