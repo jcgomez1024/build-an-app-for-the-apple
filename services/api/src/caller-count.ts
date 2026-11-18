@@ -306,7 +306,11 @@ function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
     } else copied = false;
     const made = makeItN(raw);
     if (made && !dishIn(made.tail) && !meatIn(made.tail) && open && !ambiguousMakeIt(turns, ti)) {
-      if (lastMeat) put(open, openStyle, lastMeat, made.n);
+      const keys = openLineKeys(turns, ti);
+      const only = keys.length === 1 ? keys[0].split("|") : null;
+      const lineMeat = only?.[1] ? meatIn(only[1]) || only[1] : "";
+      if (only && (only[0] || open) && lineMeat) put(only[0] || open, openStyle, lineMeat, made.n);
+      else if (lastMeat) put(open, openStyle, lastMeat, made.n);
       else put(open, openStyle || "", "", made.n);
     }
     const parts: Part[] = [];

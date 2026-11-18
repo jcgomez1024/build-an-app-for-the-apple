@@ -463,7 +463,19 @@ function countBesideMeat(part: string, meatWord: string): boolean {
   if (!words.length) return false;
   const meat = words.join("|");
   const gap = "(?:\\s*,)?(?:\\s+(?:orden(?:es)?|platos?|tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|orders?|plates?))?(?:\\s*,)?(?:\\s+(?:de|of))?";
-  return new RegExp(`(?<!\\blas\\s)\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
+  let text = fold(part);
+  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos\b/g, " ");
+  text = text.replace(/\blas\s+dos\s+(?:de\s+la\s+tarde|en\s+punto)\b/g, " ");
+  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(text);
+}
+function fillingJoin(part: string, meats: RegExpMatchArray[]): boolean {
+  if (meats.length < 2 || !/\b(?:con|with)\b|\bmitad\b.+\bmitad\b/i.test(part)) return false;
+  const between = part.slice((meats[0].index || 0) + meats[0][0].length, meats[meats.length - 1].index);
+  const link = between.search(/\b(?:con|with)\b/i);
+  const after = (link >= 0 ? between.slice(link) : between).replace(/\b(?:con|with|mitad)\b/gi, " ");
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(after)) return false;
+  if (new RegExp(`\\b(?:${BESIDE_COUNT})\\b`, "iu").test(after)) return false;
+  return true;
 }
 function meatRefused(part: string, meatWord: string): boolean {
   const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
@@ -508,7 +520,7 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
     const named = part.match(dishRe);
     if (named) dish = dishKey(named[1]);
     let found = [...part.matchAll(new RegExp(meatRe.source, "giu"))];
-    if (found.length > 1 && /\b(?:con|with)\b|\bmitad\b.+\bmitad\b/i.test(part)) found = [found[0]];
+    if (fillingJoin(part, found)) found = [found[0]];
     if (!found.length) {
       if (named) keys.push(`${dishKey(named[1])}|`);
       continue;
