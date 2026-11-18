@@ -379,6 +379,10 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 }
 
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
+function countHint(text: string): boolean {
+  const p = plain(text);
+  return /\b(?:dos|two)\s+extra\b|\bagregale\s+dos\b|\bsubele\s+a\s+tres\b|\btres\s+en\s+total\b|\buno\s+menos\b|\bquitale\s+uno\b|\bponle\s+otro\b|\blets?\s+do\s+three\b|\blet\s+s\s+do\s+three\b/.test(p);
+}
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];
   for (const part of plain(text).split(/\s+y\s+|\s+and\s+/).slice(1)) {
@@ -428,6 +432,7 @@ function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boole
       if (turns[j]?.speaker && turns[j].speaker !== "caller") continue;
       missedBefore.push(...missedSideWords(plain(String(turns[j].text || "")), keys));
     }
+    if (countHint(plain(text))) for (const key of keys) pending.add(key);
     if (!(ambiguousMakeIt(turns, i) || ambiguousMore(turns, i) || (bareCount && (missedHere.length || missedBefore.length)))) continue;
     for (const key of keys) pending.add(key);
     for (const word of [...missedHere, ...missedBefore]) missed.add(word);

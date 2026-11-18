@@ -1716,6 +1716,23 @@ test("a time plus a meat stays open beside the next dish", () => {
   assert.equal(staffQuantity(missed, "memela", "", 1, 1, "").flag, true);
 });
 
+test("extra count phrases flag and do not change the quantity", () => {
+  for (const said of ["Dos extra.", "Agrégale dos.", "Súbele a tres.", "Tres en total.", "Uno menos.", "Quítale uno.", "Ponle otro.", "Two extra.", "Let's do three."]) {
+    const base = [{ speaker: "caller", text: "Dos tacos de bistec." }];
+    const turns = [...base, { speaker: "caller", text: said }];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, true, said);
+  }
+  const two = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Dos extra." },
+    { speaker: "caller", text: "Y una coca." },
+  ];
+  assert.equal(callerSpokenQty(two, "taco", "bistec", ""), 2);
+  assert.equal(staffQuantity(two, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(two, "coca", "", 1, 1, "").flag, false);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
