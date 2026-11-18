@@ -1375,19 +1375,22 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
   let changed = false;
-  const re = new RegExp(`\\b(${NUMW})\\s+(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}\\s+(?:de|of)\\s+([a-z]+)`, "g");
+  const extra = "mas|more|otros|otras|otra|otro";
+  const re = new RegExp(`\\b(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)`, "g");
   for (const turn of turns) {
     if (turn.speaker !== "caller" || meatSplitCounts(turn.text).length >= 2) continue;
     const text = plain(turn.text);
     for (const match of text.matchAll(re)) {
       if (/^(?:y|con|and)\b/.test(text.slice((match.index || 0) + match[0].length).trim())) continue;
       const qty = numOf(match[1]);
-      const kind = kindRe(match[2]);
-      const meat = meatIn(match[3]);
+      const additive = !!(match[2] || match[4]);
+      const kind = kindRe(match[3]);
+      const meat = meatIn(match[5]);
       if (!qty || !kind || !meat) continue;
       const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && (line.modifiers || []).some((mod: any) => meatIn(plain(String(mod.option || ""))) === meat));
-      if (lines.length !== 1 || Number(lines[0].quantity) === qty) continue;
-      lines[0].quantity = qty;
+      if (lines.length !== 1) continue;
+      if (!additive && Number(lines[0].quantity) === qty) continue;
+      lines[0].quantity = additive ? (Number(lines[0].quantity) || 0) + qty : qty;
       changed = true;
     }
   }
@@ -2956,6 +2959,7 @@ function applyParsedStaffList(cart: any[], turns: Turn[], menu: any[], result: A
     const callerSame = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat === line.meat);
     const callerOther = callerSaid.filter((said) => famOf(said.kind) === famOf(line.kind) && said.meat && said.meat !== line.meat);
     const existingSame = cart.filter((item) => sameFamily(item, line) && meatOfLine(item) === line.meat);
+    const callerStyle = [...callerSame].reverse().find((said) => said.style)?.style;
     const retracted = laterMeat ? laterMeat !== line.meat : (/\b(?:quita|no quiero)\b/.test(laterCaller) && laterCaller.includes(line.kind));
     if (retracted || (callerOther.length && !callerSame.length)) {
       const kept = existingSame[0] || cart.find((item) => sameFamily(item, line) && meatOfLine(item) === (laterMeat || callerOther[0]?.meat)) || cart.find((item) => sameFamily(item, line));
@@ -2965,7 +2969,6 @@ function applyParsedStaffList(cart: any[], turns: Turn[], menu: any[], result: A
     if (existingSame.length) {
       const item = existingSame[0];
       const callerQty = callerSame.length ? callerSame[callerSame.length - 1].qty : undefined;
-      const callerStyle = [...callerSame].reverse().find((said) => said.style)?.style;
       const have = styleOfLine(item);
       if ((callerQty != null && line.qty !== callerQty) || (callerQty == null && (Number(item.quantity) || 1) !== line.qty)) result.flagged.push(`quantity:${item.itemId}`);
       if ((callerStyle && line.style && callerStyle !== line.style) || (!callerStyle && have && line.style && have !== line.style)) result.flagged.push(`style:${item.itemId}`);
@@ -2974,6 +2977,7 @@ function applyParsedStaffList(cart: any[], turns: Turn[], menu: any[], result: A
     const created: any = { itemId: "", quantity: line.qty, modifiers: [] };
     setLine(created, line, menu);
     if (!created.itemId) continue;
+    if (callerStyle && line.style && callerStyle !== line.style) result.flagged.push(`style:${created.itemId}`);
     cart.push(created);
     result.added.push(String(created.itemId));
   }

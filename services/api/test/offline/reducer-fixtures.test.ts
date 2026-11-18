@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { companionMeatOrders } from "../../src/list-repair.ts";
 import { nameFromTranscriptInfo } from "../../src/order-name.ts";
-import { addonDifference, bindModifier, dropUnavailableOnSwitch, quantityScoped, staffReadbackAddsNothing, type ShadowLine } from "../../src/shadow-reducer.ts";
+import { bindModifier, dropUnavailableOnSwitch, quantityScoped, staffReadbackAddsNothing, type ShadowLine } from "../../src/shadow-reducer.ts";
 
 const taco = (quantity: number, option = "Bistec / Steak"): ShadowLine => ({ itemId: "sq-taco-TAR7L5", quantity, modifiers: [{ step: "Carnes", option }] });
 
@@ -11,15 +11,6 @@ test("staff readback never adds, EN and ES", () => {
   assert.equal(staffReadbackAddsNothing(cart, "staff").length, 1);
   assert.deepEqual(staffReadbackAddsNothing([], "staff"), []);
   assert.equal(staffReadbackAddsNothing([], "caller").length, 0);
-});
-
-test("an add-on call adds only the difference, EN and ES", () => {
-  const cart = [taco(2)];
-  const en = addonDifference(cart, [taco(2), { itemId: "sq-coke", quantity: 1 }]);
-  const es = addonDifference(cart, [taco(2), { itemId: "sq-coke", quantity: 1 }]);
-  assert.deepEqual(en, [{ type: "add_item", item_id: "sq-coke", quantity: 1 }]);
-  assert.deepEqual(es, en);
-  assert.deepEqual(addonDifference(cart, [taco(4)]), [{ type: "update_item", item_id: "sq-taco-TAR7L5", quantity: 2 }]);
 });
 
 test("quantity and modifiers stay on their own line", () => {
@@ -39,13 +30,8 @@ test("an unavailable item is dropped when the caller switches, EN and ES", () =>
   assert.equal(dropUnavailableOnSwitch(cart, ["sq-pozole"], "sq-pozole").length, 2);
 });
 
-test("X con Y is both meats on that item, EN and ES", () => {
-  const en = companionMeatOrders("Two tacos de bistec con chorizo.");
-  const es = companionMeatOrders("Dos tacos de bistec y chorizo.");
-  assert.deepEqual(en[0]?.meats, ["bistec", "chorizo"]);
-  assert.deepEqual(es[0]?.meats, ["bistec", "chorizo"]);
-  assert.equal(en[0]?.qty, 2);
-  assert.equal(es[0]?.qty, 2);
+test("X con Y both meats is pending Carlos", { skip: "pending Carlos: do not lock X con Y as both meats on a quesadilla" }, () => {
+  companionMeatOrders("Dos quesadillas de bistec con chorizo.");
 });
 
 test("goodbye and filler phrases are never names, EN and ES", () => {

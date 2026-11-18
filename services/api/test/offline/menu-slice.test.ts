@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { approxTokens, cartActionSchema, fewShotBlock, fullCatalogPrompt, loadSyntheticFewShots, promptCatalog, sliceMenu, validateCartActions, type CatalogItem, type SyntheticTurn } from "../../src/menu-slice.ts";
 
 const bistec = { id: "bistec-taco", name: "Bistec / Steak" };
@@ -72,6 +73,14 @@ test("style words from the catalog rank a plain taco above a dorada", () => {
   });
   assert.ok(dorados.matched.some((item) => item.id === "sq-dorados"));
   assert.equal(dorados.matched.some((item) => item.id === "sq-taco-TAR7L5"), false);
+});
+
+test("every few-shot id is on the freeze menu", () => {
+  const menu = JSON.parse(readFileSync("/tmp/menu-freeze-preflight/catalog/menu.json", "utf8"));
+  for (const turn of loadSyntheticFewShots()) {
+    const result = validateCartActions(turn.actions, menu);
+    assert.equal(result.ok, true, `${turn.id} ${JSON.stringify(result)}`);
+  }
 });
 
 test("few-shot uses verified synthetic rows and the approved cap of 3", () => {

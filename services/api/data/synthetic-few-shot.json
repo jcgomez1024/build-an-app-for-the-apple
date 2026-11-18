@@ -5,7 +5,7 @@
     "verified": true,
     "language": "en",
     "utterance": "Two steak tacos.",
-    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["bistec-taco"] }]
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["P4TER6IY5EV74ELEVWYZGKFQ"] }]
   },
   {
     "id": "syn-es-dos-tacos",
@@ -13,7 +13,7 @@
     "verified": true,
     "language": "es",
     "utterance": "Dos tacos de bistec.",
-    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["bistec-taco"] }]
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["P4TER6IY5EV74ELEVWYZGKFQ"] }]
   },
   {
     "id": "syn-en-add-coke",
@@ -22,7 +22,7 @@
     "language": "en",
     "utterance": "And a coke.",
     "cart": [{ "itemId": "sq-taco-TAR7L5" }],
-    "actions": [{ "type": "add_item", "item_id": "sq-coke", "quantity": 1 }]
+    "actions": [{ "type": "add_item", "item_id": "sq-drink-coca-cola-JJE4KC", "quantity": 1 }]
   },
   {
     "id": "syn-es-y-coca",
@@ -31,7 +31,7 @@
     "language": "es",
     "utterance": "Y una coca.",
     "cart": [{ "itemId": "sq-taco-TAR7L5" }],
-    "actions": [{ "type": "add_item", "item_id": "sq-coke", "quantity": 1 }]
+    "actions": [{ "type": "add_item", "item_id": "sq-drink-coca-cola-JJE4KC", "quantity": 1 }]
   },
   {
     "id": "syn-en-gordita",
