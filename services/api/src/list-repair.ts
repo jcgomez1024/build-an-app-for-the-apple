@@ -1378,8 +1378,9 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
   let changed = false;
+  const lead = "another|otros|otras|otra|otro";
   const extra = "mas|more|another|otros|otras|otra|otro";
-  const re = new RegExp(`\\b(?:(${extra})\\s+)?(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)(?:\\s+(${extra}))?`, "g");
+  const re = new RegExp(`\\b(?:(${lead})\\s+)?(${NUMW})\\s+(?:(${extra})\\s+)?(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}(?:\\s+(${extra}))?\\s+(?:de|of)\\s+([a-z]+)(?:\\s+(${extra}))?`, "g");
   for (const turn of turns) {
     if (turn.speaker !== "caller" || meatSplitCounts(turn.text).length >= 2) continue;
     const text = plain(turn.text);

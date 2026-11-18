@@ -56,6 +56,16 @@ test("otros dos and a trailing más add, EN and ES", () => {
   assert.equal(esTrail[0].quantity, 4);
 });
 
+test("a leading más does not add again to a line the cart already has", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
+  ];
+  applyLineScopedQuantity(cart, [{ speaker: "caller", text: "Más un taco de harina de pollo." }]);
+  assert.equal(cart[0].quantity, 2);
+  assert.equal(cart[1].quantity, 1);
+});
+
 test("nada más and anything else change nothing", () => {
   const line = () => ({ itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] });
   for (const text of ["Nada más.", "Algo más.", "Nothing more.", "Anything else."]) {
