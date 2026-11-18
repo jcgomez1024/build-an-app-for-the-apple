@@ -1,5 +1,5 @@
 // pedro3 (CA0afcaf19, Nov 1): modifier phrasing, staff-offered "X o Y" guisado choice, "sí, y con huevo picoso", resumed-after-bye.
-import { compoundForms } from "./menu-names.js";
+import { compoundForms, loadOptionAliases } from "./menu-names.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 type Turn = { speaker: string; text: string };
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
@@ -373,8 +373,8 @@ export function statedDishPutQty(turns: Turn[], noun: RegExp): number {
  *  become ONE line whose qty is N (a single line of 1 becomes 4; a 1 plus a second add of 4 collapse to one line of N). */
 const MEAT_WORD_SKIP = new Set(["option", "options", "carne", "meat", "with", "con", "and", "the", "extra", "beef", "pork", "roasted", "mexican", "shredded", "ground", "spicy", "pulled"]);
 let lineMeatPattern: RegExp | null = null;
-/** Capturing matcher built from catalog meat-group options. "alpastor" also matches "pastor" and "al pastor". */
-function lineMeatRe(): RegExp {
+/** Capturing matcher built from catalog meat-group options. "alpastor" also matches "pastor" and "al pastor". Spoken "asada" comes from the existing bistec alias. */
+export function lineMeatRe(): RegExp {
   if (lineMeatPattern) return lineMeatPattern;
   const words = new Set<string>();
   try {
@@ -396,6 +396,14 @@ function lineMeatRe(): RegExp {
         }
       }
     }
+    for (const row of loadOptionAliases()) {
+      const head = fold(String(row?.name || "").split("/")[0]).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4);
+      if (!head || !words.has(head)) continue;
+      for (const alias of row.aliases || []) {
+        const token = fold(String(alias)).replace(/[^a-z0-9 ]/g, " ").trim();
+        if (token.length >= 4) words.add(token);
+      }
+    }
   } catch { /* frozen menu unavailable */ }
   const alt = [...words].sort((a, b) => b.length - a.length).join("|");
   lineMeatPattern = alt ? new RegExp(`\\b(${alt})\\b`, "iu") : /$^/;
@@ -411,7 +419,7 @@ function spokenLineKeys(text: string): string[] {
     const named = part.match(dishRe);
     const meat = part.match(meatRe);
     if (named) dish = named[1];
-    if (meat?.[1] && (named || dish)) keys.add(`${dish}|${meat[1].toLowerCase()}`);
+    if (meat?.[1]) keys.add(`${named ? named[1] : dish}|${meat[1].toLowerCase()}`);
     else if (named) keys.add(`${named[1]}|`);
   }
   return [...keys];
@@ -424,15 +432,39 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
   if (!made) return false;
   const tail = fold(made.tail);
   if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || lineMeatRe().test(tail)) return false;
-  let keys = spokenLineKeys(turn.text);
-  if (!keys.length) {
+  const bare = /\bque\s+sean\b/.test(fold(turn.text)) && !/\bmejor\b/.test(fold(turn.text));
+  const keys = new Set(spokenLineKeys(turn.text));
+  if (bare) for (const key of openLineKeys(turns, index)) keys.add(key);
+  else if (!keys.size) {
     for (let j = index - 1; j >= 0; j--) {
       if (turns[j].speaker && turns[j].speaker !== "caller") continue;
-      keys = spokenLineKeys(turns[j].text);
+      for (const key of spokenLineKeys(turns[j].text)) keys.add(key);
       break;
     }
   }
-  return keys.length > 1;
+  return keys.size > 1;
+}
+export function openLineKeys(turns: Turn[], index: number): string[] {
+  const keys = new Set<string>();
+  for (let j = index - 1; j >= 0; j--) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    for (const key of spokenLineKeys(turns[j].text)) keys.add(key);
+  }
+  return [...keys];
+}
+/** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
+export function ambiguousMore(turns: Turn[], index: number): boolean {
+  const turn = turns[index];
+  if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
+  const p = fold(turn.text).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (!/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\s+mas(?:\s+por\s+favor|\s+please)?$/.test(p)) return false;
+  return openLineKeys(turns, index).length > 1;
+}
+export function moreWhichDish(text: string, language: "es" | "en"): string {
+  const word = (fold(text).match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\b/) || [])[1] || "dos";
+  const es: Record<string, string> = { uno: "Uno", una: "Una", un: "Uno", dos: "Dos", tres: "Tres", cuatro: "Cuatro", cinco: "Cinco", otro: "Otro", otra: "Otra" };
+  const en: Record<string, string> = { one: "One", two: "Two", three: "Three", otro: "Another", otra: "Another", another: "Another", un: "One", una: "One", uno: "One" };
+  return language === "en" ? `${en[word] || word} more of which dish?` : `¿${es[word] || word} más de cuál platillo?`;
 }
 export function makeItWhichDish(text: string, language: "es" | "en"): string {
   const n = makeItN(text)?.n || 2;

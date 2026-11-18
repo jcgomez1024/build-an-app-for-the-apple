@@ -1482,7 +1482,7 @@ function statedTortilla(text: string, item: any): { step: string; option: string
 export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string; rest: string } | null {
   const request = peelAnother(text);
   if (!request) return null;
-  if (request.cancel) return { reply: "Ok.", rest: "" };
+  if (request.cancel) return { reply: "Ok.", rest: request.rest };
   const said = request.said;
   const ask = language === "en"
     ? `Another ${said} of which dish?`

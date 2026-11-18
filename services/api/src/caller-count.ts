@@ -5,7 +5,7 @@
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
 import { compoundForms } from "./menu-names.js";
-import { ambiguousMakeIt, makeItN } from "./modifier-turns.js";
+import { ambiguousMakeIt, ambiguousMore, makeItN } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
 type Turn = { speaker?: string; text?: string };
@@ -148,6 +148,19 @@ function askedCounts(turns: Turn[]): Asked[] {
   }
   return out;
 }
+const OTRA_CANCEL = /\b(no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b/;
+/** A turn that is only a cancel, or a cancel with a remainder. Null when it is not a cancel. */
+export function leadingCancel(text: string): string | null {
+  const match = plain(text).match(/^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b\s*(.*)$/);
+  return match ? match[1].replace(/^(?:y\s+)/, "").trim() : null;
+}
+function nextCallerCancels(turns: Turn[], index: number): boolean {
+  for (let j = index + 1; j < turns.length; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    return leadingCancel(String(turns[j].text || "")) !== null;
+  }
+  return false;
+}
 /** The leading otra/otro/another clause, only when de, a dish, or a known meat follows. The rest of the turn stays separate. */
 export function peelAnother(text: string): { dish: string | null; meat: string | null; said: string; rest: string; cancel?: boolean } | null {
   const cleaned = plain(text).replace(/\b(?:por favor|please)\b/g, " ").replace(/[,]+/g, " ").replace(/\s+/g, " ").trim();
@@ -156,7 +169,11 @@ export function peelAnother(text: string): { dish: string | null; meat: string |
   if (!opened) return null;
   let tail = opened[1].trim();
   if (/\blo mismo\b|\bthe same\b/.test(cleaned)) return null;
-  if (/\bno\s+mejor\s+no\b/.test(cleaned)) return { dish: null, meat: null, said: "", rest: "", cancel: true };
+  const cancel = cleaned.match(OTRA_CANCEL);
+  if (cancel) {
+    const rest = cleaned.slice((cancel.index || 0) + cancel[0].length).replace(/^(?:\s*y\s+|\s+)/, "").trim();
+    return { dish: null, meat: null, said: "", rest, cancel: true };
+  }
   if (/^(?:mas|more)$/.test(tail)) return null;
   if (/^(?:mas|more)\s+/.test(tail)) {
     const after = tail.replace(/^(?:mas|more)\s+/, "");
@@ -234,12 +251,14 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     let p = plain(raw);
     if (!p) continue;
     const otra = peelAnother(p);
-    if (otra?.cancel) continue;
-    if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:otra|otro|another)\s+(?:mas|more)$/.test(p) && open && lastMeat) {
+    if (otra?.cancel) {
+      if (!otra.rest) continue;
+      p = otra.rest;
+    } else if (ambiguousMore(turns, ti)) continue;
+    else if (/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:otra|otro|another)\s+(?:mas|more)(?:\s+por favor|\s+please)?$/.test(p) && open && lastMeat && !nextCallerCancels(turns, ti)) {
       add(open, openStyle, lastMeat, 1);
       continue;
-    }
-    if (otra?.meat) {
+    } else if (otra?.meat && !nextCallerCancels(turns, ti)) {
       const dish = otra.dish || open;
       if (dish) {
         const head = otra.rest ? p.slice(0, Math.max(0, p.lastIndexOf(otra.rest))) : p;

@@ -11,7 +11,8 @@ import { applyConfirmedReadback } from "./readback-rebuild.js";
 import { dropUnsaidQuesoBirrias, applyGorditaQueso, dropGorditaReaddTwin } from "./gordita-queso.js";
 import { applyGroupBlockCounts } from "./group-blocks.js";
 import { applyComboSidesBoth, dropUnchosenToppings, fixArrozStt } from "./combo-sides.js";
-import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty, ambiguousMakeIt, makeItWhichDish } from "./modifier-turns.js";
+import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty, ambiguousMakeIt, makeItWhichDish, ambiguousMore, moreWhichDish } from "./modifier-turns.js";
+import { leadingCancel } from "./caller-count.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
@@ -3610,6 +3611,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     return r;
   };
   let last: any = null;
+  let otraLine: any = null;
   let autoAccepted = false;
   const containers: ContainerPlan = { breaks: [], splits: [], phrases: [] };
   let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
@@ -3858,7 +3860,24 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   for (let t of turns) {
     const turnAt = turns.indexOf(t);
-    if (t.speaker === "caller") { closeTrackedQty(); trackedQty = { turn: t, snap: snapQty() }; }
+    if (t.speaker === "caller") {
+      closeTrackedQty();
+      const undone = leadingCancel(t.text);
+      if (undone !== null && otraLine) {
+        const idx = (cart as any[]).indexOf(otraLine);
+        if (idx >= 0) cart.splice(idx, 1);
+        otraLine = null;
+        if (!undone) {
+          const reply = "Ok.";
+          last = { actions: [], reply, language: t.language };
+          steps.push({ source: "another-cancel", heard: t.text, reply, language: t.language });
+          history.push({ role: "customer", text: t.text }, { role: "assistant", text: reply });
+          continue;
+        }
+        t = { ...t, text: undone };
+      } else if (undone === null) otraLine = null;
+      trackedQty = { turn: t, snap: snapQty() };
+    }
     // pedro3: "No, espérate" right after staff's bye reopens the order; staff answering food questions after an ETA does too.
     if (t.speaker === "caller" && wrapUp && RESUME_AFTER_BYE.test(t.text)) wrapUp = false;
     if (t.speaker !== "caller" && wrapUp && !WRAP_UP.test(t.text) && (FOOD.test(t.text) || listedMeats(t.text).length > 0)) wrapUp = false;
@@ -4617,6 +4636,13 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       }
     }
     // "que sean dos" with more than one line in this turn or the last one: ask which dish, and do not guess.
+    if (t.speaker === "caller" && ambiguousMore(turns as any, turnAt) && !FOOD.test(t.text)) {
+      const reply = moreWhichDish(t.text, t.language === "en" ? "en" : "es");
+      last = { actions: [], reply, language: t.language };
+      steps.push({ source: "which-dish-count", heard: t.text, reply, language: t.language });
+      history.push({ role: "customer", text: t.text }, { role: "assistant", text: reply });
+      continue;
+    }
     if (t.speaker === "caller" && ambiguousMakeIt(turns as any, turnAt) && !FOOD.test(t.text)) {
       const reply = makeItWhichDish(t.text, t.language === "en" ? "en" : "es");
       last = { actions: [], reply, language: t.language };
@@ -4918,7 +4944,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         piece = cleanPhrase(sp.rest) || piece;
       }
       const anotherMenu = await loadIntentMenu();
+      const beforeAnother = cart.length;
       const another = repeatLastFood(cart as any[], piece, anotherMenu, t.language === "en" ? "en" : "es");
+      if (cart.length > beforeAnother) otraLine = cart[cart.length - 1];
       if (another) {
         steps.push({ source: "another-of-last", heard: piece, reply: another.reply, language: t.language });
         history.push({ role: "customer", text: piece }, { role: "assistant", text: another.reply });

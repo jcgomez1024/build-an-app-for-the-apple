@@ -621,9 +621,23 @@ const ABANDON_RE = /\bno\s+(?:quiero|queremos|voy\s+a\s+(?:querer|pedir|ordenar)
 const DONE_RE = /\b(?:(?:es|ser[ií]a|seria)\s+todo|nada\s+m[aá]s|eso\s+es\s+todo|that'?s\s+(?:it|all))\b/iu;
 const ORDER_AGAIN = /\b(?:me\s+(?:da|das|pones|puede[sn]?\s+dar)|deme|d[eé]me|dame|ponme|p[oó]ngame|(?<!no\s)quiero|(?<!no\s)quisiera|give\s+me|can\s+i\s+(?:get|have)|i'?ll\s+(?:have|take)|(?<!don'?t\s)i\s+want)\b/iu;
 const WRAP_UP = /\b(?:a\s+qu[eé]\s+nombre|nombre\s+(?:para|de\s+la\s+orden)|your\s+name|name\s+for\s+the\s+order|ser[ií]an?\s+\$?\d|\d+\s+d[oó]lares|total\s+(?:es|is|ser[ií]a)|(?:quince|veinte|diez|\d+)\s+minutos|minutes)\b/iu;
-export function isAbandonTurn(text: string): boolean { const t = String(text || ""); return ABANDON_RE.test(t) && !DONE_RE.test(t); }
+export function isAbandonTurn(text: string): boolean {
+  const t = String(text || "");
+  if (!ABANDON_RE.test(t) || DONE_RE.test(t)) return false;
+  const hit = t.match(ABANDON_RE);
+  const after = hit && hit.index != null ? t.slice(hit.index + hit[0].length) : "";
+  if (/\b(?:un|una|uno|dos|tres|one|two|three|\d+)\s+de\s+\p{L}/iu.test(after)) return false;
+  return true;
+}
 export function isAbandonedOrder(turns: Array<{ speaker: string; text: string }>): boolean {
-  let at = -1; turns.forEach((t, i) => { if (t.speaker === "caller" && isAbandonTurn(t.text)) at = i; });
+  let at = -1;
+  turns.forEach((t, i) => {
+    if (t.speaker !== "caller" || !isAbandonTurn(t.text)) return;
+    const prev = turns.slice(0, i).reverse().find((turn) => turn.speaker === "caller");
+    const bareCancel = /^(?:y\s+)?(?:no,?\s+)?(?:ya,?\s+)?(?:no,?\s+)?(?:mejor\s+no|no,?\s+ya\s+no|no,?\s+mejor\s+no)\s*[.!]?\s*$/iu.test(String(t.text || "").trim());
+    if (prev && /^(?:y\s+)?(?:otra|otro|another)\b/iu.test(String(prev.text || "")) && bareCancel) return;
+    at = i;
+  });
   if (at < 0) return false;
   const after = turns.slice(at + 1);
   if (after.some((t) => t.speaker === "caller" && ORDER_AGAIN.test(String(t.text || "")))) return false;
