@@ -409,8 +409,26 @@ export function lineMeatRe(): RegExp {
   lineMeatPattern = alt ? new RegExp(`\\b(${alt})\\b`, "iu") : /$^/;
   return lineMeatPattern;
 }
+function catalogMeatKey(word: string): string {
+  const folded = fold(word).replace(/\s+/g, " ").trim();
+  const compact = folded.replace(/\s+/g, "");
+  for (const row of loadOptionAliases()) {
+    if ((row.aliases || []).some((alias) => fold(String(alias)).replace(/\s+/g, "") === compact)) {
+      const head = fold(String(row.name || "").split("/")[0]).replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/)[0] || compact;
+      return catalogMeatKey(head);
+    }
+  }
+  if (compact === "alpastor" || folded === "al pastor" || compact === "pastor") return "pastor";
+  for (const part of compoundForms(compact)) if (part === "pastor") return "pastor";
+  return compact;
+}
+function dishKey(word: string): string {
+  return fold(word).replace(/s$/, "");
+}
 function spokenLineKeys(text: string): string[] {
-  const body = fold(text).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
+  const statements = String(text || "").split(/(?<=[.!]|\?|¿)/).filter((part) => part.trim() && !/[?¿]/.test(part)).join(" ");
+  if (!statements.trim()) return [];
+  const body = fold(statements).replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
   const keys = new Set<string>();
   let dish = "";
   const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
@@ -418,9 +436,9 @@ function spokenLineKeys(text: string): string[] {
   for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
     const named = part.match(dishRe);
     const meat = part.match(meatRe);
-    if (named) dish = named[1];
-    if (meat?.[1]) keys.add(`${named ? named[1] : dish}|${meat[1].toLowerCase()}`);
-    else if (named) keys.add(`${named[1]}|`);
+    if (named) dish = dishKey(named[1]);
+    if (meat?.[1]) keys.add(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
+    else if (named) keys.add(`${dishKey(named[1])}|`);
   }
   return [...keys];
 }
@@ -444,11 +462,22 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
   }
   return keys.size > 1;
 }
+function callerTurnCancelled(turns: Turn[], index: number): boolean {
+  let staff = false;
+  for (let j = index + 1; j < turns.length; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") { staff = true; continue; }
+    if (staff) return false;
+    const text = fold(String(turns[j].text || ""));
+    return /^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b(?:\s+(?:\d+|un|una|uno|dos|tres|one|two|three)\s+de\s+\S+)?\s*$/.test(text.replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim());
+  }
+  return false;
+}
 export function openLineKeys(turns: Turn[], index: number): string[] {
   const keys = new Set<string>();
-  for (let j = index - 1; j >= 0; j--) {
+  for (let j = 0; j < index; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
-    for (const key of spokenLineKeys(turns[j].text)) keys.add(key);
+    if (callerTurnCancelled(turns, j)) continue;
+    for (const key of spokenLineKeys(turns[j].text)) if (!key.endsWith("|")) keys.add(key);
   }
   return [...keys];
 }

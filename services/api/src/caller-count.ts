@@ -149,14 +149,20 @@ function askedCounts(turns: Turn[]): Asked[] {
   return out;
 }
 const OTRA_CANCEL = /\b(no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b/;
-/** A turn that is only a cancel, or a cancel with a remainder. Null when it is not a cancel. */
+const NEW_ITEM_REST = /^(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\s+de\s+\S+/;
+/** Cancel only when the phrase opens the turn and the rest is empty or a new item. A topping keeps the line. */
 export function leadingCancel(text: string): string | null {
   const match = plain(text).match(/^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b\s*(.*)$/);
-  return match ? match[1].replace(/^(?:y\s+)/, "").trim() : null;
+  if (!match) return null;
+  const rest = match[1].replace(/^(?:y\s+)/, "").trim();
+  if (rest && !NEW_ITEM_REST.test(rest)) return null;
+  return rest;
 }
 function nextCallerCancels(turns: Turn[], index: number): boolean {
+  let staff = false;
   for (let j = index + 1; j < turns.length; j++) {
-    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    if (turns[j].speaker && turns[j].speaker !== "caller") { staff = true; continue; }
+    if (staff) return false;
     return leadingCancel(String(turns[j].text || "")) !== null;
   }
   return false;
@@ -172,7 +178,7 @@ export function peelAnother(text: string): { dish: string | null; meat: string |
   const cancel = cleaned.match(OTRA_CANCEL);
   if (cancel) {
     const rest = cleaned.slice((cancel.index || 0) + cancel[0].length).replace(/^(?:\s*y\s+|\s+)/, "").trim();
-    return { dish: null, meat: null, said: "", rest, cancel: true };
+    if (!rest || NEW_ITEM_REST.test(rest)) return { dish: null, meat: null, said: "", rest, cancel: true };
   }
   if (/^(?:mas|more)$/.test(tail)) return null;
   if (/^(?:mas|more)\s+/.test(tail)) {

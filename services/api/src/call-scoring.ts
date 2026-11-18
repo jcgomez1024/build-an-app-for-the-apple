@@ -12,7 +12,7 @@ import { dropUnsaidQuesoBirrias, applyGorditaQueso, dropGorditaReaddTwin } from 
 import { applyGroupBlockCounts } from "./group-blocks.js";
 import { applyComboSidesBoth, dropUnchosenToppings, fixArrozStt } from "./combo-sides.js";
 import { dropPutOnReAdd, applyGuisadoChoice, RESUME_AFTER_BYE, mergeConFrijolesSplit, applySpokenQty, applyStaffCountEcho, foldPhantomComalMeat, addToThatAsUpdate, applyStaffDrinkConfirm, applyStaffDoradaReadback, applyMenudoCountConfirm, makeItN, makeItNAsUpdate, applyMakeItNMerge, applyExtraCounts, statedDishPutQty, ambiguousMakeIt, makeItWhichDish, ambiguousMore, moreWhichDish } from "./modifier-turns.js";
-import { leadingCancel } from "./caller-count.js";
+import { leadingCancel, peelAnother } from "./caller-count.js";
 import { applyAskedDishes, applyAddOnCallback } from "./asked-dishes.js";
 import { applySplitCorrection, applySidesAndToppings } from "./multi-order.js";
 import { addressNumberTurn, etaOnlyTurn, stampAskedCount, dropAddressNumberTurns, capQty, capCartQty, closingOnlyTurn, trailingQty } from "./eta-qty.js";
@@ -1024,6 +1024,21 @@ function noteCountedDiagnostic(rows: Array<{ kind: string; itemIds: string[]; qu
   } catch { /* test log only */ }
 }
 
+/** Shadow scoring only. Live isAbandonedOrder stays the goodbye check. */
+function shadowOtraCancelOnly(turns: Array<{ speaker?: string; text?: string }>): boolean {
+  let at = -1;
+  turns.forEach((turn, index) => { if (turn.speaker === "caller" && isAbandonTurn(String(turn.text || ""))) at = index; });
+  if (at < 0) return false;
+  const text = String(turns[at].text || "");
+  const peeled = peelAnother(text);
+  if (peeled?.cancel) return true;
+  if (leadingCancel(text) === null) return false;
+  let prev = -1;
+  for (let j = at - 1; j >= 0; j--) if (turns[j].speaker === "caller") { prev = j; break; }
+  const between = prev < 0 ? turns.slice(0, at) : turns.slice(prev + 1, at);
+  if (between.some((turn) => turn.speaker !== "caller" && /[?¿]/.test(String(turn.text || "")))) return true;
+  return prev >= 0 && /^(?:y\s+)?(?:otra|otro|another)\b/i.test(String(turns[prev].text || ""));
+}
 export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   replayTurns = turns;
   // CAaf7c97: a price/availability question with no order intent never opens the item flow; Elvi's suggested reply is the
@@ -1035,7 +1050,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (isCancelOrderCall(turns as any))
     return noteTrace({ cart: [] as Line[], steps: [{ source: "cancel-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true, cancelCall: true }, { stage: "cancel-order", reconcileRan: false });
   // pedro2: caller gave up ("entonces no quiero nada") and nothing was ordered or wrapped up after — no order.
-  if (isAbandonedOrder(turns as any))
+  if (isAbandonedOrder(turns as any) && !shadowOtraCancelOnly(turns as any))
     return noteTrace({ cart: [] as Line[], steps: [{ source: "abandoned-order", heard: turns.map((t) => t.text).join(" ").slice(0, 120) }], autoAccepted: false, containers: [], ambiguousRemovals: [], removalsAttributed: true, fulfillment: null, address: null, addressConfirmed: false, statusCall: true, noOrder: true }, { stage: "abandoned-order", reconcileRan: false });
   // juanFollow1: a callback about an order already placed (complaint / address / "mi pedido") — no new cart.
   if (isExistingOrderCall(turns as any))
@@ -1190,7 +1205,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const reorder = (d: string) => (pt.includes(d) || unavailMatchesId(d, pt)) && !spokenAvailQ(text) && !/\bno\s+(?:tienes|tiene|hay)\b|\bpero\b/.test(pt);
       if (off.length) (r as any).actions = (r as any).actions.filter((a: any) => !(a?.type === "add_item" && off.some((d) => (String(a.itemId).toLowerCase().includes(d.replace(/\s+/g, "-")) || unavailMatchesId(d, String(a.itemId).toLowerCase())) && !reorder(d))));
       dropPutOnReAdd((r as any).actions, cart as any[], text); // pedro3: "si la pueden poner en nopales" changes the gorditas, not a new one
-      if (isAbandonTurn(text)) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
+      if (isAbandonTurn(text) && !/[?¿]/.test(String(lastStaff || ""))) { (r as any).actions = (r as any).actions.filter((a: any) => a?.type !== "add_item" && a?.type !== "update_item"); cart.length = 0; }
     }
     // gio1: "una de tripa y de bistec" — each split meat is one unit on this turn's adds (announced "dos" is shared, not per line)
     if (Array.isArray((r as any)?.actions)) mergeConFrijolesSplit((r as any).actions, text); // lupita1
@@ -3612,6 +3627,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   let last: any = null;
   let otraLine: any = null;
+  let staffAfterOtra = false;
   let autoAccepted = false;
   const containers: ContainerPlan = { breaks: [], splits: [], phrases: [] };
   let staffAskedSplit: ContainerSplit | null = null; // staff: "¿en diferentes recipientes?" → caller: "sí"
@@ -3860,13 +3876,15 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   };
   for (let t of turns) {
     const turnAt = turns.indexOf(t);
+    if (t.speaker !== "caller" && otraLine && /[?¿]/.test(String(t.text || ""))) staffAfterOtra = true;
     if (t.speaker === "caller") {
       closeTrackedQty();
       const undone = leadingCancel(t.text);
-      if (undone !== null && otraLine) {
+      if (undone !== null && otraLine && !staffAfterOtra) {
         const idx = (cart as any[]).indexOf(otraLine);
         if (idx >= 0) cart.splice(idx, 1);
         otraLine = null;
+        staffAfterOtra = false;
         if (!undone) {
           const reply = "Ok.";
           last = { actions: [], reply, language: t.language };
@@ -3875,7 +3893,10 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
           continue;
         }
         t = { ...t, text: undone };
-      } else if (undone === null) otraLine = null;
+      } else if (undone === null) {
+        otraLine = null;
+        staffAfterOtra = false;
+      }
       trackedQty = { turn: t, snap: snapQty() };
     }
     // pedro3: "No, espérate" right after staff's bye reopens the order; staff answering food questions after an ETA does too.
@@ -4946,7 +4967,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       const anotherMenu = await loadIntentMenu();
       const beforeAnother = cart.length;
       const another = repeatLastFood(cart as any[], piece, anotherMenu, t.language === "en" ? "en" : "es");
-      if (cart.length > beforeAnother) otraLine = cart[cart.length - 1];
+      if (cart.length > beforeAnother) { otraLine = cart[cart.length - 1]; staffAfterOtra = false; }
       if (another) {
         steps.push({ source: "another-of-last", heard: piece, reply: another.reply, language: t.language });
         history.push({ role: "customer", text: piece }, { role: "assistant", text: another.reply });
