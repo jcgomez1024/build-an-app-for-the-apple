@@ -98,8 +98,9 @@ function setLine(l: any, e: Exp, menu: any[]) {
   }
   l.quantity = e.qty;
 }
-/** Staff readback rebuilds the taco / quesadilla / QD lines it lists: counts, meats, tortilla, regular/preparada. */
-export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[]): boolean {
+/** Staff readback rebuilds the taco / quesadilla / QD lines it lists: counts, meats, tortilla, regular/preparada.
+ *  A shadow order never gains a line from the readback. */
+export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shadow = false): boolean {
   const rb = staffReadback(turns); if (!rb) return false;
   const keys = new Set(rb.lines.map((e) => `${famOf(e.kind)}:${e.meat}`));
   const claimed = new Set<any>();
@@ -109,7 +110,7 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[]): boo
     const meatless = cart.filter((l) => !claimed.has(l) && kindOfLine(l) && famOf(kindOfLine(l)!) === fam && !meatOfLine(l));
     const pick = cands.find((l) => kindOfLine(l) === e.kind && (e.kind !== "qd" || !e.qd || (l.modifiers || []).some((m: any) => new RegExp(e.qd === "regular" ? "REGULAR" : "DELUXE", "i").test(m.option)))) || cands.find((l) => kindOfLine(l) === e.kind) || cands[0] || meatless[0];
     let l = pick;
-    if (!l) { const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l); }
+    if (!l) { if (shadow) continue; const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l); }
     claimed.add(l); setLine(l, e, menu);
   }
   for (let i = cart.length - 1; i >= 0; i--) {
@@ -1368,6 +1369,27 @@ export function applySpokenCount(cart: any[], turns: Turn[]): boolean {
     const ls = cart.filter((l) => kid.test(l.itemId) && meatOpt(l) === meat); if (ls.length !== 1 || ls[0].quantity === n) continue;
     const later = turns.slice(turns.indexOf(t) + 1).filter((x) => x.speaker === "caller").some((x) => kindRe(plain(x.text))?.source === kid.source && meatIn(plain(x.text)) === meat);
     if (!later) { ls[0].quantity = n; changed = true; }
+  }
+  return changed;
+}
+/** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
+export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  const re = new RegExp(`\\b(${NUMW})\\s+(tacos?|tortas?|quesadillas?|gorditas?|sopes?|huaraches?)\\b(?:\\s+(?:de\\s+|of\\s+)?(?:taquer\\w*|comal|harina|street|normal\\w*)){0,3}\\s+(?:de|of)\\s+([a-z]+)`, "g");
+  for (const turn of turns) {
+    if (turn.speaker !== "caller" || meatSplitCounts(turn.text).length >= 2) continue;
+    const text = plain(turn.text);
+    for (const match of text.matchAll(re)) {
+      if (/^(?:y|con|and)\b/.test(text.slice((match.index || 0) + match[0].length).trim())) continue;
+      const qty = numOf(match[1]);
+      const kind = kindRe(match[2]);
+      const meat = meatIn(match[3]);
+      if (!qty || !kind || !meat) continue;
+      const lines = cart.filter((line) => kind.test(String(line.itemId || "")) && (line.modifiers || []).some((mod: any) => meatIn(plain(String(mod.option || ""))) === meat));
+      if (lines.length !== 1 || Number(lines[0].quantity) === qty) continue;
+      lines[0].quantity = qty;
+      changed = true;
+    }
   }
   return changed;
 }
@@ -2975,12 +2997,12 @@ function applyParsedStaffList(cart: any[], turns: Turn[], menu: any[], result: A
   return result;
 }
 
-export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[]): boolean {
+export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[], shadow = false): boolean {
   const txt = staffRecapText(turns); if (!txt) return false;
   const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
   const nx = turns.find((t, i) => i > 0 && t.speaker === "caller" && /^(?:no\b|falta|cambia)/.test(plain(t.text)) && turns.slice(0, i).some((s) => s.speaker === "staff" && plain(s.text).includes(txt.slice(0, 12))));
   if (nx) return false;
-  if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu)) return false;
+  if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu, shadow)) return false;
   applyQdPreparada(cart, turns.map((t) => ({ ...t, text: preparadaWords(t.text) })));
   const sinCrema = /\b(?:no|sin) crema\b/.test(txt);
   for (const l of cart) { if (kindOfLine(l) !== "qd") continue;

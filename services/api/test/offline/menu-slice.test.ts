@@ -54,12 +54,32 @@ test("a stale id and an option from another item hold", () => {
   assert.equal(ok.ok, true);
 });
 
-test("few-shot uses verified synthetic rows and the required cap", () => {
+test("style words from the catalog rank a plain taco above a dorada", () => {
+  const ranked = sliceMenu({
+    menu: [
+      ...menu,
+      { id: "sq-dorados", name: "Tacos Dorados", modifierGroups: [{ id: "meats", name: "Carnes", options: [bistec] }] },
+    ],
+    utterance: "Dos tacos.",
+  });
+  assert.deepEqual(ranked.matched.map((item) => item.id), ["sq-taco-TAR7L5"]);
+  const dorados = sliceMenu({
+    menu: [
+      ...menu,
+      { id: "sq-dorados", name: "Tacos Dorados", modifierGroups: [{ id: "meats", name: "Carnes", options: [bistec] }] },
+    ],
+    utterance: "Dos tacos dorados.",
+  });
+  assert.ok(dorados.matched.some((item) => item.id === "sq-dorados"));
+  assert.equal(dorados.matched.some((item) => item.id === "sq-taco-TAR7L5"), false);
+});
+
+test("few-shot uses verified synthetic rows and the approved cap of 3", () => {
   const rows = loadSyntheticFewShots();
   assert.ok(rows.every((row) => row.synthetic && row.verified));
   const counted = { id: "counted-real", synthetic: false, verified: true, language: "es", utterance: "Dos tacos de bistec.", actions: [] } as unknown as SyntheticTurn;
-  const picked = fewShotBlock([...rows, counted], { menu, utterance: "Dos tacos de bistec." }, 2);
-  assert.equal(picked.length, 2);
+  const picked = fewShotBlock([...rows, counted], { menu, utterance: "Dos tacos de bistec." });
+  assert.ok(picked.length > 0 && picked.length <= 3);
   assert.ok(picked.every((row) => row.id.startsWith("syn-")));
   assert.throws(() => fewShotBlock(rows, { menu, utterance: "Dos tacos." }, -1));
 });

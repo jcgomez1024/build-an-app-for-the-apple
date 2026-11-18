@@ -127,7 +127,40 @@ export function sliceMenu(input: {
     }
     matched.push({ id: item.id, name: item.name, nameEs: item.nameEs, groups });
   }
-  return { matched, fallbackNames };
+  return { matched: rankByStyleWords(menu, matched, words), fallbackNames };
+}
+
+/** Style words are the catalog name tokens that are not shared by every item in a matched cluster. No separate stop list. */
+function rankByStyleWords(menu: CatalogItem[], matched: SliceItem[], words: Set<string>): SliceItem[] {
+  if (matched.length <= 1) return matched;
+  const byId = new Map(menu.map((item) => [item.id, item]));
+  const tokensOf = (id: string) => {
+    const item = byId.get(id);
+    const labels = item ? spokenLabels(item) : [];
+    return [...new Set(labels.flatMap((label) => wordsOf(label).flatMap(stems)))];
+  };
+  const parent = matched.map((_, index) => index);
+  const find = (index: number): number => parent[index] === index ? index : (parent[index] = find(parent[index]));
+  const share = (left: string[], right: string[]) => left.some((token) => right.includes(token));
+  for (let i = 0; i < matched.length; i++) {
+    const left = tokensOf(matched[i].id);
+    for (let j = i + 1; j < matched.length; j++) if (share(left, tokensOf(matched[j].id))) parent[find(j)] = find(i);
+  }
+  const keep = new Set<string>();
+  const clusters = new Map<number, SliceItem[]>();
+  matched.forEach((item, index) => {
+    const root = find(index);
+    clusters.set(root, [...(clusters.get(root) || []), item]);
+  });
+  for (const cluster of clusters.values()) {
+    if (cluster.length === 1) { keep.add(cluster[0].id); continue; }
+    const sets = cluster.map((item) => new Set(tokensOf(item.id)));
+    const common = [...sets[0]].filter((token) => sets.every((set) => set.has(token)));
+    const score = (item: SliceItem) => [...tokensOf(item.id)].filter((token) => !common.includes(token)).reduce((total, token) => total + (words.has(token) ? 1 : -1), 0);
+    const best = Math.max(...cluster.map(score));
+    for (const item of cluster) if (score(item) === best) keep.add(item.id);
+  }
+  return matched.filter((item) => keep.has(item.id));
 }
 
 /** Catalog text the prompt would send. Matched items when any exist, otherwise the name list. */
@@ -242,8 +275,11 @@ function overlap(left: MenuSlice, right: MenuSlice): number {
   return left.matched.filter((item) => ids.has(item.id)).length;
 }
 
-/** Verified synthetic turns only. `cap` is required; there is no stored default. */
-export function fewShotBlock(turns: SyntheticTurn[], query: { menu: CatalogItem[]; utterance: string; pendingQuestion?: string; cart?: SliceCartLine[] }, cap: number): SyntheticTurn[] {
+/** Reviewer-approved few-shot cap. Not a house menu default. */
+export const FEW_SHOT_CAP = 3;
+
+/** Verified synthetic turns only. The cap defaults to the approved value of 3. */
+export function fewShotBlock(turns: SyntheticTurn[], query: { menu: CatalogItem[]; utterance: string; pendingQuestion?: string; cart?: SliceCartLine[] }, cap = FEW_SHOT_CAP): SyntheticTurn[] {
   if (!Number.isInteger(cap) || cap < 0) throw new Error("few-shot cap must be a non-negative integer");
   const wanted = sliceMenu(query);
   return turns
