@@ -221,6 +221,17 @@ function topicMatches(topic: string, itemText: string, dish: string, meat: strin
 type Part = { dish: string; style: string; meat: string; n: number };
 type Pending = { dish: string; n: number; style: string };
 
+function priorOtraMeat(turns: Turn[], index: number): string {
+  for (let j = index - 1; j >= 0; j--) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    const text = plain(String(turns[j].text || ""));
+    const otra = peelAnother(text);
+    if (otra?.meat && !otra.cancel) return otra.meat;
+    const bare = text.match(/^(?:y\s+)de\s+(.+)$/);
+    return bare ? meatIn(bare[1]) || "" : "";
+  }
+  return "";
+}
 function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
   const counts = new Map<string, number>();
   let open: string | null = null;
@@ -305,11 +316,13 @@ function explicitCounts(turns: Turn[], cart?: any[]): Map<string, number> {
       if (!meat) continue;
     } else copied = false;
     const made = makeItN(raw);
-    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open && !ambiguousMakeIt(turns, ti)) {
+    const namedMeat = made ? priorOtraMeat(turns, ti) : "";
+    if (made && !dishIn(made.tail) && !meatIn(made.tail) && open && (namedMeat || !ambiguousMakeIt(turns, ti))) {
       const keys = openLineKeys(turns, ti);
       const only = keys.length === 1 ? keys[0].split("|") : null;
       const lineMeat = only?.[1] ? meatIn(only[1]) || only[1] : "";
-      if (only && (only[0] || open) && lineMeat) put(only[0] || open, openStyle, lineMeat, made.n);
+      if (namedMeat && namedMeat !== lineMeat) put(open, openStyle, namedMeat, made.n);
+      else if (only && (only[0] || open) && lineMeat) put(only[0] || open, openStyle, lineMeat, made.n);
       else if (lastMeat) put(open, openStyle, lastMeat, made.n);
       else put(open, openStyle || "", "", made.n);
     }

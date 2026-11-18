@@ -464,7 +464,7 @@ function countBesideMeat(part: string, meatWord: string): boolean {
   const meat = words.join("|");
   const gap = "(?:\\s*,)?(?:\\s+(?:orden(?:es)?|platos?|tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|orders?|plates?))?(?:\\s*,)?(?:\\s+(?:de|of))?";
   let text = fold(part);
-  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos\b/g, " ");
+  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos\b(?!\s+de\s+[a-z])/g, " ");
   text = text.replace(/\blas\s+dos\s+(?:de\s+la\s+tarde|en\s+punto)\b/g, " ");
   return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(text);
 }
@@ -527,8 +527,9 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
     }
     for (const meat of found) {
       if (!meat[1] || meatRefused(part, meat[1])) continue;
+      const another = /^(?:y\s+|and\s+)?(?:otra|otro|another)\s+(?:de\s+|of\s+)|^(?:y\s+)de\s+/.test(fold(part).trim());
       if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-      else if (countBesideMeat(body, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
+      else if (another || countBesideMeat(body, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
     }
   }
   return { keys, dish };

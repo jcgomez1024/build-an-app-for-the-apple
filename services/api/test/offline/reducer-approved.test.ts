@@ -1437,6 +1437,35 @@ test("a counted item after con is its own line, and las dos is an order", () => 
   assert.deepEqual(staffQuantity(swapped, "taco", "pollo", 3, 3, ""), { quantity: callerSpokenQty(swapped, "taco", "pollo", "") ?? 2, flag: true });
 });
 
+test("otro de bistec keeps que sean off the earlier pollo", () => {
+  for (const otra of ["Otro de bistec.", "Otra de bistec.", "Y otro de bistec.", "Another of steak."]) {
+    const ask = /another/i.test(otra) ? "Make it three." : "Que sean tres.";
+    const first = /another/i.test(otra) ? "Two chicken tacos." : "Dos tacos de pollo.";
+    const turns = [
+      { speaker: "caller", text: first },
+      { speaker: "caller", text: otra },
+      { speaker: "caller", text: ask },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 2, otra);
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, otra);
+    assert.deepEqual(staffQuantity(turns, "taco", "pollo", 3, 3, ""), { quantity: 2, flag: true }, otra);
+    assert.deepEqual(staffQuantity(turns, "taco", "bistec", 3, 1, ""), { quantity: 3, flag: false }, otra);
+    assert.ok(openLineKeys(turns, 2).some((key) => key.endsWith("|bistec")), otra);
+  }
+  assert.ok(openLineKeys([
+    { speaker: "caller", text: "Dos tacos de pollo." },
+    { speaker: "caller", text: "Y de bistec." },
+    { speaker: "caller", text: "Que sean tres." },
+  ], 2).some((key) => key.endsWith("|bistec")));
+  const timed = [
+    { speaker: "caller", text: "A las dos de bistec." },
+    { speaker: "caller", text: "Una quesadilla de pollo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(timed, "quesadilla", "pollo", ""), 1);
+  assert.deepEqual(staffQuantity(timed, "quesadilla", "pollo", 3, 3, ""), { quantity: 1, flag: true });
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
