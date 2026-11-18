@@ -1513,6 +1513,74 @@ test("otro de bistec then que sean tres asks which line", async () => {
   }
 });
 
+test("que sean tres asks when the second line is another meat or a dish", async () => {
+  for (const otra of ["Otra de carne asada.", "Otro de chicharrón prensado.", "Otro de la de bistec."]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de pollo." },
+      { speaker: "caller", text: otra },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    const meat = /prensado/i.test(otra) ? "prensado" : "bistec";
+    assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 2, otra);
+    assert.notEqual(callerSpokenQty(turns, "taco", meat, ""), 3, otra);
+    assert.equal(ambiguousMakeIt(turns, 2), true, otra);
+    assert.ok(openLineKeys(turns, 2).some((key) => key.endsWith(`|${meat}`)), otra);
+    assert.deepEqual(staffQuantity(turns, "taco", "pollo", 3, 3, ""), { quantity: 2, flag: true }, otra);
+    const heard = staffQuantity(turns, "taco", meat, 3, 1, "");
+    assert.equal(heard.flag, true, otra);
+    assert.notEqual(heard.quantity, 3, otra);
+  }
+  for (const otra of ["And another steak.", "Another of steak."]) {
+    const turns = [
+      { speaker: "caller", text: "Two chicken tacos." },
+      { speaker: "caller", text: otra },
+      { speaker: "caller", text: "Make it three." },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "pollo", ""), 2, otra);
+    assert.notEqual(callerSpokenQty(turns, "taco", "bistec", ""), 3, otra);
+    assert.equal(ambiguousMakeIt(turns, 2), true, otra);
+    assert.ok(openLineKeys(turns, 2).some((key) => key.endsWith("|bistec")), otra);
+    assert.deepEqual(staffQuantity(turns, "taco", "pollo", 3, 3, ""), { quantity: 2, flag: true }, otra);
+    const heard = staffQuantity(turns, "taco", "bistec", 3, 1, "");
+    assert.equal(heard.flag, true, otra);
+    assert.notEqual(heard.quantity, 3, otra);
+  }
+  const english: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "en", text: "Two chicken tacos." },
+    { speaker: "staff", start: 1, end: 2, language: "en", text: "Ok." },
+    { speaker: "caller", start: 3, end: 4, language: "en", text: "And another steak." },
+    { speaker: "staff", start: 4, end: 5, language: "en", text: "Ok." },
+    { speaker: "caller", start: 6, end: 7, language: "en", text: "Make it three." },
+  ] as any, shadowRun(() => ({ actions: [{ type: "update_item", itemId: "sq-taco-TAR7L5", quantity: 3 }], reply: "guess" })));
+  assert.match((english.steps || []).map((step: any) => step.reply).join(" "), /Three of which dish\?/);
+  assert.equal((english.cart || []).some((line: any) => line.quantity === 3), false);
+  for (const said of ["Dos tacos de bistec y una torta.", "Dos tacos de bistec, una quesadilla."]) {
+    const turns = [
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    const dish = /torta/.test(said) ? "torta" : "quesadilla";
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(ambiguousMakeIt(turns, 1), true, said);
+    assert.ok(openLineKeys(turns, 1).some((key) => key.startsWith(`${dish}|`)), said);
+    assert.deepEqual(staffQuantity(turns, "taco", "bistec", 3, 3, ""), { quantity: 2, flag: true }, said);
+  }
+  const flipped = [
+    { speaker: "caller", text: "Una torta de pollo y dos tacos." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(flipped, "torta", "pollo", ""), 1);
+  assert.equal(ambiguousMakeIt(flipped, 1), true);
+  assert.ok(openLineKeys(flipped, 1).some((key) => key.startsWith("taco|")));
+  assert.deepEqual(staffQuantity(flipped, "torta", "pollo", 3, 3, ""), { quantity: 1, flag: true });
+  const before = [
+    { speaker: "caller", text: "Antes de las dos, de bistec." },
+    { speaker: "caller", text: "Listo." },
+  ];
+  assert.ok(openLineKeys(before, 1).some((key) => key.endsWith("|bistec")));
+  assert.notEqual(callerSpokenQty(before, "taco", "bistec", ""), 2);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

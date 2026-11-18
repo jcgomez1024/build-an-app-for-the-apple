@@ -493,6 +493,13 @@ function leadMeat(part: string, pattern: RegExp): string {
   if (bits[0] === "al" && bits[1]) return `${bits[0]} ${bits[1]}`;
   return bits[0];
 }
+function otraSpoken(part: string, meatRe: RegExp): string {
+  const es = part.match(/^(?:y\s+|and\s+)?(?:otra|otro)\s+de\s+(.+)$/);
+  const en = part.match(/^(?:and\s+)?another(?:\s+of)?\s+(.+)$/);
+  const yde = part.match(/^(?:y\s+)de\s+(.+)$/);
+  let rest = (es?.[1] || en?.[1] || yde?.[1] || "").trim().replace(/^(?:la|el)\s+de\s+/, "");
+  return rest.match(meatRe)?.[1] || "";
+}
 function spokenLineKeys(text: string): string[] {
   const keys = new Set<string>();
   let dish = "";
@@ -531,13 +538,14 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
       if (named) keys.push(`${dishKey(named[1])}|`);
       continue;
     }
-    const otraWord = leadMeat(fold(part).trim(), /^(?:y\s+|and\s+)?(?:otra|otro|another)\s+(?:de\s+|of\s+)(.+)$|^(?:y\s+)de\s+(.+)$/);
-    const clockMeat = leadMeat(fold(part).trim(), /^(?:a|son)\s+las\s+dos\s+de\s+(.+)$/);
+    const otraWord = otraSpoken(fold(part).trim(), meatRe);
+    const clockMeat = leadMeat(fold(part).trim(), /^(?:a|son|antes\s+de|despues\s+de)\s+las\s+dos\s+de\s+(.+)$/);
+    const afterClock = /^(?:antes|despues)\s+de\s+las\s+dos\b/.test(body) && /^de\s+\S/.test(fold(part).trim());
     for (const meat of found) {
       if (!meat[1] || meatRefused(part, meat[1])) continue;
       const meatKey = catalogMeatKey(meat[1]);
       const same = (word: string) => !!word && (catalogMeatKey(word) === meatKey || fold(word) === fold(meat[1]));
-      if (same(clockMeat)) { keys.push(`|${meatKey}`); continue; }
+      if (same(clockMeat) || afterClock) { keys.push(`|${meatKey}`); continue; }
       if (otraWord && !same(otraWord) && !countBesideMeat(part, meat[1])) continue;
       if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${meatKey}`);
       else if (same(otraWord) || countBesideMeat(body, meat[1])) keys.push(`|${meatKey}`);
@@ -563,7 +571,18 @@ export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
       break;
     }
   }
-  return keys.size > 1;
+  if (keys.size > 1) return true;
+  if (/\bmejor\b/.test(fold(turn.text))) return false;
+  return openLineKeys(turns, index).length > 1 && earlierAnother(turns, index);
+}
+function earlierAnother(turns: Turn[], index: number): boolean {
+  for (let j = index - 1; j >= 0; j--) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    const text = fold(String(turns[j].text || "")).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+    if (/^(?:si|yes|yeah|ok|okay)$/.test(text)) continue;
+    return /^(?:y\s+|and\s+)?(?:otra|otro|another)\b|^(?:y\s+)de\b/.test(text);
+  }
+  return false;
 }
 function callerTurnCancelled(turns: Turn[], index: number): boolean {
   for (let j = index + 1; j < turns.length; j++) {
@@ -611,7 +630,7 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
     }
   }
   let list = [...keys];
-  if (!list.some((key) => key.startsWith("|") && key.length > 1)) list = list.filter((key) => key.split("|")[1]);
+  if (!list.some((key) => key.split("|")[1])) list = list.filter((key) => key.split("|")[1]);
   if (!cart?.length) return list;
   const present = linesOnOrder(cart);
   const meats = new Set([...present].map((key) => key.split("|")[1]).filter(Boolean));
