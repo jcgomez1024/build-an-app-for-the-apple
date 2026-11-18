@@ -378,18 +378,69 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
   return asked.length ? asked[asked.length - 1].n : null;
 }
 
-function unresolvedCount(turns: Turn[]): boolean {
+const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
+function missedSideWords(text: string, keys: string[]): string[] {
+  const out: string[] = [];
+  for (const part of plain(text).split(/\s+y\s+|\s+and\s+/).slice(1)) {
+    for (const word of part.split(" ")) {
+      if (word.length < 5 || COUNT_SKIP.has(word) || dishIn(word) || meatIn(word)) continue;
+      if (keys.some((key) => key.includes(word))) continue;
+      out.push(word);
+    }
+  }
+  return out;
+}
+function keyCovers(key: string, wantDish: string, wantMeat: string): boolean {
+  const [od, om] = key.split("|");
+  const meat = om ? meatIn(om) || om : "";
+  if (wantDish && od && od !== wantDish) return false;
+  if (wantMeat && meat && meat !== wantMeat) return false;
+  if (wantDish && od === wantDish) return !wantMeat || !meat || meat === wantMeat;
+  if (wantMeat && meat === wantMeat) return !wantDish || !od || od === wantDish;
+  return false;
+}
+function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boolean {
+  const pending = new Set<string>();
+  const missed = new Set<string>();
+  const dropNamed = (text: string) => {
+    const namedDish = dishIn(text);
+    const namedMeat = meatIn(text);
+    if (!namedDish && !namedMeat) return;
+    for (const key of [...pending]) {
+      const [od, om] = key.split("|");
+      const meat = om ? meatIn(om) || om : "";
+      if ((namedDish && od === namedDish) || (namedMeat && meat === namedMeat)) pending.delete(key);
+    }
+    for (const word of [...missed]) if (word === namedDish || word === namedMeat) missed.delete(word);
+  };
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i];
     if (turn?.speaker && turn.speaker !== "caller") continue;
-    if (ambiguousMakeIt(turns, i) || ambiguousMore(turns, i)) return true;
+    const text = String(turn.text || "");
+    dropNamed(text);
+    const bare = makeItN(text);
+    const bareTail = bare ? plain(bare.tail) : "";
+    const bareCount = (!!bare && !dishIn(bareTail) && !meatIn(bareTail)) || ambiguousMore(turns, i);
+    const keys = openLineKeys(turns, i);
+    const missedHere = missedSideWords(plain(text), keys);
+    const missedBefore: string[] = [];
+    for (let j = 0; j < i; j++) {
+      if (turns[j]?.speaker && turns[j].speaker !== "caller") continue;
+      missedBefore.push(...missedSideWords(plain(String(turns[j].text || "")), keys));
+    }
+    if (!(ambiguousMakeIt(turns, i) || ambiguousMore(turns, i) || (bareCount && (missedHere.length || missedBefore.length)))) continue;
+    for (const key of keys) pending.add(key);
+    for (const word of [...missedHere, ...missedBefore]) missed.add(word);
   }
-  return false;
+  if ([...pending].some((key) => keyCovers(key, wantDish, wantMeat))) return true;
+  return (!!wantDish && missed.has(wantDish)) || (!!wantMeat && missed.has(wantMeat));
 }
 /** Quantity a staff readback may write. The caller count wins; a missing caller count keeps the cart quantity. */
 export function staffQuantity(turns: Turn[], dish: string, meat: string | null, staffQty: number, cartQty: number, itemText = "", cart?: any[]): { quantity: number; flag: boolean } {
   const said = callerSpokenQty(turns, dish, meat, itemText, cart);
-  const asked = unresolvedCount(turns);
+  const wantDish = dishIn(dish) || plain(dish).replace(/s$/, "");
+  const wantMeat = meat ? meatIn(meat) || plain(meat) : "";
+  const asked = unresolvedFor(turns, wantDish, wantMeat);
   if (said != null && said === staffQty) return { quantity: staffQty, flag: asked };
   if (said != null) return { quantity: said, flag: true };
   return { quantity: cartQty, flag: asked || cartQty !== staffQty };

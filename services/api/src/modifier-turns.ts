@@ -496,21 +496,28 @@ function leadMeat(part: string, pattern: RegExp): string {
 let extraWords: Set<string> | null = null;
 function extraLineWords(): Set<string> {
   if (extraWords) return extraWords;
-  const stop = new Set(["agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "fresa", "mango", "limon", "lime", "pina", "pineapple", "strawberry", "mandarin", "mandarina"]);
+  const filler = new Set(["with", "your", "choice", "meat", "sour", "cream", "salsa", "chip", "side", "sides", "and", "the", "for", "you", "our", "from", "para", "con", "del", "agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "rice", "beans", "arroz", "frijoles", "frijole", "elvis", "dips"]);
   const words = new Set<string>();
   const add = (token: string) => {
-    if (token.length < 4 || stop.has(token) || /^\d/.test(token)) return;
+    if (token.length < 4 || filler.has(token) || /^\d/.test(token)) return;
     words.add(token);
     if (token.endsWith("s") && token.length > 4) words.add(token.slice(0, -1));
   };
+  const take = (label: string) => { for (const token of fold(label).split(/[^a-z0-9]+/)) add(token); };
   try {
     for (const item of frozenPhoneMenu()) {
       const name = String(item?.name || "");
-      const blob = fold(`${name} ${item?.nameEs || ""} ${(item?.aliases || []).join(" ")}`);
       const drink = item?.category === "drinks";
       const side = /^(?:nachos|sides|dips|elvis dip)\b/i.test(name);
-      if (drink || side) for (const token of blob.split(/[^a-z0-9]+/)) add(token);
-      else if (blob.split(/[^a-z0-9]+/).includes("consome")) add("consome");
+      if (drink || side) {
+        take(name);
+        take(String(item?.nameEs || ""));
+        for (const alias of item?.aliases || []) {
+          const parts = fold(String(alias)).split(/\s+/).filter(Boolean);
+          if (parts.length > 0 && parts.length <= 2) take(String(alias));
+        }
+      }
+      for (const token of fold(name).split(/[^a-z0-9]+/)) if (token === "consome") add(token);
     }
   } catch { /* frozen menu unavailable */ }
   extraWords = words;
@@ -588,9 +595,9 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
       continue;
     }
     const otraWord = otraSpoken(fold(part).trim(), meatRe);
-    const clockMeat = leadMeat(fold(part).trim(), /^(?:a|son|antes\s+de|despues\s+de)\s+las\s+dos\s+de\s+(.+)$/);
+    const clockMeat = leadMeat(fold(part), /(?:dame\s+)?(?:ya\s+son|antes\s+de|despues\s+de|para|a|son)\s+las\s+dos\s+de\s+(.+)/);
     const afterClock = /^(?:antes|despues)\s+de\s+las\s+dos\b/.test(body) && /^de\s+\S/.test(fold(part).trim());
-    const bareDe = /^de\s+\S/.test(fold(part).trim()) && !/\b(?:para|a|son)\s+las\s+dos\b/.test(body);
+    const bareDe = /^de\s+\S/.test(fold(part).trim());
     for (const meat of found) {
       if (!meat[1] || meatRefused(part, meat[1])) continue;
       const meatKey = catalogMeatKey(meat[1]);
@@ -677,12 +684,14 @@ function linesOnOrder(cart: any[]): Set<string> {
 }
 export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
   const keys = new Set<string>();
+  const timeKeys = new Set<string>();
   let carry = "";
   const bareAt = new Map<string, number>();
   const filled = new Set<string>();
   for (let j = 0; j < index; j++) {
     if (turns[j].speaker && turns[j].speaker !== "caller") continue;
     if (callerTurnCancelled(turns, j)) continue;
+    const clockOnly = /\b(?:dame\s+|ya\s+)?(?:para|a|son)\s+las\s+dos\b/.test(fold(String(turns[j].text || ""))) && !new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(fold(String(turns[j].text || "")));
     for (const key of spokenLineKeys(turns[j].text)) {
       const [rawDish, meat] = key.split("|");
       if (rawDish && extraLineWords().has(rawDish)) { keys.add(`${rawDish}|`); continue; }
@@ -690,8 +699,12 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
       if (rawDish) carry = rawDish;
       if (dish && meat) {
         keys.add(`${dish}|${meat}`);
+        if (clockOnly) timeKeys.add(`${dish}|${meat}`);
         if (bareAt.has(dish) && !callerCountBetween(turns, bareAt.get(dish) || 0, j)) filled.add(dish);
-      } else if (meat) keys.add(`|${meat}`);
+      } else if (meat) {
+        keys.add(`|${meat}`);
+        if (clockOnly) timeKeys.add(`|${meat}`);
+      }
       else if (dish) {
         keys.add(`${dish}|`);
         if (!bareAt.has(dish)) bareAt.set(dish, j);
@@ -699,6 +712,11 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
     }
   }
   for (const dish of filled) keys.delete(`${dish}|`);
+  const otherFood = [...keys].some((key) => {
+    const dish = key.split("|")[0];
+    return dish && !extraLineWords().has(dish) && !timeKeys.has(key);
+  });
+  if (!otherFood) for (const key of timeKeys) keys.delete(key);
   let list = [...keys];
   if (!list.some((key) => key.split("|")[1])) list = list.filter((key) => key.split("|")[1]);
   if (!cart?.length) return list;

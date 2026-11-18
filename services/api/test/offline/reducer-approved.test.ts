@@ -1681,6 +1681,41 @@ test("an unresolved count flags the staff readback", () => {
   assert.equal(staffQuantity(missed, "torta", "", 2, 2, "").flag, true);
 });
 
+test("a time plus a meat stays open beside the next dish", () => {
+  for (const said of ["Para las dos, de bistec.", "A las dos, de bistec.", "Son las dos, de bistec.", "Ya son las dos, de bistec.", "Dame a las dos de bistec.", "De bistec, para las dos."]) {
+    const turns = [
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Una quesadilla de pollo." },
+      { speaker: "caller", text: "Dos más." },
+    ];
+    assert.equal(callerSpokenQty(turns, "quesadilla", "pollo", ""), 1, said);
+    assert.equal(staffQuantity(turns, "quesadilla", "pollo", 3, 3, "").flag, true, said);
+    assert.ok(openLineKeys(turns, 2).some((key) => key.endsWith("|bistec")), said);
+  }
+  const scoped = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Que sean tres." },
+    { speaker: "caller", text: "Y una coca." },
+  ];
+  assert.equal(staffQuantity(scoped, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(scoped, "coca", "", 1, 1, "").flag, false);
+  const named = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Que sean tres." },
+    { speaker: "caller", text: "De bistec." },
+  ];
+  assert.equal(staffQuantity(named, "taco", "bistec", 2, 2, "").flag, false);
+  assert.equal(staffQuantity(named, "torta", "", 2, 2, "").flag, true);
+  const missed = [
+    { speaker: "caller", text: "Dos tacos de bistec y una memela." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(openLineKeys(missed, 1).some((key) => key.includes("memela")), false);
+  assert.equal(callerSpokenQty(missed, "taco", "bistec", ""), 3);
+  assert.equal(staffQuantity(missed, "taco", "bistec", 3, 3, "").flag, true);
+  assert.equal(staffQuantity(missed, "memela", "", 1, 1, "").flag, true);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
