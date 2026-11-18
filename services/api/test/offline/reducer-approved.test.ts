@@ -1823,7 +1823,15 @@ test("only a real first answer clears the other line", () => {
     assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
     assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, false, said);
   }
-  for (const said of ["21 en total.", "Treinta en total.", "Tres en total pesos.", "10 dollars en total."]) {
+  for (const said of ["21 en total.", "Tres en total pesos."]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, true, said);
+  }
+  for (const said of ["Treinta en total.", "10 dollars en total."]) {
     const turns = [
       { speaker: "caller", text: "Dos tacos de bistec." },
       { speaker: "caller", text: said },
@@ -1935,6 +1943,23 @@ test("every una count phrase flags", () => {
   ]) {
     const qty = callerSpokenQty(turns, "gordita", "", "");
     assert.equal(staffQuantity(turns, "gordita", "", qty ?? 1, qty ?? 1, "").flag, true);
+  }
+});
+
+test("a later en total still flags beside a price", () => {
+  for (const said of ["Tres en total, son 30 pesos.", "25 en total, digo tres en total."]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
   }
 });
 

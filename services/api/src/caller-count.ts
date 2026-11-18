@@ -396,12 +396,8 @@ function countHint(text: string): boolean {
   if (hit(new RegExp(`\\bquitale\\s+(${any})\\b`, "i"))) return true;
   if (/\bponle\s+otro\b/.test(p)) return true;
   if (hit(new RegExp(`\\blets?\\s+do\\s+(${any})\\b`, "i")) || hit(new RegExp(`\\blet\\s+s\\s+do\\s+(${any})\\b`, "i"))) return true;
-  if (!/\ben\s+total\b/.test(p) || /\b(?:pesos?|dolares?|dollars?|euros?|bucks?|centavos?)\b/.test(p)) return false;
-  const before = p.slice(0, p.search(/\ben\s+total\b/));
-  const said = (before.match(/(\d+|[a-z]+)\s*$/) || [])[1] || "";
-  const small: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, veinte: 20, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twenty: 20 };
-  const value = /^\d+$/.test(said) ? Number(said) : small[said];
-  return value != null && value >= 1 && value <= 20;
+  if (hit(new RegExp(`\\b(${any})\\s+en\\s+total\\b`, "i"))) return true;
+  return false;
 }
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];
