@@ -1,0 +1,52 @@
+[
+  {
+    "id": "syn-en-two-tacos",
+    "synthetic": true,
+    "verified": true,
+    "language": "en",
+    "utterance": "Two steak tacos.",
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["bistec-taco"] }]
+  },
+  {
+    "id": "syn-es-dos-tacos",
+    "synthetic": true,
+    "verified": true,
+    "language": "es",
+    "utterance": "Dos tacos de bistec.",
+    "actions": [{ "type": "add_item", "item_id": "sq-taco-TAR7L5", "quantity": 2, "option_ids": ["bistec-taco"] }]
+  },
+  {
+    "id": "syn-en-add-coke",
+    "synthetic": true,
+    "verified": true,
+    "language": "en",
+    "utterance": "And a coke.",
+    "cart": [{ "itemId": "sq-taco-TAR7L5" }],
+    "actions": [{ "type": "add_item", "item_id": "sq-coke", "quantity": 1 }]
+  },
+  {
+    "id": "syn-es-y-coca",
+    "synthetic": true,
+    "verified": true,
+    "language": "es",
+    "utterance": "Y una coca.",
+    "cart": [{ "itemId": "sq-taco-TAR7L5" }],
+    "actions": [{ "type": "add_item", "item_id": "sq-coke", "quantity": 1 }]
+  },
+  {
+    "id": "syn-en-gordita",
+    "synthetic": true,
+    "verified": true,
+    "language": "en",
+    "utterance": "One gordita.",
+    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1 }]
+  },
+  {
+    "id": "syn-es-gordita",
+    "synthetic": true,
+    "verified": true,
+    "language": "es",
+    "utterance": "Una gordita.",
+    "actions": [{ "type": "add_item", "item_id": "sq-gordita-M647RE", "quantity": 1 }]
+  }
+]
