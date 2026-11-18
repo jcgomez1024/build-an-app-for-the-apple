@@ -1292,6 +1292,30 @@ test("a numbered que tal order keeps its count and still asks", async () => {
     { speaker: "caller", text: "Dos más." },
   ];
   assert.equal(callerSpokenQty(across, "quesadilla", "pollo", ""), 1);
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] },
+  ];
+  assert.equal(callerSpokenQty(bare, "quesadilla", "pollo", "", cart), 1);
+  assert.deepEqual(staffQuantity(bare, "quesadilla", "pollo", 3, 3, "", cart), { quantity: 1, flag: true });
+  for (const said of ["Seis de bistec.", "Diez de bistec.", "Una docena de bistec.", "Media docena de bistec.", "Four of bistec.", "Ten of bistec."]) {
+    assert.equal(callerSpokenQty([
+      { speaker: "caller", text: `${said} Una quesadilla de pollo.` },
+      { speaker: "caller", text: "Dos más." },
+    ], "quesadilla", "pollo", ""), 1, said);
+  }
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Para las dos, de pastor." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "alpastor", ""), null);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de pollo, de bistec no." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "pollo", ""), 4);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de pollo, de bistec no." },
+    { speaker: "caller", text: "Dos más." },
+  ], "taco", "bistec", ""), null);
 });
 
 test("a continued bistec and an alias are one open line", () => {

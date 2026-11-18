@@ -425,6 +425,15 @@ function catalogMeatKey(word: string): string {
 function dishKey(word: string): string {
   return fold(word).replace(/s$/, "");
 }
+const BESIDE_COUNT = "media\\s+docena|\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|docena|one|two|three|four|five|six|seven|eight|nine|ten";
+function countBesideMeat(part: string, meatWord: string): boolean {
+  const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
+  const key = catalogMeatKey(meatWord);
+  const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!words.length) return false;
+  const meat = words.join("|");
+  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b(?:\\s+(?:de|of))?\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
+}
 function spokenLineKeys(text: string): string[] {
   const keys = new Set<string>();
   let dish = "";
@@ -458,8 +467,9 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
     const named = part.match(dishRe);
     const meat = part.match(meatRe);
     if (named) dish = dishKey(named[1]);
-    if (meat?.[1] && (named || dish)) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
-    else if (meat?.[1]) keys.push(`|${catalogMeatKey(meat[1])}`);
+    const rejected = !named && /\bno\b/.test(part);
+    if (meat?.[1] && (named || dish) && !rejected) keys.push(`${named ? dishKey(named[1]) : dish}|${catalogMeatKey(meat[1])}`);
+    else if (meat?.[1] && !rejected && countBesideMeat(part, meat[1])) keys.push(`|${catalogMeatKey(meat[1])}`);
     else if (named) keys.push(`${dishKey(named[1])}|`);
   }
   return { keys, dish };
@@ -525,12 +535,13 @@ export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string
       const dish = rawDish || carry;
       if (rawDish) carry = rawDish;
       if (dish && meat) keys.add(`${dish}|${meat}`);
-      else if (meat && /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three)\b/.test(fold(turns[j].text))) keys.add(`|${meat}`);
+      else if (meat) keys.add(`|${meat}`);
     }
   }
   if (!cart?.length) return [...keys];
   const present = linesOnOrder(cart);
-  return [...keys].filter((key) => present.has(key));
+  const meats = new Set([...present].map((key) => key.split("|")[1]).filter(Boolean));
+  return [...keys].filter((key) => present.has(key) || (key.startsWith("|") && meats.has(key.slice(1))));
 }
 /** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
 export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boolean {
