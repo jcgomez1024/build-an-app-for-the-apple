@@ -384,14 +384,17 @@ function countHint(text: string): boolean {
   const word = "dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
   const any = `una|uno|un|${word}|\\d+`;
   const lone = /^(?:una|uno|un)$/;
-  const blocks = (num: string, end: number) => lone.test(num) && /^(?:extra|de|queso|cebolla|crema|salsa|guacamole|aguacate|lechuga|frijoles)\b/.test(p.slice(end).trim());
+  const mod = "queso|cebolla|crema|salsa|guacamole|aguacate|lechuga|frijoles";
+  const blocks = (num: string, end: number) => lone.test(num) && new RegExp(`^(?:(?:extra\\s+)?de\\s+(?:${mod})|extra\\s+de\\s+\\S+|(?:${mod}))\\b`).test(p.slice(end).trim());
   const hit = (re: RegExp) => {
-    const m = p.match(re);
-    if (!m || m.index == null || !m[1]) return false;
-    const at = m.index + m[0].lastIndexOf(m[1]) + m[1].length;
-    return !blocks(m[1], at);
+    for (const m of p.matchAll(new RegExp(re.source, "gi"))) {
+      if (m.index == null || !m[1]) continue;
+      const at = m.index + m[0].lastIndexOf(m[1]) + m[1].length;
+      if (!blocks(m[1], at)) return true;
+    }
+    return false;
   };
-  if (hit(new RegExp(`\\b(${word}|\\d+)\\s+extra\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+extra\\b`, "i"))) return true;
   if (hit(new RegExp(`\\bagregale\\s+(${any})\\b`, "i"))) return true;
   if (hit(new RegExp(`\\bsubele\\s+a\\s+(${any})\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+menos\\b`, "i"))) return true;

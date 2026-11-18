@@ -1853,6 +1853,43 @@ test("a later una de does not cancel a count hint", () => {
   }
 });
 
+test("a later count phrase still flags when an earlier una is a topping", () => {
+  const must = [
+    "Agrégale una de queso y agrégale dos.",
+    "Quítale una cebolla y quítale uno.",
+    "Quítale una salsa, y quítale dos.",
+    "Súbele a una de crema y súbele a tres.",
+    "Agrégale uno de bistec.",
+    "Quítale uno de pollo.",
+    "Agrégale una de bistec y una de pollo.",
+    "Agrégale uno de cada uno.",
+    "Quítale uno, de los de bistec.",
+    "Uno extra.",
+    "Una extra.",
+  ];
+  for (const said of must) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const qty = callerSpokenQty(turns, "taco", "bistec", "");
+    assert.equal(staffQuantity(turns, "taco", "bistec", qty ?? 2, qty ?? 2, "").flag, true, said);
+  }
+  for (const said of ["Agrégale uno de bistec.", "Uno extra.", "Agrégale una de queso y agrégale dos."]) {
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const qty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", qty ?? 2, qty ?? 2, "").flag, true, said);
+  }
+  const readback = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Agrégale uno de bistec." },
+  ];
+  assert.equal(staffQuantity(readback, "taco", "bistec", 1, 1, "").flag, true);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },
