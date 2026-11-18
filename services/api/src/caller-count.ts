@@ -109,14 +109,15 @@ function styleKey(text: string): string {
   }
   return best?.key || "";
 }
-function countQuestion(raw: string): number | null {
+function countQuestion(raw: string): { n: number; topic: string } | null {
   if (!/[?¿]/.test(String(raw || ""))) return null;
   if (/\b(?:te tengo|le tengo|so i (?:got|have)|i (?:got|have)|entonces)\b/i.test(raw)) return null;
   const p = plain(raw);
-  const dishes = DISHES.filter(([re]) => re.test(p)).length;
-  if (dishes >= 2) return null;
-  const m = p.match(new RegExp(`^(?:son|serian|is it|about)?\\s*(${NUMW})$`));
-  return m ? numOf(m[1]) : null;
+  if ((p.match(/\b(?:tacos?|quesadillas?|tortas?|gorditas?|burritos?)\b/g) || []).length >= 2) return null;
+  const m = p.match(new RegExp(`^(?:son|serian|is it|about)?\\s*(${NUMW})(?:\\s+(.*))?$`));
+  if (!m || /\b(?:y|and)\b/.test(m[2] || "")) return null;
+  const n = numOf(m[1]);
+  return n ? { n, topic: (m[2] || "").trim() } : null;
 }
 function topicBefore(turns: Turn[], index: number): string {
   const bits: string[] = [];
@@ -133,17 +134,18 @@ function askedCounts(turns: Turn[]): Asked[] {
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i];
     if (turn?.speaker === "caller") continue;
-    const n = countQuestion(String(turn?.text || ""));
-    if (!n) continue;
+    const asked = countQuestion(String(turn?.text || ""));
+    if (!asked) continue;
     const next = turns.slice(i + 1).find((item) => item?.speaker === "caller");
     if (!next || NO.test(plain(next.text || "")) || !YES.test(plain(next.text || ""))) continue;
-    out.push({ n, topic: topicBefore(turns, i) });
+    out.push({ n: asked.n, topic: asked.topic || topicBefore(turns, i) });
   }
   return out;
 }
 function topicMatches(topic: string, itemText: string, dish: string, meat: string): boolean {
-  const topicWords = expand(words(topic));
-  const itemWords = expand(words(`${itemText} ${dish} ${meat}`));
+  const tokens = (text: string) => plain(text).split(" ").filter((word) => word.length >= 4);
+  const topicWords = expand(tokens(topic));
+  const itemWords = expand(tokens(`${itemText} ${dish} ${meat}`));
   for (const word of topicWords) if (itemWords.has(word)) return true;
   return false;
 }
@@ -158,12 +160,27 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
   let lastParts: Part[] = [];
   let copied = false;
   let pending: Pending | null = null;
-  const put = (dish: string, style: string, meat: string, n: number) => counts.set(`${dish}|${style}|${meat}`, n);
+  let lastMeat = "";
+  const keyOf = (dish: string, style: string, meat: string) => `${dish}|${style}|${meat}`;
+  const put = (dish: string, style: string, meat: string, n: number) => counts.set(keyOf(dish, style, meat), n);
+  const add = (dish: string, style: string, meat: string, n: number) => counts.set(keyOf(dish, style, meat), (counts.get(keyOf(dish, style, meat)) || 0) + n);
+  const additive = (before: string, seg: string) => {
+    const tail = before.trim().split(/\s+/).slice(-4).join(" ");
+    if (/\b(?:otros|otras)\b/.test(tail)) return true;
+    if (/\b(?:otra|otro|another)\b/.test(tail) && !/\borden\b/.test(tail)) return true;
+    if (/\b(?:mas|more)\b/.test(tail)) return true;
+    return /\b(?:mas|more)\b/.test(seg) && !/\b(?:mas|more)\s*$/.test(seg);
+  };
   for (const turn of turns || []) {
     if (turn.speaker && turn.speaker !== "caller") continue;
     const raw = String(turn.text || "");
     const p = plain(raw);
     if (!p) continue;
+    const otra = p.match(/^(?:y\s+)?(?:otra|otro)\s+de\s+(.+)$/) || p.match(/^(?:and\s+)?another\s+(.+)$/);
+    if (otra && !/\borden\b/.test(p) && open) {
+      const otraMeat = meatIn(otra[1]);
+      if (otraMeat) { add(open, openStyle, otraMeat, 1); continue; }
+    }
     const numbered = [...p.matchAll(new RegExp(`\\b(${NUMW})\\b`, "g"))];
     const meat = meatIn(p);
     if (pending && !numbered.length && meat) {
@@ -187,7 +204,9 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
     for (let i = 0; i < numbered.length; i++) {
       const n = numOf(numbered[i][1]);
       if (!n) continue;
-      const seg = p.slice((numbered[i].index || 0) + numbered[i][0].length, numbered[i + 1]?.index ?? p.length);
+      const at = numbered[i].index || 0;
+      const seg = p.slice(at + numbered[i][0].length, numbered[i + 1]?.index ?? p.length);
+      const before = p.slice(0, at);
       const segDish = dishIn(seg);
       const segMeat = meatIn(seg);
       const segStyle = styleKey(seg);
@@ -196,11 +215,14 @@ function explicitCounts(turns: Turn[]): Map<string, number> {
       if (segDish) open = segDish;
       const useDish = segDish || (segMeat ? open : null);
       if (!useDish || !segMeat) {
-        if (segDish && !segMeat) bare = { dish: segDish, n, style: segStyle || openStyle };
+        if (additive(before, seg) && open && lastMeat) add(open, openStyle, lastMeat, n);
+        else if (segDish && !segMeat) bare = { dish: segDish, n, style: segStyle || openStyle };
         continue;
       }
       const style = segStyle || openStyle;
-      put(useDish, style, segMeat, n);
+      if (additive(before, seg)) add(useDish, style, segMeat, n);
+      else put(useDish, style, segMeat, n);
+      lastMeat = segMeat;
       parts.push({ dish: useDish, style, meat: segMeat, n });
     }
     pending = parts.length ? null : bare;

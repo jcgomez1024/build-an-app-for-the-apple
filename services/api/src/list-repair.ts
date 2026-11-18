@@ -1419,42 +1419,61 @@ function catalogTokens(value: string): string[] {
   return plain(value).split(" ").filter((word) => word.length >= 4);
 }
 function drinkItem(item: any): boolean {
-  return /\b(?:drink|bebida)\b/.test(plain(String(item?.category || "")));
+  const category = plain(String(item?.category || ""));
+  return category === "drinks" || category === "drink" || category === "bebidas" || category === "bebida";
 }
-/** "Otra de bistec" / "another steak" repeats the most recent food, same item and style, with that catalog option. */
+function meatGroup(group: any): boolean {
+  const name = String(group?.name || "");
+  return /carne|meat/i.test(name) && !/salsa|tortilla|extra/i.test(name);
+}
+function dishWord(item: any, language: "es" | "en"): string {
+  const source = language === "en" ? (item?.name || item?.nameEs || "") : (item?.nameEs || item?.name || "");
+  return plain(source).split(" ").find((word) => word.length > 2) || "item";
+}
+function meatWord(option: string, language: "es" | "en"): string {
+  const side = language === "en" && option.includes("/") ? option.split("/")[1] : option.split("/")[0];
+  return plain(side).split(" ").find((word) => word.length > 2) || plain(side);
+}
+/** "Otra de bistec" / "another steak" repeats the most recent food, same item and style, with that meat option. */
 export function repeatLastFood(cart: any[], text: string, menu: any[], language: "es" | "en"): { reply: string } | null {
   const spoken = plain(text);
   const es = spoken.match(/^(?:y\s+)?otra\s+de\s+([a-z]+(?:\s+[a-z]+)?)$/);
   const en = spoken.match(/^(?:and\s+)?another\s+([a-z]+(?:\s+[a-z]+)?)$/);
-  const words = catalogTokens((es || en)?.[1] || "");
-  if (!words.length || /\b(?:tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|huaraches?)\b/.test(spoken)) return null;
+  const said = (es || en)?.[1] || "";
+  if (!said || /\b(?:tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|huaraches?)\b/.test(spoken)) return null;
+  const saidMeat = meatIn(said);
+  const ask = language === "en"
+    ? `Another ${said} of which dish?`
+    : `¿Otra de ${said} de cuál platillo?`;
   const last = [...(cart || [])].reverse().find((line) => {
     const item = (menu || []).find((row) => row?.id === line?.itemId);
     return item && !drinkItem(item);
   });
-  if (!last) return null;
+  if (!last || !saidMeat) return { reply: ask };
   const item = (menu || []).find((row) => row?.id === last.itemId);
   const matches: Array<{ step: string; option: string; optionId: string }> = [];
   for (const group of item?.modifierGroups || []) {
+    if (!meatGroup(group)) continue;
     for (const choice of group.options || []) {
       const name = choiceName(choice);
-      if (!words.some((word) => catalogTokens(name).includes(word))) continue;
+      const spoken = plain(name).split(" ").flatMap((word) => [word, ...compoundForms(word)]).join(" ");
+      if (meatIn(spoken) !== saidMeat) continue;
       matches.push({ step: String(group.name || ""), option: name, optionId: choiceId(choice) });
     }
   }
   const onLine = matches.filter((match) => (last.modifiers || []).some((mod: any) => mod.step === match.step));
   const chosen = onLine.length === 1 ? onLine[0] : matches.length === 1 ? matches[0] : null;
-  if (!chosen) return null;
+  if (!chosen) return { reply: ask };
   const copy = JSON.parse(JSON.stringify(last));
   copy.quantity = 1;
   delete copy.lineId;
   copy.modifiers = (copy.modifiers || []).filter((mod: any) => mod.step !== chosen.step);
   copy.modifiers.push({ step: chosen.step, option: chosen.option, ...(chosen.optionId ? { optionId: chosen.optionId } : {}) });
   cart.push(copy);
-  const dish = plain(language === "en" ? (item.name || item.nameEs || "") : (item.nameEs || item.name || "")).split(" ").find((word) => word.length > 2) || "item";
-  const meatSide = language === "en" && chosen.option.includes("/") ? chosen.option.split("/")[1] : chosen.option.split("/")[0];
-  const meat = plain(meatSide).split(" ").find((word) => word.length > 2) || plain(meatSide);
-  return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, otra ${dish} de ${meat}, ¿verdad?` };
+  const dish = dishWord(item, language);
+  const meat = meatWord(chosen.option, language);
+  const one = /a$/.test(dish) ? "otra" : "otro";
+  return { reply: language === "en" ? `Ok, another ${meat} ${dish}, right?` : `Ok, ${one} ${dish} de ${meat}, ¿verdad?` };
 }
 /** "Seis tacos de pastor" changes the pastor line only. It does not copy that count onto another meat. */
 export function applyLineScopedQuantity(cart: any[], turns: Turn[]): boolean {
@@ -1851,7 +1870,22 @@ export const STAFF_LIST_REVIEW = "revisar lectura del personal";
 /** A quantity flag names a line in the final cart. Other flags stay. */
 export function pruneQuantityFlags(cart: any[], flags: string[]): string[] {
   const ids = new Set((cart || []).map((line) => String(line?.itemId || "")));
-  return (flags || []).filter((flag) => !String(flag).startsWith("quantity:") || ids.has(String(flag).slice("quantity:".length)));
+  const hasKindMeat = (kind: string, meat: string) => (cart || []).some((line) => {
+    const got = kindOfLine(line);
+    if (!got || meatOfLine(line) !== meat) return false;
+    if (kind === "taco") return got === "taco";
+    if (kind === "quesadilla" || kind === "qd") return got === "quesadilla" || got === "qd";
+    return got === kind;
+  });
+  return (flags || []).filter((flag) => {
+    const text = String(flag);
+    if (text.startsWith("quantity:") || text.startsWith("meat:")) return ids.has(text.slice(text.indexOf(":") + 1));
+    if (text.startsWith("missing:")) {
+      const [, kind, meat] = text.split(":");
+      return !(kind && meat && hasKindMeat(kind, meat));
+    }
+    return true;
+  });
 }
 function readbackStyleText(entry: Exp, line: any): string {
   const named = entry.kind === "qd" ? (entry.qd === "preparada" ? "deluxe preparada" : "regular") : (entry.style || "");

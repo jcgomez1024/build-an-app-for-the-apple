@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags } from "../../src/list-repair.ts";
+import { applyAffirmedStaffList, applyLineScopedQuantity, applyReadbackCounts, applyStaffReadback, liveMeatSplitQty, parseList, pruneQuantityFlags, repeatLastFood } from "../../src/list-repair.ts";
 import { applyStaffOrderCount } from "../../src/readback-pass.ts";
+import { callerSpokenQty } from "../../src/caller-count.ts";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
@@ -264,7 +265,7 @@ test("otra after a taco repeats that taco", async () => {
   assert.equal(lines.length, 2, JSON.stringify(order.cart));
   assert.match(JSON.stringify(lines[1].modifiers), /Street|Taquero/);
   assert.match(JSON.stringify(lines[1].modifiers), /Bistec/);
-  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /Ok, otra taco de bistec, ¿verdad\?/);
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /Ok, otro taco de bistec, ¿verdad\?/);
 });
 
 test("another after a torta repeats that torta in English", async () => {
@@ -294,7 +295,8 @@ test("otra with a meat the last item does not offer falls back", async () => {
     ? { actions: [{ type: "add_item", itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] }], reply: "ok" }
     : { actions: [], reply: "¿De qué?" }));
   assert.equal((order.cart || []).length, 1, JSON.stringify(order.cart));
-  assert.doesNotMatch((order.steps || []).map((step: any) => step.reply).join(" "), /¿verdad\?/);
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /¿Otra de pulpo de cuál platillo\?/);
+  assert.equal((order.cart || []).some((line: any) => line.itemId === "sq-not-a-guess"), false);
 });
 
 test("caller count 1 stays when staff reads back 3", () => {
@@ -446,9 +448,20 @@ test("dorada preparada and deluxe are the same count", () => {
 });
 
 test("a quantity flag on a replaced line is pruned", () => {
-  const cart = [{ itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [] }];
-  const flags = pruneQuantityFlags(cart, ["quantity:sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH", "quantity:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", "meat:sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH"]);
-  assert.deepEqual(flags, ["quantity:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", "meat:sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH"]);
+  const cart = [
+    { itemId: "sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Tripa / Beef Tripe" }] },
+  ];
+  const flags = pruneQuantityFlags(cart, [
+    "quantity:sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "quantity:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "meat:sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH",
+    "missing:quesadilla:tripa",
+    "meat:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+  ]);
+  assert.deepEqual(flags, [
+    "quantity:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+    "meat:sq-qd-quesadilla-dorada-qd-deluxe-preparada-ZZAV3L",
+  ]);
 });
 
 test("me puede poner N applies when the staff readback repeats it", () => {
@@ -464,10 +477,119 @@ test("me puede poner N applies when the staff readback repeats it", () => {
   assert.equal((cart as any).readbackFlags, undefined);
 });
 
-test("otra with no prior item falls back", async () => {
+test("otra with no prior item asks which dish", async () => {
   const order: any = await shadowOrderFromTurns([
     { speaker: "caller", start: 0, end: 1, language: "es", text: "Otra de bistec." },
-  ] as any, shadowRun(() => ({ actions: [], reply: "¿De qué?" })));
+  ] as any, shadowRun(() => ({ actions: [], reply: "guess" })));
   assert.equal((order.cart || []).length, 0);
-  assert.doesNotMatch((order.steps || []).map((step: any) => step.reply).join(" "), /¿verdad\?/);
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /¿Otra de bistec de cuál platillo\?/);
+});
+
+test("another with no prior item asks which dish in English", async () => {
+  const order: any = await shadowOrderFromTurns([
+    { speaker: "caller", start: 0, end: 1, language: "en", text: "Another steak." },
+  ] as any, shadowRun(() => ({ actions: [], reply: "guess" })));
+  assert.equal((order.cart || []).length, 0);
+  assert.match((order.steps || []).map((step: any) => step.reply).join(" "), /Another steak of which dish\?/);
+});
+
+test("caller counts add más, otros, and otra instead of overwriting", () => {
+  const mas = callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Dos tacos más de bistec." },
+  ], "taco", "bistec", "(TCO) Taco Comal / Homemade");
+  assert.equal(mas, 4);
+  const otros = callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Otros dos." },
+  ], "taco", "bistec", "");
+  assert.equal(otros, 4);
+  const otra = callerSpokenQty([
+    { speaker: "caller", text: "Una quesadilla de bistec." },
+    { speaker: "caller", text: "Otra de bistec." },
+  ], "quesadilla", "bistec", "");
+  assert.equal(otra, 2);
+  const restated = callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Dos tacos de bistec." },
+  ], "taco", "bistec", "");
+  assert.equal(restated, 2);
+  const total = callerSpokenQty([
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "Serían cuatro tacos de bistec." },
+  ], "taco", "bistec", "");
+  assert.equal(total, 4);
+});
+
+test("a staff count question can name the dish or the meat", () => {
+  const tacos = callerSpokenQty([
+    { speaker: "caller", text: "Tacos de bistec." },
+    { speaker: "staff", text: "¿Dos tacos?" },
+    { speaker: "caller", text: "Sí." },
+  ], "taco", "bistec", "Bistec / Steak");
+  assert.equal(tacos, 2);
+  const english = callerSpokenQty([
+    { speaker: "caller", text: "Steak tacos." },
+    { speaker: "staff", text: "Two tacos?" },
+    { speaker: "caller", text: "Yes." },
+  ], "taco", "bistec", "Bistec / Steak");
+  assert.equal(english, 2);
+  const meat = callerSpokenQty([
+    { speaker: "caller", text: "Quesadillas." },
+    { speaker: "staff", text: "¿Dos de bistec?" },
+    { speaker: "caller", text: "Sí." },
+  ], "quesadilla", "bistec", "Bistec / Steak");
+  assert.equal(meat, 2);
+});
+
+test("otra de asada matches bistec and otra de harina does not change the tortilla", () => {
+  const cart = [{
+    itemId: "sq-taco-TAR7L5", quantity: 1,
+    modifiers: [
+      { step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" },
+      { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" },
+      { step: "(I) Salsa Preferencia / Preference", option: "Mild Salsa Asada" },
+    ],
+  }];
+  const asada = repeatLastFood(cart, "Otra de asada.", menu, "es");
+  assert.match(asada?.reply || "", /Ok, otro taco de bistec/);
+  assert.equal(cart.length, 2);
+  assert.match(JSON.stringify(cart[1].modifiers), /Bistec/);
+  assert.doesNotMatch(JSON.stringify(cart[1].modifiers.filter((mod: any) => /carne|meat/i.test(mod.step))), /Salsa/);
+  const harina = repeatLastFood(cart, "Otra de harina.", menu, "es");
+  assert.match(harina?.reply || "", /cuál platillo/);
+  assert.equal(cart.length, 2);
+  assert.match(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
+});
+
+test("otra de pastor uses the catalog Alpastor option", () => {
+  const cart = [{ itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] }];
+  const reply = repeatLastFood(cart, "Otra de pastor.", menu, "es");
+  assert.match(reply?.reply || "", /Ok, otro taco de alpastor|Ok, otro taco de pastor/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Alpastor/);
+});
+
+test("otra skips a drink and repeats the food behind it", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+    { itemId: "sq-drink-diet-coca-cola-ZOE5GZ", quantity: 1, modifiers: [] },
+  ];
+  const reply = repeatLastFood(cart, "Otra de bistec.", menu, "es");
+  assert.match(reply?.reply || "", /otro taco de bistec/);
+  assert.equal(cart.filter((line) => line.itemId === "sq-taco-TAR7L5").length, 2);
+  assert.equal(cart.filter((line) => /drink/.test(line.itemId)).length, 1);
+});
+
+test("a correct readback keeps the added otra count", () => {
+  const cart = [
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }, { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" }] },
+  ];
+  repeatLastFood(cart, "Otra de bistec.", menu, "es");
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Una quesadilla de bistec." },
+    { speaker: "caller", text: "Otra de bistec." },
+    { speaker: "staff", text: "Te tengo dos quesadillas de bistec y un taco de chorizo." },
+  ], menu, true);
+  const lines = cart.filter((line) => line.itemId === "sq-quesadilla-HLT6CR");
+  assert.equal(lines.reduce((sum, line) => sum + line.quantity, 0), 2);
 });
