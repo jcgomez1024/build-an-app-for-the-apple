@@ -1797,6 +1797,42 @@ test("extra count phrases flag and do not change the quantity", () => {
   }
 });
 
+test("only a real first answer clears the other line", () => {
+  const base = [
+    { speaker: "caller", text: "Un taco de bistec y un taco de pollo." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  for (const said of ["Pollo no, bistec.", "No el de bistec, el de pollo.", "De bistec y de pollo.", "¿El de bistec lleva cebolla?"]) {
+    const turns = [...base, { speaker: "caller", text: said }];
+    assert.equal(staffQuantity(turns, "taco", "bistec", 1, 1, "").flag, true, said);
+    assert.equal(staffQuantity(turns, "taco", "pollo", 1, 1, "").flag, true, said);
+  }
+  const later = [
+    { speaker: "caller", text: "Dos tacos de bistec y una torta." },
+    { speaker: "caller", text: "Que sean tres." },
+    { speaker: "caller", text: "De bistec." },
+    { speaker: "caller", text: "De pollo." },
+  ];
+  assert.equal(staffQuantity(later, "taco", "bistec", 2, 2, "").flag, true);
+  assert.equal(staffQuantity(later, "torta", "", 2, 2, "").flag, false);
+  for (const said of ["Dos tacos de bistec y a domicilio.", "Dos tacos de bistec y a recoger.", "Dos tacos de bistec y a nombre de Juan."]) {
+    const turns = [
+      { speaker: "caller", text: said },
+      { speaker: "caller", text: "Que sean tres." },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 3, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 3, 3, "").flag, false, said);
+  }
+  for (const said of ["Una extra de queso.", "21 en total.", "Treinta en total.", "Tres en total pesos.", "10 dollars en total."]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, false, said);
+  }
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

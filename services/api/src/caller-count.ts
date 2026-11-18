@@ -381,18 +381,42 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 function countHint(text: string): boolean {
   const p = plain(text);
-  const n = "\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six|seven|eight|nine|ten";
-  return new RegExp(`\\b(?:${n})\\s+extra\\b|\\bagregale\\s+(?:${n})\\b|\\bsubele\\s+a\\s+(?:${n})\\b|\\b(?:${n})\\s+en\\s+total\\b|\\b(?:${n})\\s+menos\\b|\\bquitale\\s+(?:${n})\\b|\\bponle\\s+otro\\b|\\blets?\\s+do\\s+(?:${n})\\b|\\blet\\s+s\\s+do\\s+(?:${n})\\b`, "i").test(p);
+  if (/\b(?:un|una|uno)\s+(?:extra|de)\b/.test(p)) return false;
+  const n = "\\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|one|two|three|four|five|six|seven|eight|nine|ten|twenty";
+  const any = `${n}|un|una|uno`;
+  if (new RegExp(`\\b(?:${n})\\s+extra\\b|\\bagregale\\s+(?:${any})\\b|\\bsubele\\s+a\\s+(?:${any})\\b|\\b(?:${any})\\s+menos\\b|\\bquitale\\s+(?:${any})\\b|\\bponle\\s+otro\\b|\\blets?\\s+do\\s+(?:${any})\\b|\\blet\\s+s\\s+do\\s+(?:${any})\\b`, "i").test(p)) return true;
+  if (!/\ben\s+total\b/.test(p) || /\b(?:pesos?|dolares?|dollars?|euros?|bucks?|centavos?)\b/.test(p)) return false;
+  const before = p.slice(0, p.search(/\ben\s+total\b/));
+  const said = (before.match(/(\d+|[a-z]+)\s*$/) || [])[1] || "";
+  const small: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, veinte: 20, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twenty: 20 };
+  const value = /^\d+$/.test(said) ? Number(said) : small[said];
+  return value != null && value >= 1 && value <= 20;
 }
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];
-  for (const part of plain(text).split(/\s+y\s+|\s+and\s+/).slice(1)) {
-    const named = part.match(/^(?:unos|unas|un|una|a|an|some|orden\s+de)\s+([a-z]{4,})/);
-    if (!named || COUNT_SKIP.has(named[1]) || dishIn(named[1]) || meatIn(named[1])) continue;
-    if (keys.some((key) => key.includes(named[1]))) continue;
+  const take = (part: string, english: boolean) => {
+    const lead = english ? /^(?:a|an|some|unos|unas|un|una|orden\s+de)\s+([a-z]{4,})/ : /^(?:unos|unas|un|una|orden\s+de)\s+([a-z]{4,})/;
+    const named = part.match(lead);
+    if (!named || COUNT_SKIP.has(named[1]) || dishIn(named[1]) || meatIn(named[1])) return;
+    if (keys.some((key) => key.includes(named[1]))) return;
     out.push(named[1]);
-  }
+  };
+  const body = plain(text);
+  for (const part of body.split(/\s+y\s+/).slice(1)) take(part, false);
+  for (const part of body.split(/\s+and\s+/).slice(1)) take(part, true);
   return out;
+}
+function meatsNamed(text: string): string[] {
+  const body = plain(text);
+  const found: string[] = [];
+  for (const [re, key] of MEATS) if (re.test(body) && !found.includes(key)) found.push(key);
+  return found;
+}
+function namingAnswer(text: string): boolean {
+  if (/[?¿]/.test(text)) return false;
+  const p = plain(text);
+  if (/\b(?:no|not|perdon|mejor)\b/.test(p)) return false;
+  return meatsNamed(text).length === 1;
 }
 function keyCovers(key: string, wantDish: string, wantMeat: string): boolean {
   const [od, om] = key.split("|");
@@ -406,6 +430,7 @@ function keyCovers(key: string, wantDish: string, wantMeat: string): boolean {
 function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boolean {
   const pending = new Set<string>();
   const missed = new Set<string>();
+  let waitAnswer = false;
   const clearOthers = (text: string) => {
     const namedDish = dishIn(text);
     const namedMeat = meatIn(text);
@@ -424,7 +449,10 @@ function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boole
     const turn = turns[i];
     if (turn?.speaker && turn.speaker !== "caller") continue;
     const text = String(turn.text || "");
-    clearOthers(text);
+    if (waitAnswer) {
+      waitAnswer = false;
+      if (namingAnswer(text)) clearOthers(text);
+    }
     const bare = makeItN(text);
     const bareTail = bare ? plain(bare.tail) : "";
     const bareCount = (!!bare && !dishIn(bareTail) && !meatIn(bareTail)) || ambiguousMore(turns, i);
@@ -435,10 +463,12 @@ function unresolvedFor(turns: Turn[], wantDish: string, wantMeat: string): boole
       if (turns[j]?.speaker && turns[j].speaker !== "caller") continue;
       missedBefore.push(...missedSideWords(plain(String(turns[j].text || "")), keys));
     }
-    if (countHint(plain(text))) for (const key of keys) pending.add(key);
-    if (!(ambiguousMakeIt(turns, i) || ambiguousMore(turns, i) || (bareCount && (missedHere.length || missedBefore.length)))) continue;
-    for (const key of keys) pending.add(key);
+    const hinted = countHint(plain(text));
+    const unclear = ambiguousMakeIt(turns, i) || ambiguousMore(turns, i) || (bareCount && (missedHere.length || missedBefore.length)) || hinted;
+    if (!unclear) continue;
+    if (hinted || ambiguousMakeIt(turns, i) || ambiguousMore(turns, i) || bareCount) for (const key of keys) pending.add(key);
     for (const word of [...missedHere, ...missedBefore]) missed.add(word);
+    waitAnswer = true;
   }
   if ([...pending].some((key) => keyCovers(key, wantDish, wantMeat))) return true;
   return (!!wantDish && missed.has(wantDish)) || (!!wantMeat && missed.has(wantMeat));
