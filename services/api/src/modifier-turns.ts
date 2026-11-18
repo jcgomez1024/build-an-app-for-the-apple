@@ -496,7 +496,7 @@ function leadMeat(part: string, pattern: RegExp): string {
 let extraWords: Set<string> | null = null;
 function extraLineWords(): Set<string> {
   if (extraWords) return extraWords;
-  const filler = new Set(["with", "your", "choice", "meat", "sour", "cream", "salsa", "chip", "side", "sides", "and", "the", "for", "you", "our", "from", "para", "con", "del", "agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "rice", "beans", "arroz", "frijoles", "frijole", "elvis", "dips"]);
+  const filler = new Set(["with", "your", "choice", "meat", "sour", "cream", "salsa", "chip", "side", "sides", "and", "the", "for", "you", "our", "from", "para", "con", "del", "agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "rice", "beans", "arroz", "frijoles", "frijole", "elvis", "dips", "refried", "cheese", "lettuce", "classic", "toppings", "guacamole"]);
   const words = new Set<string>();
   const add = (token: string) => {
     if (token.length < 4 || filler.has(token) || /^\d/.test(token)) return;

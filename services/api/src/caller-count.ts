@@ -381,7 +381,8 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 function countHint(text: string): boolean {
   const p = plain(text);
-  return /\b(?:dos|two)\s+extra\b|\bagregale\s+dos\b|\bsubele\s+a\s+tres\b|\btres\s+en\s+total\b|\buno\s+menos\b|\bquitale\s+uno\b|\bponle\s+otro\b|\blets?\s+do\s+three\b|\blet\s+s\s+do\s+three\b/.test(p);
+  const n = "\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six|seven|eight|nine|ten";
+  return new RegExp(`\\b(?:${n})\\s+extra\\b|\\bagregale\\s+(?:${n})\\b|\\bsubele\\s+a\\s+(?:${n})\\b|\\b(?:${n})\\s+en\\s+total\\b|\\b(?:${n})\\s+menos\\b|\\bquitale\\s+(?:${n})\\b|\\bponle\\s+otro\\b|\\blets?\\s+do\\s+(?:${n})\\b|\\blet\\s+s\\s+do\\s+(?:${n})\\b`, "i").test(p);
 }
 function missedSideWords(text: string, keys: string[]): string[] {
   const out: string[] = [];

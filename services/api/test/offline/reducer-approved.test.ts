@@ -1780,6 +1780,21 @@ test("extra count phrases flag and do not change the quantity", () => {
   assert.equal(callerSpokenQty(two, "taco", "bistec", ""), 2);
   assert.equal(staffQuantity(two, "taco", "bistec", 2, 2, "").flag, true);
   assert.equal(staffQuantity(two, "coca", "", 1, 1, "").flag, false);
+  for (const said of ["Agrégale tres.", "Súbele a cuatro.", "Dos menos.", "Three extra.", "Let's do four."]) {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    assert.equal(callerSpokenQty(turns, "taco", "bistec", ""), 2, said);
+    assert.equal(staffQuantity(turns, "taco", "bistec", 2, 2, "").flag, true, said);
+  }
+  for (const word of ["cheese", "lettuce", "guacamole", "refried", "classic", "toppings"]) {
+    const keys = openLineKeys([
+      { speaker: "caller", text: `Quiero ${word}.` },
+      { speaker: "caller", text: "Listo." },
+    ], 1);
+    assert.equal(keys.some((key) => key.startsWith(`${word}|`)), false, word);
+  }
 });
 
 test("a continued bistec and an alias are one open line", () => {
