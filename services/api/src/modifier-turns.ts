@@ -409,7 +409,7 @@ export function lineMeatRe(): RegExp {
   lineMeatPattern = alt ? new RegExp(`\\b(${alt})\\b`, "iu") : /$^/;
   return lineMeatPattern;
 }
-function catalogMeatKey(word: string): string {
+export function catalogMeatKey(word: string): string {
   const folded = fold(word).replace(/\s+/g, " ").trim();
   const compact = folded.replace(/\s+/g, "");
   for (const row of loadOptionAliases()) {
@@ -440,10 +440,15 @@ function optionCanonOf(compact: string): string {
             if (head) heads.push(head.replace(/\s+/g, ""));
           }
           if (!heads.length) continue;
-          for (const head of heads) if (!optionCanon.has(head)) optionCanon.set(head, heads[0]);
+          const canon = heads[0];
+          for (const head of heads) {
+            if (!optionCanon.has(head)) optionCanon.set(head, canon);
+            else if (optionCanon.get(head) !== canon) optionCanon.set(head, "");
+          }
         }
       }
     } catch { /* frozen menu unavailable */ }
+    for (const [head, canon] of [...optionCanon]) if (!canon) optionCanon.delete(head);
   }
   return optionCanon.get(compact) || compact;
 }
@@ -457,8 +462,8 @@ function countBesideMeat(part: string, meatWord: string): boolean {
   const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (!words.length) return false;
   const meat = words.join("|");
-  const gap = "(?:\\s*,)?(?:\\s+[a-z]+)?(?:\\s*,)?(?:\\s+(?:de|of))?";
-  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
+  const gap = "(?:\\s*,)?(?:\\s+(?:orden(?:es)?|platos?|tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|orders?|plates?))?(?:\\s*,)?(?:\\s+(?:de|of))?";
+  return new RegExp(`(?<!\\blas\\s)\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(fold(part));
 }
 function meatRefused(part: string, meatWord: string): boolean {
   const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
@@ -502,7 +507,8 @@ function keysInSentence(sentence: string, dish: string): { keys: string[]; dish:
   for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
     const named = part.match(dishRe);
     if (named) dish = dishKey(named[1]);
-    const found = [...part.matchAll(new RegExp(meatRe.source, "giu"))];
+    let found = [...part.matchAll(new RegExp(meatRe.source, "giu"))];
+    if (found.length > 1 && /\b(?:con|with)\b|\bmitad\b.+\bmitad\b/i.test(part)) found = [found[0]];
     if (!found.length) {
       if (named) keys.push(`${dishKey(named[1])}|`);
       continue;

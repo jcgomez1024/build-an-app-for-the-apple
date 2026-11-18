@@ -1308,6 +1308,10 @@ test("a numbered que tal order keeps its count and still asks", async () => {
     { speaker: "caller", text: "Para las dos, de pastor." },
     { speaker: "caller", text: "Dos más." },
   ], "taco", "alpastor", ""), null);
+  assert.equal(openLineKeys([
+    { speaker: "caller", text: "Para las dos, de pastor." },
+    { speaker: "caller", text: "Dos más." },
+  ], 1).some((key) => key.includes("pastor")), false);
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de pollo, de bistec no." },
     { speaker: "caller", text: "Dos más." },
@@ -1364,6 +1368,46 @@ test("a numbered que tal order keeps its count and still asks", async () => {
     assert.equal(callerSpokenQty(turns, "quesadilla", "pollo", "", steakCart), 1, said);
     assert.deepEqual(staffQuantity(turns, "quesadilla", "pollo", 3, 3, "", steakCart), { quantity: 1, flag: true }, said);
   }
+});
+
+test("con and with keep one line, and goat still adds", () => {
+  const mixed = [
+    { speaker: "caller", text: "Dos tacos de bistec con chorizo." },
+    { speaker: "caller", text: "Dos más." },
+  ];
+  assert.equal(callerSpokenQty(mixed, "taco", "bistec", ""), 4);
+  assert.deepEqual(staffQuantity(mixed, "taco", "bistec", 4, 4, ""), { quantity: 4, flag: false });
+  const set = [
+    { speaker: "caller", text: "Dos tacos de bistec con chorizo." },
+    { speaker: "caller", text: "Que sean tres." },
+  ];
+  assert.equal(callerSpokenQty(set, "taco", "bistec", ""), 3);
+  assert.deepEqual(staffQuantity(set, "taco", "bistec", 3, 3, ""), { quantity: 3, flag: false });
+  for (const said of ["Una quesadilla de bistec con queso.", "Dos tacos de bistec con papas."]) {
+    const turns = [{ speaker: "caller", text: said }, { speaker: "caller", text: "Dos más." }];
+    const dish = /quesadilla/.test(said) ? "quesadilla" : "taco";
+    const qty = /quesadilla/.test(said) ? 3 : 4;
+    assert.equal(callerSpokenQty(turns, dish, "bistec", ""), qty, said);
+    assert.deepEqual(staffQuantity(turns, dish, "bistec", qty, qty, ""), { quantity: qty, flag: false }, said);
+  }
+  const english = [
+    { speaker: "caller", text: "Two steak tacos with cheese." },
+    { speaker: "caller", text: "Two more." },
+  ];
+  assert.equal(callerSpokenQty(english, "taco", "bistec", ""), 4);
+  assert.deepEqual(staffQuantity(english, "taco", "bistec", 4, 4, ""), { quantity: 4, flag: false });
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Two goat tacos." },
+    { speaker: "caller", text: "Two more." },
+  ], "taco", "goat", ""), 4);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Two tacos of potatoes." },
+    { speaker: "caller", text: "Two more." },
+  ], "taco", "deshebrada", ""), null);
+  assert.equal(callerSpokenQty([
+    { speaker: "caller", text: "Two tacos of cheese." },
+    { speaker: "caller", text: "Two more." },
+  ], "taco", "queso", ""), null);
 });
 
 test("a continued bistec and an alias are one open line", () => {

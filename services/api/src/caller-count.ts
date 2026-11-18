@@ -5,7 +5,7 @@
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
 import { compoundForms } from "./menu-names.js";
-import { ambiguousMakeIt, ambiguousMore, makeItN, openLineKeys } from "./modifier-turns.js";
+import { ambiguousMakeIt, ambiguousMore, catalogMeatKey, makeItN, openLineKeys } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
 type Turn = { speaker?: string; text?: string };
@@ -21,7 +21,7 @@ const DISHES: Array<[RegExp, string]> = [[/\bquesadillas?\b|\bqds?\b|\bdoradas?\
 const STOP = new Set(["quesadilla", "quesadillas", "taco", "tacos", "torta", "tortas", "gordita", "gorditas", "burrito", "burritos", "option", "options", "the", "and", "con", "para", "from", "with", "your", "yeah", "yep", "yes", "those", "them", "this", "that", "else", "anything"]);
 const YES = /^(?:yep|yeah|yes|si|aja|ok|okay|claro|correcto|right|sure)\b/;
 const NO = /^(?:no|nah|nope|nel)\b/;
-const meatIn = (p: string) => { const text = plain(p).replace(/\balpastor\b/g, "al pastor"); let best: [number, string] | null = null; for (const [re, key] of MEATS) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } return best?.[1] || null; };
+const meatIn = (p: string) => { const text = plain(p).replace(/\balpastor\b/g, "al pastor"); let best: [number, string] | null = null; for (const [re, key] of MEATS) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } if (best) return best[1]; for (const word of text.split(" ")) { const key = catalogMeatKey(word); if (key && key !== word && MEATS.some((row) => row[1] === key)) return key; } return null; };
 const dishIn = (p: string) => { const text = plain(p); let best: [number, string] | null = null; for (const [re, key] of DISHES) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } return best?.[1] || null; };
 const words = (p: string) => plain(p).split(" ").filter((w) => w.length >= 4 && !STOP.has(w));
 const sameWord = (a: string, b: string) => a === b || (a.length >= 5 && b.startsWith(a)) || (b.length >= 5 && a.startsWith(b)) || (Math.min(a.length, b.length) >= 5 && a.slice(0, 5) === b.slice(0, 5));
