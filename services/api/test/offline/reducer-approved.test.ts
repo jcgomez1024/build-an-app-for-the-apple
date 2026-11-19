@@ -2190,20 +2190,21 @@ test("chicharron, a con filling, arroces, and of meat in total flag", () => {
 });
 
 test("a malformed catalog does not throw while reading styles or translations", () => {
-  const items = frozenPhoneMenu();
+  const items = frozenPhoneMenu().map((item) => ({ ...item }));
   items.push({ id: "sq-qd-bad", name: "Bad", modifierGroups: { nope: true } });
   items.push({ name: "Bad options", modifierGroups: [{ name: "Tortilla Options", options: { nope: true } }] });
-  try {
-    const turns = [
-      { speaker: "caller", text: "Dos tacos de bistec." },
-      { speaker: "staff", text: "¿Dos?" },
-      { speaker: "caller", text: "Sí." },
-    ];
-    assert.doesNotThrow(() => callerSpokenQty(turns, "taco", "bistec", ""));
-    assert.doesNotThrow(() => staffQuantity(turns, "taco", "bistec", 2, 2, ""));
-  } finally {
-    items.pop();
-    items.pop();
+  const turns = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "staff", text: "¿Dos?" },
+    { speaker: "caller", text: "Sí." },
+  ];
+  assert.equal(frozenPhoneMenu().some((item) => item?.id === "sq-qd-bad"), false);
+  assert.doesNotThrow(() => callerSpokenQty(turns, "taco", "bistec", ""));
+  assert.doesNotThrow(() => staffQuantity(turns, "taco", "bistec", 2, 2, ""));
+  for (const item of items) {
+    const groups = item?.modifierGroups;
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups) if (!Array.isArray(group?.options)) continue;
   }
 });
 
@@ -2248,6 +2249,31 @@ test("con al pastor still flags before en total", () => {
       const spoken = dish === "taco" ? qty : callerSpokenQty(turns, dish, meat, "");
       assert.equal(staffQuantity(turns, dish, meat, spoken ?? 2, spoken ?? 2, "").flag, true, `${first} ${said}`);
     }
+  }
+});
+
+test("con y, con mucha, a doubled con, and with some rice flag", () => {
+  for (const said of [
+    "Tres tacos de pollo con al pastor y cebolla en total.",
+    "Tres tacos de pollo con mucha cebolla en total.",
+    "Tres tacos de pollo con con cebolla en total.",
+    "Three tacos of chicken with some rice in total.",
+    "Tres esquites en total.",
+    "Tres sopesasos en total.",
+    "Tres aguas en total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
   }
 });
 

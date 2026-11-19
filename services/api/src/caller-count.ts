@@ -472,7 +472,7 @@ function countHint(text: string): boolean {
   if (new RegExp(`^(?:${any})\\s+porfa$`, "i").test(p)) return true;
   if (new RegExp(`^(?:${any})\\s+please$`, "i").test(p)) return true;
   const legacyDish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
-  const dish = `${legacyDish}|${cachedMenuDishes ?? menuDishWords()}`;
+  const dish = `${legacyDish}|${menuDishWords()}`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
   const meatPattern = (meats: Set<string>) => ["carne\\s+asada", "chile\\s+relleno", "al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
   try {
@@ -499,9 +499,9 @@ function countHint(text: string): boolean {
     cachedMeats = meatPattern(baseMeats);
   }
   const tail = `(?:${cachedMeats}|[a-z0-9]+)`;
-  const filling = `(?:${cachedMeats})(?:\\s+con\\s+${tail})?`;
+  const filling = `(?:${cachedMeats})(?:\\s+con(?:\\s+con)?\\s+${tail}(?:\\s+[a-z0-9]+)?(?:\\s+y\\s+[a-z0-9]+)?)?`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+de\\s+${filling}\\s+en\\s+total\\b`, "i"))) return true;
-  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})(?:\\s+(?:with\\s+${tail}|and\\s+(?:some\\s+)?${tail}))?\\s+in\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})(?:\\s+(?:with\\s+(?:some\\s+)?${tail}|and\\s+(?:some\\s+)?${tail}))?\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\ben\\s+total\\s+(${any})\\b`, "i"))) return true;
