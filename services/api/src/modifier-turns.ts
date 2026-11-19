@@ -1,4 +1,6 @@
 // pedro3 (CA0afcaf19, Nov 1): modifier phrasing, staff-offered "X o Y" guisado choice, "sí, y con huevo picoso", resumed-after-bye.
+import { compoundForms, loadOptionAliases } from "./menu-names.js";
+import { frozenPhoneMenu } from "./phone-menu.js";
 type Turn = { speaker: string; text: string };
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 const COUNT = /\b(?:\d+|una?|dos|tres|cuatro|cinco|seis|otr[ao]s?|one|two|three|another)\s+(?:m[aá]s\s+)?(?:gorditas?|tacos?|quesadillas?|huaraches?|tortas?|burritos?|sopes?|tostadas?)\b/iu;
@@ -369,9 +371,378 @@ export function statedDishPutQty(turns: Turn[], noun: RegExp): number {
 }
 /** after-call: after a caller "make it N" / "mejor las N" / bare "me puede poner N", same-dish lines with the same meat
  *  become ONE line whose qty is N (a single line of 1 becomes 4; a 1 plus a second add of 4 collapse to one line of N). */
+const MEAT_WORD_SKIP = new Set(["option", "options", "carne", "meat", "with", "con", "and", "the", "extra", "beef", "pork", "roasted", "mexican", "shredded", "ground", "spicy", "pulled"]);
+let lineMeatPattern: RegExp | null = null;
+/** Capturing matcher built from catalog meat-group options. "alpastor" also matches "pastor" and "al pastor". Spoken "asada" comes from the existing bistec alias. */
+export function lineMeatRe(): RegExp {
+  if (lineMeatPattern) return lineMeatPattern;
+  const words = new Set<string>();
+  try {
+    for (const item of frozenPhoneMenu()) {
+      for (const group of item?.modifierGroups || []) {
+        const name = String(group?.name || "");
+        if (!/carne|meat/i.test(name) || /salsa|tortilla|extra/i.test(name)) continue;
+        for (const option of group.options || []) {
+          const label = String(typeof option === "string" ? option : option?.name || "");
+          for (const side of label.split("/")) {
+            const head = fold(side).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4 && !MEAT_WORD_SKIP.has(word) && !/^\d/.test(word));
+            if (!head) continue;
+            words.add(head);
+            for (const part of compoundForms(head)) {
+              words.add(part);
+              if (head.startsWith("al") || head.startsWith("el")) words.add(`${head.slice(0, 2)} ${part}`);
+            }
+          }
+        }
+      }
+    }
+    for (const row of loadOptionAliases()) {
+      const head = fold(String(row?.name || "").split("/")[0]).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4);
+      if (!head || !words.has(head)) continue;
+      for (const alias of row.aliases || []) {
+        const token = fold(String(alias)).replace(/[^a-z0-9 ]/g, " ").trim();
+        if (token.length >= 4) words.add(token);
+      }
+    }
+  } catch { /* frozen menu unavailable */ }
+  const alt = [...words].sort((a, b) => b.length - a.length).join("|");
+  lineMeatPattern = alt ? new RegExp(`\\b(${alt})\\b`, "iu") : /$^/;
+  return lineMeatPattern;
+}
+export function catalogMeatKey(word: string): string {
+  const folded = fold(word).replace(/\s+/g, " ").trim();
+  const compact = folded.replace(/\s+/g, "");
+  for (const row of loadOptionAliases()) {
+    if ((row.aliases || []).some((alias) => fold(String(alias)).replace(/\s+/g, "") === compact)) {
+      const head = fold(String(row.name || "").split("/")[0]).replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/)[0] || compact;
+      return catalogMeatKey(head);
+    }
+  }
+  if (compact === "alpastor" || folded === "al pastor" || compact === "pastor") return "pastor";
+  for (const part of compoundForms(compact)) if (part === "pastor") return "pastor";
+  const canon = optionCanonOf(compact);
+  if (canon !== compact) return catalogMeatKey(canon);
+  return compact;
+}
+let optionCanon: Map<string, string> | null = null;
+function optionCanonOf(compact: string): string {
+  if (!optionCanon) {
+    optionCanon = new Map();
+    try {
+      for (const item of frozenPhoneMenu()) for (const group of item?.modifierGroups || []) {
+        const name = String(group?.name || "");
+        if (!/carne|meat/i.test(name) || /salsa|tortilla|extra/i.test(name)) continue;
+        for (const option of group.options || []) {
+          const label = String(typeof option === "string" ? option : option?.name || "");
+          const heads: string[] = [];
+          for (const side of label.split("/")) {
+            const head = fold(side).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).find((word) => word.length >= 4 && !MEAT_WORD_SKIP.has(word) && !/^\d/.test(word));
+            if (head) heads.push(head.replace(/\s+/g, ""));
+          }
+          if (!heads.length) continue;
+          const canon = heads[0];
+          for (const head of heads) {
+            if (!optionCanon.has(head)) optionCanon.set(head, canon);
+            else if (optionCanon.get(head) !== canon) optionCanon.set(head, "");
+          }
+        }
+      }
+    } catch { /* frozen menu unavailable */ }
+    for (const [head, canon] of [...optionCanon]) if (!canon) optionCanon.delete(head);
+  }
+  return optionCanon.get(compact) || compact;
+}
+function dishKey(word: string): string {
+  return fold(word).replace(/s$/, "");
+}
+const BESIDE_COUNT = "media\\s+docena|\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|docena|one|two|three|four|five|six|seven|eight|nine|ten";
+function countBesideMeat(part: string, meatWord: string): boolean {
+  const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
+  const key = catalogMeatKey(meatWord);
+  const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!words.length) return false;
+  const meat = words.join("|");
+  const gap = "(?:\\s*,)?(?:\\s+(?:orden(?:es)?|platos?|tacos?|quesadillas?|tortas?|gorditas?|burritos?|sopes?|orders?|plates?))?(?:\\s*,)?(?:\\s+(?:de|of))?";
+  let text = fold(part);
+  text = text.replace(/\b(?:para|a|son|antes\s+de|despues\s+de)\s+las\s+dos(?:\s+de\s+la\s+(?:tarde|manana|noche)|\s+en\s+punto)?\b/g, " ");
+  return new RegExp(`\\b(?:${BESIDE_COUNT})\\b${gap}\\s+(?:${meat})\\b|\\b(?:${meat})\\b(?:\\s*,)?(?:\\s+(?:de|of))?\\s+(?:${BESIDE_COUNT})\\b`, "i").test(text);
+}
+function fillingJoin(part: string, meats: RegExpMatchArray[]): boolean {
+  if (meats.length < 2 || !/\b(?:con|with)\b|\bmitad\b.+\bmitad\b/i.test(part)) return false;
+  const between = part.slice((meats[0].index || 0) + meats[0][0].length, meats[meats.length - 1].index);
+  const link = between.search(/\b(?:con|with)\b/i);
+  const after = (link >= 0 ? between.slice(link) : between).replace(/\b(?:con|with|mitad)\b/gi, " ");
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(after)) return false;
+  if (new RegExp(`\\b(?:${BESIDE_COUNT})\\b`, "iu").test(after)) return false;
+  return true;
+}
+function meatRefused(part: string, meatWord: string): boolean {
+  const spoken = fold(meatWord).replace(/[^a-z0-9 ]/g, "").trim();
+  const key = catalogMeatKey(meatWord);
+  const words = [...new Set([spoken, key].filter(Boolean))].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!words.length) return false;
+  const meat = words.join("|");
+  const body = fold(part).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (new RegExp(`\\bno\\s+(?:de\\s+|of\\s+)(?:${meat})\\b`, "i").test(body)) return true;
+  return new RegExp(`\\b(?:de\\s+|of\\s+)?(?:${meat})\\s+no$`, "i").test(body);
+}
+function leadMeat(part: string, pattern: RegExp): string {
+  const rest = (part.match(pattern) || [])[1] || (part.match(pattern) || [])[2] || "";
+  const bits = rest.trim().split(/\s+/);
+  if (!bits[0] || bits[0] === "la" || bits[0] === "el") return "";
+  if (bits[0] === "al" && bits[1]) return `${bits[0]} ${bits[1]}`;
+  return bits[0];
+}
+let extraWords: Set<string> | null = null;
+function extraLineWords(): Set<string> {
+  if (extraWords) return extraWords;
+  const filler = new Set(["with", "your", "choice", "meat", "sour", "cream", "salsa", "chip", "side", "sides", "and", "the", "for", "you", "our", "from", "para", "con", "del", "agua", "fresca", "grande", "large", "small", "bottle", "bottled", "botella", "diet", "water", "waters", "sparkling", "chico", "online", "regular", "ounce", "ounces", "32oz", "rice", "beans", "arroz", "frijoles", "frijole", "elvis", "dips", "refried", "cheese", "lettuce", "classic", "toppings", "guacamole"]);
+  const words = new Set<string>();
+  const add = (token: string) => {
+    if (token.length < 4 || filler.has(token) || /^\d/.test(token)) return;
+    words.add(token);
+    if (token.endsWith("s") && token.length > 4) words.add(token.slice(0, -1));
+  };
+  const take = (label: string) => { for (const token of fold(label).split(/[^a-z0-9]+/)) add(token); };
+  try {
+    for (const item of frozenPhoneMenu()) {
+      const name = String(item?.name || "");
+      const drink = item?.category === "drinks";
+      const side = /^(?:nachos|sides|dips|elvis dip)\b/i.test(name);
+      if (drink || side) {
+        take(name);
+        take(String(item?.nameEs || ""));
+        for (const alias of item?.aliases || []) {
+          const parts = fold(String(alias)).split(/\s+/).filter(Boolean);
+          if (parts.length > 0 && parts.length <= 2) take(String(alias));
+        }
+      }
+      for (const token of fold(name).split(/[^a-z0-9]+/)) if (token === "consome") add(token);
+    }
+  } catch { /* frozen menu unavailable */ }
+  extraWords = words;
+  return words;
+}
+function extraLineWord(part: string): string {
+  const words = extraLineWords();
+  for (const token of fold(part).split(/[^a-z0-9]+/)) {
+    if (words.has(token)) return token.endsWith("s") && words.has(token.slice(0, -1)) ? token.slice(0, -1) : token;
+    if (token.endsWith("s") && words.has(token.slice(0, -1))) return token.slice(0, -1);
+  }
+  return "";
+}
+function drinkKeysOnly(keys: Set<string>): boolean {
+  if (!keys.size) return false;
+  const words = extraLineWords();
+  for (const key of keys) if (!words.has(key.split("|")[0])) return false;
+  return true;
+}
+function otraSpoken(part: string, meatRe: RegExp): string {
+  const es = part.match(/^(?:y\s+|and\s+)?(?:otra|otro)\s+de\s+(.+)$/);
+  const en = part.match(/^(?:and\s+)?another(?:\s+of)?\s+(.+)$/);
+  const yde = part.match(/^(?:y\s+)de\s+(.+)$/);
+  let rest = (es?.[1] || en?.[1] || yde?.[1] || "").trim().replace(/^(?:la|el)\s+de\s+/, "");
+  return rest.match(meatRe)?.[1] || "";
+}
+function dropFilledBare(keys: Iterable<string>): string[] {
+  const list = [...keys];
+  const filled = new Set(list.filter((key) => key.split("|")[1]).map((key) => key.split("|")[0]).filter(Boolean));
+  return list.filter((key) => {
+    const [dish, meat] = key.split("|");
+    return !!meat || !filled.has(dish);
+  });
+}
+function spokenLineKeys(text: string): string[] {
+  const keys = new Set<string>();
+  let dish = "";
+  for (const sentence of String(text || "").split(/(?<=[.!]|\?|¿)/)) {
+    if (!sentence.trim() || /[?¿]/.test(sentence)) continue;
+    const parsed = keysInSentence(sentence, dish);
+    dish = parsed.dish;
+    for (const key of parsed.keys) keys.add(key);
+  }
+  return dropFilledBare(keys);
+}
+function keysInSentence(sentence: string, dish: string): { keys: string[]; dish: string } {
+  let body = fold(sentence).replace(/[¿?¡!.]/g, " ").replace(/\s+/g, " ").trim();
+  const opener = /^(?:hola|hello|hi|hey|buenos dias|buenas tardes|buenas noches|buenos|buenas|que tal|como estas?)\b\s*,?\s*/;
+  const chat = /^(?:que tal|como estas?)\b/;
+  let asked = false;
+  while (opener.test(body)) {
+    if (chat.test(body)) asked = true;
+    body = body.replace(opener, "").trim();
+  }
+  if (!body) return { keys: [], dish };
+  if (/^(?:que|como|cual|cuando|donde|tienen|tiene|hay|venden|sirven)\b/.test(body)) return { keys: [], dish };
+  const numbered = /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/.test(body);
+  const another = /,\s*\S|\s+y\s+\S|\s+and\s+\S/.test(body);
+  if (asked && /^(?:los|las|el|la)\b/.test(body) && !numbered && !another && !/\b(?:dame|deme|ponme|quiero|quisiera|me\s+das?|give\s+me|i\s+want)\b/.test(body)) return { keys: [], dish };
+  body = body.replace(/\b(?:mejor\s+)?que\s+sean\s+\S+|\bmake\s+(?:it|them|that)\s+\S+|\bchange\s+(?:it|that)\s+to\s+\S+/g, " ");
+  const keys: string[] = [];
+  const dishRe = new RegExp(`\\b(${DISH_NOUN})\\b`, "iu");
+  const meatRe = lineMeatRe();
+  for (const part of body.split(/\s+y\s+|\s+and\s+|,\s*/)) {
+    const named = part.match(dishRe);
+    if (named) dish = dishKey(named[1]);
+    let found = [...part.matchAll(new RegExp(meatRe.source, "giu"))];
+    if (fillingJoin(part, found)) found = [found[0]];
+    if (!found.length) {
+      if (named) keys.push(`${dishKey(named[1])}|`);
+      else {
+        const drink = extraLineWord(part);
+        if (drink) keys.push(`${drink}|`);
+      }
+      continue;
+    }
+    const otraWord = otraSpoken(fold(part).trim(), meatRe);
+    const clockMeat = leadMeat(fold(part), /(?:dame\s+)?(?:ya\s+son|antes\s+de|despues\s+de|para|a|son)\s+las\s+dos\s+de\s+(.+)/);
+    const afterClock = /^(?:antes|despues)\s+de\s+las\s+dos\b/.test(body) && /^de\s+\S/.test(fold(part).trim());
+    const bareDe = /^de\s+\S/.test(fold(part).trim());
+    for (const meat of found) {
+      if (!meat[1] || meatRefused(part, meat[1])) continue;
+      const meatKey = catalogMeatKey(meat[1]);
+      const same = (word: string) => !!word && (catalogMeatKey(word) === meatKey || fold(word) === fold(meat[1]));
+      if (same(clockMeat) || afterClock || (bareDe && !named && !dish)) { keys.push(`|${meatKey}`); continue; }
+      if (otraWord && !same(otraWord) && !countBesideMeat(part, meat[1])) continue;
+      if (named || dish) keys.push(`${named ? dishKey(named[1]) : dish}|${meatKey}`);
+      else if (same(otraWord) || countBesideMeat(body, meat[1])) keys.push(`|${meatKey}`);
+    }
+  }
+  return { keys, dish };
+}
+/** "que sean dos" names no dish, and this turn or the previous caller turn named more than one line. */
+export function ambiguousMakeIt(turns: Turn[], index: number): boolean {
+  const turn = turns[index];
+  if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
+  const made = makeItN(turn.text);
+  if (!made) return false;
+  const tail = fold(made.tail);
+  if (new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(tail) || lineMeatRe().test(tail)) return false;
+  const bare = /\bque\s+sean\b/.test(fold(turn.text)) && !/\bmejor\b/.test(fold(turn.text));
+  const keys = new Set(spokenLineKeys(turn.text));
+  if (bare || drinkKeysOnly(keys)) for (const key of openLineKeys(turns, index)) keys.add(key);
+  else if (!keys.size) {
+    for (let j = index - 1; j >= 0; j--) {
+      if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+      for (const key of spokenLineKeys(turns[j].text)) keys.add(key);
+      break;
+    }
+  }
+  if (keys.size > 1) return true;
+  return openLineKeys(turns, index).length > 1 && earlierAnother(turns, index);
+}
+function earlierAnother(turns: Turn[], index: number): boolean {
+  for (let j = index - 1; j >= 0; j--) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    const text = fold(String(turns[j].text || "")).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+    if (/^(?:si|yes|yeah|ok|okay|claro)(?:\s+por\s+favor|\s+please)?$/.test(text)) continue;
+    return /^(?:y\s+|and\s+)?(?:otra|otro|another)\b|^(?:y\s+)de\b/.test(text);
+  }
+  return false;
+}
+function callerCountBetween(turns: Turn[], from: number, to: number): boolean {
+  const food = new RegExp(`\\b(?:${DISH_NOUN}|(?:${lineMeatRe().source}))\\b`, "iu");
+  const number = /\b(?:\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six)\b/;
+  for (let j = from + 1; j < to; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    let text = fold(String(turns[j].text || ""));
+    text = text.replace(/\b(?:para|a|son|antes de|despues de)\s+las\s+dos(?:\s+de\s+la\s+(?:tarde|manana|noche)|\s+en\s+punto)?\b/g, " ");
+    if (!number.test(text) || !food.test(text)) continue;
+    if (new RegExp(`(?:${number.source})(?:\\s+\\w+){0,4}\\s+(?:${food.source})|(?:${food.source})(?:\\s+\\w+){0,4}\\s+(?:${number.source})`, "iu").test(text)) return true;
+  }
+  return false;
+}
+function callerTurnCancelled(turns: Turn[], index: number): boolean {
+  for (let j = index + 1; j < turns.length; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") {
+      if (/[?¿]/.test(String(turns[j].text || ""))) return false;
+      continue;
+    }
+    const text = fold(String(turns[j].text || "")).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+    return /^(?:y\s+)?(?:no\s+mejor\s+no|no\s+ya\s+no|mejor\s+no)\b/.test(text);
+  }
+  return false;
+}
+function dishOfLine(line: any): string {
+  const blob = `${line?.itemId || ""} ${line?.name || ""} ${line?.readback || ""}`;
+  const hit = blob.match(/\b(quesadilla|taco|gordita|torta|burrito|sope|menudo|pozole|birria|huarache|enchilada)s?\b/i);
+  if (hit) return hit[1].toLowerCase().replace(/s$/, "");
+  return /^sq-qd-/.test(String(line?.itemId || "")) ? "quesadilla" : "";
+}
+function linesOnOrder(cart: any[]): Set<string> {
+  const found = new Set<string>();
+  const re = lineMeatRe();
+  for (const line of cart || []) {
+    const dish = dishOfLine(line);
+    if (!dish) continue;
+    for (const mod of line?.modifiers || []) {
+      const hit = String(mod?.option || "").match(re);
+      if (hit?.[1]) found.add(`${dish}|${catalogMeatKey(hit[1])}`);
+    }
+  }
+  return found;
+}
+export function openLineKeys(turns: Turn[], index: number, cart?: any[]): string[] {
+  const keys = new Set<string>();
+  const timeKeys = new Set<string>();
+  let carry = "";
+  const bareAt = new Map<string, number>();
+  const filled = new Set<string>();
+  for (let j = 0; j < index; j++) {
+    if (turns[j].speaker && turns[j].speaker !== "caller") continue;
+    if (callerTurnCancelled(turns, j)) continue;
+    const clockOnly = /\b(?:dame\s+|ya\s+)?(?:para|a|son)\s+las\s+dos\b/.test(fold(String(turns[j].text || ""))) && !new RegExp(`\\b(?:${DISH_NOUN})\\b`, "iu").test(fold(String(turns[j].text || "")));
+    for (const key of spokenLineKeys(turns[j].text)) {
+      const [rawDish, meat] = key.split("|");
+      if (rawDish && extraLineWords().has(rawDish)) { keys.add(`${rawDish}|`); continue; }
+      const dish = rawDish || carry;
+      if (rawDish) carry = rawDish;
+      if (dish && meat) {
+        keys.add(`${dish}|${meat}`);
+        if (clockOnly) timeKeys.add(`${dish}|${meat}`);
+        if (bareAt.has(dish) && !callerCountBetween(turns, bareAt.get(dish) || 0, j)) filled.add(dish);
+      } else if (meat) {
+        keys.add(`|${meat}`);
+        if (clockOnly) timeKeys.add(`|${meat}`);
+      }
+      else if (dish) {
+        keys.add(`${dish}|`);
+        if (!bareAt.has(dish)) bareAt.set(dish, j);
+      }
+    }
+  }
+  for (const dish of filled) keys.delete(`${dish}|`);
+  if (timeKeys.size === 1 && keys.size === 1 && ![...timeKeys][0].split("|")[0]) keys.delete([...timeKeys][0]);
+  let list = [...keys];
+  if (!list.some((key) => key.split("|")[1])) list = list.filter((key) => key.split("|")[1]);
+  if (!cart?.length) return list;
+  const present = linesOnOrder(cart);
+  const meats = new Set([...present].map((key) => key.split("|")[1]).filter(Boolean));
+  return list.filter((key) => present.has(key) || (key.startsWith("|") && meats.has(key.slice(1))) || (key.endsWith("|") && [...present].some((row) => row.startsWith(key))));
+}
+/** A bare "dos más" with more than one open line. It must ask, not pick the last line. */
+export function ambiguousMore(turns: Turn[], index: number, cart?: any[]): boolean {
+  const turn = turns[index];
+  if (!turn || (turn.speaker && turn.speaker !== "caller")) return false;
+  const p = fold(turn.text).replace(/[¿?¡!.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (!/^(?:y\s+|dame\s+|deme\s+|and\s+)?(?:\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\s+(?:mas|more)(?:\s+por\s+favor|\s+please)?$/.test(p)) return false;
+  return openLineKeys(turns, index, cart).length > 1;
+}
+export function moreWhichDish(text: string, language: "es" | "en"): string {
+  const word = (fold(text).match(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|one|two|three|otro|otra|another)\b/) || [])[1] || "dos";
+  const es: Record<string, string> = { uno: "Uno", una: "Una", un: "Uno", dos: "Dos", tres: "Tres", cuatro: "Cuatro", cinco: "Cinco", otro: "Otro", otra: "Otra" };
+  const en: Record<string, string> = { one: "One", two: "Two", three: "Three", otro: "Another", otra: "Another", another: "Another", un: "One", una: "One", uno: "One" };
+  return language === "en" ? `${en[word] || word} more of which dish?` : `¿${es[word] || word} más de cuál platillo?`;
+}
+export function makeItWhichDish(text: string, language: "es" | "en"): string {
+  const n = makeItN(text)?.n || 2;
+  const es = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis"];
+  const en = ["", "One", "Two", "Three", "Four", "Five", "Six"];
+  return language === "en" ? `${en[n] || n} of which dish?` : `¿Que sean ${es[n] || n} de cuál platillo?`;
+}
 export function applyMakeItNMerge(cart: any[], turns: Turn[]): void {
   if (!Array.isArray(cart) || !Array.isArray(turns)) return;
-  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k) continue;
+  for (let i = 0; i < turns.length; i++) { const t = turns[i]; if (t.speaker !== "caller") continue; const k = makeItN(t.text); if (!k || ambiguousMakeIt(turns, i)) continue;
     const classic = MAKE_IT_N.test(fold(t.text));
     const dish = classic ? "" : putDish(turns, i, k.n, k.tail);
     if (!classic && !dish) continue;

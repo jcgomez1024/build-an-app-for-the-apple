@@ -28,7 +28,7 @@ test("maria2: 4 gorditas costilla + 1 Stuffed Poblano (queso, arroz y frijol, co
   assert.equal(opt(/Tipo/), "QUESO / CHEESE");
   assert.equal(opt(/Lado/), "Arroz-Rice and Frijoles-Beans");
   assert.equal(opt(/Tortilla Options/), "3 x (Corn) Corn Tortilla");
-  assert.ok(!c[0].elviNotes);
+  assert.doesNotMatch((c[0].elviNotes || []).join(" "), /lado|side|tipo/i);
   assert.equal(r.cart.length, 2);
 });
 test("maria2: no menu getter → pass is a no-op (old behaviour)", async () => {

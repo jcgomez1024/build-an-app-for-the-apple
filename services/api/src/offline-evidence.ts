@@ -240,6 +240,29 @@ export function attachRecoveryMenu<T extends object>(run: T, menu: unknown): T {
   return run;
 }
 
+/** A shadow cart never leaves this process. Square gets nothing, and the kitchen ticket is not auto-accepted. */
+export function handoffShadowCart(order: any): {
+  square: null;
+  kitchen: { phase: TicketPhase; acceptance: TicketAcceptance; autoAccepted: false; reviewReason: string | null; lines: any[] };
+} {
+  const cart = Array.isArray(order?.cart) ? order.cart : [];
+  const validation = order?.validation || orderValidation(cart);
+  const gated = gateTicketAcceptance({
+    requestedPhase: order?.statusCall ? "listening" : "final",
+    autoAccepted: false,
+    validation,
+    reviewReason: order?.reviewReason,
+    statusCall: !!order?.statusCall,
+    cart,
+    squareRef: null,
+    explicitApproval: false,
+  });
+  return {
+    square: null,
+    kitchen: { phase: gated.phase, acceptance: gated.acceptance, autoAccepted: false, reviewReason: gated.reviewReason, lines: cart },
+  };
+}
+
 /** Read-only view of a shadow result. Persistence uses gateTicketAcceptance inside upsertTicket. */
 export function ticketFromShadow(order: any): {
   phase: TicketPhase;
@@ -257,11 +280,8 @@ export function ticketFromShadow(order: any): {
   const cart = Array.isArray(order?.cart) ? order.cart : [];
   const validation = order?.validation || orderValidation(cart);
   const noOrder = !!order?.noOrder || (!cart.length && !!order?.statusCall);
-  const gated = gateTicketAcceptance({
-    requestedPhase: order?.statusCall ? "listening" : "final",
-    autoAccepted: order?.autoAccepted,
-    validation, reviewReason: order?.reviewReason, statusCall: !!order?.statusCall, cart, squareRef: order?.squareRef,
-  });
+  const handoff = handoffShadowCart({ ...order, validation, cart });
+  const gated = handoff.kitchen;
   return {
     phase: gated.phase,
     acceptance: gated.acceptance,

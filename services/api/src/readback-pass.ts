@@ -1,3 +1,4 @@
+import { staffQuantity } from "./caller-count.js";
 // brenda1 (CA6995b9c, Oct 30 12:14 PM ET): per-turn guards + staff read-back end-pass for English staff-answered calls.
 const DISH = /\b(?:tacos?|quesadillas?|burritos?|tortas?|gorditas?|huaraches?|sopes?|pozole|menudo|mole|platillos?|enchiladas?|tamales?|tostadas?|nachos?|birria|pambazos?|flautas?|doradas?|chiles?\s+rellenos?|combos?|aguas?|horchata|jamaica|jarritos?|sodas?|drinks?)\b/iu;
 const COUNT = /\b(?:\d+|one|two|three|four|five|six|un[oa]?|dos|tres|cuatro|cinco|seis)\b/iu;
@@ -146,8 +147,25 @@ export function applyStaffOrderCount(cart: any[], turns: T): void {
     }
     if (!ls.length) continue;
     const sum = ls.reduce((a, l) => a + (Number(l.quantity) || 1), 0);
-    if (sum === n && ls.length === 1) continue;
-    ls[0].quantity = n; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+    const decided = staffQuantity(turns, dish, null, n, sum, "", cart);
+    if (sum === decided.quantity && ls.length === 1) {
+      if (decided.flag) {
+        const flags = (cart as any).readbackFlags || [];
+        const token = `quantity:${String(ls[0].itemId || "")}`;
+        if (!flags.includes(token)) flags.push(token);
+        (cart as any).readbackFlags = flags;
+      }
+      continue;
+    }
+    if (!decided.flag || decided.quantity !== sum) {
+      ls[0].quantity = decided.quantity; for (const l of ls.slice(1)) cart.splice(cart.indexOf(l), 1);
+    }
+    if (decided.flag) {
+      const flags = (cart as any).readbackFlags || [];
+      const token = `quantity:${String(ls[0].itemId || "")}`;
+      if (!flags.includes(token)) flags.push(token);
+      (cart as any).readbackFlags = flags;
+    }
   }
 }
 /** A plate whose item already includes tortillas (birria "y tortillas de comal", menudo con tortillas) — separate tortilla orders the caller never asked for are its tortillas. */
@@ -220,7 +238,18 @@ export function applyEnglishReadback(cart: any[], turns: T): void {
   const rb = staffReadback(turns); if (!rb) return;
   const side = rb.match(new RegExp(`\\b${EN}\\s+(?:grilled\\s+)?onions?\\s+(?:and|&)\\s+peppers?\\b`, "iu"));
   const had = side && cart.find((l) => l.itemId === XID && (l.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m.option))));
-  if (had) had.quantity = nOf(side![1]) || had.quantity;
+  if (had) {
+    const staffQty = nOf(side![1]) || Number(had.quantity) || 0;
+    const itemText = (had.modifiers || []).map((m: any) => m.option).join(" ");
+    const decided = staffQuantity(turns, "", null, staffQty, Number(had.quantity) || 0, itemText, cart);
+    had.quantity = decided.quantity || had.quantity;
+    if (decided.flag) {
+      const flags = (cart as any).readbackFlags || [];
+      const token = `quantity:${String(had.itemId || "")}`;
+      if (!flags.includes(token)) flags.push(token);
+      (cart as any).readbackFlags = flags;
+    }
+  }
   else if (side) cart.push({ itemId: XID, quantity: nOf(side[1]) || 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] });
   const bur = rb.match(new RegExp(`\\b${EN}\\s+(?:burritos?\\s+grandes?|grande\\s+burritos?)\\b([^.]*)`, "iu"));
   if (bur && !cart.some((l) => l.itemId === BID)) {

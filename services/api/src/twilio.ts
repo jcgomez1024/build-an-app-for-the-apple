@@ -24,8 +24,30 @@ import { loadHistory, favoritesFor, deliveryNudge, confidentName } from "./favor
 import { phoneKey as favKey } from "./caller-memory.js";
 import { buildCallLog, readCallEvents, rangeDays, summarize, type CallLogRange, type TwilioStatus } from "./call-log.js";
 import { transcribeDualChannel, shadowOrderFromTurns, sttWords, detectLanguage, type ShadowTurn, type CallTurn, type ContainerPlan, removalNotesIn } from "./call-scoring.js";
-import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu } from "./offline-evidence.js";
-export { recoveryAcceptance, attachRecoveryMenu };
+import { gateTicketAcceptance, recoveryAcceptance, attachRecoveryMenu, handoffShadowCart } from "./offline-evidence.js";
+export { recoveryAcceptance, attachRecoveryMenu, handoffShadowCart };
+
+/** Ticket loaded from this process's scratch store, then the same recovery gate upsertTicket uses. */
+export function recoverStoredTicket(callSid: string) {
+  const ticket = ticketsByCall.get(callSid) || null;
+  const recovery = recoveryAcceptance(ticket ? {
+    requestedPhase: ticket.phase,
+    reviewReason: ticket.reviewReason,
+    validation: ticket.reviewReason ? "unresolved" as const : (ticket.phase === "listening" ? "empty" as const : "clear" as const),
+    cart: ticket.lines || [],
+    autoAccepted: false,
+    statusCall: ticket.phase === "listening",
+    squareRef: ticket.squareRef,
+    explicitApproval: ticket.explicitlyApproved === true,
+  } : null);
+  return {
+    found: !!ticket,
+    phase: ticket?.phase ?? null,
+    acceptance: ticket?.acceptance ?? null,
+    reviewReason: ticket?.reviewReason ?? null,
+    recovery,
+  };
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiRoot = path.resolve(__dirname, "..");
@@ -187,6 +209,13 @@ export const SAY_VOICE: Record<Lang, string> = {
 const sayLocale = (lang: Lang) => (lang === "en" ? "en-US" : "es-MX");
 const sayIn = (lang: Lang, text: string) =>
   `<Say language="${sayLocale(lang)}" voice="${SAY_VOICE[lang]}">${xmlEscape(text)}</Say>`;
+/** The <Say> the call handler would speak for an open which-dish question. Shadow carts are not submitted. */
+export function spokenOrderReply(order: { shadow?: boolean; autoAccepted?: boolean; steps?: Array<{ source?: string; spoken?: boolean; reply?: string; language?: string }> } | null | undefined): string | null {
+  if (order?.shadow !== true) return null;
+  const step = [...(order?.steps || [])].reverse().find((row) => row?.spoken && row?.source === "extra-which" && row?.reply);
+  if (!step?.reply) return null;
+  return sayIn(step.language === "en" ? "en" : "es", step.reply);
+}
 
 /** Pre-generated xAI cloned-voice MP3s (Carlos). <Play> when present; Polly neural <Say> otherwise. */
 const promptsDir = path.join(apiRoot, "data/phone-prompts");
@@ -978,20 +1007,25 @@ export function buildTicketLines(
     const ask = (row?.modifiers || []).find((m: any) => m.step === "meat_needs_ask" || m.groupName === "meat_needs_ask");
     let choices = labelled[i];
     const lineHasDeluxe = hasDeluxe(choices);
-    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n))).map((n) => String(n));
+    const reviewWord = (note: string) => /^confirmar\s+\S+$/i.test(String(note).trim());
+    const confirmNotes = [...(row?.elviNotes || [])].filter((n) => /^confirmar\b/i.test(String(n)) && !reviewWord(String(n))).map((n) => String(n));
     let lineRemovals: string[] = (removalInfo?.attributed ? [...(row?.elviNotes || [])] : (deluxeCount > 1 ? [] : removals)).filter((n) => !/^confirmar\b/i.test(String(n)));
     if (lineHasDeluxe && deluxeCount === 1 && ambiguous.length) lineRemovals = [...new Set([...lineRemovals, ...ambiguous])];
     const applied = applyDeluxeMode(choices, lineHasDeluxe ? lineRemovals : [], deluxeMode);
     choices = applied.choices;
-    // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too;
-    // removal notes (no/sin) stay deluxe-only via applyDeluxeMode.
+    // ca39e2bb: additive kitchen notes ("extra bistec" / "extra carne") print on non-deluxe too.
+    // A spoken restriction on the line itself (sin cebolla, no quiero cebolla) prints on any line.
     const additiveNotes = [...(row?.elviNotes || [])].filter((n) => /^\s*(?:extra\b|vapor:|enchiladas:)|\baparte\b/iu.test(String(n))); // vapor1: per-order filling mix
-    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...confirmNotes])];
+    const restrictionKey = (note: string) => String(note).toLowerCase().replace(/^(?:sin|no|without)\s+/, "").trim();
+    const alreadyPrinted = new Set((applied.notes || []).map(restrictionKey));
+    const restrictionNotes = [...(row?.elviNotes || [])].filter((n) => /^(?:sin|no|without)\b/i.test(String(n)) && !alreadyPrinted.has(restrictionKey(String(n))));
+    const notes = [...new Set([...(applied.notes || []), ...additiveNotes, ...restrictionNotes, ...confirmNotes])];
     const name = stripOnline(l.name);
     const flags = [
       ask ? `Confirmar carne: ${ask.option}` : "",
       lineHasDeluxe && deluxeCount > 1 && ambiguous.length ? `Confirmar: ${ambiguous.join(", ")} — ¿en cuál DELUXE?` : "",
       ...confirmNotes,
+      ...(lineHasDeluxe ? [] : restrictionNotes),
     ].filter(Boolean);
     return {
       name, quantity: l.quantity, choices, notes, totalCents: l.totalCents,
@@ -1028,7 +1062,7 @@ export async function upsertTicket(
   const explicitApproval = (partial as { explicitApproval?: boolean }).explicitApproval === true || prev?.explicitlyApproved === true;
   const gated = gateTicketAcceptance({
     requestedPhase: partial.phase || prev?.phase || "listening",
-    autoAccepted: elviOrder?.autoAccepted,
+    autoAccepted: elviOrder?.shadow === true ? handoffShadowCart(elviOrder).kitchen.autoAccepted : elviOrder?.autoAccepted,
     validation: elviOrder?.validation,
     reviewReason: elviOrder?.reviewReason,
     statusCall: !!elviOrder?.statusCall,
@@ -1050,7 +1084,7 @@ export async function upsertTicket(
     explicitlyApproved: explicitApproval,
     reviewReason: gated.reviewReason,
     fulfillment: partial.fulfillment || prev?.fulfillment || "TO GO / LLEVAR",
-    readyTime: partial.readyTime !== undefined ? partial.readyTime : prev?.readyTime,
+    readyTime: null,
     deliverTo: partial.deliverTo !== undefined ? partial.deliverTo : prev?.deliverTo,
     lines,
     training: partial.training ?? prev?.training ?? false,

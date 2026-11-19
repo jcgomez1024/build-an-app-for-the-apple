@@ -1,3 +1,4 @@
+import { IN_STORE_VARIATIONS, spokenDrinkAliases, spokenItemName } from "./menu-names.js";
 import { addressesIn } from "./delivery.js";
 import { cleanFullName } from "./caller-memory.js";
 import { quoteDeliveryAddress, quoteAppAddress, quoteAppCoords, quoteDeliveryCoords, loadAppDelivery, deliveryMinimumCents, DELIVERY_FILE, type Quote } from "./delivery-zone.js";
@@ -98,11 +99,29 @@ function squareHeaders(config: SquareRuntimeConfig) {
   };
 }
 
+/** A shadow cart is not a Square order. Mutating calls refuse it before any network request. */
+export function shadowCartPayload(body: unknown): boolean {
+  let value = body;
+  if (typeof body === "string") {
+    try { value = JSON.parse(body); } catch { return false; }
+  }
+  if (!value || typeof value !== "object") return false;
+  const row = value as { shadow?: boolean; cart?: unknown; order?: { shadow?: boolean; cart?: unknown } };
+  return (row.shadow === true && Array.isArray(row.cart)) || (row.order?.shadow === true && Array.isArray(row.order.cart));
+}
+
+export function assertNoShadowSquareWrite(method: string | undefined, body: unknown) {
+  const verb = String(method || "GET").toUpperCase();
+  if (verb === "GET" || verb === "HEAD") return;
+  if (shadowCartPayload(body)) throw new Error("A shadow cart cannot be sent to Square");
+}
+
 async function squareRequest<T>(
   path: string,
   init: RequestInit,
   config: SquareRuntimeConfig
 ): Promise<T> {
+  assertNoShadowSquareWrite(init.method, init.body);
   const response = await fetch(`${getSquareBaseUrl(config.env)}${path}`, {
     ...init,
     headers: {
@@ -304,6 +323,7 @@ export function sandboxDeliveryCharges(q: Quote) {
 function loadDeliveryFile() { try { return JSON.parse(fs.readFileSync(DELIVERY_FILE, "utf8")); } catch { return {}; } }
 
 export async function createCheckout(input: CheckoutRequest, config?: Partial<SquareRuntimeConfig>) {
+  assertNoShadowSquareWrite("POST", input);
   const runtime = getSquareConfig(config);
   if (!runtime.locationId) {
     throw new Error("Missing SQUARE_LOCATION_ID");
@@ -754,12 +774,8 @@ function trimReviewedVariantName(reviewedName: string, variantName: string) {
   return trimmed || variantName;
 }
 
-/** brayan-aguacate1: Square in-store variations (not on the website) that Elvi rings as their own item. */
-export const IN_STORE_VARIATIONS = new Map<string, { name: string; aliases: string[] }>([
-  ["PYTW56MHJJGL6JKTZGSXGVWQ", { name: "Menudo SOLO Caldo", aliases: ["menudo solo caldo", "solo caldo menudo", "menudo de puro caldo", "menudo puro caldo", "menudo solamente caldo", "menudo sin carne", "puro caldo de menudo", "menudo broth only"] }], // victor-caldo1
-  ["QGR5AQTWVHNW347NOPAKX44U", { name: "Aguacate FULL", aliases: ["aguacate", "un aguacate", "aguacate entero", "aguacate completo", "whole avocado", "an avocado", "avocado"] }],
-]);
-function buildMenuFromSquareCatalog(
+export { IN_STORE_VARIATIONS };
+export function buildMenuFromSquareCatalog(
   objects: Array<{
     id: string;
     type: string;
@@ -1064,10 +1080,7 @@ function escapeRegExp(value: string) {
 
 /** "Coca Cola / Pepsi Pepsi" -> "Pepsi"; "Aguas Frescas Orchata 32oz" -> "Agua Fresca Horchata 32oz". */
 function drinkDisplayName(fullName: string, variationName: string) {
-  const v = sanitizeDisplayName(variationName);
-  if (/aguas?\s+frescas?/i.test(fullName)) return `Agua Fresca ${v.replace(/\bOrchata\b/i, "Horchata")}`;
-  if (/^jarrito/i.test(fullName)) return `Jarrito ${v}`;
-  return v || fullName;
+  return spokenItemName(fullName, sanitizeDisplayName(variationName));
 }
 
 function isOnlineDrinkCategoryName(value: string) {
@@ -1077,27 +1090,7 @@ function isOnlineDrinkCategoryName(value: string) {
 
 /** What callers say for each drink variation ("una horchata", "a pepsi", "jarrito de mango"). */
 function drinkAliases(fullName: string, variationName: string) {
-  const v = normalizeName(variationName);
-  const n = normalizeName(fullName);
-  const out = new Set<string>();
-  const add = (...xs: string[]) => xs.forEach((x) => out.add(normalizeName(x)));
-  if (/\baguas? frescas?\b/.test(n)) {
-    const flavor = v.replace(/\b\d+\s*oz\b/g, "").trim();
-    const spoken = flavor.replace(/\borchata\b/g, "horchata");
-    for (const f of new Set([flavor, spoken])) {
-      add(f, `${f}s`, `agua de ${f}`, `agua fresca ${f}`, `agua fresca de ${f}`, `${f} grande`, `${f} large`, `large ${f}`);
-    }
-  } else if (/\bjarrito\b/.test(n)) {
-    for (const f of variationName.split("/").map((x) => x.trim()).filter(Boolean)) add(`jarrito ${f}`, `jarrito de ${f}`, `jarritos ${f}`, `${f} jarrito`);
-  } else if (/\bmineral\b/.test(v)) {
-    add("mineral water", "agua mineral", "sparkling water", "topo chico", "mineral");
-  } else if (/\bagua\b|\bwater\b/.test(v)) {
-    add("water", "a water", "waters", "water bottle", "bottle of water", "bottled water", "agua", "botella de agua", "water bottle");
-  } else {
-    add(v, `${v}s`);
-    if (/\bcoca cola\b/.test(v)) add(v.replace("coca cola", "coke"), v.replace("coca cola", "coca"));
-  }
-  return Array.from(out).filter((x) => x.length > 2);
+  return spokenDrinkAliases(fullName, variationName);
 }
 
 function isOnlineCategoryName(value: string) {

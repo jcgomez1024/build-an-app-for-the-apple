@@ -92,6 +92,10 @@ export function nameFromAnswer(text: string): string | null {
   }
   // luke1 (CA661a30): "Mi español es muy mal" / bare "muy mal" — phrase junk, never a name
   if (/\bmi\s+espa[nñ]ol\b/iu.test(s) || /^\s*muy\s+mal\s*[.!]?\s*$/iu.test(s) || /\bes\s+muy\s+mal\b/iu.test(s)) return null;
+  if (introLeads(s) && !introName(s)) {
+    const rest = s.replace(/^(?:(?:hi|hey|hello|hola|ah|oh|um|uh|yeah|yes|yep|ok(?:ay)?|bueno|pues|este|s[ií]|no|nop)[,.\s]+)*(?:this\s+is|it'?s|es)\s+/iu, "");
+    if (!/\p{Lu}[\p{L}'’-]+/u.test(rest)) return null;
+  }
   // cabedeb7: trailing "I'm just" / bare Just — never order_name (same junk as And/Dale)
   if (/\bi['’]?m\s+just\b/iu.test(s) || /^\s*just\s*[.!,]?\s*$/iu.test(s)) return null;
   // daryl1 / shannon1 class: "it's for Daryl" / "for Shannon" / "para Luis" → bare name (never "For Daryl")
@@ -338,6 +342,7 @@ export function nameFromStaffAsk(turns: Array<{ speaker: "caller" | "staff"; tex
     }
     // gino1: staff echo/confirm ("Gino, Gino." / "Okay, muy bien, Gino") beats unclear caller ASR ("Guino")
     // Only override when names are close (shared stem) — not "Luis" vs filler "Entonces" from "muy bien, entonces…"
+    if (staffEcho && echoOfNonName(staffEcho, turns)) staffEcho = null;
     if (staffEcho && !lastCaller) return staffEcho;
     if (staffEcho && lastCaller) {
       const a = foldName(staffEcho), b = foldName(lastCaller);
@@ -489,7 +494,7 @@ export function nameFromStaffVocative(turns: Array<{ speaker: "caller" | "staff"
     const re = new RegExp(`\\b${n.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "iu");
     const i = ts.findIndex((t) => t.speaker === "staff" && re.test(t.text));
     const next = i >= 0 ? ts.slice(i + 1).find((t) => t.speaker === "caller") : undefined;
-    if (!next || !DENY_NAME.test(next.text)) return n;
+    if (!next || !DENY_NAME.test(next.text)) return echoOfNonName(n, turns) ? null : n;
     ts = ts.map((t, j) => (j === i ? { ...t, text: t.text.replace(new RegExp(re.source, "giu"), "") } : t));
   }
   return null;
@@ -833,10 +838,42 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   }
   return null;
 }
-const SELF_NAME = /(?<![\p{L}])(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|this\s+is|my\s+name\s+is|i'?m)\s+(\p{L}[\p{L}'’-]+)(?:\s+(\p{L}[\p{L}'’-]+))?/giu;
+const SELF_NAME = /(?<![\p{L}])(?:soy|me\s+llamo|mi\s+nombre\s+es|(?:le\s+)?habla|my\s+name\s+is|i'?m)\s+(\p{L}[\p{L}'’-]+)(?:\s+(\p{L}[\p{L}'’-]+))?/giu;
+const INTRO_CUE = /(?<![\p{L}])(?:this\s+is|it'?s|es)\s+(\S(?:.{0,80}))/iu;
 const INTRO_NOT_NAME = /^(?:with|the|from|for|at|and|of|in|on|to|a|an|de|del|con|para|por|la|el|los|las|un|una|calling|here|just|about)$/iu;
+/** "this is" / "it's" / "es" plus a capitalized name. A lowercase word, an adjective, or a longer phrase is not a name. */
+export function introName(text: string): string | null {
+  const m = String(text || "").match(INTRO_CUE);
+  if (!m) return null;
+  const rest = m[1].split(/[.,!?¿¡]/)[0].replace(/["“”']/g, " ").replace(/\s+/g, " ").trim();
+  const proper = rest.match(/^(\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?)/u);
+  if (!proper) return null;
+  const first = proper[1].split(/\s+/)[0];
+  if (NOT_NAMES.test(first) || NOT_NAME.test(first) || INTRO_NOT_NAME.test(first)) return null;
+  const after = rest.slice(proper[1].length).trim();
+  if (/^(?:with|from|de|del|con)\b/iu.test(after)) return null;
+  return cleanFullName(proper[1]);
+}
+function introLeads(text: string): boolean {
+  return /^(?:(?:hi|hey|hello|hola|ah|oh|um|uh|yeah|yes|yep|ok(?:ay)?|bueno|pues|este|s[ií]|no|nop)[,.\s]+)*(?:this\s+is|es)\s+(?!para\b)/iu.test(String(text || "").trim());
+}
+export function rejectedIntroText(text: string): boolean {
+  return introLeads(text) && !introName(text);
+}
+/** Staff read back a piece of a non-name ("normales" → "Norm", "this is crazy" → "Crazy"). */
+function echoOfNonName(echo: string, turns: Array<{ speaker: string; text: string }>): boolean {
+  const e = foldName(echo);
+  if (e.length < 3) return false;
+  return turns.some((t) => t.speaker === "caller" && String(t.text || "").split(/\s+/).some((word) => {
+    const w = foldName(word);
+    const related = w === e || (w.length > e.length && w.startsWith(e));
+    return related && (NOT_NAMES.test(word) || rejectedIntroText(t.text));
+  }));
+}
 /** "this is Zander" / "soy Osmar Lira" is a guest name. "this is Demi with the Dollar General" is an affiliation — "with" is not a surname, and the phrase is not a pickup name. */
 export function selfIntroName(text: string): string | null {
+  const introduced = introName(text);
+  if (introduced) return introduced;
   let found: string | null = null;
   SELF_NAME.lastIndex = 0;
   for (const m of String(text || "").matchAll(SELF_NAME)) {
@@ -1126,6 +1163,9 @@ export function staffConfirmedName(heard: string, turns?: Array<{ speaker?: stri
 }
 export function snapToKnownName(heard: string | null | undefined, known: Array<string | null | undefined>, turns?: Array<{ speaker?: string; text?: string }> | null): string | null {
   const h = String(heard || "").trim(); if (!h) return null;
+  const kept = known.map((k) => (k ? cleanFirstName(k) || String(k).trim() : "")).find(Boolean) || null;
+  const wordFold = (word: string) => foldName(word).replace(/[^a-z]/g, "");
+  if (kept && Array.isArray(turns) && turns.some((t) => rejectedIntroText(String(t?.text || "")) && String(t?.text || "").split(/\s+/).some((word) => wordFold(word) === wordFold(h)))) return kept;
   if (staffConfirmedName(h, turns) && !isFillerLedName(h)) return h;
   for (const k of known) { if (!k) continue; const kf = cleanFirstName(k) || k;
     if (soundsLikeName(h, k)) return k; if (soundsLikeName(h, kf)) return kf; }

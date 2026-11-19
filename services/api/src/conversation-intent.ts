@@ -2,6 +2,7 @@
 // deterministic turns that return before the model. Patterns are general; the examples
 // illustrate them. A turn that does not match is left to the existing parser.
 import { readFileSync } from "node:fs";
+import { compoundForms, loadOptionAliases, spokenLabels } from "./menu-names.js";
 import { enforceSiteAvailability } from "./site-catalog.js";
 
 export type IntentAction = {
@@ -14,19 +15,22 @@ export type IntentAction = {
 };
 
 export type IntentPending = {
-  operation: "replace" | "add";
+  operation: "replace" | "add" | "clarify_clause";
   itemId: string;
   quantity: number | null;
   modifiers: Array<{ step: string; option: string }>;
   targetIndex: number | null;
   unresolved: string[];
+  /** Spoken accommodation that is not a confirmed catalog selection. It is not a kitchen approval and is not applied to the cart. */
+  accommodation?: string;
 };
 
 export type IntentDecision = {
   kind: "availability" | "accept" | "replace" | "add" | "clarify";
   reply: string;
   actions: IntentAction[];
-  pending?: IntentPending | null;
+  /** One pending record, or the add plus the unnamed earlier-line change. The list's operation is clarify_clause. */
+  pending?: IntentPending | Array<IntentPending> & { operation?: "clarify_clause" } | null;
 };
 
 type IntentFile = {
@@ -47,11 +51,13 @@ export type IntentMenuItem = {
   name?: string;
   nameEs?: string;
   aliases?: string[];
+  /** Catalog variation label. Matching uses this, not the id text. */
+  variationName?: string;
   soldOut?: boolean;
   available?: boolean;
   unavailable?: boolean;
   squareCatalogObjectId?: string;
-  modifierGroups?: Array<{ name: string; minSelections?: number; options?: Array<string | { name: string }> }>;
+  modifierGroups?: Array<{ name: string; minSelections?: number; options?: Array<string | { id?: string; name: string }> }>;
 };
 
 export type IntentInput = {
@@ -149,11 +155,27 @@ function unavailable(item: IntentMenuItem): boolean {
   return item.soldOut === true || item.available === false || item.unavailable === true;
 }
 
+const STAFF_UNAVAILABLE = /\bno (?:tenemos|hay|esta)\b|\bnot available\b|\bsold out\b|\bwe don t have\b|\bno esta disponible\b/;
+const VARIATION_QUALIFIER = new Set(["diet", "zero", "cero", "regular", "grande", "chica", "chico", "large", "small"]);
+
 function declineOf(staff: string[], item: IntentMenuItem): boolean {
   const folded = staff.map(fold);
   return folded.some((text) => {
-    if (!/\bno (?:tenemos|hay|esta)\b|\bnot available\b|\bsold out\b|\bwe don t have\b|\bno esta disponible\b/.test(text)) return false;
+    if (!STAFF_UNAVAILABLE.test(text)) return false;
     return namesOf(item).some((name) => significant(name).some((token) => hasWord(text, token)));
+  });
+}
+
+/** Staff said this variation is out. A qualifier in the staff sentence has to be this variation's qualifier. */
+function staffDeclinedVariation(staff: string[], item: IntentMenuItem): boolean {
+  if (unavailable(item)) return true;
+  const label = item.variationName || item.name || "";
+  const quals = significant(label).filter((token) => VARIATION_QUALIFIER.has(token));
+  return staff.map(fold).some((text) => {
+    if (!STAFF_UNAVAILABLE.test(text)) return false;
+    const said = [...VARIATION_QUALIFIER].filter((token) => heard(text, token));
+    if (said.length && !said.every((token) => quals.includes(token))) return false;
+    return significant(label).some((token) => heard(text, token));
   });
 }
 
@@ -242,7 +264,7 @@ function blocked(language: "en" | "es", item: IntentMenuItem, actions: IntentAct
 }
 
 const SIZE_WORD = new Set(["ounce", "ounces", "onza", "onzas", "oz", "treinta", "veinte", "grande", "chica", "chico", "large", "small"]);
-const pendingBySession = new Map<string, IntentPending>();
+const pendingBySession = new Map<string, NonNullable<IntentDecision["pending"]>>();
 
 function requiredMissing(item: IntentMenuItem, modifiers: Array<{ step: string; option: string }>): string[] {
   return (item.modifierGroups || [])
@@ -316,6 +338,7 @@ function askGroup(language: "en" | "es", groupName: string, pending: IntentPendi
 }
 
 function settle(language: "en" | "es", pending: IntentPending, cart: NonNullable<IntentInput["cart"]>, menu: IntentMenuItem[]): IntentDecision {
+  if (pending.accommodation) return holdRestriction(language, pending);
   const item = menu.find((entry) => entry.id === pending.itemId);
   const missing = item ? requiredMissing(item, pending.modifiers) : [];
   const unresolved = [
@@ -345,7 +368,24 @@ function settle(language: "en" | "es", pending: IntentPending, cart: NonNullable
   };
 }
 
+function holdRestriction(language: "en" | "es", pending: IntentPending): IntentDecision {
+  const text = pending.accommodation || pending.unresolved.join(" ");
+  const reply = language === "es"
+    ? `Esa restricción sigue sin resolver: ${text}. No cambié la orden confirmada y no la apliqué. Queda en revisión.`
+    : `That restriction is still unresolved: ${text}. I did not change the confirmed order, and I did not apply it. It remains for review.`;
+  return { kind: "clarify", reply, actions: [], pending: { ...pending, accommodation: text, unresolved: [text] } };
+}
+
+function answersHeldRestriction(input: IntentInput, file: IntentFile, language: "en" | "es", pending: IntentPending, folded: string): boolean {
+  const text = fold(pending.accommodation || "");
+  if (text && folded.includes(text)) return true;
+  if (!/^(?:yes|yeah|yep|yup|si|ok|okay|correct|right)\b/.test(folded)) return false;
+  const parsed = addActionFromUtterance(input, file, language, folded);
+  return !parsed || parsed.itemId === pending.itemId;
+}
+
 function continuePending(input: IntentInput, file: IntentFile, language: "en" | "es", pending: IntentPending, folded: string): IntentDecision | null {
+  if (pending.accommodation) return null;
   const cart = input.cart || [];
   const only = takeQuantity(folded, file);
   if (only.quantity && !only.rest && !only.unclear) return settle(language, { ...pending, quantity: only.quantity }, cart, input.menu);
@@ -518,6 +558,44 @@ function addActionFromUtterance(input: IntentInput, file: IntentFile, language: 
   return decided?.actions.find((action) => action.type === "add_item") || null;
 }
 
+// The cart array is the object both pipelines already hand to the next turn.
+// Phone records a witness only after apply() pushes the intent actions.
+// The reducer records it inside applyIntentCart, on the array that function returns.
+// An empty witness means the previous intent turn applied no add. Pending is untouched.
+const appliedRequestWitness = new WeakMap<object, IntentAction[]>();
+
+export function recordAppliedRequest(cart: object | null | undefined, actions: IntentAction[]): void {
+  if (!cart || typeof cart !== "object") return;
+  const adds = (actions || []).filter((action) => action?.type === "add_item").map((action) => ({
+    type: "add_item" as const,
+    itemId: action.itemId,
+    quantity: Number(action.quantity) || 1,
+    modifiers: (action.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
+  }));
+  appliedRequestWitness.set(cart, adds);
+}
+
+function readAppliedRequest(cart: object | null | undefined): IntentAction[] {
+  if (!cart || typeof cart !== "object") return [];
+  return appliedRequestWitness.get(cart) || [];
+}
+
+function unresolvedConstraint(priorText: string, action: IntentAction, menu: IntentMenuItem[], file: IntentFile): string {
+  const item = menu.find((entry) => entry.id === action.itemId);
+  const consumed = new Set<string>();
+  const absorb = (value: string) => { for (const word of fold(value).split(" ")) { const token = stem(word); if (token) consumed.add(token); } };
+  absorb(item?.name || "");
+  absorb(item?.nameEs || "");
+  for (const modifier of action.modifiers || []) { absorb(modifier.step || ""); absorb(modifier.option || ""); }
+  for (const lead of DISCOURSE_LEADS) absorb(lead);
+  for (const word of Object.keys(file.quantities)) absorb(word);
+  absorb("those these esos esas only solo solamente");
+  return fold(priorText).split(" ").filter((word) => {
+    const token = stem(word);
+    return token.length >= 3 && !STOP.has(word) && !STOP.has(token) && !consumed.has(token);
+  }).join(" ");
+}
+
 function sameAdd(left: IntentAction, right: IntentAction): boolean {
   return left.type === "add_item" && right.type === "add_item"
     && left.itemId === right.itemId
@@ -549,14 +627,15 @@ function directOrder(input: IntentInput, file: IntentFile, language: "en" | "es"
  * Decide a whole short turn. Returns null when this is not one of the conversation-intent
  * shapes, so the existing parser keeps the turn.
  */
-export function resolveConversationIntent(input: IntentInput): IntentDecision | null {
+function decideConversationIntent(input: IntentInput): IntentDecision | null {
   const file = loadConversationIntent();
   if (!file || !Array.isArray(input.menu) || !input.menu.length) return null;
   const folded = fold(input.transcript);
   if (!folded) return null;
   const language = input.language === "en" ? "en" : "es";
   const cart = input.cart || [];
-  const pending = input.pending !== undefined ? input.pending : (input.sessionKey ? pendingBySession.get(input.sessionKey) || null : null);
+  const rawPending = input.pending !== undefined ? input.pending : (input.sessionKey ? pendingBySession.get(input.sessionKey) || null : null);
+  const pending = Array.isArray(rawPending) ? null : rawPending;
   const remember = (decision: IntentDecision): IntentDecision => {
     if (input.sessionKey) {
       if (decision.pending) pendingBySession.set(input.sessionKey, decision.pending);
@@ -564,6 +643,7 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     }
     return decision;
   };
+  if (pending?.accommodation && answersHeldRestriction(input, file, language, pending, folded)) return remember(holdRestriction(language, pending));
   if (isCartEdit(folded) && cart.length) {
     if (asksWhichLine(folded) && cart.length > 1) {
       const asked = askTarget(language, cart, input.menu, { operation: "replace", itemId: cart[0].itemId, quantity: null, modifiers: [], targetIndex: null, unresolved: ["target"] });
@@ -630,22 +710,32 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
     const stripped = stripDiscourse(source);
     if (stripped && (stripped !== source || split)) {
       const added = directOrder(input, file, language, stripped);
-      if (added?.actions.length) {
+        if (added?.actions.length) {
         if (split && cart.length) {
           const target = earlierTarget(cart, input.menu, split.change);
+          const described = (line: { modifiers?: Array<{ step?: string; option?: string }> }) => (line.modifiers || []).map((modifier) => `${modifier.step || ""} = ${modifier.option || ""}`).filter((text) => text !== " = ").join("; ");
+          const held = (index: number | null, itemId: string): IntentPending => ({
+            operation: "clarify_clause",
+            itemId,
+            quantity: null,
+            modifiers: [],
+            targetIndex: index,
+            unresolved: ["requested_change"],
+          });
           if (target === "ambiguous") {
-            const listed = cart.map((line) => describeOwnLine(line, input.menu)).join(" ");
+            const listed = cart.map((line) => described(line)).filter(Boolean).join("; ");
             const ask = language === "es"
-              ? ` ¿Cuál línea anterior cambio? ${listed}`
-              : ` Which earlier line should I change? ${listed}`;
-            return remember({ ...added, reply: `${added.reply}${ask}`, pending: null });
+              ? `Agregué lo nuevo. ¿Cuál línea anterior cambio? ${listed}`
+              : `I added the new items. Which earlier line should I change? ${listed}`;
+            return remember({ kind: "clarify", reply: ask, actions: added.actions, pending: held(null, cart[0].itemId) });
           }
           if (target !== "none") {
-            const named = describeOwnLine(cart[target.index], input.menu);
-            const note = language === "es"
-              ? ` No cambié la línea anterior porque no dijeron el cambio: ${named}.`
-              : ` I did not change the earlier line because the change was not specified: ${named}.`;
-            return remember({ ...added, reply: `${added.reply}${note}`, pending: null });
+            const line = cart[target.index];
+            const named = described(line);
+            const ask = language === "es"
+              ? `Agregué lo nuevo. ¿Qué cambio en la línea anterior? ${named}`
+              : `I added the new items. What should I change on the earlier item? ${named}`;
+            return remember({ kind: "clarify", reply: ask, actions: added.actions, pending: held(target.index, line.itemId) });
           }
         }
         return remember({ ...added, pending: null });
@@ -703,13 +793,25 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
   if (onlyAdd) {
     const anaphoric = /^(?:those|these|esos|esas)\b/.test(onlyAdd[1]);
     const added = directOrder(input, file, language, onlyAdd[1].replace(/^(?:those|these|esos|esas)\s+/, ""));
+    const earlierStays = /\b(?:leave|deja|dejar)\b/.test(folded) && /\b(?:earlier|anterior|primera|first)\b/.test(folded);
     const addAction = added?.actions.find((action) => action.type === "add_item");
     if (added?.actions.length && addAction) {
+      if (anaphoric && earlierStays) {
+        const onCart = sameSpokenLine(cart, addAction);
+        const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
+        if (onCart || witnessed) {
+          const reply = language === "es"
+            ? "La línea anterior se queda. Eso ya está en la orden."
+            : "The earlier line stays. That is already on the order.";
+          return remember({ kind: "accept", reply, actions: [], pending: null });
+        }
+        return remember({ ...added, kind: cart.length ? "add" : "accept", pending: null });
+      }
       const onCart = sameSpokenLine(cart, addAction);
+      const witnessed = readAppliedRequest(cart).some((action) => sameAdd(action, addAction));
       const priorText = [...(input.history || [])].reverse().find((turn) => turn.role === "customer" || turn.role === "user")?.text || "";
       const prior = priorText ? addActionFromUtterance(input, file, language, priorText) : null;
-      const proven = !!prior && sameAdd(prior, addAction) && onCart;
-      if (anaphoric && proven) {
+      if (anaphoric && witnessed && onCart) {
         const line = cart.find((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
         const named = line ? describeOwnLine(line, input.menu) : "";
         const reply = language === "es"
@@ -717,7 +819,23 @@ export function resolveConversationIntent(input: IntentInput): IntentDecision | 
           : `That is already on the order, so I did not add it again.${named ? ` ${named}.` : ""}`;
         return remember({ kind: "accept", reply, actions: [], pending: null });
       }
-      if (anaphoric && onCart && !proven) {
+      if (anaphoric && prior && sameAdd(prior, addAction) && !witnessed) {
+        const unresolved = unresolvedConstraint(priorText, addAction, input.menu, file);
+        const reply = language === "es"
+          ? `No apliqué el pedido anterior, así que no lo tomé como ya cumplido.${unresolved ? ` Sin resolver: ${unresolved}.` : ""} No lo agregué.`
+          : `I did not apply the previous request, so I did not treat it as fulfilled.${unresolved ? ` Unresolved: ${unresolved}.` : ""} I did not add it.`;
+        const held: IntentPending | null = unresolved ? {
+          operation: "add",
+          itemId: addAction.itemId,
+          quantity: addAction.quantity,
+          modifiers: (addAction.modifiers || []).map((modifier) => ({ step: modifier.step || "", option: modifier.option || "" })),
+          targetIndex: null,
+          unresolved: [unresolved],
+          accommodation: unresolved,
+        } : null;
+        return remember({ kind: "clarify", reply, actions: [], pending: held });
+      }
+      if (anaphoric && onCart && !witnessed) {
         const matches = cart.filter((entry) => entry.itemId === addAction.itemId && Number(entry.quantity) === addAction.quantity && modifierKey(entry.modifiers) === modifierKey(addAction.modifiers));
         const listed = matches.map((entry) => describeOwnLine(entry, input.menu)).join(" ");
         const reply = language === "es"
@@ -832,6 +950,458 @@ function hasLeftover(folded: string, consumed: string[], file: IntentFile, ignor
   });
 }
 
+export function resolveConversationIntent(input: IntentInput): IntentDecision | null {
+  const decision = decideConversationIntent(input);
+  // A returned add is not yet a witness. The caller records one only if it applies the actions.
+  // A turn with no add leaves no witness, including when the caller keeps this same cart.
+  if (!decision?.actions?.some((action) => action.type === "add_item")) recordAppliedRequest(input.cart, []);
+  return decision;
+}
+
+export type CountedLine = {
+  itemId: string;
+  quantity: number;
+  modifiers: Array<{ step: string; option: string }>;
+  readback: string;
+  recovered: true;
+  elviNotes: string[];
+};
+
+export type CountedClosure = { target: string; kind: "withdrawal" | "negation" | "replacement" };
+
+export type CountedDiagnostic = {
+  kind: "recovered" | "ambiguous" | "no-stock" | "unresolved" | "off-menu";
+  itemIds: string[];
+  quantity: number;
+};
+
+export type CountedReconciliation = {
+  lines: CountedLine[];
+  reviewReason: string | null;
+  reply: string;
+  closures: CountedClosure[];
+  diagnostics: CountedDiagnostic[];
+};
+
+const COUNTED_HOLD = "revisar pedido contado";
+
+function sameStem(a: string, b: string): boolean {
+  if (a === b) return true;
+  const left = stem(stem(a));
+  const right = stem(stem(b));
+  return left === right || left === b || right === a;
+}
+
+function heard(phrase: string, token: string): boolean {
+  const wanted = token === "dieta" ? "diet" : token;
+  if (words(phrase).some((word) => sameStem(word === "dieta" ? "diet" : word, wanted))) return true;
+  return wanted === "diet" && words(phrase).some((word) => sameStem(word, "dieta"));
+}
+
+function canonSize(text: string): string {
+  return fold(text)
+    .replace(/-/g, " ")
+    .replace(/\btreinta y dos\b/g, "32")
+    .replace(/\b(\d+)\s*(?:oz|ounce|ounces|onza|onzas)\b/g, "$1oz");
+}
+
+function sizeOf(text: string): string | null {
+  return canonSize(text).match(/\b(\d+)oz\b/)?.[1] ? `${canonSize(text).match(/\b(\d+)oz\b/)![1]}oz` : null;
+}
+
+const NOT_A_DISH = new Set(["orden", "order", "suelta", "agrega", "agregar", "porcion", "plato", "quiero", "quiere", "pueden", "puede", "poner", "ponga", "ponme", "pued", "puedo", "puedes", "dame", "deme", "pone", "ponen", "cuatro", "cuarenta", "treinta", "veinte", "cincuenta", "forty", "fifty"]);
+const MEAT = new Set(["bistec", "pastor", "asada", "pollo", "chorizo", "lengua", "tripa", "carnitas", "cabeza", "costilla", "picadillo", "deshebrada", "birria"]);
+const TOPPING = new Set(["queso", "cebolla", "crema", "cilantro", "onion", "cheese", "salsa", "frijol", "frijoles"]);
+
+function dishTokens(text: string): string[] {
+  const cleaned = canonSize(text).replace(/\b\d+oz\b/g, " ");
+  return significant(cleaned).map((token) => (token === "dieta" ? "diet" : token)).filter((token) => !SIZE_WORD.has(token) && !NOT_A_DISH.has(token) && !NOT_A_DISH.has(stem(token)));
+}
+
+function variationLabel(item: IntentMenuItem): string {
+  return item.variationName && !/^regular$/i.test(item.variationName) ? item.variationName : "";
+}
+
+function catalogLabels(item: IntentMenuItem): string[] {
+  return spokenLabels(item);
+}
+
+function itemLabel(item: IntentMenuItem, language: "en" | "es"): string {
+  const spoken = catalogLabels(item)[0] || "";
+  if (language === "es" && item.nameEs && !/online/i.test(item.nameEs) && spoken === item.nameEs) return item.nameEs;
+  return spoken || item.name || item.nameEs || "";
+}
+
+function sentenceLanguage(turn: { text: string; language?: string }): "en" | "es" {
+  if (turn.language === "en" || turn.language === "es") return turn.language;
+  const text = fold(turn.text);
+  const english = (text.match(/\b(?:the|please|with|and|without|coke|one|two)\b/g) || []).length;
+  const spanish = (text.match(/\b(?:una|uno|con|para|por|favor|gracias|quesadilla)\b/g) || []).length;
+  return english > spanish ? "en" : "es";
+}
+
+function countedSentences(text: string): Array<{ text: string; question: boolean }> {
+  return String(text || "").split(/(?<=[?¿.！!])/).map((part) => ({
+    text: fold(part).replace(/[¿?¡]/g, " ").replace(/\s+/g, " ").trim(),
+    question: /[?¿]/.test(part),
+  })).filter((part) => part.text);
+}
+
+function exactLabel(label: string, content: string[], size: string | null): boolean {
+  if (size && sizeOf(label) !== size) return false;
+  if (!content.every((token) => heard(canonSize(label), token))) return false;
+  const quals = dishTokens(label).filter((token) => VARIATION_QUALIFIER.has(token));
+  return quals.every((token) => content.includes(token));
+}
+
+function exactItems(menu: IntentMenuItem[], content: string[], size: string | null): IntentMenuItem[] {
+  const byVariation = menu.filter((item) => {
+    const sku = variationLabel(item);
+    return !!sku && exactLabel(sku, content, size);
+  });
+  if (byVariation.length) return byVariation;
+  return menu.filter((item) => [item.name, item.nameEs].some((label) => !!label && exactLabel(label, content, size)));
+}
+
+function sharesContent(item: IntentMenuItem, content: string[]): boolean {
+  return catalogLabels(item).some((label) => content.some((token) => heard(canonSize(label), token)));
+}
+
+function lineCovers(line: { itemId: string }, menu: IntentMenuItem[], content: string[], size: string | null): boolean {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  const labels = item ? catalogLabels(item) : [String(line.itemId || "").replace(/-/g, " ")];
+  const needed = content.filter((token) => !VARIATION_QUALIFIER.has(token));
+  const quals = content.filter((token) => VARIATION_QUALIFIER.has(token));
+  if (!needed.length) return false;
+  if (!item) return false;
+  return labels.some((label) => {
+    if (size && sizeOf(label) !== size) return false;
+    return needed.some((token) => heard(canonSize(label), token)) && quals.every((token) => heard(canonSize(label), token));
+  });
+}
+
+function unspokenSize(item: IntentMenuItem, phrase: string): boolean {
+  const label = variationLabel(item);
+  if (!label) return false;
+  return !!sizeOf(label) && !sizeOf(phrase);
+}
+
+function requiredOpen(item: IntentMenuItem, phrase: string): boolean {
+  const options = spokenOptions(item, phrase);
+  if (options === "ambiguous") return true;
+  return (item.modifierGroups || []).some((group) => (group.minSelections || 0) >= 1 && !options.some((option) => option.step === group.name));
+}
+
+/**
+ * A counted request the cart does not already contain.
+ * Names and variation labels only. One exact catalog row can be recovered for confirmation.
+ * Anything else stays a review reason in the call's language. No invented SKU or option.
+ */
+function requestHead(sentence: string): string {
+  return sentence.split(/\b(?:en los|en las|en el|en la|con|with|on the|para)\b/)[0];
+}
+
+function closureFor(sentence: string, content: string[], question = false): CountedClosure | null {
+  if (question || /[?¿]/.test(sentence)) return null;
+  const dish = content.filter((token) => !VARIATION_QUALIFIER.has(token) && !MEAT.has(token));
+  const head = requestHead(sentence);
+  if (!dish.length || !dish.some((token) => heard(head, token))) return null;
+  const target = dish.join(" ");
+  if (/\b(?:instead of|en vez de|rather than)\b/.test(head)) return { target, kind: "replacement" };
+  if (/\b(?:quita(?:r|me|le)?|ya no|remove|take (?:it|that|them) off)\b/.test(head)) return { target, kind: "withdrawal" };
+  if (/\bno quiero\b/.test(head) || dish.some((token) => tokenNegated(head, token))) return { target, kind: "negation" };
+  return null;
+}
+
+function isQuestionSentence(sentence: string, file: IntentFile): boolean {
+  return /[?¿]/.test(sentence) || isAvailability(sentence, file) || /\b(?:quiere|quieren|tienes|tienen)\b/.test(sentence);
+}
+
+function isOnlyQuantities(sentence: string): boolean {
+  const numbers = sentence.match(/\b(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|treinta|cuarenta|cincuenta|one|two|three|four|five|six|seven|eight|nine|zero|forty)\b/g) || [];
+  if (numbers.length < 2) return false;
+  const rest = sentence.replace(/\b(?:cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte|treinta|cuarenta|cincuenta|one|two|three|four|five|six|seven|eight|nine|zero|forty)\b/g, " ");
+  return dishTokens(rest).length === 0;
+}
+
+function meatOnRungDish(content: string[], cart: Array<{ itemId: string }>, menu: IntentMenuItem[]): boolean {
+  const foods = content.filter((token) => !MEAT.has(token) && !VARIATION_QUALIFIER.has(token));
+  if (foods.length || !content.some((token) => MEAT.has(token))) return false;
+  return cart.some((line) => {
+    const item = menu.find((entry) => entry.id === line.itemId);
+    const blob = item ? catalogLabels(item).join(" ") : String(line.itemId || "");
+    return blob.length > 0;
+  });
+}
+
+function modifierWords(menu: IntentMenuItem[]): Set<string> {
+  const words = new Set<string>();
+  const add = (value: string) => { for (const token of dishTokens(value)) if (token.length >= 4) words.add(token); };
+  for (const item of menu) {
+    for (const group of item.modifierGroups || []) {
+      add(group.name || "");
+      for (const option of group.options || []) add(String(option.name || ""));
+    }
+  }
+  return words;
+}
+
+function accommodationNote(text: string, words: Set<string>): string | null {
+  const match = text.match(/\b(?:sin|without)\s+([a-z]+)/) || text.match(/\bno quiero\s+(?:el|la|los|las|un|una)?\s*([a-z]+)/);
+  if (!match) return null;
+  const word = match[1];
+  if (!word || word.length < 4 || NOT_A_DISH.has(word)) return null;
+  const spoken = word === "onion" ? "cebolla" : word === "cheese" ? "queso" : word;
+  if (!words.has(spoken) && !words.has(stem(spoken))) return null;
+  return `sin ${spoken}`;
+}
+
+const DISH_STYLE = new Set(["comal", "harina", "dorada", "deluxe"]);
+
+function familyTokens(content: string[]): string[] {
+  return content.filter((token) => !MEAT.has(token) && !TOPPING.has(token) && !VARIATION_QUALIFIER.has(token) && !DISH_STYLE.has(token) && !NOT_A_DISH.has(token) && token.length >= 4);
+}
+
+function lineText(line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): string | null {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  if (!item) return null;
+  const mods = (line.modifiers || []).map((mod) => String(mod.option || "")).join(" ");
+  return `${catalogLabels(item).join(" ")} ${mods}`;
+}
+
+function styleHeard(token: string, text: string): boolean {
+  if (heard(text, token)) return true;
+  return token === "aceite" && heard(text, "dorada");
+}
+
+function optionRecord(option: string | { id?: string; name: string }): { id: string; name: string } {
+  return typeof option === "string" ? { id: "", name: option } : { id: option.id || "", name: option.name || "" };
+}
+
+/** Option ids a spoken meat names. An approved alias wins; otherwise the option's own name tokens. */
+function optionIdsForSpoken(menu: IntentMenuItem[], token: string): Set<string> {
+  const aliasIds = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => fold(alias) === token)).map((row) => row.optionId);
+  if (aliasIds.length) return new Set(aliasIds);
+  const ids = new Set<string>();
+  for (const item of menu) {
+    for (const group of item.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const option = optionRecord(choice);
+        if (!option.id) continue;
+        if (fold(option.name).split(" ").some((word) => word.length >= 4 && (sameStem(word, token) || compoundForms(word).some((part) => sameStem(part, token))))) ids.add(option.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function lineModifierIds(line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): Set<string> {
+  const item = menu.find((entry) => entry.id === line.itemId);
+  const ids = new Set<string>();
+  if (!item) return ids;
+  for (const modifier of line.modifiers || []) {
+    const name = fold(String(modifier.option || ""));
+    if (!name) continue;
+    for (const group of item.modifierGroups || []) {
+      for (const choice of group.options || []) {
+        const option = optionRecord(choice);
+        if (option.id && fold(option.name) === name) ids.add(option.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function lineMatches(request: { content: string[]; size: string | null }, line: { itemId: string; modifiers?: Array<{ option?: string }> }, menu: IntentMenuItem[]): boolean {
+  const text = lineText(line, menu);
+  if (!text) return false;
+  const family = familyTokens(request.content);
+  if (!family.length || !family.some((token) => heard(text, token))) return false;
+  const meats = request.content.filter((token) => MEAT.has(token));
+  if (meats.length) {
+    const onLine = lineModifierIds(line, menu);
+    const covered = meats.every((token) => {
+      const ids = optionIdsForSpoken(menu, token);
+      if (ids.size && [...ids].some((id) => onLine.has(id))) return true;
+      const aliasRows = loadOptionAliases().filter((row) => (row.aliases || []).some((alias) => fold(alias) === token));
+      if (aliasRows.length) return aliasRows.some((row) => fold(row.name).split(" ").some((word) => word.length >= 4 && (heard(text, word) || compoundForms(word).some((part) => heard(text, part)))));
+      if (heard(text, token)) return true;
+      return fold(text).split(" ").some((word) => compoundForms(word).some((part) => sameStem(part, token)));
+    });
+    if (!covered) return false;
+  }
+  const styles = request.content.filter((token) => DISH_STYLE.has(token) || token === "aceite");
+  if (styles.some((token) => !styleHeard(token, text))) return false;
+  if (request.size && sizeOf(text) !== request.size) return false;
+  return true;
+}
+
+/** Matching catalog lines cover a request when their quantity is at least the request. Claimed units are not reused. */
+function coveredByFamily(
+  requests: Array<{ quantity: number; content: string[]; size: string | null }>,
+  cart: Array<{ itemId: string; quantity?: number; modifiers?: Array<{ option?: string }> }>,
+  menu: IntentMenuItem[],
+): Set<number> {
+  const pools = cart.map((line) => ({ line, text: lineText(line, menu), left: Number(line.quantity) || 1 })).filter((pool) => pool.text);
+  const covered = new Set<number>();
+  requests.forEach((request, index) => {
+    const matches = pools.filter((pool) => pool.left > 0 && lineMatches(request, pool.line, menu));
+    if (matches.reduce((sum, pool) => sum + pool.left, 0) < request.quantity) return;
+    let need = request.quantity;
+    for (const pool of matches) {
+      const take = Math.min(pool.left, need);
+      pool.left -= take;
+      need -= take;
+      if (!need) break;
+    }
+    covered.add(index);
+  });
+  return covered;
+}
+
+function offMenuIds(
+  request: { content: string[] },
+  cart: Array<{ itemId: string }>,
+  menu: IntentMenuItem[],
+): string[] {
+  const family = familyTokens(request.content);
+  if (!family.length) return [];
+  const ids: string[] = [];
+  for (const line of cart) {
+    if (menu.some((item) => item.id === line.itemId)) continue;
+    const segments = String(line.itemId || "").toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 4);
+    if (family.some((token) => segments.some((segment) => sameStem(segment, token)))) ids.push(String(line.itemId));
+  }
+  return ids;
+}
+
+function correctionCloses(sentence: { text: string; question: boolean }, content: string[]): boolean {
+  if (sentence.question) return false;
+  const text = sentence.text;
+  if (!/\b(?:cambia(?:r|me)?|mejor|en vez de|instead of)\b/.test(text) && !/\bno de\b/.test(text)) return false;
+  const marked = content.filter((token) => MEAT.has(token) || DISH_STYLE.has(token));
+  return marked.some((token) => tokenNegated(text, token));
+}
+
+function cleanPhrase(phrase: string): string {
+  return phrase
+    .replace(/\b(?:like|como)\b.*$/, "")
+    .replace(/^(?:of|de)\s+(?:your|su|tus|the|el|la|los|las)\s+/, "")
+    .replace(/^(?:of|de|your|su)\s+/, "")
+    .replace(/\b(?:big|grande|the|a|an|el|la|los|las)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function reconcileCountedRequests(
+  cart: Array<{ itemId: string; quantity?: number; elviNotes?: string[] }>,
+  turns: Array<{ speaker?: string; text: string; language?: string }>,
+  menu: IntentMenuItem[],
+): CountedReconciliation {
+  const empty: CountedReconciliation = { lines: [], reviewReason: null, reply: "", closures: [], diagnostics: [] };
+  const file = loadConversationIntent();
+  if (!file || !menu?.length) return empty;
+  const staff = turns.filter((turn) => turn.speaker === "staff").map((turn) => turn.text);
+  const ingredients = modifierWords(menu);
+  const caller = turns.filter((turn) => turn.speaker === "caller");
+  const sentences: Array<{ text: string; language: "en" | "es"; question: boolean }> = [];
+  for (const turn of caller) {
+    const language = sentenceLanguage(turn);
+    for (const part of countedSentences(turn.text)) sentences.push({ text: part.text, question: part.question, language });
+  }
+  const requests: Array<{ phrase: string; quantity: number; content: string[]; size: string | null; language: "en" | "es"; index: number; note: string | null }> = [];
+  sentences.forEach((sentence, index) => {
+    if (sentence.question || isQuestionSentence(sentence.text, file) || isOnlyQuantities(sentence.text)) return;
+    if (/\b(?:next to|beside|other than|al lado de|junto a)\b/.test(sentence.text)) {
+      const before = sentence.text.split(/\b(?:next to|beside|other than|al lado de|junto a)\b/)[0];
+      if (!dishTokens(cleanPhrase(before)).some((token) => !MEAT.has(token) && !TOPPING.has(token))) return;
+    }
+    let body = sentence.text.replace(/^(?:y|and|also|tambien)\s+/, "");
+    const verb = file.orderVerbs.map(fold).sort((a, b) => b.length - a.length).find((cue) => body.startsWith(cue));
+    if (verb) body = body.slice(verb.length).trim();
+    if (file.replacementCues.some((cue) => sentence.text.startsWith(fold(cue)))) return;
+    if (/\b(?:agrega|y)\s+unas?\s*$/.test(sentence.text)) return;
+    const taken = takeQuantity(cleanPhrase(body), file);
+    if (!taken.quantity || taken.unclear) return;
+    const content = dishTokens(cleanPhrase(taken.rest));
+    if (!content.some((token) => !MEAT.has(token) && !TOPPING.has(token) && !NOT_A_DISH.has(token))) return;
+    if (!content.length || !menu.some((item) => sharesContent(item, content))) return;
+    if (meatOnRungDish(content, cart, menu)) return;
+    if (closureFor(sentence.text, content, sentence.question)) return;
+    requests.push({ phrase: cleanPhrase(taken.rest), quantity: taken.quantity, content, size: sizeOf(sentence.text), language: sentence.language, index, note: accommodationNote(sentence.text, ingredients) });
+  });
+  const closures: CountedClosure[] = [];
+  const open = requests.filter((request) => {
+    const later = sentences.slice(request.index + 1).map((sentence) => closureFor(sentence.text, request.content, sentence.question) || (correctionCloses(sentence, request.content) ? { target: request.content.join(" "), kind: "replacement" as const } : null)).find((closure) => closure);
+    if (!later) return true;
+    closures.push(later);
+    return false;
+  });
+  const lines: CountedLine[] = [];
+  const diagnostics: CountedDiagnostic[] = [];
+  let hold = false;
+  const already = coveredByFamily(open, cart, menu);
+  const addsMore = (phrase: string) => /\b(?:tambien|otra|otro|otras|otros|another|more|plus|adicional|ademas)\b/.test(phrase);
+  for (let index = 0; index < open.length; index++) {
+    if (already.has(index) || addsMore(open[index].phrase)) continue;
+    const family = familyTokens(open[index].content);
+    const earlier = open.findIndex((other, at) => at < index && other.quantity === open[index].quantity && familyTokens(other.content).some((token) => family.includes(token)));
+    if (earlier >= 0 && already.has(earlier)) already.add(index);
+  }
+  const working = cart.map((line) => ({ itemId: line.itemId }));
+  const staffDenied = (token: string) => {
+    const stem = token.replace(/s$/, "");
+    if (stem.length < 4) return false;
+    return turns.some((turn) => turn.speaker === "staff" && (new RegExp(`\\bno\\s+hay\\s+${stem}`).test(fold(turn.text)) || new RegExp(`\\b${stem}\\w*\\s+(?:are|is)\\s+unavailable\\b`).test(fold(turn.text))));
+  };
+  open.forEach((request, index) => {
+    if (already.has(index)) return;
+    if (familyTokens(request.content).some(staffDenied)) {
+      diagnostics.push({ kind: "no-stock", itemIds: [], quantity: request.quantity });
+      hold = true;
+      return;
+    }
+    const offMenu = offMenuIds(request, cart, menu);
+    const onMenuFamily = cart.some((line) => {
+      const text = lineText(line, menu);
+      return !!text && familyTokens(request.content).some((token) => heard(text, token));
+    });
+    if (offMenu.length && !onMenuFamily) {
+      diagnostics.push({ kind: "off-menu", itemIds: offMenu.slice(0, 8), quantity: request.quantity });
+      return;
+    }
+    const exact = exactItems(menu, request.content, request.size);
+    const named = exact.length === 1 ? exact[0] : null;
+    if (named && staffDeclinedVariation(staff, named)) {
+      diagnostics.push({ kind: "no-stock", itemIds: [named.id], quantity: request.quantity });
+      hold = true;
+      return;
+    }
+    if (!named || requiredOpen(named, request.phrase) || unspokenSize(named, request.phrase)) {
+      diagnostics.push({ kind: exact.length > 1 ? "ambiguous" : "unresolved", itemIds: exact.slice(0, 8).map((item) => item.id), quantity: request.quantity });
+      hold = true;
+      return;
+    }
+    const namedLabel = itemLabel(named, request.language);
+    const restriction = sentences.map((sentence) => sentence.question ? null : accommodationNote(sentence.text, ingredients) && request.content.some((token) => heard(sentence.text, token)) ? accommodationNote(sentence.text, ingredients) : null).find((value) => value) || null;
+    lines.push({
+      itemId: named.id,
+      quantity: request.quantity,
+      modifiers: [],
+      readback: namedLabel,
+      recovered: true,
+      elviNotes: restriction ? ["confirmar", restriction] : ["confirmar"],
+    });
+    diagnostics.push({ kind: "recovered", itemIds: [named.id], quantity: request.quantity });
+    working.push({ itemId: named.id });
+  });
+  if (lines.length === 1 && caller.some((row) => countedSentences(row.text).some((part) => /\bbotellas?\b|\bbottles?\b/.test(part.text) && !part.question && !takeQuantity(part.text, file).quantity))) {
+    lines[0].elviNotes.push("botella");
+  }
+  if (!lines.length && !hold && !closures.length) return empty;
+  return { lines, reviewReason: hold ? COUNTED_HOLD : null, reply: hold ? COUNTED_HOLD : "", closures, diagnostics };
+}
+
 export function applyIntentCart<T extends { itemId: string; quantity: number; modifiers?: any[] }>(cart: T[], actions: IntentAction[]): T[] {
   const next = cart.map((line) => ({ ...line, modifiers: [...(line.modifiers || [])] }));
   for (const action of actions) {
@@ -846,5 +1416,6 @@ export function applyIntentCart<T extends { itemId: string; quantity: number; mo
       if (index >= 0) next[index] = { ...next[index], quantity: action.quantity };
     }
   }
+  recordAppliedRequest(next, actions);
   return next;
 }

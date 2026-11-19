@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "approved": "Carlos 2026-11-10 1:59 PM ET",
+  "note": "Spoken aliases for catalog modifier options. A match is the option id, not a rewritten meat word. pastor and chicken are not in this file.",
+  "options": [
+    {
+      "optionId": "UF7YCLXFT2FBZIWIXXF7OSWU",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "Q567C5ONYK4GFIKEJPNZCIMA",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "V6TOYIPHX3OZPLLRRJLKCUTJ",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "CSE2ZCEFJZDUU5MODHBS7ZDK",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "P4TER6IY5EV74ELEVWYZGKFQ",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "4YC7ETKIWQLSWBVIHK6B3UMY",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "SGYVA5JIS7YK4PTRUXT2GUU2",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "UB4T2IXUGDMXEJIS3URJDUWJ",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    },
+    {
+      "optionId": "QZGMDYUV6TEGMXSUXNSV6KDR",
+      "name": "Bistec / Steak",
+      "aliases": [
+        "asada"
+      ]
+    }
+  ]
+}

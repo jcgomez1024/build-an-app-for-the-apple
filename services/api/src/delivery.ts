@@ -26,7 +26,10 @@ export function fulfillmentTokens(text: string): string {
 
 /** Fulfillment said in one piece of text (the LAST cue wins; "no es para delivery" cancels that cue). */
 export function fulfillmentIn(text: string): Fulfillment | null {
-  let t = fulfillmentTokens(text);
+  const source = personPickup(text)
+    ? text.replace(/\brecoger\s+a\s+(?:mi|su|el|la|un|una)\s+\p{L}+/giu, " ").replace(/\b(?:él|ella|ellos|ellas)\s+(?:lo|la|los|las)\s+recoge\b/giu, " ")
+    : text;
+  let t = fulfillmentTokens(source);
   t = t.replace(NEGATED, " ");
   // raul1: "En delivery se fue" / driver out — not a DELIVERY order cue
   if (/(?:delivery|repartidor)\s+se\s+fue|se\s+fue\s+(?:el\s+)?(?:delivery|repartidor)|driver\s+(?:is\s+)?out/iu.test(text)) {
@@ -41,6 +44,101 @@ export function fulfillmentIn(text: string): Fulfillment | null {
 
 /** Staff declines delivery / driver out — never keep DELIVERY from that cue (raul1). */
 const STAFF_NO_DELIVERY = /\b(?:(?:el\s+)?delivery\s+se\s+fue|se\s+fue\s+(?:el\s+)?(?:delivery|repartidor)|driver\s+(?:is\s+)?out|no\s+(?:hay\s+)?delivery|ahorita\s+no(?:\s*,|\s+\p{L})|no\s+tenemos\s+(?:delivery|domicilio|repartidor)|(?:no\s+)?(?:tenemos|tiene(?:n)?)\s+(?:servicio\s+a\s+)?domicilio\s*(?:ahorita|ahora|hoy)?\b|no\s+delivery)\b/iu;
+
+const CLOCK_HOUR: Record<string, number> = { una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+const CLOCK_MIN: Record<string, number> = { cinco: 5, diez: 10, quince: 15, veinte: 20, treinta: 30, cuarenta: 40, media: 30, cuarto: 15, five: 5, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, half: 30, quarter: 15 };
+const CLOCK_HOUR_WORD = "\\d{1,2}|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve";
+const CLOCK_MIN_WORD = "media|cuarto|cinco|diez|quince|veinte|treinta|cuarenta|\\d{1,2}|half|quarter|five|ten|fifteen|twenty|thirty|forty";
+const FOLLOWS_TIME = /^(?:un|una|uno|dos|tres|de\s+(?:esas|bistec|birria)|sour|creams?|quesos?|tortillas?|casas?|both|ambas)\b/;
+
+function foldClock(text: string): string {
+  return String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function clockParts(hourRaw: string, minuteRaw?: string): string | null {
+  const hour = Number(hourRaw) || CLOCK_HOUR[hourRaw];
+  if (!hour || hour > 12) return null;
+  if (minuteRaw && /^\d+$/.test(minuteRaw) && Number(minuteRaw) > 59) return null;
+  const minute = minuteRaw ? (Number(minuteRaw) || CLOCK_MIN[minuteRaw] || 0) : 0;
+  if (minute > 59) return null;
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
+/** Caller clock only: "a las" / "para las" + hour, "at" + a clock, or am/pm / de la tarde. A count or a dish after the hour is not a time. */
+export function spokenClock(text: string): { time: string; cue: string } | null {
+  const p = foldClock(text);
+  const patterns: Array<{ re: RegExp; cue: string }> = [
+    { re: new RegExp(`\\ba\\s+las\\s+(${CLOCK_HOUR_WORD})(?:\\s+y\\s+(${CLOCK_MIN_WORD})|\\s+(${CLOCK_MIN_WORD}))?\\b`, "g"), cue: "a las" },
+    { re: new RegExp(`\\bpara\\s+las\\s+(${CLOCK_HOUR_WORD})(?:\\s+y\\s+(${CLOCK_MIN_WORD})|\\s+(${CLOCK_MIN_WORD}))?\\b`, "g"), cue: "para las" },
+    { re: new RegExp(`\\bat\\s+(\\d{1,2})(?::(\\d{2}))?(?:\\s*(am|pm))?\\b`, "g"), cue: "at" },
+    { re: new RegExp(`\\b(${CLOCK_HOUR_WORD})\\s*(am|pm)\\b`, "g"), cue: "ampm" },
+    { re: new RegExp(`\\b(${CLOCK_HOUR_WORD})\\s+de\\s+la\\s+(tarde|manana|noche)\\b`, "g"), cue: "daypart" },
+  ];
+  let found: { time: string; cue: string } | null = null;
+  for (const pattern of patterns) {
+    for (const match of p.matchAll(pattern.re)) {
+      const after = p.slice((match.index || 0) + match[0].length).trim();
+      if (FOLLOWS_TIME.test(after) || DISH_AFTER_HOUR.test(after)) continue;
+      const minuteRaw = match[2] && /am|pm|tarde|manana|noche/.test(match[2]) ? undefined : (match[2] || match[3]);
+      const hourWord = String(match[1] || "");
+      // "para las dos" with no minute is "both". "a las una/dos/tres" is still a clock.
+      if (!minuteRaw && pattern.cue === "para las" && (hourWord === "dos" || hourWord === "two")) continue;
+      const time = clockParts(hourWord, minuteRaw);
+      if (time) found = { time, cue: pattern.cue };
+    }
+  }
+  return found;
+}
+
+/** Last caller clock. Staff turns never set a ready time. */
+export function callerReadyTime(turns: Array<{ speaker?: string; text?: string }>): { time: string; turn: number; speaker: "caller"; cue: string } | null {
+  let found: { time: string; turn: number; speaker: "caller"; cue: string } | null = null;
+  turns.forEach((turn, index) => {
+    if (turn.speaker !== "caller") return;
+    const clock = spokenClock(String(turn.text || ""));
+    if (clock) found = { time: clock.time, turn: index, speaker: "caller", cue: clock.cue };
+  });
+  return found;
+}
+
+const WAIT_WORD: Record<string, number> = { cinco: 5, diez: 10, quince: 15, veinte: 20, veinticinco: 25, treinta: 30, cuarenta: 40, media: 30, five: 5, ten: 10, fifteen: 15, twenty: 20, thirty: 30 };
+
+/** Staff "dame quince minutos" is a wait, not a clock time. */
+export function staffWaitMinutes(turns: Array<{ speaker?: string; text?: string }>): { minutes: number; turn: number; speaker: "staff"; cue: "minutos" } | null {
+  let found: { minutes: number; turn: number; speaker: "staff"; cue: "minutos" } | null = null;
+  turns.forEach((turn, index) => {
+    if (turn.speaker !== "staff") return;
+    const p = foldClock(String(turn.text || ""));
+    const match = p.match(/\b(\d+|cinco|diez|quince|veinte|veinticinco|treinta|cuarenta|media|five|ten|fifteen|twenty|thirty)\s*(?:minutos?|mins?|minutes?)\b/);
+    if (!match) return;
+    const minutes = Number(match[1]) || WAIT_WORD[match[1]];
+    if (!minutes || minutes > 180) return;
+    found = { minutes, turn: index, speaker: "staff", cue: "minutos" };
+  });
+  return found;
+}
+
+const DISH_AFTER_HOUR = /^(?:de\s+)?(?:quesadillas?|tacos?|tortas?|gorditas?|burritos?|birrias?|menudos?|orden(?:es)?|platillos?|platos?|fajitas?|sopes?|tostadas?|enchiladas?|tamales?|aguas?|horchatas?|jamaicas?|cocas?|pepsis?|sour|creams?|quesos?|tortillas?|casas?)\b/;
+
+/** Cue token for a fulfillment phrase. Not the sentence. */
+export function fulfillmentCue(text: string): string | null {
+  if (personPickup(text) || !fulfillmentIn(text)) return null;
+  const p = foldClock(text);
+  if (/\brecoger/.test(p)) return "recoger";
+  if (/\bllevar\b/.test(p)) return "llevar";
+  if (/\bdomicilio\b/.test(p)) return "domicilio";
+  if (/\bdelivery\b|\bdeliver\b/.test(p)) return "delivery";
+  if (/\bpick\s*-?\s*up\b|\bto\s+go\b|\bcarry\s*out\b/.test(p)) return "pickup";
+  if (/\bfor\s+here\b|\bpara\s+aqui\b/.test(p)) return "for-here";
+  return fulfillmentIn(text)?.toLowerCase() || null;
+}
+
+/** Picking up a person or a driver is not a to-go order. */
+export function personPickup(text: string): boolean {
+  const p = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\brecoger\s+a\s+(?:mi|su|el|la|un|una)\b/.test(p)
+    || /\b(?:el|ella|ellos|ellas)\s+(?:lo|la|los|las)\s+recoge\b/.test(p);
+}
 
 /** Fulfillment for a whole call (caller + staff read-back, in time order). Default null = not said (ticket stays TO GO). */
 export function detectFulfillment(turns: Turnish[]): { fulfillment: Fulfillment | null; by: "caller" | "staff" | null; heard: string | null } {

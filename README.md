@@ -155,7 +155,7 @@ npm run offline:evidence:test --workspace @cocina-elvis/api
 npm run offline:menu-validation --workspace @cocina-elvis/api -- --out /tmp/menu-validation.json
 ```
 
-A passing unit test is not approval to take live calls. See `services/api/test/offline/RELEASE-BLOCKERS.md`.
+A passing unit test is not approval to take live calls. See `services/api/test/offline/RELEASE-BLOCKERS.md`. Standalone Carlos approvals, including gordita "con queso", are in `services/api/test/offline/HOUSE-APPROVALS.md`.
 
 ## App Store Notes
 

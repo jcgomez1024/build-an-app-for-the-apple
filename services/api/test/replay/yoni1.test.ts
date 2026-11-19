@@ -18,6 +18,7 @@ const stub = (seen: string[]) => { const r: any = async (t: string) => { seen.pu
 test("yoni1: 'bise' reaches the model as bistec; spoken 'nueve' sets qty → 9 × torta bistec", async () => {
   const seen: string[] = [];
   const r: any = await shadowOrderFromTurns(d.turns, stub(seen));
+  assert.notEqual(r.reviewReason, "revisar lectura del personal");
   assert.ok(seen.some((t) => /nueve tortas de bistec/i.test(t)), seen.join(" | "));
   const ts = r.cart.filter((l: any) => l.itemId === T);
   assert.equal(ts.length, 1); assert.equal(ts[0].quantity, 9);
