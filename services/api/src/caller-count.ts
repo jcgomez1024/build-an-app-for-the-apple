@@ -30,6 +30,8 @@ const isDuplicate = (p: string) => /\botra\s+orden\s+igual\b|\bunas?\s+\w+\s+igu
 type StyleOpt = { key: string; words: string[]; distinctive: string[] };
 let styleCache: StyleOpt[] | null = null;
 let pairCache: Map<string, Set<string>> | null = null;
+let styleSize = -1;
+let pairSize = -1;
 
 function catalog(): any[] {
   try { return frozenPhoneMenu(); } catch { return []; }
@@ -48,27 +50,36 @@ function pushStyleGroup(out: StyleOpt[], names: string[]) {
   }
 }
 function styleOptions(): StyleOpt[] {
-  if (styleCache) return styleCache;
+  const items = catalog();
+  const list = Array.isArray(items) ? items : [];
+  if (styleCache && styleSize === list.length) return styleCache;
   const out: StyleOpt[] = [];
   const dorada: string[] = [];
   const groups = new Map<string, string[]>();
-  for (const item of catalog()) {
+  for (const item of list) {
     if (/^sq-qd-/.test(String(item?.id || ""))) dorada.push(String(item?.name || ""));
-    for (const group of item?.modifierGroups || []) {
+    const itemGroups = item?.modifierGroups;
+    if (!Array.isArray(itemGroups)) continue;
+    for (const group of itemGroups) {
       const name = String(group?.name || "");
       if (!/tortilla options|tortilla shell/i.test(name)) continue;
       const key = name.replace(/[^a-z]/gi, "").toLowerCase();
       if (!groups.has(key)) groups.set(key, []);
-      for (const option of group.options || []) groups.get(key)!.push(optionName(option));
+      const options = group?.options;
+      if (!Array.isArray(options)) continue;
+      for (const option of options) groups.get(key)!.push(optionName(option));
     }
   }
   for (const names of groups.values()) pushStyleGroup(out, names);
   pushStyleGroup(out, dorada);
   styleCache = out;
+  styleSize = list.length;
   return out;
 }
 function translations(): Map<string, Set<string>> {
-  if (pairCache) return pairCache;
+  const items = catalog();
+  const list = Array.isArray(items) ? items : [];
+  if (pairCache && pairSize === list.length) return pairCache;
   const map = new Map<string, Set<string>>();
   const add = (a: string, b: string) => {
     if (!a || !b || a === b) return;
@@ -76,12 +87,21 @@ function translations(): Map<string, Set<string>> {
     if (!map.has(b)) map.set(b, new Set());
     map.get(a)!.add(b); map.get(b)!.add(a);
   };
-  for (const item of catalog()) for (const group of item?.modifierGroups || []) for (const option of group.options || []) {
-    const halves = optionName(option).split("/").map((part) => words(part));
-    if (halves.length < 2 || !halves[0].length || !halves[1].length) continue;
-    for (const left of halves[0]) for (const right of halves[1]) add(left, right);
+  for (const item of list) {
+    const groups = item?.modifierGroups;
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups) {
+      const options = group?.options;
+      if (!Array.isArray(options)) continue;
+      for (const option of options) {
+        const halves = optionName(option).split("/").map((part) => words(part));
+        if (halves.length < 2 || !halves[0].length || !halves[1].length) continue;
+        for (const left of halves[0]) for (const right of halves[1]) add(left, right);
+      }
+    }
   }
   pairCache = map;
+  pairSize = list.length;
   return map;
 }
 function expand(list: string[]): Set<string> {
@@ -382,7 +402,8 @@ const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces",
 let cachedMenuDishes: string | null = null;
 let cachedMeats: string | null = null;
 let cachedMeatSize = -1;
-const BASE_MEATS = "bistec steak asada pastor costilla costillas tripa tripas cabeza cabezas prensado lengua lenguas chorizo pollo chicken carnitas buche buches birria birrias deshebrada picadillo alpastor duro nopales huevo chile vegetales frijoles arroz queso papas rajas mole camarones milanesa pata chicharon chicharron chicharón";
+const BASE_MEATS = "bistec steak asada pastor costilla costillas tripa tripas cabeza cabezas prensado lengua lenguas chorizo pollo chicken carnitas buche buches birria birrias deshebrada picadillo alpastor duro nopales huevo chile vegetales frijoles arroz queso papas rajas mole camarones mariscos milanesa pata chicharon chicharron chicharón";
+const baseMeats = new Set(BASE_MEATS.split(" ").map((token) => plain(token)).filter((token) => /^[a-z]{4,}$/.test(token)));
 function menuDishWords(): string {
   if (cachedMenuDishes != null) return cachedMenuDishes;
   const skip = new Set(["online", "ounce", "ounces", "pack", "meal", "size", "with", "your", "from", "that", "this", "plus", "only", "have", "been", "will", "they", "them", "than", "then", "when", "what", "into", "over", "also", "just", "like", "each", "both", "some", "more", "most", "such", "very", "full", "half", "dollars", "dollar", "pesos", "peso", "dolares", "dolar", "euros", "euro", "bucks", "buck", "centavos", "centavo", "total", "extra", "favor", "please", "porfa"]);
@@ -451,8 +472,7 @@ function countHint(text: string): boolean {
   const legacyDish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
   const dish = `${legacyDish}|${cachedMenuDishes ?? menuDishWords()}`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
-  const baseMeats = new Set(BASE_MEATS.split(" ").map((token) => plain(token)).filter((token) => /^[a-z]{4,}$/.test(token)));
-  const meatPattern = (meats: Set<string>) => ["al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
+  const meatPattern = (meats: Set<string>) => ["chile\\s+relleno", "al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
   try {
     const items = catalog();
     const list = Array.isArray(items) ? items : [];
@@ -476,9 +496,9 @@ function countHint(text: string): boolean {
   } catch {
     cachedMeats = meatPattern(baseMeats);
   }
-  const filling = `(?:${cachedMeats})(?:\\s+con\\s+(?:${cachedMeats}))?`;
+  const filling = `(?:${cachedMeats})(?:\\s+con\\s+[a-z0-9]+)?`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+de\\s+${filling}\\s+en\\s+total\\b`, "i"))) return true;
-  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})\\s+in\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})(?:\\s+and\\s+[a-z0-9]+)?\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\ben\\s+total\\s+(${any})\\b`, "i"))) return true;

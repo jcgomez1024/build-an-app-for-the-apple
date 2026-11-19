@@ -316,6 +316,8 @@ test("caller count 1 stays when staff reads back 3", () => {
 });
 
 test("a matching staff readback still updates the tortilla", () => {
+  const previous = process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
   const cart = [
     { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] },
     { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] },
@@ -328,6 +330,8 @@ test("a matching staff readback still updates the tortilla", () => {
   assert.equal(cart[1].quantity, 1);
   assert.match(JSON.stringify(cart[0].modifiers), /Comal/);
   assert.equal((cart as any).readbackFlags, undefined);
+  if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
 });
 
 test("a readback that matches the caller corrects a wrong cart", () => {
@@ -583,6 +587,8 @@ test("otra skips a drink and repeats the food behind it", () => {
 });
 
 test("a correct readback keeps the added otra count", () => {
+  const previous = process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
   const cart = [
     { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }, { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" }] },
   ];
@@ -594,6 +600,8 @@ test("a correct readback keeps the added otra count", () => {
   ], menu, true);
   const lines = cart.filter((line) => line.itemId === "sq-quesadilla-HLT6CR");
   assert.equal(lines.reduce((sum, line) => sum + line.quantity, 0), 2);
+  if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
 });
 
 test("más una coca does not add onto the tacos, in ES and EN", () => {
@@ -2173,6 +2181,46 @@ test("chicharron, a con filling, arroces, and of meat in total flag", () => {
     { speaker: "caller", text: "10 dollars en total." },
   ];
   assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
+});
+
+test("a malformed catalog does not throw while reading styles or translations", () => {
+  const items = frozenPhoneMenu();
+  items.push({ id: "sq-qd-bad", name: "Bad", modifierGroups: { nope: true } });
+  items.push({ name: "Bad options", modifierGroups: [{ name: "Tortilla Options", options: { nope: true } }] });
+  try {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "staff", text: "¿Dos?" },
+      { speaker: "caller", text: "Sí." },
+    ];
+    assert.doesNotThrow(() => callerSpokenQty(turns, "taco", "bistec", ""));
+    assert.doesNotThrow(() => staffQuantity(turns, "taco", "bistec", 2, 2, ""));
+  } finally {
+    items.pop();
+    items.pop();
+  }
+});
+
+test("a non-meat con, chile relleno, mariscos, and an english and filling flag", () => {
+  for (const said of [
+    "Tres tacos de al pastor con piña en total.",
+    "Tres tacos de chile relleno en total.",
+    "Tres tacos de mariscos en total.",
+    "Three tacos of chicken and rice in total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
 });
 
 test("a continued bistec and an alias are one open line", () => {
