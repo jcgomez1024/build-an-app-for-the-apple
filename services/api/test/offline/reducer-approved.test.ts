@@ -2129,6 +2129,52 @@ test("both plural spellings and menu meats before en total flag", () => {
   assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
 });
 
+test("a meat group whose options are not a list does not throw", () => {
+  const items = frozenPhoneMenu();
+  items.push({ name: "Bad", modifierGroups: [{ name: "Carne / Meat", options: { nope: true } }] });
+  try {
+    const turns = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: "tres tacos de bistec en total" },
+    ];
+    assert.doesNotThrow(() => staffQuantity(turns, "taco", "bistec", 2, 2, ""));
+    const qty = callerSpokenQty(turns, "taco", "bistec", "");
+    assert.equal(staffQuantity(turns, "taco", "bistec", qty ?? 2, qty ?? 2, "").flag, true);
+  } finally {
+    items.pop();
+  }
+});
+
+test("chicharron, a con filling, arroces, and of meat in total flag", () => {
+  for (const said of [
+    "Tres tacos de chicharon en total.",
+    "Tres tacos de chicharron en total.",
+    "Tres tacos de chicharón en total.",
+    "Tres tacos de nopales con papas en total.",
+    "Tres tacos de huevo con chile en total.",
+    "Tres arroces en total.",
+    "Four tacos of chicken in total.",
+  ]) {
+    const one = [
+      { speaker: "caller", text: "Dos tacos de bistec." },
+      { speaker: "caller", text: said },
+    ];
+    const oneQty = callerSpokenQty(one, "taco", "bistec", "");
+    assert.equal(staffQuantity(one, "taco", "bistec", oneQty ?? 2, oneQty ?? 2, "").flag, true, said);
+    const two = [
+      { speaker: "caller", text: "Dos tacos de bistec y una quesadilla de pollo." },
+      { speaker: "caller", text: said },
+    ];
+    const twoQty = callerSpokenQty(two, "taco", "bistec", "");
+    assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+  const dollars = [
+    { speaker: "caller", text: "Dos tacos de bistec." },
+    { speaker: "caller", text: "10 dollars en total." },
+  ];
+  assert.equal(staffQuantity(dollars, "taco", "bistec", 2, 2, "").flag, false);
+});
+
 test("a continued bistec and an alias are one open line", () => {
   assert.equal(callerSpokenQty([
     { speaker: "caller", text: "Dos tacos de bistec." },

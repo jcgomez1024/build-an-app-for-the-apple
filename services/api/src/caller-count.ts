@@ -381,6 +381,8 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 let cachedMenuDishes: string | null = null;
 let cachedMeats: string | null = null;
+let cachedMeatSize = -1;
+const BASE_MEATS = "bistec steak asada pastor costilla costillas tripa tripas cabeza cabezas prensado lengua lenguas chorizo pollo chicken carnitas buche buches birria birrias deshebrada picadillo alpastor duro nopales huevo chile vegetales frijoles arroz queso papas rajas mole camarones milanesa pata chicharon chicharron chicharón";
 function menuDishWords(): string {
   if (cachedMenuDishes != null) return cachedMenuDishes;
   const skip = new Set(["online", "ounce", "ounces", "pack", "meal", "size", "with", "your", "from", "that", "this", "plus", "only", "have", "been", "will", "they", "them", "than", "then", "when", "what", "into", "over", "also", "just", "like", "each", "both", "some", "more", "most", "such", "very", "full", "half", "dollars", "dollar", "pesos", "peso", "dolares", "dolar", "euros", "euro", "bucks", "buck", "centavos", "centavo", "total", "extra", "favor", "please", "porfa"]);
@@ -391,6 +393,7 @@ function menuDishWords(): string {
     if (/s$/.test(token)) return;
     found.add(`${token}s`);
     if (!/[aeiou]$/.test(token)) found.add(`${token}es`);
+    if (/z$/.test(token)) found.add(`${token.slice(0, -1)}ces`);
   };
   for (const token of "pambazo pambazos fajita fajitas nacho nachos chimichanga chimichangas combo combos platillo platillos chilaquile chilaquiles horchata horchatas coca cocas jarrito jarritos orden ordenes sandwich dish bowl platter onion order mineral".split(" ")) add(token);
   const items = catalog();
@@ -448,17 +451,34 @@ function countHint(text: string): boolean {
   const legacyDish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
   const dish = `${legacyDish}|${cachedMenuDishes ?? menuDishWords()}`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
-  if (cachedMeats == null) {
-    const meats = new Set("bistec steak asada pastor costilla costillas tripa tripas cabeza cabezas prensado lengua lenguas chorizo pollo chicken carnitas buche buches birria birrias deshebrada picadillo alpastor duro nopales huevo vegetales frijoles arroz queso papas rajas mole camarones milanesa pata".split(" "));
-    for (const item of catalog()) for (const group of item?.modifierGroups || []) {
-      if (!/carne|meat/i.test(String(group?.name || ""))) continue;
-      for (const option of group.options || []) for (const token of plain(optionName(option)).split(" ")) {
-        if (/^[a-z]{4,}$/.test(token) && !/^(?:dollars?|pesos?|dolares?|euros?|bucks?|centavos?|total)$/.test(token)) meats.add(token);
+  const baseMeats = new Set(BASE_MEATS.split(" ").map((token) => plain(token)).filter((token) => /^[a-z]{4,}$/.test(token)));
+  const meatPattern = (meats: Set<string>) => ["al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
+  try {
+    const items = catalog();
+    const list = Array.isArray(items) ? items : [];
+    if (cachedMeats == null || cachedMeatSize !== list.length) {
+      const meats = new Set(baseMeats);
+      for (const item of list) {
+        const groups = item?.modifierGroups;
+        if (!Array.isArray(groups)) continue;
+        for (const group of groups) {
+          if (!/carne|meat/i.test(String(group?.name || ""))) continue;
+          const options = group?.options;
+          if (!Array.isArray(options)) continue;
+          for (const option of options) for (const token of plain(optionName(option)).split(" ")) {
+            if (/^[a-z]{4,}$/.test(token) && !/^(?:dollars?|pesos?|dolares?|euros?|bucks?|centavos?|total)$/.test(token)) meats.add(token);
+          }
+        }
       }
+      cachedMeats = meatPattern(meats);
+      cachedMeatSize = list.length;
     }
-    cachedMeats = ["al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
+  } catch {
+    cachedMeats = meatPattern(baseMeats);
   }
-  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+de\\s+(?:${cachedMeats})\\s+en\\s+total\\b`, "i"))) return true;
+  const filling = `(?:${cachedMeats})(?:\\s+con\\s+(?:${cachedMeats}))?`;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+de\\s+${filling}\\s+en\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\ben\\s+total\\s+(${any})\\b`, "i"))) return true;
