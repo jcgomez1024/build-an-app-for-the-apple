@@ -400,12 +400,15 @@ export function callerSpokenQty(turns: Turn[], dish: string, meat: string | null
 
 const COUNT_SKIP = new Set(["favor", "please", "gracias", "tambien", "entonces", "queso", "cebolla", "cilantro", "salsa", "crema", "nopales", "aguacate", "verdura", "repollo", "limon"]);
 let cachedMenuDishes: string | null = null;
+let cachedDishSize = -1;
 let cachedMeats: string | null = null;
 let cachedMeatSize = -1;
 const BASE_MEATS = "bistec steak asada pastor costilla costillas tripa tripas cabeza cabezas prensado lengua lenguas chorizo pollo chicken carnitas buche buches birria birrias deshebrada picadillo alpastor duro nopales huevo chile vegetales frijoles arroz queso papas rajas mole camarones mariscos milanesa pata chicharon chicharron chicharón";
 const baseMeats = new Set(BASE_MEATS.split(" ").map((token) => plain(token)).filter((token) => /^[a-z]{4,}$/.test(token)));
 function menuDishWords(): string {
-  if (cachedMenuDishes != null) return cachedMenuDishes;
+  const items = catalog();
+  const list = Array.isArray(items) ? items : [];
+  if (cachedMenuDishes != null && cachedDishSize === list.length) return cachedMenuDishes;
   const skip = new Set(["online", "ounce", "ounces", "pack", "meal", "size", "with", "your", "from", "that", "this", "plus", "only", "have", "been", "will", "they", "them", "than", "then", "when", "what", "into", "over", "also", "just", "like", "each", "both", "some", "more", "most", "such", "very", "full", "half", "dollars", "dollar", "pesos", "peso", "dolares", "dolar", "euros", "euro", "bucks", "buck", "centavos", "centavo", "total", "extra", "favor", "please", "porfa"]);
   const found = new Set<string>();
   const add = (token: string) => {
@@ -417,9 +420,7 @@ function menuDishWords(): string {
     if (/z$/.test(token)) found.add(`${token.slice(0, -1)}ces`);
   };
   for (const token of "pambazo pambazos fajita fajitas nacho nachos chimichanga chimichangas combo combos platillo platillos chilaquile chilaquiles horchata horchatas coca cocas jarrito jarritos orden ordenes sandwich dish bowl platter onion order mineral".split(" ")) add(token);
-  const items = catalog();
-  if (!items.length) return [...found].sort((a, b) => b.length - a.length).join("|");
-  for (const item of items) {
+  for (const item of list) {
     const aliases = Array.isArray(item?.aliases) ? item.aliases : [];
     const nameWords = new Set(plain(`${item?.name || ""} ${item?.nameEs || ""}`).split(" ").filter((token) => token.length >= 4));
     for (const token of nameWords) add(token);
@@ -430,6 +431,7 @@ function menuDishWords(): string {
     }
   }
   cachedMenuDishes = [...found].sort((a, b) => b.length - a.length).join("|");
+  cachedDishSize = list.length;
   return cachedMenuDishes;
 }
 function countHint(text: string): boolean {
@@ -472,7 +474,7 @@ function countHint(text: string): boolean {
   const legacyDish = "quesadillas?|qds?|doradas?|tacos?|tortas?|gorditas?|burritos?|sopes?|huaraches?|guaraches?|menudos?|po[sz]oles?|birrias?|enchiladas?|tamales?";
   const dish = `${legacyDish}|${cachedMenuDishes ?? menuDishWords()}`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+en\\s+total\\b`, "i"))) return true;
-  const meatPattern = (meats: Set<string>) => ["chile\\s+relleno", "al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
+  const meatPattern = (meats: Set<string>) => ["carne\\s+asada", "chile\\s+relleno", "al\\s+pastor", ...[...meats].sort((a, b) => b.length - a.length)].join("|");
   try {
     const items = catalog();
     const list = Array.isArray(items) ? items : [];
@@ -496,9 +498,10 @@ function countHint(text: string): boolean {
   } catch {
     cachedMeats = meatPattern(baseMeats);
   }
-  const filling = `(?:${cachedMeats})(?:\\s+con\\s+[a-z0-9]+)?`;
+  const tail = `(?:${cachedMeats}|[a-z0-9]+)`;
+  const filling = `(?:${cachedMeats})(?:\\s+con\\s+${tail})?`;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+de\\s+${filling}\\s+en\\s+total\\b`, "i"))) return true;
-  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})(?:\\s+and\\s+[a-z0-9]+)?\\s+in\\s+total\\b`, "i"))) return true;
+  if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+of\\s+(?:${cachedMeats})(?:\\s+(?:with\\s+${tail}|and\\s+(?:some\\s+)?${tail}))?\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+(?:${dish})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\b(${any})\\s+in\\s+total\\b`, "i"))) return true;
   if (hit(new RegExp(`\\ben\\s+total\\s+(${any})\\b`, "i"))) return true;

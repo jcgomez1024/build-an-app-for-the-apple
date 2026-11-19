@@ -318,6 +318,7 @@ test("caller count 1 stays when staff reads back 3", () => {
 test("a matching staff readback still updates the tortilla", () => {
   const previous = process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
   delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  try {
   const cart = [
     { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] },
     { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }, { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }] },
@@ -330,8 +331,10 @@ test("a matching staff readback still updates the tortilla", () => {
   assert.equal(cart[1].quantity, 1);
   assert.match(JSON.stringify(cart[0].modifiers), /Comal/);
   assert.equal((cart as any).readbackFlags, undefined);
-  if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
-  else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
+  } finally {
+    if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+    else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
+  }
 });
 
 test("a readback that matches the caller corrects a wrong cart", () => {
@@ -589,6 +592,7 @@ test("otra skips a drink and repeats the food behind it", () => {
 test("a correct readback keeps the added otra count", () => {
   const previous = process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
   delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+  try {
   const cart = [
     { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }, { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" }] },
   ];
@@ -600,8 +604,10 @@ test("a correct readback keeps the added otra count", () => {
   ], menu, true);
   const lines = cart.filter((line) => line.itemId === "sq-quesadilla-HLT6CR");
   assert.equal(lines.reduce((sum, line) => sum + line.quantity, 0), 2);
-  if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
-  else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
+  } finally {
+    if (previous === undefined) delete process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY;
+    else process.env.ELVI_SHADOW_READBACK_CONFIRM_ONLY = previous;
+  }
 });
 
 test("más una coca does not add onto the tacos, in ES and EN", () => {
@@ -2220,6 +2226,28 @@ test("a non-meat con, chile relleno, mariscos, and an english and filling flag",
     ];
     const twoQty = callerSpokenQty(two, "taco", "bistec", "");
     assert.equal(staffQuantity(two, "taco", "bistec", twoQty ?? 2, twoQty ?? 2, "").flag, true, `two ${said}`);
+  }
+});
+
+test("con al pastor still flags before en total", () => {
+  for (const said of [
+    "Tres tacos de pollo con al pastor en total.",
+    "Tres tacos de pollo con al pastor, en total.",
+    "Tres tacos de pollo con carne asada en total.",
+    "Three tacos of chicken with rice in total.",
+    "Three tacos of chicken and some rice in total.",
+  ]) {
+    for (const first of ["Dos tacos de bistec.", "Dos tacos de bistec y una quesadilla de pollo.", "Una quesadilla de pollo."]) {
+      const turns = [
+        { speaker: "caller", text: first },
+        { speaker: "caller", text: said },
+      ];
+      const qty = callerSpokenQty(turns, "taco", "bistec", "");
+      const dish = first.startsWith("Una") ? "quesadilla" : "taco";
+      const meat = first.startsWith("Una") ? "pollo" : "bistec";
+      const spoken = dish === "taco" ? qty : callerSpokenQty(turns, dish, meat, "");
+      assert.equal(staffQuantity(turns, dish, meat, spoken ?? 2, spoken ?? 2, "").flag, true, `${first} ${said}`);
+    }
   }
 });
 
