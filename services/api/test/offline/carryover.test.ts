@@ -167,6 +167,92 @@ test("a missing deluxe half is not added once that meat is already at its count"
   assert.match(String(prensado[0].itemId), /regular/i);
 });
 
+test("a drink is not a dish, and tortillas do not skip the onion side", () => {
+  const horchata = menu.find((item) => /^sq-drink-agua-fresca-horchata/.test(String(item.id)));
+  const drinks: any[] = [{ itemId: horchata.id, quantity: 1, modifiers: [] }];
+  applyCarryover(drinks, [T("caller", "Y cebolla asada.")], menu);
+  assert.equal(drinks.some((l) => /cebolla/.test(String(l.itemId))), false);
+  assert.equal(drinks.some((l) => /tortilla/.test(String(l.itemId))), false);
+  const withPack: any[] = [{ itemId: horchata.id, quantity: 1, modifiers: [] }];
+  applyCarryover(withPack, [T("caller", "Una horchata, una docena de tortillas y peppers and onions.")], menu);
+  assert.equal(withPack.some((l) => l.itemId === pack(12)), true);
+  assert.equal(withPack.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const food: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(food, [T("caller", "Una docena de tortillas y peppers and onions.")], menu);
+  assert.equal(food.some((l) => l.itemId === pack(12)), true);
+  assert.equal(food.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const split: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(split, [
+    T("caller", "Tacos de asada con cebolla."),
+    T("caller", "Chiles toreados aparte."),
+  ], menu);
+  assert.equal(split.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const onePhrase: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(onePhrase, [T("caller", "Quiero cebolla con chiles asados.")], menu);
+  assert.equal(onePhrase.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const otherWording: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(otherWording, [T("caller", "Add cebolla y chile asado on the side.")], menu);
+  assert.equal(otherWording.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const asadaMeat: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(asadaMeat, [T("caller", "Tres tacos de asada con cebolla y unos chiles toreados.")], menu);
+  assert.equal(asadaMeat.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const asaditos: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(asaditos, [T("caller", "Y me le pones cebollita y chilitos asaditos.")], menu);
+  assert.equal(asaditos.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const onion: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(onion, [T("caller", "A esas normales les puede poner cebolla asada.")], menu);
+  assert.equal(onion.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const onions: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(onions, [T("caller", "Add cebollas asadas on the side.")], menu);
+  assert.equal(onions.some((l) => /cebolla/.test(String(l.itemId))), true);
+});
+
+test("cebolla asada does not add a second side when the option is already on a line", () => {
+  const salsa = menu.find((item) => /mild-salsa-asada-2oz/.test(String(item.id)));
+  const cart: any[] = [
+    { itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+    { itemId: salsa.id, quantity: 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] },
+  ];
+  applyCarryover(cart, [T("caller", "A esas normales les puede poner cebolla asada.")], menu);
+  assert.equal(cart.length, 2);
+  assert.equal(cart.filter((l) => /cebolla/.test(String(l.itemId)) && /chiles/.test(String(l.itemId))).length, 0);
+});
+
+test("peppers and onions does not add a second side when the option is already on a line", () => {
+  const salsa = menu.find((item) => /mild-salsa-asada-2oz/.test(String(item.id)));
+  const cart: any[] = [
+    { itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] },
+    { itemId: salsa.id, quantity: 1, modifiers: [{ step: "Extras options", option: "Cebolla y Chiles Asados" }] },
+  ];
+  applyCarryover(cart, [T("caller", "Add peppers and onions on the side.")], menu);
+  assert.equal(cart.length, 2);
+  assert.equal(cart.filter((l) => /cebolla/.test(String(l.itemId)) && /chiles/.test(String(l.itemId))).length, 0);
+});
+
+test("a refusal in front of cebolla asada does not ring the side", () => {
+  const cart: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(cart, [T("caller", "Sin cebollas asadas, por favor.")], menu);
+  assert.equal(cart.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const other: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(other, [T("caller", "Quítame la cebolla asada del plato.")], menu);
+  assert.equal(other.some((l) => /cebolla/.test(String(l.itemId))), false);
+});
+
+test("cebollitas asadas still rings, and a meat asada does not", () => {
+  const yes: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(yes, [T("caller", "Dame cebollitas asadas para llevar.")], menu);
+  assert.equal(yes.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const no: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(no, [T("caller", "Dos de pollo con cebolla y chile, y luego asada y pastor.")], menu);
+  assert.equal(no.some((l) => /cebolla/.test(String(l.itemId))), false);
+});
+
+test("ni modo earlier in the turn does not cancel cebollas asadas", () => {
+  const cart: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(cart, [T("caller", "Bueno, ni modo. Entonces tres de pollo y también cebollas asadas.")], menu);
+  assert.equal(cart.some((l) => /cebolla/.test(String(l.itemId))), true);
+});
+
 test("yes to deluxe preparadas flips a regular dorada, and sin queso does not make a queso gordita", () => {
   const regular = qd(false);
   const deluxe = qd(true);
