@@ -55,7 +55,9 @@ import { verifySquareSignature, webhookTrusted } from "./square-webhook.js";
 import { checkoutLive } from "./customer-guard.js";
 import { notePendingProfile, completeProfile, profileForPhone } from "./cust-profile.js";
 import { storeState, popularProducts as realPopular } from "./menu-v3.js";
-import { searchOrdersReadOnly, findCustomerGivenNameReadOnly, findCustomerByPhoneReadOnly } from "./square.js";
+import { searchOrdersReadOnly, searchOrdersReadOnlyByDay, findCustomerGivenNameReadOnly, findCustomerByPhoneReadOnly } from "./square.js";
+import { searchTickets } from "./ticket-search.js"; // search1
+import { squareLinksAll } from "./twilio.js"; // search1: the live linker's square_ticket link (read-only)
 import { buildHistoryLinked, writeHistory, loadHistory, favoritesFor, pendingFav, FAV_MIN_ORDERS } from "./favorites.js";
 import { phoneKey, savedLanguage } from "./caller-memory.js";
 import { isOnlineOrder as isOnlineSq } from "./call-accuracy.js";
@@ -1595,7 +1597,7 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
       const key = `${startAt}|${endAt}`;
       if (ordersCache && ordersCache.key === key && Date.now() - ordersCache.at < 3 * 60000) orders = ordersCache.orders;
       else {
-        try { orders = await searchOrdersReadOnly(startAt, endAt, cfg); ordersCache = { key, at: Date.now(), orders }; }
+        try { orders = await searchOrdersReadOnlyByDay(startAt, endAt, cfg); ordersCache = { key, at: Date.now(), orders }; } // search1: no 1000-order cut-off
         catch (e) { squareError = e instanceof Error ? e.message.slice(0, 200) : String(e); }
       }
     }
@@ -1677,6 +1679,35 @@ app.get("/api/calls/accuracy", phoneAuth, async (req, res, next) => {
         })()
       };
     });
+    // search1 (Carlos 11/27): every call gets a ticket to compare to. Calls with no direct link get a read-only search over the
+    // orders already fetched (−10 min → +90 min): phone, fuzzy name (also the name said aloud), Elvi's items, staff read-back,
+    // the live square_ticket link and time. Shown as "buscado" with a confidence + runner-ups. NEVER scored: score stays null,
+    // so the accuracy numbers and trends are unchanged by it.
+    if (process.env.ELVI_TICKET_SEARCH !== "0") {
+      const directByOrder = new Map<string, string>();
+      for (const r of rows as any[]) for (const l of r.ticket?.linked || []) if (l.orderId) directByOrder.set(String(l.orderId), r.callSid);
+      const sayers = (r: any) => (r.turns || []).filter((t: any) => t.speaker === "caller").map((t: any) => t.text).join(" ");
+      const todo = (rows as any[]).filter((r) => !r.ticket && !r.followUp && r.recordingSid && r.answered !== false && (r.turns || []).length);
+      const liveLinks = (() => { try { return squareLinksAll(); } catch { return {} as Record<string, any>; } })();
+      const found = searchTickets(todo.map((r) => {
+        const live = liveLinks[r.callSid] || null;
+        return { call: { callSid: r.callSid, at: r.at, caller: r.caller, talkSec: r.talkSec, recordingSec: r.recordingSec, names: [r.orderName, r.customerName, r.nameCheck?.heard], readbackText: r.readback?.staffText || null,
+          transcriptText: (r.turns || []).map((t: any) => t.text).join(" "), callerText: sayers(r), liveLinkOrderId: live?.orderId || null, liveLinkBy: live?.matchedBy || null }, elvi: r.elvi };
+      }), orders, directByOrder);
+      const byId = new Map(orders.map((o) => [String(o.id), o]));
+      const view = (c: any) => { const o = byId.get(c.orderId); return { ...squareRefs(o), id: c.orderId, createdAt: c.createdAt, minutesFromStart: c.minutesFromStart, recipient: c.recipient, totalCents: c.totalCents, state: c.state, source: c.source, confidence: c.confidence, signals: c.signals, usedBy: c.usedBy || [], lines: c.lines, receiptUrl: null as string | null }; };
+      for (const r of todo) {
+        const f = found.get(r.callSid); if (!f) continue;
+        const best = f.best ? view(f.best) : null;
+        const cmp = best && r.elvi.length ? scoreOrder(r.elvi.map(withIncludedToppings), best.lines.map(withIncludedToppings), { salsaNamed: callerNamedSalsa(r.turns || []) }) : null;
+        r.ticketSearch = { status: f.status, reason: f.reason, window: f.window, searched: f.searched, best: best && { ...best, matchPct: cmp ? cmp.score : null, misses: cmp ? cmp.misses : [], pairs: cmp ? cmp.pairs : [] }, runnerUps: f.runnerUps.map(view) };
+      }
+      const timeOf = new Map((rows as any[]).map((r) => [r.callSid, r.at]));
+      for (const r of todo) for (const c of [r.ticketSearch?.best, ...(r.ticketSearch?.runnerUps || [])].filter(Boolean)) c.usedBy = c.usedBy.map((sid: string) => ({ callSid: sid, at: timeOf.get(sid) || null }));
+      await Promise.all(todo.map(async (r: any) => { const b = r.ticketSearch?.best; if (!b?.paymentId) return;
+        const rc = await Promise.race([paymentReceiptReadOnly(b.paymentId, cfg), new Promise<null>((ok) => setTimeout(() => ok(null), 2500))]);
+        if (rc?.receiptNumber) b.receiptNumber = rc.receiptNumber; b.receiptUrl = rc?.receiptUrl || null; }));
+    }
     // ticketno1: real Square receipt number + public receipt link (read-only Payments API, cached).
     await Promise.all(rows.map(async (r: any) => {
       if (!r.ticket?.paymentId) return;

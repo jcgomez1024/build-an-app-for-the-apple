@@ -1164,6 +1164,16 @@ export async function searchOrdersReadOnly(startAt: string, endAt: string, confi
   return out;
 }
 
+/** search1: READ-ONLY. searchOrdersReadOnly stops at 10 pages (1000 orders, oldest first), so a 30-day calls page lost every
+ *  order after ~Nov 13 and showed "sin ticket" for every later call. Fetch one day at a time so no range is cut off. */
+export async function searchOrdersReadOnlyByDay(startAt: string, endAt: string, config?: Partial<SquareRuntimeConfig>): Promise<any[]> {
+  const out: any[] = [], seen = new Set<string>(), end = Date.parse(endAt);
+  for (let t = Date.parse(startAt); t < end; t += 86400000) {
+    for (const o of await searchOrdersReadOnly(new Date(t).toISOString(), new Date(Math.min(t + 86400000, end)).toISOString(), config)) if (!seen.has(o.id)) { seen.add(o.id); out.push(o); }
+  }
+  return out;
+}
+
 /** Read-only: the given name on the Square customer with this phone (Customers Search). */
 export async function findCustomerGivenNameReadOnly(phoneE164: string, config?: Partial<SquareRuntimeConfig>, signal?: AbortSignal): Promise<string | null> {
   const cfg = getSquareConfig(config);
