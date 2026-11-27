@@ -1,6 +1,6 @@
 import { peelAnother, staffQuantity } from "./caller-count.js";
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
-import { catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
+import { catalogAddAllowed, catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
 import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
 // carolina1/luis1/angie1/oscar1/miguel1 (Oct 30, 7:35–7:46 PM ET, staff-answered pickups):
 // per-meat counts in a list ("tres de pastor, tres de costilla…") never doubled; a restatement after a hold restates;
@@ -2005,7 +2005,7 @@ const ORDER_VERB = /\b(?:quiero|quisiera|pone|ponme|pongame|dame|deme|prepar\w*|
 function staffAvailability(text: string): boolean {
   const p = plain(text);
   if (/\b(?:te tengo|le tengo|so i have|i have|i got)\b/.test(p)) return false;
-  return /\b(?:tenemos|we have|available|unavailable|in stock|out of stock|no hay|no tenemos|se acabo|sold out)\b/.test(p);
+  return /\b(?:tenemos|vendemos|we have|we sell|available|unavailable|in stock|out of stock|no hay|no tenemos|se acabo|sold out)\b/.test(p);
 }
 
 function productId(menu: any[], id: string): string {
@@ -2120,6 +2120,10 @@ function addConfirmedCatalog(cart: any[], turns: Turn[], menu: any[], result: Af
           continue;
         }
       }
+      // A pack, a dip, an extras row, or a side is not named by one shared word, and staff speech cannot supply the rest.
+      // An order phrased as a question ("¿me puede poner un menudo?") still names the dish. "¿Tiene X?" does not.
+      const callerNamed = turns.filter((turn) => turn.speaker === "caller" && !isAvailabilityAsk(turn.text)).map((turn) => turn.text).join(" ");
+      if (!catalogAddAllowed(match.label, callerNamed, window.dish)) continue;
       const created: any = { itemId: match.id, quantity: qtyFor(window.dish, match.label), modifiers: match.options.map((row) => ({ step: row.step, option: row.option })) };
       if (unspokenSize(match.label, `${window.dish} ${window.option}`)) created.elviNotes = ["confirmar"];
       cart.push(created);

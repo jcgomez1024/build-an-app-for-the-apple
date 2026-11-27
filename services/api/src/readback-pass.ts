@@ -566,6 +566,15 @@ export function nonOrderCallerTurn(text: string): boolean {
   if (SAID_DISH.test(t)) return false;
   return isAffiliationIntro(t) || isPersonInChargePhrase(t);
 }
+const TOTAL_ONLY = /\b(?:forgot to (?:get|ask)(?: for)? the total|just wanted the total|wanted the total price|how much was (?:my|the) (?:order|total)|cu[aá]nto (?:fue|era) (?:mi |el )?(?:total|pedido|orden)|se me olvid[oó] (?:pedir )?el total)\b/iu;
+/** A callback that only asks what an order already cost. Staff may recite that order. Nothing new is rung. */
+export function isTotalOnlyCall(turns: Array<{ speaker: string; text: string }>): boolean {
+  const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
+  if (!TOTAL_ONLY.test(caller.join(" "))) return false;
+  if (caller.some((t) => FOOD_W.test(t))) return false;
+  if (caller.some((t) => NEW_ORDER.test(t) && !/\btotal\b/iu.test(t))) return false;
+  return true;
+}
 /** The caller asked for a manager / person in charge and never named a dish. Not an order. */
 export function isPersonInChargeCall(turns: Array<{ speaker: string; text: string }>): boolean {
   const caller = turns.filter((t) => t.speaker === "caller").map((t) => String(t.text || ""));
