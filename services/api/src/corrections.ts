@@ -9,8 +9,8 @@ type Turn = { speaker?: string; text?: string };
 type Kind = "taco" | "quesadilla" | "qd" | "gordita" | "torta" | "burrito" | "sope";
 type Style = "" | "comal" | "harina" | "taquero";
 type Slot = {
-  kind: Kind; meats: string[]; style: Style; qd: "" | "regular" | "preparada";
-  queso: boolean; n: number; frij: boolean; bare: boolean; todo: boolean; grande: boolean;
+  kind: Kind; meats: string[]; style: Style; qd: "" | "regular";
+  queso: boolean; n: number; frij: boolean; bare: boolean; grande: boolean;
   exclusive?: boolean;
   reduce?: boolean;
   cap?: boolean;
@@ -137,7 +137,7 @@ export function correctionPlan(turns: Turn[]): Plan {
     kind: null, meat: "", style: "", qd: "", queso: false, n: 0, provisional: false,
   };
   const blank = (over: Partial<Slot> = {}): Slot => ({
-    kind: "taco", meats: [], style: "", qd: "", queso: false, n: 1, frij: false, bare: false, todo: false, grande: false, exclusive: false, ...over,
+    kind: "taco", meats: [], style: "", qd: "", queso: false, n: 1, frij: false, bare: false, grande: false, exclusive: false, ...over,
   });
   const put = (slot: Slot) => {
     const hit = ensure.find((s) => s.kind === slot.kind && sameMeats(s.meats, slot.meats) && s.style === slot.style && s.qd === slot.qd && s.queso === slot.queso && s.grande === slot.grande && s.bare === slot.bare);
@@ -167,7 +167,7 @@ export function correctionPlan(turns: Turn[]): Plan {
       const choice = [/\bcomal\b/.test(staff), /\bharina\b|\bflour\b/.test(staff), /\btaquer|\bstreet\b/.test(staff)].filter(Boolean).length >= 2;
       if (asked && !choice && open.kind && open.meat && /\?/.test(String(prevStaff?.text || ""))) {
         const n = numOf(asked[1]);
-        if (n) put({ kind: open.kind, meats: [open.meat], style: open.style, qd: open.qd, queso: open.queso, n, frij: false, bare: false, todo: false, grande: false });
+        if (n) put({ kind: open.kind, meats: [open.meat], style: open.style, qd: open.qd, queso: open.queso, n, frij: false, bare: false, grande: false });
       }
       continue;
     }
@@ -177,7 +177,7 @@ export function correctionPlan(turns: Turn[]): Plan {
       const meat = meatsIn(text)[0] || open.meat;
       const kind: Kind = open.kind === "qd" ? "quesadilla" : open.kind;
       if (meat && kind) {
-        put({ kind, meats: [meat], style: toStyle, qd: "", queso: false, n: open.n || 1, frij: false, bare: false, todo: false, grande: false, restyle: true });
+        put({ kind, meats: [meat], style: toStyle, qd: "", queso: false, n: open.n || 1, frij: false, bare: false, grande: false, restyle: true });
         if (open.kind === "qd") drop.push({ kind: "qd", meats: [meat] });
         open.kind = kind; open.style = toStyle; open.meat = meat;
       }
@@ -202,7 +202,7 @@ export function correctionPlan(turns: Turn[]): Plan {
       if (oldKind === "quesadilla") drop.push({ kind: "qd", meats: [meat] });
       if (newKind && meat) {
         const use: Kind = newKind === "quesadilla" && (fried(text) || fried(staff)) ? "qd" : newKind;
-        put({ kind: use, meats: [meat], style: use === "qd" ? "" : style, qd: "", queso: false, n, frij: false, bare: false, todo: false, grande: false });
+        put({ kind: use, meats: [meat], style: use === "qd" ? "" : style, qd: "", queso: false, n, frij: false, bare: false, grande: false });
         remember(use, [meat], n, style);
       }
       if (insteadOpen) {
@@ -251,8 +251,10 @@ export function correctionPlan(turns: Turn[]): Plan {
     }
 
     // "me pones uno grande, nomás" / "nada más una" sets that dish's count. It does not leave the old count beside it.
+    // "nada más uno con queso" is a topping, not a new count.
     const only = text.match(new RegExp(`\\b(?:nada mas|nomas)\\s+(${NUMW})\\b|\\b(?:me pones?|ponme|dame)\\s+(${NUMW})\\b.{0,40}\\b(?:grande\\s+)?(?:nomas|nada mas)\\b`));
-    if (only && open.kind) {
+    const topping = new RegExp(`\\b(?:nada mas|nomas)\\s+(?:${NUMW})\\b.{0,30}\\bcon\\b`).test(text);
+    if (only && open.kind && !topping) {
       const n = numOf(only[1] || only[2] || "");
       if (!n) continue;
       const grande = /\bgrande\b/.test(text) || /\bsopesas/.test(text);
@@ -298,18 +300,24 @@ export function correctionPlan(turns: Turn[]): Plan {
       const sopeAt = text.search(/\bsopes/);
       const sopeClause = text.slice(sopeAt);
       const afterGordita = gorditaAt >= 0 && sopeAt > gorditaAt ? text.slice(gorditaAt, sopeAt).replace(/^\s*gorditas?\b/, "") : "";
-      const corrects = gorditaAt >= 0 && sopeAt > gorditaAt && /\b(?:ah|no|mejor|perdon)\b/.test(afterGordita);
+      const corrWord = afterGordita.match(/\b(ah|no|mejor|perdon)\b/);
+      const afterWord = corrWord ? afterGordita.slice((corrWord.index || 0) + corrWord[1].length) : "";
+      const beforeWord = corrWord ? afterGordita.slice(0, corrWord.index || 0) : "";
+      // "ah, y también" and "y, perdón" add the sopes. The filler does not delete the gorditas.
+      const filler = !!corrWord && (/\btambien\b/.test(afterGordita) || /\by\b/.test(afterWord) || /\by\s*,?\s*$/.test(beforeWord.trim()));
+      const corrects = !!corrWord && !filler;
       const sopeMeats = meatsIn(sopeClause);
       const meats = /\bcon\b/.test(sopeClause) ? sopeMeats.slice(0, 2) : sopeMeats.slice(0, 1);
       const lead = afterGordita.match(new RegExp(`\\b(${NUMW})\\s*$`));
       const n = numOf((sopeClause.match(new RegExp(`\\b(${NUMW})\\b`)) || [])[1] || "") || numOf(lead?.[1] || "") || 1;
+      const grande = /\bgrande\b|\bsopesas/.test(text);
+      if (filler && meats.length) put(blank({ kind: "sope", meats, n, grande, force: true }));
       if (corrects) {
         const gorditaMeats = meatsIn(text.slice(gorditaAt, sopeAt));
         const shared = gorditaMeats.filter((m) => meats.includes(m));
         const dropMeats = gorditaMeats.length <= 1 ? gorditaMeats : (shared.length === 1 ? shared : null);
         if (dropMeats) drop.push({ kind: "gordita", meats: dropMeats });
-        const grande = /\bgrande\b|\bsopesas/.test(text);
-        if (meats.length && dropMeats) put(blank({ kind: "sope", meats, n, grande, todo: /\bcon todo\b/.test(sopeClause), force: true }));
+        if (meats.length && dropMeats) put(blank({ kind: "sope", meats, n, grande, force: true }));
         if (dropMeats) remember("sope", meats, n, "");
       }
       continue;
@@ -348,7 +356,6 @@ export function correctionPlan(turns: Turn[]): Plan {
       kind, meats, style, qd: "",
       queso: kind === "gordita" && !/\bsin queso\b/.test(text) && (/\bcon queso\b|\bqueso gordita\b/.test(text) || (open.queso && meats[0] === open.meat)),
       n: n || 1, frij: /\bcon frijoles\b|\bfrijoles con\b/.test(text), bare: false,
-      todo: kind === "burrito" && /\bcon todo\b|\bwith everything\b/.test(text),
       grande: kind === "sope" && /\bgrande\b|\bsopesas/.test(text),
     };
     const conJoin = /\bcon\b/.test(text) && !/\bcon frijoles\b|\bcon queso\b|\bcon todo\b/.test(text);
@@ -373,7 +380,7 @@ export function correctionPlan(turns: Turn[]): Plan {
   const queued = ensure.filter((s) => s.n > 0 && s.meats.length);
   const linked = (d: Drop) => queued.some((s) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope")));
   const drops = drop.filter(linked);
-  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.todo || s.exclusive || s.force || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope"))));
+  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.exclusive || s.force || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope"))));
   return { ensure: kept, drop: drops, spoken: seen.filter((s) => s.n > 0 && s.meats.length) };
 }
 
@@ -412,8 +419,7 @@ function optionNamed(item: any, groupRe: RegExp, pick: (name: string) => boolean
 }
 function hostFor(menu: any[], slot: Slot): any | null {
   if (slot.kind === "qd") {
-    const want = slot.qd === "preparada";
-    return (menu || []).find((m) => /^sq-qd-/.test(String(m.id)) && (want ? /deluxe|preparada/i : /regular/i).test(`${m.id} ${m.name || ""}`)) || null;
+    return (menu || []).find((m) => /^sq-qd-/.test(String(m.id)) && /regular/i.test(`${m.id} ${m.name || ""}`)) || null;
   }
   if (slot.kind === "sope" && slot.grande) return (menu || []).find((m) => /^sq-sopesaso-/.test(String(m.id))) || (menu || []).find((m) => /^sq-sope/.test(String(m.id))) || null;
   if (slot.kind === "sope") return (menu || []).find((m) => /^sq-sopesaso-/.test(String(m.id))) || null;
@@ -455,8 +461,8 @@ function buildLine(slot: Slot, menu: any[]): any | null {
     const g = optionNamed(host, /con\s*\/\s*with/i, (n) => /^\*\*Con Frijoles/i.test(n));
     if (g) mods.push(g);
   }
-  if (slot.kind === "qd" && slot.qd) {
-    const mark = optionNamed(host, /\(QD\)|quesadilla dorada/i, (n) => slot.qd === "preparada" ? /DELUXE Preparada/i.test(n) : /REGULAR Dorada/i.test(n));
+  if (slot.kind === "qd" && slot.qd === "regular") {
+    const mark = optionNamed(host, /\(QD\)|quesadilla dorada/i, (n) => /REGULAR Dorada/i.test(n));
     if (mark) mods.unshift(mark);
   }
   return { itemId: host.id, quantity: slot.n, modifiers: mods, readback: `${slot.n} ${slot.kind} ${slot.meats.join(" ")}` };
@@ -471,12 +477,8 @@ function applySlot(cart: any[], slot: Slot, menu: any[]): boolean {
     if (!meats.length) return true;
     return sameMeats(meats, slot.meats);
   });
-  const filled = (l: any) => {
-    const opts = (l.modifiers || []).map((m: any) => String(m.option)).join(" ");
-    return /queso/i.test(opts) && /crema/i.test(opts);
-  };
-  const exact = lines.filter((l) => sameMeats(lineMeats(l), slot.meats) && (slot.kind !== "burrito" || slot.bare === !filled(l) || (!slot.bare && !slot.todo)));
-  const target = exact[0] || (slot.kind === "burrito" && (slot.bare || slot.todo) ? undefined : lines[0]);
+  const exact = lines.filter((l) => sameMeats(lineMeats(l), slot.meats));
+  const target = exact[0] || lines[0];
   if (!target) {
     if (slot.updateOnly || slot.quesoLast) return false;
     const line = buildLine(slot, menu);

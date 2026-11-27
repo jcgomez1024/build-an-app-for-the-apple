@@ -293,6 +293,44 @@ test("a sope correction drops only the gordita meat it names", () => {
   assert.equal(cart.some((l) => String(l.itemId) === gordita.id && /bistec/i.test(styleOf(l))), false);
 });
 
+test("ah y tambien keeps the gorditas and adds the sopes", () => {
+  const cart: any[] = [gorditaLine("(GD) Gordita", "Duro / Pork Rinds")];
+  applyCorrections(cart, [T("caller", "Dos gorditas de duro, ah, y también dos sopes de bistec.")], menu);
+  assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 1);
+  const sopes = cart.filter((l) => String(l.itemId) === sope.id);
+  assert.equal(sopes.length, 1);
+  assert.match(styleOf(sopes[0]), /bistec/i);
+});
+
+test("y perdon keeps the gorditas and adds the sopes", () => {
+  const cart: any[] = [gorditaLine("(GD) Gordita", "Duro / Pork Rinds"), gorditaLine("(GD) Gordita", "Duro / Pork Rinds")];
+  applyCorrections(cart, [T("caller", "Dos gorditas de duro y, perdón, dos sopes de pastor.")], menu);
+  assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 2);
+  const sopes = cart.filter((l) => String(l.itemId) === sope.id);
+  assert.equal(sopes.length, 1);
+  assert.match(styleOf(sopes[0]), /pastor/i);
+});
+
+test("nada mas uno con queso does not lower the taco count", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Alpastor / Roasted Pork")] }];
+  applyCorrections(cart, [
+    T("caller", "Tres tacos de pastor."),
+    T("caller", "Nada más uno con queso."),
+  ], menu);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 3);
+});
+
+test("nomas dos con cebolla does not lower the taco count", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Bistec / Steak")] }];
+  applyCorrections(cart, [
+    T("caller", "Tres tacos de bistec."),
+    T("caller", "Nomás dos con cebolla."),
+  ], menu);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 3);
+});
+
 test("con todo and de todo do not mark a dorada deluxe", () => {
   for (const said of ["No, mejor una quesadilla dorada de bistec con todo.", "En vez de los tacos, una quesadilla de bistec de todo."]) {
     const plan = correctionPlan([T("caller", "Tres tacos de bistec."), T("caller", said)]);

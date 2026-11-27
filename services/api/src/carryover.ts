@@ -397,20 +397,34 @@ function cartHasDish(cart: any[]): boolean {
   });
 }
 function saidAsados(text: string): boolean {
+  // "sin" / "ni" anywhere in the phrase is a refusal, not an order for the side.
+  if (/\bsin\b|\bni\b/.test(text)) return false;
   if (/\bpeppers and onions\b/.test(text)) return true;
-  // "cebolla asada" is the side. "Asada" as a meat does not count, and a chile word
-  // counts only when it sits with the onion, joined by nothing, "y", or "con", with "asad..." on that pair.
+  // "cebolla asada" has the two words touching. A meat "asada" later in the sentence does not count,
+  // and no spare word may sit between the onion and the chile or "asada".
   const onion = "cebollit?as?|cebollas?";
-  if (new RegExp(`\\b(?:${onion})\\s+asad`).test(text)) return true;
   const chile = "chilitos?|chiles?|peppers?";
-  const gap = "(?:\\s+(?:y|con|and))?(?:\\s+\\w+){0,2}\\s+";
-  const asadAfter = "(?:\\s+\\w+){0,2}\\s+asad";
+  const join = "\\s+(?:y|con|and)\\s+";
+  const asad = "asad\\w*";
   const patterns = [
-    `\\b(?:${onion})${gap}(?:${chile})\\b${asadAfter}`,
-    `\\b(?:${chile})${gap}(?:${onion})\\b${asadAfter}`,
-    `\\b(?:${chile})\\s+asad\\w*(?:\\s+(?:y|con|and))?(?:\\s+\\w+){0,2}\\s+(?:${onion})\\b`,
+    `\\b(?:${onion})\\s+${asad}\\b`,
+    `\\b(?:${onion})${join}(?:${chile})\\s+${asad}\\b`,
+    `\\b(?:${chile})${join}(?:${onion})\\s+${asad}\\b`,
+    `\\b(?:${onion})\\s+${asad}${join}(?:${chile})\\b`,
+    `\\b(?:${chile})\\s+${asad}${join}(?:${onion})\\b`,
   ];
   return patterns.some((p) => new RegExp(p).test(text));
+}
+function alreadyCebollaSide(cart: any[], ex: any): boolean {
+  // A dish topping is not the side. The side is already on the cart when an extras line
+  // is that item, or its chosen option is Cebolla y Chiles Asados (the mild salsa host does this).
+  return (cart || []).some((line) => {
+    const id = String(line?.itemId || "");
+    if (ex && id === ex.id) return true;
+    if (!/^sq-extras-/.test(id)) return false;
+    if (/cebolla/.test(id) && /chiles/.test(id) && /asad/.test(id)) return true;
+    return (line?.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m?.option || "")));
+  });
 }
 function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));
@@ -439,7 +453,7 @@ function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
   const hit = phrases.find((phrase) => saidAsados(phrase));
   if (!hit) return false;
   const ex = cebollaItem(menu);
-  if (!ex || cart.some((l) => l.itemId === ex.id)) return false;
+  if (!ex || alreadyCebollaSide(cart, ex)) return false;
   const m = hit.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
   cart.push({ itemId: ex.id, quantity: m ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "cebolla y chiles asados" });
   return true;
