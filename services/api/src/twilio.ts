@@ -557,6 +557,8 @@ export type SquareRef = { receiptNumber: string | null; ticketName: string | nul
 const squareLinksFile = path.join(logDir, "square-links.json");
 function loadSquareLinks(): Record<string, SquareRef> { try { return JSON.parse(fs.readFileSync(squareLinksFile, "utf8")); } catch { return {}; } }
 export function squareLinkFor(callSid: string): SquareRef | null { return loadSquareLinks()[callSid] || null; }
+/** search1: all live square_ticket links at once (read-only; for the calls page ticket search). */
+export function squareLinksAll(): Record<string, SquareRef> { return loadSquareLinks(); }
 let lastSquareLink = 0;
 const talkSecByCall = new Map<string, number>(); // link15: talk/recording seconds per call
 /** Pick the Square order for a call: phone match, or ticket name = caller's name, or the only order rung up right after. */
