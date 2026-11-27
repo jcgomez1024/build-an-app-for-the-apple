@@ -26,7 +26,8 @@
         "phone"
       ],
       "example": "quesadillas del pomal de buche",
-      "source": "transcript CAd25680 (Cris — STT pomal=comal)"
+      "source": "transcript CAd25680 (Cris — STT pomal=comal)",
+      "approved": "unrecorded"
     },
     {
       "id": "sopesazo",
@@ -452,7 +453,8 @@
         "app"
       ],
       "example": "y una quesidita de chicharrón duro",
-      "source": "STT mishearing of gordita (8:03 PM 10/23 call)"
+      "source": "STT mishearing of gordita (8:03 PM 10/23 call)",
+      "approved": "unrecorded"
     },
     {
       "id": "quesitorta1",
@@ -511,7 +513,8 @@
         "phone"
       ],
       "example": "Me pone dos quesadillas de aceite de bistec preparadas",
-      "source": "Alex CA7c2f7c 10/24: de aceite preparada = QD Deluxe not comal"
+      "source": "Alex CA7c2f7c 10/24: de aceite preparada = QD Deluxe not comal",
+      "approved": "unrecorded"
     },
     {
       "id": "aceite-dorada-phrase",
@@ -521,7 +524,8 @@
         "phone"
       ],
       "example": "una quesadilla de chorizo con bistec de aceite preparadas",
-      "source": "Alex CA7c2f7c 10/24"
+      "source": "Alex CA7c2f7c 10/24",
+      "approved": "unrecorded"
     },
     {
       "id": "gino1-en-aceite",
@@ -531,7 +535,8 @@
       "scope": [
         "phone"
       ],
-      "requires": "quesadill|aceite|preparad|dorad|comal|harina|tortilla"
+      "requires": "quesadill|aceite|preparad|dorad|comal|harina|tortilla",
+      "approved": "unrecorded"
     },
     {
       "id": "gino1-supreme-to-deluxe",
@@ -542,7 +547,8 @@
         "phone",
         "app"
       ],
-      "requires": "quesadill"
+      "requires": "quesadill",
+      "approved": "unrecorded"
     },
     {
       "id": "menos1-stt-menudo",

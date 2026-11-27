@@ -7,6 +7,7 @@
 import { statedDishPutQty } from "./modifier-turns.js";
 import type { PosCatalog } from "./pos-catalog.js";
 import { affirmedStaffSoupQty, isAbandonTurn } from "./readback-pass.js";
+import { NUM_A_TEN } from "./order-lexicon.js";
 import { isAvailQ, staffUnavailable } from "./spoken-ledger.js";
 
 type Turn = { speaker: string; text: string };
@@ -34,7 +35,7 @@ export function isClosingFragment(text: string): boolean {
   if (/\b(?:po[sz]oles?|menudos?|birrias?|enchiladas?|tacos?|quesadillas?|gorditas?|tortas?|burritos?|arroz|tortillas?|comal|harina|bistec|asada)\b/.test(t)) return false;
   return /\b(?:es\s+todo|eso\s+es\s+todo|nada\s+mas|hasta\s+luego|nombre|gracias|senorita|adios|bye)\b/.test(t);
 }
-const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, one: 1, a: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5, seis: 6, six: 6, siete: 7, seven: 7, ocho: 8, eight: 8, nueve: 9, nine: 9, diez: 10, ten: 10 };
+const NUM = NUM_A_TEN;
 const numOf = (w: string) => NUM[fold(w)] || Number(w) || 0;
 const COUNT = "\\d+|un[oa]?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
 

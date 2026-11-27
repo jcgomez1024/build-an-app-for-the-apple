@@ -1,4 +1,5 @@
 import { stripNameFillers, NAME_FILLER } from "./caller-memory.js";
+import { YES_NAME as YES } from "./order-lexicon.js";
 // ordername1: the name on each phone order. Elvi asks before wrapping up ("¿A nombre de quién?") or lightly confirms a
 // saved one ("¿Sigue a nombre de X?"), accepts corrections, and the name goes on the Square order + caller memory as an
 // Elvi-heard name (staff-entered names always win). Listen-only calls: pulled from the staff's "¿a nombre de quién?".
@@ -17,7 +18,6 @@ export function nameQuestionIn(reply: string): { kind: "ask" } | { kind: "confir
   const m = r.match(/(?:¿Sigue a nombre de|Still under)\s+([^?]+)\?\s*$/u);
   return m ? { kind: "confirm", name: m[1].trim() } : null;
 }
-const YES = /^\s*(s[ií]|sip|claro|correcto|as[ií] es|exacto|ajá|aja|yes|yeah|yep|yup|correct|that'?s right|right|sure|ok(ay)?)(?![\p{L}])/iu;
 const NO = /^\s*(no|nop|nope)(?![\p{L}])/iu;
 const LEAD = /^(?:[\s,.!]*(?:no|nop|nope|s[ií]|yes|yeah|ok(?:ey|ay)?|bueno|pues|este|um+|eh+|ah+|mm+|perd[oó]n|sorry|de|del)\b)*[\s,.!]*/iu;
 const PHRASE = /(?<![\p{L}])(?:(?:es\s+|est[aá]\s+|sigue\s+)?al?\s+nombre\s+de|mi\s+nombre\s+es|me\s+llamo|soy|es\s+para|para|ponle|p[oó]ngalo\s+a|it'?s\s+under|under(?:\s+the\s+name)?|put\s+it\s+under|my\s+name\s+is|i'?m|it'?s|es)\s+/iu;

@@ -4,6 +4,7 @@
 // A soup or side named at the end stays even when the main items were read back first.
 // Nothing here removes a line. A short count is only raised.
 
+import { numToSix } from "./order-lexicon.js";
 import { isAvailQ, staffUnavailable } from "./spoken-ledger.js";
 
 type Turn = { speaker?: string; text?: string };
@@ -12,8 +13,7 @@ type Style = "" | "comal" | "harina" | "taquero";
 type Part = { kind: Kind; meat: string; style: Style; qd: "" | "preparada" | "regular"; queso: boolean; frij: boolean; n: number; explicit: boolean; added: number };
 
 const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-const numOf = (w: string) => Number(w) || NUM[w] || 0;
+const numOf = numToSix;
 const NUMW = "\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
 const MEATS: Array<[RegExp, string]> = [
   [/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"],

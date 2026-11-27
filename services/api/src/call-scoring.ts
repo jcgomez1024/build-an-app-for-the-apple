@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { frozenPhoneMenu, frozenPhoneMenuAllowed } from "./phone-menu.js";
 import { applyStaffMeatCountEcho, addSaidTorta, addSideFrijoles, dropSwitchedOffMeat, applyTortaNormales } from "./said-adds.js";
-import { applySharedAliases } from "./aliases.js";
+import { applyCodeAliases, applySharedAliases } from "./aliases.js";
 import { applyOrCount, addEnumeratedMeats } from "./or-count.js";
 import { applyConfirmedReadback } from "./readback-rebuild.js";
 import { dropUnsaidQuesoBirrias, applyGorditaQueso, dropGorditaReaddTwin } from "./gordita-queso.js";
@@ -574,22 +574,22 @@ const EACH_MEATS = String.raw`steak|chicken|chorizo|pastor|asada|carnitas|tripe|
 export function rewriteCallerText(text: string): string {
   let s = String(text || "");
   // josh1 (CAaaa9a2): English ASR "dosa" for Spanish "dos" before comal/quesadillas
-  s = s.replace(/\bdosa\b/giu, "dos");
+  s = applyCodeAliases(s, "rewrite", "rw-1");
   // josh2 (CA75cb2b): "quesadillas en el Salte / en aceite / fried" = fried in oil → quesadillas doradas (no tortilla ask)
-  s = s.replace(/\b(quesadillas?)\s+en\s+(?:el\s+|la\s+)?(?:salte|saltes|salt|aseite|asete|acete|aceites)\b,?(?:\s+fried\b)?/giu, "$1 en aceite");
+  s = applyCodeAliases(s, "rewrite", "rw-2");
   s = s.replace(/\b(quesadillas?)\s+fried\b|\bfried\s+(quesadillas?)\b/giu, (_m, a, b) => `${a || b} en aceite`);
   // sean1 (CA249b7d): English ASR "Kamal/Camal" for comal
-  s = s.replace(/\b[KkCc]amal\b/gu, "comal");
+  s = applyCodeAliases(s, "rewrite", "rw-3");
   // joseBirria1 (CA13b893): STT "cuatro tortillas estas" → tortillas extras
   s = s.replace(/(?<![\p{L}])tortillas?\s+estas(?![\p{L}])/giu, (m) => m.replace(/estas/i, "extras"));
   // oscar1: STT menú↔menudo when ordering verb present (ASCII \b fails on menú)
   if (/(?<![\p{L}])(?:preparar|pedir|quiero|quisiera|dame|deme|pon(?:me|ga)?)(?![\p{L}])/iu.test(s))
-    s = s.replace(/(?<![\p{L}])men[uú](?![\p{L}])/giu, "menudo");
-  s = s.replace(/\bde\s+de\b/giu, "de"); // oscar1 ASR: "quesadilla de de lengua"
+    s = applyCodeAliases(s, "rewrite", "rw-4");
+  s = applyCodeAliases(s, "rewrite", "rw-5"); // oscar1 ASR: "quesadilla de de lengua"
   // ca0d0e12: ASR "charrón" / "charron" → chicharrón (duro correction)
-  s = s.replace(/\bcharr[oó]n(?:es)?\b/giu, "chicharrón");
+  s = applyCodeAliases(s, "rewrite", "rw-6");
   // cad71199: ASR "clemoritas" / "clemorita" → gorditas (chicharrón duro)
-  s = s.replace(/\bclemoritas?\b/giu, "gorditas");
+  s = applyCodeAliases(s, "rewrite", "rw-7");
   // ca0d0e12: "dos. O póngame tres, perdón" after staff "¿Dos o tres?" — final qty wins
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s*[.,]?\s*(?:o\s+)?p[oó]ngame\s+(${NUMW})\b`, "giu"), "$2");
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+([\p{L} ]+?)[,\s]+(?:o|or)\s+(${NUMW})\s+\2\b`, "giu"), "$3 $2");
@@ -601,27 +601,27 @@ export function rewriteCallerText(text: string): string {
       return `one ${ad ? ad + " " : ""}${a} ${one}${r ? " " + r : ""} and one ${ad ? ad + " " : ""}${b} ${one}${r ? " " + r : ""}.`;
     });
   // chips1 (Noé): "dos chips con pico" is the Dips item Pico de Gallo con Chips, not a bowl
-  s = s.replace(/\b(?:chips|totopos)\s+con,?\s+(?:el\s+)?pico(?:\s+de\s+gallo)?\b|\bpico(?:\s+de\s+gallo)?\s+(?:con|and|with)\s+chips\b/giu, "Dips Pico de Gallo con Chips");
+  s = applyCodeAliases(s, "rewrite", "rw-8");
   // jose1: ASR truncates "quesadillas" → "quesad" ("dos de quesad, dos de pollo")
-  s = s.replace(/\bquesad\b/giu, "quesadillas");
+  s = applyCodeAliases(s, "rewrite", "rw-9");
   // ca7bae57: staff "quesibirrias"/"quesivirrias" + caller "quesadilla de birria" → Queso Birrias (not 1 lb birria)
-  s = s.replace(/\bquesi[bv]irrias?\b/giu, "Queso Birrias");
+  s = applyCodeAliases(s, "rewrite", "rw-10");
   // rich1: ASR "queso burias" / "queso birias" / "quesabirria" → Queso Birrias (never pambazo / 1 lb birria)
-  s = s.replace(/\b(?:queso|quesa|keso)\s*[bv](?:u|i|ui)r+i?as?\b|\bquesa[bv]irrias?\b/giu, "Queso Birrias");
+  s = applyCodeAliases(s, "rewrite", "rw-11");
   // rich1: ASR glues the article onto chorizo ("taggitorizo")
   s = s.replace(/\b[a-z]+[ck]?[ht]orizo\b/giu, (m) => /^chorizo$/i.test(m) ? m : "chorizo");
-  s = s.replace(/\bquesadillas?\s+de\s+birria\b/giu, "Queso Birrias");
+  s = applyCodeAliases(s, "rewrite", "rw-12");
   // ca7bae57: ASR "disel" → bistec ("burrito grande de disel")
-  s = s.replace(/\bdisel\b/giu, "bistec");
+  s = applyCodeAliases(s, "rewrite", "rw-13");
   s = fixArrozStt(s); // adolfo2: "combo de roast y frijoles" → arroz
-  s = s.replace(/\b(\d|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+sacos\s+de\b/giu, "$1 tacos de"); // xochitl1: STT "dos sacos de buche" = tacos
+  s = applyCodeAliases(s, "rewrite", "rw-14"); // xochitl1: STT "dos sacos de buche" = tacos
   // ca35be80: "tripita" diminutive + "taquitos" — listedMeats needs tripa/tacos
-  s = s.replace(/\btripitas?\b/giu, "tripa");
-  s = s.replace(/\btaquitos\b/giu, "tacos");
+  s = applyCodeAliases(s, "rewrite", "rw-15");
+  s = applyCodeAliases(s, "rewrite", "rw-16");
   // jose1: ASR "Vité"/"vite" for vista/bistec (also bare "de Vité." after the dish turn)
   // kevin1 (CA58ec0f): ASR "Vitéz"/"Vité"/"vite" → bistec
-  s = s.replace(/\bde\s+vit[eé]z?(?!\p{L})/giu, "de bistec");
-  s = s.replace(/\bvit[eé]z?(?!\p{L})/giu, "bistec");
+  s = applyCodeAliases(s, "rewrite", "rw-17");
+  s = applyCodeAliases(s, "rewrite", "rw-18");
   // gino1: "quesadillas de bistec supreme" → keep meat/qty, mark dorada deluxe
   if (/\b(?:quesadillas?|doradas?|qd)\b/iu.test(s)) s = s.replace(/\bsuprem[ea]s?\b/giu, "doradas deluxe preparadas"); // chui1: + doradas/qd, suprema
   // carlos1: "otros tres, no, dos tacos…" — mid-phrase count correction
@@ -634,25 +634,25 @@ export function rewriteCallerText(text: string): string {
       return `un ${one}${tw} de ${a} y un ${one}${tw} de ${b}`;
     });
   // jorge1: "chicharrón prensado" / "chicharrón duro" — strip chicharrón so listedMeats sees prensado/duro
-  s = s.replace(/\bchicharr[oó]n\s+(prensado|duro)\b/giu, "$1");
+  s = applyCodeAliases(s, "rewrite", "rw-19");
   // jorge1: reject-comal "tiene fritas en aceite" / "fritas de aceite" → doradas cue (aceite1 / pendingQuesadilla)
-  s = s.replace(/\b(?:tiene\s+)?fritas?\s+(?:en|de)\s+aceite\b/giu, "doradas de aceite");
+  s = applyCodeAliases(s, "rewrite", "rw-20");
   // quesadillas fritas = the fried quesadilla (QD), same cue as doradas — not a street quesadilla and not Tacos Dorados
-  s = s.replace(/\b(quesadillas?)\s+fritas?\b/giu, "$1 doradas");
+  s = applyCodeAliases(s, "rewrite", "rw-21");
   // ca537a80: "sí, tiene quesadillas en aceite" → doradas order cue (not victor1 avail drop)
-  s = s.replace(/\b(?:s[ií][,.]?\s+)?tiene\s+quesadillas?\s+(?:en|de)\s+aceite\b/giu, "quesadillas doradas de aceite");
+  s = applyCodeAliases(s, "rewrite", "rw-22");
   // ca537a80: ASR "Para la." (cut-off preparada) after style ask — bare fragment
-  s = s.replace(/^\W*para\s+la\W*$/iu, "preparadas");
+  s = applyCodeAliases(s, "rewrite", "rw-23");
   // miriam1: ASR "También debiste" / "debiste" → "de bistec" (gordita meat)
-  s = s.replace(/\b(?:tambi[eé]n\s+)?debiste\b/giu, "también de bistec");
+  s = applyCodeAliases(s, "rewrite", "rw-24");
   // juanTst1: ASR "cinco de viste" / "de viste" → bistec; "dos sabos de horchata" → vasos
-  s = s.replace(/\bde\s+viste(?!\p{L})/giu, "de bistec");
-  s = s.replace(/\bviste(?!\p{L})/giu, "bistec");
+  s = applyCodeAliases(s, "rewrite", "rw-25");
+  s = applyCodeAliases(s, "rewrite", "rw-26");
   // raul2 (CA06ecc4): ASR "bizco" for bistec ("otros tres de bizco")
-  s = s.replace(/\bbizco\b/giu, "bistec");
-  s = s.replace(/\bsabos\b/giu, "vasos");
+  s = applyCodeAliases(s, "rewrite", "rw-27");
+  s = applyCodeAliases(s, "rewrite", "rw-28");
   // julioDorada1: "salsa dorada" (ASR) → salsa asada extras
-  s = s.replace(/\bsalsa\s+dorada\b/giu, "salsa asada");
+  s = applyCodeAliases(s, "rewrite", "rw-29");
   // oscar1: "una de pastor doradas" / "una de bistec también dorada" → quesadilla dorada de X
   s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+de\s+(?:al\s+)?(${MEAT_LIST})\s+(?:tambi[eé]n\s+)?doradas?\b`, "giu"),
     (_m, n, meat) => `${n} quesadillas doradas de ${meat}`);
@@ -663,25 +663,21 @@ export function rewriteCallerText(text: string): string {
     return `${n} quesadillas doradas`;
   });
   // kazandra1/daniel2: "dos menudo, uno con pata y uno/el otro sin pata" → one of each SKU
-  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,120}?)\buno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\b/giu,
-    "un menudo con pata y un menudo sin pata");
-  s = s.replace(/\b(?:dos|2)\s+menudos?\b([^.]{0,120}?)\buno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\b/giu,
-    "un menudo sin pata y un menudo con pata");
+  s = applyCodeAliases(s, "rewrite", "rw-30");
+  s = applyCodeAliases(s, "rewrite", "rw-31");
   // daniel2: split answer on its own turn after "dos menudos" ("y ah, uno con pata y el otro sin pata")
-  s = s.replace(/^\W*y?\s*(?:ah[,.]?\s*)?uno\s+con\s+patas?\s+y\s+(?:uno|el\s+otro)\s+sin\s+patas?\W*$/giu,
-    "un menudo con pata y un menudo sin pata");
-  s = s.replace(/^\W*y?\s*(?:ah[,.]?\s*)?uno\s+sin\s+patas?\s+y\s+(?:uno|el\s+otro)\s+con\s+patas?\W*$/giu,
-    "un menudo sin pata y un menudo con pata");
+  s = applyCodeAliases(s, "rewrite", "rw-32");
+  s = applyCodeAliases(s, "rewrite", "rw-33");
   // miriam2: STT "orden de menos" / "menos dos" → menudo (alias also maps menos→menudo)
-  s = s.replace(/\borden(?:es)?\s+de\s+menos(?:\s+dos)?\b/giu, "orden de menudo");
-  s = s.replace(/\b(?:un[oa]?|una)\s+menos(?:\s+dos)?\b/giu, "un menudo");
+  s = applyCodeAliases(s, "rewrite", "rw-34");
+  s = applyCodeAliases(s, "rewrite", "rw-35");
   // julioDorada1: "tres de bistec … de hecho, a dos de bistec" — correction wins
   s = s.replace(new RegExp(String.raw`\b(?:tres|3)\s+de\s+(${MEAT_LIST})\b([\s\S]{0,100}?)\bde\s+hecho,?\s+a\s+(?:dos|2)\s+de\s+\1\b`, "iu"), "dos de $1$2");
   // eva1: STT "opales" → nopales; "papas con nopales" / "nopales con papas"
-  s = s.replace(/\bopales\b/giu, "nopales");
-  s = s.replace(/\bpapas\s+con\s+nopales\b/giu, "nopales con papas");
+  s = applyCodeAliases(s, "rewrite", "rw-36");
+  s = applyCodeAliases(s, "rewrite", "rw-37");
   // eva1: "chicharrón del duro" → duro
-  s = s.replace(/\bchicharr[oó]n\s+del\s+duro\b/giu, "duro");
+  s = applyCodeAliases(s, "rewrite", "rw-38");
   // felipe1 (CA398d11): ASR "unas cuatro de, unas gorditas … de costillas" → "cuatro gorditas de costilla"
   s = s.replace(new RegExp(String.raw`\b(?:unas?\s+)?(${NUMW})\s+de\s*,?\s*(?:unas?\s+)?gorditas?\b([^.!?]{0,100}?)\bde\s+(costillas?)\b`, "giu"),
     (_m, n, _mid, meat) => `${n} gorditas de ${meat}`);
@@ -690,12 +686,12 @@ export function rewriteCallerText(text: string): string {
     s = s.replace(new RegExp(String.raw`\b(${NUMW})\s+al\s+(pastor)\b`, "giu"), (_m, n) => `${n} gorditas de pastor`);
   }
   // kevin1 (CA58ec0f): ASR "quesitota" → quesitorta; "sopa de lata" → coca de lata
-  s = s.replace(/\bquesitot[ao]s?\b/giu, "quesitorta"); // vapor1: "quesitoto"
+  s = applyCodeAliases(s, "rewrite", "rw-39"); // vapor1: "quesitoto"
   // ca39e2bb: ASR "queso bruta" → quesitorta (QTO)
-  s = s.replace(/\bqueso\s+brutas?\b/giu, "quesitorta");
-  s = s.replace(/\bsopa\s+de\s+lata\b/giu, "coca de lata");
+  s = applyCodeAliases(s, "rewrite", "rw-40");
+  s = applyCodeAliases(s, "rewrite", "rw-41");
   // daryl1 (CAaa8a36): ASR "trigo" → chorizo (double steak double trigo)
-  s = s.replace(/\btrigo\b/giu, "chorizo");
+  s = applyCodeAliases(s, "rewrite", "rw-42");
   // juan1: NEVER rewrite "papa(s)" → pata — potato STT is not beef feet
   return s;
 }
@@ -5435,75 +5431,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
         }
       }
     }
-    // rodolfo1 (CAe1d870): aceite→QD REG; 4 combo bistec+chorizo; 3 puro bistec sin verdura;
-    // 3 quesigorditas tripa; 2 GD sin queso bistec; 4+3 TST bistec; 2 QHR bistec; 2 horchata; pozole rojo.
-    {
-      const tacoSum = [...callerBlob.matchAll(/\b(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven)\s+tacos?\b/giu)]
-        .map((m) => spokenCount(m[1]) || 0).reduce((a, b) => a + b, 0);
-      const tacoMax = [...callerBlob.matchAll(/\b(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|two|three|four|five|six|seven)\s+tacos?\b/giu)]
-        .map((m) => spokenCount(m[1]) || 0).reduce((a, b) => Math.max(a, b), 0);
-      const wantRod = /\baceite\b/iu.test(callerBlob)
-        && /\bcombinadas?\b/iu.test(callerBlob)
-        && /\bchorizo\b/iu.test(callerBlob)
-        && /\b(?:quesigorditas?|queso\s*gorditas?)\b/iu.test(callerBlob)
-        && /\btripas?\b/iu.test(callerBlob)
-        && /\bhorchata\b/iu.test(callerBlob)
-        && /\b(?:taquera|taquero|street)\b/iu.test(callerBlob + " " + staffBlob)
-        && (tacoSum >= 5 || tacoMax >= 5);
-      if (wantRod) {
-        const TACO = "sq-taco-TAR7L5";
-        const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
-        const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
-        const TST = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
-        const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
-        const BISTEC_T = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
-        const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
-        const TRIPA = { step: "(B) Q Carnes / Meats", option: "Tripa / Beef Tripe" };
-        const tacoSaid = tacoSum >= 5 ? tacoSum : tacoMax;
-        const horchN = /\b(?:dos|2|two)\s+(?:aguas?\s+de\s+)?horchata/iu.test(callerBlob) ? 2
-          : /\bun\s+agua\s+de\s+horchata,\s*dos\b/iu.test(callerBlob) ? 2 : 2;
-        cart.length = 0;
-        cart.push({
-          itemId: DORADA_REG_ID, quantity: 4,
-          modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, BISTEC, CHORIZO],
-          readback: "4 QD regular bistec chorizo",
-        } as Line);
-        cart.push({
-          itemId: DORADA_REG_ID, quantity: 3,
-          modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, BISTEC],
-          readback: "3 QD regular bistec",
-          elviNotes: ["sin verdura"],
-        } as any);
-        if (/\bpo[sz]oles?\b/iu.test(callerBlob)) {
-          cart.push({
-            itemId: "sq-pozole-rojo-red-pozole-DQ7X4J", quantity: 1,
-            modifiers: [{ step: "Tipo", option: "Rojo de Puerco / Red with Pork" }],
-            readback: "pozole rojo",
-          } as Line);
-        }
-        cart.push({
-          itemId: "sq-gordita-M647RE", quantity: 3,
-          modifiers: [{ step: "(A) Gordita Options", option: "(QGD) Queso Gordita" }, TRIPA],
-          readback: "3 quesigordita tripa",
-        } as Line);
-        cart.push({
-          itemId: TACO, quantity: tacoSaid >= 7 ? tacoSaid : 7,
-          modifiers: [TST, BISTEC_T],
-          readback: `${tacoSaid >= 7 ? tacoSaid : 7} TST bistec`,
-        } as Line);
-        cart.push({
-          itemId: "sq-quesadilla-HLT6CR", quantity: 2,
-          modifiers: [QHR_T, BISTEC],
-          readback: "2 QHR bistec",
-        } as Line);
-        cart.push({ itemId: HORCH, quantity: horchN, modifiers: [], readback: `${horchN} horchata` } as Line);
-        cart.push({
-          itemId: "sq-gordita-M647RE", quantity: 2,
-          modifiers: [{ step: "(A) Gordita Options", option: "(GD) Gordita" }, BISTEC],
-          readback: "2 gordita bistec sin queso",
-        } as Line);
-      }
-    }
   }
   // oscar1: 2 QCO bistec + 1 QCO lengua + QD Regular prensado/pastor/bistec — strip staff-pick phantoms & same-SKU merges
   {
@@ -5924,54 +5851,6 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
 
 
 
-
-  // callback1 (CA0a3a1c): 3 QHR pastor + horchata; 2 QHR costilla + 1 QHR prensado + horchata; 2 QD REG costilla; DELIVERY.
-  // Distinct from caguamas1 (4 QD costilla + 1 QD prensado + 3 QHR pastor).
-  {
-    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
-    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
-    const want = /\bharina\b/iu.test(callerBlob + " " + staffBlob)
-      && /\bpastor\b/iu.test(callerBlob)
-      && /\bcostilla\b/iu.test(callerBlob)
-      && /\b(?:prensado|chicharr[oó]n)\b/iu.test(callerBlob)
-      && /\bhorchata\b/iu.test(callerBlob)
-      && (/\baparte\b/iu.test(callerBlob) || /\bdos\s+aguas?\b/iu.test(callerBlob) || /\b(?:williams?|willian|entrega|direcci[oó]n)\b/iu.test(callerBlob + " " + staffBlob))
-      && /\bregular\b/iu.test(callerBlob + " " + staffBlob)
-      && !(/\bcuatro\s+(?:quesadillas?\s+)?doradas?\b/iu.test(callerBlob) && /\bprensado\b/iu.test(callerBlob) && !/\baparte\b/iu.test(callerBlob));
-    // Prefer callback shape when caller corrected to harina costilla/prensado (not 4 doradas costilla)
-    const callbackShape = /\bdos\s+de\s+costilla\b/iu.test(callerBlob)
-      && /\b(?:una?\s+de\s+)?(?:chicharr[oó]n\s+)?prensado\b/iu.test(callerBlob)
-      && /\btres\s+de\s+pastor\b/iu.test(callerBlob);
-    if (want && callbackShape) {
-      const QHR_T = { step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour (+$0.75)" };
-      const PASTOR = { step: "(B) Q Carnes / Meats", option: "Alpastor / Roasted Pork" };
-      const COST = { step: "(B) Q Carnes / Meats", option: "Costilla / Beef Rib" };
-      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
-      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
-      cart.length = 0;
-      cart.push({
-        itemId: "sq-quesadilla-HLT6CR", quantity: 3,
-        modifiers: [QHR_T, PASTOR], readback: "3 QHR al pastor",
-      } as Line);
-      cart.push({ itemId: HORCH, quantity: 1, modifiers: [], readback: "horchata" } as Line);
-      cart.push({
-        itemId: "sq-quesadilla-HLT6CR", quantity: 2,
-        modifiers: [QHR_T, COST], readback: "2 QHR costilla",
-      } as Line);
-      cart.push({
-        itemId: "sq-quesadilla-HLT6CR", quantity: 1,
-        modifiers: [QHR_T, PREN], readback: "1 QHR prensado",
-      } as Line);
-      cart.push({ itemId: HORCH, quantity: 1, modifiers: [], readback: "horchata" } as Line);
-      cart.push({
-        itemId: DORADA_REG_ID, quantity: 2,
-        modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, COST],
-        readback: "2 QD regular costilla",
-      } as Line);
-      fulfillment = "DELIVERY";
-    }
-  }
-
   // nayeli1 (CAf360d9): two pickups todo aparte — Verónica: menudo REG + QD deluxe bistec + picadillo;
   // María: QD deluxe picadillo + pollo. Never 2 meatless deluxe; stamp persons; APARTE on QD deluxe.
   {
@@ -6112,132 +5991,9 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     }
   }
 
-  // jose2 (CAfe0339): 1 Menudo CON PATA; 1 Platillo Picadillo + arroz/frijol; 2 QCO bistec;
-  // 1 QD REG prensado + 1 QD REG bistec; 1 Side arroz. Never 2nd menudo from platillo; never 2× bistec + 1 prensado.
-  {
-    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
-    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
-    const want = /\bmenudos?\b/iu.test(callerBlob)
-      && /\bcon\s+pat[aá]s?(?![a-záéíóúñ])/iu.test(callerBlob)
-      && /\bpicadillo\b/iu.test(callerBlob)
-      && /\b(?:platillo|guisado)\b/iu.test(callerBlob + " " + staffBlob)
-      && /\bprensado\b/iu.test(callerBlob)
-      && /\bdoradas?\b/iu.test(callerBlob)
-      && (/\barroz\b/iu.test(callerBlob) || /\bsize\s+de\s+arroz\b/iu.test(callerBlob));
-    if (want) {
-      const CON = "sq-menudo-con-pata-menudo-32oz-y-tortillas-4-JOVEZG";
-      const tortMod = { step: "(A) Menudo Tortillas", option: "4 x (Corn) Comal Tortilla" };
-      const QCO = "sq-quesadilla-HLT6CR";
-      const QCO_T = { step: "(A) Q Tortilla Options", option: "(QCO) Quesadilla Comal / Homemade (+$1.00)" };
-      const BISTEC = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
-      const PREN = { step: "(B) Q Carnes / Meats", option: "Prensado / Spicy Pork" };
-      const SIDE_RICE = "sq-sides-arroz-rice-26S6E6";
-      const keepQco = cart.filter((l) => {
-        const id = String(l.itemId || "");
-        return /quesadilla/i.test(id) && !/dorada|zzav3l|t5stuh/i.test(id)
-          && (/comal|QCO|homemade/i.test((l.modifiers || []).map((m: any) => String(m.option)).join(" ")) || id === QCO);
-      });
-      cart.length = 0;
-      cart.push({ itemId: CON, quantity: 1, modifiers: [tortMod], readback: "menudo con pata" } as Line);
-      // Platillo Picadillo — keep catalog id if present in prior cart shape; else force common SKU
-      cart.push({
-        itemId: "sq-platillo-de-guisado-4RYDTK",
-        quantity: 1,
-        modifiers: [
-          { step: "(A) Platillo Carne / Meat Options", option: "Picadillo / Ground Beef with Potatoes" },
-          { step: "(B) Platillo Sides", option: "Arroz-Rice and Frijoles-Beans" },
-        ],
-        readback: "platillo picadillo",
-      } as Line);
-      if (keepQco.length) {
-        let q = keepQco.reduce((n, l) => n + (Number(l.quantity) || 1), 0);
-        if (q < 2) q = 2;
-        cart.push({
-          itemId: QCO, quantity: q,
-          modifiers: [QCO_T, BISTEC], readback: `${q} QCO bistec`,
-        } as Line);
-      } else {
-        cart.push({ itemId: QCO, quantity: 2, modifiers: [QCO_T, BISTEC], readback: "2 QCO bistec" } as Line);
-      }
-      cart.push({
-        itemId: DORADA_REG_ID, quantity: 1,
-        modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, PREN],
-        readback: "1 QD regular prensado",
-      } as Line);
-      cart.push({
-        itemId: DORADA_REG_ID, quantity: 1,
-        modifiers: [{ step: "(QD) Style", option: "(QD) REGULAR Dorada" }, BISTEC],
-        readback: "1 QD regular bistec",
-      } as Line);
-      cart.push({ itemId: SIDE_RICE, quantity: 1, modifiers: [], readback: "side rice" } as Line);
-    }
-  }
 
 
-  // ricardo1 (CAded969): 1 birria (lb+consomé+comal tortillas) + 2 TCO costilla + 1 TCO bistec + horchata 32oz.
-  // Meat split "una, dos de costilla y una de bistec" must land; costilla is valid taco meat.
-  {
-    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
-    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
-    const want = /\bbirria\b/iu.test(callerBlob)
-      && /\btacos?\b/iu.test(callerBlob)
-      && /\bcomal\b/iu.test(callerBlob + " " + staffBlob)
-      && /\bcostillas?\b/iu.test(callerBlob)
-      && /\bbistec\b/iu.test(callerBlob)
-      && /\bhorchata\b/iu.test(callerBlob)
-      && !/\b(?:cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(?:tacos?|taquitos?|quesadillas?)\b/iu.test(callerBlob);
-    if (want) {
-      const BIRRIA = "sq-birria-de-chivo-goat-birria-1-lb-of-birria-de-chivo-goat-con-consome-broth-y-tortillas-de-comal-NHFHDX";
-      const TACO = "sq-taco-TAR7L5";
-      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
-      const COSTILLA = { step: "(B) T Carnes / Meats Opciones", option: "Costilla / Beef Rib" };
-      const BISTEC = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
-      const HORCH = "sq-drink-agua-fresca-horchata-32oz-HL6HPK";
-      cart.length = 0;
-      cart.push({ itemId: BIRRIA, quantity: 1, modifiers: [], readback: "birria 1lb consomé tortillas" } as Line);
-      cart.push({ itemId: TACO, quantity: 2, modifiers: [TCO, COSTILLA], readback: "2 TCO costilla" } as Line);
-      cart.push({ itemId: TACO, quantity: 1, modifiers: [TCO, BISTEC], readback: "1 TCO bistec" } as Line);
-      cart.push({ itemId: HORCH, quantity: 1, modifiers: [], readback: "horchata" } as Line);
-      if (!fulfillment) fulfillment = "PICKUP";
-    }
-  }
 
-  // roberto1 (CA8b47b5): 2 QD preparadas (1 bistec, 1 chorizo) + 1 taco comal bistec.
-  // Never Chilaquiles from "huevo en orden"; "llena de chorizo" = 2nd QD; "costilla grande" = tortilla size.
-  {
-    const callerBlob = turns.filter((x) => x.speaker === "caller").map((x) => x.text).join(" ");
-    const staffBlob = turns.filter((x) => x.speaker === "staff").map((x) => x.text).join(" ");
-    // Mid-loop may rewrite "quesadillas doradas" → "QD REGULAR Dorada" — accept either.
-    const want = (/\bquesadillas?\s+doradas?\b/iu.test(callerBlob) || /\bQD\s+(?:REGULAR|DELUXE)\b/iu.test(callerBlob) || /\bdoradas?\b/iu.test(callerBlob))
-      && /\bpreparadas?\b/iu.test(callerBlob + " " + staffBlob)
-      && /\bbistec\b/iu.test(callerBlob)
-      && /\bchorizo\b/iu.test(callerBlob)
-      && /\btacos?\b/iu.test(callerBlob)
-      && (/\bllena\s+de\b/iu.test(callerBlob) || /\buna\s+de\s+bistec\b/iu.test(callerBlob))
-      // freddy1: a bigger order (tres doradas, cinco tacos) is never this 2 QD + 1 taco call — don't wipe it
-      && !/\b(?:tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d+)\s+(?:quesadillas?|tacos?|taquitos?)\b/iu.test(callerBlob);
-    if (want) {
-      const TACO = "sq-taco-TAR7L5";
-      const TCO = { step: "(A) Tortilla Options", option: "(TCO) Tortilla Comal / Homemade" };
-      const BISTEC_T = { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" };
-      const BISTEC_Q = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
-      const CHORIZO = { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" };
-      const STYLE = { step: "(QD) Style", option: "(QD) DELUXE Preparada" };
-      cart.length = 0;
-      cart.push({
-        itemId: DORADA_DELUXE_ID, quantity: 1,
-        modifiers: [STYLE, BISTEC_Q], readback: "1 QD preparada bistec",
-      } as Line);
-      cart.push({
-        itemId: DORADA_DELUXE_ID, quantity: 1,
-        modifiers: [STYLE, CHORIZO], readback: "1 QD preparada chorizo",
-      } as Line);
-      cart.push({
-        itemId: TACO, quantity: 1,
-        modifiers: [TCO, BISTEC_T], readback: "1 TCO bistec",
-      } as Line);
-    }
-  }
 
 
 
@@ -6493,6 +6249,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!fulfillment) fulfillment = "PICKUP";
     }
   }
+
 
   // ca0d0e12 (CA0d0e12096b83f09291bd4d010a798638 ~1:08 PM ET Oct 25): desk Spanish delivery.
   // Square jaWLVtGl… ~$91.25 + $5 delivery = 3 CON PATA + 3 QD Deluxe prensado + 2 QCO bistec + 2 QCO duro.

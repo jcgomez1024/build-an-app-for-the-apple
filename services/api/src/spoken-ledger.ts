@@ -4,15 +4,13 @@
 // frijoles", "cebollita asada y chiles") attach to the group they answer. "a nombre de X" assigns people. A side salsa
 // ("más salsita aparte" + "de cuatro") is an Extras line. Returns null unless every announced count is fully explained
 // and the call names no dish this ledger does not model.
+import { applyCodeAliases } from "./aliases.js";
+import { SPANISH_1_10, isAvailQ } from "./order-lexicon.js";
+export { isAvailQ };
 export type SpokenLine = { itemId: string; quantity: number; modifiers: Array<{ step: string; option: string }>; readback: string; elviNotes?: string[]; person?: string };
 type T = { speaker: string; text: string };
 const nf = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[¿?¡!.,;:]/g, " ").replace(/\s+/g, " ").trim();
-// ASR aliases for dish nouns / meats heard on the phone line
-const ALIAS: Array<[RegExp, string]> = [
-  [/\bnuditos\b/g, "gorditas"], [/\bgorditos\b/g, "gorditas"], [/\bde\s+cebrada\b/g, "de deshebrada"], [/\bcebrada\b/g, "deshebrada"],
-  [/\blasada\b/g, "la asada"], [/\bquesi[bv]irrias?\b|\bquesa[bv]irrias?\b|\bquesadillas?\s+de\s+birrias?\b/g, "queso birrias"], [/\b(?:misteados?|mixteados?|mezclados?|surtidos?)\b/g, "mezclados"], [/\bpapas\s+con\s+razas\b/g, "papas con rajas"], [/\bde\s+razas\b/g, "de rajas"], [/\bchicharron\s+prensado\b/g, "prensado"], [/\bchicharron\s+duro\b/g, "duro"], [/\b(de\s+)+(al\s+)?(de\s+)+/g, "de "],
-];
-const CNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+const CNT = SPANISH_1_10;
 const NUM = "un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\\d+";
 const n = (w: string) => CNT[w] || Number(w) || 1;
 const MEATS: Array<[string, string]> = [
@@ -38,21 +36,6 @@ const OTHER = /\b(?:burritos?|sopes?|tostadas?|flautas?|menudo|caldo|pozole|huar
 const QB_ID = "sq-queso-birrias-qst-3-x-queso-birrias-taquera-street-con-consome-broth-VUBNR7";
 // no flavor said ("mezclados") → the Jarrito line carries the mixed note; staff picks the flavors
 const JARRITO_ID = "sq-drink-jarrito-mandarina-mandarin-I4GNSG";
-const AVQ = /^(?:(?:y|e|eh|ah|em|este|oiga|oye|disculpe|hola|bueno|si)\s+)*(?:y\s+)?(?:tienes?|tienen|hay|venden|manejan|hacen|hace|preparan|prepara|sirven|sirve|ofrecen|ofrece)\b/;
-/** "¿tienes pollo a la crema? Ajá" / "tiene quesadilla de birria" — asks, orders nothing (no order verb or count+dish). */
-// cmissing1 (CA8e3de9a): English "calling to see if you guys have pozole verde", "how about ceviche?", "what about X?",
-// "is there X?", "any X today?" — asks, orders nothing (same rule as the Spanish ¿tiene/hay).
-const AVQ_EN = /^(?:(?:hi|hey|hello|yes|yeah|ok(?:ay)?|so|and|oh|um|uh|but|no|i\s+was\s+(?:calling|wondering|checking)\s+(?:to\s+(?:see|ask|check)\s+)?(?:if|whether)|calling\s+to\s+see\s+if|just\s+wondering\s+if|i\s+wanted\s+to\s+(?:see|know|ask)\s+if)\s+)*(?:(?:do|does)\s+)?(?:you|y'?all)(?:\s+guys)?(?:\s+still)?\s+(?:have|got|carry|sell|make|serve)\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:how|what)\s+about\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:is|are)\s+there\b|^(?:(?:ok(?:ay)?|and|so|oh|um|hi|hey)\s+)*(?:got\s+)?any\s+[a-z ]{2,30}(?:\s+today|\s+tonight|\s+left)?$/;
-const ORDER_EN = /\b(?:can\s+i\s+(?:get|have|order)|could\s+i\s+(?:get|have)|i'?ll\s+(?:take|have|get)|i\s+(?:want|need)|i'?d\s+like|let\s+me\s+(?:get|have)|give\s+me|get\s+me|order\s+of|for\s+pickup|to\s+go)\b/;
-export function isAvailQ(x: string): boolean {
-  const y = nf(x).replace(/\bi\s+was\s+calling\s+to\s+see\s+if\b/, "calling to see if");
-  if (/\b(?:me\s+da|dame|deme|me\s+pone|ponme|pongame|quiero|quisiera|me\s+das|una\s+orden)\b/.test(y) || ORDER_EN.test(y)) return false;
-  // jonathan2: "una pregunta, ¿tiene tacos dorados?" — pregunta + tiene/hay asks, orders nothing
-  if (/\b(?:pregunta|duda|question)\b/.test(y) && /\b(?:tienes?|tienen|hay|venden|manejan)\b/.test(y)) return true;
-  // a "how about X" after the caller already ordered is a suggestion ask, still no add: no count words allowed
-  if (/\b(?:\d+|one|two|three|four|five|six|dos|tres|cuatro)\s+[a-z]/.test(y) && !AVQ.test(y)) return false;
-  return AVQ.test(y) || AVQ_EN.test(y.replace(/^(?:(?:but|no|hi|hey|ok(?:ay)?)\s+)+/, "").replace(/^i\s+was\s+/, "i was "));
-}
 /** Thanks / ok / bueno with no order and no count. An acknowledgement never adds a line. */
 export function isAck(x: string): boolean {
   const y = nf(x);
@@ -161,7 +144,7 @@ export function spokenLedger(turns: T[]): { lines: SpokenLine[]; people: string[
   let qb: { n: number; style?: string } | null = null, qbAsked = false, jar: { n: number; mixed: boolean } | null = null, jarAsk = false;
   const fill = (g: Grp) => items.filter((i) => i.grp === g.grp).reduce((s, i) => s + i.n, 0);
   for (const t of turns) {
-    let x = nf(t.text); for (const [re, to] of ALIAS) x = x.replace(re, to);
+    let x = applyCodeAliases(nf(t.text), "spoken-ledger");
     if (t.speaker !== "caller") {
       prevStaff = lastStaff; lastStaff = x;
       if (qb && /\bqueso\s+birrias\s+del\s+comal\b/.test(x)) qb.style = qb.style || "comal";

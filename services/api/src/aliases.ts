@@ -10,24 +10,33 @@ type Alias = { id: string; re: RegExp; to: string; scope: AliasScope[]; requires
 
 export const ALIASES_FILE = process.env.ELVI_ALIASES_FILE
   || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/aliases/aliases.json");
+const CODE_ALIASES_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/aliases/code-aliases.json");
 
 let cache: Alias[] = [];
-// coctel1 (Alan): built-in rules (code, so they ship with a restart — never via the live-reloaded JSON)
-export const BUILTIN_ALIASES: Alias[] = compileAliases([
-  // yoni1 (CA28e2b5): ASR "tortas de bise" / "bisté" / "biste" / "bistek" = bistec. Bare "bise" only right after de/con/y (never alone).
-  // freddy2 (CA6078cb): bare feminine "doradas" (no taco/flauta word) = quesadillas doradas — Tacos Dorados are "dorados"
-  { id: "freddy2-doradas", match: String.raw`(?<!\b(?:tacos?|flautas?|quesadillas?|quesas?|tostadas?|papas?|qd|tortillas?)\s+(?:\p{L}+\s+){0,2})(?<!\p{L})doradas(?!\p{L})`, to: "quesadillas doradas", scope: ["phone", "app"] },
-  // josh3 (CA1fb72332): "one of those cinnamon drinks" = horchata
-  { id: "josh3-cinnamon", match: String.raw`\bcinnamon(?:\s+rice)?\s+(?:drinks?|waters?|milks?|beverages?)\b`, to: "horchata", scope: ["phone", "app"] },
-  { id: "yoni1-bistec", match: String.raw`(?<!\p{L})(?:bist[eé]c?k|bist[eé]d|bist[eé])(?!\p{L})|(?<=\b(?:de|con|y)\s+)bis[eé](?!\p{L})`, to: "bistec", scope: ["phone", "app"] },
-  // vapor1 (CA331ca94): "tacos sudados" / "de canasta" / "de vapor" are Tacos al Vapor; ASR "quesitoto" is a quesitorta
-  { id: "vapor1-name", match: String.raw`\btacos?\s+(?:sudad[oi]s|de\s+canasta|de\s+vapor)\b`, to: "tacos al vapor", scope: ["phone", "app"] },
-  // chui1: no catalog item says "supreme" — callers mean preparada / DELUXE
-  { id: "chui1-supreme", match: String.raw`\bsuprem[ea]s?\b`, to: "preparada", scope: ["phone", "app"] },
-  { id: "vapor1-quesitoto", match: String.raw`\bquesitot[oa](s?)\b`, to: "quesitorta$1", scope: ["phone", "app"] },
-  { id: "coctel1-name", match: String.raw`\bc[oó]ctel(?:es)?\s+de\s+camar[oó]n(?!es\s*\/|\s*\/)(?:es)?\b(?!\s*\/)|\bshrimp\s+c[oó]ctel\b(?!\s*\()`, to: "Coctel de Camarones / Shrimp Cocktail", scope: ["phone", "app"] },
-  { id: "coctel1-variant", match: String.raw`\b(?:nada\s+m[aá]s|s[oó]lo|solamente|just|only)\s+(?:el\s+|de\s+|the\s+)?(?:c[oó]ctel(?!\s+de\s+camar)|camar[oó]n(?:es)?|shrimp)\b(?!\s*(?:y|and|con|with)\s+(?:pulpo|calamar))`, to: "Coctel de Camaron / Shrimp", scope: ["phone", "app"], forbids: String.raw`pulpo|calamar|octopus` },
-]);
+type CodeRow = Alias & { apply: string };
+let codeRows: CodeRow[] | null = null;
+function loadCodeRows(): CodeRow[] {
+  if (codeRows) return codeRows;
+  const json = JSON.parse(fs.readFileSync(CODE_ALIASES_FILE, "utf8"));
+  const raw = (json.aliases || []) as Array<RawAlias & { apply?: string }>;
+  codeRows = raw.flatMap((row) => {
+    if (row.apply && row.apply !== "shared") {
+      return [{ id: row.id, re: new RegExp(row.match, row.flags || ""), to: row.to, scope: row.scope?.length ? row.scope : ["phone", "app"], apply: row.apply }];
+    }
+    const compiled = compileAliases([row])[0];
+    return compiled ? [{ ...compiled, apply: "shared" }] : [];
+  });
+  return codeRows;
+}
+export function applyCodeAliases(text: string, apply: string, id?: string): string {
+  let t = String(text ?? "");
+  for (const row of loadCodeRows()) {
+    if (row.apply !== apply || (id && row.id !== id)) continue;
+    row.re.lastIndex = 0;
+    t = t.replace(row.re, row.to);
+  }
+  return t;
+}
 let loadedMtime = -1;
 let checkedAt = 0;
 
@@ -74,7 +83,7 @@ export function loadAliases(force = false): Alias[] {
 export function applySharedAliases(text: string, scope: AliasScope): string {
   let t = String(text ?? "");
   if (!t) return t;
-  for (const a of [...loadAliases(), ...BUILTIN_ALIASES]) {
+  for (const a of [...loadAliases(), ...loadCodeRows().filter((row) => row.apply === "shared")]) {
     if (!a.scope.includes(scope)) continue;
     if (a.requires && !a.requires.test(t)) continue;
     if (a.forbids && a.forbids.test(t)) continue;
