@@ -5,11 +5,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { SPANISH_1_8 } from "./order-lexicon.js";
 
 export type LedgerLine = { itemId: string; quantity: number; modifiers: Array<{ step: string; option: string }>; readback: string; elviNotes?: string[] };
 const nf = (x: string) => String(x || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[¿?¡!.,;]/g, " ").replace(/\s+/g, " ").trim();
 const QCO_ID = "sq-quesadilla-HLT6CR", GORD_ID = "sq-gordita-M647RE";
-const CNT: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
+const CNT = SPANISH_1_8;
 const MEAT: Record<string, string> = {
   bistec: "Bistec / Steak", asada: "Bistec / Steak", carnitas: "Carnitas / Pulled Pork", costilla: "Costilla / Beef Rib", pastor: "Alpastor / Roasted Pork",
   chorizo: "Chorizo / Mexican Sausage", pollo: "Pollo / Chicken", buche: "Buche / Pork Stomach", tripa: "Tripa / Beef Tripe", lengua: "Lengua / Beef Tongue",

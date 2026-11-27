@@ -1,8 +1,9 @@
 // cris1 (CA99377e, Nov 5 11:06 AM ET, staff-answered): "harina de tripas?" → staff "Dos de harina, de tripas" rang 1;
 // "que es torta de, … de chorizo" (staff "¿Queso y torta? Okey") never rang; "unos frijoles … al lado" / staff "seis de frijoles" (side) dropped.
+import { SPANISH_1_10 } from "./order-lexicon.js";
 type Turn = { speaker: string; text: string };
 const fold = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+const NUM = SPANISH_1_10;
 const MEATS: [RegExp, string][] = [[/\bbistec|\bsteak/, "Bistec"], [/\bcabeza/, "Cabeza"], [/\bcarnitas/, "Carnitas"], [/\bchorizo/, "Chorizo"],
   [/\bcostilla/, "Costilla"], [/\bpollo/, "Pollo"], [/\b(?:al ?)?pastor/, "Alpastor"], [/\bbuche/, "Buche"], [/\blengua/, "Lengua"],
   [/\btripas?\b/, "Tripa"], [/\bprensado/, "Prensado"], [/\bduro\b/, "Duro"]];

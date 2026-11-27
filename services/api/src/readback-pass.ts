@@ -451,7 +451,6 @@ const TORTA_ID = "sq-torta-4GNTTE";
 const QT_MEAT: Array<[RegExp, string]> = [[/^(?:bistec|asada|steak)$/iu, "Bistec / Steak"], [/^chorizo$/iu, "Chorizo / Mexican Sausage"], [/^pollo|chicken$/iu, "Pollo / Chicken"],
   [/^(?:al\s*)?pastor$/iu, "Alpastor / Roasted Pork"], [/^carnitas$/iu, "Carnitas / Pulled Pork"], [/^buche$/iu, "Buche / Pork Stomach"], [/^tripas?$/iu, "Tripa / Beef Tripe"],
   [/^lengua$/iu, "Lengua / Beef Tongue"], [/^cabeza$/iu, "Cabeza / Beef Head"], [/^prensado$/iu, "Prensado / Spicy Pork"], [/^milanesa$/iu, "Milanesa / Breaded Steak"]];
-export const QUESITORTA = /\b(?:quesitort[ao]s?|quesitot[ao]s?|queso\s*tortas?)\b/iu;
 export function applyQuesoTortaSpoken(cart: any[], turns: T): void {
   for (const t of turns) {
     if (t.speaker !== "caller") continue;

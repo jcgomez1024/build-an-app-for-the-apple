@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { applySharedAliases } from "./aliases.js";
+import { applyCodeAliases, applySharedAliases } from "./aliases.js";
 
 // One spoken name for a catalog row. Runtime Square menus and the frozen phone menu both use it.
 // Phone-only rows are the in-store variations already listed in this file. No network and no POS fetch.
@@ -18,14 +18,7 @@ function normalizeName(value: string) {
 /** ASR and alias fold used before a required choice is compared with what was said. */
 export function normalizeSpoken(value: string): string {
   let text = normalizeName(applySharedAliases(String(value || ""), "phone"));
-  text = text.replace(/\benjombo\b/g, "combo");
-  text = text.replace(/\bhechas a mano\b/g, "comal").replace(/\bhecha a mano\b/g, "comal").replace(/\bhechas mano\b/g, "comal").replace(/\bhecha mano\b/g, "comal");
-  text = text.replace(/\bcarnita\b/g, "carnitas");
-  text = text.replace(/\bnuditos\b/g, "gorditas").replace(/\bgorditos\b/g, "gorditas");
-  text = text.replace(/\bcebrada\b/g, "deshebrada");
-  text = text.replace(/\bcharrones\b/g, "chicharrones").replace(/\bcharron\b/g, "chicharron");
-  text = text.replace(/\b(?:roast|rost|ros|rose)\b(?=\s+(?:y|con|and|e)\s+frijol)/g, "arroz");
-  text = text.replace(/(\bcombo\s+(?:de|con)\s+)(?:roast|rost|ros|rose)\b/g, "$1arroz");
+  text = applyCodeAliases(text, "normalize-spoken");
   return text.replace(/\s+/g, " ").trim();
 }
 

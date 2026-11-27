@@ -5,6 +5,7 @@
 // "¿Son dos?") answered yes is the caller's count for the line just discussed. A full order readback the
 // caller only confirms does not replace a different number they already said.
 import { compoundForms } from "./menu-names.js";
+import { YES_COUNT as YES } from "./order-lexicon.js";
 import { ambiguousMakeIt, ambiguousMore, catalogMeatKey, makeItN, openLineKeys } from "./modifier-turns.js";
 import { frozenPhoneMenu } from "./phone-menu.js";
 
@@ -19,7 +20,6 @@ const MEATS: Array<[RegExp, string]> = [[/\bbistec?k?\b|\bsteak\b|\basada\b/, "b
 const DISHES: Array<[RegExp, string]> = [[/\bquesadillas?\b|\bqds?\b|\bdoradas?\b/, "quesadilla"], [/\btacos?\b/, "taco"], [/\btortas?\b/, "torta"], [/\bgorditas?\b/, "gordita"], [/\bburritos?\b/, "burrito"],
   [/\bsopes?\b/, "sope"], [/\b(?:huaraches?|guaraches?)\b/, "huarache"], [/\bmenudos?\b/, "menudo"], [/\bpo[sz]oles?\b/, "pozole"], [/\bbirrias?\b/, "birria"], [/\benchiladas?\b/, "enchilada"], [/\btamales?\b/, "tamal"]];
 const STOP = new Set(["quesadilla", "quesadillas", "taco", "tacos", "torta", "tortas", "gordita", "gorditas", "burrito", "burritos", "option", "options", "the", "and", "con", "para", "from", "with", "your", "yeah", "yep", "yes", "those", "them", "this", "that", "else", "anything"]);
-const YES = /^(?:yep|yeah|yes|si|aja|ok|okay|claro|correcto|right|sure)\b/;
 const NO = /^(?:no|nah|nope|nel)\b/;
 const meatIn = (p: string) => { const text = plain(p).replace(/\balpastor\b/g, "al pastor"); let best: [number, string] | null = null; for (const [re, key] of MEATS) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } if (best) return best[1]; for (const word of text.split(" ")) { const key = catalogMeatKey(word); if (key && key !== word && MEATS.some((row) => row[1] === key)) return key; } return null; };
 const dishIn = (p: string) => { const text = plain(p); let best: [number, string] | null = null; for (const [re, key] of DISHES) { const match = text.match(re); if (match && (!best || (match.index || 0) < best[0])) best = [match.index || 0, key]; } return best?.[1] || null; };

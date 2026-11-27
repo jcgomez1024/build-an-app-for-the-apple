@@ -1,4 +1,6 @@
 import { peelAnother, staffQuantity } from "./caller-count.js";
+import { ASK_ORDER, isAvailabilityAsk, NUM_A_TEN, NUM_TO_SIX, SPANISH_1_8, YES_LIST, numToSix } from "./order-lexicon.js";
+export { isAvailabilityAsk };
 import { EXTRA_TORTILLAS, houseDefaultOption } from "./house-defaults.js";
 import { catalogAddAllowed, catalogMentions, compoundForms, isDrinkProduct, matchSpokenCatalog, nameRelation, normalizeSpoken, spokenChoiceWords, spokenSizeWords } from "./menu-names.js";
 import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt } from "./standard-toppings.js";
@@ -9,8 +11,8 @@ import { EXPLICIT_EXTRA_MELTED, TACO_CON_QUESO, fixEnchiladaSpokenMods, plainOpt
 // papas y frijol" after "dos órdenes" splits the enchiladas.
 type Turn = { speaker: string; text: string };
 const plain = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-const numOf = (w: string) => Number(w) || NUM[w] || 0;
+const NUM = NUM_TO_SIX;
+const numOf = numToSix;
 const NUMW = "\\d+|una?|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six";
 const MEATS: Array<[RegExp, string]> = [[/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"], [/\btripas?\b/, "tripa"],
   [/\bcabezas?\b/, "cabeza"], [/\bprensado\b/, "prensado"], [/\blenguas?\b/, "lengua"], [/\bchorizo\b/, "chorizo"], [/\bpollo\b|\bchicken\b/, "pollo"], [/\bcarnitas\b/, "carnitas"],
@@ -383,15 +385,6 @@ export function applyAffirmedMeatRecap(cart: any[], turns: Turn[], menu: any[]):
 }
 // jonathan2 (CA11d424f): "una pregunta, ¿tiene tacos dorados de cueritos?" + staff "No" is not an order.
 // "Quería eso" after that decline points at the quesadillas already on the order, not the declined dish.
-const ASK_ORDER = /\b(?:quiero|quisiera|quer[ií]a|dame|deme|ponme|p[oó]ngame|me\s+(?:da|das|pone|pones)|me\s+puedes?\s+poner|i\s+want|give\s+me|i'?ll\s+take)\b/iu;
-/** "¿tiene/tienen/hay X?" and "una pregunta, ¿tiene X?" ask; they do not order. */
-export function isAvailabilityAsk(text: string): boolean {
-  const t = String(text || "");
-  if (ASK_ORDER.test(t) && !/\b(?:pregunta|duda|question)\b/iu.test(t)
-    && !/^\W*(?:(?:ah|oh|este|bueno|pues|s[ií])[,.\s]+){0,4}(?:me\s+)?(?:pone|pones|pongo|ponme|p[oó]ngame)\s+(?:un[oa]?)?\s*,?\s*(?:s[ií]\s+)?(?:tiene|tienen|tienes|hay)\b/iu.test(t)) return false;
-  if (/\b(?:tiene|tienen|tienes|hay|vende[ns]?|manejan|do\s+you\s+(?:guys\s+)?have|got\s+any)\b/iu.test(t) && /[?¿]/.test(t)) return true;
-  return /\b(?:pregunta|duda|question)\b/iu.test(t) && /\b(?:tiene|tienen|tienes|hay)\b/iu.test(t);
-}
 type AskDish = { text: RegExp; line: RegExp };
 /** Most specific dish in an availability question (tacos dorados ≠ plain tacos). */
 function askDish(text: string): AskDish | null {
@@ -1632,7 +1625,7 @@ export function applySaidMeat(cart: any[], turns: Turn[], menu: any[]): boolean 
 }
 const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toread(?:it)?[oa]s?|asad(?:it)?[oa]s?)\b|\b(?:toread(?:it)?[oa]s?|asad(?:it)?[oa]s?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b/; // "chilitos asaditos" is the same extra as "cebolla y chiles asados"
 const ASADOS_STAFF = /\bcebollas? y chiles? asados\b|\b(?:chiles )?toreados\b/;
-const YES = /^(?:si|yes|yeah|ok(?:ay)?|aja|claro|por favor|eso)\b/;
+const YES = YES_LIST;
 export const asadosSideSaid = (turns: Turn[]) => turns.some((t, i) => t.speaker === "caller" && (ASADOS_CALLER.test(plain(t.text))
   || (/\bcebollitas?|\bcebollas?\b/.test(plain(t.text)) && /\bchil(?:es?|itos?)\b/.test(plain(t.text)) && turns.slice(i + 1, i + 3).some((x) => x.speaker === "staff" && /\bchiles? asados?\b|\basados?\b|\btoreados?\b/.test(plain(x.text)))) // david-qco1
   || (YES.test(plain(t.text)) && ASADOS_STAFF.test(plain([...turns.slice(Math.max(0, i - 2), i)].reverse().find((x) => x.speaker === "staff")?.text || "")))));
@@ -3657,7 +3650,7 @@ export function liveMultiItem(r: any, input: any) {
 }
 
 // julian1 (CAb91612): "cuatro quesadillas de comal, dos de bistec y dos de chorizo" → lines carry the per-meat counts (2+2), never 1+1.
-const NUMWJ: Record<string, number> = { un: 1, una: 1, uno: 1, one: 1, a: 1, dos: 2, two: 2, tres: 3, three: 3, cuatro: 4, four: 4, cinco: 5, five: 5, seis: 6, six: 6, siete: 7, seven: 7, ocho: 8, eight: 8, nueve: 9, nine: 9, diez: 10, ten: 10 };
+const NUMWJ = NUM_A_TEN;
 const nOfJ = (w: string) => (/^\d+$/.test(w) ? Number(w) : NUMWJ[w] || 0);
 /** Per-meat counts in one phrase: "dos de bistec y dos de chorizo", "2 bistec, 2 chorizo". Returns [] unless ≥2 meats each have a count. */
 export function meatSplitCounts(text: string): Array<{ qty: number; meat: string }> {
@@ -4823,7 +4816,7 @@ export function applyAguaChica(cart: any[], turns: Turn[]): boolean { let ch = f
 // "otras dos en aceite, de cabeza … y la otra de bistec" (staff: "una de cabeza y una de bistec"), "otras dos en aceite de bistec
 // … con todo". Rebuild every QD line per group (qty/meat/style/notes); "en aceite" lines that landed as comal QCO go away.
 const QG_START = /\b(?:otr[ao]s?\s+)?(una?|dos|tres|cuatro|cinco|seis|siete|ocho|\d+)\s+(?:(?:quesadillas?|quesas?)\s+(?:en\s+(?:el\s+)?aceite|de\s+aceite|dorad[ao]s?|frit[ao]s?)\b|qds?\s+(?:regular\s+dorada|deluxe\s+preparada|deluxe\s+dorada)\b)/iu; // cristian-qd1: rewritten "Tres QD REGULAR Dorada"; CAb3ee43a: "dos QD DELUXE Dorada" 
-const QG_N: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8 };
+const QG_N = SPANISH_1_8;
 const qgN = (w: string) => QG_N[w.toLowerCase()] || Number(w) || 0;
 export function qdGroups(turns: Turn[]): Array<{ n: number; meats: Array<{ meat: string; n: number }>; deluxe: boolean; noLechuga: boolean }> {
   const starts: Array<{ i: number; n: number; tail: string }> = [];

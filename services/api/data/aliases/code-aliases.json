@@ -1,0 +1,639 @@
+{
+  "version": 1,
+  "note": "Spoken aliases that used to live only in code. approved is true when an approval record already existed, otherwise unrecorded. None of these rows had an approval record.",
+  "aliases": [
+    {
+      "id": "freddy2-doradas",
+      "match": "(?<!\\b(?:tacos?|flautas?|quesadillas?|quesas?|tostadas?|papas?|qd|tortillas?)\\s+(?:\\p{L}+\\s+){0,2})(?<!\\p{L})doradas(?!\\p{L})",
+      "to": "quesadillas doradas",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "josh3-cinnamon",
+      "match": "\\bcinnamon(?:\\s+rice)?\\s+(?:drinks?|waters?|milks?|beverages?)\\b",
+      "to": "horchata",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "yoni1-bistec",
+      "match": "(?<!\\p{L})(?:bist[eé]c?k|bist[eé]d|bist[eé])(?!\\p{L})|(?<=\\b(?:de|con|y)\\s+)bis[eé](?!\\p{L})",
+      "to": "bistec",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "vapor1-name",
+      "match": "\\btacos?\\s+(?:sudad[oi]s|de\\s+canasta|de\\s+vapor)\\b",
+      "to": "tacos al vapor",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "chui1-supreme",
+      "match": "\\bsuprem[ea]s?\\b",
+      "to": "preparada",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "vapor1-quesitoto",
+      "match": "\\bquesitot[oa](s?)\\b",
+      "to": "quesitorta$1",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "coctel1-name",
+      "match": "\\bc[oó]ctel(?:es)?\\s+de\\s+camar[oó]n(?!es\\s*\\/|\\s*\\/)(?:es)?\\b(?!\\s*\\/)|\\bshrimp\\s+c[oó]ctel\\b(?!\\s*\\()",
+      "to": "Coctel de Camarones / Shrimp Cocktail",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "coctel1-variant",
+      "match": "\\b(?:nada\\s+m[aá]s|s[oó]lo|solamente|just|only)\\s+(?:el\\s+|de\\s+|the\\s+)?(?:c[oó]ctel(?!\\s+de\\s+camar)|camar[oó]n(?:es)?|shrimp)\\b(?!\\s*(?:y|and|con|with)\\s+(?:pulpo|calamar))",
+      "to": "Coctel de Camaron / Shrimp",
+      "flags": "giu",
+      "scope": [
+        "phone",
+        "app"
+      ],
+      "forbids": "pulpo|calamar|octopus",
+      "apply": "shared",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-nuditos",
+      "match": "\\bnuditos\\b",
+      "to": "gorditas",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-gorditos",
+      "match": "\\bgorditos\\b",
+      "to": "gorditas",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-de-cebrada",
+      "match": "\\bde\\s+cebrada\\b",
+      "to": "de deshebrada",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-cebrada",
+      "match": "\\bcebrada\\b",
+      "to": "deshebrada",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-lasada",
+      "match": "\\blasada\\b",
+      "to": "la asada",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-quesibirria",
+      "match": "\\bquesi[bv]irrias?\\b|\\bquesa[bv]irrias?\\b|\\bquesadillas?\\s+de\\s+birrias?\\b",
+      "to": "queso birrias",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-mezclados",
+      "match": "\\b(?:misteados?|mixteados?|mezclados?|surtidos?)\\b",
+      "to": "mezclados",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-papas-razas",
+      "match": "\\bpapas\\s+con\\s+razas\\b",
+      "to": "papas con rajas",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-de-razas",
+      "match": "\\bde\\s+razas\\b",
+      "to": "de rajas",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-chicharron-prensado",
+      "match": "\\bchicharron\\s+prensado\\b",
+      "to": "prensado",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-chicharron-duro",
+      "match": "\\bchicharron\\s+duro\\b",
+      "to": "duro",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "ledger-de-de",
+      "match": "\\b(de\\s+)+(al\\s+)?(de\\s+)+",
+      "to": "de ",
+      "flags": "g",
+      "apply": "spoken-ledger",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-enjombo",
+      "match": "\\benjombo\\b",
+      "to": "combo",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-hechas-a-mano",
+      "match": "\\bhechas a mano\\b",
+      "to": "comal",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-hecha-a-mano",
+      "match": "\\bhecha a mano\\b",
+      "to": "comal",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-hechas-mano",
+      "match": "\\bhechas mano\\b",
+      "to": "comal",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-hecha-mano",
+      "match": "\\bhecha mano\\b",
+      "to": "comal",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-carnita",
+      "match": "\\bcarnita\\b",
+      "to": "carnitas",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-nuditos",
+      "match": "\\bnuditos\\b",
+      "to": "gorditas",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-gorditos",
+      "match": "\\bgorditos\\b",
+      "to": "gorditas",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-cebrada",
+      "match": "\\bcebrada\\b",
+      "to": "deshebrada",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-charrones",
+      "match": "\\bcharrones\\b",
+      "to": "chicharrones",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-charron",
+      "match": "\\bcharron\\b",
+      "to": "chicharron",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-roast-frijol",
+      "match": "\\b(?:roast|rost|ros|rose)\\b(?=\\s+(?:y|con|and|e)\\s+frijol)",
+      "to": "arroz",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "norm-combo-roast",
+      "match": "(\\bcombo\\s+(?:de|con)\\s+)(?:roast|rost|ros|rose)\\b",
+      "to": "$1arroz",
+      "flags": "g",
+      "apply": "normalize-spoken",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-1",
+      "match": "\\bdosa\\b",
+      "to": "dos",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-2",
+      "match": "\\b(quesadillas?)\\s+en\\s+(?:el\\s+|la\\s+)?(?:salte|saltes|salt|aseite|asete|acete|aceites)\\b,?(?:\\s+fried\\b)?",
+      "to": "$1 en aceite",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-3",
+      "match": "\\b[KkCc]amal\\b",
+      "to": "comal",
+      "flags": "gu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-4",
+      "match": "(?<![\\p{L}])men[uú](?![\\p{L}])",
+      "to": "menudo",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-5",
+      "match": "\\bde\\s+de\\b",
+      "to": "de",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-6",
+      "match": "\\bcharr[oó]n(?:es)?\\b",
+      "to": "chicharrón",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-7",
+      "match": "\\bclemoritas?\\b",
+      "to": "gorditas",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-8",
+      "match": "\\b(?:chips|totopos)\\s+con,?\\s+(?:el\\s+)?pico(?:\\s+de\\s+gallo)?\\b|\\bpico(?:\\s+de\\s+gallo)?\\s+(?:con|and|with)\\s+chips\\b",
+      "to": "Dips Pico de Gallo con Chips",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-9",
+      "match": "\\bquesad\\b",
+      "to": "quesadillas",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-10",
+      "match": "\\bquesi[bv]irrias?\\b",
+      "to": "Queso Birrias",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-11",
+      "match": "\\b(?:queso|quesa|keso)\\s*[bv](?:u|i|ui)r+i?as?\\b|\\bquesa[bv]irrias?\\b",
+      "to": "Queso Birrias",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-12",
+      "match": "\\bquesadillas?\\s+de\\s+birria\\b",
+      "to": "Queso Birrias",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-13",
+      "match": "\\bdisel\\b",
+      "to": "bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-14",
+      "match": "\\b(\\d|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\\s+sacos\\s+de\\b",
+      "to": "$1 tacos de",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-15",
+      "match": "\\btripitas?\\b",
+      "to": "tripa",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-16",
+      "match": "\\btaquitos\\b",
+      "to": "tacos",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-17",
+      "match": "\\bde\\s+vit[eé]z?(?!\\p{L})",
+      "to": "de bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-18",
+      "match": "\\bvit[eé]z?(?!\\p{L})",
+      "to": "bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-19",
+      "match": "\\bchicharr[oó]n\\s+(prensado|duro)\\b",
+      "to": "$1",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-20",
+      "match": "\\b(?:tiene\\s+)?fritas?\\s+(?:en|de)\\s+aceite\\b",
+      "to": "doradas de aceite",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-21",
+      "match": "\\b(quesadillas?)\\s+fritas?\\b",
+      "to": "$1 doradas",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-22",
+      "match": "\\b(?:s[ií][,.]?\\s+)?tiene\\s+quesadillas?\\s+(?:en|de)\\s+aceite\\b",
+      "to": "quesadillas doradas de aceite",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-23",
+      "match": "^\\W*para\\s+la\\W*$",
+      "to": "preparadas",
+      "flags": "iu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-24",
+      "match": "\\b(?:tambi[eé]n\\s+)?debiste\\b",
+      "to": "también de bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-25",
+      "match": "\\bde\\s+viste(?!\\p{L})",
+      "to": "de bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-26",
+      "match": "\\bviste(?!\\p{L})",
+      "to": "bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-27",
+      "match": "\\bbizco\\b",
+      "to": "bistec",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-28",
+      "match": "\\bsabos\\b",
+      "to": "vasos",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-29",
+      "match": "\\bsalsa\\s+dorada\\b",
+      "to": "salsa asada",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-30",
+      "match": "\\b(?:dos|2)\\s+menudos?\\b([^.]{0,120}?)\\buno\\s+con\\s+patas?\\s+y\\s+(?:uno|el\\s+otro)\\s+sin\\s+patas?\\b",
+      "to": "un menudo con pata y un menudo sin pata",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-31",
+      "match": "\\b(?:dos|2)\\s+menudos?\\b([^.]{0,120}?)\\buno\\s+sin\\s+patas?\\s+y\\s+(?:uno|el\\s+otro)\\s+con\\s+patas?\\b",
+      "to": "un menudo sin pata y un menudo con pata",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-32",
+      "match": "^\\W*y?\\s*(?:ah[,.]?\\s*)?uno\\s+con\\s+patas?\\s+y\\s+(?:uno|el\\s+otro)\\s+sin\\s+patas?\\W*$",
+      "to": "un menudo con pata y un menudo sin pata",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-33",
+      "match": "^\\W*y?\\s*(?:ah[,.]?\\s*)?uno\\s+sin\\s+patas?\\s+y\\s+(?:uno|el\\s+otro)\\s+con\\s+patas?\\W*$",
+      "to": "un menudo sin pata y un menudo con pata",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-34",
+      "match": "\\borden(?:es)?\\s+de\\s+menos(?:\\s+dos)?\\b",
+      "to": "orden de menudo",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-35",
+      "match": "\\b(?:un[oa]?|una)\\s+menos(?:\\s+dos)?\\b",
+      "to": "un menudo",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-36",
+      "match": "\\bopales\\b",
+      "to": "nopales",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-37",
+      "match": "\\bpapas\\s+con\\s+nopales\\b",
+      "to": "nopales con papas",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-38",
+      "match": "\\bchicharr[oó]n\\s+del\\s+duro\\b",
+      "to": "duro",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-39",
+      "match": "\\bquesitot[ao]s?\\b",
+      "to": "quesitorta",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-40",
+      "match": "\\bqueso\\s+brutas?\\b",
+      "to": "quesitorta",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-41",
+      "match": "\\bsopa\\s+de\\s+lata\\b",
+      "to": "coca de lata",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    },
+    {
+      "id": "rw-42",
+      "match": "\\btrigo\\b",
+      "to": "chorizo",
+      "flags": "giu",
+      "apply": "rewrite",
+      "approved": "unrecorded"
+    }
+  ]
+}
