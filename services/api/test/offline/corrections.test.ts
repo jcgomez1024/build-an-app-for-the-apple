@@ -135,15 +135,10 @@ test("gorditas stay when the same turn also orders sopes", () => {
   assert.equal(cart.filter((l) => String(l.itemId) === sope.id).every((l) => lineMeatsOf(l).length <= 1), true);
 });
 
-test("a self correction to sopes drops the gorditas and does not fuse their meat onto the sope", () => {
-  const cart: any[] = [
-    gorditaLine("(GD) Gordita", "Bistec / Steak"),
-  ];
+test("a bare ah between gorditas and sopes does not drop the gorditas", () => {
+  const cart: any[] = [gorditaLine("(GD) Gordita", "Bistec / Steak")];
   applyCorrections(cart, [T("caller", "Dos gorditas de bistec, ah, dos sopes de pastor.")], menu);
-  assert.equal(cart.some((l) => String(l.itemId) === gordita.id), false);
-  const sopes = cart.filter((l) => /sope/i.test(String(l.itemId)));
-  assert.equal(sopes.length, 1);
-  assert.deepEqual(lineMeatsOf(sopes[0]), ["alpastor"]);
+  assert.equal(cart.some((l) => String(l.itemId) === gordita.id), true);
 });
 
 test("an empty cart stays empty when the caller adds queso", () => {
@@ -283,32 +278,19 @@ test("no before the gorditas does not turn them into sopes", () => {
   assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 2);
 });
 
-test("a sope correction drops only the gordita meat it names", () => {
+test("perdon between gorditas and sopes does not drop either meat", () => {
   const cart: any[] = [
     gorditaLine("(GD) Gordita", "Duro / Pork Rinds"),
     gorditaLine("(GD) Gordita", "Bistec / Steak"),
   ];
-  applyCorrections(cart, [T("caller", "Dos gorditas, una de duro y una de bistec, ah, dos sopes de bistec.")], menu);
-  assert.equal(cart.some((l) => String(l.itemId) === gordita.id && /duro/i.test(styleOf(l))), true);
-  assert.equal(cart.some((l) => String(l.itemId) === gordita.id && /bistec/i.test(styleOf(l))), false);
-});
-
-test("ah y tambien keeps the gorditas and adds the sopes", () => {
-  const cart: any[] = [gorditaLine("(GD) Gordita", "Duro / Pork Rinds")];
-  applyCorrections(cart, [T("caller", "Dos gorditas de duro, ah, y también dos sopes de bistec.")], menu);
-  assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 1);
-  const sopes = cart.filter((l) => String(l.itemId) === sope.id);
-  assert.equal(sopes.length, 1);
-  assert.match(styleOf(sopes[0]), /bistec/i);
-});
-
-test("y perdon keeps the gorditas and adds the sopes", () => {
-  const cart: any[] = [gorditaLine("(GD) Gordita", "Duro / Pork Rinds"), gorditaLine("(GD) Gordita", "Duro / Pork Rinds")];
-  applyCorrections(cart, [T("caller", "Dos gorditas de duro y, perdón, dos sopes de pastor.")], menu);
+  applyCorrections(cart, [T("caller", "Dos gorditas, una de duro y una de bistec, perdón, dos sopes de bistec.")], menu);
   assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 2);
-  const sopes = cart.filter((l) => String(l.itemId) === sope.id);
-  assert.equal(sopes.length, 1);
-  assert.match(styleOf(sopes[0]), /pastor/i);
+});
+
+test("este and aparte do not delete the gorditas", () => {
+  const cart: any[] = [gorditaLine("(GD) Gordita", "Duro / Pork Rinds")];
+  applyCorrections(cart, [T("caller", "Dos gorditas de duro, este, aparte dos sopes de pastor.")], menu);
+  assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 1);
 });
 
 test("nada mas uno con queso does not lower the taco count", () => {
@@ -328,6 +310,24 @@ test("nomas dos con cebolla does not lower the taco count", () => {
     T("caller", "Nomás dos con cebolla."),
   ], menu);
   assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 3);
+});
+
+test("nada mas uno sin cebolla does not lower the taco count", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Alpastor / Roasted Pork")] }];
+  applyCorrections(cart, [
+    T("caller", "Tres tacos de pastor."),
+    T("caller", "Nada más uno, sin la cebolla."),
+  ], menu);
+  assert.equal(cart[0].quantity, 3);
+});
+
+test("nada mas that retells the other tacos does not lower the count", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Bistec / Steak")] }];
+  applyCorrections(cart, [
+    T("caller", "Tres tacos de bistec."),
+    T("caller", "Nada más uno en harina, y los demás en maíz."),
+  ], menu);
   assert.equal(cart[0].quantity, 3);
 });
 

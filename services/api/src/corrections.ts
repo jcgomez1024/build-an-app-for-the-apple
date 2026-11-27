@@ -18,7 +18,6 @@ type Slot = {
   restyle?: boolean;
   /** "otra … con queso" changes only a later line of that meat. It must not rewrite the earlier plain one. */
   quesoLast?: boolean;
-  force?: boolean;
 };
 type Drop = { kind: Kind; meats: string[] };
 type Plan = { ensure: Slot[]; drop: Drop[]; spoken: Slot[] };
@@ -250,11 +249,10 @@ export function correctionPlan(turns: Turn[]): Plan {
       }
     }
 
-    // "me pones uno grande, nomás" / "nada más una" sets that dish's count. It does not leave the old count beside it.
-    // "nada más uno con queso" is a topping, not a new count.
-    const only = text.match(new RegExp(`\\b(?:nada mas|nomas)\\s+(${NUMW})\\b|\\b(?:me pones?|ponme|dame)\\s+(${NUMW})\\b.{0,40}\\b(?:grande\\s+)?(?:nomas|nada mas)\\b`));
-    const topping = new RegExp(`\\b(?:nada mas|nomas)\\s+(?:${NUMW})\\b.{0,30}\\bcon\\b`).test(text);
-    if (only && open.kind && !topping) {
+    // "me pones uno grande, nomás" sets that dish's count. It does not leave the old count beside it.
+    // "nada más N ..." does not lower a count: the words after the number are a topping or another line.
+    const only = text.match(new RegExp(`\\b(?:me pones?|ponme|dame)\\s+(${NUMW})\\b.{0,40}\\b(?:grande\\s+)?(?:nomas|nada mas)\\b`));
+    if (only && open.kind) {
       const n = numOf(only[1] || only[2] || "");
       if (!n) continue;
       const grande = /\bgrande\b/.test(text) || /\bsopesas/.test(text);
@@ -289,38 +287,6 @@ export function correctionPlan(turns: Turn[]): Plan {
     const staffGone = (turns || []).some((t) => t.speaker === "staff" && /\b(?:se acabo|se termin|no hay|sold out|ran out|dont have)\b/.test(hear(String(t.text || ""))) && /\bbolillo|torta|bread\b/.test(hear(String(t.text || ""))));
     if (staffGone && /\bentonces\b/.test(text) && kindIn(text) && kindIn(text) !== "torta") {
       drop.push({ kind: "torta", meats: [] });
-    }
-
-    // Gorditas and sopes in one turn stay two dishes. The gorditas come off only when the caller
-    // corrects themselves after the gordita and before the sope ("ah", "no", "mejor", "perdón").
-    // A "no" that comes first is the order, not a correction. Two gordita meats: only the meat
-    // named again on the sope comes off. The sope keeps only the meat said with it.
-    if (/\bgorditas?\b/.test(text) && /\bsopes?\b/.test(text)) {
-      const gorditaAt = text.search(/\bgorditas?/);
-      const sopeAt = text.search(/\bsopes/);
-      const sopeClause = text.slice(sopeAt);
-      const afterGordita = gorditaAt >= 0 && sopeAt > gorditaAt ? text.slice(gorditaAt, sopeAt).replace(/^\s*gorditas?\b/, "") : "";
-      const corrWord = afterGordita.match(/\b(ah|no|mejor|perdon)\b/);
-      const afterWord = corrWord ? afterGordita.slice((corrWord.index || 0) + corrWord[1].length) : "";
-      const beforeWord = corrWord ? afterGordita.slice(0, corrWord.index || 0) : "";
-      // "ah, y también" and "y, perdón" add the sopes. The filler does not delete the gorditas.
-      const filler = !!corrWord && (/\btambien\b/.test(afterGordita) || /\by\b/.test(afterWord) || /\by\s*,?\s*$/.test(beforeWord.trim()));
-      const corrects = !!corrWord && !filler;
-      const sopeMeats = meatsIn(sopeClause);
-      const meats = /\bcon\b/.test(sopeClause) ? sopeMeats.slice(0, 2) : sopeMeats.slice(0, 1);
-      const lead = afterGordita.match(new RegExp(`\\b(${NUMW})\\s*$`));
-      const n = numOf((sopeClause.match(new RegExp(`\\b(${NUMW})\\b`)) || [])[1] || "") || numOf(lead?.[1] || "") || 1;
-      const grande = /\bgrande\b|\bsopesas/.test(text);
-      if (filler && meats.length) put(blank({ kind: "sope", meats, n, grande, force: true }));
-      if (corrects) {
-        const gorditaMeats = meatsIn(text.slice(gorditaAt, sopeAt));
-        const shared = gorditaMeats.filter((m) => meats.includes(m));
-        const dropMeats = gorditaMeats.length <= 1 ? gorditaMeats : (shared.length === 1 ? shared : null);
-        if (dropMeats) drop.push({ kind: "gordita", meats: dropMeats });
-        if (meats.length && dropMeats) put(blank({ kind: "sope", meats, n, grande, force: true }));
-        if (dropMeats) remember("sope", meats, n, "");
-      }
-      continue;
     }
 
     // Ordinary order, kept so a later correction knows what it edits.
@@ -380,7 +346,7 @@ export function correctionPlan(turns: Turn[]): Plan {
   const queued = ensure.filter((s) => s.n > 0 && s.meats.length);
   const linked = (d: Drop) => queued.some((s) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope")));
   const drops = drop.filter(linked);
-  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.exclusive || s.force || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope"))));
+  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.exclusive || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope"))));
   return { ensure: kept, drop: drops, spoken: seen.filter((s) => s.n > 0 && s.meats.length) };
 }
 

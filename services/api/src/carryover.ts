@@ -397,23 +397,19 @@ function cartHasDish(cart: any[]): boolean {
   });
 }
 function saidAsados(text: string): boolean {
-  // "sin" / "ni" anywhere in the phrase is a refusal, not an order for the side.
-  if (/\bsin\b|\bni\b/.test(text)) return false;
-  if (/\bpeppers and onions\b/.test(text)) return true;
-  // "cebolla asada" has the two words touching. A meat "asada" later in the sentence does not count,
-  // and no spare word may sit between the onion and the chile or "asada".
-  const onion = "cebollit?as?|cebollas?";
-  const chile = "chilitos?|chiles?|peppers?";
-  const join = "\\s+(?:y|con|and)\\s+";
-  const asad = "asad\\w*";
-  const patterns = [
-    `\\b(?:${onion})\\s+${asad}\\b`,
-    `\\b(?:${onion})${join}(?:${chile})\\s+${asad}\\b`,
-    `\\b(?:${chile})${join}(?:${onion})\\s+${asad}\\b`,
-    `\\b(?:${onion})\\s+${asad}${join}(?:${chile})\\b`,
-    `\\b(?:${chile})\\s+${asad}${join}(?:${onion})\\b`,
-  ];
-  return patterns.some((p) => new RegExp(p).test(text));
+  // Batch 3 matcher: the onion word touches "asad...", or the caller said "peppers and onions".
+  // A meat "asada" later in the sentence does not count. A negation that governs this phrase does not count.
+  // "ni modo" earlier in the turn does not cancel a real "cebollas asadas" after it.
+  const re = /\b(?:cebollitas?\s+asad\w*|cebollas?\s+asad\w*|peppers and onions)\b/g;
+  for (const m of text.matchAll(re)) {
+    const before = text.slice(Math.max(0, (m.index || 0) - 48), m.index || 0);
+    const tail = before.trim();
+    const refused = /\b(?:sin|quitale|quita(?:le|me)?|no le pongas|no pongas|without)\b/.test(before)
+      || /\bno\b\s*$/.test(tail)
+      || /\bni\b(?!\s+modo)\s*$/.test(tail);
+    if (!refused) return true;
+  }
+  return false;
 }
 function alreadyCebollaSide(cart: any[], ex: any): boolean {
   // A dish topping is not the side. The side is already on the cart when an extras line
