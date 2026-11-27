@@ -23,6 +23,7 @@ import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurr
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ as spokenAvailQ, isAck, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applySecondGroups } from "./second-groups.js";
+import { applyCarryover } from "./carryover.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
@@ -8332,6 +8333,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   if (Array.isArray(menuEnd) && applySecondGroups(cart as any[], origTurns as any, menuEnd as any[]))
     steps.push({ source: "end-second-groups", heard: "kept a later group" });
+  if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[]))
+    steps.push({ source: "end-carryover", heard: "kept each dish's style and meat" });
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
