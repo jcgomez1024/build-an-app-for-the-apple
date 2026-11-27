@@ -397,9 +397,20 @@ function cartHasDish(cart: any[]): boolean {
   });
 }
 function saidAsados(text: string): boolean {
-  if (/\bcebollitas?\s+asad|\bcebollas?\s+asad|\bpeppers and onions\b/.test(text)) return true;
-  // "cebollita y chilitos asaditos" is the same side. The words do not have to sit next to each other.
-  return /\b(?:cebollit?as?|cebollas?)\b/.test(text) && /\b(?:chilitos?|chiles?|peppers?)\b/.test(text) && /\basad/.test(text);
+  if (/\bpeppers and onions\b/.test(text)) return true;
+  // "cebolla asada" is the side. "Asada" as a meat does not count, and a chile word
+  // counts only when it sits with the onion, joined by nothing, "y", or "con", with "asad..." on that pair.
+  const onion = "cebollit?as?|cebollas?";
+  if (new RegExp(`\\b(?:${onion})\\s+asad`).test(text)) return true;
+  const chile = "chilitos?|chiles?|peppers?";
+  const gap = "(?:\\s+(?:y|con|and))?(?:\\s+\\w+){0,2}\\s+";
+  const asadAfter = "(?:\\s+\\w+){0,2}\\s+asad";
+  const patterns = [
+    `\\b(?:${onion})${gap}(?:${chile})\\b${asadAfter}`,
+    `\\b(?:${chile})${gap}(?:${onion})\\b${asadAfter}`,
+    `\\b(?:${chile})\\s+asad\\w*(?:\\s+(?:y|con|and))?(?:\\s+\\w+){0,2}\\s+(?:${onion})\\b`,
+  ];
+  return patterns.some((p) => new RegExp(p).test(text));
 }
 function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));

@@ -193,6 +193,18 @@ test("a drink is not a dish, and tortillas do not skip the onion side", () => {
   const otherWording: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
   applyCarryover(otherWording, [T("caller", "Add cebolla y chile asado on the side.")], menu);
   assert.equal(otherWording.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const asadaMeat: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(asadaMeat, [T("caller", "Tres tacos de asada con cebolla y unos chiles toreados.")], menu);
+  assert.equal(asadaMeat.some((l) => /cebolla/.test(String(l.itemId))), false);
+  const asaditos: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(asaditos, [T("caller", "Y me le pones cebollita y chilitos asaditos.")], menu);
+  assert.equal(asaditos.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const onion: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
+  applyCarryover(onion, [T("caller", "A esas normales les puede poner cebolla asada.")], menu);
+  assert.equal(onion.some((l) => /cebolla/.test(String(l.itemId))), true);
+  const onions: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(onions, [T("caller", "Add cebollas asadas on the side.")], menu);
+  assert.equal(onions.some((l) => /cebolla/.test(String(l.itemId))), true);
 });
 
 test("yes to deluxe preparadas flips a regular dorada, and sin queso does not make a queso gordita", () => {

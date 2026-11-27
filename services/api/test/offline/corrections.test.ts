@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyCorrections } from "../../src/corrections.ts";
+import { applyCorrections, correctionPlan } from "../../src/corrections.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
 const menu = frozenPhoneMenu();
@@ -196,26 +196,6 @@ test("torteada is not comal and dedos de is not de", () => {
   assert.equal(/comal|TCO|harina/i.test(styleOf(other[0])), false);
 });
 
-test("quitales los de tripa removes that line and leaves the other meat", () => {
-  const cart: any[] = [
-    { itemId: taco.id, quantity: 2, modifiers: [meat("Tripa / Beef Tripe")] },
-    { itemId: taco.id, quantity: 1, modifiers: [meat("Bistec / Steak")] },
-  ];
-  applyCorrections(cart, [T("caller", "Quítale los de tripa.")], menu);
-  assert.equal(cart.some((l) => /tripa/i.test(styleOf(l))), false);
-  assert.equal(cart.some((l) => /bistec/i.test(styleOf(l))), true);
-});
-
-test("quita las de pollo removes the chicken and leaves the steak", () => {
-  const cart: any[] = [
-    { itemId: quesadilla.id, quantity: 1, modifiers: [tortilla("QCO"), meat("Pollo / Chicken")] },
-    { itemId: quesadilla.id, quantity: 2, modifiers: [tortilla("QHR"), meat("Bistec / Steak")] },
-  ];
-  applyCorrections(cart, [T("caller", "Quita las de pollo, por favor.")], menu);
-  assert.equal(cart.some((l) => /pollo/i.test(styleOf(l))), false);
-  assert.equal(cart.filter((l) => /bistec/i.test(styleOf(l))).length, 1);
-});
-
 test("en vez de pastor de bistec changes the pastor line and does not add one", () => {
   const cart: any[] = [
     { itemId: taco.id, quantity: 2, modifiers: [meat("Alpastor / Roasted Pork")] },
@@ -239,87 +219,95 @@ test("instead of the chicken, steak, retargets the line", () => {
   assert.doesNotMatch(styleOf(cart[0]), /pollo/i);
 });
 
-test("no tres after a staff dos keeps the caller's count", () => {
-  const cart: any[] = [{ itemId: burrito.id, quantity: 2, modifiers: [{ step: "(B) Burrito Carne Options", option: "Bistec / Steak" }] }];
-  applyCorrections(cart, [
-    T("caller", "Tres burritos."),
-    T("staff", "¿Dos?"),
-    T("caller", "No, tres."),
-  ], menu);
+test("quitales the onion or the cheese does not delete the chicken tacos", () => {
+  for (const said of ["Quítale la cebolla a los de pollo.", "Quítale el queso a los de pollo.", "Remove the onions from the chicken tacos."]) {
+    const cart: any[] = [{ itemId: taco.id, quantity: 2, modifiers: [meat("Pollo / Chicken")] }];
+    applyCorrections(cart, [T("caller", said)], menu);
+    assert.equal(cart.length, 1, said);
+    assert.equal(cart[0].quantity, 2, said);
+    assert.match(styleOf(cart[0]), /pollo/i, said);
+  }
+});
+
+test("quitame uno de tripa does not delete all three", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Tripa / Beef Tripe")] }];
+  applyCorrections(cart, [T("caller", "Quítame uno de tripa.")], menu);
+  assert.equal(cart.length, 1);
   assert.equal(cart[0].quantity, 3);
 });
 
-test("no four after a staff three keeps four tacos", () => {
-  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Bistec / Steak")] }];
+test("a staff number that is not the order does not change a line", () => {
+  const probes = [
+    [T("staff", "¿Dos minutos está bien?"), T("caller", "No, diez.")],
+    [T("staff", "¿Dos horchatas?"), T("caller", "No, una.")],
+    [T("staff", "¿Una persona?"), T("caller", "No.")],
+    [T("staff", "¿Dos de harina?"), T("caller", "No, de comal.")],
+  ];
+  for (const turns of probes) {
+    const cart: any[] = [{ itemId: taco.id, quantity: 2, modifiers: [meat("Bistec / Steak")] }];
+    applyCorrections(cart, turns, menu);
+    assert.equal(cart.length, 1);
+    assert.equal(cart[0].quantity, 2);
+    assert.match(styleOf(cart[0]), /bistec/i);
+  }
+});
+
+test("otra then a staff tres and a yes does not leave one bistec", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 2, modifiers: [meat("Bistec / Steak")] }];
   applyCorrections(cart, [
-    T("caller", "Four tacos."),
-    T("staff", "Three?"),
-    T("caller", "No, four."),
+    T("caller", "Otra de bistec."),
+    T("staff", "¿Tres de bistec?"),
+    T("caller", "Sí."),
   ], menu);
+  assert.equal(cart.length, 1);
+  assert.notEqual(cart[0].quantity, 1);
+  assert.equal(cart[0].quantity, 2);
+});
+
+test("si cuatro is not forced down to three", () => {
+  const cart: any[] = [{ itemId: burrito.id, quantity: 4, modifiers: [{ step: "(B) Burrito Carne Options", option: "Bistec / Steak" }] }];
+  applyCorrections(cart, [
+    T("staff", "¿Tres burritos?"),
+    T("caller", "Sí, cuatro."),
+  ], menu);
+  assert.equal(cart.length, 1);
   assert.equal(cart[0].quantity, 4);
 });
 
-test("otra does not become a staff tres", () => {
-  const cart: any[] = [{ itemId: quesadilla.id, quantity: 3, modifiers: [tortilla("QCO"), meat("Bistec / Steak")] }];
-  applyCorrections(cart, [
-    T("caller", "Una quesadilla de bistec."),
-    T("caller", "Otra de bistec."),
-    T("staff", "Tres quesadillas de bistec."),
-  ], menu);
-  assert.equal(cart[0].quantity, 2);
+test("no before the gorditas does not turn them into sopes", () => {
+  const cart: any[] = [
+    gorditaLine("(GD) Gordita", "Duro / Pork Rinds"),
+    gorditaLine("(GD) Gordita", "Duro / Pork Rinds"),
+  ];
+  applyCorrections(cart, [T("caller", "No, nomás dos gorditas de duro y dos sopes de bistec.")], menu);
+  assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 2);
 });
 
-test("another steak taco does not become the staff count of three", () => {
-  const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Bistec / Steak")] }];
-  applyCorrections(cart, [
-    T("caller", "One steak taco."),
-    T("caller", "Another steak taco."),
-    T("staff", "Three tacos."),
-  ], menu);
-  assert.equal(cart[0].quantity, 2);
+test("a sope correction drops only the gordita meat it names", () => {
+  const cart: any[] = [
+    gorditaLine("(GD) Gordita", "Duro / Pork Rinds"),
+    gorditaLine("(GD) Gordita", "Bistec / Steak"),
+  ];
+  applyCorrections(cart, [T("caller", "Dos gorditas, una de duro y una de bistec, ah, dos sopes de bistec.")], menu);
+  assert.equal(cart.some((l) => String(l.itemId) === gordita.id && /duro/i.test(styleOf(l))), true);
+  assert.equal(cart.some((l) => String(l.itemId) === gordita.id && /bistec/i.test(styleOf(l))), false);
 });
 
-test("otra orden with its own count does not shrink that count", () => {
-  const cart: any[] = [{ itemId: burrito.id, quantity: 2, modifiers: [meat("Bistec / Steak")] }];
-  applyCorrections(cart, [
-    T("caller", "Si, otra orden. Dos burritos de bistec."),
-    T("staff", "Dos burritos de bistec."),
-  ], menu);
-  assert.equal(cart.length, 1);
-  assert.equal(cart[0].quantity, 2);
+test("con todo and de todo do not mark a dorada deluxe", () => {
+  for (const said of ["No, mejor una quesadilla dorada de bistec con todo.", "En vez de los tacos, una quesadilla de bistec de todo."]) {
+    const plan = correctionPlan([T("caller", "Tres tacos de bistec."), T("caller", said)]);
+    assert.equal(plan.ensure.some((slot) => slot.qd === "preparada"), false, said);
+  }
 });
 
-test("otra va a ser does not shrink the pastor quesadillas", () => {
-  const cart: any[] = [{ itemId: quesadilla.id, quantity: 2, modifiers: [tortilla("QCO"), meat("Alpastor / Roasted Pork")] }];
+test("a swap that cannot land the new item does not empty the cart", () => {
+  const cart: any[] = [{ itemId: burrito.id, quantity: 2, modifiers: [{ step: "(B) Burrito Carne Options", option: "Bistec / Steak" }] }];
   applyCorrections(cart, [
-    T("caller", "Dos quesadillas de pastor."),
-    T("caller", "Otra va a ser."),
-    T("staff", "Dos quesadillas de pastor."),
+    T("caller", "2 burritos."),
+    T("caller", "No, mejor dos tacos de bistec."),
   ], menu);
-  assert.equal(cart.length, 1);
-  assert.equal(cart[0].quantity, 2);
-});
-
-test("otra quesadilla de buche does not raise that line to the earlier tres", () => {
-  const cart: any[] = [{ itemId: quesadilla.id, quantity: 1, modifiers: [tortilla("QCO"), meat("Buche / Pork Stomach")] }];
-  applyCorrections(cart, [
-    T("caller", "Van a ser tres quesadillas."),
-    T("caller", "Y va a ser otra quesadilla de comal, de buche."),
-    T("staff", "Una quesadilla de comal de buche."),
-  ], menu);
-  assert.equal(cart.length, 1);
-  assert.equal(cart[0].quantity, 1);
-});
-
-test("la otra vez is not one more taco", () => {
-  const cart: any[] = [{ itemId: taco.id, quantity: 2, modifiers: [meat("Tripa / Beef Tripe")] }];
-  applyCorrections(cart, [
-    T("caller", "Dos tacos de tripa."),
-    T("caller", "La otra vez pedi tacos de maiz."),
-    T("staff", "Dos tacos de tripa."),
-  ], menu);
-  assert.equal(cart.length, 1);
-  assert.equal(cart[0].quantity, 2);
+  assert.ok(cart.length > 0);
+  assert.equal(cart.some((l) => String(l.itemId) === burrito.id), true);
 });
 
 function lineMeatsOf(line: any): string[] {
