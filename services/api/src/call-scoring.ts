@@ -22,6 +22,7 @@ import { EXPLICIT_EXTRA_MELTED } from "./standard-toppings.js";
 import { restaurantConfirm, salsaOnlyTurn, sideAnswerTurn, sideSalsas, applyBurritoReadback, applyReadbackSalsaPref, applyStaffOrderCount, affirmedStaffSoupQty, dropIncludedTortillas, applyDrinkRestatement, addStaffConfirmedTacos, applyEnglishReadback, isStatusFollowUpCall, isCancelOrderCall, isAbandonedOrder, isAbandonTurn, isExistingOrderCall, isPersonInChargeCall, isTotalOnlyCall, nonOrderCallerTurn, applyVaporOrders, applyQuesoTortaSpoken, applyEnchiladaOrder, applyQdSupreme } from "./readback-pass.js";
 import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ as spokenAvailQ, isAck, isEchoOfStaff, unavailMatchesId } from "./spoken-ledger.js";
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
+import { applySecondGroups } from "./second-groups.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
@@ -8329,6 +8330,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       if (!(steps as any).reviewReason) (steps as any).reviewReason = lateCounted.reviewReason;
     } else if ((steps as any).reviewReason === "revisar pedido contado") (steps as any).reviewReason = null;
   }
+  if (Array.isArray(menuEnd) && applySecondGroups(cart as any[], origTurns as any, menuEnd as any[]))
+    steps.push({ source: "end-second-groups", heard: "kept a later group" });
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
