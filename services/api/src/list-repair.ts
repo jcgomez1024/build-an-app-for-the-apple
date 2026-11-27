@@ -1630,7 +1630,7 @@ export function applySaidMeat(cart: any[], turns: Turn[], menu: any[]): boolean 
     if (o) { m.option = o; changed = true; } else { l.elviNotes = [...(l.elviNotes || []), want]; changed = true; } }
   return changed;
 }
-const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toreados?|asad[oa]s?)\b|\b(?:toreados?|asados?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b/; // andres-qco1: "chiles y cebolla asada"
+const ASADOS_CALLER = /\b(?:chiles?|chilitos?)\b[^|]*\b(?:toread(?:it)?[oa]s?|asad(?:it)?[oa]s?)\b|\b(?:toread(?:it)?[oa]s?|asad(?:it)?[oa]s?)\b[^|]*\b(?:cebollas?|cebollitas?)\b|\bcebollas? y chiles?\b/; // "chilitos asaditos" is the same extra as "cebolla y chiles asados"
 const ASADOS_STAFF = /\bcebollas? y chiles? asados\b|\b(?:chiles )?toreados\b/;
 const YES = /^(?:si|yes|yeah|ok(?:ay)?|aja|claro|por favor|eso)\b/;
 export const asadosSideSaid = (turns: Turn[]) => turns.some((t, i) => t.speaker === "caller" && (ASADOS_CALLER.test(plain(t.text))
@@ -3499,7 +3499,10 @@ export function addAskedEsquite(cart: any[], turns: Turn[], menu: any[]): boolea
   const opt = g && want && (g.options || []).map(oname).find((o: string) => want === "sin" ? /NO TAJIN/i.test(o) : want === "doble" ? /DOUBLE Tajin/i.test(o) : /^Tajin/i.test(o));
   const have = cart.find((l) => /^sq-esquite-/.test(String(l.itemId)));
   if (have) { if (opt && !(have.modifiers || []).some((x: any) => /tajin/i.test(x.option))) { have.modifiers = [...(have.modifiers || []), { step: g.name, option: opt }]; return true; } return false; }
-  const m = said(turns, "caller").match(ESQ_ASK); if (!m) return false;
+  let m = said(turns, "caller").match(ESQ_ASK);
+  // "dos elotes" that staff reads back as esquites is that cup. A topping "con elote" has no count.
+  if (!m && turns.some((t) => t.speaker === "staff" && /\besquites?\b/.test(plain(t.text)))) m = said(turns, "caller").match(new RegExp(`\\b(${NUMW})\\s+elotes?\\b`));
+  if (!m) return false;
   cart.push({ itemId: item.id, quantity: m[1] ? numOf(m[1]) || 1 : 1, modifiers: opt ? [{ step: g.name, option: opt }] : [] });
   return true;
 }
@@ -4073,8 +4076,13 @@ export function applyQuesadillaCombo(cart: any[], turns: Turn[]): boolean {
   if (!callerQ.length) return false;
   const comboSaid = all.some((t) => /combo/.test(t.x) && (t.sp === "caller" ? true : /quesadilla/.test(t.x)));
   const twoQ = callerQ.some((t) => /(dos|2)\s+quesadillas?/.test(t.x));
-  const sides = all.some((t) => t.sp === "caller" && /(arroz|rice)/.test(t.x)) && all.some((t) => t.sp === "caller" && /(frijol|beans)/.test(t.x));
-  if (!(comboSaid || (twoQ && sides))) return false;
+  const callerSides = all.some((t) => t.sp === "caller" && /(arroz|rice)/.test(t.x)) && all.some((t) => t.sp === "caller" && /(frijol|beans)/.test(t.x));
+  // Staff naming arroz con frijoles while confirming the two quesadillas, and the caller agreeing, is the combo.
+  // A later side of rice alone is not. The yes has to answer that staff turn.
+  const staffSides = all.some((t, i) => t.sp === "staff" && /(arroz|rice)/.test(t.x) && /(frijol|beans)/.test(t.x)
+    && all.slice(Math.max(0, i - 4), i).some((u) => u.sp === "caller" && /(dos|2)\s+quesadillas?/.test(u.x))
+    && /^(?:ah |eh |ok |okay )?(?:si|yes|yeah|claro|senor)\b/.test(all.slice(i + 1, i + 4).find((u) => u.sp === "caller")?.x || ""));
+  if (!(comboSaid || (twoQ && (callerSides || staffSides)))) return false;
   // more than 2 quesadillas said, or another quesadilla beyond the combo → leave alone
   if (callerQ.some((t) => /(tres|cuatro|cinco|seis|[3-9])\s+quesadillas|otra\s+quesadilla|dos\s+combos/.test(t.x))) return false;
   // meats: "uno de X y uno de Y" in caller turns after first quesadilla mention, else "quesadillas de X"
@@ -4086,8 +4094,9 @@ export function applyQuesadillaCombo(cart: any[], turns: Turn[]): boolean {
     if (parts && parts.length >= 2) { meats = parts.flatMap((p) => b22Meats(p).slice(0, 1)); if (meats.length >= 2) break; }
   }
   if (meats.length < 2) {
-    const q = callerQ.map((t) => b22Meats(t.x)).find((m) => m.length);
-    if (!q) return false;
+    const window = all.slice(Math.max(0, firstQ), firstQ + 8).map((t) => t.x.replace(/\bbiste\b/g, "bistec")).join(" ");
+    const q = b22Meats(window);
+    if (!q.length) return false;
     meats = q.length >= 2 ? q.slice(0, 2) : [q[0], q[0]];
   }
   const callerTxt = all.filter((t) => t.sp === "caller").map((t) => t.x).join(" ");
