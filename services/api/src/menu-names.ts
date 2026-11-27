@@ -251,6 +251,45 @@ export function nameRelation(left: string, right: string): "garbled" | "family" 
   return null;
 }
 
+const COVER_SKIP = new Set(["with", "para", "from", "online", "and", "the", "con", "del", "los", "las", "una", "uno", "por", "que", "sus", "son", "van", "mas"]);
+const COVER_GENERIC = new Set(["side", "sides", "extra", "extras", "pack", "meal", "meals", "platter", "platters", "fiesta", "option", "options", "regular", "deluxe", "grande", "large", "small", "chica", "chico", "order", "orden", "traditional", "tradicional"]);
+const COVER_MARKER = ["pack", "meal", "platter", "extras", "platillo", "combo"];
+const COVER_TRANSLATION: Record<string, string[]> = {
+  arroz: ["rice"], rice: ["arroz"], frijol: ["bean", "beans", "frijoles"], frijoles: ["bean", "beans", "frijol"],
+  bean: ["frijol", "frijoles"], beans: ["frijol", "frijoles"],
+};
+
+function coverTokens(name: string): string[] {
+  return normalizeName(name).split(" ").filter((token) => token.length >= 3 && !COVER_SKIP.has(token) && !/^\d+oz$/.test(token) && !/^\d+$/.test(token));
+}
+
+function tokenCovered(token: string, words: Set<string>): boolean {
+  if (tokenHit(token, words)) return true;
+  return (COVER_TRANSLATION[token] || []).some((alt) => tokenHit(alt, words) || words.has(alt));
+}
+
+/** A catalog add is allowed only when the caller named the product.
+ *  A pack, meal, platter, extras row, platillo, or combo is not named by a shorter word.
+ *  "Elvis" from the restaurant greeting is not the Elvis Dip. A side is not named by "side" alone. */
+export function catalogAddAllowed(label: string, callerText: string, windowText = ""): boolean {
+  const tokens = coverTokens(label);
+  const distinctive = tokens.filter((token) => !COVER_GENERIC.has(token));
+  if (!distinctive.length) return false;
+  const words = new Set(normalizeName(callerText).split(" ").filter(Boolean));
+  const windowSpoken = normalizeName(windowText || callerText);
+  // The restaurant name alone must not ring Elvis Dip. Queso or dip in this same window does.
+  if (tokens.includes("elvis") && tokens.includes("dip") && !/\b(?:dip|queso)\b/.test(windowSpoken)) return false;
+  for (const marker of COVER_MARKER) {
+    if (!tokens.some((token) => token === marker || token === `${marker}s`)) continue;
+    if (!tokenCovered(marker, words) && !tokenCovered(`${marker}s`, words)) return false;
+  }
+  if (tokens.some((token) => token === "side" || token === "sides")) {
+    const foods = ["arroz", "rice", "frijol", "frijoles", "bean", "beans"];
+    if (!foods.some((food) => tokenCovered(food, words))) return false;
+  }
+  return true;
+}
+
 /** One catalog row for a dish the text names. Variations of the same product collapse to the closest row. A tie between products adds nothing. */
 export function matchSpokenCatalog(
   dishText: string,
