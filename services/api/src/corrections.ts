@@ -16,6 +16,9 @@ type Slot = {
   cap?: boolean;
   updateOnly?: boolean;
   restyle?: boolean;
+  /** "otra … con queso" changes only a later line of that meat. It must not rewrite the earlier plain one. */
+  quesoLast?: boolean;
+  force?: boolean;
 };
 type Drop = { kind: Kind; meats: string[] };
 type Plan = { ensure: Slot[]; drop: Drop[]; spoken: Slot[] };
@@ -24,7 +27,7 @@ const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cu
 const numOf = (w: string) => Number(w) || NUM[w] || 0;
 const NUMW = "\\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|six|seven|eight|nine|ten|twelve";
 const MEATS: Array<[RegExp, string]> = [
-  [/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"],
+  [/\bbistec?k?\b|\bsteak\b|\basada\b/, "bistec"], [/\balpastor\b|\b(?:al )?pastor\b/, "alpastor"], [/\bcostillas?\b/, "costilla"],
   [/\btripas?\b/, "tripa"], [/\bcabezas?\b/, "cabeza"], [/\bprensados?\b/, "prensado"], [/\blenguas?\b/, "lengua"],
   [/\bchorizo\b/, "chorizo"], [/\bpollo\b|\bchicken\b/, "pollo"], [/\bcarnitas\b/, "carnitas"],
   [/\bbuches?\b/, "buche"], [/\bbirrias?\b/, "birria"], [/\bdeshebradas?\b/, "deshebrada"], [/\bpicadillo\b/, "picadillo"],
@@ -45,11 +48,9 @@ function hear(text: string): string {
   s = s.replace(/\bviste(?!\p{L})/giu, "bistec");
   s = s.replace(/\bvit[eé]z?(?!\p{L})/giu, "bistec");
   s = s.replace(/\bbizco\b/giu, "bistec");
-  s = s.replace(/\bdedos\s+de\b/giu, "de");
   s = s.replace(/\bde harin\b/giu, "de harina");
   s = s.replace(/\b(?:de|del) comas\b/giu, "de comal");
   s = s.replace(/\bdurad[ao]s?\b/giu, "doradas");
-  s = s.replace(/\btortead[ao]s?\b/giu, "comal");
   return s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 }
 function meatsIn(text: string): string[] {
@@ -268,23 +269,17 @@ export function correctionPlan(turns: Turn[]): Plan {
       const staffMeats = meatsIn(staff);
       const staffMeat = staffMeats[staffMeats.length - 1] || "";
       const named = meatsIn(text)[0] || staffMeat || open.meat;
-      const all = /\bles\b|\btodas\b|\blas tres\b|\blos tres\b/.test(text);
+      const another = /\botr[ao]\b/.test(text);
+      const all = !another && /\bles\b|\btodas\b|\blas tres\b|\blos tres\b/.test(text);
       const targets = all ? seen.filter((s) => s.kind === "gordita") : seen.filter((s) => s.kind === "gordita" && s.meats[0] === named);
       const on = quesoAsk && !sinQueso;
-      if (targets.length) for (const s of targets) {
-        if (!on) { const i = ensure.findIndex((e) => e.kind === "gordita" && e.meats[0] === s.meats[0]); if (i >= 0) ensure.splice(i, 1); }
-        else put({ ...s, queso: true });
+      if (another && on && named) {
+        put(blank({ kind: "gordita", meats: [named], queso: true, n: 1, quesoLast: true }));
+      } else if (targets.length) for (const s of targets) {
+        if (!on) { const i = ensure.findIndex((e) => e.kind === "gordita" && e.meats[0] === s.meats[0] && e.queso); if (i >= 0) ensure.splice(i, 1); }
+        else put({ ...s, queso: true, quesoLast: false });
       } else if (named && on) put(blank({ kind: "gordita", meats: [named], queso: true, n: open.n || 1, frij: /\bcon frijoles\b/.test(text) }));
-      if (named) { open.meat = named; open.kind = "gordita"; open.queso = on; }
-      continue;
-    }
-
-    // "no me le pongas ni queso ni crema" changes one burrito. It is not a new burrito.
-      if (/\bno me (?:le )?pongas\b|\bni queso ni crema\b|\bsin queso ni crema\b/.test(text) && (open.kind === "burrito" || /\bburrito\b/.test(text))) {
-      const meats = open.meat ? [open.meat] : meatsIn(text);
-      const total = open.n >= 2 ? open.n : 1;
-      put(blank({ kind: "burrito", meats, n: 1, bare: true }));
-      if (total > 1) put(blank({ kind: "burrito", meats, n: total - 1, todo: true }));
+      if (named) { open.meat = named; open.kind = "gordita"; open.queso = on && !another; }
       continue;
     }
 
@@ -294,14 +289,25 @@ export function correctionPlan(turns: Turn[]): Plan {
       drop.push({ kind: "torta", meats: [] });
     }
 
-    // "dos gorditas, ah, dos sopes" in one breath. The gordita does not stay.
+    // Gorditas and sopes in one turn stay two dishes. The gorditas come off only when the caller
+    // corrects themselves before the sope ("ah", "no", "mejor", "perdón"). The sope keeps only the
+    // meat said with it, never a meat from the gordita clause.
     if (/\bgorditas?\b/.test(text) && /\bsopes?\b/.test(text)) {
-      const meats = meatsIn(text);
-      const n = numOf((text.match(new RegExp(`\\b(${NUMW})\\b`)) || [])[1] || "") || 1;
-      drop.push({ kind: "gordita", meats });
-      const grande = /\bgrande\b|\bsopesas/.test(text);
-      put({ kind: "sope", meats, style: "", qd: "", queso: false, n, frij: false, bare: false, todo: /\bcon todo\b/.test(text), grande });
-      remember("sope", meats, n, "");
+      const sopeAt = text.search(/\bsopes/);
+      const before = text.slice(0, sopeAt);
+      const sopeClause = text.slice(sopeAt);
+      const corrects = /\b(?:ah|no|mejor|perdon)\b/.test(before);
+      const sopeMeats = meatsIn(sopeClause);
+      const meats = /\bcon\b/.test(sopeClause) ? sopeMeats.slice(0, 2) : sopeMeats.slice(0, 1);
+      const lead = before.match(new RegExp(`\\b(${NUMW})\\s*$`));
+      const n = numOf((sopeClause.match(new RegExp(`\\b(${NUMW})\\b`)) || [])[1] || "") || numOf(lead?.[1] || "") || 1;
+      if (corrects) {
+        const gorditaMeats = meatsIn(before);
+        drop.push({ kind: "gordita", meats: gorditaMeats.length === 1 ? gorditaMeats : [] });
+        const grande = /\bgrande\b|\bsopesas/.test(text);
+        if (meats.length) put(blank({ kind: "sope", meats, n, grande, todo: /\bcon todo\b/.test(sopeClause), force: true }));
+        remember("sope", meats, n, "");
+      }
       continue;
     }
 
@@ -312,8 +318,7 @@ export function correctionPlan(turns: Turn[]): Plan {
     const kindWord = kindIn(text);
     const meats = meatsIn(text);
     const ownStyle = styleIn(text);
-    if (kindWord === "gordita" && /\bqueso\b/.test(text)) open.queso = true;
-    if (fried(text) && (kindWord === "quesadilla" || open.kind === "quesadilla" || open.kind === "qd")) open.qd = /\b(?:preparad|deluxe|con todo|de todo)\b/.test(text) && !/\bregulares?\b/.test(text) ? "preparada" : (/\bregulares?\b/.test(text) ? "regular" : open.qd);
+    if (kindWord === "gordita" && /\bqueso\b/.test(text) && !/\botr[ao]\b/.test(text)) open.queso = true;
     if (!n && !kindWord && !meats.length) {
       if (ownStyle && open.kind && open.meat && (open.kind === "taco" || open.kind === "quesadilla" || open.kind === "qd")) {
         const hit = [...seen].reverse().find((s) => (s.kind === open.kind || (open.kind === "qd" && s.kind === "quesadilla") || (open.kind === "quesadilla" && s.kind === "qd")) && s.meats[0] === open.meat);
@@ -322,7 +327,7 @@ export function correctionPlan(turns: Turn[]): Plan {
       }
       continue;
     }
-    const kind = (kindWord === "quesadilla" && (fried(text) || (open.qd && !ownStyle)) ? "qd" : kindWord) || (meats.length ? open.kind : null);
+    const kind = (kindWord === "quesadilla" && fried(text) ? "qd" : kindWord) || (meats.length ? open.kind : null);
     if (!kind || !meats.length) {
       if (ownStyle && open.kind && open.meat && (open.kind === "taco" || open.kind === "quesadilla" || open.kind === "qd")) {
         const hit = [...seen].reverse().find((s) => (s.kind === open.kind || (open.kind === "qd" && s.kind === "quesadilla")) && s.meats[0] === open.meat);
@@ -336,7 +341,7 @@ export function correctionPlan(turns: Turn[]): Plan {
     const style = kind === "qd" ? "" : (ownStyle || (kindWord ? "" : open.style));
     const adding = !!otra;
     const slot: Slot = {
-      kind, meats, style, qd: kind === "qd" ? (open.qd || (/\bde todo\b|\bcon todo\b/.test(text) ? "preparada" : "")) : "",
+      kind, meats, style, qd: "",
       queso: kind === "gordita" && !/\bsin queso\b/.test(text) && (/\bcon queso\b|\bqueso gordita\b/.test(text) || (open.queso && meats[0] === open.meat)),
       n: n || 1, frij: /\bcon frijoles\b|\bfrijoles con\b/.test(text), bare: false,
       todo: kind === "burrito" && /\bcon todo\b|\bwith everything\b/.test(text),
@@ -359,16 +364,12 @@ export function correctionPlan(turns: Turn[]): Plan {
       else if (slot.meats.length === 1 || /\bcon\b/.test(text)) put(slot);
     }
     remember(kind, meats, slot.n, ownStyle || open.style);
-    if (kind === "gordita" && slot.queso) open.queso = true;
-    if (/\bde todo\b/.test(text) && kind === "qd") {
-      slot.qd = "preparada";
-      put(slot);
-    }
+    if (kind === "gordita" && slot.queso && !/\botr[ao]\b/.test(text)) open.queso = true;
   }
   const queued = ensure.filter((s) => s.n > 0 && s.meats.length);
-  const linked = (d: Drop) => queued.some((s) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats)));
+  const linked = (d: Drop) => queued.some((s) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope")));
   const drops = drop.filter(linked);
-  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.todo || s.exclusive || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats))));
+  const kept = queued.filter((s) => s.restyle || s.reduce || s.queso || s.bare || s.todo || s.exclusive || s.force || drops.some((d) => s.kind !== d.kind && (!d.meats.length || sameMeats(s.meats, d.meats) || (d.kind === "gordita" && s.kind === "sope"))));
   return { ensure: kept, drop: drops, spoken: seen.filter((s) => s.n > 0 && s.meats.length) };
 }
 
@@ -438,19 +439,8 @@ function buildLine(slot: Slot, menu: any[]): any | null {
     if (g) mods.push(g);
   }
   if (slot.kind === "burrito") {
-    const size = optionNamed(host, /size/i, (n) => /regular/i.test(n));
+    const size = optionNamed(host, /size/i, (n) => slot.grande ? /grande/i.test(n) : /regular/i.test(n));
     if (size) mods.push(size);
-    if (!slot.bare) {
-      for (const re of [/frijol/i, /\barroz\b|\brice\b/i, /queso fresco/i, /crema/i]) {
-        const g = optionNamed(host, /burrito options/i, (n) => re.test(n) && !/double/i.test(n));
-        if (g) mods.push(g);
-      }
-    } else {
-      for (const re of [/frijol/i, /\barroz\b|\brice\b/i]) {
-        const g = optionNamed(host, /burrito options/i, (n) => re.test(n) && !/double/i.test(n));
-        if (g) mods.push(g);
-      }
-    }
   }
   for (const meat of slot.meats) {
     const g = meatMod(host, meat);
@@ -484,7 +474,7 @@ function applySlot(cart: any[], slot: Slot, menu: any[]): boolean {
   const exact = lines.filter((l) => sameMeats(lineMeats(l), slot.meats) && (slot.kind !== "burrito" || slot.bare === !filled(l) || (!slot.bare && !slot.todo)));
   const target = exact[0] || (slot.kind === "burrito" && (slot.bare || slot.todo) ? undefined : lines[0]);
   if (!target) {
-    if (slot.updateOnly) return false;
+    if (slot.updateOnly || slot.quesoLast) return false;
     const line = buildLine(slot, menu);
     if (!line) return false;
     cart.push(line);
@@ -500,7 +490,6 @@ function applySlot(cart: any[], slot: Slot, menu: any[]): boolean {
     changed = true;
   }
   const host = hostFor(menu, slot) || target;
-  if (slot.kind === "qd" && slot.qd && host?.id && target.itemId !== host.id) { target.itemId = host.id; changed = true; }
   if (slot.kind === "torta") {
     const g = optionNamed(host, /torta options/i, (n) => /^\(TO\)/.test(n));
     if (g && !(target.modifiers || []).some((m: any) => /\(TO\)|\(QTO\)/.test(String(m.option)))) {
@@ -510,9 +499,12 @@ function applySlot(cart: any[], slot: Slot, menu: any[]): boolean {
   }
   if (slot.kind === "gordita" && slot.queso) {
     const g = optionNamed(host, /gordita options/i, (n) => /\(QGD\)/.test(n));
-    if (g) {
-      const mods = (target.modifiers || []).filter((m: any) => !/gordita options/i.test(String(m.step)));
-      target.modifiers = [...mods, g];
+    const matches = cart.filter((l) => lineKind(String(l.itemId)) === "gordita" && sameMeats(lineMeats(l), slot.meats));
+    const picked = slot.quesoLast ? (matches.length >= 2 ? [matches[matches.length - 1]] : []) : (matches.length ? [matches[0]] : [target]);
+    if (g) for (const line of picked) {
+      if (!line) continue;
+      const mods = (line.modifiers || []).filter((m: any) => !/gordita options/i.test(String(m.step)));
+      line.modifiers = [...mods, g];
       changed = true;
     }
   }
@@ -558,11 +550,12 @@ function applyDrop(cart: any[], drop: Drop, keep: Slot[]): boolean {
   return changed;
 }
 
-/** Apply caller corrections. A name, a drink, or an ETA does not change a count. Unrelated lines stay. */
+/** Apply caller corrections. A name, a drink, or an ETA does not change a count. Unrelated lines stay.
+ *  An empty cart stays empty: a correction never creates the first line. */
 export function applyCorrections(cart: any[], turns: Turn[], menu: any[]): boolean {
   if (!Array.isArray(cart) || !Array.isArray(turns) || !Array.isArray(menu)) return false;
+  if (!cart.length) return false;
   const plan = correctionPlan(turns);
-  if (!plan.ensure.length && !plan.drop.length) return false;
   let changed = false;
   for (const slot of plan.ensure) if (applySlot(cart, slot, menu)) changed = true;
   // After a replacement, one line must not keep a count that belonged to the replaced item.
@@ -596,14 +589,149 @@ export function applyCorrections(cart: any[], turns: Turn[], menu: any[]): boole
       }
     }
   }
-  // "con queso" must not leave the plain gordita next to the queso gordita of the same meat.
-  const quesoMeats = plan.ensure.filter((s) => s.kind === "gordita" && s.queso).map((s) => s.meats.join("/"));
+  // "con queso" on the gorditas just named must not leave a plain copy of that same line.
+  // "otra … con queso" is a later gordita: the earlier plain one stays.
+  const quesoMeats = plan.ensure.filter((s) => s.kind === "gordita" && s.queso && !s.quesoLast).map((s) => s.meats.join("/"));
   if (quesoMeats.length) {
     for (let i = cart.length - 1; i >= 0; i--) {
       if (lineKind(String(cart[i].itemId)) !== "gordita") continue;
       const plain = (cart[i].modifiers || []).some((m: any) => /^\(GD\)/.test(String(m.option)));
-      if (plain && quesoMeats.includes(lineMeats(cart[i]).join("/"))) { cart.splice(i, 1); changed = true; }
+      const queso = (cart[i].modifiers || []).some((m: any) => /\(QGD\)/.test(String(m.option)));
+      if (plain && !queso && quesoMeats.includes(lineMeats(cart[i]).join("/"))) { cart.splice(i, 1); changed = true; }
     }
+  }
+  if (applyQuitale(cart, turns)) changed = true;
+  if (applyMeatSwap(cart, turns, menu)) changed = true;
+  if (applyDeniedStaffCount(cart, turns)) changed = true;
+  if (applyOtraBeatsStaff(cart, turns)) changed = true;
+  return changed;
+}
+
+function lineHasMeat(line: any, meat: string): boolean {
+  return lineMeats(line).includes(meat);
+}
+
+/** "quítale los de tripa" / "quita las de pollo" removes that meat's lines. It does not add anything. */
+function applyQuitale(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  for (const turn of callerTurns(turns)) {
+    const m = turn.text.match(/\b(?:quitale|quitame|quita(?:le|me)?|remove)\s+(?:los|las|la|el|the|those)?\s*(?:de\s+)?([a-z]+(?:\s+[a-z]+)?)/);
+    if (!m) continue;
+    const meat = meatsIn(m[1])[0] || meatsIn(turn.text.slice(m.index || 0))[0];
+    if (!meat) continue;
+    const dish = kindIn(turn.text);
+    for (let i = cart.length - 1; i >= 0; i--) {
+      const kind = lineKind(String(cart[i].itemId));
+      if (!kind || (dish && kind !== dish && !(dish === "quesadilla" && kind === "qd"))) continue;
+      const meats = lineMeats(cart[i]);
+      if (meats.length === 1 && meats[0] === meat) { cart.splice(i, 1); changed = true; }
+    }
+  }
+  return changed;
+}
+
+/** "en vez de pastor, de bistec" changes the pastor line. It does not add a line when that meat is not already there. */
+function applyMeatSwap(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let changed = false;
+  for (const turn of callerTurns(turns)) {
+    const m = turn.text.match(/\ben vez de\s+(?:los\s+|las\s+|el\s+|la\s+)?([a-z]+)(?:\s*,|\s+)\s*(?:de\s+|pon(?:le|me)?\s+)?([a-z]+)/);
+    if (!m || kindIn(m[1])) continue;
+    const from = meatsIn(m[1])[0];
+    const to = meatsIn(m[2])[0];
+    if (!from || !to || from === to) continue;
+    const dish = kindIn(turn.text);
+    for (const line of cart) {
+      const kind = lineKind(String(line.itemId));
+      if (!kind || (dish && kind !== dish)) continue;
+      if (!lineHasMeat(line, from) || lineHasMeat(line, to)) continue;
+      const host = (menu || []).find((item) => item.id === line.itemId) || (menu || []).find((item) => lineKind(String(item.id)) === kind);
+      const mod = meatMod(host, to);
+      if (!mod) continue;
+      line.modifiers = (line.modifiers || []).map((row: any) => /carne|meat/i.test(String(row.step)) && meatsIn(String(row.option)).includes(from) ? mod : row);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/** Staff "¿dos?" answered "no, tres" keeps the caller's number. The staff guess must not stay. */
+function applyDeniedStaffCount(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  const list = turns || [];
+  for (let i = 0; i < list.length; i++) {
+    const turn = list[i];
+    if (turn.speaker === "caller" || !/[?¿]/.test(String(turn.text || ""))) continue;
+    const staff = hear(String(turn.text || ""));
+    if ((staff.match(/\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|sopes?)\b/g) || []).length >= 2) continue;
+    const asked = staff.match(new RegExp(`^(?:son|serian|about|is it)?\\s*(${NUMW})\\b`));
+    if (!asked) continue;
+    const staffN = numOf(asked[1]);
+    const next = list.slice(i + 1).find((row) => !row.speaker || row.speaker === "caller");
+    if (!next) continue;
+    const answer = hear(String(next.text || ""));
+    const said = answer.match(new RegExp(`^(?:no|nel)\\s+(?:son\\s+|serian\\s+|que\\s+sean\\s+)?(${NUMW})\\b`));
+    if (!said) continue;
+    const callerN = numOf(said[1]);
+    if (!staffN || !callerN || staffN === callerN) continue;
+    const dish = kindIn(staff) || kindIn(answer);
+    const lines = cart.filter((line) => {
+      const kind = lineKind(String(line.itemId));
+      if (!kind) return false;
+      if (dish && kind !== dish && !(dish === "quesadilla" && kind === "qd")) return false;
+      return (Number(line.quantity) || 1) === staffN;
+    });
+    if (lines.length !== 1) continue;
+    lines[0].quantity = callerN;
+    changed = true;
+  }
+  return changed;
+}
+
+/** "otra" is one more. A later staff "tres" must not replace that count on the line. */
+function applyOtraBeatsStaff(cart: any[], turns: Turn[]): boolean {
+  let changed = false;
+  const prior = new Map<string, number>();
+  const list = turns || [];
+  for (let i = 0; i < list.length; i++) {
+    const turn = list[i];
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const text = hear(String(turn.text || ""));
+    // "otra orden" and "la otra vez" are not one more item. A turn that already states a count is not a bare "otra".
+    const otra = text.match(/\b(?:otra|another)\b(?!\s+(?:orden|order|vez|time|\d+|dos|tres|cuatro|cinco|seis|two|three|four|five|six))/);
+    const stated = new RegExp(`\\b(?:${NUMW})\\b`).test(text);
+    if (!otra || /\b(?:orden|order|vez)\b/.test(text) || stated) {
+      const counted = text.match(new RegExp(`\\b(${NUMW})\\b(?:\\s+[a-z]+){0,3}\\s+(tacos?|quesadillas?|gorditas?|burritos?|tortas?|sopes?)\\b`));
+      if (counted) {
+        const kind = kindIn(counted[2]);
+        const meat = meatsIn(text)[0] || "";
+        if (kind) prior.set(`${kind}|${meat}`, numOf(counted[1]));
+      }
+      continue;
+    }
+    const namedKind = kindIn(text);
+    const meat = meatsIn(text)[0] || "";
+    // "Otra va a ser" names neither a dish nor a meat. It is not one more of a line.
+    if (!namedKind && !meat) continue;
+    const kind = namedKind || [...prior.keys()].map((key) => key.split("|")[0]).pop() as Kind | undefined;
+    if (!kind) continue;
+    const key = `${kind}|${meat}`;
+    const before = prior.get(key) || 0;
+    const callerN = before + 1;
+    prior.set(key, callerN);
+    const staffLater = list.slice(i + 1).filter((row) => row.speaker === "staff").map((row) => hear(String(row.text || ""))).join(" ");
+    const staffHit = staffLater.match(new RegExp(`\\b(${NUMW})\\s+(?:[a-z]+\\s+){0,3}${kind === "quesadilla" ? "quesadillas?" : kind + "s?"}\\b`));
+    const staffN = staffHit ? numOf(staffHit[1]) : 0;
+    // Only when staff counted higher than the caller's "otra". Never raise a line up to a later staff number.
+    if (!staffN || staffN <= callerN) continue;
+    const lines = cart.filter((line) => {
+      const lineK = lineKind(String(line.itemId));
+      if (lineK !== kind && !(kind === "quesadilla" && lineK === "qd")) return false;
+      if (meat && !lineHasMeat(line, meat)) return false;
+      return (Number(line.quantity) || 1) === staffN;
+    });
+    if (lines.length !== 1) continue;
+    lines[0].quantity = callerN;
+    changed = true;
   }
   return changed;
 }

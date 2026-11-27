@@ -424,11 +424,12 @@ function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   return changed;
 }
 function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
-  const caller = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).join(" | ");
-  if (!saidAsados(caller)) return false;
+  const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));
+  const hit = phrases.find((phrase) => saidAsados(phrase));
+  if (!hit) return false;
   const ex = cebollaItem(menu);
   if (!ex || cart.some((l) => l.itemId === ex.id)) return false;
-  const m = caller.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
+  const m = hit.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
   cart.push({ itemId: ex.id, quantity: m ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "cebolla y chiles asados" });
   return true;
 }
