@@ -28,6 +28,7 @@
   .call{border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 8px;background:#fff}
   .call.on{outline:2px solid var(--acc)}.call .t{font-weight:700}.call .m{color:var(--mut);font-size:12px}
   .badge{align-self:center;grid-row:span 2;font-weight:700;border-radius:999px;padding:4px 10px;font-size:13px}
+  .cands{margin:6px 0 0;padding-left:18px;font-size:13px}.cands li{margin:4px 0}.cands .ch{color:var(--mut);font-size:12px}
   .b-ok{background:var(--okbg);color:var(--ok)}.b-warn{background:var(--warnbg);color:var(--warn)}.b-bad{background:var(--badbg);color:var(--bad)}.b-na{background:#eee;color:var(--mut)}
   .turns{display:grid;gap:6px;max-height:300px;overflow:auto}
   .turn{padding:6px 10px;border-radius:10px;max-width:85%;font-size:14px}.turn.caller{background:#eef4ff;justify-self:start}.turn.staff{background:#f1efe9;justify-self:end}
@@ -160,10 +161,34 @@ function list() {
   const calls = shown();
   $("#list").innerHTML = calls.length ? calls.map(({ c, i }) => `
     <div class="call ${current === i ? "on" : ""}" data-i="${i}">
-      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? badge(c.score) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
-      <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : ""}</div>
+      <div class="t">${fmtTime(c.at)}${tagHtml(c)}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${auditBadge(c)}${nameTag(c)}${c.orderName ? ` <span class="tag" title="Nombre de la orden">👤 ${esc(c.orderName)}</span>` : ""}</div>${c.answered === false ? `<span class="badge b-bad">no contestada</span>` : c.turns.length ? (c.score === null && c.ticketSearch ? searchBadge(c) : badge(c.score)) : `<span class="badge b-na">${c.error ? "error" : "sin audio"}</span>`}
+      <div class="m">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.talkSec || 0}s${c.ticket ? " · " + (c.ticket.receiptNumber ? "Receipt #" + esc(c.ticket.receiptNumber) + " " : "ticket ") + money(c.ticket.totalCents) : c.ticketSearch?.best ? " · buscado " + (c.ticketSearch.best.receiptNumber ? "#" + esc(c.ticketSearch.best.receiptNumber) + " " : "") + money(c.ticketSearch.best.totalCents) : ""}</div>
     </div>`).join("") : `<div class="empty">No hay llamadas en este periodo.</div>`;
   document.querySelectorAll(".call").forEach((el) => el.onclick = () => { current = Number(el.dataset.i); list(); detail(); });
+}
+
+// search1: no direct link → the ticket the search found ("buscado"), its confidence and why, plus the runner-ups.
+// Informative only: a searched ticket is never scored, so it never changes Elvi's or staff accuracy numbers.
+const confCls = (n) => n >= 60 ? "b-ok" : n >= 40 ? "b-warn" : "b-bad";
+function searchBadge(c) {
+  const s = c.ticketSearch;
+  if (s.best) return `<span class="badge ${confCls(s.best.confidence)}" title="Ticket buscado (sin enlace directo)">buscado ${s.best.confidence}%${s.best.usedBy?.length ? " ⚠" : ""}</span>`;
+  return `<span class="badge b-na">${s.runnerUps?.length ? "sin ticket · ver cercanos" : "sin ticket"}</span>`;
+}
+const minTxt = (m) => `${m >= 0 ? "+" : ""}${m} min`;
+const usedTxt = (u) => (u || []).length ? `<div class="note" style="color:var(--bad)">⚠ Este ticket también es de otra llamada: ${u.map((x) => esc(x.at ? fmtTime(x.at) : String(x.callSid || x).slice(0, 8))).join(", ")}</div>` : "";
+function candRow(t) {
+  const items = (t.lines || []).map((l) => `${l.quantity}× ${esc(String(l.name || "").split(" · ").pop())}`).join(", ");
+  return `<li><b>${esc(t.ticketName || t.recipient || "sin nombre")}</b> · ${fmtTime(t.createdAt)} (${minTxt(t.minutesFromStart)}) · ${money(t.totalCents)} · <span class="badge ${confCls(t.confidence)}">${t.confidence}%</span>${t.usedBy?.length ? " ⚠" : ""}<div class="ch">${items}</div></li>`;
+}
+function searchHtml(c) {
+  const s = c.ticketSearch, b = s.best;
+  const others = (s.runnerUps || []).length ? `<details style="margin-top:6px"${b ? "" : " open"}><summary>${b ? "Otros candidatos" : "Tickets más cercanos"} (${s.runnerUps.length})</summary><ul class="cands">${s.runnerUps.map(candRow).join("")}</ul></details>` : "";
+  if (!b) return `<h2>Ticket de Square</h2><div class="empty">${esc(s.reason)}</div>${others}`;
+  return `<h2>Ticket de Square <span class="badge ${confCls(b.confidence)}">buscado · confianza ${b.confidence}%</span></h2>
+    <div class="note">${sqRef(b)} · ${fmtTime(b.createdAt)} (${minTxt(b.minutesFromStart)} desde la llamada)${b.matchPct != null ? ` · coincide ${b.matchPct}% con Elvi` : ""}</div>
+    <div class="note">Por qué: ${esc(s.reason)}. No hay enlace directo; no cuenta en la precisión.</div>${usedTxt(b.usedBy)}
+    ${linesTable(b.lines, b.pairs || [], "ticket")}${others}`;
 }
 
 function linesTable(lines, pairs, side) {
@@ -190,7 +215,7 @@ function detail() {
   const c = data.calls[current];
   if (!c) return;
   $("#detail").innerHTML = `
-    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${badge(c.score)}${c.compare ? replayTag(c) : ""}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
+    <h2>${fmtTime(c.at)} ${tagHtml(c)} ${c.score === null && c.ticketSearch ? searchBadge(c) : badge(c.score)}${c.compare ? replayTag(c) : ""}${unclearBadge(c)}${rbTag(c)}${gradeBadge(c)}${staffBadge(c)}${nameTag(c)}</h2>${c.readback && c.readback.status !== "none" ? `<div class="note">Read-back (${esc(c.answeredBy || "?")}): “${esc(c.readback.staffText || "")}” → “${esc(c.readback.response || "")}”</div>` : ""}${unclearToggle(c)}
     <div class="note">${lastDigits(c.caller)} · ${c.language === "en" ? "English" : "Español"} · ${c.answered === false ? "no contestada (" + esc(c.dialStatus || "") + ")" : "contestada " + (c.talkSec || 0) + "s"}${c.ticket ? ` · ${sqRef(c.ticket)} (${esc(c.ticket.matchedBy)}, ${fmtTime(c.ticket.createdAt)})` : ""}</div>
     ${langHtml(c)}
     ${c.hasAudio ? playerHtml(c) : ""}
@@ -201,8 +226,8 @@ function detail() {
     <div class="note">${c.hasAudio && c.turns.length ? "Toca una línea para escucharla · Tap a line to jump there" : ""}</div>
     <div class="turns" id="turns">${c.turns.length ? c.turns.map((t, k) => `<div class="turn ${spk(t.speaker)}" data-k="${k}" data-s="${Number(t.start) || 0}" data-e="${Number(t.end) || 0}"><b>${spkLabel(t.speaker)} · ${clock(t.start)}</b>${esc(t.text)}</div>`).join("") : `<div class="empty">Sin transcripción.</div>`}</div>
     <div class="cmp" style="margin-top:14px">
-      <div><h2>Orden de Elvi</h2>${linesTable(c.elvi, c.pairs, "elvi")}</div>
-      <div><h2>${c.ticket?.matchedBy === "manual" ? "Orden esperada (a mano)" : "Ticket de Square"}</h2>${linesTable(c.ticket?.lines, c.pairs, "ticket")}</div>
+      <div><h2>Orden de Elvi</h2>${linesTable(c.elvi, !c.ticket && c.ticketSearch?.best ? c.ticketSearch.best.pairs || [] : c.pairs, "elvi")}</div>
+      <div>${!c.ticket && c.ticketSearch ? searchHtml(c) : `<h2>${c.ticket?.matchedBy === "manual" ? "Orden esperada (a mano)" : "Ticket de Square"}</h2>${linesTable(c.ticket?.lines, c.pairs, "ticket")}`}</div>
     </div>
     ${c.source === "training" && (!c.ticket || c.ticket.matchedBy === "manual") && c.turns.length ? `
     <div class="exp" style="margin-top:14px"><h2>Orden esperada</h2>
