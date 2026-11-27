@@ -293,6 +293,26 @@ test("este and aparte do not delete the gorditas", () => {
   assert.equal(cart.filter((l) => String(l.itemId) === gordita.id).length, 1);
 });
 
+test("dame tres de pollo nomas does not lower the pastor tacos", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 4, modifiers: [meat("Alpastor / Roasted Pork")] }];
+  applyCorrections(cart, [
+    T("caller", "Cuatro tacos de pastor."),
+    T("caller", "Dame tres de pollo, nomás."),
+  ], menu);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 4);
+});
+
+test("me pone cuatro de tripa nada mas does not lower the steak tacos", () => {
+  const cart: any[] = [{ itemId: taco.id, quantity: 6, modifiers: [meat("Bistec / Steak")] }];
+  applyCorrections(cart, [
+    T("caller", "Seis tacos de bistec."),
+    T("caller", "Me pone cuatro de tripa, nada más."),
+  ], menu);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 6);
+});
+
 test("nada mas uno con queso does not lower the taco count", () => {
   const cart: any[] = [{ itemId: taco.id, quantity: 3, modifiers: [meat("Alpastor / Roasted Pork")] }];
   applyCorrections(cart, [

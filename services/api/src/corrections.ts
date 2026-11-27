@@ -249,19 +249,6 @@ export function correctionPlan(turns: Turn[]): Plan {
       }
     }
 
-    // "me pones uno grande, nomás" sets that dish's count. It does not leave the old count beside it.
-    // "nada más N ..." does not lower a count: the words after the number are a topping or another line.
-    const only = text.match(new RegExp(`\\b(?:me pones?|ponme|dame)\\s+(${NUMW})\\b.{0,40}\\b(?:grande\\s+)?(?:nomas|nada mas)\\b`));
-    if (only && open.kind) {
-      const n = numOf(only[1] || only[2] || "");
-      if (!n) continue;
-      const grande = /\bgrande\b/.test(text) || /\bsopesas/.test(text);
-      const kind = open.kind === "sope" && grande ? "sope" : open.kind;
-      put(blank({ kind, meats: open.meat ? [open.meat] : [], style: open.style, qd: open.qd, queso: open.queso, n, grande, reduce: true }));
-      if (grande && open.kind === "sope") drop.push({ kind: "gordita", meats: open.meat ? [open.meat] : [] });
-      continue;
-    }
-
     // Gorditas, then "con queso" / "me la haces con queso" / "me les puede poner queso". One item, the queso gordita.
     const quesoAsk = /\bcon queso\b|\b(?:poner|ponle|ponles|hacer|haces|haga)\w*\s+(?:la\s+|las\s+|les\s+)?(?:como\s+)?queso\b|\bme les puede poner queso\b|\bqueso gordita\b/.test(text);
     const sinQueso = /\bsin queso\b/.test(text) && !/\bcon queso\b/.test(text);
