@@ -24,6 +24,7 @@ import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ 
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applySecondGroups } from "./second-groups.js";
 import { applyCarryover } from "./carryover.js";
+import { applyCorrections, correctionHolds } from "./corrections.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
 import { cachedPosCatalog } from "./pos-catalog.js";
@@ -8333,7 +8334,11 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   }
   if (Array.isArray(menuEnd) && applySecondGroups(cart as any[], origTurns as any, menuEnd as any[]))
     steps.push({ source: "end-second-groups", heard: "kept a later group" });
-  if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[]))
+  if (Array.isArray(menuEnd) && applyCorrections(cart as any[], origTurns as any, menuEnd as any[]))
+    steps.push({ source: "end-corrections", heard: "kept only the corrected item" });
+  const held = correctionHolds(origTurns as any);
+  const blocked = (kind: string, meats: string[]) => held.some((row) => row.kind === kind && [...row.meats].sort().join("/") === [...meats].sort().join("/"));
+  if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[], blocked))
     steps.push({ source: "end-carryover", heard: "kept each dish's style and meat" });
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);

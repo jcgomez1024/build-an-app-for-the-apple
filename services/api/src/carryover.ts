@@ -386,14 +386,22 @@ function ensureMod(line: any, mod: { step: string; option: string } | null): boo
   return true;
 }
 
+function isDrinkOrFee(id: string): boolean {
+  return /delivery-fee/i.test(id) || /^sq-drink-/.test(id);
+}
+/** A drink or a fee is not a dish. Cebolla must not land on a cart that has only those. */
 function cartHasDish(cart: any[]): boolean {
   return (cart || []).some((l) => {
     const id = String(l?.itemId || "");
-    return id && !/delivery-fee/i.test(id);
+    return !!id && !isDrinkOrFee(id);
   });
 }
+function saidAsados(text: string): boolean {
+  if (/\bcebollitas?\s+asad|\bcebollas?\s+asad|\bpeppers and onions\b/.test(text)) return true;
+  // "cebollita y chilitos asaditos" is the same side. The words do not have to sit next to each other.
+  return /\b(?:cebollit?as?|cebollas?)\b/.test(text) && /\b(?:chilitos?|chiles?|peppers?)\b/.test(text) && /\basad/.test(text);
+}
 function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (!cartHasDish(cart)) return false;
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));
   const said = phrases.filter((p) => /\bdocena(?:\s+y\s+media)?\s+de\s+tortillas?\b/.test(p));
   if (!said.length || said.some((p) => /\bharina\b|\bflour\b|\btaquer|\bstreet\b/.test(p))) return false;
@@ -416,9 +424,8 @@ function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   return changed;
 }
 function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (!cartHasDish(cart)) return false;
   const caller = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).join(" | ");
-  if (!/\bcebollitas?\s+asad|\bcebollas?\s+asad|\bpeppers and onions\b/.test(caller)) return false;
+  if (!saidAsados(caller)) return false;
   const ex = cebollaItem(menu);
   if (!ex || cart.some((l) => l.itemId === ex.id)) return false;
   const m = caller.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
@@ -442,16 +449,27 @@ function explicitDishTotal(wants: Want[], kind: Kind): number {
   return total;
 }
 
-/** Correct a carried style or meat, and add a line only when that dish and meat are still missing. */
-export function applyCarryover(cart: any[], turns: Turn[], menu: any[]): boolean {
+/** Correct a carried style or meat, and add a line only when that dish and meat are still missing.
+ *  hold() is a correction the caller already made. That dish and meat must not be added back. */
+export function applyCarryover(cart: any[], turns: Turn[], menu: any[], hold?: (kind: string, meats: string[]) => boolean): boolean {
   if (!Array.isArray(cart) || !Array.isArray(turns) || !Array.isArray(menu)) return false;
-  if (!cartHasDish(cart)) return false;
-  let changed = plainTortillas(cart, turns, menu) || cebollaSide(cart, turns, menu);
+  const caller = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).join(" | ");
+  const packSaid = /\bdocena(?:\s+y\s+media)?\s+de\s+tortillas?\b/.test(caller) && !/\bharina\b|\bflour\b|\btaquer|\bstreet\b/.test(caller);
+  let changed = false;
+  // Tortillas and the onion side are separate. One of them changing the cart must not skip the other.
+  // A drink is not a dish, so onions alone do not land on a drink. A spoken docena still rings beside a drink,
+  // and the onion side rings in that same pass. An empty cart stays empty.
+  if (cartHasDish(cart) || (cart.length > 0 && packSaid)) {
+    if (plainTortillas(cart, turns, menu)) changed = true;
+  }
+  if (cartHasDish(cart) && cebollaSide(cart, turns, menu)) changed = true;
+  if (!cartHasDish(cart)) return changed;
   if (cart.some((l) => /^sq-combo-quesadillas/.test(String(l?.itemId || "")))) return changed;
   const unavailable = staffUnavailable(turns as any).join(" ");
   const wants = carryoverWants(turns).filter((w) => !(unavailable && new RegExp(`\\b${w.kind}`).test(unavailable)));
   const lines = () => cart.filter((l) => lineKind(String(l?.itemId || "")));
   for (const w of wants) {
+    if (hold?.(w.kind, w.meats)) continue;
     const allSame = lines().filter((l) => lineKind(String(l.itemId)) === w.kind && sameMeats(lineMeats(l), w.meats));
     const variety = (l: any) => w.kind !== "qd" || !w.qd || (w.qd === "preparada" ? /deluxe|preparada/i.test(String(l.itemId)) : !/deluxe|preparada/i.test(String(l.itemId)));
     const otherWanted = w.kind === "qd" && !!w.qd && wants.some((o) => o !== w && o.kind === "qd" && sameMeats(o.meats, w.meats) && !!o.qd && o.qd !== w.qd);
