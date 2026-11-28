@@ -1,6 +1,7 @@
 // Shadow-only repairs. Live elvi does not import this module.
 import { carryoverWants } from "./carryover.js";
 import { applyMenudoSinPata } from "./list-repair.js";
+import { frozenPhoneMenu } from "./phone-menu.js";
 
 type Turn = { speaker?: string; text?: string };
 const fold = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
@@ -403,21 +404,157 @@ function conjugate(infinitive: string): void {
   } else {
     for (const end of ["iste", "ieron", "ia", "ias", "ian", "iendo"]) addVerb(stem + end);
   }
-  for (const end of ["me", "le", "nos", "se"]) {
+  addVerb(stem + (kind === "ar" ? "e" : "i"));
+  for (const end of ["me", "le", "nos", "se", "lo", "la"]) {
     addVerb(stem + theme + end);
     addVerb(stem + sub + end);
   }
+  const changed = new Set<string>();
+  if (/e[^e]*$/.test(stem)) {
+    changed.add(stem.replace(/e([^e]*)$/, "i$1"));
+    changed.add(stem.replace(/e([^e]*)$/, "ie$1"));
+  }
+  if (/o[^o]*$/.test(stem)) changed.add(stem.replace(/o([^o]*)$/, "ue$1"));
+  for (const swap of changed) {
+    if (swap === stem) continue;
+    for (const end of ["o", theme, theme + "s", theme + "n", sub, sub + "s", sub + "n"]) addVerb(swap + end);
+    for (const clitic of ["me", "le", "nos", "se", "lo", "la"]) {
+      addVerb(swap + theme + clitic);
+      addVerb(swap + sub + clitic);
+    }
+  }
+  if (kind === "ir" && stem.endsWith("gu")) {
+    const short = stem.slice(0, -1).replace(/e([^e]*)$/, "i$1");
+    for (const end of ["o", "a", "as", "an", "amos"]) addVerb(short + end);
+    for (const clitic of ["me", "le", "nos", "se"]) addVerb(short + "a" + clitic);
+  } else if (kind === "ir" && /g$/.test(stem)) {
+    const soft = stem.replace(/e([^e]*)$/, "i$1").replace(/g$/, "j");
+    for (const end of ["o", "a", "as", "an", "amos"]) addVerb(soft + end);
+  }
 }
-for (const infinitive of ["deber", "encargar", "esperar", "llevar", "recoger", "comer", "ordenar", "hablar", "llamar", "preparar", "mirar", "tomar", "comprar", "vender", "buscar", "dejar", "pagar", "mandar", "enviar", "usar", "pasar", "quedar", "llegar", "entrar", "preguntar", "trabajar", "caminar", "necesitar", "gustar", "molestar", "pensar", "contar", "volver", "entender", "perder", "parecer", "creer", "vivir", "escribir", "subir", "bajar", "seguir", "pedir", "servir", "dormir", "sentir", "preferir", "salir", "andar", "almorzar", "cenar", "probar", "abrir", "cerrar"]) conjugate(infinitive);
-for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "sera", "seran", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "dime", "dile", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "haces", "hace", "hacemos", "hacen", "haga", "hacer", "pongo", "pone", "ponga", "poner", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "danos", "salgo", "sale", "salga", "sal", "comi", "comio", "pidio", "pido", "entiendo", "abierto", "abierta", "cerrado", "cerrada"]) addVerb(form);
+for (const infinitive of ["deber", "encargar", "esperar", "llevar", "recoger", "comer", "ordenar", "hablar", "llamar", "preparar", "mirar", "tomar", "comprar", "vender", "buscar", "dejar", "pagar", "mandar", "enviar", "usar", "pasar", "quedar", "llegar", "entrar", "preguntar", "trabajar", "caminar", "necesitar", "gustar", "molestar", "pensar", "contar", "volver", "entender", "perder", "parecer", "creer", "vivir", "escribir", "subir", "bajar", "seguir", "pedir", "servir", "dormir", "sentir", "preferir", "salir", "andar", "almorzar", "cenar", "probar", "abrir", "cerrar", "querer", "venir", "cobrar", "agregar", "cambiar", "repetir", "ayudar", "escuchar", "terminar", "confirmar", "cancelar", "avisar", "revisar", "anotar", "explicar", "contestar", "responder", "recordar", "olvidar", "empezar", "comenzar", "acabar", "corregir", "conseguir", "sugerir", "medir", "costar", "faltar", "beber", "quitar", "regresar", "reservar", "entregar", "aceptar", "rechazar", "desayunar", "cocinar", "calentar", "mezclar", "platicar", "comentar", "informar", "checar", "verificar", "indicar", "mostrar", "aprender", "imaginar", "suponer", "dudar", "celebrar", "invitar", "devolver", "prestar", "encontrar", "aguardar", "comprender", "importar", "desear", "encantar", "recomendar", "permitir", "continuar", "tardar", "durar", "parar", "alcanzar", "sobrar", "conocer", "freir", "hervir", "vestir", "convertir", "marcar"]) conjugate(infinitive);
+for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "sera", "seran", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "vine", "vino", "vimos", "quiso", "quise", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "dime", "dile", "puedo", "puede", "pueda", "podria", "pude", "quiero", "quiere", "quisiera", "queria", "saber", "sabes", "sabe", "saben", "sepa", "supe", "hago", "haces", "hace", "hacemos", "hacen", "haga", "hacer", "hice", "hizo", "pongo", "pone", "ponga", "poner", "puse", "puso", "traigo", "trae", "traiga", "traje", "veo", "ves", "ve", "vi", "doy", "das", "da", "dan", "danos", "salgo", "sale", "salga", "sal", "comi", "comio", "pidio", "pido", "entiendo", "entendi", "abierto", "abierta", "cerrado", "cerrada", "traeme", "pongame", "traigame", "hagame", "tengame", "vengame", "digame", "oigame", "repitame"]) addVerb(form);
+for (const stem of ["pong", "dig", "hag", "traig", "teng", "veng", "salg", "oig"]) {
+  for (const end of ["a", "ame", "ale", "anos", "alo", "ala", "ase", "an"]) addVerb(stem + end);
+}
 VERB.delete("tomas");
+/** A verb form that is also a given name. These stay names. */
+const NAME_OK = new Set("tomas sal dan will ed al marco marcela".split(" "));
+for (const word of NAME_OK) VERB.delete(word);
 const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia mucha mucho momento hasta sal letter pero misfiado aja ajá all nunca called calls looking going coming ordering wondering wanna totally cool porfavor hello okay its each every both few either neither siempre todavia jamás jamas yep yup alright anyway fine nice correct large listen takeout casa hambre sed sueno`.split(/\s+/));
-/** Homographs of a real verb or function word. An ending by itself is not enough to reject a name. */
-const NAME_OK = new Set("tomas sal dan will ed al".split(" "));
+/** English verb class. Inflected forms, not a scan of every -ed or -ing word. */
+const ENGLISH_VERB = new Set<string>();
+function addEnglish(base: string, forms: string[]): void {
+  for (const form of [base, ...forms]) ENGLISH_VERB.add(fold(form).replace(/[^a-z]/g, ""));
+}
+addEnglish("order", ["orders", "ordered", "ordering"]);
+addEnglish("wait", ["waits", "waited", "waiting"]);
+addEnglish("call", ["calls", "called", "calling"]);
+addEnglish("look", ["looks", "looked", "looking"]);
+addEnglish("come", ["comes", "came", "coming"]);
+addEnglish("go", ["goes", "went", "gone", "going"]);
+addEnglish("give", ["gives", "gave", "given", "giving"]);
+addEnglish("take", ["takes", "took", "taken", "taking"]);
+addEnglish("make", ["makes", "made", "making"]);
+addEnglish("get", ["gets", "got", "gotten", "getting"]);
+addEnglish("say", ["says", "said", "saying"]);
+addEnglish("tell", ["tells", "told", "telling"]);
+addEnglish("know", ["knows", "knew", "known", "knowing"]);
+addEnglish("think", ["thinks", "thought", "thinking"]);
+addEnglish("eat", ["eats", "ate", "eaten", "eating"]);
+addEnglish("drink", ["drinks", "drank", "drunk", "drinking"]);
+addEnglish("bring", ["brings", "brought", "bringing"]);
+addEnglish("pay", ["pays", "paid", "paying"]);
+addEnglish("leave", ["leaves", "left", "leaving"]);
+addEnglish("feel", ["feels", "felt", "feeling"]);
+addEnglish("keep", ["keeps", "kept", "keeping"]);
+addEnglish("hear", ["hears", "heard", "hearing"]);
+addEnglish("speak", ["speaks", "spoke", "spoken", "speaking"]);
+addEnglish("understand", ["understands", "understood", "understanding"]);
+addEnglish("forget", ["forgets", "forgot", "forgotten", "forgetting"]);
+addEnglish("hold", ["holds", "held", "holding"]);
+addEnglish("find", ["finds", "found", "finding"]);
+addEnglish("mean", ["means", "meant", "meaning"]);
+addEnglish("put", ["puts", "putting"]);
+addEnglish("let", ["lets", "letting"]);
+addEnglish("be", ["am", "is", "are", "was", "were", "been", "being"]);
+addEnglish("have", ["has", "had", "having"]);
+addEnglish("do", ["does", "did", "done", "doing"]);
+addEnglish("want", ["wants", "wanted", "wanting"]);
+addEnglish("need", ["needs", "needed", "needing"]);
+addEnglish("like", ["likes", "liked", "liking"]);
+addEnglish("ask", ["asks", "asked", "asking"]);
+addEnglish("try", ["tries", "tried", "trying"]);
+addEnglish("cook", ["cooks", "cooked", "cooking"]);
+addEnglish("start", ["starts", "started", "starting"]);
+addEnglish("stop", ["stops", "stopped", "stopping"]);
+addEnglish("finish", ["finishes", "finished", "finishing"]);
+addEnglish("open", ["opens", "opened", "opening"]);
+addEnglish("close", ["closes", "closed", "closing"]);
+addEnglish("add", ["adds", "added", "adding"]);
+addEnglish("change", ["changes", "changed", "changing"]);
+addEnglish("help", ["helps", "helped", "helping"]);
+addEnglish("check", ["checks", "checked", "checking"]);
+addEnglish("confirm", ["confirms", "confirmed", "confirming"]);
+addEnglish("cancel", ["cancels", "canceled", "cancelled", "canceling", "cancelling"]);
+addEnglish("repeat", ["repeats", "repeated", "repeating"]);
+addEnglish("remember", ["remembers", "remembered", "remembering"]);
+addEnglish("believe", ["believes", "believed", "believing"]);
+addEnglish("seem", ["seems", "seemed", "seeming"]);
+addEnglish("work", ["works", "worked", "working"]);
+addEnglish("talk", ["talks", "talked", "talking"]);
+addEnglish("listen", ["listens", "listened", "listening"]);
+addEnglish("send", ["sends", "sent", "sending"]);
+addEnglish("spend", ["spends", "spent", "spending"]);
+addEnglish("build", ["builds", "built", "building"]);
+addEnglish("meet", ["meets", "met", "meeting"]);
+addEnglish("run", ["runs", "ran", "running"]);
+addEnglish("sit", ["sits", "sat", "sitting"]);
+addEnglish("write", ["writes", "wrote", "written", "writing"]);
+addEnglish("read", ["reads", "reading"]);
+addEnglish("buy", ["buys", "bought", "buying"]);
+for (const word of NAME_OK) ENGLISH_VERB.delete(word);
+/** Adjectives and the adverbs formed from them, plus closed adverb and pronoun classes. */
+const ADJECTIVE = new Set(`spicy fresh medium mild hot cold large small good bad open done ready correct fine nice great sure same extra regular crispy fried salty sweet sour busy hungry full empty late early quick slow hard soft right wrong whole half double single plain special free total exact real warm dry wet raw cooked baked boiled grilled available delicious crunchy perfect terrible horrible different similar possible certain clear obvious basic normal final usual current simple honest probable absolute actual definite complete entire partial huge tiny thick thin heavy dark bright loud quiet cheap easy difficult true false best worst better worse big little high low fast next last first second third thirsty tired sorry angry sad glad okay cool frozen canned bottled steamed juicy bitter rare closed`.split(/\s+/));
+const ADVERB = new Set(`never always already still just often seldom ever once twice instead anyway alright absolutely actually honestly probably definitely exactly simply usually currently totally finally normally really quickly slowly clearly certainly possibly suddenly recently especially particularly basically seriously frankly literally obviously apparently unfortunately hopefully kindly whenever wherever however somehow somewhere anywhere everywhere sometime anytime anymore meanwhile otherwise therefore thus hence away ahead apart aside aloud alike alone along around across behind below beneath beside between beyond inside outside upstairs downstairs nearby yesterday tonight sometimes rarely hardly barely nearly almost quite rather fairly pretty enough indeed perhaps surely truly deeply highly widely mostly largely greatly slightly merely directly immediately eventually originally personally completely entirely fully partly together`.split(/\s+/));
+const PRONOUN = new Set("anything something nothing everything anyone someone nobody everybody anybody whatever whoever whichever none you your yours ya our they them their him she her its my mine".split(" "));
+for (const word of ADJECTIVE) {
+  if (word.length >= 4 && !word.endsWith("y")) ADVERB.add(word.endsWith("le") ? `${word.slice(0, -1)}y` : `${word}ly`);
+}
+/** Payment tenders and drinks the frozen menu does not spell. Aceite is the spoken word for the fried quesadilla. */
+const PAYMENT = new Set("efectivo tarjeta debito credito cash card visa mastercard amex paypal zelle venmo cambio propina pago transferencia transfer".split(" "));
+const BEVERAGE = new Set("cerveza chela soda coke coca sprite fanta jugo cafe leche vino tequila michelada refresco beer coffee juice milk tea limonada lemonade aceite aceites".split(" "));
+let menuFood: Set<string> | null = null;
+function menuFoodWords(): Set<string> {
+  if (menuFood) return menuFood;
+  const words = new Set<string>();
+  const take = (value: unknown) => {
+    for (const token of fold(String(value || "")).split(/[^a-z]+/)) {
+      if (token.length < 3) continue;
+      words.add(token);
+      if (token.startsWith("al") && token.length >= 7) words.add(token.slice(2));
+    }
+  };
+  try {
+    for (const item of frozenPhoneMenu()) {
+      take(item?.name);
+      take(item?.nameEs);
+      for (const alias of item?.aliases || []) take(alias);
+      for (const group of item?.modifierGroups || []) {
+        take(group?.name);
+        for (const option of group?.options || []) take(option?.name);
+      }
+    }
+  } catch { /* the catalog is optional for a bare import */ }
+  words.delete("elvis");
+  for (const word of NAME_OK) words.delete(word);
+  menuFood = words;
+  return words;
+}
 function grammatical(word: string): boolean {
   if (!word) return true;
   if (NAME_OK.has(word)) return false;
-  if (NOT_NAME.has(word) || VERB.has(word) || ORDINARY.has(word)) return true;
+  if (NOT_NAME.has(word) || VERB.has(word) || ORDINARY.has(word) || ENGLISH_VERB.has(word) || ADJECTIVE.has(word) || ADVERB.has(word) || PRONOUN.has(word) || PAYMENT.has(word) || BEVERAGE.has(word) || menuFoodWords().has(word)) return true;
   if (/^(?:gon|got|wan|lem)(?:na|ta|me)$/.test(word)) return true;
   return false;
 }
@@ -433,9 +570,11 @@ function courtesyPhrase(text: string): boolean {
 }
 /** A name token is a word that is not grammar, food, a number, a verb, or a courtesy word. It does not have to be on a list. */
 function nameToken(token: string): boolean {
+  if (/^(?:i|you|we|they|he|she|it|that|what|who|let)'(?:ll|d|m|re|ve|s)$/i.test(token)) return false;
+  if (/n['’]?t$/i.test(token)) return false;
   const word = plainName(token);
-  if (NAME_OK.has(word)) return word.length >= 2 && /[aeiou]/.test(word);
-  if (word.length < 3 || !/[aeiou]/.test(word)) return false;
+  if (NAME_OK.has(word)) return word.length >= 2 && /[aeiouy]/i.test(word);
+  if (word.length < 3 || !/[aeiouy]/i.test(word)) return false;
   return !grammatical(word) && !NAME_PARTICLE.test(token) && !NAME_SKIP.test(token);
 }
 function showToken(token: string): string {
@@ -458,9 +597,12 @@ function nameSpan(raw: string): string | null {
       index += 1;
       continue;
     }
-    if (NAME_PARTICLE.test(parts[index])) {
+    if (NAME_PARTICLE.test(parts[index]) || /^(?:and|para|for)$/i.test(parts[index])) {
       const hold: string[] = [];
-      while (index < parts.length && NAME_PARTICLE.test(parts[index])) hold.push(parts[index++]);
+      while (index < parts.length && (NAME_PARTICLE.test(parts[index]) || /^(?:and|para|for)$/i.test(parts[index]))) {
+        if (!/^(?:para|for)$/i.test(parts[index])) hold.push(parts[index]);
+        index += 1;
+      }
       if (index < parts.length && nameToken(parts[index])) {
         kept.push(...hold, parts[index]);
         index += 1;
@@ -486,16 +628,14 @@ function restAfter(raw: string, span: string): string {
   let index = 0;
   while (index < parts.length && (NAME_SKIP.test(parts[index]) || NAME_PARTICLE.test(parts[index]))) index += 1;
   for (const token of span.split(/\s+/)) {
+    while (index < parts.length && /^(?:para|for)$/i.test(parts[index] || "")) index += 1;
     if (plainName(parts[index] || "") !== plainName(token)) return parts.slice(index).join(" ");
     index += 1;
   }
+  while (index < parts.length && /^(?:para|for)$/i.test(parts[index] || "")) index += 1;
   return parts.slice(index).join(" ");
 }
-function orderTail(rest: string): boolean {
-  const said = fold(rest).replace(/^[, ]+/, "");
-  return /^(?:y|and|for|para|quiero|quisiera|voy|vamos|me|un|una|unos|unas|dos|tres|cuatro|cinco|six|three|two|one|\d)/.test(said);
-}
-/** A leading name. Order words may follow a real cue. A cue word or a phrase fragment is not kept. */
+/** A leading name. After a real cue, whatever follows is the rest of the sentence. A cue word or a phrase fragment is not kept. */
 function namePhrase(raw: string, allowOrder = false): string | null {
   let text = String(raw || "").replace(/[?¿!¡.]+$/g, "").trim();
   text = text.replace(/,?\s+y\s+es\b.*$/iu, "");
@@ -504,8 +644,7 @@ function namePhrase(raw: string, allowOrder = false): string | null {
   const span = nameSpan(text);
   if (!span) return null;
   const rest = restAfter(text, span);
-  if (!rest) return span;
-  if (allowOrder && orderTail(rest)) return span;
+  if (!rest || allowOrder) return span;
   return null;
 }
 function callerTurns(turns: Turn[]): Turn[] {
@@ -529,28 +668,31 @@ function leftover(raw: string, span: string): boolean {
   }
   return index < parts.length;
 }
-function nameFromSentence(sentence: string, asked: boolean, later: boolean): string | null {
+function nameFromSentence(sentence: string, asked: boolean, later: boolean): { name: string; greeted: boolean } | null {
   if (courtesyPhrase(sentence)) return null;
+  const heard = (name: string | null, greeted = false) => name ? { name, greeted } : null;
   const ticket = sentence.match(/\ba nombre de\s+(.+)$/iu);
-  if (ticket) return namePhrase(ticket[1], true);
+  if (ticket) return heard(namePhrase(ticket[1], true));
   const self = sentence.match(/\b(?:me llamo|mi nombre es|my name is|this is|it'?s|i am|soy|mi apellido es)\s+(.+)$/iu);
-  if (self) return namePhrase(self[1], true);
+  if (self) return heard(namePhrase(self[1], true));
   const put = sentence.match(/^(?:ponga|ponme|dame)\s+(.+)$/iu);
-  if (put) return namePhrase(put[1], false);
+  if (put) return heard(namePhrase(put[1], false));
   const hello = sentence.match(/^(?:hi|hey|hello|hola|mande|buenas)\s*,?\s+(.+)$/iu);
-  if (hello && !/\b(?:this is|it'?s|me llamo|soy)\b/i.test(hello[1])) return namePhrase(hello[1], false);
+  if (hello && !/\b(?:this is|it'?s|me llamo|soy)\b/i.test(hello[1])) return heard(namePhrase(hello[1], false), true);
   const dest = sentence.match(/\b(?:para|for)\s+(.+)$/iu);
   if (dest) {
-    const span = namePhrase(dest[1]);
-    if (span) return span;
+    const span = namePhrase(dest[1], true);
+    if (span) return heard(span);
   }
   const questioning = /^[¿¡]/.test(sentence) || /\?\s*$/.test(sentence);
-  if (asked || (later && questioning) || /,\s*y\s+es\b/i.test(sentence)) return namePhrase(sentence);
+  if (asked || (later && questioning) || /,\s*y\s+es\b/i.test(sentence)) return heard(namePhrase(sentence));
   return null;
 }
 function spokenName(turns: Turn[]): string | null {
   const all = turns || [];
   let callerSeen = false;
+  let explicit: string | null = null;
+  let greeted: string | null = null;
   for (let index = 0; index < all.length; index += 1) {
     const turn = all[index];
     if (turn.speaker && turn.speaker !== "caller") continue;
@@ -560,17 +702,41 @@ function spokenName(turns: Turn[]): string | null {
     const later = callerSeen;
     callerSeen = true;
     for (const sentence of said.split(/(?<=[.!?])\s+/)) {
-      const name = nameFromSentence(sentence.trim(), asked, later);
-      if (name) return name;
+      const found = nameFromSentence(sentence.trim(), asked, later);
+      if (!found) continue;
+      if (found.greeted) greeted = greeted || found.name;
+      else if (!explicit) explicit = found.name;
     }
   }
-  return null;
+  return explicit || greeted;
+}
+/** The live name is only the person the caller greeted, and they later gave a different name. */
+function onlyGreeted(turns: Turn[], name: string): boolean {
+  const head = plainName(name.split(/\s+/)[0] || "");
+  if (!head) return false;
+  const headRe = new RegExp(`\\b${head}\\b`, "i");
+  let mentions = 0;
+  let greetings = 0;
+  for (const turn of turns || []) {
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const said = String(turn.text || "");
+    if (!headRe.test(said)) continue;
+    mentions += 1;
+    if (new RegExp(`\\b(?:me llamo|mi nombre es|my name is|this is|it'?s|i am|soy|a nombre de|para|for)\\s+${head}\\b`, "i").test(said)) return false;
+    const greet = said.match(/^(?:hi|hey|hello|hola|mande|buenas)\s*,?\s+(\S+)/i);
+    if (greet && plainName(greet[1]) === head) greetings += 1;
+    else return false;
+  }
+  return mentions > 0 && greetings === mentions;
 }
 function spokeFoodOrder(turns: Turn[]): boolean {
   const texts = callerTurns(turns).map((turn) => String(turn.text || ""));
   const food = /\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|quesitortas?|sopes?|fajitas?|platillos?|menudos?|moles?|enchiladas?|horchatas?|coctel|c[oó]ctel|camar[oó]n(?:es)?|ceviche|birrias?|nachos?|huaraches?|tamales?|tostadas?|pozoles?|rellenos?|costillas?|bistec|asada|pastor|chorizo|tripas?|buche|pollo|cabeza|lengua|carnitas|barbacoa)\b/iu;
   const order = /\b(?:me\s+pone|ponme|ponga|quiero|quer[ií]a|dame|deme|ordenar|pedido|encarg|apartar|can i get|i'?ll (?:get|take)|get (?:a|an|the|one|two|three|four)|me puede|poner|una orden)\b/iu;
   const availability = (text: string) => /[?¿]/.test(text) && /\b(?:tienen|tiene|tienes|hay|venden|do you have)\b/iu.test(text) && !order.test(text);
+  const dish = (text: string) => food.test(text) || fold(text).split(/[^a-z]+/).some((word) => word.length >= 3 && (BEVERAGE.has(word) || menuFoodWords().has(word)));
+  const intro = /\b(?:this is|it'?s|me llamo|my name is|i am|soy)\b/iu;
+  if (texts.some((text) => intro.test(text) && dish(text))) return true;
   const ordered = texts.filter((text) => food.test(text) && !availability(text));
   if (texts.some((text) => food.test(text)) && texts.some((text) => order.test(text))) return true;
   if (!ordered.length) return false;
@@ -584,7 +750,8 @@ export function shadowCustomerName(live: { name?: string; group?: string[] } | n
   const liveClean = liveText && phraseOk(liveText) ? (nameSpan(liveText) || "") : "";
   const shouted = !!liveClean && (turns || []).some((turn) => turn.speaker === "staff" && new RegExp(`\\boye\\b[,.\\s]+${liveClean.split(/\s+/)[0]}\\b`, "i").test(turn.text || "") && /\b(?:pedido|orden|listo|ya\s+est[aá])/i.test(turn.text || ""))
     && !callerTurns(turns).some((turn) => new RegExp(`\\b${liveClean.split(/\s+/)[0]}\\b`, "i").test(turn.text || ""));
-  if (liveClean && !shouted && !onlyAsGreeting(turns, liveClean)) return liveClean;
+  const greetedAside = !!liveClean && onlyGreeted(turns, liveClean) && !!spoken && plainName(spoken) !== plainName(liveClean);
+  if (liveClean && !shouted && !onlyAsGreeting(turns, liveClean) && !greetedAside) return liveClean;
   if (spoken && !(live?.group && live.group.length >= 2)) return spoken;
   return null;
 }

@@ -360,6 +360,49 @@ test("a cue word is not the name, and a short real name still is", async () => {
   }
 });
 
+test("a name cue keeps the name before any order, and a greeting yields to the name they give", async () => {
+  const phrasings = [
+    "Hi, this is Rosa, four steak tacos on corn tortilla.",
+    "Hello, this is Luz, can I get four steak tacos.",
+    "Hi, this is Grace, I'd like two tacos de pastor.",
+    "Hello, this is Hunter, I'm calling to order a burrito.",
+    "Hi, this is Javier, give me a gordita de pollo.",
+    "Hello, this is Amado, I'll have a torta de bistec.",
+    "Hi, this is Shelly, do you have three tacos de asada.",
+    "Hello, this is Irving, whenever you can, two burritos.",
+  ];
+  for (const line of phrasings) {
+    const expect = line.match(/this is (\p{L}+)/u)?.[1];
+    const named = await order([["caller", line]]);
+    assert.equal(named.customerName, expect, line);
+  }
+  const group = await order([["caller", "Cuatro tacos de asada para Lupita y para Pedro."]]);
+  assert.equal(group.customerName, "Lupita y Pedro");
+  const later = await order([
+    ["caller", "Hey, Ander."],
+    ["caller", "Cuatro tacos de asada."],
+    ["staff", "¿Su nombre?"],
+    ["caller", "Santiago."],
+  ]);
+  assert.equal(later.customerName, "Santiago");
+  const swapped = await order([
+    ["caller", "Hola, Karen."],
+    ["caller", "Soy Santiago, quiero cuatro tacos."],
+  ]);
+  assert.equal(swapped.customerName, "Santiago");
+  const only = await order([["caller", "Hola, Fermín."], ["caller", "Un taco de pastor."]]);
+  assert.equal(only.customerName, "Fermín");
+  const junk = ["Horchata", "Pepsi", "Carnitas", "Cerveza", "Visa", "Efectivo", "Repita", "Siga", "Pida", "Terminamos", "Avísame", "Anything", "Something", "Quickly", "Delicious", "Cooked", "Póngame", "Tráigame"];
+  for (const word of junk) {
+    const asked = await order([
+      ["caller", "Un taco de pastor."],
+      ["staff", "¿Su nombre?"],
+      ["caller", `${word}.`],
+    ]);
+    assert.notEqual(asked.customerName, word, word);
+  }
+});
+
 test("a name after other words is kept, and a phrase fragment is not a name", async () => {
   const mid = await order([
     ["caller", "Son dos tortas. A nombre de Lorena."],
