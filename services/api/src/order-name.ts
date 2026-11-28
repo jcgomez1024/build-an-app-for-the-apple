@@ -481,9 +481,6 @@ function isKitchenVocativeHit(text: string, name: string): boolean {
     && new RegExp(String.raw`\b${n}\b`, "iu").test(text)
     && new RegExp(String.raw`(?:una?|unos?)\s+(?:${KITCHEN_FOOD})\b`, "iu").test(text))
     return true;
-  // "Oye, Luis, ¿ya está el pedido?" is aimed at the kitchen, not the caller.
-  if (new RegExp(String.raw`\boye\b[,.\s]+${n}\b`, "iu").test(text) && /\b(?:pedido|orden|listo|ya\s+est[aá])\b/iu.test(text))
-    return true;
   return false;
 }
 
@@ -758,12 +755,11 @@ export function esParaName(turns: Array<{ speaker: string; text: string }>): str
 }
 // jennifer1 (CA8da140): a tail segment ending in "Ciao." made Ciao the order name — goodbyes are never names, on any path.
 export const GOODBYE_NAME = /^(?:ciao|chao|chau|tchau|chaito|chaíto|bye(?:[\s-]*bye)?|good\s*bye|adi[oó]s|adios|hasta\s+luego|nos\s+vemos|see\s+(?:you|ya)|later|cu[ií]date|bai)$/iu;
-const GREETING_NAME = /^(?:buenas?|buenos|tardes|d[ií]as|noches|hola|oye|mira|mire|mande|okey)$/iu;
 export function nameFromTranscriptInfo(turns: Array<{ speaker: "caller" | "staff"; text: string }>): ReturnType<typeof nameFromTranscriptInfo0> {
   const r = nameFromTranscriptInfoG(turns);
   if (!r) return null;
   const first = String(r.name).split(/\s+/)[0].replace(/[.,!?¡¿]+/g, "");
-  if (GOODBYE_NAME.test(first) || GREETING_NAME.test(first)) return null;
+  if (GOODBYE_NAME.test(first)) return null;
   // doritas1: food words and close STT of them are not the saved name when the caller never self-identified.
   if (isFoodNameBlocked(r.name, r.source, turns)) return null;
   return r;
@@ -833,7 +829,6 @@ function nameFromTranscriptInfo0(turns: Array<{ speaker: "caller" | "staff"; tex
   // chalino1 (CAe85a69, Oct 30 6:54 PM ET): the phone digits said after the name ask ("seis", "dos noventa y cuatro")
   // became the name "Seis". Number words / digits are never names → the staff read-back ("Chalino, muy bien") instead.
   if (r && isNumberName(r.name)) r = readBackName(turns);
-  if (r && r.source === "vocative" && streetTokensFromTurns(turns).has(foldName(r.name.split(/\s+/)[0]))) r = null;
   if (group.length >= 2) return r ? { ...r, group } : { name: group[0], thirdPerson: true, source: "volunteer", group };
   if (r) return r;
   const callerTurns = turns.filter((t) => t.speaker === "caller");

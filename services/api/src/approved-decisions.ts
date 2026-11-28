@@ -86,7 +86,7 @@ function taquitoOrders(turns: Turn[]): TaquitoOrder[] {
     if (turn.speaker && turn.speaker !== "caller") continue;
     const raw = fold(turn.text || "");
     if (!/\btaquitos?\b/.test(raw)) continue;
-    const otherDish = raw.search(/\b(?:quesadillas?|gorditas?|tortas?|burritos?|sopes?(?:asos?)?|menudos?|huaraches?)\b/);
+    const otherDish = raw.search(/\b(?:quesadillas?|gorditas?|tortas?|burritos?|sopes?(?:asos?)?|menudos?|huaraches?|(?:\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+tacos?)\b/);
     const scope = otherDish >= 0 ? raw.slice(0, otherDish) : raw;
     const style = taquitoStyle(scope) || laterTaquitoStyle(turns, i) || yesToTaquitoStyle(turns, i);
     const re = /\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+taquitos?\b/g;
@@ -110,6 +110,20 @@ function taquitoOrders(turns: Turn[]): TaquitoOrder[] {
   }
   return out;
 }
+function otherTacoOrders(turns: Turn[]): TaquitoOrder[] {
+  const out: TaquitoOrder[] = [];
+  for (const turn of turns || []) {
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const raw = fold(turn.text || "");
+    for (const match of raw.matchAll(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+tacos?\s+de\s+(harina|flour|comal|taquer[oa]s?|street)\s+de\s+([a-z]+)/g)) {
+      const meat = TAQUITO_MEATS.find((key) => key === match[3] || match[3].startsWith(key));
+      const style: TaquitoStyle = /harina|flour/.test(match[2]) ? "harina" : /comal/.test(match[2]) ? "comal" : "taquero";
+      const qty = taquitoCount(match[1]);
+      if (meat && qty) out.push({ qty, meat, style });
+    }
+  }
+  return out;
+}
 function lineHasMeat(line: any, meat: string): boolean {
   return (line?.modifiers || []).some((mod: any) => fold(mod.option || "").includes(meat));
 }
@@ -123,8 +137,9 @@ function clearAsked(line: any, pattern: RegExp): boolean {
 }
 /** Q6: "taquitos" are plain tacos. Ask the tortilla only when none was said. */
 export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = []): boolean {
-  const orders = taquitoOrders(turns || []);
-  if (!orders.length) return false;
+  const taquitos = taquitoOrders(turns || []);
+  if (!taquitos.length) return false;
+  const orders = [...taquitos, ...otherTacoOrders(turns || [])];
   const taco = (menu || []).find((row) => /^sq-taco-/.test(String(row?.id || "")));
   let changed = false;
   for (const order of orders) {

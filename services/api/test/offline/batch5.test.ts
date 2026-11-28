@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
+import { nameFromTranscriptInfo } from "../../src/order-name.ts";
+import { addressesIn, detectAddress } from "../../src/delivery.ts";
 
 const menu = frozenPhoneMenu();
 const run: any = async () => ({ actions: [], reply: "" });
@@ -170,6 +172,104 @@ test("a yes to the taquero question takes the taquitos off hold", async () => {
   assert.equal(taco?.quantity, 2);
   assert.match(opts(taco), /Street|Taquero/);
   assert.equal((taco?.elviNotes || []).some((note: string) => /tortilla/i.test(note)), false);
+});
+
+test("live name and address callers stay on the 17bcf7e result", () => {
+  assert.equal(nameFromTranscriptInfo([{ speaker: "staff", text: "¿A nombre de quién?" }, { speaker: "caller", text: "Hola, Fermín." }] as any), null);
+  assert.equal(nameFromTranscriptInfo([{ speaker: "staff", text: "¿Su nombre?" }, { speaker: "caller", text: "Mande, Fermín." }] as any), null);
+  assert.equal(nameFromTranscriptInfo([{ speaker: "caller", text: "Me llamo Fermín." }] as any)?.name, "Fermín");
+  assert.equal(nameFromTranscriptInfo([{ speaker: "caller", text: "Un taco de pastor." }, { speaker: "staff", text: "Oye, Luis, ¿ya está el pedido?" }] as any)?.name, "Luis");
+  assert.deepEqual(addressesIn("Es el 1482 de la calle Magnolia, apartamento 4B."), []);
+  assert.equal(detectAddress([{ speaker: "caller", text: "123 Main St apt 2", start: 1 }] as any).address?.full, "123 Main St Apt 2");
+});
+
+test("a greeting before a name keeps the name on the shadow order", async () => {
+  const hola = await order([["caller", "Un taco de pollo."], ["staff", "¿A nombre de quién?"], ["caller", "Hola, Fermín."]]);
+  assert.equal(hola.customerName, "Fermín");
+  const mande = await order([["caller", "Un taco de pollo."], ["staff", "¿Su nombre?"], ["caller", "Mande, Fermín."]]);
+  assert.equal(mande.customerName, "Fermín");
+});
+
+test("a filler does not replace a name already given", async () => {
+  const result = await order([
+    ["caller", "Me llamo Nuria."],
+    ["staff", "Nuria, muy bien."],
+    ["caller", "Muchísimas gracias, ponga eso."],
+  ]);
+  assert.equal(result.customerName, "Nuria");
+  const place = await order([
+    ["caller", "Me llamo Carlos."],
+    ["staff", "¿A nombre de quién?"],
+    ["caller", "Allá en Carlos."],
+  ]);
+  assert.notEqual(place.customerName, "Allá En Carlos");
+  assert.equal(place.customerName, "Carlos");
+});
+
+test("a bare count answers the staff question", async () => {
+  const result = await order([
+    ["staff", "¿Cuántas gorditas de pollo?"],
+    ["caller", "Cuatro."],
+    ["caller", "Sí."],
+  ]);
+  const line = (result.cart || []).find((row: any) => /gordita/.test(String(row.itemId)));
+  assert.ok(line);
+  assert.equal(line.quantity, 4);
+  assert.match(opts(line), /Pollo/);
+});
+
+test("a milanesa platillo with the tortilla and side answered is not empty", async () => {
+  const result = await order([
+    ["caller", "Un platillo de milanesa."],
+    ["staff", "¿Con tortillas de comal?"],
+    ["caller", "Sí, de comal."],
+    ["staff", "¿Arroz y frijoles?"],
+    ["caller", "Sí."],
+  ]);
+  const line = (result.cart || []).find((row: any) => /platillo-de-guisado/.test(String(row.itemId)));
+  assert.ok(line);
+  assert.match(opts(line), /Corn/);
+  assert.match(opts(line), /Arroz/);
+  assert.match((line.elviNotes || []).join(" "), /milanesa/);
+  assert.equal(result.noOrder, undefined);
+});
+
+test("de queso closes the enchilada option", async () => {
+  const result = await order([
+    ["caller", "Dos enchiladas."],
+    ["staff", "¿De queso o de pollo?"],
+    ["caller", "De queso."],
+  ]);
+  const line = (result.cart || []).find((row: any) => /enchilada/.test(String(row.itemId)));
+  assert.ok(line);
+  assert.match(opts(line), /Queso/);
+  assert.equal(line.validation, undefined);
+  assert.equal((line.elviNotes || []).some((note: string) => /confirmar/i.test(note)), false);
+});
+
+test("taquitos do not take the tortilla of the other tacos", async () => {
+  const result = await order([["caller", "Tres taquitos de cabeza y dos tacos de harina de pollo."]]);
+  const cabeza = (result.cart || []).find((row: any) => /^sq-taco-/.test(String(row.itemId)) && /Cabeza/.test(opts(row)));
+  const pollo = (result.cart || []).find((row: any) => /^sq-taco-/.test(String(row.itemId)) && /Pollo/.test(opts(row)));
+  assert.equal(cabeza?.quantity, 3);
+  assert.doesNotMatch(opts(cabeza), /Harina|Flour/);
+  assert.equal(pollo?.quantity, 2);
+  assert.match(opts(pollo), /Harina|Flour/);
+});
+
+test("horchata stays horchata, fried stays off comal, and burrito con todo is the fillings", async () => {
+  const drink = await order([["caller", "Quiero una agua de horchata."]]);
+  assert.match(String(drink.cart[0]?.itemId), /horchata/);
+  assert.doesNotMatch(String(drink.cart[0]?.itemId), /water|embotellada|bottle/);
+  const fried = await order([["caller", "Una quesadilla frita de pollo."]]);
+  assert.match(String(fried.cart[0]?.itemId), /dorada/);
+  assert.doesNotMatch(String(fried.cart[0]?.itemId), /^sq-quesadilla-/);
+  const burrito = await order([["caller", "Un burrito de carne asada con todo."]]);
+  const line = burrito.cart[0];
+  assert.match(String(line.itemId), /burrito/);
+  assert.match(opts(line), /Arroz/);
+  assert.match(opts(line), /Frijoles/);
+  assert.doesNotMatch(opts(line), /DELUXE|\+\$0\.75/);
 });
 
 test("a kitchen shout is not the order name, and a confirmed name stays", async () => {

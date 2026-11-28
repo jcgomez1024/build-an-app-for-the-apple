@@ -138,6 +138,224 @@ export function splitOpeningTotal(cart: any[], turns: Turn[], menu: any[]): bool
   return changed;
 }
 
+/** "¿Cuántas?" "Cuatro." must not leave the dish at quantity 1. */
+export function applyBareCount(cart: any[], turns: Turn[], menu: any[]): boolean {
+  let changed = false;
+  for (let i = 0; i < (turns || []).length; i++) {
+    if (turns[i].speaker !== "staff" || !/\b(?:cu[aá]nt[oa]s?|how many)\b/i.test(turns[i].text || "")) continue;
+    const next = turns.slice(i + 1).find((turn) => !turn.speaker || turn.speaker === "caller");
+    if (!next) continue;
+    const said = fold(next.text || "").replace(/[.?!,]/g, "").trim();
+    const qty = numOf((said.match(new RegExp(`^(${NUMW})$`)) || [])[1] || "");
+    if (!qty || qty <= 1) continue;
+    const dish = (fold(turns[i].text || "").match(new RegExp(`\\b(${DISH})\\b`)) || [])[1] || "";
+    if (!dish) continue;
+    let lines = (cart || []).filter((line) => dishId(String(line?.itemId || ""), dish) && !/combo/i.test(String(line?.itemId || "")));
+    if (!lines.length) {
+      const item = (menu || []).find((row) => dishId(String(row?.id || ""), dish));
+      if (!item) continue;
+      const meat = (fold(turns.map((turn) => turn.text).join(" ")).match(/\b(pollo|bistec|pastor|lengua|tripa|costilla|chorizo)\b/) || [])[1] || "";
+      const option = meat ? meatOption(item, meat) : null;
+      const line = { itemId: item.id, quantity: qty, modifiers: option ? [option] : [] };
+      cart.push(line);
+      lines = [line];
+      changed = true;
+      continue;
+    }
+    const have = lines.reduce((sum, line) => sum + (Number(line.quantity) || 1), 0);
+    if (have === 1 && lines.length === 1) {
+      lines[0].quantity = qty;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function findItem(menu: any[], re: RegExp): any | null {
+  return (menu || []).find((row) => re.test(String(row?.id || ""))) || null;
+}
+function putOption(line: any, mod: { step: string; option: string } | null): void {
+  if (!mod) return;
+  const mods = (line.modifiers || []).filter((row: any) => row.step !== mod.step);
+  if (!mods.some((row: any) => row.option === mod.option)) mods.push(mod);
+  line.modifiers = mods;
+}
+function clearHold(line: any, pattern: RegExp): void {
+  const notes = (line.elviNotes || []).filter((note: string) => !pattern.test(note));
+  if (notes.length) line.elviNotes = notes;
+  else delete line.elviNotes;
+  if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note))) delete line.validation;
+}
+
+/** A short fajitas or platillo order, once the tortilla and side are answered, is not an empty cart. */
+export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const callerTurns = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller");
+  const caller = callerTurns.map((turn) => fold(turn.text || "")).join(" ");
+  const ordered = (dish: RegExp) => callerTurns.some((turn) => {
+    const text = fold(turn.text || "");
+    return dish.test(text) && /\b(?:un|una|quiero|dame|deme|ponme|ponga|me\s+(?:das|da|pones|pone))\b/.test(text) && !/[?¿]/.test(String(turn.text || ""));
+  });
+  const fajita = ordered(/\bfajitas?\b/);
+  const plate = ordered(/\bplatillos?\b/) && !/\bmoles?\b|\brellenos?\b|\bfajitas?\b/.test(caller);
+  if (!fajita && !plate) return false;
+  const answered = /\bcomal\b|\bharina\b|\bflour\b|\barroz\b|\bfrijol/.test(caller);
+  if (!answered) return false;
+  const idRe = fajita ? /fajitas-elvis/i : /platillo-de-guisado/i;
+  if ((cart || []).some((line) => idRe.test(String(line?.itemId || "")))) return false;
+  const item = findItem(menu, idRe);
+  if (!item) return false;
+  const tortillaName = /\bharina\b|\bflour\b/.test(caller) ? /flour|harina/i : /corn/i;
+  const sideName = /\bsolo\s+arroz\b|\bonly rice\b/.test(caller) ? /solo arroz|only rice/i : /\bsolo\s+frijol/.test(caller) ? /solo frijol|only beans/i : /arroz-rice and frijoles|rice and frijoles/i;
+  const line: any = { itemId: item.id, quantity: 1, modifiers: [] };
+  for (const group of item.modifierGroups || []) {
+    if (/tortilla/i.test(group.name) && !/extra/i.test(group.name)) {
+      const name = (group.options || []).map(oname).find((option: string) => tortillaName.test(option) && !/extra/i.test(option));
+      if (name) line.modifiers.push({ step: group.name, option: name });
+    }
+    if (/lado|side/i.test(group.name)) {
+      const name = (group.options || []).map(oname).find((option: string) => sideName.test(option));
+      if (name) line.modifiers.push({ step: group.name, option: name });
+    }
+  }
+  if (/\bmilanesa\b/.test(caller)) line.elviNotes = ["milanesa"];
+  cart.push(line);
+  return true;
+}
+
+/** "De queso" answers the enchilada option. The line does not stay on hold. */
+export function applyEnchiladaCheese(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const callerTurns = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || ""));
+  if (!callerTurns.some((text) => /\benchiladas?\b/.test(text)) || !callerTurns.some((text) => /\bde\s+queso\b/.test(text))) return false;
+  const item = findItem(menu, /enchiladas-orden/i);
+  const lines = (cart || []).filter((line) => /enchilada/i.test(String(line?.itemId || "")));
+  if (!lines.length) return false;
+  const host = item || (menu || []).find((row) => row.id === lines[0].itemId);
+  const mod = meatOption(host, "queso") || { step: "(A) Enchiladas Carne Options (ONLINE)", option: "Queso / Cheese" };
+  let changed = false;
+  for (const line of lines) {
+    putOption(line, mod);
+    clearHold(line, /^confirmar\b.*(?:enchilada|carne)/i);
+    changed = true;
+  }
+  return changed;
+}
+
+const BURRITO_FILLINGS = ["Frijoles Refritos / Refried Beans", "Arroz / Rice", "Queso Fresco / Cheese", "Crema / Sour Cream", "Cebolla / Onion", "Cilantro"];
+/** "Con todo" on a burrito is the fillings, not the paid deluxe add-on. */
+export function applyBurritoConTodo(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const callerTurns = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || ""));
+  const caller = callerTurns.join(" ");
+  const sameTurn = callerTurns.some((text) => /\bburritos?\b/.test(text) && /\bcon todo\b/.test(text));
+  if (!sameTurn || /\b(?:deluxe|preparad)/.test(caller)) return false;
+  const item = findItem(menu, /^sq-burrito-/i);
+  if (!item) return false;
+  let changed = false;
+  let lines = (cart || []).filter((line) => /burrito/i.test(String(line?.itemId || "")));
+  if (!lines.length) {
+    const meat = (caller.match(/\b(bistec|asada|pastor|pollo|lengua|chorizo|carnitas)\b/) || [])[1];
+    const key = meat === "asada" ? "bistec" : meat || "";
+    const mods = [];
+    if (key) {
+      const option = meatOption(item, key);
+      if (option) mods.push(option);
+    }
+    cart.push({ itemId: item.id, quantity: 1, modifiers: mods });
+    lines = [cart[cart.length - 1]];
+    changed = true;
+  }
+  const fillingGroup = (item.modifierGroups || []).find((group: any) => /burrito options/i.test(String(group?.name || "")));
+  for (const line of lines) {
+    const before = JSON.stringify(line.modifiers || []);
+    if ((line.modifiers || []).some((mod: any) => /deluxe/i.test(String(mod.option || "")))) continue;
+    for (const filling of BURRITO_FILLINGS) {
+      const name = (fillingGroup?.options || []).map(oname).find((option: string) => fold(option) === fold(filling));
+      if (!name) continue;
+      if ((line.modifiers || []).some((mod: any) => mod.option === name)) continue;
+      line.modifiers = [...(line.modifiers || []), { step: fillingGroup.name, option: name }];
+    }
+    if (JSON.stringify(line.modifiers || []) !== before) changed = true;
+  }
+  return changed;
+}
+
+/** Horchata the caller picked is not replaced by a bottle of water. Fried is not rewritten as comal. */
+export function keepSpokenStyle(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
+  let changed = false;
+  if (/\bhorchata\b/.test(caller) && !/\bbotella\b|\bwater\b|\bagua embotellada\b/.test(caller)) {
+    const water = (cart || []).find((line) => /water|embotellada|bottle/i.test(String(line?.itemId || "")));
+    const horchata = (cart || []).find((line) => /horchata/i.test(String(line?.itemId || "")));
+    if (water && !horchata) {
+      const item = findItem(menu, /horchata/i);
+      if (item) {
+        water.itemId = item.id;
+        water.modifiers = [];
+        changed = true;
+      }
+    }
+  }
+  if (/\b(?:fritas?|fried)\b/.test(caller) && /\bquesadillas?\b/.test(caller) && !/\bcomal\b/.test(caller)) {
+    const comal = (cart || []).filter((line) => /^sq-quesadilla-/.test(String(line?.itemId || "")) && !/dorada/.test(String(line?.itemId || "")));
+    const dorada = findItem(menu, /quesadilla-dorada-qd-regular/i);
+    if (comal.length && dorada) {
+      for (const line of comal) {
+        const meat = (line.modifiers || []).filter((mod: any) => /carne|meat/i.test(String(mod.step || "")));
+        line.itemId = dorada.id;
+        line.modifiers = meat;
+        if (!(line.elviNotes || []).includes("confirmar regular o preparada")) line.elviNotes = [...(line.elviNotes || []), "confirmar regular o preparada"];
+        line.validation = "unresolved";
+      }
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+const FILLER_NAME = /^(?:ponga|pongame|pongan|muchisimas|muchas|gracias|me|alla en|okay|okey|hola|mande|buenas|oye)\b/;
+/** Shadow name only. The live name function is not changed. */
+function ownName(turns: Turn[]): string | null {
+  for (const turn of turns || []) {
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const said = String(turn.text || "");
+    const named = said.match(/\b(?:me llamo|soy|mi nombre es)\s+(\p{L}[\p{L}'’-]+)/iu);
+    if (named && !FILLER_NAME.test(fold(named[1]))) return named[1];
+    const hello = said.match(/^(?:hola|mande|buenas)\s*,\s*(\p{L}[\p{L}'’-]+)/iu);
+    if (hello && !FILLER_NAME.test(fold(hello[1]))) return hello[1];
+  }
+  return null;
+}
+export function shadowCustomerName(live: { name?: string; group?: string[] } | null, turns: Turn[]): string | null {
+  const spoken = ownName(turns);
+  let name = live?.name || "";
+  if (spoken && (!name || FILLER_NAME.test(fold(name)) || /^alla en\b/.test(fold(name)))) return spoken;
+  if (!name || FILLER_NAME.test(fold(name)) || /^alla en\b/.test(fold(name))) {
+    if (live?.group && live.group.length >= 2) return null;
+    return spoken;
+  }
+  const shouted = (turns || []).some((turn) => turn.speaker === "staff" && new RegExp(`\\boye\\b[,.\\s]+${name}\\b`, "i").test(turn.text || "") && /\b(?:pedido|orden|listo|ya\s+est[aá])/i.test(turn.text || ""));
+  const saidOwn = (turns || []).some((turn) => (!turn.speaker || turn.speaker === "caller") && new RegExp(`\\b${name}\\b`, "i").test(turn.text || ""));
+  if (shouted && !saidOwn) return null;
+  return name;
+}
+
+/** Shadow address only. Live address parsing is not changed. */
+export function shadowFillAddress(turns: Turn[], current: string | null): string | null {
+  const blob = (turns || []).map((turn) => String(turn.text || "")).join(" ");
+  const match = blob.match(/\b(\d{1,6})\s+de\s+la\s+(calle|avenida|av\.?)\s+([a-záéíóúñ][a-záéíóúñ.'-]{2,})(?:\s*,\s*(apartamento|apt\.?|apartment)\s*([a-z0-9-]{1,6}))?/iu);
+  if (!match) return current;
+  const phone = blob.match(/\b(?:n[uú]mero|tel[eé]fono|phone)\s*(?:es\s*)?([\d\s-]{7,})/iu);
+  const phoneDigits = (phone?.[1] || "").replace(/\D/g, "");
+  if (phoneDigits.includes(match[1])) return current;
+  const kind = /^av/i.test(match[2]) ? "Ave" : "St";
+  const street = `${match[1]} ${match[3].replace(/(^|[\s-])(\p{L})/gu, (_m, a, b) => a + b.toUpperCase())} ${kind}`;
+  const unit = match[5] ? `Apartamento ${match[5]}` : "";
+  if (current && current.includes(match[1])) {
+    if (unit && !/apartamento|apt/i.test(current)) return `${current} ${unit}`.replace(/\s+/g, " ").trim();
+    return current;
+  }
+  return [street, unit].filter(Boolean).join(" ");
+}
+
 /** Runs after the other shadow repairs. */
 export function applyShadowPatterns(cart: any[], turns: Turn[], menu: any[] = []): boolean {
   let changed = false;
@@ -145,5 +363,10 @@ export function applyShadowPatterns(cart: any[], turns: Turn[], menu: any[] = []
   if (splitOpeningTotal(cart, turns, menu)) changed = true;
   if (fixCarriedCount(cart, turns)) changed = true;
   if (applyAgreedCount(cart, turns, menu)) changed = true;
+  if (applyBareCount(cart, turns, menu)) changed = true;
+  if (applyAnsweredPlate(cart, turns, menu)) changed = true;
+  if (applyEnchiladaCheese(cart, turns, menu)) changed = true;
+  if (applyBurritoConTodo(cart, turns, menu)) changed = true;
+  if (keepSpokenStyle(cart, turns, menu)) changed = true;
   return changed;
 }

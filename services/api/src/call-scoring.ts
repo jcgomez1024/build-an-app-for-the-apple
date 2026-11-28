@@ -25,7 +25,7 @@ import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applySecondGroups } from "./second-groups.js";
 import { applyCarryover } from "./carryover.js";
 import { applyShadowDecisions } from "./approved-decisions.js";
-import { applyShadowPatterns } from "./shadow-patterns.js";
+import { applyShadowPatterns, shadowCustomerName, shadowFillAddress } from "./shadow-patterns.js";
 import { applyCorrections, correctionHolds } from "./corrections.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
@@ -5235,7 +5235,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
       ? ts.slice(i, i + 5).map((x) => String(x.text).replace(/\D/g, "")).join("") : "").join("|");
     if (house && phoneDigits.includes(house)) { steps.push({ source: "address-phone-digits", heard: shadowAddress }); shadowAddress = null; shadowAddressConfirmed = false; }
   }
-  let address = shadowAddress || detA.address?.full || detA.address?.street || null;
+  let address = shadowFillAddress(turns as any, shadowAddress || detA.address?.full || detA.address?.street || null);
   let addressConfirmed = shadowAddressConfirmed || detA.confirmed
     // acevedo1: a caller-only address nobody read back stays unconfirmed (the ticket keeps its confirm flag)
     || (!!address && fulfillment === "DELIVERY" && !!detA.address && detA.by === "staff");
@@ -8104,7 +8104,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     steps.push({ source: "shadow-patterns", heard: "kept the agreed count, the spoken parts, and the answered option" });
   if (decided.review && !(steps as any).reviewReason) (steps as any).reviewReason = decided.review;
   const reviewReason = (steps as any).reviewReason || null;
-  const customerName = nameFromTranscriptInfo(origTurns as any)?.name || null;
+  const customerName = shadowCustomerName(nameFromTranscriptInfo(origTurns as any), origTurns as any);
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
   return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(customerName ? { customerName } : {}), ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
