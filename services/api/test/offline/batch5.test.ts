@@ -308,6 +308,62 @@ test("a greeting word is a name only when it is a person's name, and a no-order 
   assert.equal(asking.customerName, undefined);
 });
 
+test("an answer to the name question keeps an uncommon name, and a greeting does not", async () => {
+  const answer = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿Su nombre?"],
+    ["caller", "Rosalba."],
+  ]);
+  assert.equal(answer.customerName, "Rosalba");
+  const surname = await order([
+    ["caller", "Una gordita de pollo."],
+    ["staff", "¿Su apellido?"],
+    ["caller", "Paredes."],
+  ]);
+  assert.equal(surname.customerName, "Paredes");
+  const called = await order([["caller", "My name is Dana."], ["caller", "Un taco de pastor."]]);
+  assert.equal(called.customerName, "Dana");
+  const intro = await order([["caller", "This is Marcus."], ["caller", "Un burrito de bistec."]]);
+  assert.equal(intro.customerName, "Marcus");
+  const clause = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿A nombre de quién?"],
+    ["caller", "Elena, y es para recoger."],
+  ]);
+  assert.equal(clause.customerName, "Elena");
+  const glued = await order([["caller", "Hola, Marco, tres gorditas de pollo de comal."]]);
+  assert.notEqual(glued.customerName, "Marco Tres Gorditas de Pollo de Comal");
+  assert.ok(!String(glued.customerName || "").includes("Gordita"));
+  const hello = await order([
+    ["staff", "Hello."],
+    ["caller", "Lupita."],
+    ["caller", "Un taco de pastor."],
+  ]);
+  assert.notEqual(hello.customerName, "Lupita");
+  const none = await order([["caller", "Soy Renato."], ["caller", "¿Tienen horchata?"]]);
+  assert.equal(none.customerName, undefined);
+});
+
+test("fajitas without a known meat stay unresolved, and a platter tortilla is the included one", async () => {
+  const plain = await order([["caller", "Unas fajitas."], ["staff", "¿De comal?"], ["caller", "Sí."]]);
+  const plainLine = plain.cart.find((row: any) => /fajita/i.test(String(row.itemId)));
+  assert.equal(plain.validation, "unresolved");
+  assert.equal(plainLine?.validation, "unresolved");
+  const shrimp = await order([["caller", "Unas fajitas de camarón."]]);
+  assert.equal(shrimp.validation, "unresolved");
+  assert.doesNotMatch(opts(shrimp.cart.find((row: any) => /fajita/i.test(String(row.itemId)))), /Pollo|Bistec|Milanesa/);
+  const beef = await order([
+    ["caller", "Quiero un platillo de milanesa de res."],
+    ["staff", "¿De comal, con arroz y frijoles?"],
+    ["caller", "Sí."],
+  ]);
+  const beefLine = beef.cart.find((row: any) => /platillo/i.test(String(row.itemId)));
+  assert.equal(beef.validation, "unresolved");
+  assert.doesNotMatch(opts(beefLine), /Milanesa Pollo/);
+  assert.doesNotMatch(opts(beefLine), /EXTRA 3 x/);
+  assert.match(opts(beefLine), /3 x \(Corn\) Corn Tortilla/);
+});
+
 test("a lowercase name is kept, and a closing does not replace it", async () => {
   const hello = await order([["caller", "hola, fermín"], ["caller", "Un taco de pastor."]]);
   assert.equal(hello.customerName, "Fermín");

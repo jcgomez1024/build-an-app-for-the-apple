@@ -211,7 +211,6 @@ export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boo
   if (!fajita && !yesToPlate && !/\bcomal\b|\bharina\b|\bflour\b|\barroz\b|\bfrijol/.test(caller)) return false;
   const idRe = fajita ? /fajitas-elvis/i : /platillo-de-guisado/i;
   const clause = callerTurns.map((turn) => fold(turn.text || "")).find((text) => fajita ? /\bfajitas?\b/.test(text) : /\bplatillos?\b/.test(text)) || "";
-  const meat = plateMeat(clause);
   const item = findItem(menu, idRe);
   if (!item) return false;
   let lines = (cart || []).filter((line) => idRe.test(String(line?.itemId || "")));
@@ -234,7 +233,18 @@ export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boo
     lines = [line];
     changed = true;
   }
-  if (!meat) return changed;
+  const meatInfo = plateMeat(clause);
+  if (!meatInfo.mapped) {
+    for (const line of lines) {
+      const hasMeat = (line.modifiers || []).some((mod: any) => /carne|meat/i.test(String(mod.step || "")));
+      if (hasMeat && !meatInfo.key) continue;
+      line.validation = "unresolved";
+      if (!(line.elviNotes || []).includes("confirmar carne")) line.elviNotes = [...(line.elviNotes || []), "confirmar carne"];
+      changed = true;
+    }
+    return changed;
+  }
+  const meat = meatInfo.key;
   for (const line of lines) {
     if ((line.modifiers || []).some((mod: any) => fold(mod.option || "").includes(meat))) {
       const notes = (line.elviNotes || []).filter((note: string) => fold(note) !== meat);
@@ -259,15 +269,17 @@ export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boo
 }
 
 const PLATE_MEAT = "bistec|asada|steak|pastor|alpastor|pollo|chicken|lengua|chorizo|carnitas|cabeza|costilla|tripas?|buche|prensado|suadero|milanesa|deshebrada|picadillo|nopales|duro";
-function plateMeat(text: string): string {
+function plateMeat(text: string): { key: string; mapped: boolean } {
+  if (/\b(?:camar[oó]n(?:es)?|shrimp|gambas?)\b/.test(text)) return { key: "shrimp", mapped: false };
+  if (/\bmilanesa\b/.test(text) && /\bres\b/.test(text) && !/\bpollo\b/.test(text)) return { key: "milanesa de res", mapped: false };
   const found = text.match(new RegExp(`\\b(${PLATE_MEAT})\\b`));
-  if (!found) return "";
-  const word = found[1];
-  if (word === "asada" || word === "steak") return "bistec";
-  if (word === "alpastor") return "pastor";
-  if (word === "chicken") return "pollo";
-  if (word === "tripas") return "tripa";
-  return word;
+  if (!found) return { key: "", mapped: false };
+  let word = found[1];
+  if (word === "asada" || word === "steak") word = "bistec";
+  else if (word === "alpastor") word = "pastor";
+  else if (word === "chicken") word = "pollo";
+  else if (word === "tripas") word = "tripa";
+  return { key: word, mapped: true };
 }
 
 /** "De queso" answers the enchilada option. The line does not stay on hold. */
@@ -368,28 +380,21 @@ export function keepSpokenStyle(cart: any[], turns: Turn[], menu: any[]): boolea
 }
 
 const NAME_PARTICLE = /^(?:de|del|la|las|los|y|e|san|santa|da|do|das|van|von|di)$/i;
-const NAME_SKIP = /^(?:yo|que|es|el|un|una|ah|eh|este|pues|a)$/i;
-/** Given names. A word is a name because it is one of these, not because speech-to-text capitalized it. */
-const GIVEN = new Set("aaron abel abraham abril ada adan adela adelaida adelina adolfo adrian adriana agustin aida aileen aimee aisha alan alberto alejandro alejandra alejandrina alex alexander alexandra alexis alfredo ali alicia alina alison allan alondra alvaro amalia amanda amelia amparo ana anabel anahi anastasia andrea andres andrew andy angel angela angeles angelica angie anita anthony antonio araceli ariadna ariel armando arturo ashley asuncion aurora aurelio barbara beatriz belen belinda benito benjamin bernardo beto betty blanca bonifacio braulio brenda brian bruno camila camilo carla carlos carmen carolina catalina cecilia celia cesar chalino christian christine christopher chui clara claudia coco concepcion consuelo cris cristian cristina cristobal cruz cynthia daisy dalia damian daniel daniela dario daryl david dayana deborah delfina delia denis diana diego dolores domingo donovan dora doris edgar edith eduardo eesha efrain elena elias elisa elizabeth elsa elvira eloy emilia emilio enrique eric erica erika ernesto esperanza esteban estela esther eugenio eva evelyn ezequiel fabian fabiola federico felipe felix fermin fernanda fernando fidel flora florencia francisca francisco frank freddy gabriel gabriela gaby gaston genaro gerardo german gina gio gisela gloria graciela gregorio griselda guadalupe guero guillermo gustavo hector heriberto hilda horacio hugo humberto ignacio iliana ines irene irma isaac isabel isidro israel ivan jacobo jaime jairo javier jennifer jessica jesus jimena joaquin joel johana john jonathan jorge jose josefina josh joshua josue juan juana julia julian julieta julio justin karen karina karla katherine kevin laura lalo larry leandro lena leonardo leonor lester leticia lidia ligia liliana lina lorena lorenzo lourdes lucas lucia lucio luis luisa luke lupe lupita luz macarena magdalena manuel manuela marcela marcelo marcia marco marcos margarita maria marian marina mario marisol marta martin mateo matias mau mauricio maximiliano mayra melissa mercedes mia michael miguel miriam mirna monica montserrat nadia nancy natalia nestor nicky nicolas nikki noe noemi norma nuria octavio ofelia olga oliver olivia omar oscar osmar osvaldo pablo paco paloma pamela pancho paola patricia patricio paula paulina pedro penelope pilar rafael ramiro ramon raquel raul rebeca ryan regina renata ricardo rich robert roberto rocio rodrigo rodolfo rogelio rolando roman ronald rosa rosario roxana ruben ruth salma salvador samantha samuel sandra santiago sara saul sebastian selena sergio silvia simon sofia sonia sophie stephanie susana tabby tania teresa timothy tomas toni tyler ulises valentin valeria vanessa veronica vicente victor victoria virginia viviana walter wendy ximena xochitl yadira yanet yasmin yolanda yomar yoni yosi zacarias sean acevedo".split(/\s+/));
-const ORDINARY = new Set(`disculpa disculpe perdon perdone buenos buenas hola mande oye oiga mira hello hi hey please porfa gracias muchisimas muchas bye adios ok okay okey si sip claro no nop yo um uh eh ah este pues bueno entonces ahora ahorita horita manana hoy ayer tarde noche pronto luego despues antes aqui alla aqu alla cuanto cuanta cuantos cuantas donde cuando como cual quien que nuevo nueva orden pedido comida menu tienen tengo tienes tiene tenemos tienes necesitamos necesito necesita necesitan podria podrias podriamos puedo puedes puede podemos pueden vamos voy vas va estoy estas esta estamos estan ser soy eres es somos son quiero quieres quiere queremos quieren quisiera quisieras dame deme ponga ponga ponme llevar recoger comer comemos comen como comes delivery pickup para llevar domicilio togo nosotros nos ustedes ellos ellas ellos usted tu te me se le les lo los las con sin por para de del al un una unos unas otro otra otros otras vez tambien porque correcto listo perfecto bien mal muy mas menos todo nada algo esto eso esa ese era eran aquel aquella those this that the and for with can could would should want need have get lets let go yes yeah thank thanks sorry name food order new today tomorrow we us eat hello please ordenar hablar llamar preparar mirar tomar comprar vender buscar esperar dejar pagar mandar enviar usar pasar quedar llegar entrar preguntar trabajar caminar`.split(/\s+/));
+const NAME_SKIP = /^(?:yo|que|es|el|un|una|ah|eh|este|pues|a|it|is|the|nombre)$/i;
+/** Words that are not a person's name: grammar, food, numbers, greetings, and the common verbs. A name is whatever is left. */
+const ORDINARY = new Set(`disculpa disculpe perdon perdone buenos buenas hola mande oye oiga mira hello hi hey please porfa gracias muchisimas muchas bye adios ok okay okey si sip claro no nop yo um uh eh ah este pues bueno entonces ahora ahorita horita manana hoy ayer tarde noche pronto luego despues antes aqui alla aqu alla cuanto cuanta cuantos cuantas donde cuando como cual quien que nuevo nueva orden pedido comida menu nombre tienen tengo tienes tiene tenemos necesitamos necesito necesita necesitan podria podrias podriamos podemos pueden puedo puedes puede vamos voy vas va estoy estas esta estamos estan ser soy eres es somos son quiero quieres quiere queremos quieren quisiera quisieras dame deme ponga ponme llevar recoger comer comemos comen como comes delivery pickup domicilio togo nosotros nos ustedes ellos ellas usted tu te me se le les lo los las con sin por para de del al un una unos unas otro otra otros otras vez tambien porque correcto listo perfecto bien mal muy mas menos todo nada algo esto eso esa ese era eran aquel aquella those this that the and for with can could would should want need have get lets let go yes yeah thank thanks sorry name food order new today tomorrow we us eat ordenar hablar llamar preparar mirar tomar comprar vender buscar esperar dejar pagar mandar enviar usar pasar quedar llegar entrar preguntar trabajar caminar hungry ready here calling calling uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciseis diecisiete dieciocho diecinueve veinte treinta cuarenta cincuenta sesenta setenta ochenta noventa cien media one two three four five six seven eight nine ten eleven twelve fifteen twenty thirty tacos taco quesadilla quesadillas gordita gorditas burrito burritos torta tortas fajita fajitas platillo platillos menudo comal harina flour bistec pollo pastor carne meat asada steak chicken tortilla tortillas extra mas otras recoger llevar hello please orden nuevo hoy delivery pickup nosotros comer nope yeah well will pick picking gonna just sir maam thank you tardes dias noches senor senora don dona bebe mama papa preparada preparadas andele andale orale orales sale vamonos verdad correcto`.split(/\s+/));
 function plainName(token: string): string {
   return fold(String(token || "")).replace(/[^\p{L}]/gu, "");
 }
-function isGiven(token: string): boolean {
-  const word = plainName(token);
-  return word.length >= 2 && GIVEN.has(word);
-}
 function isOrdinary(token: string): boolean {
   const word = plainName(token);
-  if (!word) return true;
-  if (ORDINARY.has(word) || GIVEN.has(word) === false && /^(?:ar|er|ir|ando|iendo|ado|ido)$/.test(word)) return true;
-  return ORDINARY.has(word);
+  return !word || ORDINARY.has(word);
 }
-function isSurname(token: string): boolean {
+/** A name token is a word that is not grammar, food, a number, or a verb. It does not have to be on a list. */
+function nameToken(token: string): boolean {
   const word = plainName(token);
   if (word.length < 3 || !/[aeiou]/.test(word)) return false;
-  if (isGiven(token) || NAME_PARTICLE.test(token) || NAME_SKIP.test(token)) return false;
-  return !ORDINARY.has(word);
+  return !isOrdinary(token) && !NAME_PARTICLE.test(token) && !NAME_SKIP.test(token);
 }
 function showToken(token: string): string {
   const clean = String(token || "").replace(/^[^\p{L}]+|[^\p{L}'’-]+$/gu, "");
@@ -403,21 +408,25 @@ function nameSpan(raw: string): string | null {
   const parts = cleaned.replace(/[.?!,¡¿;:]+/g, " ").trim().split(/\s+/).filter(Boolean);
   let index = 0;
   while (index < parts.length && (NAME_SKIP.test(parts[index]) || NAME_PARTICLE.test(parts[index]))) index += 1;
-  if (index >= parts.length || !isGiven(parts[index])) return null;
+  if (index >= parts.length || !nameToken(parts[index])) return null;
   const kept = [parts[index]];
   index += 1;
   while (index < parts.length) {
+    if (plainName(parts[index]) === plainName(kept[kept.length - 1])) {
+      index += 1;
+      continue;
+    }
     if (NAME_PARTICLE.test(parts[index])) {
       const hold: string[] = [];
       while (index < parts.length && NAME_PARTICLE.test(parts[index])) hold.push(parts[index++]);
-      if (index < parts.length && (isGiven(parts[index]) || isSurname(parts[index]))) {
+      if (index < parts.length && nameToken(parts[index])) {
         kept.push(...hold, parts[index]);
         index += 1;
         continue;
       }
       break;
     }
-    if (isGiven(parts[index]) || isSurname(parts[index])) {
+    if (nameToken(parts[index])) {
       kept.push(parts[index]);
       index += 1;
       continue;
@@ -433,55 +442,123 @@ function phraseOk(name: string): boolean {
 function callerTurns(turns: Turn[]): Turn[] {
   return (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller");
 }
-function spokenName(turns: Turn[]): string | null {
-  for (const turn of callerTurns(turns)) {
-    const said = String(turn.text || "").trim();
-    if (!said) continue;
-    const framed = said.match(/^(?:hola|mande|buenas|ponga|ponme|dame)\s*,?\s+(.+)$/iu)
-      || said.match(/\b(?:me llamo|mi nombre es|soy|para|a nombre de)\s+(.+)$/iu);
-    const name = nameSpan(framed ? framed[1] : said);
-    if (name && (framed || said.replace(/[.?!,¡¿]+/g, " ").trim().split(/\s+/).length <= 4)) return name;
+function askedForName(turns: Turn[], index: number): boolean {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const turn = turns[cursor];
+    if (!turn.speaker || turn.speaker === "caller") break;
+    if (turn.speaker === "staff" && /[?¿]/.test(turn.text || "") && /\b(?:nombre|apellido|name)\b/i.test(turn.text || "")) return true;
   }
+  return false;
+}
+function leftover(raw: string, span: string): boolean {
+  const parts = raw.replace(/[.?!,¡¿]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  let index = 0;
+  while (index < parts.length && (NAME_SKIP.test(parts[index]) || NAME_PARTICLE.test(parts[index]))) index += 1;
+  for (const token of span.split(/\s+/)) {
+    if (plainName(parts[index] || "") !== plainName(token)) return true;
+    index += 1;
+  }
+  return index < parts.length;
+}
+function nameFromSentence(sentence: string, asked: boolean, later: boolean): string | null {
+  const self = sentence.match(/\b(?:me llamo|mi nombre es|my name is|this is|it'?s|i am|soy|mi apellido es)\s+(.+)$/iu);
+  if (self) {
+    const span = nameSpan(self[1]);
+    if (span) return span;
+  }
+  const put = sentence.match(/^(?:ponga|ponme|dame)\s+(.+)$/iu);
+  if (put) {
+    const span = nameSpan(put[1]);
+    if (span && !leftover(put[1], span)) return span;
+  }
+  const hello = sentence.match(/^(?:hola|mande|buenas)\s*,?\s+(.+)$/iu);
+  if (hello) {
+    const span = nameSpan(hello[1]);
+    if (span && !leftover(hello[1], span)) return span;
+    return null;
+  }
+  const dest = sentence.match(/\b(?:para|for)\s+(.+)$/iu);
+  if (dest) {
+    const span = nameSpan(dest[1]);
+    if (span) return span;
+  }
+  const bare = sentence.replace(/^[¿¡]+|[.!?¡¿]+$/g, "").trim();
+  const bits = bare.split(/\s+/).filter(Boolean);
+  const questioning = /^[¿¡]/.test(sentence) || /\?\s*$/.test(sentence);
+  if (bits.length === 1 && nameToken(bits[0]) && (asked || (later && questioning))) return showToken(bits[0]);
+  if (asked || /,\s*y\s+es\b/i.test(sentence)) return nameSpan(sentence);
   return null;
 }
-function fromGreetingOnly(turns: Turn[], name: string): boolean {
-  const head = plainName(name.split(/\s+/)[0] || "");
-  let greeting = false;
-  let other = false;
-  for (const turn of callerTurns(turns)) {
+function spokenName(turns: Turn[]): string | null {
+  const all = turns || [];
+  let callerSeen = false;
+  for (let index = 0; index < all.length; index += 1) {
+    const turn = all[index];
+    if (turn.speaker && turn.speaker !== "caller") continue;
     const said = String(turn.text || "").trim();
-    const framed = said.match(/^(?:hola|mande|buenas)\s*,?\s+(.+)$/iu);
-    const span = nameSpan(framed ? framed[1] : said);
-    if (!span || plainName(span.split(/\s+/)[0] || "") !== head) continue;
-    if (framed) greeting = true;
-    else other = true;
+    if (!said) continue;
+    const asked = askedForName(all, index);
+    const later = callerSeen;
+    callerSeen = true;
+    for (const sentence of said.split(/(?<=[.!?])\s+/)) {
+      const name = nameFromSentence(sentence.trim(), asked, later);
+      if (name) return name;
+    }
   }
-  return greeting && !other;
+  return null;
 }
 function spokeFoodOrder(turns: Turn[]): boolean {
   const texts = callerTurns(turns).map((turn) => String(turn.text || ""));
   const food = /\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|quesitortas?|sopes?|fajitas?|platillos?|menudos?|moles?|enchiladas?|horchatas?|coctel|c[oó]ctel|camar[oó]n(?:es)?|ceviche|birrias?|nachos?|huaraches?|tamales?|tostadas?|pozoles?|rellenos?|costillas?|bistec|asada|pastor|chorizo|tripas?|buche|pollo|cabeza|lengua|carnitas|barbacoa)\b/iu;
-  const order = /\b(?:me\s+pone|ponme|ponga|quiero|quer[ií]a|dame|deme|ordenar|pedido|encarg|can i get|i'?ll (?:get|take)|get (?:a|an|the|one|two|three|four)|me (?:da|puede)|poner|una orden)\b/iu;
+  const order = /\b(?:me\s+pone|ponme|ponga|quiero|quer[ií]a|dame|deme|ordenar|pedido|encarg|apartar|can i get|i'?ll (?:get|take)|get (?:a|an|the|one|two|three|four)|me puede|poner|una orden)\b/iu;
   const availability = (text: string) => /[?¿]/.test(text) && /\b(?:tienen|tiene|tienes|hay|venden|do you have)\b/iu.test(text) && !order.test(text);
   const ordered = texts.filter((text) => food.test(text) && !availability(text));
+  if (texts.some((text) => food.test(text)) && texts.some((text) => order.test(text))) return true;
   if (!ordered.length) return false;
-  return texts.some((text) => order.test(text)) || ordered.some((text) => /\b(?:un|una|unos|unas|dos|tres|cuatro|cinco|six|four|two|one|\d+)\b/iu.test(text));
+  return ordered.some((text) => /\b(?:un|una|unos|unas|dos|tres|cuatro|cinco|six|four|two|one|\d+)\b/iu.test(text));
 }
-/** Shadow name only. The live name function is not changed. A greeting on a call that never orders food is not a name. */
+/** Shadow name only. The live name function is not changed. No food ordered means no customer name. */
 export function shadowCustomerName(live: { name?: string; group?: string[] } | null, turns: Turn[], ordered = true): string | null {
+  if (!ordered && !spokeFoodOrder(turns)) return null;
   const spoken = spokenName(turns);
   const liveText = String(live?.name || "");
-  const liveOk = liveText && phraseOk(liveText) ? liveText : "";
-  const shouted = !!liveOk && (turns || []).some((turn) => turn.speaker === "staff" && new RegExp(`\\boye\\b[,.\\s]+${liveOk.split(/\s+/)[0]}\\b`, "i").test(turn.text || "") && /\b(?:pedido|orden|listo|ya\s+est[aá])/i.test(turn.text || ""))
-    && !callerTurns(turns).some((turn) => new RegExp(`\\b${liveOk.split(/\s+/)[0]}\\b`, "i").test(turn.text || ""));
-  let name = "";
-  if (liveOk && !shouted) name = liveOk;
-  else if (spoken && !(live?.group && live.group.length >= 2)) name = spoken;
-  if (!name) return null;
-  const saidOwn = callerTurns(turns).some((turn) => new RegExp(`\\b${name.split(/\s+/)[0]}\\b`, "i").test(turn.text || ""));
-  if (ordered || spokeFoodOrder(turns)) return name;
-  if (fromGreetingOnly(turns, name)) return null;
-  return saidOwn ? name : null;
+  const liveClean = liveText && phraseOk(liveText) ? (nameSpan(liveText) || "") : "";
+  const shouted = !!liveClean && (turns || []).some((turn) => turn.speaker === "staff" && new RegExp(`\\boye\\b[,.\\s]+${liveClean.split(/\s+/)[0]}\\b`, "i").test(turn.text || "") && /\b(?:pedido|orden|listo|ya\s+est[aá])/i.test(turn.text || ""))
+    && !callerTurns(turns).some((turn) => new RegExp(`\\b${liveClean.split(/\s+/)[0]}\\b`, "i").test(turn.text || ""));
+  if (liveClean && !shouted && !onlyAsGreeting(turns, liveClean)) return liveClean;
+  if (spoken && !(live?.group && live.group.length >= 2)) return spoken;
+  return null;
+}
+
+/** True when every time the caller says this word, they are greeting someone. */
+function onlyAsGreeting(turns: Turn[], name: string): boolean {
+  const head = plainName(name.split(/\s+/)[0] || "");
+  if (!head) return false;
+  const headRe = new RegExp(`\\b${head}\\b`, "i");
+  const all = turns || [];
+  let mentions = 0;
+  let greetings = 0;
+  let firstCaller = true;
+  for (let index = 0; index < all.length; index += 1) {
+    const turn = all[index];
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const said = String(turn.text || "").trim();
+    const asked = askedForName(all, index);
+    if (!headRe.test(said)) {
+      if (said) firstCaller = false;
+      continue;
+    }
+    mentions += 1;
+    const sentence = said.split(/(?<=[.!?])\s+/)[0] || said;
+    const greetWord = sentence.match(/^(?:hola|hi|hey|hello|mande|buenas)\s*,?\s+(\S+)/i);
+    const greeted = !!greetWord && plainName(greetWord[1]) === head;
+    const continues = greeted && leftover(sentence.replace(/^(?:hola|hi|hey|hello|mande|buenas)\s*,?\s+/i, ""), name);
+    const bareFirst = firstCaller && !asked && !greetWord && said.replace(/[.?!,¡¿]+/g, "").trim().split(/\s+/).length <= 2;
+    if ((greeted && continues) || bareFirst) greetings += 1;
+    else return false;
+    firstCaller = false;
+  }
+  return mentions > 0 && greetings === mentions;
 }
 
 /** Shadow address only. Live address parsing is not changed. */
@@ -517,6 +594,36 @@ export function applyShadowPatterns(cart: any[], turns: Turn[], menu: any[] = []
   if (applyBurritoConTodo(cart, turns, menu)) changed = true;
   if (keepSpokenStyle(cart, turns, menu)) changed = true;
   if (applyOneBurrito(cart, turns, menu)) changed = true;
+  if (applyIncludedPlatilloTortilla(cart, turns, menu)) changed = true;
+  return changed;
+}
+
+/** The included 3-tortilla option, not a note alone and not the $4 extra, unless they asked for more. */
+function applyIncludedPlatilloTortilla(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
+  const wantsExtra = /\btortillas?\b/.test(caller) && /\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(caller);
+  let changed = false;
+  for (const line of cart || []) {
+    if (!/fajitas-elvis|platillo-de-guisado|mole-tradicional-platillo|chiles-rellenos-platillo/i.test(String(line?.itemId || ""))) continue;
+    if (!wantsExtra) {
+      const kept = (line.modifiers || []).filter((mod: any) => !/EXTRA\s+3\s+x/i.test(String(mod.option || "")));
+      if (kept.length !== (line.modifiers || []).length) {
+        line.modifiers = kept;
+        changed = true;
+      }
+    }
+    const item = (menu || []).find((row) => row.id === line.itemId);
+    const group = (item?.modifierGroups || []).find((entry: any) => /tortilla/i.test(String(entry?.name || "")) && !/extra/i.test(String(entry?.name || "")));
+    const noted = (line.elviNotes || []).find((note: string) => /^(?:comal|harina)$/i.test(note));
+    if (!group || !noted) continue;
+    const want = /harina/i.test(noted) ? /flour|harina/i : /corn/i;
+    const has = (line.modifiers || []).some((mod: any) => want.test(String(mod.option || "")) && !/extra/i.test(String(mod.option || "")));
+    if (has) continue;
+    const name = (group.options || []).map(oname).find((option: string) => want.test(option) && !/extra/i.test(option));
+    if (!name) continue;
+    putOption(line, { step: group.name, option: name });
+    changed = true;
+  }
   return changed;
 }
 
