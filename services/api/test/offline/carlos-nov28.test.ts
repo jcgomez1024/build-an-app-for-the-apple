@@ -625,3 +625,33 @@ test("a meat with no dish does not put cebolla on every line of that meat", asyn
   assert.ok(side);
   assert.match((side.elviNotes || []).join(" "), /confirmar platillo/);
 });
+
+test("taquitos alone ring plain tacos and ask the tortilla", async () => {
+  const cart = await shadowCart(["Ocho taquitos de cabeza."]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 8);
+  assert.match(String(cart[0].itemId), /^sq-taco-/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Cabeza/);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /Street|Taquero|Comal|Harina/);
+  assert.match((cart[0].elviNotes || []).join(" "), /tortilla/i);
+});
+
+test("a later tortilla answer stays on the taquitos", async () => {
+  const cart = await shadowCart(["Ocho taquitos de cabeza.", "Que sean de harina, gracias."]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 8);
+  assert.match(JSON.stringify(cart[0].modifiers), /Harina|Flour/);
+  assert.equal((cart[0].elviNotes || []).some((note: string) => /tortilla/i.test(note)), false);
+});
+
+test("taquitos do not ask a tortilla for the gordita beside them", async () => {
+  const cart = await shadowCart(["Ocho taquitos de cabeza y una gordita de nopales."]);
+  const gordita = cart.find((line: any) => /gordita/i.test(String(line.itemId)));
+  const taco = cart.find((line: any) => /^sq-taco-/.test(String(line.itemId)));
+  assert.ok(gordita);
+  assert.equal((gordita.elviNotes || []).some((note: string) => /tortilla/i.test(note)), false);
+  assert.match(JSON.stringify(gordita.modifiers), /Nopales/);
+  assert.ok(taco);
+  assert.equal(taco.quantity, 8);
+  assert.match((taco.elviNotes || []).join(" "), /tortilla/i);
+});
