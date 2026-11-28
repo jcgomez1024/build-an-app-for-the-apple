@@ -232,8 +232,8 @@ test("a milanesa platillo with the tortilla and side answered is not empty", asy
   assert.ok(line);
   assert.match(opts(line), /Corn/);
   assert.match(opts(line), /Arroz/);
-  assert.match((line.elviNotes || []).join(" "), /milanesa/);
-  assert.equal(result.noOrder, undefined);
+  assert.match(opts(line), /Milanesa/);
+  assert.equal((line.elviNotes || []).some((note: string) => /^milanesa$/i.test(note)), false);
 });
 
 test("de queso closes the enchilada option", async () => {
@@ -297,12 +297,33 @@ test("a kitchen shout is not the order name, and a confirmed name stays", async 
 test("a greeting word is a name only when it is a person's name, and a no-order call has none", async () => {
   const fermin = await order([["caller", "Hola, Fermín."], ["caller", "Un taco de pastor."]]);
   assert.equal(fermin.customerName, "Fermín");
-  for (const word of ["disculpa", "buenos", "quiero", "dame", "yo", "um", "cinco", "otra vez"]) {
-    const junk = await order([["caller", `Hola, ${word}.`], ["caller", "Un taco de pastor."]]);
-    assert.notEqual(junk.customerName, word.split(" ")[0], word);
+  const leaks = ["Tienen", "Tengo", "Necesito", "Perdón", "Podría", "Vamos", "Estoy", "Cuánto", "Ahorita", "Mañana", "Entonces", "Pues", "Oiga", "Bueno", "Hello", "Please", "Orden", "Nuevo", "Llevar", "Recoger", "Hoy", "Delivery", "Pickup", "Nosotros", "Comer", "También", "Quisiera", "Correcto", "Porque"];
+  for (const word of leaks) {
+    for (const frame of [`Hola, ${word}.`, `Mande, ${word}.`, `Soy ${word}.`, `Es para ${word}.`]) {
+      const junk = await order([["caller", frame], ["caller", "Un taco de pastor."]]);
+      assert.notEqual(junk.customerName, word, frame);
+    }
   }
   const asking = await order([["caller", "Hola, Fermín."], ["caller", "¿Tienen mole?"]]);
   assert.equal(asking.customerName, undefined);
+});
+
+test("a lowercase name is kept, and a closing does not replace it", async () => {
+  const hello = await order([["caller", "hola, fermín"], ["caller", "Un taco de pastor."]]);
+  assert.equal(hello.customerName, "Fermín");
+  const called = await order([["caller", "me llamo ximena"], ["caller", "Una gordita de pollo."]]);
+  assert.equal(called.customerName, "Ximena");
+  const pickup = await order([["caller", "para fermín"], ["caller", "Un taco de pastor."]]);
+  assert.equal(pickup.customerName, "Fermín");
+  const full = await order([["caller", "Me llamo maría de los ángeles."], ["caller", "Un taco de pastor."]]);
+  assert.equal(full.customerName, "María de los Ángeles");
+  const laura = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿A nombre de quién?"],
+    ["caller", "Laura."],
+    ["caller", "Muchísimas gracias."],
+  ]);
+  assert.equal(laura.customerName, "Laura");
 });
 
 test("a closing next to a name does not replace the name", async () => {
@@ -333,9 +354,11 @@ test("a bare count after cuantas or cuantos sets the one line", async () => {
 
 test("fajitas and a yes to a platter are not an empty cart", async () => {
   const fajitas = await order([["caller", "Unas fajitas de bistec."]]);
-  assert.ok(fajitas.cart.some((row: any) => /fajita/i.test(String(row.itemId))));
+  const fajitaLine = fajitas.cart.find((row: any) => /fajita/i.test(String(row.itemId)));
+  assert.match(opts(fajitaLine), /Bistec|Steak/);
+  assert.equal(fajitaLine.validation, undefined);
   const asked = await order([["caller", "¿Puedes preparar unas fajitas de pollo?"]]);
-  assert.ok(asked.cart.some((row: any) => /fajita/i.test(String(row.itemId))));
+  assert.match(opts(asked.cart.find((row: any) => /fajita/i.test(String(row.itemId)))), /Pollo|Chicken/);
   const plate = await order([
     ["caller", "Quiero un platillo."],
     ["staff", "¿De comal, con arroz y frijoles?"],
