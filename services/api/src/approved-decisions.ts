@@ -38,7 +38,7 @@ export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = [])
   const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => turn.text || "").join(" ");
   if (!/\btaquitos?\b/i.test(caller)) return false;
   const besides = caller.replace(/\btaquitos?\b/gi, " ");
-  if (/\b(?:taqueros?|street)\b/i.test(besides)) return false;
+  if (/\b(?:taquer[ao]s?|street|comal|harina|flour|chicos)\b/i.test(besides)) return false;
   let changed = false;
   for (const line of cart || []) {
     if (!/^sq-taco-/.test(String(line?.itemId || ""))) continue;

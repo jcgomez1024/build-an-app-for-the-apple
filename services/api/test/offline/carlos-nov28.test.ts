@@ -343,6 +343,26 @@ test("cebolla asada named for the tacos leaves the quesadilla alone", () => {
   assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
 });
 
+test("taquitos de la taquera keep the street tortilla", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 4, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
+  ];
+  applyPlainTaquitos(cart, [{ speaker: "caller", text: "Cuatro taquitos de la taquera de pollo." }], menu);
+  assert.match(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
+  assert.equal((cart[0].elviNotes || []).some((note: string) => /tortilla/i.test(note)), false);
+});
+
+test("taquitos de comal keep comal", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(A) T Tortilla Options", option: "(TCO) Taco Comal / Homemade (+$1.00)" }, { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: "sq-quesadilla-HLT6CR", quantity: 1, modifiers: [{ step: "(A) Q Tortilla Options", option: "(QHR) Quesadilla Harina / Flour" }, { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  const before = JSON.stringify(cart[1]);
+  applyPlainTaquitos(cart, [{ speaker: "caller", text: "Dos taquitos de comal de bistec y una quesadilla de harina de chorizo." }], menu);
+  assert.match(JSON.stringify(cart[0].modifiers), /Comal/);
+  assert.equal(JSON.stringify(cart[1]), before);
+});
+
 test("taquitos are plain tacos and the tortilla is still open", () => {
   const cart = [
     { itemId: "sq-taco-TAR7L5", quantity: 3, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
