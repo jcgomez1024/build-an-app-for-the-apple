@@ -308,6 +308,36 @@ test("a greeting word is a name only when it is a person's name, and a no-order 
   assert.equal(asking.customerName, undefined);
 });
 
+test("a name before the order is kept, and a food word is not a name", async () => {
+  const hi = await order([["caller", "Hi, this is Marcus, two tacos de pastor."]]);
+  assert.equal(hi.customerName, "Marcus");
+  const priya = await order([["caller", "Hi, this is Priya, two tacos de pastor."]]);
+  assert.equal(priya.customerName, "Priya");
+  const jay = await order([["caller", "Hi, this is Jay, two tacos de pastor."]]);
+  assert.equal(jay.customerName, "Jay");
+  const counted = await order([["caller", "This is Brayan for three tacos de pollo."]]);
+  assert.equal(counted.customerName, "Brayan");
+  const lower = await order([["caller", "me llamo ximena y quiero un taco de pastor."]]);
+  assert.equal(lower.customerName, "Ximena");
+  for (const nick of ["Nacho", "Güero", "Zaida"]) {
+    const named = await order([["caller", `Me llamo ${nick}, quiero un taco de pastor.`]]);
+    assert.equal(named.customerName, nick, nick);
+  }
+  for (const name of ["Javier", "Xavier", "Jaime", "Meme", "Baltazar", "Gaspar", "Pilar", "Amado", "Amada", "Conrado", "Clemente", "Cándido", "Wilfrido", "Heber", "Eleazar", "Elida", "Yahir", "Peter", "Walter", "Roger", "Oliver", "Alexander", "Elmer", "Ester", "Esther", "Jared", "Ahmed", "Alfred", "Irving", "Sterling", "Shelly", "Heather", "Summer", "Amber", "Mohammed", "Samir", "Delgado", "Alvarado", "Salgado", "Hurtado"]) {
+    const named = await order([["caller", `Soy ${name}.`], ["caller", "Un taco de pastor."]]);
+    assert.equal(named.customerName, name, name);
+  }
+  const oil = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿Su nombre?"],
+    ["caller", "Aceite."],
+  ]);
+  assert.notEqual(oil.customerName, "Aceite");
+  const fragment = await order([["caller", "Un taco de pastor."], ["caller", "That S."]]);
+  assert.notEqual(fragment.customerName, "That S");
+  assert.notEqual(fragment.customerName, "That");
+});
+
 test("a cue word is not the name, and a short real name still is", async () => {
   const leaks = ["It's okay.", "It's the same.", "It's for pickup.", "Yes, it's correct.", "It's a large order.", "This is correct.", "It's fine."];
   for (const cue of leaks) {
@@ -318,7 +348,7 @@ test("a cue word is not the name, and a short real name still is", async () => {
     const named = await order([["caller", "Un taco de pastor."], ["caller", cue]]);
     assert.equal(named.customerName, expect, cue);
   }
-  for (const word of ["abierto", "cerrado", "almorzar", "cenar", "probar", "hacen", "será", "siempre", "todavía", "dime", "hambre", "casa", "each", "going", "gotta", "yep", "correct"]) {
+  for (const word of ["abierto", "cerrado", "almorzar", "cenar", "probar", "hacen", "será", "siempre", "todavía", "dime", "hambre", "casa", "each", "going", "gotta", "yep", "correct", "calls"]) {
     const bare = await order([
       ["caller", "Un taco de pastor."],
       ["staff", "¿Su nombre?"],
