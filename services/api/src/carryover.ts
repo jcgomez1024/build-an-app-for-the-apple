@@ -444,13 +444,47 @@ function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   }
   return changed;
 }
+function separateCebollaSide(phrase: string): boolean {
+  return /\b(?:aparte|para llevar|on the side|al lado|por separado|paquet(?:it)?os?|orden(?:es)?|orders)\b/.test(phrase) || /\bpeppers and onions\b/.test(phrase);
+}
+function cebollaAddon(item: any): { step: string; option: string } | null {
+  for (const g of item?.modifierGroups || []) {
+    const name = (g.options || []).map(oname).find((n: string) => /extra cebolla y chiles asados/i.test(n));
+    if (name) return { step: String(g.name), option: name };
+  }
+  return null;
+}
+/** Q5: "cebolla asada" said with a dish is the $0.75 add-on. A side is only when they ask for it apart. */
+function attachCebollaAddon(cart: any[], menu: any[], phrase: string): boolean {
+  const only = /\btacos?\b/.test(phrase) ? /^sq-taco-/ : /\bquesadillas?\b/.test(phrase) ? /^sq-(?:quesadilla|qd)-/ : /\bgorditas?\b/.test(phrase) ? /^sq-gordita-/ : null;
+  const food = (cart || []).filter((line) => !/^sq-(?:extras|drink|tortilla)/.test(String(line?.itemId || "")));
+  if (!only && food.length !== 1) return false;
+  let changed = false;
+  for (const line of cart) {
+    const id = String(line?.itemId || "");
+    if (/^sq-(?:extras|drink|tortilla)/.test(id)) continue;
+    if (only && !only.test(id)) continue;
+    const item = (menu || []).find((row) => row.id === line.itemId);
+    const mod = item && cebollaAddon(item);
+    if (!mod) continue;
+    if ((line.modifiers || []).some((m: any) => m.option === mod.option)) continue;
+    line.modifiers = [...(line.modifiers || []), mod];
+    changed = true;
+  }
+  return changed;
+}
 function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
-  const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));
-  const hit = phrases.find((phrase) => saidAsados(phrase));
-  if (!hit) return false;
+  const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).filter((phrase) => saidAsados(phrase));
+  if (!phrases.length) return false;
+  let changed = false;
+  for (const phrase of phrases) {
+    if (!separateCebollaSide(phrase) && attachCebollaAddon(cart, menu, phrase)) changed = true;
+  }
+  const sidePhrase = phrases.find((phrase) => separateCebollaSide(phrase));
+  if (!sidePhrase) return changed;
   const ex = cebollaItem(menu);
-  if (!ex || alreadyCebollaSide(cart, ex)) return false;
-  const m = hit.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
+  if (!ex || alreadyCebollaSide(cart, ex)) return changed;
+  const m = sidePhrase.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
   cart.push({ itemId: ex.id, quantity: m ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "cebolla y chiles asados" });
   return true;
 }
