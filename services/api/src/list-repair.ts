@@ -111,13 +111,18 @@ function callerAgrees(turns: Turn[], at: number): boolean {
   if (/^(?:no|falta|cambia)\b/.test(p)) return false;
   return CLEAR_YES.test(p);
 }
-/** Meat and tortilla the caller named for this family. "taquitos" is not a tortilla choice. */
+/** Meat and tortilla the caller named for this same line. Another line's choice does not move over. "taquitos" is not a tortilla. */
 function callerNamedBits(turns: Turn[], at: number, kind: Kind, cartMeat: string | null): { meat?: string; style?: Exp["style"] } {
-  const said = turns.slice(0, at).filter((t) => t.speaker === "caller").map((t) => t.text).join(". ").replace(/\btaquitos?\b/gi, "tacos");
-  const family = parseList(said).filter((e) => e.kind && famOf(e.kind) === famOf(kind));
-  const mine = family.filter((e) => !cartMeat || !e.meat || e.meat === cartMeat);
-  const pool = mine.length ? mine : family;
-  return { meat: pool.find((e) => e.meat)?.meat || undefined, style: pool.find((e) => e.style)?.style };
+  const rows: Exp[] = [];
+  for (const turn of turns.slice(0, at)) {
+    if (turn.speaker !== "caller") continue;
+    for (const row of parseList(turn.text.replace(/\btaquitos?\b/gi, "tacos"))) {
+      if (row.kind && famOf(row.kind) === famOf(kind)) rows.push(row);
+    }
+  }
+  const mine = cartMeat ? rows.filter((row) => row.meat === cartMeat) : rows.filter((row) => row.meat);
+  if (!mine.length) return {};
+  return { meat: mine.find((row) => row.meat)?.meat, style: mine.find((row) => row.style)?.style };
 }
 /** Staff readback rebuilds the taco / quesadilla / QD lines it lists: counts, meats, tortilla, regular/preparada.
  *  A shadow order never gains a line from the readback.
@@ -140,16 +145,13 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
         const alt = cart.find((row) => !claimed.has(row) && kindOfLine(row) && famOf(kindOfLine(row)!) === fam);
         const lineMeat = alt ? meatOfLine(alt) : null;
         const bits = alt ? callerNamedBits(turns, rb.at, e.kind, lineMeat) : null;
-        if (alt && lineMeat && e.meat && lineMeat !== e.meat && !callerAgrees(turns, rb.at) && (!bits?.meat || bits.meat === lineMeat)) {
+        if (alt && lineMeat && e.meat && lineMeat !== e.meat && !callerAgrees(turns, rb.at) && bits?.meat === lineMeat) {
           claimed.add(alt);
           flags.push(`meat:${String(alt.itemId || e.kind)}`);
-          if (bits?.style && e.style && bits.style !== e.style) {
-            setLine(alt, { ...e, meat: lineMeat, style: bits.style, qty: Number(alt.quantity) || e.qty }, menu);
+          if (bits.style && e.style && bits.style !== e.style) {
             flags.push(`style:${String(alt.itemId || e.kind)}`);
+            if (styleOfLine(alt) !== bits.style) setLine(alt, { ...e, meat: lineMeat, style: bits.style, qty: Number(alt.quantity) || e.qty }, menu);
           }
-          const decided = staffQuantity(turns, fam === "taco" ? "taco" : "quesadilla", lineMeat, Number(e.qty) || 0, Number(alt.quantity) || 0, readbackStyleText(e, alt), cart);
-          alt.quantity = decided.quantity;
-          if (decided.flag) flags.push(`quantity:${String(alt.itemId || e.kind)}`);
           continue;
         }
         if (confirmOnly) flags.push(`missing:${e.kind}:${e.meat || "none"}`);
@@ -180,7 +182,8 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
       if (named.meat && e.meat && named.meat !== e.meat) { keep.meat = named.meat; flags.push(`meat:${String(l.itemId || e.kind)}`); }
       if (named.style && e.style && named.style !== e.style) { keep.style = named.style; flags.push(`style:${String(l.itemId || e.kind)}`); }
     }
-    setLine(l, keep, menu);
+    const already = meatOfLine(l) === (keep.meat || null) && (!keep.style || styleOfLine(l) === keep.style);
+    if (!already) setLine(l, keep, menu);
     const itemText = readbackStyleText(e, l);
     const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText, cart);
     l.quantity = decided.quantity;

@@ -77,6 +77,55 @@ test("a yes on the taco recap leaves the gordita line alone", () => {
   assert.equal(JSON.stringify(cart[2]), before);
 });
 
+test("a tortilla said for one taco does not move onto the other", () => {
+  const cart = [
+    taco("Chorizo / Mexican Sausage", "(TCO) Taco Comal / Homemade (+$1.00)", 2),
+    taco("Pollo / Chicken", "(TST) Taco Taquero / Street Taco", 1),
+  ];
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Dos tacos de comal de chorizo y un taco taquero de pollo." },
+    { speaker: "staff", text: "Te tengo dos tacos taqueros de chorizo y un taco de comal de pollo." },
+  ], menu, true);
+  assert.match(JSON.stringify(cart[0].modifiers), /Chorizo/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Comal/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Pollo/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Street|Taquero/);
+  assert.equal(cart[0].quantity, 2);
+  assert.equal(cart[1].quantity, 1);
+});
+
+test("an agreed pastor count stays when staff swaps the other meat", () => {
+  const cart = [
+    taco("Alpastor / Roasted Pork", "(TST) Taco Taquero / Street Taco", 2),
+    taco("Bistec / Steak", "(TST) Taco Taquero / Street Taco", 1),
+  ];
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Dos tacos de pastor y un taco de bistec." },
+    { speaker: "staff", text: "Te tengo dos tacos de bistec y un taco de pastor." },
+  ], menu, true);
+  assert.equal(cart[0].quantity, 2);
+  assert.match(JSON.stringify(cart[0].modifiers), /Alpastor|pastor/i);
+  assert.equal(cart[1].quantity, 1);
+  assert.match(JSON.stringify(cart[1].modifiers), /Bistec/);
+});
+
+test("a taquera quesadilla stays taquera when the other one was comal", () => {
+  const cart = [
+    quesadilla("Bistec / Steak", "(QCO) Quesadilla Comal / Homemade (+$1.00)", 1),
+    quesadilla("Lengua / Beef Tongue (+$0.50)", "(QST) Quesadilla Taquera / Street Quesadilla", 1),
+  ];
+  const gordita = { itemId: "sq-gordita-M647RE", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Deshebrada / Shredded Beef with Potatoes" }] };
+  cart.push(gordita as any);
+  const before = JSON.stringify(gordita);
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Una quesadilla de comal de bistec y una quesadilla taquera de lengua." },
+    { speaker: "staff", text: "Te tengo una quesadilla de comal de lengua y una quesadilla de comal de bistec." },
+  ], menu, true);
+  assert.match(JSON.stringify(cart[1].modifiers), /Lengua/);
+  assert.match(JSON.stringify(cart[1].modifiers), /Street|Taquera/);
+  assert.equal(JSON.stringify(cart[2]), before);
+});
+
 test("a disagreed readback keeps the caller's taco meat and tortilla", () => {
   const cart = [
     taco("Chorizo / Mexican Sausage", "(TCO) Taco Comal / Homemade (+$1.00)", 4),
