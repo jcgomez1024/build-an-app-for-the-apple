@@ -201,6 +201,16 @@ export function addressesIn(text: string): Address[] {
   t = t.replace(/\b(\d{1,6})\s+(calle|avenida|av\.?)\s+([a-záéíóúñ][a-záéíóúñ.'-]{2,}(?:\s+[a-záéíóúñ][a-záéíóúñ.'-]{2,})?)\b/giu,
     (_m, n, k, name) => `${n} ${name.replace(/\s+(?:por favor|please|oiga|mano)$/i, "")} ${/^av/i.test(k) ? "Avenue" : "Street"}`);
   const out: Array<{ at: number; a: Address }> = [];
+  const unitAfter = (index: number, length: number) => {
+    const tail = t.slice(index + length);
+    const unit = tail.match(/^\s*,?\s*((?:apt\.?|apartment|apartamento|unit|suite|ste\.?|#)\s*[a-z0-9-]{1,6})/iu);
+    return unit ? title(unit[1]).replace(/^#\s*/, "#") : undefined;
+  };
+  // "1482 de la calle Magnolia, apartamento 4B" — the number is before "calle", and the unit stays.
+  for (const m of t.matchAll(/\b(\d{1,6})\s+de\s+la\s+(calle|avenida|av\.?)\s+([a-záéíóúñ][a-záéíóúñ.'-]{2,})/giu)) {
+    const kind = /^av/i.test(m[2]) ? "Ave" : "St";
+    out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${title(m[3])} ${kind}`, unit: unitAfter(m.index ?? 0, m[0].length) }) });
+  }
   for (const m of t.matchAll(ADDR_EN)) {
     const words = m[2].trim().split(/\s+/);
     const last = words.pop()!.replace(/\.$/, "");
@@ -227,7 +237,7 @@ export function addressesIn(text: string): Address[] {
     for (const m of t.matchAll(/\b(\d{2,6})\s+(?:la\s+)([a-záéíóúñ][a-záéíóúñ.'-]{2,})\b/giu)) {
       const name = title(m[2]);
       if (BAD.test(name) || name.length < 4) continue;
-      out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St` }) });
+      out.push({ at: m.index ?? 0, a: fmt({ street: `${m[1]} ${name} St`, unit: unitAfter(m.index ?? 0, m[0].length) }) });
     }
     // gerardo1 (CAdf3a04): "fairground número 85" / "Fairground 85" / "85 Fairground" (no St/Ave spoken)
     const BAD2 = /^(calles?|avenidas?|tacos?|quesadillas?|menudos?|gorditas?|tortas?|burritos?|ordenes?|orders?|aguas?|horchata|unos?|unas?|para|por|con|sin|las?|los?|una?|tres|dos|cuatro|cinco|seis|siete|ocho|nueve|diez|ah|oh|eh|ok|okay|muy|bien|minutos?|dame|unos|lo|menos|también|tambien|sería|seria|todo|total|gerardo|h[eé]ctor|thank|thanks|bye|you|please|brenda|minutes?|dollars?|cents?|it's|that's|josh|vale|dale|okey|sim[oó]n|simon|chente|domicilio|delivery|entrega|pickup|repartidor|joven)$/i;

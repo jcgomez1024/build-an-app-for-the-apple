@@ -3952,7 +3952,7 @@ export function applyMenudoPata(cart: any[], turns: Turn[]): boolean {
   for (let i = 0; i < turns.length; i++) {
     if (turns[i].speaker !== "staff" || !STAFF_PATA_Q.test(String(turns[i].text))) continue;
     const next = turns.slice(i + 1, i + 6).filter((t) => t.speaker === "caller").slice(0, 3).map((t) => String(t.text));
-    if (next.some((x) => /\bsin\s+pata\b|\bnormal\b|\bno\b/iu.test(x))) continue;
+    if (next.some((x) => /\bsin\s+pata\b|\bnormal(?:es)?\b|\bregular(?:es)?\b|\bno\b/iu.test(x))) continue;
     if (!next.some((x) => CALLER_YES.test(x))) continue;
     let ch = false;
     for (const l of cart.filter((x) => x.itemId === MEN_REG)) { if ((l.modifiers || []).some((m: any) => /sin pata/i.test(String(m.option)))) continue; cart[cart.indexOf(l)] = menLine(true, l.quantity || 1, l); ch = true; }

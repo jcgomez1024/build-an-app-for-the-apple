@@ -42,6 +42,24 @@ function taquitoStyle(text: string): TaquitoStyle {
   if (/\btaquer|\bstreet\b|\bchicos\b/.test(p)) return "taquero";
   return "";
 }
+function yesToTaquitoStyle(turns: Turn[], at: number): TaquitoStyle {
+  for (let j = at + 1; j < (turns || []).length; j++) {
+    const turn = turns[j];
+    if (turn.speaker && turn.speaker !== "caller") continue;
+    const p = fold(turn.text || "");
+    if (/\b(?:quesadillas?|gorditas?|tortas?|burritos?|tacos?|taquitos?|sopes?)\b/.test(p)) return "";
+    if (!/^(?:si|sip|yes|yeah|claro|ok|okay)\b/.test(p)) continue;
+    const staff = [...turns.slice(at + 1, j)].reverse().find((row) => row.speaker === "staff");
+    if (!staff || !/[?¿]/.test(staff.text || "")) continue;
+    const q = fold(staff.text || "");
+    const styles: TaquitoStyle[] = [];
+    if (/\btaquer/.test(q)) styles.push("taquero");
+    if (/\bcomal\b/.test(q)) styles.push("comal");
+    if (/\bharina\b|\bflour\b/.test(q)) styles.push("harina");
+    if (styles.length === 1) return styles[0];
+  }
+  return "";
+}
 function laterTaquitoStyle(turns: Turn[], at: number): TaquitoStyle {
   for (const turn of (turns || []).slice(at + 1)) {
     if (turn.speaker && turn.speaker !== "caller") continue;
@@ -68,18 +86,25 @@ function taquitoOrders(turns: Turn[]): TaquitoOrder[] {
     if (turn.speaker && turn.speaker !== "caller") continue;
     const raw = fold(turn.text || "");
     if (!/\btaquitos?\b/.test(raw)) continue;
-    const style = taquitoStyle(raw) || laterTaquitoStyle(turns, i);
+    const otherDish = raw.search(/\b(?:quesadillas?|gorditas?|tortas?|burritos?|sopes?(?:asos?)?|menudos?|huaraches?)\b/);
+    const scope = otherDish >= 0 ? raw.slice(0, otherDish) : raw;
+    const style = taquitoStyle(scope) || laterTaquitoStyle(turns, i) || yesToTaquitoStyle(turns, i);
     const re = /\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+taquitos?\b/g;
     let found = false;
-    for (const match of raw.matchAll(re)) {
+    for (const match of scope.matchAll(re)) {
       found = true;
-      const tail = raw.slice((match.index || 0) + match[0].length).split(/\b(?:y|and)\b/)[0];
+      const tail = scope.slice((match.index || 0) + match[0].length).split(/\b(?:y|and)\b/)[0];
       const meat = TAQUITO_MEATS.find((key) => new RegExp(`\\b${key}`).test(tail));
       const qty = taquitoCount(match[1]);
       if (meat && qty) out.push({ qty, meat, style });
     }
+    for (const extra of scope.matchAll(/\by\s+(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+de\s+([a-z]+)/g)) {
+      const meat = TAQUITO_MEATS.find((key) => key === extra[2] || extra[2].startsWith(key));
+      const qty = taquitoCount(extra[1]);
+      if (meat && qty) out.push({ qty, meat, style });
+    }
     if (!found) {
-      const meat = TAQUITO_MEATS.find((key) => new RegExp(`\\b${key}`).test(raw));
+      const meat = TAQUITO_MEATS.find((key) => new RegExp(`\\b${key}`).test(scope));
       if (meat) out.push({ qty: 1, meat, style });
     }
   }
@@ -117,13 +142,21 @@ export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = [])
     }
     if (!line) continue;
     if (lineHasMeat(line, order.meat) && clearAsked(line, /^confirmar\b.*(?:carne|meat)/i)) changed = true;
-    if (order.style) {
+    if (order.style && taco) {
+      const code = order.style === "harina" ? "THR" : order.style === "taquero" ? "TST" : "TCO";
+      const tortilla = optionNamed(taco, /tortilla options/i, (name) => name.includes(`(${code})`));
+      const already = tortilla && (line.modifiers || []).some((mod: any) => mod.option === tortilla.option);
+      if (tortilla && !already) {
+        const kept = (line.modifiers || []).filter((mod: any) => !/tortilla|comal|harina|flour|taquer|street|\(tc[oh]\)|\(thr\)|\(tst\)/i.test(`${mod.step} ${mod.option}`));
+        kept.push(tortilla);
+        line.modifiers = kept;
+        changed = true;
+      }
       if (clearAsked(line, /^confirmar\b.*tortilla/i)) changed = true;
       continue;
     }
-    if ((line.modifiers || []).some((mod: any) => /comal|harina|flour/i.test(String(mod.option || "")))) continue;
     const before = (line.modifiers || []).length;
-    line.modifiers = (line.modifiers || []).filter((mod: any) => !/taquer|street/i.test(String(mod.option || "")));
+    line.modifiers = (line.modifiers || []).filter((mod: any) => !/tortilla|comal|harina|flour|taquer|street|\(tc[oh]\)|\(thr\)|\(tst\)/i.test(`${mod.step} ${mod.option}`));
     if ((line.modifiers || []).length !== before) changed = true;
     const item = (menu || []).find((row) => row.id === line.itemId) || taco;
     const group = (item?.modifierGroups || []).find((entry: any) => /tortilla options/i.test(String(entry?.name || "")));

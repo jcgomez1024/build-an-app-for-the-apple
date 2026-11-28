@@ -25,6 +25,7 @@ import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applySecondGroups } from "./second-groups.js";
 import { applyCarryover } from "./carryover.js";
 import { applyShadowDecisions } from "./approved-decisions.js";
+import { applyShadowPatterns } from "./shadow-patterns.js";
 import { applyCorrections, correctionHolds } from "./corrections.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
@@ -8099,11 +8100,14 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[], blocked))
     steps.push({ source: "end-carryover", heard: "kept each dish's style and meat" });
   const decided = applyShadowDecisions(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd as any[] : []);
+  if (Array.isArray(menuEnd) && applyShadowPatterns(cart as any[], origTurns as any, menuEnd as any[]))
+    steps.push({ source: "shadow-patterns", heard: "kept the agreed count, the spoken parts, and the answered option" });
   if (decided.review && !(steps as any).reviewReason) (steps as any).reviewReason = decided.review;
   const reviewReason = (steps as any).reviewReason || null;
+  const customerName = nameFromTranscriptInfo(origTurns as any)?.name || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
-  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
+  return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(customerName ? { customerName } : {}), ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
     stage: "order",
     reconcileRan: menuSource !== "missing",
     menuSource,
