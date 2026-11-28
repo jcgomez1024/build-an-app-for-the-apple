@@ -2949,9 +2949,12 @@ function callerAnsweredTortilla(turns: Turn[], dish: RegExp): boolean {
     const p = plain(turn.text);
     if (dish.test(p)) active = true;
     else if (DISH_MENTION.test(p)) active = false;
+    const negated = /\bno\b[^.]{0,16}\b(?:normal|taquer|chico|street)\b/.test(p);
+    const streetAnswer = !negated && (TORTILLA_ANSWER.test(p) || /\bde los chicos\b/.test(p) || (/\bnormal(?:es)?\b/.test(p) && !/\b(?:dorad|preparad)\b/.test(p)));
+    if (streetAnswer && (active || !DISH_MENTION.test(p))) return true;
     if (!active) continue;
     if (TORTILLA_ANSWER.test(p) || /\bde los chicos\b/.test(p)) return true;
-    if (/\bnormal(?:es)?\b/.test(p)) return true;
+    if (/\bnormal(?:es)?\b/.test(p) && !/\b(?:dorad|preparad)\b/.test(p)) return true;
   }
   return false;
 }

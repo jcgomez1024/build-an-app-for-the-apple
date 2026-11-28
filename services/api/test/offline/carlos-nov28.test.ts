@@ -193,6 +193,22 @@ test("one tortilla question then comal on a quesadilla", () => {
   assert.equal((line.elviNotes || []).some((note) => /tortilla/i.test(note)), false);
 });
 
+test("otro normal stays street and does not become comal", () => {
+  const item = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const line = { itemId: item.id, quantity: 1, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Costilla / Beef Rib" }], elviNotes: ["confirmar (A) T Tortilla Options"] };
+  const gordita = menu.find((row) => /^sq-gordita-/.test(String(row.id)));
+  const gorditaLine = { itemId: gordita.id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }], elviNotes: [] as string[] };
+  const before = JSON.stringify(gorditaLine.modifiers);
+  noteUnspokenRequiredChoice([line, gorditaLine], [
+    { speaker: "caller", text: "Un taco de costilla." },
+    { speaker: "staff", text: "¿De comal o normal?" },
+    { speaker: "caller", text: "Otro normal." },
+  ], menu);
+  assert.match(JSON.stringify(line.modifiers), /Street|Taquero/);
+  assert.doesNotMatch(JSON.stringify(line.modifiers), /Comal/);
+  assert.equal(JSON.stringify(gorditaLine.modifiers), before);
+});
+
 test("taquera and de los chicos stay street", () => {
   const item = menu.find((row) => row.id === "sq-taco-TAR7L5");
   const street = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
