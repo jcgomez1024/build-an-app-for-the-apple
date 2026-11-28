@@ -1,22 +1,18 @@
 // Shadow-only decisions from Nov 28. The live phone path does not import this module.
 type Turn = { speaker?: string; text?: string };
 const fold = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-const CON_TODO = /\b(?:con todo|con de todo|with everything|everything on it|the works)\b/;
-const OTHER_DISH = /\b(?:burritos?|quesadillas?|gorditas?|sopes?|huaraches?|guaraches?|tortas?)\b/;
+const CON_TODO = /\bcon todo\b/;
+const OTHER_DISH = /\b(?:burritos?|quesadillas?|gorditas?|sopes?(?:as[oa]s?)?|huaraches?|guaraches?|tortas?)\b/;
 const TACO_NOTE = "cebolla, cilantro y limón";
 
 /** Q4: "con todo" on tacos is the normal toppings, not deluxe and not a paid side. */
 export function applyTacoConTodo(cart: any[], turns: Turn[]): boolean {
-  let active = "";
   let hit = false;
   for (const turn of turns || []) {
     if (turn.speaker && turn.speaker !== "caller") continue;
     const p = fold(turn.text || "");
-    if (OTHER_DISH.test(p)) active = "other";
-    else if (/\btacos?\b/.test(p)) active = "taco";
-    if (!CON_TODO.test(p)) continue;
-    if (/\btacos?\b/.test(p) && !OTHER_DISH.test(p)) hit = true;
-    else if (active === "taco" && !OTHER_DISH.test(p)) hit = true;
+    if (!CON_TODO.test(p) || !/\btacos?\b/.test(p) || OTHER_DISH.test(p)) continue;
+    hit = true;
   }
   if (!hit) return false;
   let changed = false;

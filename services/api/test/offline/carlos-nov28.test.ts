@@ -284,16 +284,28 @@ test("con todo on tacos is onion cilantro and lime", () => {
   assert.match(JSON.stringify(cart[0].modifiers), /Bistec/);
 });
 
-test("with everything on tacos is the same normal toppings", () => {
+test("los tacos con todo get the normal toppings", () => {
   const cart = [
     { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
   ];
-  applyTacoConTodo(cart, [
-    { speaker: "caller", text: "Two chicken tacos." },
-    { speaker: "caller", text: "With everything, please." },
-  ]);
+  applyTacoConTodo(cart, [{ speaker: "caller", text: "Los tacos de pollo, con todo." }]);
   assert.deepEqual(cart[0].elviNotes, ["cebolla, cilantro y limón"]);
   assert.equal(cart.length, 1);
+});
+
+test("con todo on a sope does not change the taco", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+    { itemId: "sq-sope-elvis", quantity: 1, modifiers: [{ step: "topping", option: "Frijoles / Pinto Beans" }] },
+  ];
+  const beforeTaco = JSON.stringify(cart[0]);
+  const beforeSope = JSON.stringify(cart[1]);
+  applyTacoConTodo(cart, [
+    { speaker: "caller", text: "Un taco de chorizo." },
+    { speaker: "caller", text: "Y el sope con todo." },
+  ]);
+  assert.equal(JSON.stringify(cart[0]), beforeTaco);
+  assert.equal(JSON.stringify(cart[1]), beforeSope);
 });
 
 test("con todo on a burrito does not rewrite the taco note or add a side", () => {
