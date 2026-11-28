@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyStaffReadback, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
-import { applyPlainTaquitos, applyTacoConTodo } from "../../src/approved-decisions.ts";
+import { applyPlainTaquitos, applyTacoConTodo, holdUnstyledDorada } from "../../src/approved-decisions.ts";
 import { applyCarryover } from "../../src/carryover.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
@@ -249,6 +249,43 @@ test("taquitos do not change the gordita on the same ticket", () => {
   applyPlainTaquitos(cart, [{ speaker: "caller", text: "Dos taquitos de bistec y una gordita de deshebrada." }], menu);
   assert.equal(JSON.stringify(cart[1]), before);
   assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
+});
+
+const DORADA = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
+
+test("a dorada with no style is not rung as regular", () => {
+  const cart = [
+    { itemId: DORADA, quantity: 2, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  const review = holdUnstyledDorada(cart, [{ speaker: "caller", text: "Dos quesadillas doradas de chorizo." }]);
+  assert.equal(review, "confirmar regular o preparada");
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+  assert.match((cart[0].elviNotes || []).join(" "), /regular o preparada/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Chorizo/);
+});
+
+test("an english dorada with no style also asks", () => {
+  const cart = [
+    { itemId: DORADA, quantity: 1, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+  ];
+  const review = holdUnstyledDorada(cart, [{ speaker: "caller", text: "One dorada with steak." }]);
+  assert.equal(review, "confirmar regular o preparada");
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+});
+
+test("an unstyled dorada does not change the taco beside it", () => {
+  const taco = { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] };
+  const cart = [
+    { itemId: DORADA, quantity: 1, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Picadillo / Ground Beef with Potatoes" }] },
+    taco,
+  ];
+  const before = JSON.stringify(taco);
+  holdUnstyledDorada(cart, [{ speaker: "caller", text: "Una dorada de picadillo y dos tacos de pollo." }]);
+  assert.equal(JSON.stringify(cart[1]), before);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+  const kept = [{ itemId: DORADA, quantity: 1, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }] }];
+  assert.equal(holdUnstyledDorada(kept, [{ speaker: "caller", text: "Las doradas, regulares." }]), null);
+  assert.match(JSON.stringify(kept[0].modifiers), /REGULAR/);
 });
 
 test("a disagreed taco readback leaves the burrito line alone", () => {

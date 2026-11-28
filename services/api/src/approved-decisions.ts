@@ -58,9 +58,52 @@ export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = [])
   return changed;
 }
 
+const STYLE_REGULAR = /\b(?:regular(?:es)?|normal(?:es)?|sencill[ao]s?)\b/;
+const STYLE_PREPARADA = /\b(?:preparad[ao]s?|deluxe|aceite)\b/;
+const CLEAR_YES = /^(?:si|sip|yes|yeah|yep|yup|ok|okay|claro|correcto)\b/;
+function callerText(turns: Turn[]): string {
+  return (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
+}
+/** A style word, or a clear yes to a question that named only one style. */
+function doradaStyleChosen(turns: Turn[]): boolean {
+  const said = callerText(turns);
+  if (STYLE_REGULAR.test(said) || STYLE_PREPARADA.test(said)) return true;
+  for (let i = 0; i < (turns || []).length; i++) {
+    const turn = turns[i];
+    if (turn.speaker !== "staff" || !/[?¿]/.test(turn.text || "")) continue;
+    const asked = fold(turn.text || "");
+    const regular = STYLE_REGULAR.test(asked);
+    const preparada = STYLE_PREPARADA.test(asked);
+    if (regular === preparada) continue;
+    const next = turns.slice(i + 1).find((row) => !row.speaker || row.speaker === "caller");
+    if (next && CLEAR_YES.test(fold(next.text || ""))) return true;
+  }
+  return false;
+}
+/** Q7: a dorada with no regular or preparada said is not rung as Regular. Elvi asks. */
+export function holdUnstyledDorada(cart: any[], turns: Turn[]): string | null {
+  if (!/\bdoradas?\b/.test(callerText(turns))) return null;
+  if (doradaStyleChosen(turns)) return null;
+  const note = "confirmar regular o preparada";
+  let held = false;
+  for (const line of cart || []) {
+    const id = String(line?.itemId || "");
+    if (!/dorada|t5stuh|zzav3l/i.test(id)) continue;
+    if (/deluxe|preparada/i.test(id)) continue;
+    const regular = /regular/i.test(id) || (line.modifiers || []).some((mod: any) => /REGULAR Dorada/i.test(String(mod.option || "")));
+    if (!regular) continue;
+    line.modifiers = (line.modifiers || []).filter((mod: any) => !/REGULAR Dorada/i.test(String(mod.option || "")));
+    if (!(line.elviNotes || []).includes(note)) line.elviNotes = [...(line.elviNotes || []), note];
+    line.validation = "unresolved";
+    held = true;
+  }
+  return held ? note : null;
+}
+
 /** Runs at the end of a shadow order. Live elvi never calls it. */
 export function applyShadowDecisions(cart: any[], turns: Turn[], menu: any[] = []): { review?: string } {
   applyTacoConTodo(cart, turns);
   applyPlainTaquitos(cart, turns, menu);
-  return {};
+  const review = holdUnstyledDorada(cart, turns);
+  return review ? { review } : {};
 }
