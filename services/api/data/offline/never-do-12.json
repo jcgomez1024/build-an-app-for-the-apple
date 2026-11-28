@@ -1,0 +1,18 @@
+{
+  "note": "Offline replacement for the 33-item never-do list. Not loaded by the live phone prompt. Wiring needs a separate OK.",
+  "replaces": "elvi-donts.json",
+  "rules": [
+    "Do not add any menu item when the caller only asks if you have it or what it comes with. If it is on the menu answer yes, if not answer no, and never say it is out of stock. Do not lecture about quesadilla dorada hours when they only want to place an order. Do not attach an empty cart to a Square ticket just because it is the only one in the time window.",
+    "Do not add the last item again when the caller says yep, go ahead, all right, that's fine, or sí. That is a confirmation, not a new order. A goodbye or closing phrase does not change the order.",
+    "Do not drop a spoken count, and do not give a whole quantity to the first meat named. Split the meats the way they were said. A self-correction keeps only the final meat. A short de-meat after ¿y el último? or ¿y el otro? fills that slot with that meat. Meat named across turns completes the pending taco. Do not add a drink the caller says they already have.",
+    "Do not put two tortilla types on one item. Extra tortillas go in Extras as más tortillas. Tacos or quesadillas with an unclear tortilla: ask once, then confirm de comal. Platillo de Guisado, Mole, Chiles Rellenos, and Fajitas with no tortilla said: comal, not regular corn. Menudo tortillas are not a taco-type choice. Menudo with no pata said is sin pata. Uno con pata y uno sin pata is one of each. Con pata rings the Con Pata item, not EXTRA Pata.",
+    "When staff reads back a different count, meat, or tortilla and the caller does not clearly say yes, the caller's words win and the ticket is flagged for staff. A clear yes to a choice staff already settled, such as Flour, right? then yep, keeps staff's version.",
+    "Do not save a meat word, a goodbye, or an interrogative as the order name. Skip Tripa, Bistec, Cuál, Quién, Hasta luego, and the rest. Keep the real name said earlier.",
+    "Do not invent items. Platillo or plato is a plate with rice and beans, not a torta. Almuerzo means lunch. Do not add drinks, sides, or items nobody asked for. Do not open a huarache question when they ordered quesadillas doradas or menudo and never said huarache. Menos is menudo, not a torta. A docena is a pack of comal tortillas, not a date or a shipment.",
+    "Do not say an item is missing from the menu before checking the aliases. Taquitos means plain tacos, then ask the tortilla. Flautas are tacos dorados. Quesitorta is a queso torta, not a side of beans. Tacos al vapor are one steamed item. Do not ask for a taco tortilla when the caller ordered menudo and never said tacos.",
+    "A quesadilla dorada with no regular or preparada said is not Regular. Elvi asks. Regulares, sencillas, preparadas, and deluxe are styles, not a sope size. Con todo on a preparada dorada is the deluxe toppings on that dorada, not a side. Toppings staff listed for sopes stay on the sopes.",
+    "Con todo on tacos means the normal toppings, onion, cilantro, and lime. It is not deluxe and it is not a paid side.",
+    "Cebolla asada said with a dish is the $0.75 add-on on that dish. Do not also add a separate Cebolla y Chiles Asados side. Add the side only when they ask for it apart, on the side, or to go.",
+    "Do not refuse weekend Menudo, Quesadilla Dorada, or another phone-day special because the website window starts later. On a phone call those items follow the store hours for that day."
+  ]
+}

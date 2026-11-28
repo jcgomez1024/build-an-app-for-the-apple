@@ -15,19 +15,36 @@ const CODE_ALIASES_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.ur
 let cache: Alias[] = [];
 type CodeRow = Alias & { apply: string };
 let codeRows: CodeRow[] | null = null;
+export function assertCodeAliases(file = CODE_ALIASES_FILE): void {
+  if (!fs.existsSync(file)) throw new Error(`code-aliases.json is missing (${file})`);
+  let json: { aliases?: unknown };
+  try { json = JSON.parse(fs.readFileSync(file, "utf8")); }
+  catch (e) { throw new Error(`code-aliases.json is not valid JSON (${file}): ${(e as Error).message}`); }
+  if (!json || !Array.isArray(json.aliases) || json.aliases.length === 0) throw new Error(`code-aliases.json has no aliases (${file})`);
+  for (const row of json.aliases as Array<Partial<RawAlias>>) {
+    if (!row || typeof row.id !== "string" || typeof row.match !== "string" || typeof row.to !== "string") {
+      throw new Error(`code-aliases.json row ${row && row.id ? row.id : "?"} is missing id, match, or to`);
+    }
+    try { new RegExp(row.match, typeof row.flags === "string" ? row.flags : ""); }
+    catch (e) { throw new Error(`code-aliases.json rule ${row.id} has an invalid pattern: ${(e as Error).message}`); }
+  }
+}
 function loadCodeRows(): CodeRow[] {
   if (codeRows) return codeRows;
+  assertCodeAliases();
   const json = JSON.parse(fs.readFileSync(CODE_ALIASES_FILE, "utf8"));
   const raw = (json.aliases || []) as Array<RawAlias & { apply?: string }>;
-  codeRows = raw.flatMap((row) => {
+  codeRows = raw.map((row) => {
     if (row.apply && row.apply !== "shared") {
-      return [{ id: row.id, re: new RegExp(row.match, row.flags || ""), to: row.to, scope: row.scope?.length ? row.scope : ["phone", "app"], apply: row.apply }];
+      return { id: row.id, re: new RegExp(row.match, row.flags || ""), to: row.to, scope: row.scope?.length ? row.scope : ["phone", "app"], apply: row.apply };
     }
     const compiled = compileAliases([row])[0];
-    return compiled ? [{ ...compiled, apply: "shared" }] : [];
+    if (!compiled) throw new Error(`code-aliases.json rule ${row.id} did not compile`);
+    return { ...compiled, apply: "shared" };
   });
   return codeRows;
 }
+assertCodeAliases();
 export function applyCodeAliases(text: string, apply: string, id?: string): string {
   let t = String(text ?? "");
   for (const row of loadCodeRows()) {
