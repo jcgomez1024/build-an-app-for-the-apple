@@ -126,6 +126,60 @@ test("a taquera quesadilla stays taquera when the other one was comal", () => {
   assert.equal(JSON.stringify(cart[2]), before);
 });
 
+test("an agreeing readback writes the catalog option name for that same choice", () => {
+  const gordita = { itemId: "sq-gordita-M647RE", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken (+$0.50)" }] };
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(A) T Tortilla Options", option: "(TCO) Taco Comal / Homemade (+$1.00)" }, { step: "(B) T Carnes / Meats Opciones", option: "Lengua / Beef Tongue (+$0.50)" }] },
+    quesadilla("Bistec / Steak", "(QCO) Quesadilla Comal / Homemade (+$1.00)", 1),
+    gordita,
+  ];
+  const beforeSide = JSON.stringify(gordita);
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Dos tacos de comal de lengua y una quesadilla de comal de bistec." },
+    { speaker: "staff", text: "Te tengo dos tacos de comal de lengua y una quesadilla de comal de bistec." },
+    { speaker: "caller", text: "Sí." },
+  ], menu, true);
+  assert.deepEqual(cart[0].modifiers.map((mod) => mod.option), ["Lengua / Beef Tongue", "(TCO) Taco Comal / Homemade"]);
+  assert.equal(cart[0].quantity, 2);
+  assert.deepEqual(cart[1].modifiers.map((mod) => mod.option), ["Bistec / Steak", "(QCO) Quesadilla Comal / Homemade"]);
+  assert.equal(JSON.stringify(cart[2]), beforeSide);
+});
+
+test("an agreeing readback does not add a price to a prensado quesadilla", () => {
+  const gordita = { itemId: "sq-gordita-M647RE", quantity: 1, modifiers: [{ step: "(A) Gordita Options", option: "(GD) Gordita" }] };
+  const cart = [
+    quesadilla("Prensado / Spicy Pork", "(QCO) Quesadilla Comal / Homemade", 1),
+    taco("Pollo / Chicken", "(TST) Taco Taquero / Street Taco", 2),
+    gordita,
+  ];
+  const beforeTaco = JSON.stringify(cart[1]);
+  const beforeSide = JSON.stringify(gordita);
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Una quesadilla de comal de prensado y dos tacos de pollo." },
+    { speaker: "staff", text: "Te tengo una quesadilla de comal de prensado y dos tacos taqueros de pollo." },
+    { speaker: "caller", text: "Sí, así." },
+  ], menu, true);
+  assert.deepEqual(cart[0].modifiers.map((mod) => mod.option), ["Prensado / Spicy Pork", "(QCO) Quesadilla Comal / Homemade"]);
+  assert.equal(JSON.stringify(cart[1]), beforeTaco);
+  assert.equal(JSON.stringify(cart[2]), beforeSide);
+});
+
+test("confirming comal does not rewrite a comal option that is already there", () => {
+  const item = menu.find((row) => /^sq-quesadilla-/.test(String(row.id)) && !/dorada/.test(String(row.id)));
+  const priced = "(QCO) Quesadilla Comal / Homemade (+$1.00)";
+  const line = { itemId: item.id, quantity: 2, modifiers: [{ step: "(A) Q Tortilla Options", option: priced }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }], elviNotes: ["confirmar (A) Q Tortilla Options"] };
+  const gordita = menu.find((row) => /^sq-gordita-/.test(String(row.id)));
+  const gorditaLine = { itemId: gordita.id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] };
+  const before = JSON.stringify(gorditaLine.modifiers);
+  noteUnspokenRequiredChoice([line, gorditaLine], [
+    { speaker: "caller", text: "Dos quesadillas de bistec." },
+    { speaker: "staff", text: "¿De comal o de harina?" },
+    { speaker: "caller", text: "Como sea." },
+  ], menu);
+  assert.equal(line.modifiers.find((mod) => /comal/i.test(String(mod.option)))?.option, priced);
+  assert.equal(JSON.stringify(gorditaLine.modifiers), before);
+});
+
 test("a disagreed readback keeps the caller's taco meat and tortilla", () => {
   const cart = [
     taco("Chorizo / Mexican Sausage", "(TCO) Taco Comal / Homemade (+$1.00)", 4),

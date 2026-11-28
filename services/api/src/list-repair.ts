@@ -182,8 +182,7 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
       if (named.meat && e.meat && named.meat !== e.meat) { keep.meat = named.meat; flags.push(`meat:${String(l.itemId || e.kind)}`); }
       if (named.style && e.style && named.style !== e.style) { keep.style = named.style; flags.push(`style:${String(l.itemId || e.kind)}`); }
     }
-    const already = meatOfLine(l) === (keep.meat || null) && (!keep.style || styleOfLine(l) === keep.style);
-    if (!already) setLine(l, keep, menu);
+    setLine(l, keep, menu);
     const itemText = readbackStyleText(e, l);
     const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText, cart);
     l.quantity = decided.quantity;
@@ -2985,8 +2984,11 @@ function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
   if (callerAnsweredTortilla(turns, dish)) return;
   const option = (group.options || []).map(oname).find((name: string) => /comal|homemade/i.test(name) && !/extra/i.test(name));
   if (!option) return;
-  const optionNames = new Set((group.options || []).map(oname).map((name: string) => plain(name)));
-  line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name) && !optionNames.has(plain(mod.option || ""))), { step: group.name, option }];
+  const alreadyComal = (line.modifiers || []).find((mod: any) => /comal|homemade/i.test(String(mod.option || "")) && !/extra/i.test(String(mod.option || "")));
+  if (!alreadyComal) {
+    const optionNames = new Set((group.options || []).map(oname).map((name: string) => plain(name)));
+    line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name) && !optionNames.has(plain(mod.option || ""))), { step: group.name, option }];
+  }
   if ((line.elviNotes || []).includes(marker)) {
     line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
     if (!line.elviNotes.length) delete line.elviNotes;
