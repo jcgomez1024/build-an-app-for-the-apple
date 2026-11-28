@@ -33,8 +33,34 @@ export function applyTacoConTodo(cart: any[], turns: Turn[]): boolean {
   return changed;
 }
 
+/** Q6: "taquitos" are plain tacos. Ask the tortilla. Do not assume street. */
+export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = []): boolean {
+  const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => turn.text || "").join(" ");
+  if (!/\btaquitos?\b/i.test(caller)) return false;
+  const besides = caller.replace(/\btaquitos?\b/gi, " ");
+  if (/\b(?:taqueros?|street)\b/i.test(besides)) return false;
+  let changed = false;
+  for (const line of cart || []) {
+    if (!/^sq-taco-/.test(String(line?.itemId || ""))) continue;
+    if ((line.modifiers || []).some((mod: any) => /comal|harina|flour/i.test(String(mod.option || "")))) continue;
+    const before = (line.modifiers || []).length;
+    line.modifiers = (line.modifiers || []).filter((mod: any) => !/taquer|street/i.test(String(mod.option || "")));
+    if ((line.modifiers || []).length !== before) changed = true;
+    const item = (menu || []).find((row) => row.id === line.itemId);
+    const group = (item?.modifierGroups || []).find((entry: any) => /tortilla options/i.test(String(entry?.name || "")));
+    const marker = `confirmar ${group?.name || "(A) T Tortilla Options"}`;
+    if (!(line.elviNotes || []).includes(marker)) {
+      line.elviNotes = [...(line.elviNotes || []), marker];
+      line.validation = "unresolved";
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 /** Runs at the end of a shadow order. Live elvi never calls it. */
-export function applyShadowDecisions(cart: any[], turns: Turn[]): { review?: string } {
+export function applyShadowDecisions(cart: any[], turns: Turn[], menu: any[] = []): { review?: string } {
   applyTacoConTodo(cart, turns);
+  applyPlainTaquitos(cart, turns, menu);
   return {};
 }

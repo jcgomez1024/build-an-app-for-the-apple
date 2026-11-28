@@ -8098,7 +8098,7 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const blocked = (kind: string, meats: string[]) => held.some((row) => row.kind === kind && [...row.meats].sort().join("/") === [...meats].sort().join("/"));
   if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[], blocked))
     steps.push({ source: "end-carryover", heard: "kept each dish's style and meat" });
-  const decided = applyShadowDecisions(cart as any[], origTurns as any);
+  const decided = applyShadowDecisions(cart as any[], origTurns as any, Array.isArray(menuEnd) ? menuEnd as any[] : []);
   if (decided.review && !(steps as any).reviewReason) (steps as any).reviewReason = decided.review;
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyStaffReadback, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
-import { applyTacoConTodo } from "../../src/approved-decisions.ts";
+import { applyPlainTaquitos, applyTacoConTodo } from "../../src/approved-decisions.ts";
+import { applyCarryover } from "../../src/carryover.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
 const menu = frozenPhoneMenu();
@@ -186,6 +187,68 @@ test("con todo on a burrito does not rewrite the taco note or add a side", () =>
   assert.equal(cart[0].elviNotes, undefined);
   assert.equal(JSON.stringify(cart[1]), beforeBurrito);
   assert.equal(cart.length, 2);
+});
+
+test("cebolla asada on a quesadilla is the seventy-five cent add-on", () => {
+  const qd = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /regular/i.test(`${row.id} ${row.name || ""}`));
+  const cart: any[] = [{ itemId: qd.id, quantity: 2, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Queso" }] }];
+  applyCarryover(cart, [{ speaker: "caller", text: "Esas quesadillas de queso, con cebolla asada." }], menu);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+});
+
+test("cebolla asada on tacos does not become a side order", () => {
+  const tacoItem = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const cart: any[] = [{ itemId: tacoItem.id, quantity: 4, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Alpastor / Roasted Pork" }] }];
+  applyCarryover(cart, [{ speaker: "caller", text: "Cuatro tacos de pastor con cebolla asada." }], menu);
+  assert.equal(cart.some((line) => /extras/.test(String(line.itemId)) && /cebolla/.test(String(line.itemId))), false);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+});
+
+test("cebolla asada named for the tacos leaves the quesadilla alone", () => {
+  const tacoItem = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const qd = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /regular/i.test(`${row.id} ${row.name || ""}`));
+  const cart: any[] = [
+    { itemId: tacoItem.id, quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    { itemId: qd.id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] },
+  ];
+  const before = JSON.stringify(cart[1]);
+  applyCarryover(cart, [{ speaker: "caller", text: "La cebolla asada va en los tacos." }], menu);
+  assert.equal(JSON.stringify(cart[1]), before);
+  assert.equal(cart.length, 2);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+});
+
+test("taquitos are plain tacos and the tortilla is still open", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 3, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
+  ];
+  applyPlainTaquitos(cart, [{ speaker: "caller", text: "Me da tres taquitos de pollo." }], menu);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
+  assert.match((cart[0].elviNotes || []).join(" "), /tortilla/i);
+  assert.match(JSON.stringify(cart[0].modifiers), /Pollo/);
+  assert.equal(cart.length, 1);
+});
+
+test("a singular taquito also waits for the tortilla", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  applyPlainTaquitos(cart, [{ speaker: "caller", text: "Un taquito de chorizo, por favor." }], menu);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
+  assert.match((cart[0].elviNotes || []).join(" "), /tortilla/i);
+});
+
+test("taquitos do not change the gordita on the same ticket", () => {
+  const gordita = { itemId: "sq-gordita-M647RE", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Deshebrada / Shredded Beef with Potatoes" }] };
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" }, { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+    gordita,
+  ];
+  const before = JSON.stringify(gordita);
+  applyPlainTaquitos(cart, [{ speaker: "caller", text: "Dos taquitos de bistec y una gordita de deshebrada." }], menu);
+  assert.equal(JSON.stringify(cart[1]), before);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /Street|Taquero/);
 });
 
 test("a disagreed taco readback leaves the burrito line alone", () => {
