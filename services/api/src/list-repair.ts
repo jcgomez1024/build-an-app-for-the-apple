@@ -102,11 +102,14 @@ function setLine(l: any, e: Exp, menu: any[]) {
   }
   l.quantity = e.qty;
 }
-const CLEAR_YES = /^(?:si|sip|yes|yeah|yep|yup|ok|okay|claro|correcto|exacto|aja|eso|esta bien|asi esta bien|that s fine|thats fine|correct|right)$/;
-/** A bare yes after the readback. "mmm" or a new dish is not a yes. */
+const CLEAR_YES = /^(?:si|sip|yes|yeah|yep|yup|ok|okay|claro|correcto|exacto|aja|eso|esta bien|asi esta bien|that s fine|thats fine|correct|right)\b/;
+/** A yes after the readback. A turn that starts with no is not agreement. */
 function callerAgrees(turns: Turn[], at: number): boolean {
   const next = turns.slice(at + 1).find((t) => t.speaker === "caller");
-  return !!next && CLEAR_YES.test(plain(next.text));
+  if (!next) return false;
+  const p = plain(next.text);
+  if (/^(?:no|falta|cambia)\b/.test(p)) return false;
+  return CLEAR_YES.test(p);
 }
 /** Meat and tortilla the caller named for this family. "taquitos" is not a tortilla choice. */
 function callerNamedBits(turns: Turn[], at: number, kind: Kind, cartMeat: string | null): { meat?: string; style?: Exp["style"] } {
@@ -3314,7 +3317,15 @@ export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[], shadow 
   const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
   const nx = turns.find((t, i) => i > 0 && t.speaker === "caller" && /^(?:no\b|falta|cambia)/.test(plain(t.text)) && turns.slice(0, i).some((s) => s.speaker === "staff" && plain(s.text).includes(txt.slice(0, 12))));
   if (nx) return false;
-  if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu, shadow)) return false;
+  // Put the rebuilt recap where staff said it, so a following "Sí" is still the answer. Appending it at the end hides that yes.
+  let at = -1;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "staff" || !RECAP.test(plain(turns[i].text))) continue;
+    if (staffRecapText(turns.slice(0, i + 1)) === txt) { at = i; break; }
+  }
+  const heard = { speaker: "staff" as const, text: "te tengo " + txt };
+  const placed = at >= 0 ? [...turns.slice(0, at + 1), heard, ...turns.slice(at + 1)] : [...turns, heard];
+  if (!applyStaffReadback(cart, placed, menu, shadow)) return false;
   applyQdPreparada(cart, turns.map((t) => ({ ...t, text: preparadaWords(t.text) })));
   const sinCrema = /\b(?:no|sin) crema\b/.test(txt);
   for (const l of cart) { if (kindOfLine(l) !== "qd") continue;

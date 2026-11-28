@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyStaffReadback, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
+import { applyStaffReadback, applyStaffRecap, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
 import { applyPlainTaquitos, applyTacoConTodo, holdUnstyledDorada } from "../../src/approved-decisions.ts";
 import { applyCarryover } from "../../src/carryover.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
@@ -28,6 +28,53 @@ const quesadilla = (meat: string, tortilla: string, qty = 1) => ({
     { step: "(B) Q Carnes / Meats", option: meat },
     { step: "(A) Q Tortilla Options", option: tortilla },
   ],
+});
+
+test("a yes after the staff recap keeps the confirmed count", () => {
+  const cart = [
+    taco("Chorizo / Mexican Sausage", "(TCO) Taco Comal / Homemade (+$1.00)", 3),
+    quesadilla("Pollo / Chicken", "(QCO) Quesadilla Comal / Homemade (+$1.00)", 1),
+  ];
+  applyStaffRecap(cart, [
+    { speaker: "caller", text: "Van tres tacos de comal de chorizo y una quesadilla de pollo." },
+    { speaker: "staff", text: "Entonces serían tres tacos de comal de chorizo y una quesadilla de pollo." },
+    { speaker: "caller", text: "Sí." },
+  ], menu, true);
+  assert.equal(cart[0].quantity, 3);
+  assert.equal(cart[1].quantity, 1);
+  assert.equal((cart as any).readbackFlags, undefined);
+});
+
+test("claro after the readback is still a yes", () => {
+  const cart = [
+    taco("Pollo / Chicken", "(THR) Taco Harina / Flour (+$0.50)", 2),
+    quesadilla("Chorizo / Mexican Sausage", "(QHR) Quesadilla Harina / Flour", 1),
+  ];
+  applyStaffReadback(cart, [
+    { speaker: "caller", text: "Dos tacos de harina de pollo y una quesadilla de harina de chorizo." },
+    { speaker: "staff", text: "Te tengo dos tacos de harina de pollo y una quesadilla de harina de chorizo." },
+    { speaker: "caller", text: "Claro, así está." },
+  ], menu, true);
+  assert.equal(cart[0].quantity, 2);
+  assert.match(JSON.stringify(cart[0].modifiers), /Pollo/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Harina|Flour/);
+  assert.equal((cart as any).readbackFlags, undefined);
+});
+
+test("a yes on the taco recap leaves the gordita line alone", () => {
+  const gordita = { itemId: "sq-gordita-M647RE", quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Deshebrada / Shredded Beef with Potatoes" }] };
+  const cart = [
+    taco("Bistec / Steak", "(TCO) Taco Comal / Homemade (+$1.00)", 2),
+    quesadilla("Pollo / Chicken", "(QCO) Quesadilla Comal / Homemade (+$1.00)", 1),
+    gordita,
+  ];
+  const before = JSON.stringify(gordita);
+  applyStaffRecap(cart, [
+    { speaker: "caller", text: "Dos tacos de comal de bistec, una quesadilla de pollo y una gordita de deshebrada." },
+    { speaker: "staff", text: "Entonces serían dos tacos de comal de bistec y una quesadilla de pollo." },
+    { speaker: "caller", text: "Sí." },
+  ], menu, true);
+  assert.equal(JSON.stringify(cart[2]), before);
 });
 
 test("a disagreed readback keeps the caller's taco meat and tortilla", () => {
