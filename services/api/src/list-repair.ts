@@ -2963,6 +2963,29 @@ function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
   }
   if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note))) delete line.validation;
 }
+/** Q3: Platillo de Guisado, Mole, Chiles Rellenos, and Fajitas with no tortilla said take comal, not regular corn. */
+function applyPlatterComal(line: any, item: any, turns: Turn[]): void {
+  const blob = `${item?.squareCatalogObjectId || ""} ${item?.id || ""} ${item?.squareVariationId || ""}`;
+  if (!EXTRA_TORTILLAS.itemIds.some((id) => blob.includes(id))) return;
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  const dish = /fajita/.test(name) ? /\bfajitas?\b/ : /mole/.test(name) ? /\bmoles?\b/ : /relleno/.test(name) ? /\brellenos?\b/ : /\b(?:platillos?|guisados?)\b/;
+  if (callerSaidTortilla(turns, dish)) return;
+  const group = (item.modifierGroups || []).find((entry: any) => entry?.id === EXTRA_TORTILLAS.groupId);
+  const option = (group?.options || []).find((choice: any) => choice?.id === EXTRA_TORTILLAS.comalOptionId);
+  if (!option?.name || !group?.name) return;
+  const included = (item.modifierGroups || []).find((entry: any) => entry?.id === "EIJVOH6PSIJZR7DSLVAIHH5R");
+  const includedName = String(included?.name || "(C) Tortilla Options");
+  line.modifiers = (line.modifiers || []).filter((mod: any) => mod.option !== "3 x (Corn) Corn Tortilla" && plain(mod.step || "") !== plain(includedName));
+  if (!(line.modifiers || []).some((mod: any) => mod.option === option.name)) {
+    line.modifiers = [...(line.modifiers || []), { step: group.name, option: option.name }];
+  }
+  const marker = `confirmar ${includedName}`;
+  if ((line.elviNotes || []).includes(marker)) {
+    line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+    if (!line.elviNotes.length) delete line.elviNotes;
+  }
+  if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note)) && line.validation === "unresolved") delete line.validation;
+}
 export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
@@ -3082,6 +3105,7 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
     }
     noteDrinkSize(line, item, turns, keys, menu);
     noteAskedExtraTortillas(line, item, turns, keys);
+    applyPlatterComal(line, item, turns);
     confirmComalAfterOneAsk(line, item, turns);
   }
 }

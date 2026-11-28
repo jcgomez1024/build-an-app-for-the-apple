@@ -110,6 +110,45 @@ test("a gordita is not given comal when the taco question goes unanswered", () =
   assert.doesNotMatch(JSON.stringify(gorditaLine.modifiers), /Comal|Taco Comal|Quesadilla Comal/);
 });
 
+const COMAL_EXTRA = "***EXTRA 3 x Comal / Homemade Tortilla";
+const REGULAR_CORN = "3 x (Corn) Corn Tortilla";
+
+test("a platillo with no tortilla said is comal", () => {
+  const item = menu.find((row) => /platillo de guisado/i.test(String(row.name || "")) && !/platter|pack|combo/i.test(String(row.name || "")));
+  const line = { itemId: item.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [{ speaker: "caller", text: "Quiero un platillo de guisado de pollo." }], menu);
+  assert.equal((line.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true);
+  assert.equal((line.modifiers || []).some((mod) => mod.option === REGULAR_CORN), false);
+});
+
+test("mole, rellenos, and fajitas with no tortilla said are comal", () => {
+  const spoken = [
+    [/mole tradicional/i, "Un mole tradicional, por favor."],
+    [/chiles rellenos/i, "Me da unos chiles rellenos."],
+    [/^fajitas elvis/i, "Fajitas de res para llevar."],
+  ] as const;
+  for (const [nameRe, text] of spoken) {
+    const item = menu.find((row) => nameRe.test(String(row.name || "")) && !/platter|pack|combo|fiesta/i.test(String(row.name || "")));
+    const line = { itemId: item.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
+    noteUnspokenRequiredChoice([line], [{ speaker: "caller", text }], menu);
+    assert.equal((line.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true, text);
+    assert.equal((line.modifiers || []).some((mod) => mod.option === REGULAR_CORN), false, text);
+  }
+});
+
+test("a burrito beside a fajita order does not pick up the comal default", () => {
+  const fajita = menu.find((row) => /^fajitas elvis/i.test(String(row.name || "")));
+  const burrito = menu.find((row) => /^sq-burrito-/.test(String(row.id)));
+  const fajitaLine = { itemId: fajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
+  const burritoLine = { itemId: burrito.id, quantity: 1, modifiers: [{ step: "(B) Burrito Carne Options", option: "Pollo / Chicken" }], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([fajitaLine, burritoLine], [
+    { speaker: "caller", text: "Unas fajitas y un burrito de pollo." },
+  ], menu);
+  assert.equal((fajitaLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true);
+  assert.equal((burritoLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), false);
+  assert.match(JSON.stringify(burritoLine.modifiers), /Pollo/);
+});
+
 test("a disagreed taco readback leaves the burrito line alone", () => {
   const burrito = {
     itemId: "sq-burrito-example",
