@@ -24,6 +24,7 @@ import { spokenLedger, staffUnavailable, unaSplitMeats, applyUnaSplit, isAvailQ 
 import { dropUncancelledRemoves, retainSpokenOrder } from "./retain-spoken.js";
 import { applySecondGroups } from "./second-groups.js";
 import { applyCarryover } from "./carryover.js";
+import { applyShadowDecisions } from "./approved-decisions.js";
 import { applyCorrections, correctionHolds } from "./corrections.js";
 import { applyIntentCart, recordAppliedRequest, reconcileCountedRequests, resolveConversationIntent } from "./conversation-intent.js";
 import { flagUnresolvedRequired, orderValidation } from "./offline-evidence.js";
@@ -8097,6 +8098,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
   const blocked = (kind: string, meats: string[]) => held.some((row) => row.kind === kind && [...row.meats].sort().join("/") === [...meats].sort().join("/"));
   if (Array.isArray(menuEnd) && applyCarryover(cart as any[], origTurns as any, menuEnd as any[], blocked))
     steps.push({ source: "end-carryover", heard: "kept each dish's style and meat" });
+  const decided = applyShadowDecisions(cart as any[], origTurns as any);
+  if (decided.review && !(steps as any).reviewReason) (steps as any).reviewReason = decided.review;
   const reviewReason = (steps as any).reviewReason || null;
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;

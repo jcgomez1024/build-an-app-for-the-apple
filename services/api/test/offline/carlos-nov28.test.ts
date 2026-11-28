@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyStaffReadback, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
+import { applyTacoConTodo } from "../../src/approved-decisions.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
 const menu = frozenPhoneMenu();
@@ -147,6 +148,44 @@ test("a burrito beside a fajita order does not pick up the comal default", () =>
   assert.equal((fajitaLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true);
   assert.equal((burritoLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), false);
   assert.match(JSON.stringify(burritoLine.modifiers), /Pollo/);
+});
+
+test("con todo on tacos is onion cilantro and lime", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 3, modifiers: [{ step: "(E) DELUXE Options", option: "DELUXE (Lechuga/Lettuce,Pico,Crema/Sour Cream) (+$0.75)" }, { step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+  ];
+  applyTacoConTodo(cart, [{ speaker: "caller", text: "Tres tacos de bistec con todo." }]);
+  assert.deepEqual(cart[0].elviNotes, ["cebolla, cilantro y limón"]);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /DELUXE/);
+  assert.equal(cart.length, 1);
+  assert.match(JSON.stringify(cart[0].modifiers), /Bistec/);
+});
+
+test("with everything on tacos is the same normal toppings", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 2, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
+  ];
+  applyTacoConTodo(cart, [
+    { speaker: "caller", text: "Two chicken tacos." },
+    { speaker: "caller", text: "With everything, please." },
+  ]);
+  assert.deepEqual(cart[0].elviNotes, ["cebolla, cilantro y limón"]);
+  assert.equal(cart.length, 1);
+});
+
+test("con todo on a burrito does not rewrite the taco note or add a side", () => {
+  const cart = [
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+    { itemId: "sq-burrito-example", quantity: 1, modifiers: [{ step: "(B) Burrito Carne Options", option: "Carnitas / Pulled Pork (+$1.00)" }] },
+  ];
+  const beforeBurrito = JSON.stringify(cart[1]);
+  applyTacoConTodo(cart, [
+    { speaker: "caller", text: "Un taco de chorizo." },
+    { speaker: "caller", text: "Y un burrito de carnitas con todo." },
+  ]);
+  assert.equal(cart[0].elviNotes, undefined);
+  assert.equal(JSON.stringify(cart[1]), beforeBurrito);
+  assert.equal(cart.length, 2);
 });
 
 test("a disagreed taco readback leaves the burrito line alone", () => {
