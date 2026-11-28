@@ -455,8 +455,10 @@ function cebollaAddon(item: any): { step: string; option: string } | null {
   return null;
 }
 const CEBOLLA_MEATS = ["bistec", "chorizo", "pastor", "pollo", "lengua", "tripa", "cabeza", "costilla", "carnitas", "buche", "prensado", "duro", "picadillo", "deshebrada", "nopales"];
-/** Q5: the add-on lands only on the dish, meat, and style named with it. */
-function attachCebollaAddon(cart: any[], menu: any[], phrase: string): boolean {
+const CEBOLLA_FLAG = "confirmar platillo";
+/** Q5: the add-on lands only on the dish, meat, and style named with it.
+ *  A meat with no dish is ambiguous when more than one dish has that meat. */
+function attachCebollaAddon(cart: any[], menu: any[], phrase: string): "yes" | "ambiguous" | "no" {
   const saidMeats = CEBOLLA_MEATS.filter((meat) => new RegExp(`\\b${meat}`).test(phrase));
   const regularOnly = /\b(?:normal(?:es)?|regular(?:es)?)\b/.test(phrase) && !/\b(?:preparad|deluxe)\b/.test(phrase);
   const deluxeOnly = /\b(?:preparad|deluxe)\b/.test(phrase);
@@ -472,12 +474,17 @@ function attachCebollaAddon(cart: any[], menu: any[], phrase: string): boolean {
     const id = String(line?.itemId || "");
     if (named.length === 1 && !named[0][1].test(id)) return false;
     if (saidMeats.length && !saidMeats.some((meat) => JSON.stringify(line.modifiers || []).toLowerCase().includes(meat))) return false;
-    if (regularOnly && /deluxe|preparada/i.test(id)) return false;
-    if (deluxeOnly && !regularOnly && /regular/i.test(id)) return false;
+    if (regularOnly && !(/^sq-qd-/.test(id) && !/deluxe|preparada/i.test(id))) return false;
+    if (deluxeOnly && !regularOnly && !/deluxe|preparada/i.test(id)) return false;
     return true;
   });
-  if (!saidMeats.length && !regularOnly && !deluxeOnly && targets.length > 1) return false;
-  if (!targets.length && food.length === 1 && !named.length) targets = food;
+  if (saidMeats.length && named.length === 0) {
+    const families = new Set(targets.map((line) => lineKind(String(line?.itemId || "")) || "other"));
+    if (families.size > 1) return "ambiguous";
+  }
+  if (!saidMeats.length && !regularOnly && !deluxeOnly && targets.length > 1) return "no";
+  if (!targets.length && food.length === 1 && !named.length && !regularOnly && !deluxeOnly) targets = food;
+  if (!targets.length) return "no";
   let changed = false;
   for (const line of targets) {
     const item = (menu || []).find((row) => row.id === line.itemId);
@@ -487,19 +494,36 @@ function attachCebollaAddon(cart: any[], menu: any[], phrase: string): boolean {
     line.modifiers = [...(line.modifiers || []), mod];
     changed = true;
   }
-  return changed;
+  return changed ? "yes" : "no";
+}
+function flagCebollaSide(cart: any[], menu: any[]): boolean {
+  const ex = cebollaItem(menu);
+  if (!ex) return false;
+  let side = (cart || []).find((line) => String(line?.itemId || "") === ex.id);
+  if (!side) {
+    side = { itemId: ex.id, quantity: 1, modifiers: [], readback: "cebolla y chiles asados", elviNotes: [CEBOLLA_FLAG], validation: "unresolved" };
+    cart.push(side);
+    return true;
+  }
+  if (!(side.elviNotes || []).includes(CEBOLLA_FLAG)) side.elviNotes = [...(side.elviNotes || []), CEBOLLA_FLAG];
+  side.validation = "unresolved";
+  return true;
 }
 function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).filter((phrase) => saidAsados(phrase));
   if (!phrases.length) return false;
   let changed = false;
   let attached = false;
+  let ambiguous = false;
   for (const phrase of phrases) {
     if (separateCebollaSide(phrase)) continue;
-    if (attachCebollaAddon(cart, menu, phrase)) attached = true;
+    const result = attachCebollaAddon(cart, menu, phrase);
+    if (result === "yes") attached = true;
+    if (result === "ambiguous") ambiguous = true;
   }
+  if (ambiguous && flagCebollaSide(cart, menu)) changed = true;
   const sidePhrase = phrases.find((phrase) => separateCebollaSide(phrase));
-  if (!sidePhrase && attached) return true;
+  if (!sidePhrase && attached && !ambiguous) return true;
   if (!sidePhrase && !attached) {
     const ex = cebollaItem(menu);
     if (!ex || alreadyCebollaSide(cart, ex)) return changed;
@@ -543,9 +567,11 @@ export function applyCarryover(cart: any[], turns: Turn[], menu: any[], hold?: (
   if (cartHasDish(cart) || (cart.length > 0 && packSaid)) {
     if (plainTortillas(cart, turns, menu)) changed = true;
   }
-  if (cartHasDish(cart) && cebollaSide(cart, turns, menu)) changed = true;
   if (!cartHasDish(cart)) return changed;
-  if (cart.some((l) => /^sq-combo-quesadillas/.test(String(l?.itemId || "")))) return changed;
+  if (cart.some((l) => /^sq-combo-quesadillas/.test(String(l?.itemId || "")))) {
+    if (cebollaSide(cart, turns, menu)) changed = true;
+    return changed;
+  }
   const unavailable = staffUnavailable(turns as any).join(" ");
   const wants = carryoverWants(turns).filter((w) => !(unavailable && new RegExp(`\\b${w.kind}`).test(unavailable)));
   const lines = () => cart.filter((l) => lineKind(String(l?.itemId || "")));
@@ -555,7 +581,29 @@ export function applyCarryover(cart: any[], turns: Turn[], menu: any[], hold?: (
     const variety = (l: any) => w.kind !== "qd" || !w.qd || (w.qd === "preparada" ? /deluxe|preparada/i.test(String(l.itemId)) : !/deluxe|preparada/i.test(String(l.itemId)));
     const otherWanted = w.kind === "qd" && !!w.qd && wants.some((o) => o !== w && o.kind === "qd" && sameMeats(o.meats, w.meats) && !!o.qd && o.qd !== w.qd);
     const same = otherWanted ? allSame.filter(variety) : allSame;
-    const have = same.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    let have = same.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    if (otherWanted && have < w.n) {
+      const partner = wants.find((o) => o !== w && o.kind === "qd" && sameMeats(o.meats, w.meats) && !!o.qd && o.qd !== w.qd);
+      const others = allSame.filter((l) => !variety(l));
+      const excess = others.reduce((s, l) => s + (Number(l.quantity) || 1), 0) - (partner?.n || 0);
+      const move = Math.min(w.n - have, Math.max(0, excess));
+      if (move > 0 && partner) {
+        let left = move;
+        for (const line of others) {
+          if (left <= 0) break;
+          const q = Number(line.quantity) || 1;
+          const drop = Math.min(left, q);
+          line.quantity = q - drop;
+          left -= drop;
+          if ((Number(line.quantity) || 0) <= 0) {
+            const at = cart.indexOf(line);
+            if (at >= 0) cart.splice(at, 1);
+          }
+        }
+        const moved = buildLine({ ...w, n: move }, menu);
+        if (moved) { cart.push(moved); have += move; changed = true; }
+      }
+    }
     for (const line of same) {
       if (w.kind === "qd" && w.qd === "preparada") {
         const deluxeItem = qdItem(menu, true);
@@ -586,5 +634,6 @@ export function applyCarryover(cart: any[], turns: Turn[], menu: any[], hold?: (
     cart.push(line);
     changed = true;
   }
+  if (cebollaSide(cart, turns, menu)) changed = true;
   return changed;
 }

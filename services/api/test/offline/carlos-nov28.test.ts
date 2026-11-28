@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { shadowOrderFromTurns } from "../../src/call-scoring.ts";
 import { applyStaffReadback, applyStaffRecap, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
 import { applyPlainTaquitos, applyTacoConTodo, holdUnstyledDorada } from "../../src/approved-decisions.ts";
 import { applyCarryover } from "../../src/carryover.ts";
@@ -583,4 +584,44 @@ test("a disagreed taco readback leaves the burrito line alone", () => {
   ], menu, true);
   assert.equal(JSON.stringify(cart[2]), before);
   assert.equal(cart[2].quantity, 1);
+});
+
+const hasCebolla = (line: any) => (line?.modifiers || []).some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option)));
+async function shadowCart(lines: string[]) {
+  const run: any = async () => ({ actions: [], reply: "" });
+  run.menu = () => menu;
+  const turns = lines.map((text, n) => ({ speaker: "caller", text, language: "es", start: n, end: n + 1 }));
+  const order: any = await shadowOrderFromTurns(turns as any, run);
+  return order.cart || [];
+}
+
+test("cebolla on the normales waits until that line exists and skips the preparadas", async () => {
+  const cart = await shadowCart([
+    "Dame dos quesadillas doradas preparadas de bistec.",
+    "Y otras dos normales.",
+    "A las normales les pongo cebolla asada.",
+    "Y una gordita de pollo.",
+  ]);
+  const deluxe = cart.filter((line: any) => /deluxe|preparada/i.test(String(line.itemId)));
+  const regular = cart.filter((line: any) => /regular/i.test(String(line.itemId)));
+  const gordita = cart.find((line: any) => /gordita/i.test(String(line.itemId)));
+  assert.equal(deluxe.reduce((sum: number, line: any) => sum + line.quantity, 0), 2);
+  assert.equal(regular.reduce((sum: number, line: any) => sum + line.quantity, 0), 2);
+  assert.equal(deluxe.some(hasCebolla), false);
+  assert.equal(regular.some(hasCebolla), true);
+  assert.ok(gordita);
+  assert.equal(hasCebolla(gordita), false);
+});
+
+test("a meat with no dish does not put cebolla on every line of that meat", async () => {
+  const cart = await shadowCart([
+    "Quiero una torta de lengua y una quesadilla de harina de lengua.",
+    "Ponle cebolla asada a la de lengua.",
+  ]);
+  const food = cart.filter((line: any) => !/extras/.test(String(line.itemId)));
+  const side = cart.find((line: any) => /cebolla/.test(String(line.itemId)) && /chiles/.test(String(line.itemId)));
+  assert.equal(food.length, 2);
+  assert.equal(food.some(hasCebolla), false);
+  assert.ok(side);
+  assert.match((side.elviNotes || []).join(" "), /confirmar platillo/);
 });
