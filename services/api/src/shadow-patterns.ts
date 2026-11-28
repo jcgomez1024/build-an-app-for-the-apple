@@ -149,7 +149,14 @@ export function applyBareCount(cart: any[], turns: Turn[], menu: any[]): boolean
     const qty = numOf((said.match(new RegExp(`^(${NUMW})$`)) || [])[1] || "");
     if (!qty || qty <= 1) continue;
     const dish = (fold(turns[i].text || "").match(new RegExp(`\\b(${DISH})\\b`)) || [])[1] || "";
-    if (!dish) continue;
+    if (!dish) {
+      const food = (cart || []).filter((line) => !/combo|drink-|extras|tortilla|delivery/i.test(String(line?.itemId || "")));
+      if (food.length === 1 && (Number(food[0].quantity) || 1) === 1) {
+        food[0].quantity = qty;
+        changed = true;
+      }
+      continue;
+    }
     let lines = (cart || []).filter((line) => dishId(String(line?.itemId || ""), dish) && !/combo/i.test(String(line?.itemId || "")));
     if (!lines.length) {
       const item = (menu || []).find((row) => dishId(String(row?.id || ""), dish));
@@ -191,15 +198,17 @@ function clearHold(line: any, pattern: RegExp): void {
 export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boolean {
   const callerTurns = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller");
   const caller = callerTurns.map((turn) => fold(turn.text || "")).join(" ");
-  const ordered = (dish: RegExp) => callerTurns.some((turn) => {
-    const text = fold(turn.text || "");
-    return dish.test(text) && /\b(?:un|una|quiero|dame|deme|ponme|ponga|me\s+(?:das|da|pones|pone))\b/.test(text) && !/[?¿]/.test(String(turn.text || ""));
+  const asking = (turn: Turn) => /[?¿]/.test(String(turn.text || "")) && /\b(?:tienen|tiene|hay|venden)\b/i.test(turn.text || "");
+  const fajita = callerTurns.some((turn) => !asking(turn) && /\b(?:unas?|unos)\s+fajitas?\b|\bpreparar\s+unas?\s+fajitas?\b/.test(fold(turn.text || "")));
+  const plate = callerTurns.some((turn) => !asking(turn) && /\bplatillos?\b/.test(fold(turn.text || "")) && /\b(?:un|una|unas|quiero|dame|preparar)\b/.test(fold(turn.text || "")))
+    && !/\bmoles?\b|\brellenos?\b|\bfajitas?\b/.test(caller);
+  const yesToPlate = (turns || []).some((turn, index) => {
+    if (turn.speaker !== "staff" || !/\b(?:tortilla|comal|harina|arroz|frijol|lado)\b/i.test(turn.text || "")) return false;
+    const next = turns.slice(index + 1).find((row) => !row.speaker || row.speaker === "caller");
+    return !!next && /^(?:si|sip|claro|yes)\b/.test(fold(next.text || ""));
   });
-  const fajita = ordered(/\bfajitas?\b/);
-  const plate = ordered(/\bplatillos?\b/) && !/\bmoles?\b|\brellenos?\b|\bfajitas?\b/.test(caller);
   if (!fajita && !plate) return false;
-  const answered = /\bcomal\b|\bharina\b|\bflour\b|\barroz\b|\bfrijol/.test(caller);
-  if (!answered) return false;
+  if (!fajita && !yesToPlate && !/\bcomal\b|\bharina\b|\bflour\b|\barroz\b|\bfrijol/.test(caller)) return false;
   const idRe = fajita ? /fajitas-elvis/i : /platillo-de-guisado/i;
   if ((cart || []).some((line) => idRe.test(String(line?.itemId || "")))) return false;
   const item = findItem(menu, idRe);
@@ -282,7 +291,15 @@ export function applyBurritoConTodo(cart: any[], turns: Turn[], menu: any[]): bo
 export function keepSpokenStyle(cart: any[], turns: Turn[], menu: any[]): boolean {
   const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
   let changed = false;
-  if (/\bhorchata\b/.test(caller) && !/\bbotella\b|\bwater\b|\bagua embotellada\b/.test(caller)) {
+  if (/\bbotella de agua\b|\bagua embotellada\b|\bwater bottle\b/.test(caller) && !/\bhorchata\b/.test(caller)) {
+    const bottle = findItem(menu, /agua-water-bottle/i);
+    for (const line of cart || []) {
+      if (!/horchata/i.test(String(line?.itemId || "")) || !bottle) continue;
+      line.itemId = bottle.id;
+      line.modifiers = [];
+      changed = true;
+    }
+  } else if (/\bhorchata\b/.test(caller) && !/\bbotella\b|\bwater\b|\bagua embotellada\b/.test(caller)) {
     const water = (cart || []).find((line) => /water|embotellada|bottle/i.test(String(line?.itemId || "")));
     const horchata = (cart || []).find((line) => /horchata/i.test(String(line?.itemId || "")));
     if (water && !horchata) {
@@ -311,24 +328,37 @@ export function keepSpokenStyle(cart: any[], turns: Turn[], menu: any[]): boolea
   return changed;
 }
 
-const FILLER_NAME = /^(?:ponga|pongame|pongan|muchisimas|muchas|gracias|me|alla en|okay|okey|hola|mande|buenas|oye)\b/;
-/** Shadow name only. The live name function is not changed. */
-function ownName(turns: Turn[]): string | null {
+const NOT_A_PERSON = /^(?:disculpa|disculpe|buenos|buenas|quiero|queremos|dame|deme|ponga|pongame|ponme|yo|um|uh|eh|ok|okay|okey|hola|mande|oye|mira|gracias|muchisimas|muchas|cinco|cuatro|tres|dos|una|uno|un|otra|vez|si|sip|claro|alla|en|para|con|sin|de|la|el|los|las)$/;
+/** A token is a person's name only when it is a capitalized proper noun and not a closed-class word. */
+function personName(token: string): string | null {
+  const clean = String(token || "").replace(/^[^\p{L}]+|[^\p{L}'’-]+$/gu, "");
+  if (!/^\p{Lu}[\p{Ll}'’-]{2,18}$/u.test(clean)) return null;
+  if (!/[aeiouáéíóúü]/i.test(clean)) return null;
+  if (NOT_A_PERSON.test(fold(clean))) return null;
+  return clean;
+}
+function framedName(turns: Turn[]): string | null {
   for (const turn of turns || []) {
     if (turn.speaker && turn.speaker !== "caller") continue;
-    const said = String(turn.text || "");
-    const named = said.match(/\b(?:me llamo|soy|mi nombre es)\s+(\p{L}[\p{L}'’-]+)/iu);
-    if (named && !FILLER_NAME.test(fold(named[1]))) return named[1];
-    const hello = said.match(/^(?:hola|mande|buenas)\s*,\s*(\p{L}[\p{L}'’-]+)/iu);
-    if (hello && !FILLER_NAME.test(fold(hello[1]))) return hello[1];
+    const said = String(turn.text || "").trim();
+    const frame = said.match(/^(?:hola|mande|buenas|ponga|ponme|dame)\s*,?\s+(\p{L}[\p{L}'’-]{2,18})\b/iu)
+      || said.match(/\b(?:me llamo|soy|mi nombre es|para)\s+(\p{L}[\p{L}'’-]{2,18})\b/iu);
+    const name = frame && personName(frame[1]);
+    if (name) return name;
   }
   return null;
 }
-export function shadowCustomerName(live: { name?: string; group?: string[] } | null, turns: Turn[]): string | null {
-  const spoken = ownName(turns);
+function liveNameOk(name: string): boolean {
+  if (/^all[aá]\s+en\b/i.test(name)) return false;
+  return name.split(/\s+/).every((part) => !!personName(part) || /^(?:de|del|la|y)$/i.test(part));
+}
+/** Shadow name only. The live name function is not changed. An empty order gets no name. */
+export function shadowCustomerName(live: { name?: string; group?: string[] } | null, turns: Turn[], ordered = true): string | null {
+  if (!ordered) return null;
+  const spoken = framedName(turns);
   let name = live?.name || "";
-  if (spoken && (!name || FILLER_NAME.test(fold(name)) || /^alla en\b/.test(fold(name)))) return spoken;
-  if (!name || FILLER_NAME.test(fold(name)) || /^alla en\b/.test(fold(name))) {
+  if (spoken && (!name || !liveNameOk(name))) return spoken;
+  if (!name || !liveNameOk(name)) {
     if (live?.group && live.group.length >= 2) return null;
     return spoken;
   }
@@ -342,18 +372,20 @@ export function shadowCustomerName(live: { name?: string; group?: string[] } | n
 export function shadowFillAddress(turns: Turn[], current: string | null): string | null {
   const blob = (turns || []).map((turn) => String(turn.text || "")).join(" ");
   const match = blob.match(/\b(\d{1,6})\s+de\s+la\s+(calle|avenida|av\.?)\s+([a-záéíóúñ][a-záéíóúñ.'-]{2,})(?:\s*,\s*(apartamento|apt\.?|apartment)\s*([a-z0-9-]{1,6}))?/iu);
-  if (!match) return current;
+  const tidy = (addr: string | null) => addr ? addr.replace(/\.+(\s+)/g, "$1").replace(/\s+/g, " ").trim() : addr;
+  if (!match) return tidy(current);
   const phone = blob.match(/\b(?:n[uú]mero|tel[eé]fono|phone)\s*(?:es\s*)?([\d\s-]{7,})/iu);
   const phoneDigits = (phone?.[1] || "").replace(/\D/g, "");
   if (phoneDigits.includes(match[1])) return current;
   const kind = /^av/i.test(match[2]) ? "Ave" : "St";
-  const street = `${match[1]} ${match[3].replace(/(^|[\s-])(\p{L})/gu, (_m, a, b) => a + b.toUpperCase())} ${kind}`;
+  const streetName = match[3].replace(/\.+$/g, "").replace(/(^|[\s-])(\p{L})/gu, (_m, a, b) => a + b.toUpperCase());
+  const street = `${match[1]} ${streetName} ${kind}`;
   const unit = match[5] ? `Apartamento ${match[5]}` : "";
   if (current && current.includes(match[1])) {
-    if (unit && !/apartamento|apt/i.test(current)) return `${current} ${unit}`.replace(/\s+/g, " ").trim();
-    return current;
+    if (unit && !/apartamento|apt/i.test(current)) return tidy(`${current} ${unit}`);
+    return tidy(current);
   }
-  return [street, unit].filter(Boolean).join(" ");
+  return tidy([street, unit].filter(Boolean).join(" "));
 }
 
 /** Runs after the other shadow repairs. */
@@ -368,5 +400,27 @@ export function applyShadowPatterns(cart: any[], turns: Turn[], menu: any[] = []
   if (applyEnchiladaCheese(cart, turns, menu)) changed = true;
   if (applyBurritoConTodo(cart, turns, menu)) changed = true;
   if (keepSpokenStyle(cart, turns, menu)) changed = true;
+  if (applyOneBurrito(cart, turns, menu)) changed = true;
   return changed;
+}
+
+/** A one-turn plain or deluxe burrito is not an empty cart. */
+function applyOneBurrito(cart: any[], turns: Turn[], menu: any[]): boolean {
+  if ((cart || []).some((line) => String(line?.itemId || "") && !/delivery-fee/i.test(String(line.itemId)))) return false;
+  const turn = (turns || []).find((row) => (!row.speaker || row.speaker === "caller") && /\bburritos?\b/i.test(row.text || "") && /\b(?:de\s+\p{L}+|deluxe|preparad|regular|plain|sencill)/iu.test(row.text || ""));
+  if (!turn) return false;
+  const item = findItem(menu, /^sq-burrito-/i);
+  if (!item) return false;
+  const text = fold(turn.text || "");
+  const meat = (text.match(/\b(bistec|asada|pastor|pollo|lengua|chorizo|carnitas|cabeza)\b/) || [])[1];
+  const mods: Array<{ step: string; option: string }> = [];
+  const option = meat ? meatOption(item, meat === "asada" ? "bistec" : meat) : null;
+  if (option) mods.push(option);
+  if (/\bdeluxe\b|\bpreparad/.test(text)) {
+    const deluxe = ((item.modifierGroups || []).find((group: any) => /deluxe/i.test(String(group?.name || "")))?.options || []).map(oname)[0];
+    const step = (item.modifierGroups || []).find((group: any) => /deluxe/i.test(String(group?.name || "")))?.name;
+    if (deluxe && step) mods.push({ step, option: deluxe });
+  }
+  cart.push({ itemId: item.id, quantity: 1, modifiers: mods });
+  return true;
 }

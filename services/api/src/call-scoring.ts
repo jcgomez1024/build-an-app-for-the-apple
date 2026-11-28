@@ -8104,7 +8104,8 @@ export async function shadowOrderFromTurns(turns: CallTurn[], run: ShadowTurn) {
     steps.push({ source: "shadow-patterns", heard: "kept the agreed count, the spoken parts, and the answered option" });
   if (decided.review && !(steps as any).reviewReason) (steps as any).reviewReason = decided.review;
   const reviewReason = (steps as any).reviewReason || null;
-  const customerName = shadowCustomerName(nameFromTranscriptInfo(origTurns as any), origTurns as any);
+  const orderedFood = (cart as any[]).some((line) => String(line?.itemId || "") && !/delivery-fee/i.test(String(line.itemId)));
+  const customerName = shadowCustomerName(nameFromTranscriptInfo(origTurns as any), origTurns as any, orderedFood);
   const validation = reviewReason ? "unresolved" : orderValidation(cart as any[]);
   if (validation === "unresolved") autoAccepted = false;
   return noteTrace({ ...((steps as any).addOn ? { addOn: true } : {}), cart, steps, autoAccepted, shadow: true, validation, ...(customerName ? { customerName } : {}), ...(reviewReason ? { reviewReason } : {}), ...(intentPending?.accommodation ? { pending: intentPending } : {}), containers, ambiguousRemovals, removalsAttributed: true, fulfillment, ...(readyTime ? { readyTime } : {}), ...(wait ? { waitMinutes: wait.minutes } : {}), ...( (steps as any).readyCue ? { readyCue: (steps as any).readyCue } : {}), ...( (steps as any).fulfillmentCue ? { fulfillmentCue: (steps as any).fulfillmentCue } : {}), address, addressConfirmed, ...(groups.length ? { groups } : {}) }, {
