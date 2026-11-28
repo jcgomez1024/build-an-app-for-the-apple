@@ -193,6 +193,34 @@ test("one tortilla question then comal on a quesadilla", () => {
   assert.equal((line.elviNotes || []).some((note) => /tortilla/i.test(note)), false);
 });
 
+test("taquera and de los chicos stay street", () => {
+  const item = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const street = { step: "(A) T Tortilla Options", option: "(TST) Taco Taquero / Street Taco" };
+  const meat = { step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" };
+  for (const answer of ["De la taquera.", "De los chicos.", "Normal."]) {
+    const line = { itemId: item.id, quantity: 2, modifiers: [street, meat], elviNotes: [] as string[] };
+    noteUnspokenRequiredChoice([line], [
+      { speaker: "caller", text: "Dos tacos de pollo." },
+      { speaker: "staff", text: "¿De comal, de harina o taqueros?" },
+      { speaker: "caller", text: answer },
+    ], menu);
+    assert.match(JSON.stringify(line.modifiers), /Street|Taquero/, answer);
+    assert.doesNotMatch(JSON.stringify(line.modifiers), /Comal/, answer);
+  }
+});
+
+test("an address question with the word street is not the tortilla question", () => {
+  const item = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const line = { itemId: item.id, quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [
+    { speaker: "caller", text: "Un taco de bistec." },
+    { speaker: "staff", text: "¿Me das la dirección? Oak Street." },
+    { speaker: "caller", text: "Es la casa de la esquina." },
+  ], menu);
+  assert.doesNotMatch(JSON.stringify(line.modifiers), /Comal/);
+  assert.equal((line.elviNotes || []).some((note) => /tortilla/i.test(note)), true);
+});
+
 test("a gordita is not given comal when the taco question goes unanswered", () => {
   const tacoItem = menu.find((row) => row.id === "sq-taco-TAR7L5");
   const gordita = menu.find((row) => /^sq-gordita-/.test(String(row.id)));

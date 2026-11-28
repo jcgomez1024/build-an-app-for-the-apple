@@ -2940,11 +2940,29 @@ function callerSaidTortilla(turns: Turn[], dish: RegExp): boolean {
   }
   return false;
 }
+const TORTILLA_ANSWER = /\b(?:tortillas?|comal|harina|flour|maiz|corn|homemade|hecha|taquer[ao]s?|street|chicos)\b/;
+/** A real tortilla choice, including street words. "normal" counts when it answers the tortilla. */
+function callerAnsweredTortilla(turns: Turn[], dish: RegExp): boolean {
+  let active = false;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const p = plain(turn.text);
+    if (dish.test(p)) active = true;
+    else if (DISH_MENTION.test(p)) active = false;
+    if (!active) continue;
+    if (TORTILLA_ANSWER.test(p) || /\bde los chicos\b/.test(p)) return true;
+    if (/\bnormal(?:es)?\b/.test(p)) return true;
+  }
+  return false;
+}
 function staffAskedTortilla(turns: Turn[], dish: RegExp): boolean {
   return turns.some((turn) => {
     if (turn.speaker !== "staff" || !/[?¿]/.test(turn.text)) return false;
     const p = plain(turn.text);
-    if (!TORTILLA_WORD.test(p) && !/\b(?:taquer|street)\b/.test(p)) return false;
+    const address = /\b(?:direccion|address|numero|casa|calle)\b/.test(p) || /\b[a-z]+ street\b/.test(p);
+    const tortilla = /\b(?:tortilla|comal|harina|taquer|flour|homemade|maiz|corn)\b/.test(p);
+    if (address && !tortilla) return false;
+    if (!tortilla && !/\bstreet\b/.test(p)) return false;
     if (dish.test(p)) return true;
     return !DISH_MENTION.test(p);
   });
@@ -2961,7 +2979,7 @@ function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
   const hasTortilla = (line.modifiers || []).some((mod: any) => plain(mod.step || "") === plain(group.name));
   if (hasTortilla && !(line.elviNotes || []).includes(marker)) return;
   if (!staffAskedTortilla(turns, dish)) return;
-  if (callerSaidTortilla(turns, dish)) return;
+  if (callerAnsweredTortilla(turns, dish)) return;
   const option = (group.options || []).map(oname).find((name: string) => /comal|homemade/i.test(name) && !/extra/i.test(name));
   if (!option) return;
   const optionNames = new Set((group.options || []).map(oname).map((name: string) => plain(name)));
