@@ -308,6 +308,35 @@ test("a greeting word is a name only when it is a person's name, and a no-order 
   assert.equal(asking.customerName, undefined);
 });
 
+test("a name after other words is kept, and a phrase fragment is not a name", async () => {
+  const mid = await order([
+    ["caller", "Son dos tortas. A nombre de Lorena."],
+  ]);
+  assert.equal(mid.customerName, "Lorena");
+  const pickup = await order([
+    ["caller", "Dos tortas de bistec."],
+    ["caller", "Para recoger a nombre de Nestor."],
+  ]);
+  assert.equal(pickup.customerName, "Nestor");
+  for (const cue of ["Tomás.", "Soy Tomás.", "Mi nombre es Tomás.", "A nombre de Tomás."]) {
+    const named = await order([["caller", "Un taco de pastor."], ["caller", cue]]);
+    assert.equal(named.customerName, "Tomás", cue);
+  }
+  const fragments = ["Soy Mucha Molestia.", "Mucho gusto.", "Un momento.", "No entiendo.", "Buenos días."];
+  for (const cue of fragments) {
+    const junk = await order([
+      ["caller", "Un taco de pastor."],
+      ["staff", "¿Su nombre?"],
+      ["caller", cue],
+    ]);
+    assert.ok(!/^(?:Mucha|Mucho|Molestia|Momento|Entiendo|Hasta|Buenos)$/.test(String(junk.customerName || "")), cue);
+  }
+  for (const cue of ["It's hacer.", "This is called.", "For avenue.", "It's nunca.", "Soy comí.", "It's pidió.", "It's looking.", "It's wanna.", "It's totally.", "It's cool.", "It's Hello.", "It's Okay.", "Por favor.", "It's Buen día."]) {
+    const junk = await order([["caller", "Un taco de pastor."], ["caller", cue]]);
+    assert.ok(!/^(?:Hacer|Poner|Comí|Pidió|Nunca|Called|Looking|Wanna|Totally|Cool|Hello|Okay|Favor|Buen|Día|Avenue)$/.test(String(junk.customerName || "")), cue);
+  }
+});
+
 test("a verb, a courtesy phrase, or a street word is not the customer name", async () => {
   const leaks = ["Debiste", "Give", "Encargar", "Saber", "Avenue", "Dígame", "Espere", "Número", "Tel", "Same", "What", "Adentro"];
   for (const word of leaks) {

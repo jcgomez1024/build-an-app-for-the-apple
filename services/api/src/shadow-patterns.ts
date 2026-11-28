@@ -409,8 +409,9 @@ function conjugate(infinitive: string): void {
   }
 }
 for (const infinitive of ["deber", "encargar", "esperar", "llevar", "recoger", "comer", "ordenar", "hablar", "llamar", "preparar", "mirar", "tomar", "comprar", "vender", "buscar", "dejar", "pagar", "mandar", "enviar", "usar", "pasar", "quedar", "llegar", "entrar", "preguntar", "trabajar", "caminar", "necesitar", "gustar", "molestar", "pensar", "contar", "volver", "entender", "perder", "parecer", "creer", "vivir", "escribir", "subir", "bajar", "seguir", "pedir", "servir", "dormir", "sentir", "preferir", "salir", "andar"]) conjugate(infinitive);
-for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "hace", "haga", "pongo", "pone", "ponga", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "salgo", "sale", "salga"]) addVerb(form);
-const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia`.split(/\s+/));
+for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "hace", "haga", "hacer", "pongo", "pone", "ponga", "poner", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "danos", "salgo", "sale", "salga", "sal", "comi", "comio", "pidio", "pido", "entiendo"]) addVerb(form);
+VERB.delete("tomas");
+const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia mucha mucho momento hasta sal letter pero misfiado aja ajá all nunca called looking wanna wanna totally cool porfavor hello okay`.split(/\s+/));
 function isOrdinary(token: string): boolean {
   const word = plainName(token);
   if (!word) return true;
@@ -500,6 +501,12 @@ function leftover(raw: string, span: string): boolean {
   return index < parts.length;
 }
 function nameFromSentence(sentence: string, asked: boolean, later: boolean): string | null {
+  if (courtesyPhrase(sentence)) return null;
+  const ticket = sentence.match(/\ba nombre de\s+(.+)$/iu);
+  if (ticket) {
+    const span = nameSpan(ticket[1]);
+    if (span) return span;
+  }
   const self = sentence.match(/\b(?:me llamo|mi nombre es|my name is|this is|it'?s|i am|soy|mi apellido es)\s+(.+)$/iu);
   if (self) {
     const span = nameSpan(self[1]);
