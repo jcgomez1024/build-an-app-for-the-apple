@@ -2918,6 +2918,51 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
 }
 
 /** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */
+const TORTILLA_WORD = /\b(?:tortillas?|comal|harina|flour|maiz|corn|homemade|hecha)\b/;
+const DISH_MENTION = /\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|sopes?|menudos?|moles?|fajitas?|platillos?|guisados?|rellenos?)\b/;
+function callerSaidTortilla(turns: Turn[], dish: RegExp): boolean {
+  let active = false;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const p = plain(turn.text);
+    if (dish.test(p)) active = true;
+    else if (DISH_MENTION.test(p)) active = false;
+    if (!active) continue;
+    if (TORTILLA_WORD.test(p)) return true;
+  }
+  return false;
+}
+function staffAskedTortilla(turns: Turn[], dish: RegExp): boolean {
+  return turns.some((turn) => {
+    if (turn.speaker !== "staff" || !/[?¿]/.test(turn.text)) return false;
+    const p = plain(turn.text);
+    if (!TORTILLA_WORD.test(p) && !/\b(?:taquer|street)\b/.test(p)) return false;
+    if (dish.test(p)) return true;
+    return !DISH_MENTION.test(p);
+  });
+}
+/** Q2: one tortilla question, then comal. A line that was never asked stays on hold. */
+function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
+  const id = String(line?.itemId || "");
+  const kind = /^sq-taco-/.test(id) ? "taco" : /^sq-quesadilla-/.test(id) ? "quesadilla" : "";
+  if (!kind) return;
+  const dish = kind === "taco" ? /\btacos?\b/ : /\bquesadillas?\b/;
+  const group = (item.modifierGroups || []).find((entry: any) => /tortilla options/i.test(String(entry?.name || "")));
+  if (!group) return;
+  const marker = `confirmar ${group.name}`;
+  const hasTortilla = (line.modifiers || []).some((mod: any) => plain(mod.step || "") === plain(group.name));
+  if (hasTortilla && !(line.elviNotes || []).includes(marker)) return;
+  if (!staffAskedTortilla(turns, dish)) return;
+  if (callerSaidTortilla(turns, dish)) return;
+  const option = (group.options || []).map(oname).find((name: string) => /comal|homemade/i.test(name) && !/extra/i.test(name));
+  if (!option) return;
+  line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name)), { step: group.name, option }];
+  if ((line.elviNotes || []).includes(marker)) {
+    line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+    if (!line.elviNotes.length) delete line.elviNotes;
+  }
+  if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note))) delete line.validation;
+}
 export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
@@ -3037,6 +3082,7 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
     }
     noteDrinkSize(line, item, turns, keys, menu);
     noteAskedExtraTortillas(line, item, turns, keys);
+    confirmComalAfterOneAsk(line, item, turns);
   }
 }
 

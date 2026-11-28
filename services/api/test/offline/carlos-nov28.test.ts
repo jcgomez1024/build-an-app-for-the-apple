@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyStaffReadback } from "../../src/list-repair.ts";
+import { applyStaffReadback, noteUnspokenRequiredChoice } from "../../src/list-repair.ts";
 import { frozenPhoneMenu } from "../../src/phone-menu.ts";
 
 const menu = frozenPhoneMenu();
@@ -66,6 +66,48 @@ test("an unclear reply still keeps the caller's harina and meat", () => {
   const flags = ((cart as any).readbackFlags || []).join(" ");
   assert.match(flags, /meat:/);
   assert.match(flags, /style:/);
+});
+
+test("one tortilla question then comal on tacos", () => {
+  const item = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const meat = { step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" };
+  const line = { itemId: item.id, quantity: 2, modifiers: [meat], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [
+    { speaker: "caller", text: "Ponme dos tacos de pollo, por favor." },
+    { speaker: "staff", text: "¿Los quiere de comal, de harina o taqueros?" },
+    { speaker: "caller", text: "Como gustes, no importa." },
+  ], menu);
+  assert.match(JSON.stringify(line.modifiers), /Comal/);
+  assert.equal((line.elviNotes || []).some((note) => /tortilla/i.test(note)), false);
+  assert.equal(line.quantity, 2);
+});
+
+test("one tortilla question then comal on a quesadilla", () => {
+  const item = menu.find((row) => /^sq-quesadilla-/.test(String(row.id)) && !/dorada/.test(String(row.id)));
+  const meat = { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" };
+  const line = { itemId: item.id, quantity: 1, modifiers: [meat], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([line], [
+    { speaker: "caller", text: "A quesadilla with steak." },
+    { speaker: "staff", text: "Corn, flour, or homemade?" },
+    { speaker: "caller", text: "I don't know, you pick." },
+  ], menu);
+  assert.match(JSON.stringify(line.modifiers), /Comal|Homemade/);
+  assert.equal((line.elviNotes || []).some((note) => /tortilla/i.test(note)), false);
+});
+
+test("a gordita is not given comal when the taco question goes unanswered", () => {
+  const tacoItem = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const gordita = menu.find((row) => /^sq-gordita-/.test(String(row.id)));
+  const tacoLine = { itemId: tacoItem.id, quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }], elviNotes: [] as string[] };
+  const gorditaLine = { itemId: gordita.id, quantity: 1, modifiers: [{ step: "(B) Gordita Carne", option: "Deshebrada / Shredded Beef with Potatoes" }], elviNotes: [] as string[] };
+  noteUnspokenRequiredChoice([tacoLine, gorditaLine], [
+    { speaker: "caller", text: "Un taco de chorizo y una gordita de deshebrada." },
+    { speaker: "staff", text: "¿El taco de comal, harina o taquero?" },
+    { speaker: "caller", text: "El que sea." },
+  ], menu);
+  assert.match(JSON.stringify(tacoLine.modifiers), /Comal/);
+  assert.match(JSON.stringify(gorditaLine.modifiers), /Deshebrada/);
+  assert.doesNotMatch(JSON.stringify(gorditaLine.modifiers), /Comal|Taco Comal|Quesadilla Comal/);
 });
 
 test("a disagreed taco readback leaves the burrito line alone", () => {
