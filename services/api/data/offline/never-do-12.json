@@ -12,7 +12,7 @@
     "Do not say an item is missing from the menu before checking the aliases. Taquitos means plain tacos, then ask the tortilla. Flautas are tacos dorados. Quesitorta is a queso torta, not a side of beans. Tacos al vapor are one steamed item. Do not ask for a taco tortilla when the caller ordered menudo and never said tacos.",
     "A quesadilla dorada with no regular or preparada said is not Regular. Elvi asks. Regulares, sencillas, preparadas, and deluxe are styles, not a sope size. Con todo on a preparada dorada is the deluxe toppings on that dorada, not a side. Toppings staff listed for sopes stay on the sopes.",
     "Con todo on tacos means the normal toppings, onion, cilantro, and lime. It is not deluxe and it is not a paid side.",
-    "Cebolla asada said with a dish is the $0.75 add-on on that dish. Do not also add a separate Cebolla y Chiles Asados side. Add the side only when they ask for it apart, on the side, or to go.",
+    "Cebolla asada said with a dish is the $0.75 add-on on that dish. Do not also add a separate Cebolla y Chiles Asados side. Add the side only when they ask for it apart or on the side. Para llevar and to go do not make it a separate side.",
     "Do not refuse weekend Menudo, Quesadilla Dorada, or another phone-day special because the website window starts later. On a phone call those items follow the store hours for that day."
   ]
 }

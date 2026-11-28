@@ -445,7 +445,7 @@ function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   return changed;
 }
 function separateCebollaSide(phrase: string): boolean {
-  return /\b(?:aparte|para llevar|on the side|al lado|por separado|paquet(?:it)?os?|orden(?:es)?|orders)\b/.test(phrase) || /\bpeppers and onions\b/.test(phrase);
+  return /\b(?:aparte|on the side|al lado|por separado|paquet(?:it)?os?|orden(?:es)?|orders)\b/.test(phrase) || /\bpeppers and onions\b/.test(phrase);
 }
 function cebollaAddon(item: any): { step: string; option: string } | null {
   for (const g of item?.modifierGroups || []) {
@@ -454,16 +454,32 @@ function cebollaAddon(item: any): { step: string; option: string } | null {
   }
   return null;
 }
-/** Q5: "cebolla asada" said with a dish is the $0.75 add-on. A side is only when they ask for it apart. */
+const CEBOLLA_MEATS = ["bistec", "chorizo", "pastor", "pollo", "lengua", "tripa", "cabeza", "costilla", "carnitas", "buche", "prensado", "duro", "picadillo", "deshebrada", "nopales"];
+/** Q5: the add-on lands only on the dish, meat, and style named with it. */
 function attachCebollaAddon(cart: any[], menu: any[], phrase: string): boolean {
-  const only = /\btacos?\b/.test(phrase) ? /^sq-taco-/ : /\bquesadillas?\b/.test(phrase) ? /^sq-(?:quesadilla|qd)-/ : /\bgorditas?\b/.test(phrase) ? /^sq-gordita-/ : null;
+  const saidMeats = CEBOLLA_MEATS.filter((meat) => new RegExp(`\\b${meat}`).test(phrase));
+  const regularOnly = /\b(?:normal(?:es)?|regular(?:es)?)\b/.test(phrase) && !/\b(?:preparad|deluxe)\b/.test(phrase);
+  const deluxeOnly = /\b(?:preparad|deluxe)\b/.test(phrase);
+  const dishes = [
+    [/\btacos?\b/, /^sq-taco-/],
+    [/\bquesadillas?\b/, /^sq-(?:quesadilla|qd)-/],
+    [/\bgorditas?\b/, /^sq-gordita-/],
+    [/\btortas?\b/, /^sq-torta-/],
+  ] as const;
+  const named = dishes.filter(([re]) => re.test(phrase));
   const food = (cart || []).filter((line) => !/^sq-(?:extras|drink|tortilla)/.test(String(line?.itemId || "")));
-  if (!only && food.length !== 1) return false;
-  let changed = false;
-  for (const line of cart) {
+  let targets = food.filter((line) => {
     const id = String(line?.itemId || "");
-    if (/^sq-(?:extras|drink|tortilla)/.test(id)) continue;
-    if (only && !only.test(id)) continue;
+    if (named.length === 1 && !named[0][1].test(id)) return false;
+    if (saidMeats.length && !saidMeats.some((meat) => JSON.stringify(line.modifiers || []).toLowerCase().includes(meat))) return false;
+    if (regularOnly && /deluxe|preparada/i.test(id)) return false;
+    if (deluxeOnly && !regularOnly && /regular/i.test(id)) return false;
+    return true;
+  });
+  if (!saidMeats.length && !regularOnly && !deluxeOnly && targets.length > 1) return false;
+  if (!targets.length && food.length === 1 && !named.length) targets = food;
+  let changed = false;
+  for (const line of targets) {
     const item = (menu || []).find((row) => row.id === line.itemId);
     const mod = item && cebollaAddon(item);
     if (!mod) continue;
@@ -477,10 +493,19 @@ function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).filter((phrase) => saidAsados(phrase));
   if (!phrases.length) return false;
   let changed = false;
+  let attached = false;
   for (const phrase of phrases) {
-    if (!separateCebollaSide(phrase) && attachCebollaAddon(cart, menu, phrase)) changed = true;
+    if (separateCebollaSide(phrase)) continue;
+    if (attachCebollaAddon(cart, menu, phrase)) attached = true;
   }
   const sidePhrase = phrases.find((phrase) => separateCebollaSide(phrase));
+  if (!sidePhrase && attached) return true;
+  if (!sidePhrase && !attached) {
+    const ex = cebollaItem(menu);
+    if (!ex || alreadyCebollaSide(cart, ex)) return changed;
+    cart.push({ itemId: ex.id, quantity: 1, modifiers: [], readback: "cebolla y chiles asados" });
+    return true;
+  }
   if (!sidePhrase) return changed;
   const ex = cebollaItem(menu);
   if (!ex || alreadyCebollaSide(cart, ex)) return changed;

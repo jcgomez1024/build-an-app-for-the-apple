@@ -313,6 +313,39 @@ test("con todo on a burrito does not rewrite the taco note or add a side", () =>
   assert.equal(cart.length, 2);
 });
 
+test("cebolla asada on the chicken taco leaves the steak taco alone", () => {
+  const tacoItem = menu.find((row) => row.id === "sq-taco-TAR7L5");
+  const cart: any[] = [
+    { itemId: tacoItem.id, quantity: 4, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Pollo / Chicken" }] },
+    { itemId: tacoItem.id, quantity: 6, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Bistec / Steak" }] },
+  ];
+  applyCarryover(cart, [{ speaker: "caller", text: "La cebolla asada va en los tacos de pollo." }], menu);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+  assert.equal(cart[1].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), false);
+  assert.equal(cart.length, 2);
+});
+
+test("cebolla asada on the regular dorada does not land on the deluxe", () => {
+  const regular = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /regular/i.test(`${row.id} ${row.name || ""}`));
+  const deluxe = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /deluxe|preparada/i.test(`${row.id} ${row.name || ""}`));
+  const cart: any[] = [
+    { itemId: regular.id, quantity: 2, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+    { itemId: deluxe.id, quantity: 2, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+  ];
+  const before = JSON.stringify(cart[1]);
+  applyCarryover(cart, [{ speaker: "caller", text: "A las regulares ponles cebolla asada." }], menu);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+  assert.equal(JSON.stringify(cart[1]), before);
+});
+
+test("cebolla asada para llevar stays on the dish", () => {
+  const qd = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /regular/i.test(`${row.id} ${row.name || ""}`));
+  const cart: any[] = [{ itemId: qd.id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
+  applyCarryover(cart, [{ speaker: "caller", text: "Quesadilla de pollo con cebolla asada para llevar." }], menu);
+  assert.equal(cart.some((line) => /cebolla/.test(String(line.itemId)) && /chiles/.test(String(line.itemId))), false);
+  assert.equal(cart[0].modifiers.some((mod: any) => /extra cebolla y chiles asados/i.test(String(mod.option))), true);
+});
+
 test("cebolla asada on a quesadilla is the seventy-five cent add-on", () => {
   const qd = menu.find((row) => /^sq-qd-/.test(String(row.id)) && /regular/i.test(`${row.id} ${row.name || ""}`));
   const cart: any[] = [{ itemId: qd.id, quantity: 2, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Queso" }] }];

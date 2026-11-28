@@ -242,7 +242,8 @@ test("a refusal in front of cebolla asada does not ring the side", () => {
 test("cebollitas asadas still rings, and a meat asada does not", () => {
   const yes: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] }];
   applyCarryover(yes, [T("caller", "Dame cebollitas asadas para llevar.")], menu);
-  assert.equal(yes.some((l) => /cebolla/.test(String(l.itemId))), true);
+  assert.equal(yes.some((l) => /cebolla/.test(String(l.itemId)) && /chiles/.test(String(l.itemId))), false);
+  assert.equal(yes[0].modifiers.some((m: any) => /extra cebolla y chiles asados/i.test(String(m.option))), true);
   const no: any[] = [{ itemId: qd(false).id, quantity: 1, modifiers: [{ step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] }];
   applyCarryover(no, [T("caller", "Dos de pollo con cebolla y chile, y luego asada y pastor.")], menu);
   assert.equal(no.some((l) => /cebolla/.test(String(l.itemId))), false);
