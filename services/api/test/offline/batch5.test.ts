@@ -308,6 +308,40 @@ test("a greeting word is a name only when it is a person's name, and a no-order 
   assert.equal(asking.customerName, undefined);
 });
 
+test("a verb, a courtesy phrase, or a street word is not the customer name", async () => {
+  const leaks = ["Debiste", "Give", "Encargar", "Saber", "Avenue", "Dígame", "Espere", "Número", "Tel", "Same", "What", "Adentro"];
+  for (const word of leaks) {
+    const asked = await order([
+      ["caller", "Un taco de pastor."],
+      ["staff", "¿Su nombre?"],
+      ["caller", `${word}.`],
+    ]);
+    assert.notEqual(asked.customerName, word, word);
+    const framed = await order([["caller", `Es para ${word}.`], ["caller", "Un taco de pastor."]]);
+    assert.notEqual(framed.customerName, word, `para ${word}`);
+  }
+  const courtesy = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿Su nombre?"],
+    ["caller", "Mucho gusto."],
+  ]);
+  assert.notEqual(courtesy.customerName, "Mucho Gusto");
+  assert.notEqual(courtesy.customerName, "Mucho");
+  const kept = await order([
+    ["caller", "Un taco de pastor."],
+    ["staff", "¿Su nombre?"],
+    ["caller", "Yesenia."],
+  ]);
+  assert.equal(kept.customerName, "Yesenia");
+  const pork = await order([
+    ["caller", "Quiero un platillo de milanesa de puerco."],
+    ["staff", "¿De comal, con arroz y frijoles?"],
+    ["caller", "Sí."],
+  ]);
+  assert.equal(pork.validation, "unresolved");
+  assert.doesNotMatch(opts(pork.cart.find((row: any) => /platillo/i.test(String(row.itemId)))), /Milanesa Pollo/);
+});
+
 test("an answer to the name question keeps an uncommon name, and a greeting does not", async () => {
   const answer = await order([
     ["caller", "Un taco de pastor."],

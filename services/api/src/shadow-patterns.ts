@@ -271,7 +271,7 @@ export function applyAnsweredPlate(cart: any[], turns: Turn[], menu: any[]): boo
 const PLATE_MEAT = "bistec|asada|steak|pastor|alpastor|pollo|chicken|lengua|chorizo|carnitas|cabeza|costilla|tripas?|buche|prensado|suadero|milanesa|deshebrada|picadillo|nopales|duro";
 function plateMeat(text: string): { key: string; mapped: boolean } {
   if (/\b(?:camar[oó]n(?:es)?|shrimp|gambas?)\b/.test(text)) return { key: "shrimp", mapped: false };
-  if (/\bmilanesa\b/.test(text) && /\bres\b/.test(text) && !/\bpollo\b/.test(text)) return { key: "milanesa de res", mapped: false };
+  if (/\bmilanesa\b/.test(text) && /\b(?:res|puerco|cerdo|ternera|carne)\b/.test(text) && !/\b(?:pollo|chicken)\b/.test(text)) return { key: "milanesa other", mapped: false };
   const found = text.match(new RegExp(`\\b(${PLATE_MEAT})\\b`));
   if (!found) return { key: "", mapped: false };
   let word = found[1];
@@ -386,11 +386,50 @@ const ORDINARY = new Set(`disculpa disculpe perdon perdone buenos buenas hola ma
 function plainName(token: string): string {
   return fold(String(token || "")).replace(/[^\p{L}]/gu, "");
 }
+const VERB = new Set<string>();
+function addVerb(word: string): void {
+  VERB.add(fold(word).replace(/[^a-z]/g, ""));
+}
+function conjugate(infinitive: string): void {
+  addVerb(infinitive);
+  const kind = infinitive.slice(-2);
+  const stem = infinitive.slice(0, -2);
+  const theme = kind === "ar" ? "a" : kind === "er" ? "e" : "i";
+  const sub = kind === "ar" ? "e" : "a";
+  const we = kind === "ar" ? "amos" : kind === "er" ? "emos" : "imos";
+  for (const end of ["o", theme, theme + "s", theme + "n", we, sub, sub + "s", sub + "n", sub + "mos"]) addVerb(stem + end);
+  if (kind === "ar") {
+    for (const end of ["aste", "aron", "aba", "abas", "aban", "ando"]) addVerb(stem + end);
+  } else {
+    for (const end of ["iste", "ieron", "ia", "ias", "ian", "iendo"]) addVerb(stem + end);
+  }
+  for (const end of ["me", "le", "nos", "se"]) {
+    addVerb(stem + theme + end);
+    addVerb(stem + sub + end);
+  }
+}
+for (const infinitive of ["deber", "encargar", "esperar", "llevar", "recoger", "comer", "ordenar", "hablar", "llamar", "preparar", "mirar", "tomar", "comprar", "vender", "buscar", "dejar", "pagar", "mandar", "enviar", "usar", "pasar", "quedar", "llegar", "entrar", "preguntar", "trabajar", "caminar", "necesitar", "gustar", "molestar", "pensar", "contar", "volver", "entender", "perder", "parecer", "creer", "vivir", "escribir", "subir", "bajar", "seguir", "pedir", "servir", "dormir", "sentir", "preferir", "salir", "andar"]) conjugate(infinitive);
+for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "hace", "haga", "pongo", "pone", "ponga", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "salgo", "sale", "salga"]) addVerb(form);
+const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia`.split(/\s+/));
 function isOrdinary(token: string): boolean {
   const word = plainName(token);
-  return !word || ORDINARY.has(word);
+  if (!word) return true;
+  if (NOT_NAME.has(word) || VERB.has(word) || ORDINARY.has(word)) return true;
+  if (word.length >= 6 && /(?:aste|iste|aron|ieron)$/.test(word)) return true;
+  if (/(?:me|le|nos)$/.test(word)) {
+    const stem = word.replace(/(?:me|le|nos)$/, "");
+    if (stem.length >= 4 && /[ae]$/.test(stem)) return true;
+  }
+  return false;
 }
-/** A name token is a word that is not grammar, food, a number, or a verb. It does not have to be on a list. */
+function courtesyPhrase(text: string): boolean {
+  const said = fold(text);
+  return /^(?:mucho|mucha)\s+(?:gusto|molestia)\b/.test(said)
+    || /^(?:buen|buena|buenos|buenas)\s+d[ií]as?\b/.test(said)
+    || /^(?:venga|anda)\b/.test(said)
+    || /\bhijol/.test(said);
+}
+/** A name token is a word that is not grammar, food, a number, a verb, or a courtesy word. It does not have to be on a list. */
 function nameToken(token: string): boolean {
   const word = plainName(token);
   if (word.length < 3 || !/[aeiou]/.test(word)) return false;
@@ -408,7 +447,7 @@ function nameSpan(raw: string): string | null {
   const parts = cleaned.replace(/[.?!,¡¿;:]+/g, " ").trim().split(/\s+/).filter(Boolean);
   let index = 0;
   while (index < parts.length && (NAME_SKIP.test(parts[index]) || NAME_PARTICLE.test(parts[index]))) index += 1;
-  if (index >= parts.length || !nameToken(parts[index])) return null;
+  if (courtesyPhrase(cleaned) || index >= parts.length || !nameToken(parts[index])) return null;
   const kept = [parts[index]];
   index += 1;
   while (index < parts.length) {
@@ -600,8 +639,14 @@ export function applyShadowPatterns(cart: any[], turns: Turn[], menu: any[] = []
 
 /** The included 3-tortilla option, not a note alone and not the $4 extra, unless they asked for more. */
 function applyIncludedPlatilloTortilla(cart: any[], turns: Turn[], menu: any[]): boolean {
-  const caller = (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
-  const wantsExtra = /\btortillas?\b/.test(caller) && /\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(caller);
+  const wantsExtra = (turns || []).some((turn, index) => {
+    const said = fold(turn.text || "");
+    const asks = /\btortillas?\b/.test(said) && /\b(?:mas|extra|otras|aparte|additional|more|another)\b/.test(said);
+    if (!asks) return false;
+    if (!turn.speaker || turn.speaker === "caller") return true;
+    const next = (turns || []).slice(index + 1).find((row) => !row.speaker || row.speaker === "caller");
+    return !!next && /^(?:si|sip|claro|correcto|yes|yeah|ok|okay)\b/.test(fold(next.text || ""));
+  });
   let changed = false;
   for (const line of cart || []) {
     if (!/fajitas-elvis|platillo-de-guisado|mole-tradicional-platillo|chiles-rellenos-platillo/i.test(String(line?.itemId || ""))) continue;
