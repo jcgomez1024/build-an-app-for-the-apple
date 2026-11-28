@@ -102,8 +102,31 @@ function setLine(l: any, e: Exp, menu: any[]) {
   }
   l.quantity = e.qty;
 }
+const CLEAR_YES = /^(?:si|sip|yes|yeah|yep|yup|ok|okay|claro|correcto|exacto|aja|eso|esta bien|asi esta bien|that s fine|thats fine|correct|right)\b/;
+/** A yes after the readback. A turn that starts with no is not agreement. */
+function callerAgrees(turns: Turn[], at: number): boolean {
+  const next = turns.slice(at + 1).find((t) => t.speaker === "caller");
+  if (!next) return false;
+  const p = plain(next.text);
+  if (/^(?:no|falta|cambia)\b/.test(p)) return false;
+  return CLEAR_YES.test(p);
+}
+/** Meat and tortilla the caller named for this same line. Another line's choice does not move over. "taquitos" is not a tortilla. */
+function callerNamedBits(turns: Turn[], at: number, kind: Kind, cartMeat: string | null): { meat?: string; style?: Exp["style"] } {
+  const rows: Exp[] = [];
+  for (const turn of turns.slice(0, at)) {
+    if (turn.speaker !== "caller") continue;
+    for (const row of parseList(turn.text.replace(/\btaquitos?\b/gi, "tacos"))) {
+      if (row.kind && famOf(row.kind) === famOf(kind)) rows.push(row);
+    }
+  }
+  const mine = cartMeat ? rows.filter((row) => row.meat === cartMeat) : rows.filter((row) => row.meat);
+  if (!mine.length) return {};
+  return { meat: mine.find((row) => row.meat)?.meat, style: mine.find((row) => row.style)?.style };
+}
 /** Staff readback rebuilds the taco / quesadilla / QD lines it lists: counts, meats, tortilla, regular/preparada.
- *  A shadow order never gains a line from the readback. */
+ *  A shadow order never gains a line from the readback.
+ *  Q1: on a shadow ticket, a different meat or tortilla applies only after a clear yes. Otherwise the caller's words stay and the line is flagged. */
 export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shadow = false): boolean {
   const rb = staffReadback(turns); if (!rb) return false;
   // Confirm-only is off unless ELVI_SHADOW_READBACK_CONFIRM_ONLY=1. Shadow then keeps the caller's count, meat, and tortilla and flags a mismatch.
@@ -118,7 +141,22 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
     const pick = cands.find((l) => kindOfLine(l) === e.kind && (e.kind !== "qd" || !e.qd || (l.modifiers || []).some((m: any) => new RegExp(e.qd === "regular" ? "REGULAR" : "DELUXE", "i").test(m.option)))) || cands.find((l) => kindOfLine(l) === e.kind) || cands[0] || meatless[0];
     let l = pick;
     if (!l) {
-      if (shadow) { if (confirmOnly) flags.push(`missing:${e.kind}:${e.meat || "none"}`); continue; }
+      if (shadow) {
+        const alt = cart.find((row) => !claimed.has(row) && kindOfLine(row) && famOf(kindOfLine(row)!) === fam);
+        const lineMeat = alt ? meatOfLine(alt) : null;
+        const bits = alt ? callerNamedBits(turns, rb.at, e.kind, lineMeat) : null;
+        if (alt && lineMeat && e.meat && lineMeat !== e.meat && !callerAgrees(turns, rb.at) && bits?.meat === lineMeat) {
+          claimed.add(alt);
+          flags.push(`meat:${String(alt.itemId || e.kind)}`);
+          if (bits.style && e.style && bits.style !== e.style) {
+            flags.push(`style:${String(alt.itemId || e.kind)}`);
+            if (styleOfLine(alt) !== bits.style) setLine(alt, { ...e, meat: lineMeat, style: bits.style, qty: Number(alt.quantity) || e.qty }, menu);
+          }
+          continue;
+        }
+        if (confirmOnly) flags.push(`missing:${e.kind}:${e.meat || "none"}`);
+        continue;
+      }
       const b = baseItem(menu, e.kind); if (!b) continue; l = { itemId: b.id, quantity: e.qty, modifiers: [] }; cart.push(l);
     }
     const dish = fam === "taco" ? "taco" : "quesadilla";
@@ -135,7 +173,16 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
       if (e.style && styleOfLine(l) !== e.style) flags.push(`style:${id}`);
       continue;
     }
-    claimed.add(l); setLine(l, e, menu);
+    claimed.add(l);
+    const cartMeat = meatOfLine(l);
+    const named = shadow ? callerNamedBits(turns, rb.at, e.kind, cartMeat) : null;
+    const agreed = shadow && callerAgrees(turns, rb.at);
+    const keep: Exp = { ...e };
+    if (named && !agreed) {
+      if (named.meat && e.meat && named.meat !== e.meat) { keep.meat = named.meat; flags.push(`meat:${String(l.itemId || e.kind)}`); }
+      if (named.style && e.style && named.style !== e.style) { keep.style = named.style; flags.push(`style:${String(l.itemId || e.kind)}`); }
+    }
+    setLine(l, keep, menu);
     const itemText = readbackStyleText(e, l);
     const decided = staffQuantity(turns, dish, e.meat, Number(e.qty) || 0, cartQty, itemText, cart);
     l.quantity = decided.quantity;
@@ -2878,6 +2925,86 @@ export function reconcileSpokenExtras(cart: any[], turns: Turn[], menu: any[]): 
 }
 
 /** Each required group is confirmed on its own. A catalog default is not an excuse unless Carlos listed it. */
+const TORTILLA_WORD = /\b(?:tortillas?|comal|harina|flour|maiz|corn|homemade|hecha)\b/;
+const DISH_MENTION = /\b(?:tacos?|quesadillas?|gorditas?|burritos?|tortas?|sopes?|menudos?|moles?|fajitas?|platillos?|guisados?|rellenos?)\b/;
+function callerSaidTortilla(turns: Turn[], dish: RegExp): boolean {
+  let active = false;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const p = plain(turn.text);
+    if (dish.test(p)) active = true;
+    else if (DISH_MENTION.test(p)) active = false;
+    if (!active) continue;
+    if (TORTILLA_WORD.test(p)) return true;
+  }
+  return false;
+}
+const TORTILLA_ANSWER = /\b(?:tortillas?|comal|harina|flour|maiz|corn|homemade|hecha|taquer[ao]s?|street|chicos)\b/;
+/** A real tortilla choice, including street words. "normal" counts when it answers the tortilla. */
+function callerAnsweredTortilla(turns: Turn[], dish: RegExp): boolean {
+  let active = false;
+  for (const turn of turns) {
+    if (turn.speaker !== "caller") continue;
+    const p = plain(turn.text);
+    if (dish.test(p)) active = true;
+    else if (DISH_MENTION.test(p)) active = false;
+    const negated = /\bno\b[^.]{0,16}\b(?:normal|taquer|chico|street)\b/.test(p);
+    const streetAnswer = !negated && (TORTILLA_ANSWER.test(p) || /\bde los chicos\b/.test(p) || (/\bnormal(?:es)?\b/.test(p) && !/\b(?:dorad|preparad)\b/.test(p)));
+    if (streetAnswer && (active || !DISH_MENTION.test(p))) return true;
+    if (!active) continue;
+    if (TORTILLA_ANSWER.test(p) || /\bde los chicos\b/.test(p)) return true;
+    if (/\bnormal(?:es)?\b/.test(p) && !/\b(?:dorad|preparad)\b/.test(p)) return true;
+  }
+  return false;
+}
+function staffAskedTortilla(turns: Turn[], dish: RegExp): boolean {
+  return turns.some((turn) => {
+    if (turn.speaker !== "staff" || !/[?¿]/.test(turn.text)) return false;
+    const p = plain(turn.text);
+    const address = /\b(?:direccion|address|numero|casa|calle)\b/.test(p) || /\b[a-z]+ street\b/.test(p);
+    const tortilla = /\b(?:tortilla|comal|harina|taquer|flour|homemade|maiz|corn)\b/.test(p);
+    if (address && !tortilla) return false;
+    if (!tortilla && !/\bstreet\b/.test(p)) return false;
+    if (dish.test(p)) return true;
+    return !DISH_MENTION.test(p);
+  });
+}
+/** Q2: one tortilla question, then comal. A line that was never asked stays on hold. */
+function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
+  const id = String(line?.itemId || "");
+  const kind = /^sq-taco-/.test(id) ? "taco" : /^sq-quesadilla-/.test(id) ? "quesadilla" : "";
+  if (!kind) return;
+  const dish = kind === "taco" ? /\btacos?\b/ : /\bquesadillas?\b/;
+  const group = (item.modifierGroups || []).find((entry: any) => /tortilla options/i.test(String(entry?.name || "")));
+  if (!group) return;
+  const marker = `confirmar ${group.name}`;
+  const hasTortilla = (line.modifiers || []).some((mod: any) => plain(mod.step || "") === plain(group.name));
+  if (hasTortilla && !(line.elviNotes || []).includes(marker)) return;
+  if (!staffAskedTortilla(turns, dish)) return;
+  if (callerAnsweredTortilla(turns, dish)) return;
+  const option = (group.options || []).map(oname).find((name: string) => /comal|homemade/i.test(name) && !/extra/i.test(name));
+  if (!option) return;
+  const alreadyComal = (line.modifiers || []).find((mod: any) => /comal|homemade/i.test(String(mod.option || "")) && !/extra/i.test(String(mod.option || "")));
+  if (!alreadyComal) {
+    const optionNames = new Set((group.options || []).map(oname).map((name: string) => plain(name)));
+    line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name) && !optionNames.has(plain(mod.option || ""))), { step: group.name, option }];
+  }
+  if ((line.elviNotes || []).includes(marker)) {
+    line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
+    if (!line.elviNotes.length) delete line.elviNotes;
+  }
+  if (!(line.elviNotes || []).some((note: string) => /^confirmar\b/i.test(note))) delete line.validation;
+}
+/** Q3: those four platters are comal when no tortilla was said. The $4 extra is not the default, so the included tortillas stay and the line is noted. */
+function applyPlatterComal(line: any, item: any, turns: Turn[]): void {
+  const blob = `${item?.squareCatalogObjectId || ""} ${item?.id || ""} ${item?.squareVariationId || ""}`;
+  if (!EXTRA_TORTILLAS.itemIds.some((id) => blob.includes(id))) return;
+  const name = plain(`${item?.name || ""} ${item?.id || ""}`);
+  const dish = /fajita/.test(name) ? /\bfajitas?\b/ : /mole/.test(name) ? /\bmoles?\b/ : /relleno/.test(name) ? /\brellenos?\b/ : /\b(?:platillos?|guisados?)\b/;
+  if (callerSaidTortilla(turns, dish)) return;
+  if ((line.elviNotes || []).includes("comal")) return;
+  line.elviNotes = [...(line.elviNotes || []), "comal"];
+}
 export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any[]): void {
   for (const line of cart) {
     const item = menu.find((row) => row.id === line.itemId);
@@ -2997,6 +3124,8 @@ export function noteUnspokenRequiredChoice(cart: any[], turns: Turn[], menu: any
     }
     noteDrinkSize(line, item, turns, keys, menu);
     noteAskedExtraTortillas(line, item, turns, keys);
+    applyPlatterComal(line, item, turns);
+    confirmComalAfterOneAsk(line, item, turns);
   }
 }
 
@@ -3201,7 +3330,15 @@ export function applyStaffRecap(cart: any[], turns: Turn[], menu: any[], shadow 
   const lines = parseList(txt); if (lines.length < 2 || lines.some((e) => !e.meat)) return false;
   const nx = turns.find((t, i) => i > 0 && t.speaker === "caller" && /^(?:no\b|falta|cambia)/.test(plain(t.text)) && turns.slice(0, i).some((s) => s.speaker === "staff" && plain(s.text).includes(txt.slice(0, 12))));
   if (nx) return false;
-  if (!applyStaffReadback(cart, [...turns, { speaker: "staff", text: "te tengo " + txt }], menu, shadow)) return false;
+  // Put the rebuilt recap where staff said it, so a following "Sí" is still the answer. Appending it at the end hides that yes.
+  let at = -1;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].speaker !== "staff" || !RECAP.test(plain(turns[i].text))) continue;
+    if (staffRecapText(turns.slice(0, i + 1)) === txt) { at = i; break; }
+  }
+  const heard = { speaker: "staff" as const, text: "te tengo " + txt };
+  const placed = at >= 0 ? [...turns.slice(0, at + 1), heard, ...turns.slice(at + 1)] : [...turns, heard];
+  if (!applyStaffReadback(cart, placed, menu, shadow)) return false;
   applyQdPreparada(cart, turns.map((t) => ({ ...t, text: preparadaWords(t.text) })));
   const sinCrema = /\b(?:no|sin) crema\b/.test(txt);
   for (const l of cart) { if (kindOfLine(l) !== "qd") continue;

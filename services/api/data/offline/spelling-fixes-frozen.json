@@ -1,0 +1,7 @@
+{
+  "note": "Carlos, Nov 28: no answer on the older one-call spelling fixes. Do not delete, change, or newly approve them. This file records the code-aliases.json that must stay as it is. It is not a new approval.",
+  "file": "services/api/data/aliases/code-aliases.json",
+  "sha256": "5f70bd05cf5dbbd5c67d42542faca531e446546ee44491349f4c55700f2cf6a3",
+  "rows": 75,
+  "approved": "unrecorded"
+}

@@ -386,14 +386,43 @@ function ensureMod(line: any, mod: { step: string; option: string } | null): boo
   return true;
 }
 
+function isDrinkOrFee(id: string): boolean {
+  return /delivery-fee/i.test(id) || /^sq-drink-/.test(id);
+}
+/** A drink or a fee is not a dish. Cebolla must not land on a cart that has only those. */
 function cartHasDish(cart: any[]): boolean {
   return (cart || []).some((l) => {
     const id = String(l?.itemId || "");
-    return id && !/delivery-fee/i.test(id);
+    return !!id && !isDrinkOrFee(id);
+  });
+}
+function saidAsados(text: string): boolean {
+  // Batch 3 matcher: the onion word touches "asad...", or the caller said "peppers and onions".
+  // A meat "asada" later in the sentence does not count. A negation that governs this phrase does not count.
+  // "ni modo" earlier in the turn does not cancel a real "cebollas asadas" after it.
+  const re = /\b(?:cebollitas?\s+asad\w*|cebollas?\s+asad\w*|peppers and onions)\b/g;
+  for (const m of text.matchAll(re)) {
+    const before = text.slice(Math.max(0, (m.index || 0) - 48), m.index || 0);
+    const tail = before.trim();
+    const refused = /\b(?:sin|quitale|quita(?:le|me)?|no le pongas|no pongas|without)\b/.test(before)
+      || /\bno\b\s*$/.test(tail)
+      || /\bni\b(?!\s+modo)\s*$/.test(tail);
+    if (!refused) return true;
+  }
+  return false;
+}
+function alreadyCebollaSide(cart: any[], ex: any): boolean {
+  // A dish topping is not the side. The side is already on the cart when an extras line
+  // is that item, or its chosen option is Cebolla y Chiles Asados (the mild salsa host does this).
+  return (cart || []).some((line) => {
+    const id = String(line?.itemId || "");
+    if (ex && id === ex.id) return true;
+    if (!/^sq-extras-/.test(id)) return false;
+    if (/cebolla/.test(id) && /chiles/.test(id) && /asad/.test(id)) return true;
+    return (line?.modifiers || []).some((m: any) => /cebolla y chiles asados/i.test(String(m?.option || "")));
   });
 }
 function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (!cartHasDish(cart)) return false;
   const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || "")));
   const said = phrases.filter((p) => /\bdocena(?:\s+y\s+media)?\s+de\s+tortillas?\b/.test(p));
   if (!said.length || said.some((p) => /\bharina\b|\bflour\b|\btaquer|\bstreet\b/.test(p))) return false;
@@ -415,13 +444,96 @@ function plainTortillas(cart: any[], turns: Turn[], menu: any[]): boolean {
   }
   return changed;
 }
-function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
-  if (!cartHasDish(cart)) return false;
-  const caller = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).join(" | ");
-  if (!/\bcebollitas?\s+asad|\bcebollas?\s+asad|\bpeppers and onions\b/.test(caller)) return false;
+function separateCebollaSide(phrase: string): boolean {
+  return /\b(?:aparte|on the side|al lado|por separado|paquet(?:it)?os?|orden(?:es)?|orders)\b/.test(phrase) || /\bpeppers and onions\b/.test(phrase);
+}
+function cebollaAddon(item: any): { step: string; option: string } | null {
+  for (const g of item?.modifierGroups || []) {
+    const name = (g.options || []).map(oname).find((n: string) => /extra cebolla y chiles asados/i.test(n));
+    if (name) return { step: String(g.name), option: name };
+  }
+  return null;
+}
+const CEBOLLA_MEATS = ["bistec", "chorizo", "pastor", "pollo", "lengua", "tripa", "cabeza", "costilla", "carnitas", "buche", "prensado", "duro", "picadillo", "deshebrada", "nopales"];
+const CEBOLLA_FLAG = "confirmar platillo";
+/** Q5: the add-on lands only on the dish, meat, and style named with it.
+ *  A meat with no dish is ambiguous when more than one dish has that meat. */
+function attachCebollaAddon(cart: any[], menu: any[], phrase: string): "yes" | "ambiguous" | "no" {
+  const saidMeats = CEBOLLA_MEATS.filter((meat) => new RegExp(`\\b${meat}`).test(phrase));
+  const regularOnly = /\b(?:normal(?:es)?|regular(?:es)?)\b/.test(phrase) && !/\b(?:preparad|deluxe)\b/.test(phrase);
+  const deluxeOnly = /\b(?:preparad|deluxe)\b/.test(phrase);
+  const dishes = [
+    [/\btacos?\b/, /^sq-taco-/],
+    [/\bquesadillas?\b/, /^sq-(?:quesadilla|qd)-/],
+    [/\bgorditas?\b/, /^sq-gordita-/],
+    [/\btortas?\b/, /^sq-torta-/],
+  ] as const;
+  const named = dishes.filter(([re]) => re.test(phrase));
+  const food = (cart || []).filter((line) => !/^sq-(?:extras|drink|tortilla)/.test(String(line?.itemId || "")));
+  let targets = food.filter((line) => {
+    const id = String(line?.itemId || "");
+    if (named.length === 1 && !named[0][1].test(id)) return false;
+    if (saidMeats.length && !saidMeats.some((meat) => JSON.stringify(line.modifiers || []).toLowerCase().includes(meat))) return false;
+    if (regularOnly && !(/^sq-qd-/.test(id) && !/deluxe|preparada/i.test(id))) return false;
+    if (deluxeOnly && !regularOnly && !/deluxe|preparada/i.test(id)) return false;
+    return true;
+  });
+  if (saidMeats.length && named.length === 0) {
+    const families = new Set(targets.map((line) => lineKind(String(line?.itemId || "")) || "other"));
+    if (families.size > 1) return "ambiguous";
+  }
+  if (!saidMeats.length && !regularOnly && !deluxeOnly && targets.length > 1) return "no";
+  if (!targets.length && food.length === 1 && !named.length && !regularOnly && !deluxeOnly) targets = food;
+  if (!targets.length) return "no";
+  let changed = false;
+  for (const line of targets) {
+    const item = (menu || []).find((row) => row.id === line.itemId);
+    const mod = item && cebollaAddon(item);
+    if (!mod) continue;
+    if ((line.modifiers || []).some((m: any) => m.option === mod.option)) continue;
+    line.modifiers = [...(line.modifiers || []), mod];
+    changed = true;
+  }
+  return changed ? "yes" : "no";
+}
+function flagCebollaSide(cart: any[], menu: any[]): boolean {
   const ex = cebollaItem(menu);
-  if (!ex || cart.some((l) => l.itemId === ex.id)) return false;
-  const m = caller.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
+  if (!ex) return false;
+  let side = (cart || []).find((line) => String(line?.itemId || "") === ex.id);
+  if (!side) {
+    side = { itemId: ex.id, quantity: 1, modifiers: [], readback: "cebolla y chiles asados", elviNotes: [CEBOLLA_FLAG], validation: "unresolved" };
+    cart.push(side);
+    return true;
+  }
+  if (!(side.elviNotes || []).includes(CEBOLLA_FLAG)) side.elviNotes = [...(side.elviNotes || []), CEBOLLA_FLAG];
+  side.validation = "unresolved";
+  return true;
+}
+function cebollaSide(cart: any[], turns: Turn[], menu: any[]): boolean {
+  const phrases = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).filter((phrase) => saidAsados(phrase));
+  if (!phrases.length) return false;
+  let changed = false;
+  let attached = false;
+  let ambiguous = false;
+  for (const phrase of phrases) {
+    if (separateCebollaSide(phrase)) continue;
+    const result = attachCebollaAddon(cart, menu, phrase);
+    if (result === "yes") attached = true;
+    if (result === "ambiguous") ambiguous = true;
+  }
+  if (ambiguous && flagCebollaSide(cart, menu)) changed = true;
+  const sidePhrase = phrases.find((phrase) => separateCebollaSide(phrase));
+  if (!sidePhrase && attached && !ambiguous) return true;
+  if (!sidePhrase && !attached) {
+    const ex = cebollaItem(menu);
+    if (!ex || alreadyCebollaSide(cart, ex)) return changed;
+    cart.push({ itemId: ex.id, quantity: 1, modifiers: [], readback: "cebolla y chiles asados" });
+    return true;
+  }
+  if (!sidePhrase) return changed;
+  const ex = cebollaItem(menu);
+  if (!ex || alreadyCebollaSide(cart, ex)) return changed;
+  const m = sidePhrase.match(new RegExp(`\\b(${NUMW})\\s+(?:ordenes|orders|paquet(?:it)?os)\\s+(?:de\\s+|of\\s+(?:the\\s+)?)?(?:cebolla|chiles|peppers)`));
   cart.push({ itemId: ex.id, quantity: m ? numOf(m[1]) || 1 : 1, modifiers: [], readback: "cebolla y chiles asados" });
   return true;
 }
@@ -442,21 +554,56 @@ function explicitDishTotal(wants: Want[], kind: Kind): number {
   return total;
 }
 
-/** Correct a carried style or meat, and add a line only when that dish and meat are still missing. */
-export function applyCarryover(cart: any[], turns: Turn[], menu: any[]): boolean {
+/** Correct a carried style or meat, and add a line only when that dish and meat are still missing.
+ *  hold() is a correction the caller already made. That dish and meat must not be added back. */
+export function applyCarryover(cart: any[], turns: Turn[], menu: any[], hold?: (kind: string, meats: string[]) => boolean): boolean {
   if (!Array.isArray(cart) || !Array.isArray(turns) || !Array.isArray(menu)) return false;
-  if (!cartHasDish(cart)) return false;
-  let changed = plainTortillas(cart, turns, menu) || cebollaSide(cart, turns, menu);
-  if (cart.some((l) => /^sq-combo-quesadillas/.test(String(l?.itemId || "")))) return changed;
+  const caller = (turns || []).filter((t) => !t.speaker || t.speaker === "caller").map((t) => hearOrder(String(t.text || ""))).join(" | ");
+  const packSaid = /\bdocena(?:\s+y\s+media)?\s+de\s+tortillas?\b/.test(caller) && !/\bharina\b|\bflour\b|\btaquer|\bstreet\b/.test(caller);
+  let changed = false;
+  // Tortillas and the onion side are separate. One of them changing the cart must not skip the other.
+  // A drink is not a dish, so onions alone do not land on a drink. A spoken docena still rings beside a drink,
+  // and the onion side rings in that same pass. An empty cart stays empty.
+  if (cartHasDish(cart) || (cart.length > 0 && packSaid)) {
+    if (plainTortillas(cart, turns, menu)) changed = true;
+  }
+  if (!cartHasDish(cart)) return changed;
+  if (cart.some((l) => /^sq-combo-quesadillas/.test(String(l?.itemId || "")))) {
+    if (cebollaSide(cart, turns, menu)) changed = true;
+    return changed;
+  }
   const unavailable = staffUnavailable(turns as any).join(" ");
   const wants = carryoverWants(turns).filter((w) => !(unavailable && new RegExp(`\\b${w.kind}`).test(unavailable)));
   const lines = () => cart.filter((l) => lineKind(String(l?.itemId || "")));
   for (const w of wants) {
+    if (hold?.(w.kind, w.meats)) continue;
     const allSame = lines().filter((l) => lineKind(String(l.itemId)) === w.kind && sameMeats(lineMeats(l), w.meats));
     const variety = (l: any) => w.kind !== "qd" || !w.qd || (w.qd === "preparada" ? /deluxe|preparada/i.test(String(l.itemId)) : !/deluxe|preparada/i.test(String(l.itemId)));
     const otherWanted = w.kind === "qd" && !!w.qd && wants.some((o) => o !== w && o.kind === "qd" && sameMeats(o.meats, w.meats) && !!o.qd && o.qd !== w.qd);
     const same = otherWanted ? allSame.filter(variety) : allSame;
-    const have = same.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    let have = same.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+    if (otherWanted && have < w.n) {
+      const partner = wants.find((o) => o !== w && o.kind === "qd" && sameMeats(o.meats, w.meats) && !!o.qd && o.qd !== w.qd);
+      const others = allSame.filter((l) => !variety(l));
+      const excess = others.reduce((s, l) => s + (Number(l.quantity) || 1), 0) - (partner?.n || 0);
+      const move = Math.min(w.n - have, Math.max(0, excess));
+      if (move > 0 && partner) {
+        let left = move;
+        for (const line of others) {
+          if (left <= 0) break;
+          const q = Number(line.quantity) || 1;
+          const drop = Math.min(left, q);
+          line.quantity = q - drop;
+          left -= drop;
+          if ((Number(line.quantity) || 0) <= 0) {
+            const at = cart.indexOf(line);
+            if (at >= 0) cart.splice(at, 1);
+          }
+        }
+        const moved = buildLine({ ...w, n: move }, menu);
+        if (moved) { cart.push(moved); have += move; changed = true; }
+      }
+    }
     for (const line of same) {
       if (w.kind === "qd" && w.qd === "preparada") {
         const deluxeItem = qdItem(menu, true);
@@ -487,5 +634,6 @@ export function applyCarryover(cart: any[], turns: Turn[], menu: any[]): boolean
     cart.push(line);
     changed = true;
   }
+  if (cebollaSide(cart, turns, menu)) changed = true;
   return changed;
 }
