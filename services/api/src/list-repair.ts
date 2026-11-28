@@ -135,14 +135,16 @@ export function applyStaffReadback(cart: any[], turns: Turn[], menu: any[], shad
     if (!l) {
       if (shadow) {
         const alt = cart.find((row) => !claimed.has(row) && kindOfLine(row) && famOf(kindOfLine(row)!) === fam);
-        const bits = alt ? callerNamedBits(turns, rb.at, e.kind, meatOfLine(alt)) : null;
-        if (alt && bits?.meat && e.meat && bits.meat !== e.meat && !callerAgrees(turns, rb.at)) {
+        const lineMeat = alt ? meatOfLine(alt) : null;
+        const bits = alt ? callerNamedBits(turns, rb.at, e.kind, lineMeat) : null;
+        if (alt && lineMeat && e.meat && lineMeat !== e.meat && !callerAgrees(turns, rb.at) && (!bits?.meat || bits.meat === lineMeat)) {
           claimed.add(alt);
-          const keep: Exp = { ...e, meat: bits.meat, qty: Number(alt.quantity) || e.qty };
           flags.push(`meat:${String(alt.itemId || e.kind)}`);
-          if (bits.style && e.style && bits.style !== e.style) { keep.style = bits.style; flags.push(`style:${String(alt.itemId || e.kind)}`); }
-          setLine(alt, keep, menu);
-          const decided = staffQuantity(turns, fam === "taco" ? "taco" : "quesadilla", bits.meat, Number(e.qty) || 0, Number(alt.quantity) || 0, readbackStyleText(e, alt), cart);
+          if (bits?.style && e.style && bits.style !== e.style) {
+            setLine(alt, { ...e, meat: lineMeat, style: bits.style, qty: Number(alt.quantity) || e.qty }, menu);
+            flags.push(`style:${String(alt.itemId || e.kind)}`);
+          }
+          const decided = staffQuantity(turns, fam === "taco" ? "taco" : "quesadilla", lineMeat, Number(e.qty) || 0, Number(alt.quantity) || 0, readbackStyleText(e, alt), cart);
           alt.quantity = decided.quantity;
           if (decided.flag) flags.push(`quantity:${String(alt.itemId || e.kind)}`);
           continue;
@@ -2956,7 +2958,8 @@ function confirmComalAfterOneAsk(line: any, item: any, turns: Turn[]): void {
   if (callerSaidTortilla(turns, dish)) return;
   const option = (group.options || []).map(oname).find((name: string) => /comal|homemade/i.test(name) && !/extra/i.test(name));
   if (!option) return;
-  line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name)), { step: group.name, option }];
+  const optionNames = new Set((group.options || []).map(oname).map((name: string) => plain(name)));
+  line.modifiers = [...(line.modifiers || []).filter((mod: any) => plain(mod.step || "") !== plain(group.name) && !optionNames.has(plain(mod.option || ""))), { step: group.name, option }];
   if ((line.elviNotes || []).includes(marker)) {
     line.elviNotes = (line.elviNotes || []).filter((note: string) => note !== marker);
     if (!line.elviNotes.length) delete line.elviNotes;
