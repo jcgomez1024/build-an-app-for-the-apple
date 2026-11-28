@@ -123,7 +123,7 @@ noteUnspokenRequiredChoice([fajitaLine], [
   { speaker: "staff", text: "Arroz y frijoles esta bien?" },
   { speaker: "caller", text: "Si." },
 ], menu);
-check("fajitas-elvis-corn-default-clears", !(fajitaLine.elviNotes || []).some((note) => /tortilla/i.test(note)) && !(fajitaLine.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && (fajitaLine.modifiers || []).some((mod: any) => mod.option === "***EXTRA 3 x Comal / Homemade Tortilla"), JSON.stringify({ notes: fajitaLine.elviNotes, mods: fajitaLine.modifiers }));
+check("fajitas-elvis-corn-default-clears", !(fajitaLine.elviNotes || []).some((note) => /tortilla/i.test(note)) && (fajitaLine.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && !(fajitaLine.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || ""))), JSON.stringify({ notes: fajitaLine.elviNotes, mods: fajitaLine.modifiers }));
 
 function groupOption(item: any, groupRe: RegExp, optionRe: RegExp) {
   const group = (item?.modifierGroups || []).find((entry: any) => groupRe.test(String(entry.name || "")));
@@ -224,7 +224,7 @@ for (const [checkName, nameRe, spoken] of [
   const line = { itemId: item.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
   noteUnspokenRequiredChoice([line], [{ speaker: "caller", text: spoken }], menu);
   const mods = JSON.stringify(line.modifiers || []);
-  check(checkName, !(line.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && (line.modifiers || []).some((mod: any) => mod.option === "***EXTRA 3 x Comal / Homemade Tortilla") && !tortillaNote(line), JSON.stringify({ notes: line.elviNotes, mods: line.modifiers }));
+  check(checkName, (line.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && !/EXTRA/i.test(mods) && !tortillaNote(line), JSON.stringify({ notes: line.elviNotes, mods: line.modifiers }));
 }
 const flourFajita = menu.find((row) => /^fajitas elvis/i.test(row.name));
 if (!flourFajita) throw new Error("phone menu is missing fajitas for the flour test");
@@ -236,7 +236,7 @@ noteUnspokenRequiredChoice([extraFajita], [{ speaker: "caller", text: "Unas faji
 check("extra-tortillas-when-the-caller-asks", (extraFajita.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && (extraFajita.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || "")) && /comal/i.test(String(mod.option || ""))) && !(extraFajita.elviNotes || []).some((note) => /EXTRA/i.test(note)), JSON.stringify(extraFajita));
 const plainFajita = { itemId: flourFajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([plainFajita], [{ speaker: "caller", text: "Unas fajitas de pollo." }], menu);
-check("plain-order-does-not-add-extra-tortillas", !(plainFajita.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && (plainFajita.modifiers || []).some((mod: any) => mod.option === "***EXTRA 3 x Comal / Homemade Tortilla"), JSON.stringify(plainFajita.modifiers));
+check("plain-order-does-not-add-extra-tortillas", (plainFajita.modifiers || []).some((mod: any) => mod.option === "3 x (Corn) Corn Tortilla") && !(plainFajita.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || ""))), JSON.stringify(plainFajita.modifiers));
 const acceptedExtra = { itemId: flourFajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([acceptedExtra], [
   { speaker: "caller", text: "Unas fajitas de pollo." },
@@ -250,13 +250,13 @@ noteUnspokenRequiredChoice([acceptedUntyped], [
   { speaker: "staff", text: "¿Quiere tortillas extra?" },
   { speaker: "caller", text: "Ok." },
 ], menu);
-check("caller-yes-without-a-type-holds-the-extra", (acceptedUntyped.elviNotes || []).some((note) => /EXTRA/i.test(note)) && (acceptedUntyped.modifiers || []).some((mod: any) => mod.option === "***EXTRA 3 x Comal / Homemade Tortilla"), JSON.stringify(acceptedUntyped));
+check("caller-yes-without-a-type-holds-the-extra", (acceptedUntyped.elviNotes || []).some((note) => /EXTRA/i.test(note)) && !(acceptedUntyped.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || ""))), JSON.stringify(acceptedUntyped));
 const staffExtra = { itemId: flourFajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([staffExtra], [
   { speaker: "caller", text: "Unas fajitas de pollo." },
   { speaker: "staff", text: "¿Le pongo tortillas extra de comal?" },
 ], menu);
-check("staff-only-extra-tortillas-are-not-added", (staffExtra.modifiers || []).some((mod: any) => mod.option === "***EXTRA 3 x Comal / Homemade Tortilla") && !(staffExtra.elviNotes || []).some((note) => /EXTRA/i.test(note)), JSON.stringify(staffExtra));
+check("staff-only-extra-tortillas-are-not-added", !(staffExtra.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || ""))) && !(staffExtra.elviNotes || []).some((note) => /EXTRA/i.test(note)), JSON.stringify(staffExtra));
 const unspecifiedExtra = { itemId: flourFajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
 noteUnspokenRequiredChoice([unspecifiedExtra], [{ speaker: "caller", text: "Unas fajitas y más tortillas." }], menu);
 check("extra-tortillas-without-a-type-stay-held", (unspecifiedExtra.elviNotes || []).some((note) => /EXTRA/i.test(note)) && !(unspecifiedExtra.modifiers || []).some((mod: any) => /EXTRA/i.test(String(mod.option || ""))), JSON.stringify(unspecifiedExtra));

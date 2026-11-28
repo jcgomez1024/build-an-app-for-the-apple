@@ -236,33 +236,31 @@ test("a gordita is not given comal when the taco question goes unanswered", () =
   assert.doesNotMatch(JSON.stringify(gorditaLine.modifiers), /Comal|Taco Comal|Quesadilla Comal/);
 });
 
-const COMAL_EXTRA = "***EXTRA 3 x Comal / Homemade Tortilla";
 const REGULAR_CORN = "3 x (Corn) Corn Tortilla";
 
-test("a platillo with no tortilla said is comal", () => {
+test("a platillo with no tortilla said keeps its tortillas and notes comal", () => {
   const item = menu.find((row) => /platillo de guisado/i.test(String(row.name || "")) && !/platter|pack|combo/i.test(String(row.name || "")));
   const line = { itemId: item.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
   noteUnspokenRequiredChoice([line], [{ speaker: "caller", text: "Quiero un platillo de guisado de pollo." }], menu);
-  assert.equal((line.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true);
-  assert.equal((line.modifiers || []).some((mod) => mod.option === REGULAR_CORN), false);
+  assert.equal((line.elviNotes || []).includes("comal"), true);
+  assert.equal((line.modifiers || []).some((mod) => mod.option === REGULAR_CORN), true);
+  assert.equal((line.modifiers || []).some((mod) => /EXTRA 3 x Comal/.test(String(mod.option))), false);
 });
 
-test("mole, rellenos, and fajitas with no tortilla said are comal", () => {
-  const spoken = [
+test("mole and rellenos with no tortilla said are noted comal", () => {
+  for (const [nameRe, text] of [
     [/mole tradicional/i, "Un mole tradicional, por favor."],
     [/chiles rellenos/i, "Me da unos chiles rellenos."],
-    [/^fajitas elvis/i, "Fajitas de res para llevar."],
-  ] as const;
-  for (const [nameRe, text] of spoken) {
+  ] as const) {
     const item = menu.find((row) => nameRe.test(String(row.name || "")) && !/platter|pack|combo|fiesta/i.test(String(row.name || "")));
     const line = { itemId: item.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
     noteUnspokenRequiredChoice([line], [{ speaker: "caller", text }], menu);
-    assert.equal((line.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true, text);
-    assert.equal((line.modifiers || []).some((mod) => mod.option === REGULAR_CORN), false, text);
+    assert.equal((line.elviNotes || []).includes("comal"), true, text);
+    assert.equal((line.modifiers || []).some((mod) => /EXTRA 3 x Comal/.test(String(mod.option))), false, text);
   }
 });
 
-test("a burrito beside a fajita order does not pick up the comal default", () => {
+test("a burrito beside a fajita order does not pick up the comal note", () => {
   const fajita = menu.find((row) => /^fajitas elvis/i.test(String(row.name || "")));
   const burrito = menu.find((row) => /^sq-burrito-/.test(String(row.id)));
   const fajitaLine = { itemId: fajita.id, quantity: 1, modifiers: [] as any[], elviNotes: [] as string[] };
@@ -270,8 +268,8 @@ test("a burrito beside a fajita order does not pick up the comal default", () =>
   noteUnspokenRequiredChoice([fajitaLine, burritoLine], [
     { speaker: "caller", text: "Unas fajitas y un burrito de pollo." },
   ], menu);
-  assert.equal((fajitaLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), true);
-  assert.equal((burritoLine.modifiers || []).some((mod) => mod.option === COMAL_EXTRA), false);
+  assert.equal((fajitaLine.elviNotes || []).includes("comal"), true);
+  assert.equal((burritoLine.elviNotes || []).includes("comal"), false);
   assert.match(JSON.stringify(burritoLine.modifiers), /Pollo/);
 });
 
