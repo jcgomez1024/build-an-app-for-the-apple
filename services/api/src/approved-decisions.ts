@@ -59,7 +59,7 @@ export function applyPlainTaquitos(cart: any[], turns: Turn[], menu: any[] = [])
 }
 
 const STYLE_REGULAR = /\b(?:regular(?:es)?|normal(?:es)?|sencill[ao]s?)\b/;
-const STYLE_PREPARADA = /\b(?:preparad[ao]s?|deluxe|aceite)\b/;
+const STYLE_PREPARADA = /\b(?:preparad[ao]s?|deluxe)\b/;
 const CLEAR_YES = /^(?:si|sip|yes|yeah|yep|yup|ok|okay|claro|correcto)\b/;
 function callerText(turns: Turn[]): string {
   return (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller").map((turn) => fold(turn.text || "")).join(" ");
@@ -82,7 +82,9 @@ function doradaStyleChosen(turns: Turn[]): boolean {
 }
 /** Q7: a dorada with no regular or preparada said is not rung as Regular. Elvi asks. */
 export function holdUnstyledDorada(cart: any[], turns: Turn[]): string | null {
-  if (!/\bdoradas?\b/.test(callerText(turns))) return null;
+  const said = callerText(turns);
+  const aceite = /\b(?:de|en)\s+aceite\b/.test(said);
+  if (!/\bdoradas?\b/.test(said) && !aceite) return null;
   if (doradaStyleChosen(turns)) return null;
   const note = "confirmar regular o preparada";
   let held = false;

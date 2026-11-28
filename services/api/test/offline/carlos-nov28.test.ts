@@ -430,6 +430,26 @@ test("taquitos do not change the gordita on the same ticket", () => {
 
 const DORADA = "sq-qd-quesadilla-dorada-qd-regular-dorada-T5STUH";
 
+test("quesadillas de aceite are not regular until someone says the style", () => {
+  const cart = [
+    { itemId: DORADA, quantity: 2, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Bistec / Steak" }] },
+  ];
+  const review = holdUnstyledDorada(cart, [{ speaker: "caller", text: "Dos quesadillas de aceite de bistec." }]);
+  assert.equal(review, "confirmar regular o preparada");
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+});
+
+test("quesadillas en aceite also ask instead of ringing regular", () => {
+  const cart = [
+    { itemId: DORADA, quantity: 1, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Pollo / Chicken" }] },
+    { itemId: "sq-taco-TAR7L5", quantity: 1, modifiers: [{ step: "(B) T Carnes / Meats Opciones", option: "Chorizo / Mexican Sausage" }] },
+  ];
+  const before = JSON.stringify(cart[1]);
+  holdUnstyledDorada(cart, [{ speaker: "caller", text: "Una quesadilla en aceite de pollo y un taco de chorizo." }]);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+  assert.equal(JSON.stringify(cart[1]), before);
+});
+
 test("a dorada with no style is not rung as regular", () => {
   const cart = [
     { itemId: DORADA, quantity: 2, modifiers: [{ step: "(QD) Quesadilla Dorada options", option: "(QD) REGULAR Dorada" }, { step: "(B) Q Carnes / Meats", option: "Chorizo / Mexican Sausage" }] },
