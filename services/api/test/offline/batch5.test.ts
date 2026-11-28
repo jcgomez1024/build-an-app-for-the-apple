@@ -308,6 +308,28 @@ test("a greeting word is a name only when it is a person's name, and a no-order 
   assert.equal(asking.customerName, undefined);
 });
 
+test("a cue word is not the name, and a short real name still is", async () => {
+  const leaks = ["It's okay.", "It's the same.", "It's for pickup.", "Yes, it's correct.", "It's a large order.", "This is correct.", "It's fine."];
+  for (const cue of leaks) {
+    const junk = await order([["caller", "Un taco de pastor."], ["caller", cue]]);
+    assert.ok(!/^(?:It's|Its|This|For|Okay|Same|Pickup|Correct|Fine|Large|Order)$/.test(String(junk.customerName || "")), cue);
+  }
+  for (const [cue, expect] of [["Soy Sal.", "Sal"], ["It's Ed.", "Ed"], ["This is Dan.", "Dan"], ["Para Al.", "Al"], ["It's Will.", "Will"], ["Soy Tomás.", "Tomás"]]) {
+    const named = await order([["caller", "Un taco de pastor."], ["caller", cue]]);
+    assert.equal(named.customerName, expect, cue);
+  }
+  for (const word of ["abierto", "cerrado", "almorzar", "cenar", "probar", "hacen", "será", "siempre", "todavía", "dime", "hambre", "casa", "each", "going", "gotta", "yep", "correct"]) {
+    const bare = await order([
+      ["caller", "Un taco de pastor."],
+      ["staff", "¿Su nombre?"],
+      ["caller", `${word}.`],
+    ]);
+    assert.notEqual(bare.customerName, word[0].toUpperCase() + word.slice(1), word);
+    const soy = await order([["caller", `Soy ${word}.`], ["caller", "Un taco de pastor."]]);
+    assert.notEqual(String(soy.customerName || "").toLowerCase(), word, `soy ${word}`);
+  }
+});
+
 test("a name after other words is kept, and a phrase fragment is not a name", async () => {
   const mid = await order([
     ["caller", "Son dos tortas. A nombre de Lorena."],

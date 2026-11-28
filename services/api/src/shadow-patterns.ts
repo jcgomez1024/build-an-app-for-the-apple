@@ -382,7 +382,7 @@ export function keepSpokenStyle(cart: any[], turns: Turn[], menu: any[]): boolea
 const NAME_PARTICLE = /^(?:de|del|la|las|los|y|e|san|santa|da|do|das|van|von|di)$/i;
 const NAME_SKIP = /^(?:yo|que|es|el|un|una|ah|eh|este|pues|a|it|is|the|nombre)$/i;
 /** Words that are not a person's name: grammar, food, numbers, greetings, and the common verbs. A name is whatever is left. */
-const ORDINARY = new Set(`disculpa disculpe perdon perdone buenos buenas hola mande oye oiga mira hello hi hey please porfa gracias muchisimas muchas bye adios ok okay okey si sip claro no nop yo um uh eh ah este pues bueno entonces ahora ahorita horita manana hoy ayer tarde noche pronto luego despues antes aqui alla aqu alla cuanto cuanta cuantos cuantas donde cuando como cual quien que nuevo nueva orden pedido comida menu nombre tienen tengo tienes tiene tenemos necesitamos necesito necesita necesitan podria podrias podriamos podemos pueden puedo puedes puede vamos voy vas va estoy estas esta estamos estan ser soy eres es somos son quiero quieres quiere queremos quieren quisiera quisieras dame deme ponga ponme llevar recoger comer comemos comen como comes delivery pickup domicilio togo nosotros nos ustedes ellos ellas usted tu te me se le les lo los las con sin por para de del al un una unos unas otro otra otros otras vez tambien porque correcto listo perfecto bien mal muy mas menos todo nada algo esto eso esa ese era eran aquel aquella those this that the and for with can could would should want need have get lets let go yes yeah thank thanks sorry name food order new today tomorrow we us eat ordenar hablar llamar preparar mirar tomar comprar vender buscar esperar dejar pagar mandar enviar usar pasar quedar llegar entrar preguntar trabajar caminar hungry ready here calling calling uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciseis diecisiete dieciocho diecinueve veinte treinta cuarenta cincuenta sesenta setenta ochenta noventa cien media one two three four five six seven eight nine ten eleven twelve fifteen twenty thirty tacos taco quesadilla quesadillas gordita gorditas burrito burritos torta tortas fajita fajitas platillo platillos menudo comal harina flour bistec pollo pastor carne meat asada steak chicken tortilla tortillas extra mas otras recoger llevar hello please orden nuevo hoy delivery pickup nosotros comer nope yeah well will pick picking gonna just sir maam thank you tardes dias noches senor senora don dona bebe mama papa preparada preparadas andele andale orale orales sale vamonos verdad correcto`.split(/\s+/));
+const ORDINARY = new Set(`disculpa disculpe perdon perdone buenos buenas hola mande oye oiga mira hello hi hey please porfa gracias muchisimas muchas bye adios ok okay okey si sip claro no nop yo um uh eh ah este pues bueno entonces ahora ahorita horita manana hoy ayer tarde noche pronto luego despues antes aqui alla aqu alla cuanto cuanta cuantos cuantas donde cuando como cual quien que nuevo nueva orden pedido comida menu nombre tienen tengo tienes tiene tenemos necesitamos necesito necesita necesitan podria podrias podriamos podemos pueden puedo puedes puede vamos voy vas va estoy estas esta estamos estan ser soy eres es somos son quiero quieres quiere queremos quieren quisiera quisieras dame deme ponga ponme llevar recoger comer comemos comen como comes delivery pickup domicilio togo nosotros nos ustedes ellos ellas usted tu te me se le les lo los las con sin por para de del al un una unos unas otro otra otros otras vez tambien porque correcto listo perfecto bien mal muy mas menos todo nada algo esto eso esa ese era eran aquel aquella those this that the and for with can could would should want need have get lets let go yes yeah thank thanks sorry name food order new today tomorrow we us eat ordenar hablar llamar preparar mirar tomar comprar vender buscar esperar dejar pagar mandar enviar usar pasar quedar llegar entrar preguntar trabajar caminar hungry ready here calling calling uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciseis diecisiete dieciocho diecinueve veinte treinta cuarenta cincuenta sesenta setenta ochenta noventa cien media one two three four five six seven eight nine ten eleven twelve fifteen twenty thirty tacos taco quesadilla quesadillas gordita gorditas burrito burritos burro burros torta tortas fajita fajitas platillo platillos menudo comal harina flour bistec pollo pastor carne meat asada steak chicken tortilla tortillas extra mas otras recoger llevar hello please orden nuevo hoy delivery pickup nosotros comer nope yeah well will pick picking gonna just sir maam thank you tardes dias noches senor senora don dona bebe mama papa preparada preparadas andele andale orale orales sale vamonos verdad correcto`.split(/\s+/));
 function plainName(token: string): string {
   return fold(String(token || "")).replace(/[^\p{L}]/gu, "");
 }
@@ -409,19 +409,31 @@ function conjugate(infinitive: string): void {
   }
 }
 for (const infinitive of ["deber", "encargar", "esperar", "llevar", "recoger", "comer", "ordenar", "hablar", "llamar", "preparar", "mirar", "tomar", "comprar", "vender", "buscar", "dejar", "pagar", "mandar", "enviar", "usar", "pasar", "quedar", "llegar", "entrar", "preguntar", "trabajar", "caminar", "necesitar", "gustar", "molestar", "pensar", "contar", "volver", "entender", "perder", "parecer", "creer", "vivir", "escribir", "subir", "bajar", "seguir", "pedir", "servir", "dormir", "sentir", "preferir", "salir", "andar"]) conjugate(infinitive);
-for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "hace", "haga", "hacer", "pongo", "pone", "ponga", "poner", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "danos", "salgo", "sale", "salga", "sal", "comi", "comio", "pidio", "pido", "entiendo"]) addVerb(form);
+for (const form of ["soy", "eres", "somos", "son", "era", "eras", "fui", "fue", "sera", "seran", "estoy", "estas", "esta", "estamos", "estan", "estaba", "voy", "vas", "va", "vamos", "van", "iba", "tengo", "tienes", "tiene", "tenemos", "tienen", "tuve", "tenia", "debiste", "debi", "vengo", "vienes", "viene", "venga", "vengan", "anda", "ande", "digo", "dice", "diga", "digame", "digas", "dime", "dile", "puedo", "puede", "pueda", "podria", "quiero", "quiere", "quisiera", "saber", "sabes", "sabe", "saben", "sepa", "hago", "haces", "hace", "hacemos", "hacen", "haga", "hacer", "pongo", "pone", "ponga", "poner", "traigo", "trae", "traiga", "veo", "ves", "ve", "doy", "das", "da", "dan", "danos", "salgo", "sale", "salga", "sal", "comi", "comio", "pidio", "pido", "entiendo"]) addVerb(form);
 VERB.delete("tomas");
-const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia mucha mucho momento hasta sal letter pero misfiado aja ajá all nunca called looking wanna wanna totally cool porfavor hello okay`.split(/\s+/));
-function isOrdinary(token: string): boolean {
-  const word = plainName(token);
+const NOT_NAME = new Set(`${[...ORDINARY].join(" ")} give same what which where when who how this that these those take make let say tell come look know see want need here there inside outside very much many some any also just only again still already yet too really maybe sure fine great good bad big small more less other another back next now then well give gave given go went come came put set mean means right left call wait hold adentro afuera arriba abajo dentro fuera enfrente cerca lejos avenue street road drive lane court boulevard way place calle avenida camino numero tel telefono hijole hijoles molestia gusto favor permiso buen dia mucha mucho momento hasta sal letter pero misfiado aja ajá all nunca called looking wanna totally cool porfavor hello okay its each every both few either neither siempre todavia jamás jamas yep yup alright anyway fine nice correct large listen takeout casa hambre sed sueno`.split(/\s+/));
+/** Names that share a spelling with a grammatical form. */
+const NAME_OK = new Set("tomas sal dan will ed al aguilar cesar christopher edgar jennifer lester oscar osmar tyler yomar".split(" "));
+function grammatical(word: string): boolean {
   if (!word) return true;
+  if (NAME_OK.has(word)) return false;
   if (NOT_NAME.has(word) || VERB.has(word) || ORDINARY.has(word)) return true;
-  if (word.length >= 6 && /(?:aste|iste|aron|ieron)$/.test(word)) return true;
+  if (word.length >= 5 && /(?:ar|er|ir)$/.test(word)) return true;
+  if (word.length >= 5 && word.length <= 8 && /(?:ado|ada|ido|ida|ierto|ierta)$/.test(word)) return true;
+  if (word.length >= 6 && /(?:aste|iste|amos|emos|imos|aron|ieron|aban|abas|mente)$/.test(word)) return true;
+  if (word.length >= 5 && /(?:ing|ed)$/.test(word)) return true;
+  if (word.length >= 6 && /ly$/.test(word) && !/(?:ily|erly|aly)$/.test(word)) return true;
+  if (/^(?:gon|got|wan|lem)(?:na|ta|me)$/.test(word)) return true;
+  if (word.length >= 5 && /([bcdfghjklmnpqrstvwxyz])\1s$/.test(word)) return true;
   if (/(?:me|le|nos)$/.test(word)) {
     const stem = word.replace(/(?:me|le|nos)$/, "");
+    if (stem.length >= 2 && stem.length <= 3 && /[aei]$/.test(stem)) return true;
     if (stem.length >= 4 && /[ae]$/.test(stem)) return true;
   }
   return false;
+}
+function isOrdinary(token: string): boolean {
+  return grammatical(plainName(token));
 }
 function courtesyPhrase(text: string): boolean {
   const said = fold(text);
@@ -433,8 +445,9 @@ function courtesyPhrase(text: string): boolean {
 /** A name token is a word that is not grammar, food, a number, a verb, or a courtesy word. It does not have to be on a list. */
 function nameToken(token: string): boolean {
   const word = plainName(token);
+  if (NAME_OK.has(word)) return word.length >= 2 && /[aeiou]/.test(word);
   if (word.length < 3 || !/[aeiou]/.test(word)) return false;
-  return !isOrdinary(token) && !NAME_PARTICLE.test(token) && !NAME_SKIP.test(token);
+  return !grammatical(word) && !NAME_PARTICLE.test(token) && !NAME_SKIP.test(token);
 }
 function showToken(token: string): string {
   const clean = String(token || "").replace(/^[^\p{L}]+|[^\p{L}'’-]+$/gu, "");
@@ -477,7 +490,17 @@ function nameSpan(raw: string): string | null {
 }
 function phraseOk(name: string): boolean {
   if (/^all[aá]\s+en\b/i.test(name)) return false;
-  return !!nameSpan(name);
+  return !!namePhrase(name);
+}
+/** The whole remainder is a name. A cue word or a later non-name is not kept. */
+function namePhrase(raw: string): string | null {
+  let text = String(raw || "").replace(/[?¿!¡.]+$/g, "").trim();
+  text = text.replace(/,?\s+y\s+es\b.*$/iu, "");
+  text = text.replace(/\b(?:por\s+favor|please|gracias|thanks)\b.*$/iu, "").trim();
+  if (!text || courtesyPhrase(text)) return null;
+  const span = nameSpan(text);
+  if (!span || leftover(text, span)) return null;
+  return span;
 }
 function callerTurns(turns: Turn[]): Turn[] {
   return (turns || []).filter((turn) => !turn.speaker || turn.speaker === "caller");
@@ -503,36 +526,20 @@ function leftover(raw: string, span: string): boolean {
 function nameFromSentence(sentence: string, asked: boolean, later: boolean): string | null {
   if (courtesyPhrase(sentence)) return null;
   const ticket = sentence.match(/\ba nombre de\s+(.+)$/iu);
-  if (ticket) {
-    const span = nameSpan(ticket[1]);
-    if (span) return span;
-  }
+  if (ticket) return namePhrase(ticket[1]);
   const self = sentence.match(/\b(?:me llamo|mi nombre es|my name is|this is|it'?s|i am|soy|mi apellido es)\s+(.+)$/iu);
-  if (self) {
-    const span = nameSpan(self[1]);
-    if (span) return span;
-  }
+  if (self) return namePhrase(self[1]);
   const put = sentence.match(/^(?:ponga|ponme|dame)\s+(.+)$/iu);
-  if (put) {
-    const span = nameSpan(put[1]);
-    if (span && !leftover(put[1], span)) return span;
-  }
+  if (put) return namePhrase(put[1]);
   const hello = sentence.match(/^(?:hola|mande|buenas)\s*,?\s+(.+)$/iu);
-  if (hello) {
-    const span = nameSpan(hello[1]);
-    if (span && !leftover(hello[1], span)) return span;
-    return null;
-  }
+  if (hello) return namePhrase(hello[1]);
   const dest = sentence.match(/\b(?:para|for)\s+(.+)$/iu);
   if (dest) {
-    const span = nameSpan(dest[1]);
+    const span = namePhrase(dest[1]);
     if (span) return span;
   }
-  const bare = sentence.replace(/^[¿¡]+|[.!?¡¿]+$/g, "").trim();
-  const bits = bare.split(/\s+/).filter(Boolean);
   const questioning = /^[¿¡]/.test(sentence) || /\?\s*$/.test(sentence);
-  if (bits.length === 1 && nameToken(bits[0]) && (asked || (later && questioning))) return showToken(bits[0]);
-  if (asked || /,\s*y\s+es\b/i.test(sentence)) return nameSpan(sentence);
+  if (asked || (later && questioning) || /,\s*y\s+es\b/i.test(sentence)) return namePhrase(sentence);
   return null;
 }
 function spokenName(turns: Turn[]): string | null {
