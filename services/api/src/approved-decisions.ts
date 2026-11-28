@@ -159,11 +159,12 @@ function doradaStyleChosen(turns: Turn[]): boolean {
   }
   return false;
 }
-/** Q7: a dorada with no regular or preparada said is not rung as Regular. Elvi asks. */
+const FRIED_QUESADILLA = /\bquesadillas?\s+fritas?\b|\bfritas?\s+quesadillas?\b|\bfried(?:\s+\w+){0,3}\s+quesadillas?\b|\bquesadillas?\s+fried\b/;
+/** Q7: a dorada, aceite, or fried quesadilla with no regular or preparada said is not rung as Regular. Elvi asks. */
 export function holdUnstyledDorada(cart: any[], turns: Turn[]): string | null {
   const said = callerText(turns);
   const aceite = /\b(?:de|en)\s+aceite\b/.test(said);
-  if (!/\bdoradas?\b/.test(said) && !aceite) return null;
+  if (!/\bdoradas?\b/.test(said) && !aceite && !FRIED_QUESADILLA.test(said)) return null;
   if (doradaStyleChosen(turns)) return null;
   const note = "confirmar regular o preparada";
   let held = false;

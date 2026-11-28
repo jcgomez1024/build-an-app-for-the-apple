@@ -655,3 +655,40 @@ test("taquitos do not ask a tortilla for the gordita beside them", async () => {
   assert.equal(taco.quantity, 8);
   assert.match((taco.elviNotes || []).join(" "), /tortilla/i);
 });
+
+test("fried quesadillas with no style are not rung as regular", async () => {
+  const cart = await shadowCart(["Tres quesadillas fritas de cabeza."]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 3);
+  assert.match(String(cart[0].itemId), /dorada/);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Cabeza/);
+  assert.match((cart[0].elviNotes || []).join(" "), /regular o preparada/);
+});
+
+test("english fried quesadillas also ask instead of assuming regular", async () => {
+  const cart = await shadowCart(["Three fried quesadillas with carnitas."]);
+  assert.equal(cart.length, 1);
+  assert.equal(cart[0].quantity, 3);
+  assert.doesNotMatch(JSON.stringify(cart[0].modifiers), /REGULAR/);
+  assert.match(JSON.stringify(cart[0].modifiers), /Carnitas/);
+  assert.match((cart[0].elviNotes || []).join(" "), /regular o preparada/);
+});
+
+test("fried quesadillas that say preparada stay deluxe and leave the tacos alone", async () => {
+  const asked = await shadowCart(["Tres quesadillas fritas preparadas de cabeza."]);
+  assert.equal(asked.length, 1);
+  assert.match(JSON.stringify(asked[0].modifiers), /DELUXE/);
+  assert.equal((asked[0].elviNotes || []).some((note: string) => /regular o preparada/.test(note)), false);
+  const cart = await shadowCart(["Dos tacos de harina de pollo.", "Y tres quesadillas fritas de cabeza."]);
+  const taco = cart.find((line: any) => /^sq-taco-/.test(String(line.itemId)));
+  const dorada = cart.find((line: any) => /cabeza/i.test(JSON.stringify(line.modifiers)));
+  assert.ok(taco);
+  assert.equal(taco.quantity, 2);
+  assert.match(JSON.stringify(taco.modifiers), /Harina|Flour/);
+  assert.match(JSON.stringify(taco.modifiers), /Pollo/);
+  assert.equal((taco.elviNotes || []).some((note: string) => /regular o preparada/.test(note)), false);
+  assert.ok(dorada);
+  assert.doesNotMatch(JSON.stringify(dorada.modifiers), /REGULAR/);
+  assert.match((dorada.elviNotes || []).join(" "), /regular o preparada/);
+});
